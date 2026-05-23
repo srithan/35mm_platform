@@ -8,10 +8,8 @@ import { BodyPortal } from "@/components/BodyPortal/BodyPortal";
 import { Button } from "@/components/Button";
 import { cn } from "@/lib/utils/cn";
 import { useScrollLock } from "@/lib/hooks/useScrollLock";
-import { DiscoverTabs, type DiscoverTab } from "./DiscoverTabs";
+import type { DiscoverTab } from "./DiscoverTabs";
 import { ExploreTabContent } from "./ExploreTabContent";
-import { TrendingTabContent } from "./TrendingTabContent";
-import { TopRatedTabContent } from "./TopRatedTabContent";
 import { NowPlayingTabContent } from "./NowPlayingTabContent";
 import { TVShowsTabContent } from "./TVShowsTabContent";
 import { GenreFilterStrip } from "./GenreFilterStrip";
@@ -99,7 +97,6 @@ export function DiscoverContent() {
 
   return (
     <div className="min-h-full w-full bg-bg md:max-w-none md:mx-0">
-      <DiscoverTabs active={activeTab} onSelect={setActiveTab} />
       <div className="mx-auto w-full max-w-[1280px] px-4 pb-10 pt-safe md:px-6 lg:pt-0">
         <header className="flex flex-col gap-4 border-b border-border py-4 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
@@ -154,14 +151,8 @@ export function DiscoverContent() {
               exploreFilters={exploreFilters}
             />
           ) : null}
-          {activeTab === "Trending" ? (
-            <TrendingTabContent onOpenDetail={goToTitle} />
-          ) : null}
           {activeTab === "TV Shows" ? (
             <TVShowsTabContent onOpenDetail={goToTitle} />
-          ) : null}
-          {activeTab === "Top Rated" ? (
-            <TopRatedTabContent onOpenDetail={goToTitle} />
           ) : null}
           {activeTab === "Now Playing" ? (
             <NowPlayingTabContent onOpenDetail={goToTitle} />

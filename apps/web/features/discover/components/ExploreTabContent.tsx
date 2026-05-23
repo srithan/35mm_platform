@@ -3,7 +3,12 @@
 import { HeroCard } from "./HeroCard";
 import { FilmShelf } from "./FilmShelf";
 import { SearchResultsView } from "./SearchResultsView";
-import { usePopular, useNowPlaying, useSearchMulti } from "../hooks/useDiscoverData";
+import {
+  usePopular,
+  useNowPlaying,
+  useSearchMulti,
+  useTrending,
+} from "../hooks/useDiscoverData";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import type { DiscoverMoodId } from "../lib/discoverMoodFilters";
 import {
@@ -28,20 +33,15 @@ function uniqueFilms(films: TMDBMovie[]) {
   });
 }
 
-function filmsByGenre(
-  films: TMDBMovie[],
-  genreIds: number[],
-  fallbackStart: number,
-  fallbackEnd: number
-) {
+function filmsByGenre(films: TMDBMovie[], genreIds: number[]) {
   const matching = films.filter(function (film) {
     return film.genre_ids?.some(function (id) {
       return genreIds.includes(id);
     });
   });
 
-  if (matching.length >= 5) return matching.slice(0, 12);
-  return films.slice(fallbackStart, fallbackEnd);
+  if (matching.length < 5) return [];
+  return matching.slice(0, 12);
 }
 
 export function ExploreTabContent({
@@ -53,9 +53,12 @@ export function ExploreTabContent({
 }: ExploreTabContentProps) {
   const { movies: popular } = usePopular(genreId, moodId, exploreFilters);
   const { movies: nowPlaying } = useNowPlaying(genreId, moodId, exploreFilters);
-  const recentShelfTitle = discoverUsesTvMedia(exploreFilters.typeId)
-    ? "Recently aired"
-    : "Now playing";
+  const { movies: trending } = useTrending();
+  const usesTv = discoverUsesTvMedia(exploreFilters.typeId);
+  const recentShelfTitle = usesTv ? "Recently aired" : "Now playing";
+  const recentShelfSubtitle = usesTv
+    ? "Series and episodes currently on the air."
+    : "Films in theaters now, from TMDB's now playing list.";
   const { movies: searchResults, loading: searchLoading } = useSearchMulti(searchQuery);
 
   const editorPick = popular[0];
@@ -72,14 +75,10 @@ export function ExploreTabContent({
     return !excludeIds.includes(f.id);
   });
   const blendedFilms = uniqueFilms([...popularFiltered, ...nowPlayingFiltered]);
-  const quietSciFi = filmsByGenre(blendedFilms, [878, 18, 9648], 6, 18);
-  const unrealCinematography = filmsByGenre(
-    blendedFilms,
-    [12, 14, 36, 10752],
-    12,
-    24
-  );
-  const conversationFilms = blendedFilms.slice(0, 14);
+  const sciFiDramaMystery = filmsByGenre(blendedFilms, [878, 18, 9648]);
+  const adventureFantasyHistory = filmsByGenre(blendedFilms, [12, 14, 36, 10752]);
+  const trendingFilms = trending.slice(0, 14);
+  const popularFilms = popularFiltered.slice(0, 14);
   const newAndNear = uniqueFilms(nowPlayingFiltered).slice(0, 14);
 
   const isSearchActive = searchQuery.trim().length > 0;
@@ -99,29 +98,44 @@ export function ExploreTabContent({
             <div>
               <HeroCard
                 film={editorPick}
-                label="Editor's Pick"
+                label="Popular pick"
                 onOpenDetail={onOpenDetail}
               />
             </div>
           ) : null}
 
-          <div className="mt-8">
-            <FilmShelf
-              title="Films That Broke The Internet"
-              subtitle="The titles people are opening, rating, and arguing about right now."
-              films={conversationFilms}
-              onFilmClick={onOpenDetail}
-            />
-          </div>
+          {trendingFilms.length > 0 ? (
+            <div className="mt-8">
+              <FilmShelf
+                title="Trending this week"
+                subtitle="What’s rising across movies and TV on TMDB this week."
+                films={trendingFilms}
+                onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : null}
 
-          <div className="mt-8">
-            <FilmShelf
-              title={recentShelfTitle}
-              subtitle="Fresh releases and current runs worth catching before the moment passes."
-              films={newAndNear}
-              onFilmClick={onOpenDetail}
-            />
-          </div>
+          {popularFilms.length > 0 ? (
+            <div className="mt-8">
+              <FilmShelf
+                title="Popular films"
+                subtitle="Top titles from TMDB’s popular list."
+                films={popularFilms}
+                onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : null}
+
+          {newAndNear.length > 0 ? (
+            <div className="mt-8">
+              <FilmShelf
+                title={recentShelfTitle}
+                subtitle={recentShelfSubtitle}
+                films={newAndNear}
+                onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : null}
 
           {featuredRelease ? (
             <div className="mt-8">
@@ -133,23 +147,27 @@ export function ExploreTabContent({
             </div>
           ) : null}
 
-          <div className="mt-8">
-            <FilmShelf
-              title="Quiet Sci-Fi Gems"
-              subtitle="Strange worlds, thoughtful tension, and late-night discoveries."
-              films={quietSciFi}
-              onFilmClick={onOpenDetail}
-            />
-          </div>
+          {sciFiDramaMystery.length > 0 ? (
+            <div className="mt-8">
+              <FilmShelf
+                title="Sci-fi, drama & mystery"
+                subtitle="Titles tagged with science fiction, drama, or mystery in your current browse."
+                films={sciFiDramaMystery}
+                onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : null}
 
-          <div className="mt-8">
-            <FilmShelf
-              title="Films With Unreal Cinematography"
-              subtitle="Big images, sharp atmosphere, and frames that linger."
-              films={unrealCinematography}
-              onFilmClick={onOpenDetail}
-            />
-          </div>
+          {adventureFantasyHistory.length > 0 ? (
+            <div className="mt-8">
+              <FilmShelf
+                title="Adventure, fantasy & history"
+                subtitle="Epic adventures, fantasy, historical dramas, and war stories from your browse."
+                films={adventureFantasyHistory}
+                onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : null}
         </>
       )}
     </div>

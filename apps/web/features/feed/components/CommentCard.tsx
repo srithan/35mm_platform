@@ -131,17 +131,18 @@ export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
   return (
     <div
       className={cn(
-        "w-full px-4 py-4 animate-fade-up border-b border-border last:border-b-0",
+        "CommentCard w-full px-4 py-4 animate-fade-up border-b border-border last:border-b-0",
         depth > 0 && "border-l-2 border-l-border"
       )}
-      style={
-        depth > 0
+      style={{
+        backgroundColor: "var(--color-bg)",
+        ...(depth > 0
           ? {
-            marginLeft: `${threadInsetPx}px`,
-            paddingLeft: "8px",
-          }
-          : undefined
-      }
+              marginLeft: `${threadInsetPx}px`,
+              paddingLeft: "8px",
+            }
+          : {}),
+      }}
     >
       <div className="flex items-start min-w-0">
         <UsernameLink

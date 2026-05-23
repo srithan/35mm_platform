@@ -33,9 +33,9 @@ export default function RootPage() {
       <LandingPage>
         <Suspense
           fallback={
-            <div className="relative z-10 py-8 pb-16">
+            <div className="relative z-10 py-4 pb-8">
               <div className="scene flex min-h-[320px] items-center justify-center">
-                <span className="text-[0.7rem] uppercase tracking-wider text-white/30">Loading films...</span>
+                <span className="text-[0.7rem] uppercase tracking-wider text-[#bbb]">Loading films...</span>
               </div>
             </div>
           }
@@ -53,7 +53,7 @@ export default function RootPage() {
         Skip to main content
       </a>
       <ShellGrid>
-        <div className="min-h-full" style={{ backgroundColor: "var(--color-bg)" }}>
+        <div className="min-h-full">
           <FeedWithComposer>
             <InfinitePostList />
           </FeedWithComposer>

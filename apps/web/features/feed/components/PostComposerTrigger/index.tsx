@@ -65,13 +65,13 @@ function TriggerTool({ label, icon }: { label: string; icon?: React.ReactNode })
 
 export function PostComposerTrigger({ onOpen, user }: PostComposerTriggerProps) {
   return (
-    <div className="pb-4">
+    <div className="PostComposerTrigger mt-4 pt-4 pb-4 rounded-lg">
       <button
         type="button"
         onClick={onOpen}
         className={cn(
           "w-full bg-elevated border-0 border-b border-border text-left cursor-pointer",
-          "transition-[border-color] duration-150 ease-out",
+          "transition-[border-color] duration-150 ease-out rounded-lg pt-2",
           "hover:border-border",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-fg/10"
         )}

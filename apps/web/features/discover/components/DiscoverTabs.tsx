@@ -3,9 +3,9 @@
 import { cn } from "@/lib/utils/cn";
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 
-export type DiscoverTab = "Explore" | "Trending" | "Top Rated" | "Now Playing" | "TV Shows";
+export type DiscoverTab = "Explore" | "Now Playing" | "TV Shows";
 
-const TABS: DiscoverTab[] = ["Explore", "Trending", "TV Shows", "Top Rated", "Now Playing"];
+const TABS: DiscoverTab[] = ["Explore", "TV Shows", "Now Playing"];
 
 interface DiscoverTabsProps {
   active: DiscoverTab;

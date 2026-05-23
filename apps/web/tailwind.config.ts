@@ -108,6 +108,10 @@ const config: Config = {
           from: { transform: "translateY(var(--video-slide-amount, -100%))" },
           to: { transform: "translateY(0)" },
         },
+        skeletonShimmer: {
+          "0%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
       },
       animation: {
         "fade-up": "fadeUp 0.35s ease both",
@@ -116,6 +120,10 @@ const config: Config = {
         "video-fade-in": "videoFadeIn 180ms ease both",
         "video-slide-up": "videoSlideUp 280ms ease both",
         "video-slide-down": "videoSlideDown 280ms ease both",
+        "skeleton-shimmer": "skeletonShimmer 1.6s ease-in-out infinite",
+      },
+      backgroundSize: {
+        "skeleton-shimmer": "200% 100%",
       },
     },
   },

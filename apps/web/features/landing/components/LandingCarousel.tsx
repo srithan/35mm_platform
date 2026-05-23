@@ -6,14 +6,14 @@ export async function LandingCarousel() {
 
   if (films.length === 0) {
     return (
-      <div className="relative z-10 py-8 pb-16">
+      <div className="relative overflow-hidden py-2">
         <div className="scene">
           <div className="a3d" style={{ "--n": 1 } as React.CSSProperties}>
             <div
-              className="card-item w-[208px] aspect-[2/3] bg-white/5 rounded-lg flex items-center justify-center"
+              className="card-item flex w-[208px] items-center justify-center rounded-lg bg-[#fafafa] aspect-[2/3]"
               style={{ "--i": 0 } as React.CSSProperties}
             >
-              <span className="font-mono text-[0.7rem] text-white/30 uppercase tracking-wider">
+              <span className="font-mono text-[0.7rem] uppercase tracking-wider text-[#bbb]">
                 No posters available
               </span>
             </div>
@@ -24,7 +24,7 @@ export async function LandingCarousel() {
   }
 
   return (
-    <div className="relative z-10 py-8 pb-16">
+    <div className="relative overflow-hidden py-2">
       <div className="scene">
         <div
           className="a3d"

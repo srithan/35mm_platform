@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils/cn";
 import { useFeed } from "../hooks/useFeed";
 import type { Post } from "../types/feed";
 import { PostCard } from "./PostCard";
@@ -136,24 +137,80 @@ function InfiniteScrollTrigger({
   );
 }
 
-function FeedSkeleton() {
+function Skeleton({ className }: { className?: string }) {
   return (
-    <div className="flex flex-col gap-4 px-4 py-4">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="bg-elevated rounded-2xl shadow-sm p-5 animate-pulse">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-skeleton" />
-            <div className="flex flex-col gap-2">
-              <div className="w-32 h-3 rounded bg-skeleton" />
-              <div className="w-20 h-3 rounded bg-skeleton" />
-            </div>
+    <span
+      className={cn(
+        "block overflow-hidden rounded-sm",
+        "bg-gradient-to-r from-sunken via-neutral-100 to-sunken",
+        "bg-skeleton-shimmer animate-skeleton-shimmer",
+        className
+      )}
+      aria-hidden
+    />
+  );
+}
+
+function PostCardSkeleton({
+  showFilm = false,
+  animationDelay = 0,
+}: {
+  showFilm?: boolean;
+  animationDelay?: number;
+}) {
+  return (
+    <article
+      className="PostCard mb-3 w-full animate-fade-up rounded-lg px-4 py-4"
+      style={{
+        backgroundColor: "var(--color-bg)",
+        animationDelay: `${animationDelay}ms`,
+      }}
+      aria-hidden
+    >
+      <div className="flex min-w-0 items-start">
+        <Skeleton className="mr-2 h-10 w-10 shrink-0 self-start rounded-full" />
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex items-center justify-between gap-3 pr-1">
+            <Skeleton className="h-3 max-w-[58%] flex-1 rounded" />
+            <Skeleton className="h-6 w-6 shrink-0 rounded-md opacity-50" />
           </div>
+
           <div className="space-y-2">
-            <div className="w-full h-3 rounded bg-skeleton" />
-            <div className="w-4/5 h-3 rounded bg-skeleton" />
+            <Skeleton className="h-4 w-[72%] rounded" />
+            <Skeleton className="h-3.5 w-full rounded" />
+            <Skeleton className="h-3.5 w-[84%] rounded" />
+          </div>
+
+          {showFilm ? (
+            <div className="mt-3.5 flex overflow-hidden rounded border border-border/50">
+              <Skeleton className="h-[88px] w-[72px] shrink-0 rounded-none" />
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 py-3">
+                <Skeleton className="h-3 w-[75%] rounded" />
+                <Skeleton className="h-2.5 w-[48%] rounded" />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="-ml-1 mt-3.5 flex items-center gap-4">
+            {Array.from({ length: 4 }).map((_, actionIndex) => (
+              <Skeleton
+                key={actionIndex}
+                className="h-7 w-7 shrink-0 rounded-full opacity-80"
+              />
+            ))}
           </div>
         </div>
-      ))}
+      </div>
+    </article>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <div>
+      <PostCardSkeleton animationDelay={0} />
+      <PostCardSkeleton showFilm animationDelay={60} />
+      <PostCardSkeleton animationDelay={120} />
     </div>
   );
 }

@@ -209,6 +209,7 @@ export function PostCard({
 
   return (
     <article
+      style={{ backgroundColor: "var(--color-bg)" }}
       onClick={isPostDetailView ? undefined : handleCardClick}
       role={postId && !isPostDetailView ? "link" : undefined}
       tabIndex={postId && !isPostDetailView ? 0 : undefined}
@@ -223,7 +224,7 @@ export function PostCard({
           : undefined
       }
       className={cn(
-        "w-full border-b border-border px-4 py-4",
+        "PostCard w-full rounded-lg border-b border-border px-4 py-4 mb-3",
         !disableAnimation && "animate-fade-up",
         postId && !isPostDetailView && "cursor-pointer hover:bg-hover transition-colors",
         !disableAnimation && animationDelay && `[animation-delay:${animationDelay}ms]`

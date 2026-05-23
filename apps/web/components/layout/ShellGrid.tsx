@@ -88,7 +88,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
           id="main-content"
           className={cn(
             /* Horizontal clip lives on <html>; overflow-x on <main> breaks position:sticky for TopStickyBar. */
-            "w-full pb-20 md:pb-0",
+            "w-full bg-[#F2F3F4] pb-20 md:pb-0",
             useHomeRailLayout
               ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
               : useProfileRailLayout
