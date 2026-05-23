@@ -1,0 +1,357 @@
+"use client";
+
+import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { cn } from "@/lib/utils/cn";
+import { useScrollLock } from "@/lib/hooks/useScrollLock";
+import { popModalFocusSnapshot, pushModalFocusSnapshot } from "@/lib/modal/focusStack";
+
+type Focusable = HTMLElement & { disabled?: boolean };
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "area[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function isElementHidden(el: HTMLElement): boolean {
+  if (!el.isConnected) return true;
+  const style = window.getComputedStyle(el);
+  if (style.visibility === "hidden" || style.display === "none") return true;
+  let node: HTMLElement | null = el;
+  while (node) {
+    if (node.getAttribute("aria-hidden") === "true") return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
+function getFocusableInContainer(container: HTMLElement): Focusable[] {
+  return Array.from(container.querySelectorAll<Focusable>(FOCUSABLE_SELECTOR)).filter(
+    function (el) {
+      if (el.disabled) return false;
+      if (el.getAttribute("tabindex") === "-1") return false;
+      if (isElementHidden(el)) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 || rect.height > 0;
+    }
+  );
+}
+
+const PRIMARY_FIELD_SELECTOR =
+  "input:not([disabled]):not([type='hidden']):not([type='button']), textarea:not([disabled]), select:not([disabled])";
+
+function pickInitialFocusTarget(
+  container: HTMLElement,
+  initialFocusRef: RefObject<HTMLElement | null> | undefined,
+  initialFocusWithinSelector: string | undefined
+): HTMLElement {
+  if (initialFocusRef && initialFocusRef.current) {
+    return initialFocusRef.current;
+  }
+  if (initialFocusWithinSelector) {
+    const scope = container.querySelector(initialFocusWithinSelector);
+    if (scope instanceof HTMLElement) {
+      const scoped = getFocusableInContainer(scope);
+      for (let i = 0; i < scoped.length; i++) {
+        const el = scoped[i];
+        if (el.matches(PRIMARY_FIELD_SELECTOR)) {
+          return el;
+        }
+      }
+      if (scoped.length > 0) {
+        return scoped[0];
+      }
+    }
+  }
+  const focusables = getFocusableInContainer(container);
+  return focusables[0] || container;
+}
+
+export type ModalVariant = "centered" | "lightbox" | "bare";
+
+export interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  /** Accessible name when no visible title (required if ariaLabelledBy omitted). */
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
+  ariaDescribedBy?: string;
+  /** dialog (default) or alertdialog for confirmations. */
+  role?: "dialog" | "alertdialog";
+  children: ReactNode;
+  variant?: ModalVariant;
+  /** Extra class for the full-screen container. */
+  containerClassName?: string;
+  /** Extra class for the backdrop. */
+  backdropClassName?: string;
+  /** Extra class for the content panel. */
+  contentClassName?: string;
+  /** Whether clicking the backdrop closes the modal. */
+  closeOnBackdrop?: boolean;
+  /** Whether pressing Escape closes the modal. */
+  closeOnEsc?: boolean;
+  /** Push/pop global focus stack on open/close (nested modals). */
+  restoreFocus?: boolean;
+  /** Optional element to focus first. */
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * When set, initial focus prefers the first text field inside this selector
+   * (e.g. `[data-dialog-body]`) so header close buttons do not steal focus.
+   */
+  initialFocusWithinSelector?: string;
+  /** Trap Tab within the modal panel. */
+  trapFocus?: boolean;
+  /** Lock document scroll while open. */
+  lockScroll?: boolean;
+  /** z-index: "modal" | "lightbox" or arbitrary Tailwind z class. */
+  zIndex?: "modal" | "lightbox" | string;
+  /** Framer Motion enter/exit. Set false for instant open/close (legacy viewers, confirms). */
+  animated?: boolean;
+}
+
+const VARIANT_PANEL: Record<ModalVariant, string> = {
+  centered:
+    "relative max-h-[calc(100vh-32px)] w-full max-w-3xl overflow-hidden rounded-2xl bg-elevated border border-border shadow-2xl font-sans",
+  lightbox:
+    "relative max-h-[90vh] w-full max-w-[min(96vw,56rem)] overflow-visible rounded-lg border border-white/10 bg-transparent shadow-2xl font-sans",
+  bare: "relative w-full max-w-none overflow-visible rounded-none border-0 bg-transparent shadow-none font-sans",
+};
+
+const VARIANT_CONTAINER: Record<ModalVariant, string> = {
+  centered: "fixed inset-0 flex items-center justify-center p-4",
+  lightbox: "fixed inset-0 flex items-center justify-center p-6 sm:p-10",
+  bare: "fixed inset-0 flex items-center justify-center p-0",
+};
+
+const VARIANT_BACKDROP: Record<ModalVariant, string> = {
+  centered: "absolute inset-0 bg-black/60 backdrop-blur-sm",
+  lightbox: "absolute inset-0 bg-black/85 backdrop-blur-md",
+  bare: "absolute inset-0 bg-black/40 backdrop-blur-[2px]",
+};
+
+const VARIANT_PANEL_MOTION = {
+  centered: {
+    initial: { opacity: 0, scale: 0.98, y: 6 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.98, y: 6 },
+  },
+  lightbox: {
+    initial: { opacity: 0, scale: 0.96 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.96 },
+  },
+  bare: {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+  },
+} as const;
+
+export function Modal({
+  open,
+  onClose,
+  ariaLabel,
+  ariaLabelledBy,
+  ariaDescribedBy,
+  role = "dialog",
+  children,
+  variant = "centered",
+  containerClassName,
+  backdropClassName,
+  contentClassName,
+  closeOnBackdrop = true,
+  closeOnEsc = true,
+  restoreFocus = true,
+  initialFocusRef,
+  initialFocusWithinSelector,
+  trapFocus = true,
+  lockScroll = true,
+  zIndex,
+  animated = true,
+}: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(function () {
+    setMounted(true);
+  }, []);
+
+  useEffect(
+    function () {
+      if (!open) return;
+      if (restoreFocus) {
+        pushModalFocusSnapshot(document.activeElement as HTMLElement | null);
+      }
+      return function () {
+        if (restoreFocus) {
+          popModalFocusSnapshot();
+        }
+      };
+    },
+    [open, restoreFocus]
+  );
+
+  useScrollLock(open && lockScroll);
+
+  useEffect(
+    function () {
+      if (!open || !trapFocus) return;
+      const container = contentRef.current;
+      if (!container) return;
+
+      const runFocus = function () {
+        const target = pickInitialFocusTarget(
+          container,
+          initialFocusRef,
+          initialFocusWithinSelector
+        );
+        target.focus({ preventScroll: true });
+      };
+
+      const raf = requestAnimationFrame(runFocus);
+
+      const handleKey = function (e: KeyboardEvent) {
+        const focusables = getFocusableInContainer(container);
+        if (e.key === "Tab" && focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey) {
+            if (document.activeElement === first) {
+              e.preventDefault();
+              last.focus({ preventScroll: true });
+            }
+          } else {
+            if (document.activeElement === last) {
+              e.preventDefault();
+              first.focus({ preventScroll: true });
+            }
+          }
+        }
+        if (closeOnEsc && e.key === "Escape") {
+          e.stopPropagation();
+          onCloseRef.current();
+        }
+      };
+
+      container.addEventListener("keydown", handleKey);
+      return function () {
+        cancelAnimationFrame(raf);
+        container.removeEventListener("keydown", handleKey);
+      };
+    },
+    [open, closeOnEsc, initialFocusRef, initialFocusWithinSelector, trapFocus]
+  );
+
+  useEffect(
+    function () {
+      if (!open || trapFocus) return;
+      if (!closeOnEsc) return;
+      const onDoc = function (e: KeyboardEvent) {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onCloseRef.current();
+        }
+      };
+      document.addEventListener("keydown", onDoc, true);
+      return function () {
+        document.removeEventListener("keydown", onDoc, true);
+      };
+    },
+    [open, closeOnEsc, trapFocus]
+  );
+
+  if (!mounted) return null;
+
+  const defaultZ =
+    variant === "lightbox" ? "z-[var(--z-modal-lightbox)]" : "z-[var(--z-modal)]";
+  const zClass =
+    zIndex === "lightbox"
+      ? "z-[var(--z-modal-lightbox)]"
+      : zIndex === "modal"
+        ? "z-[var(--z-modal)]"
+        : zIndex
+          ? zIndex
+          : defaultZ;
+
+  const pm = VARIANT_PANEL_MOTION[variant];
+
+  if (!animated) {
+    return createPortal(
+      open ? (
+        <div className={cn(VARIANT_CONTAINER[variant], zClass, containerClassName)}>
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className={cn(VARIANT_BACKDROP[variant], backdropClassName)}
+            onClick={closeOnBackdrop ? onClose : undefined}
+          />
+          <div
+            role={role}
+            aria-modal="true"
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
+            ref={contentRef}
+            className={cn(VARIANT_PANEL[variant], contentClassName)}
+          >
+            {children}
+          </div>
+        </div>
+      ) : null,
+      document.body
+    );
+  }
+
+  return createPortal(
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="modal-root"
+          className={cn(VARIANT_CONTAINER[variant], zClass, containerClassName)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.button
+            key="backdrop"
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className={cn(VARIANT_BACKDROP[variant], backdropClassName)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeOnBackdrop ? onClose : undefined}
+          />
+
+          <motion.div
+            key="panel"
+            role={role}
+            aria-modal="true"
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
+            ref={contentRef}
+            initial={pm.initial}
+            animate={pm.animate}
+            exit={pm.exit}
+            transition={{ type: "spring", damping: 26, stiffness: 240, mass: 0.9 }}
+            className={cn(VARIANT_PANEL[variant], contentClassName)}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>,
+    document.body
+  );
+}

@@ -1,0 +1,99 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/Button";
+import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
+import { SettingsRow, SettingsSection } from "./SettingsFormPrimitives";
+
+export function SettingsDataSecurityPanel() {
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  return (
+    <div className="space-y-10">
+      <SettingsSection title="Data & storage">
+        <div className="space-y-0">
+          <SettingsRow
+            label="Download your data"
+            description="Request a copy of your data"
+            href="#"
+          />
+          <div className="border-t border-border pt-4 mt-0">
+            <SettingsRow
+              label="Clear cache"
+              description="Free up storage used by cached content"
+              onClick={() => { }}
+            />
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Danger zone">
+        <div className="space-y-0 pt-2">
+          <div className="flex items-center justify-between py-3.5 border-b border-border">
+            <div>
+              <span className="text-[13px] text-fg-light block">
+                Deactivate account temporarily
+              </span>
+              <span className="text-[11.5px] text-fg-muted mt-0.5 block">
+                Hide your profile and content. Reactivate anytime by signing in.
+              </span>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="border-fg-muted/50 text-fg-muted hover:border-fg-muted hover:text-fg"
+              onClick={() => setDeactivateOpen(true)}
+            >
+              Deactivate
+            </Button>
+          </div>
+          <div className="flex items-center justify-between py-3.5">
+            <div>
+              <span className="text-[13px] text-fg-light block">
+                Delete account
+              </span>
+              <span className="text-[11.5px] text-fg-muted mt-0.5 block">
+                Permanently delete your account and all data
+              </span>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="border-accent/50 text-accent hover:border-accent hover:bg-accent/5"
+              onClick={() => setDeleteOpen(true)}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <ConfirmDialog
+        open={deactivateOpen}
+        onClose={() => setDeactivateOpen(false)}
+        onConfirm={() => {
+          // TODO: call deactivate API
+        }}
+        title="Deactivate your account?"
+        description="Your profile and content will be hidden. You can reactivate anytime by signing back in."
+        confirmLabel="Deactivate"
+        cancelLabel="Keep my account"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          // TODO: call delete account API
+        }}
+        title="Delete your account permanently?"
+        description="This action cannot be undone. All your posts, reviews, and data will be permanently removed."
+        confirmLabel="Delete my account"
+        cancelLabel="No, keep my account"
+        variant="danger"
+      />
+    </div>
+  );
+}

@@ -1,0 +1,913 @@
+.siteNav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Fixed on desktop so the bar stays on screen while the document scrolls (overflow-x on an ancestor breaks sticky). */
+@media (min-width: 768px) {
+    .siteNav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        /* Matches body padding when scroll is locked (fixed ignores body padding). Set by useScrollLock. */
+        padding-right: var(--app-scrollbar-gutter, 0px);
+    }
+}
+
+.navMain {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 640px) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.75rem;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0.55rem 1rem;
+    min-height: 3.75rem;
+    position: relative;
+}
+
+.navLeft {
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.standaloneSearch {
+    flex: 1 1 0;
+    min-width: 10rem;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.65rem;
+    background: var(--sunken);
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    color: var(--fg-muted);
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.standaloneSearch:focus-within {
+    border-color: var(--border-strong);
+    color: var(--fg);
+}
+
+.standaloneSearchInput {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--fg);
+    outline: none;
+}
+
+.standaloneSearchInput::placeholder {
+    color: var(--fg-faint);
+}
+
+.navLogo {
+    flex-shrink: 0;
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    text-decoration: none;
+    line-height: 1;
+}
+
+.navLogo:hover {
+    opacity: 0.85;
+}
+
+.dot {
+    color: var(--accent);
+}
+
+.navCenter {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.navItems {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.navItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    flex: 0 0 auto;
+    width: 6.5rem;
+    min-height: 3.25rem;
+    padding: 0.45rem 0.35rem;
+    border-radius: 0.85rem;
+    text-decoration: none;
+    color: var(--fg-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.navItem:hover {
+    color: var(--fg);
+    background: var(--color-bg-hover);
+}
+
+.navItem:active {
+    transform: scale(0.97);
+}
+
+.navItem.active {
+    color: var(--fg);
+    font-weight: 700;
+    background: var(--color-bg-active);
+}
+
+.navItem:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.navItemIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+.navItemIcon svg {
+    display: block;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.navItemText {
+    text-align: center;
+    line-height: 1.15;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.navActions {
+    justify-self: end;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+/* Shared size for .btnNotif and popover caret centering (must match .btnNotif width) */
+.notifWrap {
+    --notif-btn-size: 2.65rem;
+    --notif-caret: 0.55rem;
+    position: relative;
+}
+
+/* Profile trigger: .navAvatar (2rem) + border + img margin — centers caret on the avatar */
+.profileMenuWrap {
+    --notif-btn-size: calc(0.35rem + 2rem + 4px);
+    --notif-caret: 0.5rem;
+}
+
+.btnNotif {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--notif-btn-size);
+    height: var(--notif-btn-size);
+    padding: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    background: transparent;
+    /* Stronger than fg-muted so icons read in the chrome */
+    color: var(--fg-light);
+    cursor: pointer;
+    transition:
+        background 0.16s ease,
+        color 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.16s ease;
+}
+
+.btnNotif svg {
+    display: block;
+    width: 1.3125rem;
+    height: 1.3125rem;
+    flex-shrink: 0;
+}
+
+.btnNotif:hover {
+    background: var(--color-bg-hover);
+    color: var(--fg);
+    border-color: var(--border-strong);
+}
+
+/* Open dropdown: pressed / recessed (skeuomorphic well) */
+.btnNotif[aria-expanded="true"] {
+    background: var(--sunken);
+    color: var(--fg);
+    border-color: color-mix(in srgb, var(--fg) 12%, var(--border));
+    box-shadow:
+        inset 0 2px 3px color-mix(in srgb, var(--fg) 8%, transparent),
+        inset 0 3px 6px color-mix(in srgb, var(--fg) 4%, transparent),
+        inset 0 -1px 0 color-mix(in srgb, var(--bg) 40%, var(--fg));
+    transform: translateY(0.5px);
+}
+
+.btnNotif[aria-expanded="true"]:hover {
+    background: color-mix(in srgb, var(--sunken) 88%, var(--fg));
+    border-color: color-mix(in srgb, var(--fg) 16%, var(--border));
+    color: var(--fg);
+    box-shadow:
+        inset 0 2px 3px color-mix(in srgb, var(--fg) 10%, transparent),
+        inset 0 3px 6px color-mix(in srgb, var(--fg) 5%, transparent),
+        inset 0 -1px 0 color-mix(in srgb, var(--bg) 45%, var(--fg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btnNotif[aria-expanded="true"] {
+        transform: none;
+    }
+}
+
+/* When a count shows, keep the glyph from sitting under the badge */
+.btnNotif:has(.btnNotifBadge) {
+    /* Icon nudged slightly; badge sits on the outside corner */
+    padding: 0 0.1rem 0.05rem 0;
+}
+
+.btnNotif:has(.btnNotifBadge) svg {
+    transform: translate(-0.07rem, 0.04rem);
+}
+
+/* Color from global .unread-notification-badge (red; theme overrides in globals.css) */
+.btnNotifBadge {
+    position: absolute;
+    top: 0.05rem;
+    right: 0.05rem;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    /* Sit on the rim so the bell/chat stroke stays legible */
+    box-shadow: 0 0 0 1.5px var(--bg);
+    transform: translate(20%, -12%);
+    z-index: 1;
+}
+
+.notifPanel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: min(24rem, calc(100vw - 2rem));
+    max-height: min(90vh, 45rem);
+    background: var(--elevated);
+    border: 1px solid color-mix(in srgb, var(--fg) 10%, var(--border));
+    border-radius: 0.75rem;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.03),
+        0 8px 24px -8px rgba(0, 0, 0, 0.12);
+    /* allow popover caret above; scroll stays on .notifList */
+    overflow: visible;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Flat neutral shell — no accent gradient */
+.panelMessages,
+.panelNotifications {
+    background: var(--elevated);
+}
+
+/* Upward chevron: centered on .btnNotif when panel is right-aligned to .notifWrap */
+.notifPanelArrow {
+    position: absolute;
+    right: calc((var(--notif-btn-size) - var(--notif-caret)) / 2);
+    top: -0.32rem;
+    z-index: 1;
+    width: var(--notif-caret);
+    height: var(--notif-caret);
+    margin: 0;
+    padding: 0;
+    pointer-events: none;
+    box-sizing: border-box;
+    background: var(--elevated);
+    border-left: 1px solid color-mix(in srgb, var(--fg) 10%, var(--border));
+    border-top: 1px solid color-mix(in srgb, var(--fg) 10%, var(--border));
+    transform: rotate(45deg);
+    box-shadow:
+        -0.5px -0.5px 0 0 color-mix(in srgb, var(--fg) 4%, transparent);
+}
+
+/* Match .profileMenu border (so the join is clean) */
+.notifPanelArrowProfile {
+    border-left-color: color-mix(in srgb, var(--border) 70%, transparent);
+    border-top-color: color-mix(in srgb, var(--border) 70%, transparent);
+    box-shadow:
+        -0.5px -0.5px 0 0 color-mix(in srgb, var(--fg) 3%, transparent);
+}
+
+.notifPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+    flex-shrink: 0;
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.75rem;
+}
+
+.notifPanelHeading {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    line-height: 1.2;
+}
+
+.dropdownHeaderAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+    border-radius: 0.375rem;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--fg-muted);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.dropdownHeaderAction:hover {
+    background: var(--sunken);
+    color: var(--fg);
+    border-color: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+
+.dropdownHeaderAction:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--fg) 22%, transparent);
+}
+
+.notifList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    /* ~15+ rows visible when many items; short lists stay compact */
+    max-height: min(32rem, calc(100vh - 7.5rem));
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dropdownListItem {
+    margin: 0;
+    padding: 0;
+}
+
+/* Read / unread: dot on the row end (filled vs ring) */
+.rowDot {
+    flex-shrink: 0;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    box-sizing: border-box;
+    align-self: flex-start;
+}
+
+.rowDotTrailing {
+    margin-top: 0;
+    margin-left: auto;
+    align-self: center;
+}
+
+.rowDotUnread {
+    background: color-mix(in srgb, var(--fg) 78%, transparent);
+}
+
+.rowDotRead {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fg) 22%, transparent);
+}
+
+.dropdownRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.dropdownRowNotif {
+    gap: 0.45rem;
+}
+
+.dropdownRowMessage {
+    gap: 0.5rem;
+}
+
+.dropdownListItem:last-child .dropdownRow {
+    border-bottom: none;
+}
+
+.dropdownRow:hover {
+    background: var(--sunken);
+}
+
+.dropdownRow:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+
+/* Read: calmer typography — clearly "already seen" */
+.dropdownRowRead {
+    background: transparent;
+}
+
+.dropdownRowMessage.dropdownRowRead .dropdownUsername {
+    font-weight: 500;
+    color: var(--fg-light);
+}
+
+.dropdownRowMessage.dropdownRowRead .dropdownPreview {
+    color: var(--fg-faint);
+    font-weight: 400;
+}
+
+.dropdownRowNotif.dropdownRowRead .dropdownNotifText {
+    color: var(--fg-light);
+    font-weight: 400;
+}
+
+.dropdownRowNotif.dropdownRowRead .dropdownNotifText strong {
+    font-weight: 600;
+    color: var(--fg-light);
+}
+
+.dropdownRowNotif.dropdownRowRead .dropdownNotifText em {
+    color: var(--fg-muted);
+}
+
+.dropdownRowNotif.dropdownRowRead .dropdownNotifTime {
+    color: var(--fg-faint);
+}
+
+/* Unread row: slightly more weight; status is the leading dot */
+.dropdownRowUnread {
+    background: color-mix(in srgb, var(--fg) 4%, var(--elevated));
+}
+
+.dropdownRowUnread:hover {
+    background: color-mix(in srgb, var(--fg) 6%, var(--elevated));
+}
+
+.dropdownRowMessage.dropdownRowUnread .dropdownUsername {
+    font-weight: 700;
+    color: var(--fg);
+}
+
+.dropdownRowMessage.dropdownRowUnread .dropdownPreview {
+    color: var(--fg-muted);
+    font-weight: 500;
+}
+
+.dropdownRowNotif.dropdownRowUnread .dropdownNotifText {
+    color: var(--fg);
+    font-weight: 500;
+}
+
+.dropdownRowNotif.dropdownRowUnread .dropdownNotifText strong {
+    font-weight: 700;
+    color: var(--fg);
+}
+
+.dropdownRowAvatar {
+    flex-shrink: 0;
+    padding-top: 0.05rem;
+    border-radius: 9999px;
+}
+
+
+.dropdownTimeRow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.dropdownNotifGlyph {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.35rem;
+    margin-top: 0.1rem;
+    background: var(--sunken);
+    color: var(--fg-muted);
+    border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.dropdownNotifMetaRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+}
+
+.dropdownRowMain {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.dropdownRowTop {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.dropdownUsername {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--fg);
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
+}
+
+.dropdownTime {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    line-height: 1.35;
+    padding-top: 0.05rem;
+}
+
+.dropdownPreview {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--fg-muted);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.dropdownNotifText {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--fg);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.dropdownNotifText strong {
+    font-weight: 600;
+}
+
+.dropdownNotifText em {
+    font-style: italic;
+    color: var(--fg-light);
+}
+
+.dropdownNotifTime {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+}
+
+.notifSeeAll {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--fg-muted);
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background 0.12s ease, color 0.12s ease;
+    border-bottom-left-radius: 0.7rem;
+    border-bottom-right-radius: 0.7rem;
+}
+
+.notifSeeAll:hover {
+    background: var(--sunken);
+    color: var(--fg);
+}
+
+.notifSeeAll:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+
+.btnPost {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.25rem;
+    padding: 0.45rem 0.85rem;
+    border: none;
+    border-radius: 9999px;
+    background: var(--fg);
+    color: var(--bg);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    overflow: hidden;
+    isolation: isolate;
+    transition: opacity 0.15s ease;
+}
+
+/* Light sweep (icon + label paint above) */
+.btnPost::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(
+        100deg,
+        transparent 0%,
+        color-mix(in srgb, var(--bg) 0%, transparent) 38%,
+        color-mix(in srgb, var(--bg) 48%, transparent) 50%,
+        color-mix(in srgb, var(--bg) 0%, transparent) 62%,
+        transparent 100%
+    );
+    background-size: 180% 100%;
+    background-position: 120% 0;
+    pointer-events: none;
+    animation: siteHeaderBtnPostShimmer 2.4s ease-in-out infinite;
+}
+
+.btnPost:hover {
+    opacity: 0.92;
+}
+
+.btnPost:hover::before {
+    animation-duration: 1.6s;
+}
+
+.btnPostInner {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btnPost::before {
+        animation: none;
+    }
+}
+
+@keyframes siteHeaderBtnPostShimmer {
+    0% {
+        background-position: 120% 0;
+    }
+    100% {
+        background-position: -120% 0;
+    }
+}
+
+.navAvatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    margin-left: 0.35rem;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    display: block;
+}
+
+.profileMenuTrigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 9999px;
+    line-height: 0;
+}
+
+.profileMenuTrigger .navAvatar {
+    margin-left: 0.35rem;
+}
+
+.profileMenuTrigger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.profileMenu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: min(calc(100vw - 1.5rem), 17.5rem);
+    padding: 0.375rem;
+    background: var(--elevated);
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.02),
+        0 4px 8px -2px rgba(0, 0, 0, 0.06),
+        0 16px 36px -12px rgba(0, 0, 0, 0.14);
+    z-index: 60;
+    overflow: visible;
+}
+
+.profileMenuIdentity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.5rem 0.5rem;
+    border-radius: 0.75rem;
+    text-decoration: none;
+    color: var(--fg);
+    transition: background 0.12s ease;
+}
+
+.profileMenuIdentity:hover {
+    background: var(--color-bg-hover);
+}
+
+.profileMenuIdentityAvatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px var(--elevated), 0 0 0 3px color-mix(in srgb, var(--border) 75%, transparent);
+}
+
+.profileMenuIdentityMeta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+}
+
+.profileMenuIdentityName {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+    color: var(--fg);
+}
+
+.profileMenuIdentityHint {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--fg-muted);
+}
+
+.profileMenuIdentityChevron {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    color: var(--fg-muted);
+    opacity: 0.45;
+}
+
+.profileMenuDivider {
+    height: 1px;
+    margin: 0.25rem 0.5rem 0.375rem;
+    background: var(--border);
+    opacity: 0.65;
+}
+
+.profileMenuRow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5625rem 0.5rem;
+    border-radius: 0.65rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+    text-decoration: none;
+    transition: background 0.12s ease;
+}
+
+.profileMenuRow:hover {
+    background: var(--color-bg-hover);
+}
+
+.profileMenuRowIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--fg-muted);
+}
+
+.profileMenuRowLogout {
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    box-sizing: border-box;
+    color: var(--fg-muted);
+}
+
+.profileMenuRowLogout:hover {
+    color: var(--fg);
+}
+
+.profileMenuRowLogout:hover .profileMenuRowIcon {
+    color: var(--fg-muted);
+}

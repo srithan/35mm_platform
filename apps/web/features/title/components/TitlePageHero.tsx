@@ -1,0 +1,143 @@
+import { LazyImage } from "@/components/LazyImage";
+import { posterUrl, starsFromVote } from "@/features/discover/lib/tmdb-utils";
+import { cn } from "@/lib/utils/cn";
+import type { TMDBMedia } from "@/lib/tmdb/types";
+import { titleHeroImageUrl } from "../lib/titleHeroImage";
+import { titleKindLabel } from "../lib/titleKindLabel";
+import { TitleCoverBackButton } from "./TitleCoverBackButton";
+
+function HeroStar({
+  filled,
+  half,
+  onDark,
+}: {
+  filled?: boolean;
+  half?: boolean;
+  onDark?: boolean;
+}) {
+  const emptyC = onDark ? "rgba(255,255,255,0.22)" : "var(--neutral-300)";
+  const fullC = "var(--color-film-gold)";
+  return (
+    <div
+      className="h-2.5 w-2.5 shrink-0"
+      style={{
+        clipPath:
+          "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
+        background: half
+          ? "linear-gradient(90deg, " + fullC + " 50%, " + emptyC + " 50%)"
+          : filled
+            ? fullC
+            : emptyC,
+      }}
+    />
+  );
+}
+
+type TitlePageHeroProps = {
+  detail: TMDBMedia;
+  isTv: boolean;
+  displayTitle: string;
+  metaLine: string;
+};
+
+export function TitlePageHero(props: TitlePageHeroProps) {
+  const d = props.detail;
+  const kind = titleKindLabel(d, props.isTv);
+  const heroImgSrc = titleHeroImageUrl(d.backdrop_path, d.poster_path);
+  const stars = starsFromVote(d.vote_average);
+  const fullStars = Math.floor(stars);
+  const hasHalf = stars % 1 >= 0.5;
+  const metaLine = props.metaLine;
+
+  return (
+    <div className="relative w-full min-h-0 overflow-hidden">
+      <div className="relative min-h-[min(72vh,820px)] w-full sm:min-h-[min(58vh,700px)]">
+        <TitleCoverBackButton />
+        {heroImgSrc ? (
+          <div className="absolute inset-0 scale-[1.05] will-change-transform sm:scale-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={heroImgSrc}
+              alt=""
+              className="h-full min-h-[22rem] w-full object-cover object-[center_22%]"
+            />
+          </div>
+        ) : (
+          <div className="min-h-[22rem] w-full bg-gradient-to-br from-neutral-900 via-sunken to-neutral-800" />
+        )}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-black/92 via-black/40 to-transparent"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-l from-white/0 via-black/20 to-black/68"
+          aria-hidden
+        />
+
+        <div
+          className="relative z-10 flex min-h-[min(72vh,820px)] flex-col justify-end px-4 pb-10 pt-28 sm:min-h-[min(58vh,700px)] sm:px-6 sm:pb-12 sm:pt-32 md:px-10 md:pb-14"
+        >
+          <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-7 sm:max-w-6xl sm:flex-row sm:items-end sm:gap-10 md:gap-12">
+            <div
+              className={cn(
+                "w-[9.5rem] shrink-0 sm:w-[12rem] md:w-[13.25rem]",
+                "relative aspect-[2/3] translate-y-1 overflow-hidden rounded-lg",
+                "shadow-[0_20px_50px_rgba(0,0,0,0.45)] sm:translate-y-2 sm:rounded-xl"
+              )}
+            >
+              {d.poster_path ? (
+                <LazyImage
+                  src={posterUrl(d.poster_path, "w500") || ""}
+                  alt={props.displayTitle}
+                  aspectRatio="2/3"
+                  className="h-full w-full"
+                />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1 pb-0.5 text-center sm:pb-2 sm:text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/80 sm:text-[11px]">
+                {kind}
+              </p>
+              <h1
+                className={cn(
+                  "mt-2 text-balance text-3xl font-bold leading-[1.05] tracking-[-0.03em] text-white",
+                  "[text-shadow:0_2px_4px_rgba(0,0,0,0.85),0_8px_32px_rgba(0,0,0,0.5)]",
+                  "sm:mt-2.5 sm:text-4xl md:text-[2.65rem] md:leading-[1.03]"
+                )}
+              >
+                {props.displayTitle}
+              </h1>
+              {metaLine ? (
+                <p className="mt-3 max-w-2xl text-pretty text-[14px] font-medium leading-relaxed text-white/90 sm:mx-0 sm:mt-3.5 sm:max-w-2xl sm:text-[15px] [text-shadow:0_1px_3px_rgba(0,0,0,0.85)]">
+                  {metaLine}
+                </p>
+              ) : null}
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 sm:mt-5 sm:justify-start">
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map(function (i) {
+                    return (
+                      <HeroStar
+                        key={i}
+                        filled={i <= fullStars}
+                        half={i === fullStars + 1 && hasHalf}
+                        onDark
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-[12px] font-medium tabular-nums text-white/90 [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]">
+                  {stars.toFixed(1)}
+                  <span className="text-white/55">/5</span>
+                </span>
+                <span className="text-[12px] text-white/40">·</span>
+                <span className="text-[12px] text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.75)]">
+                  {d.vote_count.toLocaleString()} ratings
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

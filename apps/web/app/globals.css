@@ -1,0 +1,1112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* ── Neutral / Gray Scale ── */
+    --neutral-50: #f6f5f3;
+    --neutral-100: #f0eeeb;
+    --neutral-200: #e8e6e2;
+    --neutral-300: #ddd9cf;
+    --neutral-400: #c8c0b2;
+    --neutral-500: #a8a8a8;
+    --neutral-600: #6b6b6b;
+    --neutral-700: #4a4a4a;
+    --neutral-800: #1c1c1c;
+    --neutral-900: #0f0f0f;
+
+    /* ── Semantic UI: Backgrounds ── */
+    --color-bg: #ffffff;
+    --color-bg-elevated: #ffffff;
+    --color-bg-sunken: #f5f5f5;
+    --color-bg-sunken-2: #eeeeee;
+    --color-bg-hover: #faf9f8;
+    --color-bg-active: var(--neutral-50);
+
+    /* ── Semantic UI: Text ── */
+    --color-text: var(--neutral-900);
+    --color-text-secondary: var(--neutral-600);
+    --color-text-tertiary: var(--neutral-500);
+
+    /* ── Semantic UI: Borders ── */
+    --color-border: rgb(239, 243, 244);
+    --color-border-strong: var(--neutral-300);
+
+    /* ── Semantic UI: Skeleton loading ── */
+    --color-skeleton: var(--neutral-200);
+    --color-skeleton-strong: var(--neutral-300);
+
+    /* ── Brand / Accent ── */
+    --color-accent: #c8432a;
+    --color-accent-hover: #b53b24;
+
+    /* ── Action feedback ── */
+    --color-like: #E4002B;
+    --color-like-bg: rgba(228, 0, 43, 0.08);
+    --color-repost: #5a9e7a;
+    --color-repost-bg: rgba(90, 158, 122, 0.08);
+    --color-success: #27ae60;
+    --color-warning: #e67e22;
+
+    /* ── Domain: Film ── */
+    --color-film-red: #c93535;
+    /* Count pills (header, tab bar, etc.) — follows --color-film-red per theme */
+    --color-unread-badge: var(--color-film-red);
+    --color-film-gold: #b8861a;
+    --color-film-gold-hover: #c8952a;
+    --color-poster-bg-from: #0f1923;
+    --color-poster-bg-to: #2c1810;
+    --color-poster-stroke: #4a5568;
+    --color-cover-end: #4a2820;
+
+    /* ── Domain: Heatmap (accent-tinted) ── */
+    --color-heat-1: #f0d8d2;
+    --color-heat-2: #e0a898;
+    --color-heat-3: #c8725a;
+
+    /* ── Domain: Discover (light: pair with dark --fg / muted text) ── */
+    --discover-hero-bg: var(--color-bg-elevated);
+    --discover-shelf-bg: #f5f5f5;
+    --discover-tab-active: #e03e3e;
+    --discover-placeholder: var(--neutral-200);
+
+    /* ── Domain: Landing page ── */
+    --landing-cream: #f5f0e8;
+    --landing-dark: #0e0c0a;
+    --landing-red: #c0392b;
+    --landing-red-light: #e74c3c;
+
+    /* ── Semantic aliases (keep existing Tailwind classes working) ── */
+    --bg: var(--color-bg);
+    --fg: var(--color-text);
+    --fg-2: var(--neutral-800);
+    --fg-light: var(--color-text-secondary);
+    --fg-muted: var(--color-text-secondary);
+    --fg-faint: var(--color-text-tertiary);
+    --accent: var(--color-accent);
+    --border: var(--color-border);
+    --border-strong: var(--color-border-strong);
+    --elevated: var(--color-bg-elevated);
+    --sunken: var(--color-bg-sunken);
+    --sunken-2: var(--color-bg-sunken-2);
+    --film-red: var(--color-film-red);
+    --film-gold: var(--color-film-gold);
+
+    /* Fallback until SiteHeader measures real height (see ResizeObserver in SiteHeader.tsx) */
+    --site-header-sticky-offset: 4.5rem;
+
+    /* Desktop main column + SiteHeader center track (ShellGrid updates on wide routes) */
+    --shell-main-max-width: 640px;
+
+    /* Main column offset below SiteHeader (no feed sub-tabs on home). */
+    --home-main-below-header-gap: 1rem;
+    /* Space between centered 640 feed and fixed suggestions rail */
+    --home-sidebar-gap: 2rem;
+
+    /* Stacking — modal backdrops above headers, drawers, dropdowns, and z-[9999] toasts/banners */
+    --z-modal: 20000;
+    --z-modal-lightbox: 20001;
+    /* Post composer (portal) — above other modals/lightboxes so backdrop always wins */
+    --z-composer: 20002;
+}
+
+/* ── Dark Theme ── */
+[data-theme="dark"] {
+    /* ── Neutral / Gray Scale (inverted warm) ── */
+    --neutral-50: #1a1917;
+    --neutral-100: #222120;
+    --neutral-200: #2d2b28;
+    --neutral-300: #3d3a36;
+    --neutral-400: #504b44;
+    --neutral-500: #8a8580;
+    --neutral-600: #a8a29e;
+    --neutral-700: #d4cfc8;
+    --neutral-800: #e8e6e2;
+    --neutral-900: #f5f3f0;
+
+    /* ── Semantic UI: Backgrounds ── */
+    --color-bg: #0e100f;
+    --color-bg-elevated: #191919;
+    --color-bg-sunken: #0f0e0d;
+    --color-bg-sunken-2: #111010;
+    --color-bg-hover: #1b1d1c;
+    --color-bg-active: #202221;
+
+    /* ── Semantic UI: Text ── */
+    --color-text: var(--neutral-900);
+    --color-text-secondary: var(--neutral-600);
+    --color-text-tertiary: var(--neutral-500);
+
+    /* ── Semantic UI: Borders ── */
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-strong: var(--neutral-400);
+
+    /* ── Semantic UI: Skeleton loading ── */
+    --color-skeleton: #252320;
+    --color-skeleton-strong: #302d28;
+
+    /* ── Brand / Accent (raised lightness for dark bg contrast) ── */
+    --color-accent: #d4553a;
+    --color-accent-hover: #e06248;
+
+    /* ── Action feedback (slightly brighter for dark backgrounds) ── */
+    --color-like: #ff2d55;
+    --color-like-bg: rgba(255, 45, 85, 0.12);
+    --color-repost: #6bb890;
+    --color-repost-bg: rgba(107, 184, 144, 0.12);
+    --color-success: #34c759;
+    --color-warning: #ff9f0a;
+
+    /* ── Domain: Film ── */
+    --color-film-red: #e04848;
+    --color-film-gold: #d4a028;
+    --color-film-gold-hover: #e0b040;
+    --color-poster-bg-from: #0a1018;
+    --color-poster-bg-to: #1e120c;
+    --color-poster-stroke: #5a6a7a;
+    --color-cover-end: #2a1510;
+
+    /* ── Domain: Heatmap ── */
+    --color-heat-1: #3d2820;
+    --color-heat-2: #5c3828;
+    --color-heat-3: #8a4e38;
+
+    /* ── Domain: Discover ── */
+    --discover-hero-bg: #0a0a0a;
+    --discover-shelf-bg: #1a1917;
+    --discover-placeholder: #2d2b28;
+    --discover-tab-active: #e03e3e;
+
+    color-scheme: dark;
+}
+
+/* ── Matrix Theme ── */
+[data-theme="matrix"] {
+    /* ── Neutral / Gray Scale (Cybernetic/Hacker Greens) ── */
+    --neutral-50: #050d08;
+    --neutral-100: #0a170e;
+    --neutral-200: #102416;
+    --neutral-300: #1a3b24;
+    --neutral-400: #2a5a38;
+    --neutral-500: #428a55;
+    --neutral-600: #65b87b;
+    --neutral-700: #8ee0a5;
+    --neutral-800: #bcf5ce;
+    --neutral-900: #e2ffe9;
+
+    /* ── Semantic UI: Backgrounds (Deep Blacks) ── */
+    --color-bg: #000000;
+    --color-bg-elevated: #050505;
+    --color-bg-sunken: #020804;
+    --color-bg-sunken-2: #051409;
+    --color-bg-hover: #081a0e;
+    --color-bg-active: #0c2915;
+
+    /* ── Semantic UI: Text (Neon Green Tints) ── */
+    --color-text: #00ff41;
+    --color-text-secondary: #00b32c;
+    --color-text-tertiary: #008020;
+
+    /* ── Semantic UI: Borders (Subtle Green) ── */
+    --color-border: rgba(0, 255, 65, 0.15);
+    --color-border-strong: rgba(0, 255, 65, 0.35);
+
+    /* ── Semantic UI: Skeleton loading ── */
+    --color-skeleton: #0a1f10;
+    --color-skeleton-strong: #11361b;
+
+    /* ── Brand / Accent (Terminal Green) ── */
+    --color-accent: #00ff41;
+    --color-accent-hover: #33ff67;
+
+    /* ── Action feedback ── */
+    --color-like: #00ff41;
+    --color-like-bg: rgba(0, 255, 65, 0.12);
+    --color-repost: #00ff41;
+    --color-repost-bg: rgba(0, 255, 65, 0.12);
+    --color-success: #00ff41;
+    --color-warning: #ccff00;
+
+    /* ── Domain: Film (Matrix Gold/Red overrides) ── */
+    --color-film-red: #00ff41;
+    --color-film-gold: #00ff41;
+    --color-film-gold-hover: #33ff67;
+    --color-poster-bg-from: #000000;
+    --color-poster-bg-to: #051409;
+    --color-poster-stroke: #0a3d1b;
+    --color-cover-end: #000a04;
+
+    /* ── Domain: Heatmap (Terminal Tinted) ── */
+    --color-heat-1: #0a2912;
+    --color-heat-2: #145224;
+    --color-heat-3: #1f7a35;
+
+    /* ── Domain: Discover ── */
+    --discover-hero-bg: #000000;
+    --discover-shelf-bg: #030a05;
+    --discover-placeholder: #051409;
+    --discover-tab-active: #00ff41;
+
+    color-scheme: dark;
+}
+
+/* ── Oppenheimer B&W Theme ── */
+[data-theme="oppenheimer-bw"] {
+    /* Neutral palette for a high-contrast, cinematic monochrome look */
+    --neutral-50: #f3f3f3;
+    --neutral-100: #e6e6e6;
+    --neutral-200: #d3d3d3;
+    --neutral-300: #b9b9b9;
+    --neutral-400: #8a8a8a;
+    --neutral-500: #6f6f6f;
+    --neutral-600: #555555;
+    --neutral-700: #3a3a3a;
+    --neutral-800: #212121;
+    --neutral-900: #0d0d0d;
+
+    --color-bg: #0a0a0a;
+    --color-bg-elevated: #121212;
+    --color-bg-sunken: #060606;
+    --color-bg-sunken-2: #0f0f0f;
+    --color-bg-hover: #171717;
+    --color-bg-active: #1f1f1f;
+
+    --color-text: #f4f4f4;
+    --color-text-secondary: #b0b0b0;
+    --color-text-tertiary: #8b8b8b;
+
+    --color-border: rgba(255, 255, 255, 0.12);
+    --color-border-strong: rgba(255, 255, 255, 0.24);
+
+    --color-skeleton: #242424;
+    --color-skeleton-strong: #303030;
+
+    --color-accent: #d9d9d9;
+    --color-accent-hover: #f0f0f0;
+
+    --color-like: #d8d8d8;
+    --color-like-bg: rgba(255, 255, 255, 0.12);
+    --color-repost: #c6c6c6;
+    --color-repost-bg: rgba(255, 255, 255, 0.1);
+    --color-success: #d0d0d0;
+    --color-warning: #bdbdbd;
+
+    --color-film-red: #dcdcdc;
+    --color-film-gold: #c7c7c7;
+    --color-film-gold-hover: #d8d8d8;
+    --color-poster-bg-from: #040404;
+    --color-poster-bg-to: #2a2a2a;
+    --color-poster-stroke: #5b5b5b;
+    --color-cover-end: #1b1b1b;
+
+    --color-heat-1: #2a2a2a;
+    --color-heat-2: #4a4a4a;
+    --color-heat-3: #6a6a6a;
+
+    --discover-hero-bg: #050505;
+    --discover-shelf-bg: #0d0d0d;
+    --discover-placeholder: #1a1a1a;
+    --discover-tab-active: #efefef;
+
+    --landing-cream: #f0f0f0;
+    --landing-dark: #0a0a0a;
+    --landing-red: #d0d0d0;
+    --landing-red-light: #f0f0f0;
+
+    color-scheme: dark;
+}
+
+/* Media is monochrome in Oppenheimer mode by default.
+   Future lightbox containers can opt out with data-noir-exempt. */
+[data-theme="oppenheimer-bw"] :where(img, video, picture, canvas, svg) {
+    filter: grayscale(1) contrast(1.08);
+}
+
+[data-theme="oppenheimer-bw"] :where([data-noir-exempt], .noir-exempt) :where(img, video, picture, canvas, svg),
+[data-theme="oppenheimer-bw"] :where(img, video, picture, canvas, svg):where([data-noir-exempt], .noir-exempt) {
+    filter: none !important;
+}
+
+/* ── Barbie Theme ── */
+[data-theme="barbie"] {
+    /* ── Neutral / Gray Scale (Pink Tints) ── */
+    --neutral-50: #fff0fa;
+    --neutral-100: #ffe3f5;
+    --neutral-200: #ffc4f3;
+    --neutral-300: #ffaae8;
+    --neutral-400: #ff8cdc;
+    --neutral-500: #c06898;
+    --neutral-600: #8a3a68;
+    --neutral-700: #6b2050;
+    --neutral-800: #4d1038;
+    --neutral-900: #3d0a2e;
+
+    /* ── Semantic UI: Backgrounds ── */
+    --color-bg: #ffd6f0;
+    --color-bg-elevated: #ffcaeb;
+    --color-bg-sunken: #ffc0e5;
+    --color-bg-sunken-2: #ffb5df;
+    --color-bg-hover: #ffc4e8;
+    --color-bg-active: #ffb8e2;
+
+    /* ── Semantic UI: Text ── */
+    --color-text: #3d0a2e;
+    --color-text-secondary: #8a3a68;
+    --color-text-tertiary: #b05890;
+
+    /* ── Semantic UI: Borders ── */
+    --color-border: rgba(255, 54, 175, 0.15);
+    --color-border-strong: rgba(255, 54, 175, 0.30);
+
+    /* ── Semantic UI: Skeleton loading ── */
+    --color-skeleton: #ffd6f0;
+    --color-skeleton-strong: #ffc4e8;
+
+    /* ── Brand / Accent (Hot Pink) ── */
+    --color-accent: #ff36af;
+    --color-accent-hover: #ff5cbe;
+
+    /* ── Action feedback ── */
+    --color-like: #ff36af;
+    --color-like-bg: rgba(255, 54, 175, 0.10);
+    --color-repost: #fa73cb;
+    --color-repost-bg: rgba(250, 115, 203, 0.10);
+    --color-success: #e85dae;
+    --color-warning: #ff9ee2;
+
+    /* ── Domain: Film ── */
+    --color-film-red: #ff36af;
+    --color-film-gold: #ff5cbe;
+    --color-film-gold-hover: #ff80d0;
+    --color-poster-bg-from: #ffddf8;
+    --color-poster-bg-to: #ffc4f3;
+    --color-poster-stroke: #ff9ee2;
+    --color-cover-end: #ffe3f5;
+
+    /* ── Domain: Heatmap ── */
+    --color-heat-1: #ffe3f5;
+    --color-heat-2: #ffc4e8;
+    --color-heat-3: #ff9ee2;
+
+    /* ── Domain: Discover ── */
+    --discover-hero-bg: #fff0fa;
+    --discover-shelf-bg: #ffe8f7;
+    --discover-placeholder: #ffddf2;
+    --discover-tab-active: #ff36af;
+
+    /* ── Domain: Landing page ── */
+    --landing-cream: #fff5fc;
+    --landing-dark: #3d0a2e;
+    --landing-red: #ff36af;
+    --landing-red-light: #ff5cbe;
+
+    color-scheme: light;
+}
+
+/* Notification unread badge — default follows film red; theme overrides below */
+.unread-notification-badge {
+    background: var(--color-unread-badge);
+    color: #ffffff;
+}
+
+[data-theme="matrix"] .unread-notification-badge,
+[data-theme="oppenheimer-bw"] .unread-notification-badge {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+[data-theme="barbie"] .unread-notification-badge {
+    background: #ff36af;
+    color: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+@layer base {
+    /*
+      Default :focus on links, buttons, and [role=button] used the browser’s blue ring; on image-
+      heavy cards (festival, discover, posters) it read as a permanent “blue border.” Use a theme
+      outline only for :focus-visible and remove the default so mouse focus doesn’t leave a blue edge.
+    */
+    a:where([href]) {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    a:where([href]):focus {
+        outline: none;
+    }
+
+    a:where([href]):focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+        outline-offset: 3px;
+    }
+
+    /* Same default blue ring on native buttons and [role=button] (e.g. discover featured card). */
+    button:focus,
+    [role="button"]:focus {
+        outline: none;
+    }
+
+    button:focus-visible,
+    [role="button"]:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+        outline-offset: 3px;
+    }
+
+    img {
+        border-style: none;
+    }
+
+    /* Same default blue focus ring on video / iframes (incl. /video and embedded players). */
+    video,
+    iframe,
+    object,
+    embed {
+        border-style: none;
+    }
+
+    video:focus,
+    iframe:focus,
+    object:focus,
+    embed:focus {
+        outline: none;
+    }
+
+    video:focus-visible,
+    iframe:focus-visible,
+    object:focus-visible,
+    embed:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+        outline-offset: 2px;
+    }
+}
+
+html {
+    scroll-behavior: smooth;
+    /* Safari/macOS: avoid rubber-band overscroll dragging the whole page (incl. sticky header) */
+    overscroll-behavior: none;
+    /* Reserve scrollbar gutter so toggling overflow (e.g. modal scroll lock) does not shift layout */
+    scrollbar-gutter: stable;
+}
+
+body {
+    overscroll-behavior: none;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Skip link for accessibility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.sr-only.focus-visible:not(.sr-only) {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+}
+
+/* ── Post Actions (like, comment, share, save) ── */
+.actions {
+    display: flex;
+    gap: 0;
+    margin-top: 14px;
+    align-items: center;
+    margin-left: -8px;
+}
+
+.action-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 100px;
+    /* Inherits body font-sans: system UI first, then var(--font-sans) / DM Sans (tailwind.config.ts). */
+    font-family: inherit;
+    font-weight: 400;
+    line-height: 1;
+    user-select: none;
+    transition: color 0.1s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    overflow: visible;
+    min-height: 36px;
+    min-width: 52px;
+}
+
+.action-btn:hover {
+    background: var(--border);
+}
+
+.action-btn:active {
+    transform: scale(0.96);
+    transition: transform 0.08s ease;
+}
+
+.action-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.6;
+    flex-shrink: 0;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+}
+
+.action-btn .action-count {
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+    display: inline-block;
+}
+
+/* Hide share button and Repost/Save labels on mobile (< 768px) */
+@media (max-width: 767px) {
+    .action-btn.share-btn {
+        display: none !important;
+    }
+
+    .action-btn.repost-btn .action-count,
+    .action-btn.save-btn .action-count {
+        display: none !important;
+    }
+}
+
+/* ── HEART (KFC-style bright red) ── */
+.heart-btn {
+    color: var(--fg-muted);
+}
+
+.heart-btn:hover {
+    color: var(--color-like);
+    background: var(--color-like-bg);
+}
+
+.heart-btn:hover svg {
+    transform: scale(1.15);
+}
+
+.heart-btn.liked {
+    color: var(--color-like);
+    font-weight: 500;
+}
+
+.heart-btn.liked svg {
+    fill: var(--color-like);
+    stroke: var(--color-like);
+}
+
+.heart-btn.pop svg {
+    animation: heartSpring 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes heartSpring {
+    0% {
+        transform: scale(1);
+    }
+
+    20% {
+        transform: scale(0.82) rotate(-6deg);
+    }
+
+    50% {
+        transform: scale(1.28) rotate(3deg);
+    }
+
+    75% {
+        transform: scale(0.96) rotate(-1deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+/* Count flip on like */
+.action-count.flip-up {
+    animation: countUp 0.38s ease forwards;
+}
+
+.action-count.flip-down {
+    animation: countDown 0.38s ease forwards;
+}
+
+@keyframes countUp {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    35% {
+        transform: translateY(-6px);
+        opacity: 0;
+    }
+
+    36% {
+        transform: translateY(6px);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes countDown {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    35% {
+        transform: translateY(6px);
+        opacity: 0;
+    }
+
+    36% {
+        transform: translateY(-6px);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Particles */
+.heart-particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particleBurst 0.75s ease-out forwards;
+}
+
+@keyframes particleBurst {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: translate(var(--tx), var(--ty)) scale(0);
+        opacity: 0;
+    }
+}
+
+/* ── COMMENT ── */
+.comment-btn {
+    color: var(--fg-muted);
+}
+
+.comment-btn:hover {
+    color: var(--neutral-600);
+}
+
+.comment-btn:hover svg {
+    transform: rotate(-5deg) scale(1.1);
+}
+
+/* ── REPOST ── */
+.repost-btn {
+    color: var(--fg-muted);
+}
+
+.repost-btn:hover {
+    color: var(--color-repost);
+    background: var(--color-repost-bg);
+}
+
+.repost-btn:hover svg {
+    transform: rotate(-12deg) scale(1.08);
+}
+
+.repost-btn.reposted {
+    color: var(--color-repost);
+}
+
+.repost-btn.reposted svg {
+    fill: var(--color-repost);
+    stroke: var(--color-repost);
+}
+
+.repost-btn.repost-pop svg {
+    animation: repostSpin 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes repostSpin {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    45% {
+        transform: rotate(-26deg) scale(1.16);
+    }
+
+    75% {
+        transform: rotate(8deg) scale(0.98);
+    }
+
+    100% {
+        transform: rotate(0deg) scale(1);
+    }
+}
+
+/* ── SHARE ── */
+.share-btn {
+    color: var(--neutral-500);
+}
+
+.share-btn:hover {
+    color: var(--neutral-600);
+}
+
+.share-btn:hover svg {
+    animation: shareWiggle 0.55s ease forwards;
+}
+
+@keyframes shareWiggle {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    30% {
+        transform: rotate(-10deg) scale(1.08) translateX(-1px);
+    }
+
+    65% {
+        transform: rotate(6deg) scale(1.1) translateX(1px);
+    }
+
+    100% {
+        transform: rotate(0deg) scale(1);
+    }
+}
+
+/* ── SAVE ── */
+.save-btn {
+    color: var(--fg-muted);
+    margin-left: auto;
+}
+
+.save-btn:hover {
+    color: var(--neutral-600);
+}
+
+.save-btn:hover svg {
+    transform: translateY(-2px) scale(1.08);
+}
+
+.save-btn.saved {
+    color: var(--fg);
+}
+
+.save-btn.saved svg {
+    fill: var(--fg);
+    stroke: var(--fg);
+}
+
+.save-btn.save-pop svg {
+    animation: saveSlide 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes saveSlide {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+
+    30% {
+        transform: translateY(3px) scale(0.9);
+    }
+
+    65% {
+        transform: translateY(-4px) scale(1.06);
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Landing Page ── */
+.landing-root {
+    --landing-input-border: #e7e2da;
+    --landing-input-border-focus: #171717;
+    --landing-input-bg: #ffffff;
+    --landing-error: #b42318;
+    color-scheme: dark;
+}
+
+.landing-root::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.landing-root .scene {
+    overflow: hidden;
+    perspective: 40em;
+    mask: linear-gradient(90deg, transparent, red 15% 85%, transparent);
+    -webkit-mask: linear-gradient(90deg, transparent, red 15% 85%, transparent);
+    height: 320px;
+    display: grid;
+    place-items: center;
+}
+
+.landing-root .a3d {
+    display: grid;
+    place-self: center;
+    transform-style: preserve-3d;
+    animation: landing-ry 36s linear infinite;
+}
+
+@keyframes landing-ry {
+    to {
+        rotate: y 1turn;
+    }
+}
+
+.landing-root .card-item {
+    --w: 13em;
+    --ba: calc(1turn / var(--n, 14));
+    grid-area: 1/1;
+    width: var(--w);
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    backface-visibility: hidden;
+    transform: rotatey(calc(var(--i) * var(--ba))) translatez(calc(-1 * (0.5 * var(--w) + 0.5em) / tan(0.5 * var(--ba))));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-root .a3d {
+        animation-duration: 120s;
+    }
+
+    .landing-root .marquee-track {
+        animation: none;
+    }
+
+    .landing-root .fade-up {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.landing-root .marquee-track {
+    display: flex;
+    gap: 2rem;
+    animation: landing-marquee 30s linear infinite;
+    width: max-content;
+}
+
+@keyframes landing-marquee {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+.landing-root .fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    animation: landing-fadeUp 0.8s ease forwards;
+}
+
+@keyframes landing-fadeUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.landing-root .landing-stat-number {
+    font-family: var(--font-playfair), serif;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--landing-cream), rgba(245, 240, 232, 0.6));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.landing-root .landing-auth-panel {
+    color-scheme: light;
+}
+
+.landing-root .landing-input,
+.landing-root .landing-input-wrap {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid var(--landing-input-border);
+    border-radius: 9999px;
+    background: var(--landing-input-bg);
+    color: #171717;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.landing-root .landing-input {
+    padding: 0.875rem 1rem;
+}
+
+.landing-root .landing-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 0.875rem 0 1rem;
+}
+
+.landing-root .landing-input::placeholder {
+    color: #aaa39a;
+}
+
+.landing-root .landing-input:focus,
+.landing-root .landing-input-wrap:focus-within {
+    border-color: var(--landing-input-border-focus);
+    box-shadow: 0 0 0 4px rgba(23, 23, 23, 0.06);
+}
+
+.landing-root .landing-input-error,
+.landing-root .landing-input-wrap.landing-input-error {
+    border-color: var(--landing-error);
+}
+
+.landing-root .landing-error {
+    margin-top: 0.375rem;
+    padding-left: 1rem;
+    font-size: 0.75rem;
+    color: var(--landing-error);
+}
+
+.landing-root .landing-bento-card {
+    transition: border-color 0.2s ease-out, background-color 0.2s ease-out;
+}
+
+.landing-root .landing-unify-row {
+    transition: border-color 0.2s ease-out, background-color 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.landing-root .landing-unify-row:hover {
+    border-color: rgba(192, 57, 43, 0.22);
+    background-color: rgba(255, 255, 255, 0.04);
+    transform: translateX(4px);
+}
+
+.landing-root .landing-product-panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.015);
+    padding: 1rem;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
+}
+
+.landing-root .landing-product-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(192, 57, 43, 0.06), transparent 40%);
+    pointer-events: none;
+}
+
+.landing-root .landing-feed-preview {
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Auth Pages ── */
+.auth-shell[data-auth-theme="light"] {
+    --auth-bg: #ffffff;
+    --auth-fg: #171717;
+    --auth-gradient-mid: rgba(200, 67, 42, 0.05);
+    --auth-card-bg: #fffdfb;
+    --auth-card-border: #e9e4dc;
+    --auth-card-shadow: 0 24px 80px rgba(35, 31, 26, 0.08);
+    --auth-input-bg: #ffffff;
+    --auth-input-border: #e7e2da;
+    --auth-accent: #171717;
+    --auth-accent-bright: #303030;
+    --auth-chip-bg: #f3f1ed;
+    --auth-chip-border: #e7e2da;
+    --auth-divider: #ece9e3;
+    --auth-spinner-track: rgba(255, 255, 255, 0.35);
+    --auth-spinner-tip: #ffffff;
+    --auth-icon-bubble-bg: #f6f4ef;
+    --auth-icon-bubble-border: #e8e3dc;
+    --auth-progress-track: #f2f0eb;
+    color-scheme: light;
+}
+
+.auth-shell[data-auth-theme="dark"] {
+    --auth-bg: #0e0c0a;
+    --auth-fg: #f5f0e8;
+    --auth-gradient-mid: rgba(192, 57, 43, 0.15);
+    --auth-card-bg: rgba(255, 255, 255, 0.03);
+    --auth-card-border: rgba(255, 255, 255, 0.08);
+    --auth-card-shadow: none;
+    --auth-input-bg: rgba(255, 255, 255, 0.05);
+    --auth-input-border: rgba(255, 255, 255, 0.08);
+    --auth-accent: #c0392b;
+    --auth-accent-bright: #e74c3c;
+    --auth-chip-bg: rgba(255, 255, 255, 0.05);
+    --auth-chip-border: rgba(255, 255, 255, 0.1);
+    --auth-divider: rgba(255, 255, 255, 0.08);
+    --auth-spinner-track: rgba(255, 255, 255, 0.3);
+    --auth-spinner-tip: #ffffff;
+    --auth-icon-bubble-bg: rgba(255, 255, 255, 0.05);
+    --auth-icon-bubble-border: rgba(255, 255, 255, 0.08);
+    --auth-progress-track: rgba(255, 255, 255, 0.08);
+    color-scheme: dark;
+}
