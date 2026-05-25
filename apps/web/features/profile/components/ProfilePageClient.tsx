@@ -123,13 +123,9 @@ export function ProfilePageClient({ username }: ProfilePageClientProps) {
           dateOfBirth={profile.dateOfBirth ?? ""}
           followerCount={profile.followerCount}
           followingCount={profile.followingCount}
+          filmsLoggedCount={profile.filmsLoggedCount ?? 0}
           isFollowing={profile.isFollowing}
           isFollowRequested={profile.isFollowRequested}
-          isPrivate={Boolean(profile.isPrivate)}
-          role={profile.role}
-          roleContext={profile.roleContext}
-          headline={profile.headline ?? null}
-          headlineContext={profile.headlineContext ?? null}
         />
       </ProfileScrollChrome>
       {isPrivateGate ? (
@@ -164,7 +160,18 @@ export function ProfilePageClient({ username }: ProfilePageClientProps) {
         </div>
       ) : (
         <Suspense fallback={<div className="mt-12 min-h-[120px]" />}>
-          <ProfileBody username={profile.username} displayName={profile.displayName} />
+          <ProfileBody
+            username={profile.username}
+            displayName={profile.displayName}
+            bio={profile.bio ?? ""}
+            location={profile.location ?? ""}
+            website={profile.website ?? ""}
+            isPrivate={Boolean(profile.isPrivate)}
+            role={profile.role}
+            roleContext={profile.roleContext}
+            headline={profile.headline ?? null}
+            headlineContext={profile.headlineContext ?? null}
+          />
         </Suspense>
       )}
     </div>

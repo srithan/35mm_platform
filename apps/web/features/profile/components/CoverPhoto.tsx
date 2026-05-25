@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { Camera, Loader2, AlertCircle } from "lucide-react";
@@ -85,7 +85,14 @@ export function CoverPhoto(props: CoverPhotoProps) {
     setImage(null);
     setCroppedAreaPixels(null);
     setErrorMessage(null);
+    blurActiveElement();
   };
+
+  function blurActiveElement() {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
 
   const handleUpload = async () => {
     if (!image || !croppedAreaPixels) return;
@@ -132,6 +139,7 @@ export function CoverPhoto(props: CoverPhotoProps) {
       setIsCropping(false);
       setImage(null);
       setErrorMessage(null);
+      blurActiveElement();
       setTimeout(function () {
         setUploadProgress(0);
       }, 350);
@@ -143,18 +151,19 @@ export function CoverPhoto(props: CoverPhotoProps) {
     }
   };
 
-  function handleCoverTrigger() {
+  function handleCoverTrigger(event: MouseEvent<HTMLButtonElement>) {
     fileInputRef.current?.click();
+    event.currentTarget.blur();
   }
 
     return (
     <>
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-xl border border-border bg-sunken-2",
+          "relative w-full overflow-hidden rounded-t-xl rounded-b-none border border-border bg-sunken-2",
           "shadow-[0_1px_2px_rgb(15_23_42/6%)]",
           "min-h-[176px] h-[clamp(11rem,32vw,20.75rem)]",
-          isOwnProfile ? null : "cursor-pointer"
+          isOwnProfile ? "group/cover" : "cursor-pointer"
         )}
         role={isOwnProfile ? undefined : "button"}
         tabIndex={isOwnProfile ? undefined : 0}
@@ -196,14 +205,22 @@ export function CoverPhoto(props: CoverPhotoProps) {
           />
         )}
         {isOwnProfile ? (
-          <div className="absolute bottom-3 right-3 z-[1] flex gap-2">
+          <div
+            className={cn(
+              "absolute bottom-3 right-3 z-[1] flex gap-2 transition-opacity duration-150",
+              localCoverUrl
+                ? "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:group-hover/cover:opacity-100 [@media(hover:hover)]:group-hover/cover:pointer-events-auto [@media(hover:hover)]:has-[:focus-visible]:opacity-100 [@media(hover:hover)]:has-[:focus-visible]:pointer-events-auto"
+                : null
+            )}
+          >
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={handleCoverTrigger}
+              className="h-auto border border-white/30 bg-black/45 px-3 py-1.5 text-[12px] font-medium text-white shadow-none backdrop-blur-md hover:border-white/45 hover:bg-black/55 hover:text-white"
             >
-              <span className="inline-flex items-center gap-2">
-                <Camera className="w-3.5 h-3.5" strokeWidth={1.6} />
+              <span className="inline-flex items-center gap-1.5">
+                <Camera className="h-3.5 w-3.5" strokeWidth={1.7} />
                 {localCoverUrl ? "Edit cover" : "Add cover"}
               </span>
             </Button>
@@ -269,6 +286,7 @@ export function CoverPhoto(props: CoverPhotoProps) {
             onCancel={closeCropper}
             onSave={handleUpload}
             aspect={COVER_ASPECT_RATIO}
+            cropShape="rect"
           />
         ) : null}
       </Dialog>

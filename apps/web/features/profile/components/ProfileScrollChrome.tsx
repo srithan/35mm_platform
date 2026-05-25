@@ -7,6 +7,9 @@ import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { ProfileMiniHeader } from "./ProfileMiniHeader";
 
+/** Keep {@link ProfileMiniHeader} wired; set true to restore sticky cover summary on scroll. */
+const PROFILE_MINI_HEADER_ENABLED = false;
+
 function getHeaderStickyOffsetPx(): number {
   if (typeof document === "undefined") {
     return 72;
@@ -104,7 +107,7 @@ export function ProfileScrollChrome(props: {
   var dockOk = dock.width > 12;
 
   var miniHost =
-    mounted && dockOk && isDesktopLg === true ? (
+    PROFILE_MINI_HEADER_ENABLED && mounted && dockOk && isDesktopLg === true ? (
       <div
         className={cn(
           "fixed z-[43] box-border",

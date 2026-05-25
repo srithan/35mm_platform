@@ -37,26 +37,24 @@ export function ProfileTabContent({
 
   if (tab === "posts") {
     return (
-      <div className="w-full max-w-[640px] mx-auto xl:w-[640px] xl:max-w-[640px]">
-        <InfinitePostList
-          username={username}
-          emptyState={
-            isOwnProfile
-              ? {
-                  icon: <span className="text-[24px]">📝</span>,
-                  headline: "You haven't posted yet",
-                  primaryCta: {
-                    label: "Write your first post",
-                    onClick: openComposerModal,
-                  },
-                }
-              : {
-                  icon: <span className="text-[24px]">📝</span>,
-                  headline: `${displayName ?? username} hasn't posted yet`,
-                }
-          }
-        />
-      </div>
+      <InfinitePostList
+        username={username}
+        emptyState={
+          isOwnProfile
+            ? {
+                icon: <span className="text-[24px]">📝</span>,
+                headline: "You haven't posted yet",
+                primaryCta: {
+                  label: "Write your first post",
+                  onClick: openComposerModal,
+                },
+              }
+            : {
+                icon: <span className="text-[24px]">📝</span>,
+                headline: `${displayName ?? username} hasn't posted yet`,
+              }
+        }
+      />
     );
   }
 
