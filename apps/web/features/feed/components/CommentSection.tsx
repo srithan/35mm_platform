@@ -34,6 +34,7 @@ function formatCommentTime(value: string): string {
 function toCommentCard(comment: FeedComment): CommentCardType {
   return {
     id: comment.id,
+    authorId: comment.author.id,
     username: comment.author.username,
     displayName: comment.author.displayName,
     avatarUrl: comment.author.avatarUrl,
@@ -218,6 +219,7 @@ export function CommentSection({
             <CommentCard
               key={`${postId}-${comment.id}`}
               comment={comment}
+              postId={postId}
               depth={0}
               onReplySubmit={handleNestedReplySubmit}
             />

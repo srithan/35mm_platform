@@ -219,6 +219,23 @@ function parseCreateCommentInput(raw: unknown): { body: string; parentId: string
   };
 }
 
+function parseUpdateCommentInput(raw: unknown): { body: string } {
+  if (!raw || typeof raw !== "object") {
+    throw badRequest("Invalid payload");
+  }
+
+  var source = raw as Record<string, unknown>;
+  if (typeof source.body !== "string") {
+    throw badRequest("Comment body must be string");
+  }
+  var body = source.body.trim();
+  if (body.length < 1 || body.length > 1000) {
+    throw badRequest("Comment body must be 1-1000 characters");
+  }
+
+  return { body };
+}
+
 function postVisibilitySql(viewerUserId: string | null) {
   if (!viewerUserId) {
     return eq(posts.visibility, "public");
@@ -989,25 +1006,23 @@ feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
     }
   }
 
-  await db.transaction(async function (tx) {
-    await tx.insert(postEdits).values({
-      postId,
-      headline: current.headline,
-      body: current.body,
-      editedAt: new Date(),
-    });
-
-    await tx
-      .update(posts)
-      .set({
-        headline,
-        body,
-        ...(filmIdToPersist !== undefined ? { filmId: filmIdToPersist } : {}),
-        editedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
+  await db.insert(postEdits).values({
+    postId,
+    headline: current.headline,
+    body: current.body,
+    editedAt: new Date(),
   });
+
+  await db
+    .update(posts)
+    .set({
+      headline,
+      body,
+      ...(filmIdToPersist !== undefined ? { filmId: filmIdToPersist } : {}),
+      editedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(posts.id, postId));
 
   var updated = await getPostById(postId, user.userId);
   if (!updated) throw notFound("Post not found");
@@ -1397,43 +1412,39 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
   }
 
   var db = getDb();
-  var insertedRows = await db.transaction(async function (tx) {
-    var inserted = await tx
-      .insert(comments)
-      .values({
-        postId,
-        userId: user.userId,
-        parentId: input.parentId ?? null,
-        body: input.body,
-      })
-      .returning({
-        id: comments.id,
-        postId: comments.postId,
-        userId: comments.userId,
-        parentId: comments.parentId,
-        body: comments.body,
-        likeCount: comments.likeCount,
-        isDeleted: comments.isDeleted,
-        editedAt: comments.editedAt,
-        createdAt: comments.createdAt,
-        updatedAt: comments.updatedAt,
-      });
-
-    await tx
-      .update(posts)
-      .set({
-        commentCount: sql`${posts.commentCount} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
-
-    return inserted;
-  });
+  var insertedRows = await db
+    .insert(comments)
+    .values({
+      postId,
+      userId: user.userId,
+      parentId: input.parentId ?? null,
+      body: input.body,
+    })
+    .returning({
+      id: comments.id,
+      postId: comments.postId,
+      userId: comments.userId,
+      parentId: comments.parentId,
+      body: comments.body,
+      likeCount: comments.likeCount,
+      isDeleted: comments.isDeleted,
+      editedAt: comments.editedAt,
+      createdAt: comments.createdAt,
+      updatedAt: comments.updatedAt,
+    });
 
   var inserted = insertedRows[0];
   if (!inserted) {
     throw badRequest("Unable to create comment");
   }
+
+  await db
+    .update(posts)
+    .set({
+      commentCount: sql`${posts.commentCount} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(posts.id, postId));
 
   var profileRows = await db
     .select({
@@ -1471,6 +1482,97 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
   );
 });
 
+feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, async function (c) {
+  var user = c.get("user");
+  var postId = c.req.param("postId");
+  var commentId = c.req.param("commentId");
+  var input = parseUpdateCommentInput(await c.req.json());
+
+  await assertReadablePostForInteraction(postId, user.userId);
+
+  var db = getDb();
+  var currentRows = await db
+    .select({
+      id: comments.id,
+      userId: comments.userId,
+      isDeleted: comments.isDeleted,
+    })
+    .from(comments)
+    .where(and(eq(comments.id, commentId), eq(comments.postId, postId)))
+    .limit(1);
+
+  if (currentRows.length === 0) {
+    throw notFound("Comment not found");
+  }
+
+  var current = currentRows[0];
+  if (current.userId !== user.userId) {
+    throw forbidden("You can only edit your own comments");
+  }
+
+  if (current.isDeleted) {
+    throw badRequest("Cannot edit deleted comment");
+  }
+
+  var updatedRows = await db
+    .update(comments)
+    .set({
+      body: input.body,
+      editedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(comments.id, commentId))
+    .returning({
+      id: comments.id,
+      postId: comments.postId,
+      parentId: comments.parentId,
+      body: comments.body,
+      isDeleted: comments.isDeleted,
+      likeCount: comments.likeCount,
+      editedAt: comments.editedAt,
+      createdAt: comments.createdAt,
+      updatedAt: comments.updatedAt,
+      userId: comments.userId,
+    });
+
+  var updated = updatedRows[0];
+  if (!updated) {
+    throw badRequest("Unable to update comment");
+  }
+
+  var profileRows = await db
+    .select({
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, user.userId))
+    .limit(1);
+
+  if (profileRows.length === 0) {
+    throw notFound("Profile not found");
+  }
+
+  return c.json({
+    id: updated.id,
+    postId: updated.postId,
+    parentId: updated.parentId,
+    body: updated.body,
+    isDeleted: updated.isDeleted,
+    likeCount: Number(updated.likeCount ?? 0),
+    editedAt: updated.editedAt ? updated.editedAt.toISOString() : null,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+    author: {
+      id: updated.userId,
+      username: profileRows[0].username,
+      displayName: profileRows[0].displayName,
+      avatarUrl: await resolvePublicMediaUrl(profileRows[0].avatarUrl),
+    },
+  });
+});
+
 feedRoutes.delete("/posts/:postId/comments/:commentId", requireAuth, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
@@ -1499,23 +1601,21 @@ feedRoutes.delete("/posts/:postId/comments/:commentId", requireAuth, async funct
   }
 
   if (!current.isDeleted) {
-    await db.transaction(async function (tx) {
-      await tx
-        .update(comments)
-        .set({
-          isDeleted: true,
-          updatedAt: new Date(),
-        })
-        .where(eq(comments.id, commentId));
+    await db
+      .update(comments)
+      .set({
+        isDeleted: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(comments.id, commentId));
 
-      await tx
-        .update(posts)
-        .set({
-          commentCount: sql`greatest(${posts.commentCount} - 1, 0)`,
-          updatedAt: new Date(),
-        })
-        .where(eq(posts.id, postId));
-    });
+    await db
+      .update(posts)
+      .set({
+        commentCount: sql`greatest(${posts.commentCount} - 1, 0)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(posts.id, postId));
   }
 
   return c.json({ ok: true });

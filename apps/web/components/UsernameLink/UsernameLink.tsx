@@ -3,20 +3,27 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import Image from "next/image";
+import { useAuth } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
+import { formatRoleContextSegment } from "@/lib/utils/userRoleHeadline";
+import {
+  fetchPublicProfile,
+  type PublicProfile,
+} from "@/features/profile/api/profileApi";
+import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { profileKeys } from "@/features/profile/hooks/queryKeys";
+import { useFollowToggle, usePublicProfile } from "@/features/profile/hooks/useProfile";
 
 const PROFILE_POPOVER_SHOW_DELAY_MS = 520;
 const PROFILE_POPOVER_SCROLL_SUPPRESS_MS = 650;
 
 let lastProfilePopoverScrollAt = 0;
 let scrollGuardRefCount = 0;
-
-function getUsernameSeed(username: string) {
-  return Array.from(username).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-}
 
 function markProfilePopoverScroll() {
   lastProfilePopoverScrollAt = Date.now();
@@ -48,6 +55,179 @@ function subscribeProfilePopoverScrollGuard() {
   };
 }
 
+function resolvePopoverHeadline(
+  profile: PublicProfile | null | undefined,
+  fallback: {
+    headline?: string;
+    role?: string;
+    roleContext?: string | null;
+  }
+): string | null {
+  const customHeadline = (profile?.headline ?? fallback.headline)?.trim() ?? "";
+  if (customHeadline.length > 0) {
+    const context = profile?.headlineContext?.trim() ?? "";
+    return context.length > 0 ? customHeadline + " · " + context : customHeadline;
+  }
+
+  const role = (profile?.role ?? fallback.role)?.trim() ?? "";
+  if (role.length === 0) {
+    return null;
+  }
+
+  const context = formatRoleContextSegment(role, {
+    roleContext: profile?.roleContext ?? fallback.roleContext,
+    filmsLoggedCount: profile?.filmsLoggedCount,
+  });
+
+  return context ? role + " · " + context : role;
+}
+
+function ProfilePopoverStat(props: { value?: number; label: string }) {
+  if (typeof props.value !== "number") {
+    return null;
+  }
+
+  return (
+    <div>
+      <span className="font-bold text-neutral-950">{formatCount(props.value)}</span>{" "}
+      {props.label}
+    </div>
+  );
+}
+
+function ProfilePopover(props: {
+  username: string;
+  linkHref: string;
+  position: { top: number; left: number };
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  fallback: {
+    displayName?: string;
+    role?: string;
+    roleContext?: string | null;
+    headline?: string;
+    bio?: string;
+    avatarUrl?: string | null;
+    initial?: string;
+    followersCount?: number;
+    followingCount?: number;
+    filmsLoggedCount?: number;
+  };
+}) {
+  const profileQuery = usePublicProfile(props.username);
+  const profile = profileQuery.data;
+  const currentUserQuery = useCurrentUserProfile();
+  const followToggle = useFollowToggle(props.username);
+
+  const isOwnProfile =
+    Boolean(currentUserQuery.data?.username) &&
+    currentUserQuery.data?.username === props.username;
+
+  const label = profile?.displayName ?? props.fallback.displayName ?? props.username;
+  const avatarInitial =
+    props.fallback.initial ?? props.username.charAt(0).toUpperCase();
+  const resolvedAvatarUrl = profile?.avatarUrl ?? props.fallback.avatarUrl ?? null;
+  const resolvedHeadline = resolvePopoverHeadline(profile, props.fallback);
+  const bioText = profile?.bio ?? props.fallback.bio ?? null;
+  const followersCount = profile?.followerCount ?? props.fallback.followersCount;
+  const followingCount = profile?.followingCount ?? props.fallback.followingCount;
+  const filmsLoggedCount = profile?.filmsLoggedCount ?? props.fallback.filmsLoggedCount;
+  const coverUrl = profile?.coverUrl ?? null;
+
+  const followLabel = followToggle.isPending
+    ? "..."
+    : profile?.isFollowing
+      ? "Following"
+      : profile?.isFollowRequested
+        ? "Requested"
+        : "Follow";
+
+  return (
+    <div
+      className="fixed z-[200] w-[min(300px,calc(100vw-24px))] overflow-hidden rounded-lg border border-black/10 bg-white text-neutral-950 shadow-[0_18px_48px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.09)]"
+      style={{ top: props.position.top, left: props.position.left }}
+      onMouseEnter={props.onMouseEnter}
+      onMouseLeave={props.onMouseLeave}
+    >
+      <div className="relative h-16 bg-[linear-gradient(135deg,#050505_0%,#171717_58%,#2f2f2f_100%)]">
+        {coverUrl ? (
+          <Image
+            src={coverUrl}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="300px"
+          />
+        ) : null}
+      </div>
+      <div className="px-3.5 pb-3.5">
+        <div className="-mt-8 flex items-start gap-2.5">
+          <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-neutral-200 ring-[3px] ring-white">
+            <Avatar
+              initial={avatarInitial}
+              src={resolvedAvatarUrl}
+              className="h-16 w-16 text-xl ring-0"
+            />
+          </div>
+          <div className="min-w-0 flex-1 pt-9">
+            <div className="truncate text-[16px] font-bold leading-tight text-neutral-950">
+              {label}
+            </div>
+            <div className="mt-0.5 truncate text-[12px] text-neutral-500">
+              @{props.username}
+            </div>
+          </div>
+        </div>
+        {resolvedHeadline ? (
+          <div className="mt-2.5 text-[12.5px] font-semibold leading-snug text-neutral-900">
+            {resolvedHeadline}
+          </div>
+        ) : null}
+        {bioText ? (
+          <p className="mt-1 line-clamp-2 text-[12.5px] leading-[1.4] text-neutral-600">
+            {bioText}
+          </p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] leading-none text-neutral-600">
+          <ProfilePopoverStat value={filmsLoggedCount} label="films" />
+          <ProfilePopoverStat value={followersCount} label="followers" />
+          <ProfilePopoverStat value={followingCount} label="following" />
+        </div>
+        <div className={cn("mt-3 grid gap-2", isOwnProfile ? "grid-cols-1" : "grid-cols-2")}>
+          {!isOwnProfile && profile?.userId ? (
+            <button
+              type="button"
+              disabled={followToggle.isPending}
+              onClick={function () {
+                if (followToggle.isPending || !profile?.userId) return;
+                followToggle.mutate({
+                  userId: profile.userId,
+                  isFollowing: Boolean(profile.isFollowing),
+                  isFollowRequested: Boolean(profile.isFollowRequested),
+                });
+              }}
+              className={cn(
+                "h-8 rounded-md border px-3 text-center text-[12px] font-bold transition-colors disabled:opacity-60",
+                profile.isFollowing || profile.isFollowRequested
+                  ? "border-neutral-300 bg-white text-neutral-950 hover:bg-neutral-100"
+                  : "border-black bg-black text-white hover:opacity-85"
+              )}
+            >
+              {followLabel}
+            </button>
+          ) : null}
+          <Link
+            href={props.linkHref}
+            className="flex h-8 items-center justify-center rounded-md border border-black bg-white px-3 text-center text-[12px] font-bold text-black no-underline transition-colors hover:bg-neutral-100"
+          >
+            View Profile
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export interface UsernameLinkProps {
   username: string;
   /** Display name shown in link/popover (defaults to username) */
@@ -63,9 +243,11 @@ export interface UsernameLinkProps {
   initial?: string;
   avatarBg?: string;
   avatarColor?: string;
+  /** @deprecated Popover loads films logged from the profile API. */
   postsCount?: number;
   followersCount?: number;
   followingCount?: number;
+  filmsLoggedCount?: number;
   href?: string;
   className?: string;
   /** Use span instead of link (for inline text like reply author) */
@@ -82,16 +264,16 @@ export function UsernameLink({
   bio,
   avatarUrl,
   initial,
-  avatarBg,
-  avatarColor,
-  postsCount,
-  followersCount,
-  followingCount,
   href,
   className,
   asSpan,
   children,
+  followersCount,
+  followingCount,
+  filmsLoggedCount,
 }: UsernameLinkProps) {
+  const queryClient = useQueryClient();
+  const { getToken, isLoaded } = useAuth();
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLAnchorElement | HTMLSpanElement>(null);
@@ -100,6 +282,20 @@ export function UsernameLink({
   const isHoveringTrigger = useRef(false);
 
   useEffect(() => subscribeProfilePopoverScrollGuard(), []);
+
+  const prefetchProfile = useCallback(function () {
+    if (!isLoaded || username.trim().length === 0) {
+      return;
+    }
+
+    void queryClient.prefetchQuery({
+      queryKey: profileKeys.detail(username),
+      queryFn: async function () {
+        return fetchPublicProfile(username, await getToken());
+      },
+      staleTime: 60_000,
+    });
+  }, [getToken, isLoaded, queryClient, username]);
 
   const show = useCallback(() => {
     if (hideTimeout.current) {
@@ -135,6 +331,7 @@ export function UsernameLink({
       return;
     }
 
+    prefetchProfile();
     clearShowTimeout();
     showTimeout.current = setTimeout(() => {
       showTimeout.current = null;
@@ -145,7 +342,7 @@ export function UsernameLink({
 
       show();
     }, PROFILE_POPOVER_SHOW_DELAY_MS);
-  }, [clearShowTimeout, show]);
+  }, [clearShowTimeout, prefetchProfile, show]);
 
   const hide = useCallback(() => {
     isHoveringTrigger.current = false;
@@ -190,19 +387,7 @@ export function UsernameLink({
   }, [clearShowTimeout]);
 
   const label = displayName ?? username;
-  const avatarInitial = initial ?? username.charAt(0).toUpperCase();
   const linkHref = href ?? ROUTES.PROFILE(username);
-  const roleHeadline = [role, roleContext]
-    .filter((part): part is string => typeof part === "string" && part.trim() !== "")
-    .join(" · ");
-  const usernameSeed = getUsernameSeed(username);
-  const resolvedHeadline = headline ?? roleHeadline;
-  const resolvedBio =
-    bio ??
-    "Sharing film notes, discoveries, and work from the 35mm community.";
-  const resolvedPostsCount = postsCount ?? 12 + (usernameSeed % 280);
-  const resolvedFollowersCount = followersCount ?? 90 + ((usernameSeed * 7) % 2400);
-  const resolvedFollowingCount = followingCount ?? 20 + ((usernameSeed * 13) % 700);
 
   const triggerProps = {
     ref: triggerRef as React.RefObject<HTMLAnchorElement & HTMLSpanElement>,
@@ -223,74 +408,31 @@ export function UsernameLink({
     </Link>
   );
 
-  const popover = visible && typeof document !== "undefined"
-    ? createPortal(
-        <div
-          className="fixed z-[200] w-[min(300px,calc(100vw-24px))] overflow-hidden rounded-lg border border-black/10 bg-white text-neutral-950 shadow-[0_18px_48px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.09)]"
-          style={{ top: pos.top, left: pos.left }}
-          onMouseEnter={cancelHide}
-          onMouseLeave={hide}
-        >
-          <div className="h-16 bg-[linear-gradient(135deg,#050505_0%,#171717_58%,#2f2f2f_100%)]" />
-          <div className="px-3.5 pb-3.5">
-            <div className="-mt-8 flex items-start gap-2.5">
-              <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-neutral-200 ring-[3px] ring-white">
-                <Avatar
-                  initial={avatarInitial}
-                  src={avatarUrl}
-                  className="h-16 w-16 text-xl ring-0"
-                />
-              </div>
-              <div className="min-w-0 flex-1 pt-9">
-                <div className="truncate text-[16px] font-bold leading-tight text-neutral-950">
-                  {label}
-                </div>
-                <div className="mt-0.5 truncate text-[12px] text-neutral-500">
-                  @{username}
-                </div>
-              </div>
-            </div>
-            {resolvedHeadline ? (
-              <div className="mt-2.5 text-[12.5px] font-semibold leading-snug text-neutral-900">
-                {resolvedHeadline}
-              </div>
-            ) : null}
-            <p className="mt-1 line-clamp-2 text-[12.5px] leading-[1.4] text-neutral-600">
-              {resolvedBio}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] leading-none text-neutral-600">
-              <div>
-                <span className="font-bold text-neutral-950">{formatCount(resolvedPostsCount)}</span>{" "}
-                posts
-              </div>
-              <div>
-                <span className="font-bold text-neutral-950">{formatCount(resolvedFollowersCount)}</span>{" "}
-                followers
-              </div>
-              <div>
-                <span className="font-bold text-neutral-950">{formatCount(resolvedFollowingCount)}</span>{" "}
-                following
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className="h-8 rounded-md border border-black bg-black px-3 text-center text-[12px] font-bold text-white transition-opacity hover:opacity-85"
-              >
-                Follow
-              </button>
-              <Link
-                href={linkHref}
-                className="flex h-8 items-center justify-center rounded-md border border-black bg-white px-3 text-center text-[12px] font-bold text-black no-underline transition-colors hover:bg-neutral-100"
-              >
-                View Profile
-              </Link>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )
-    : null;
+  const popover =
+    visible && typeof document !== "undefined"
+      ? createPortal(
+          <ProfilePopover
+            username={username}
+            linkHref={linkHref}
+            position={pos}
+            onMouseEnter={cancelHide}
+            onMouseLeave={hide}
+            fallback={{
+              displayName,
+              role,
+              roleContext,
+              headline,
+              bio,
+              avatarUrl,
+              initial,
+              followersCount,
+              followingCount,
+              filmsLoggedCount,
+            }}
+          />,
+          document.body
+        )
+      : null;
 
   return (
     <>

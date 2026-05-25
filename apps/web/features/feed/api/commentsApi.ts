@@ -102,3 +102,41 @@ export async function deleteComment(params: {
     }
   );
 }
+
+export async function updateComment(params: {
+  postId: string;
+  commentId: string;
+  body: string;
+  token: string | null;
+}): Promise<Comment> {
+  var response = await apiRequest<{
+    id: string;
+    postId: string;
+    parentId: string | null;
+    body: string | null;
+    isDeleted?: boolean;
+    likeCount: number;
+    editedAt?: string | null;
+    createdAt: string;
+    author: {
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      role?: string | null;
+      roleContext?: string | null;
+      filmsLoggedCount?: number | null;
+    };
+  }>(
+    `/v1/feed/posts/${encodeURIComponent(params.postId)}/comments/${encodeURIComponent(params.commentId)}`,
+    {
+      method: "PATCH",
+      token: params.token,
+      body: {
+        body: params.body,
+      },
+    }
+  );
+
+  return buildCommentTree([response])[0];
+}

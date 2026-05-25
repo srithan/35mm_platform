@@ -27,24 +27,22 @@ userRoutes.post("/users/:userId/block", requireAuth, async function (c) {
   await assertTargetUser(targetUserId);
 
   var db = getDb();
-  await db.transaction(async function (tx) {
-    await tx
-      .insert(userBlocks)
-      .values({
-        blockerId: user.userId,
-        blockedId: targetUserId,
-      })
-      .onConflictDoNothing();
+  await db
+    .insert(userBlocks)
+    .values({
+      blockerId: user.userId,
+      blockedId: targetUserId,
+    })
+    .onConflictDoNothing();
 
-    await tx
-      .delete(follows)
-      .where(
-        or(
-          and(eq(follows.followerId, user.userId), eq(follows.followingId, targetUserId)),
-          and(eq(follows.followerId, targetUserId), eq(follows.followingId, user.userId))
-        )
-      );
-  });
+  await db
+    .delete(follows)
+    .where(
+      or(
+        and(eq(follows.followerId, user.userId), eq(follows.followingId, targetUserId)),
+        and(eq(follows.followerId, targetUserId), eq(follows.followingId, user.userId))
+      )
+    );
 
   return c.json({ ok: true });
 });

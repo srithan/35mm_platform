@@ -1,20 +1,24 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { PostActions } from "@/components/PostActions/PostActions";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
+import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { CURRENT_USER } from "@/lib/constants/currentUser";
 import { cn } from "@/lib/utils/cn";
 import { RichPostInline } from "@/lib/utils/richPostText";
 import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
-import { Share2, Flag, MoreHorizontal } from "lucide-react";
+import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useDeleteComment, useUpdateComment } from "../hooks/useCommentMutations";
+import { Share2, Flag, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews } from "../utils/videoPreviews";
 
 export interface Comment {
   id: string;
+  authorId?: string;
   username: string;
   /** Display name (defaults to username) */
   displayName?: string;
@@ -35,17 +39,28 @@ export interface Comment {
 
 interface CommentCardProps {
   comment: Comment;
+  postId: string;
   depth?: number;
   onReplySubmit?: (input: { parentId: string; body: string }) => Promise<void>;
 }
 
-export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardProps) {
+export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: CommentCardProps) {
   const [repliesExpanded, setRepliesExpanded] = useState(false);
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [truncatedText, setTruncatedText] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(comment.text);
+  const currentUserQuery = useCurrentUserProfile();
+  const deleteCommentMutation = useDeleteComment(postId);
+  const updateCommentMutation = useUpdateComment(postId);
+  const isOwnComment =
+    Boolean(comment.authorId) &&
+    Boolean(currentUserQuery.data?.userId) &&
+    comment.authorId === currentUserQuery.data?.userId;
   const hasReplies = comment.replies && comment.replies.length > 0;
   const threadLevel = Math.min(depth, 6);
   const threadInsetPx = threadLevel * 6;
@@ -55,6 +70,8 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
   const { cleanedText, previews } = extractVideoPreviews(comment.text);
 
   useLayoutEffect(() => {
+    if (isEditing) return;
+
     const bodyEl = bodyRef.current;
     const measureEl = measureRef.current;
     if (!bodyEl || !measureEl) return;
@@ -109,7 +126,13 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
     observer.observe(bodyEl);
 
     return () => observer.disconnect();
-  }, [cleanedText]);
+  }, [cleanedText, isEditing]);
+
+  useEffect(function () {
+    if (!isEditing) {
+      setEditDraft(comment.text);
+    }
+  }, [comment.text, isEditing]);
 
   const handleCommentClick = () => {
     setRepliesExpanded((e) => !e);
@@ -130,6 +153,64 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
       // parent mutation controls error state
     }
   };
+
+  const handleSaveEdit = async () => {
+    var body = editDraft.trim();
+    if (!body || updateCommentMutation.isPending) return;
+
+    try {
+      await updateCommentMutation.mutateAsync({
+        commentId: comment.id,
+        body,
+      });
+      setIsEditing(false);
+    } catch (_err) {
+      // mutation error surfaces via invalidation/refetch
+    }
+  };
+
+  const menuItems = [
+    {
+      id: "share",
+      label: "Share comment",
+      description: "Send or copy this comment",
+      icon: <Share2 className="w-4 h-4" strokeWidth={1.8} />,
+    },
+    ...(isOwnComment
+      ? [
+          {
+            id: "edit-comment",
+            label: "Edit comment",
+            description: "Update your comment text",
+            icon: <Pencil className="w-4 h-4" strokeWidth={1.8} />,
+            dividerBefore: true,
+            onSelect: function () {
+              setEditDraft(comment.text);
+              setIsEditing(true);
+            },
+          },
+          {
+            id: "delete-comment",
+            label: "Delete comment",
+            description: "Remove this comment from the thread",
+            icon: <Trash2 className="w-4 h-4" strokeWidth={1.8} />,
+            danger: true,
+            onSelect: function () {
+              setShowDeleteConfirm(true);
+            },
+          },
+        ]
+      : [
+          {
+            id: "report",
+            label: "Report comment",
+            description: "Flag a safety concern",
+            icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
+            danger: true,
+            dividerBefore: true,
+          },
+        ]),
+  ];
 
   const resizeReplyTextarea = (textarea: HTMLTextAreaElement) => {
     textarea.style.height = "0px";
@@ -203,22 +284,7 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
               menuClassName="min-w-[238px] rounded-2xl border-border bg-elevated p-1.5 shadow-[0_20px_56px_rgba(0,0,0,0.18),0_4px_14px_rgba(0,0,0,0.08)]"
               itemLayout="rich"
               showArrow={false}
-              items={[
-                {
-                  id: "share",
-                  label: "Share comment",
-                  description: "Send or copy this comment",
-                  icon: <Share2 className="w-4 h-4" strokeWidth={1.8} />,
-                },
-                {
-                  id: "report",
-                  label: "Report comment",
-                  description: "Flag a safety concern",
-                  icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
-                  danger: true,
-                  dividerBefore: true,
-                },
-              ]}
+              items={menuItems}
               trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
                 <button
                   ref={ref}
@@ -260,7 +326,47 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
           ) : null}
 
           <div className="mt-1">
-            {cleanedText.length > 0 && (
+            {isEditing ? (
+              <div className="mt-1">
+                <textarea
+                  value={editDraft}
+                  onChange={function (e) {
+                    setEditDraft(e.target.value);
+                  }}
+                  rows={3}
+                  className="w-full resize-y min-h-[84px] rounded-md border border-border bg-elevated px-3 py-2 text-[15px] leading-[1.55] text-fg outline-none focus:border-fg-faint focus:ring-2 focus:ring-fg/5"
+                  autoFocus
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={editDraft.trim().length === 0 || updateCommentMutation.isPending}
+                    onClick={function () {
+                      void handleSaveEdit();
+                    }}
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors",
+                      editDraft.trim().length === 0 || updateCommentMutation.isPending
+                        ? "cursor-not-allowed bg-sunken-2 text-fg-faint"
+                        : "bg-fg text-bg hover:opacity-90"
+                    )}
+                  >
+                    {updateCommentMutation.isPending ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={function () {
+                      setIsEditing(false);
+                      setEditDraft(comment.text);
+                    }}
+                    className="rounded-full px-3.5 py-1.5 text-[12px] font-medium text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {!isEditing && cleanedText.length > 0 && (
               <div className="relative">
                 <div
                   ref={measureRef}
@@ -290,7 +396,7 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
                 </p>
               </div>
             )}
-            {expanded && isOverflowing && (
+            {!isEditing && expanded && isOverflowing && (
               <button
                 type="button"
                 className="text-text-tertiary hover:text-fg text-[13px] bg-transparent border-none p-0 cursor-pointer mt-1 block font-[inherit]"
@@ -299,9 +405,10 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
                 less
               </button>
             )}
-            {previews.map((preview) => (
-              <VideoUrlPreview key={`${preview.provider}:${preview.id}`} preview={preview} />
-            ))}
+            {!isEditing &&
+              previews.map((preview) => (
+                <VideoUrlPreview key={`${preview.provider}:${preview.id}`} preview={preview} />
+              ))}
             <PostActions
               likes={comment.likeCount}
               comments={comment.replyCount}
@@ -357,6 +464,7 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
                   <CommentCard
                     key={reply.id}
                     comment={reply}
+                    postId={postId}
                     depth={depth + 1}
                     onReplySubmit={onReplySubmit}
                   />
@@ -366,6 +474,25 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={function () {
+          setShowDeleteConfirm(false);
+        }}
+        onConfirm={function () {
+          if (deleteCommentMutation.isPending) return;
+          deleteCommentMutation.mutate(comment.id, {
+            onSettled: function () {
+              setShowDeleteConfirm(false);
+            },
+          });
+        }}
+        title="Delete comment?"
+        description="This comment will be removed from the thread."
+        confirmLabel={deleteCommentMutation.isPending ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
