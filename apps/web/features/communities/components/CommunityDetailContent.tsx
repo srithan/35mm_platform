@@ -337,11 +337,12 @@ function CommunityPostList({ slug, sortBy }: { slug: string; sortBy: CommunitySo
     <div>
       {posts.map((post, index) => {
         const legacy = getLegacyShape(post);
+        const variant = legacy.variant === "festival" ? "discussion" : (legacy.variant ?? "text");
         return (
           <PostCard
             key={post.id}
             postId={post.id}
-            variant={legacy.variant ?? "text"}
+            variant={variant}
             username={post.author.username}
             displayName={post.author.displayName}
             handle={legacy.handle ?? `@${post.author.username}`}
@@ -356,8 +357,6 @@ function CommunityPostList({ slug, sortBy }: { slug: string; sortBy: CommunitySo
             filmCard={legacy.filmCard}
             imageSrc={legacy.imageSrc}
             imageCaption={legacy.imageCaption}
-            tags={legacy.tags ?? post.tags}
-            festivalBadge={legacy.festivalBadge}
             likeCount={post.likeCount}
             liked={legacy.liked ?? post.isLiked}
             commentCount={post.commentCount}

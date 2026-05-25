@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { TMDBMovie, TMDBGenre } from "@/lib/tmdb/types";
 import type { DiscoverMoodId } from "../lib/discoverMoodFilters";
 import {
@@ -9,6 +10,9 @@ import {
   discoverRecentSortBy,
   type DiscoverExploreFiltersState,
 } from "../lib/discoverExploreFilters";
+import { discoverKeys } from "./queryKeys";
+
+const DISCOVER_STALE_TIME_MS = 300_000;
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -16,18 +20,30 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-export function useGenres() {
-  const [genres, setGenres] = useState<TMDBGenre[]>([]);
-  const [loading, setLoading] = useState(true);
+function useDebouncedValue(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value);
 
   useEffect(() => {
-    fetchJson<{ genres: TMDBGenre[] }>("/api/tmdb/genre/movie/list")
-      .then((data) => setGenres(data.genres))
-      .catch(() => setGenres([]))
-      .finally(() => setLoading(false));
-  }, []);
+    const timer = window.setTimeout(() => {
+      setDebounced(value);
+    }, delayMs);
 
-  return { genres, loading };
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
+export function useGenres() {
+  const query = useQuery({
+    queryKey: discoverKeys.genres(),
+    queryFn: () => fetchJson<{ genres: TMDBGenre[] }>("/api/tmdb/genre/movie/list"),
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
+
+  return { genres: query.data?.genres ?? [], loading: query.isLoading };
 }
 
 export function usePopular(
@@ -35,27 +51,24 @@ export function usePopular(
   moodId: DiscoverMoodId,
   exploreFilters: DiscoverExploreFiltersState
 ) {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.popular(genreId, moodId, exploreFilters),
+    queryFn: () => {
+      const useDiscover = shouldUseDiscoverList(genreId, moodId, exploreFilters);
+      const url = useDiscover
+        ? buildDiscoverExploreUrl({
+            sortBy: "popularity.desc",
+            genreId,
+            moodId,
+            filters: exploreFilters,
+          })
+        : "/api/tmdb/movie/popular?page=1";
+      return fetchJson<{ results: TMDBMovie[] }>(url);
+    },
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    setLoading(true);
-    const useDiscover = shouldUseDiscoverList(genreId, moodId, exploreFilters);
-    const url = useDiscover
-      ? buildDiscoverExploreUrl({
-          sortBy: "popularity.desc",
-          genreId,
-          moodId,
-          filters: exploreFilters,
-        })
-      : "/api/tmdb/movie/popular?page=1";
-    fetchJson<{ results: TMDBMovie[] }>(url)
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, [genreId, moodId, exploreFilters]);
-
-  return { movies: data, loading };
+  return { movies: query.data?.results ?? [], loading: query.isLoading };
 }
 
 export function useNowPlaying(
@@ -63,122 +76,93 @@ export function useNowPlaying(
   moodId: DiscoverMoodId,
   exploreFilters: DiscoverExploreFiltersState
 ) {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.nowPlaying(genreId, moodId, exploreFilters),
+    queryFn: () => {
+      const useDiscover = shouldUseDiscoverList(genreId, moodId, exploreFilters);
+      const sortBy = discoverRecentSortBy(exploreFilters);
+      const url = useDiscover
+        ? buildDiscoverExploreUrl({
+            sortBy,
+            genreId,
+            moodId,
+            filters: exploreFilters,
+          })
+        : "/api/tmdb/movie/now_playing?page=1";
+      return fetchJson<{ results: TMDBMovie[] }>(url);
+    },
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    setLoading(true);
-    const useDiscover = shouldUseDiscoverList(genreId, moodId, exploreFilters);
-    const sortBy = discoverRecentSortBy(exploreFilters);
-    const url = useDiscover
-      ? buildDiscoverExploreUrl({
-          sortBy: sortBy,
-          genreId,
-          moodId,
-          filters: exploreFilters,
-        })
-      : "/api/tmdb/movie/now_playing?page=1";
-    fetchJson<{ results: TMDBMovie[] }>(url)
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, [genreId, moodId, exploreFilters]);
-
-  return { movies: data, loading };
+  return { movies: query.data?.results ?? [], loading: query.isLoading };
 }
 
 export function useTrending() {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.trending(),
+    queryFn: () => fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/trending/all/week"),
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/trending/all/week")
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { movies: data, loading };
+  return { movies: query.data?.results ?? [], loading: query.isLoading };
 }
 
 export function useTopRated() {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.topRated(),
+    queryFn: () => fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/movie/top_rated?page=1"),
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/movie/top_rated?page=1")
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { movies: data, loading };
+  return { movies: query.data?.results ?? [], loading: query.isLoading };
 }
 
 export function useSearchMulti(query: string) {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(false);
+  const debouncedQuery = useDebouncedValue(query, 400);
+  const normalizedQuery = debouncedQuery.trim();
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
+  const searchQuery = useQuery({
+    queryKey: discoverKeys.searchMulti(normalizedQuery),
+    queryFn: () =>
+      fetchJson<{ results: TMDBMovie[] }>(
+        `/api/tmdb/search/multi?query=${encodeURIComponent(normalizedQuery)}&include_adult=false`
+      ),
+    enabled: normalizedQuery.length > 0,
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-    const timer = setTimeout(() => {
-      setLoading(true);
-      const url = `/api/tmdb/search/multi?query=${encodeURIComponent(query.trim())}&include_adult=false`;
-      fetchJson<{ results: TMDBMovie[] }>(url)
-        .then((d) => setData(d.results || []))
-        .catch(() => setData([]))
-        .finally(() => setLoading(false));
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  return { movies: data, loading };
+  return {
+    movies: normalizedQuery.length > 0 ? searchQuery.data?.results ?? [] : [],
+    loading: normalizedQuery.length > 0 ? searchQuery.isLoading : false,
+  };
 }
 
 export function usePopularTV() {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.popularTv(),
+    queryFn: () => fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/tv/popular?page=1"),
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/tv/popular?page=1")
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { tvShows: data, loading };
+  return { tvShows: query.data?.results ?? [], loading: query.isLoading };
 }
 
 export function useTopRatedTV() {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.topRatedTv(),
+    queryFn: () => fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/tv/top_rated?page=1"),
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/tv/top_rated?page=1")
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { tvShows: data, loading };
+  return { tvShows: query.data?.results ?? [], loading: query.isLoading };
 }
 
 export function useOnTheAirTV() {
-  const [data, setData] = useState<TMDBMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: discoverKeys.onTheAirTv(),
+    queryFn: () => fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/tv/on_the_air?page=1"),
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
 
-  useEffect(() => {
-    fetchJson<{ results: TMDBMovie[] }>("/api/tmdb/tv/on_the_air?page=1")
-      .then((d) => setData(d.results || []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { tvShows: data, loading };
+  return { tvShows: query.data?.results ?? [], loading: query.isLoading };
 }

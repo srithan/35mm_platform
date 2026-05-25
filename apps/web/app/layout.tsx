@@ -5,6 +5,7 @@ import {
   DM_Sans,
   DM_Mono,
 } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Analytics } from "@vercel/analytics/next";
@@ -101,15 +102,17 @@ export default function RootLayout({
         <link rel="manifest" href="/favicon/site.webmanifest" />
       </head>
       <body className="font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen antialiased">
-        <Providers>
-          <NuqsAdapter>
-            <ServiceWorkerRegistration />
-            <OfflineStatus />
-            {children}
-            <Analytics />
-            <SpeedInsights />
-          </NuqsAdapter>
-        </Providers>
+        <ClerkProvider>
+          <Providers>
+            <NuqsAdapter>
+              <ServiceWorkerRegistration />
+              <OfflineStatus />
+              {children}
+              <Analytics />
+              <SpeedInsights />
+            </NuqsAdapter>
+          </Providers>
+        </ClerkProvider>
       </body>
     </html>
   );

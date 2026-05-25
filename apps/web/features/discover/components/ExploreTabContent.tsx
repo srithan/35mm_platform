@@ -3,6 +3,7 @@
 import { HeroCard } from "./HeroCard";
 import { FilmShelf } from "./FilmShelf";
 import { SearchResultsView } from "./SearchResultsView";
+import { EmptyState } from "@/components/EmptyState";
 import {
   usePopular,
   useNowPlaying,
@@ -22,6 +23,8 @@ interface ExploreTabContentProps {
   genreId: number | null;
   moodId: DiscoverMoodId;
   exploreFilters: DiscoverExploreFiltersState;
+  activeFilterCount: number;
+  onClearFilters: () => void;
 }
 
 function uniqueFilms(films: TMDBMovie[]) {
@@ -50,6 +53,8 @@ export function ExploreTabContent({
   genreId,
   moodId,
   exploreFilters,
+  activeFilterCount,
+  onClearFilters,
 }: ExploreTabContentProps) {
   const { movies: popular } = usePopular(genreId, moodId, exploreFilters);
   const { movies: nowPlaying } = useNowPlaying(genreId, moodId, exploreFilters);
@@ -82,6 +87,15 @@ export function ExploreTabContent({
   const newAndNear = uniqueFilms(nowPlayingFiltered).slice(0, 14);
 
   const isSearchActive = searchQuery.trim().length > 0;
+  const hasAnyShelf =
+    Boolean(editorPick) ||
+    Boolean(featuredRelease) ||
+    trendingFilms.length > 0 ||
+    popularFilms.length > 0 ||
+    newAndNear.length > 0 ||
+    sciFiDramaMystery.length > 0 ||
+    adventureFantasyHistory.length > 0;
+  const showFilteredEmptyState = !isSearchActive && activeFilterCount > 0 && !hasAnyShelf;
 
   return (
     <div className="w-full pb-8 pt-5">
@@ -91,6 +105,14 @@ export function ExploreTabContent({
           movies={searchResults}
           loading={searchLoading}
           onFilmClick={onOpenDetail}
+        />
+      ) : showFilteredEmptyState ? (
+        <EmptyState
+          size="lg"
+          icon={<span className="text-[24px]">🎞️</span>}
+          headline="No films match your filters"
+          subline="Try adjusting or clearing your filters"
+          primaryCta={{ label: "Clear filters", onClick: onClearFilters }}
         />
       ) : (
         <>

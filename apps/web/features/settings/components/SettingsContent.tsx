@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/Button";
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { useTheme } from "@/lib/theme/useTheme";
+import { useAuth } from "@clerk/nextjs";
 import { SettingsAccountPanel } from "./SettingsAccountPanel";
 import { SettingsPrivacyPanel } from "./SettingsPrivacyPanel";
 import { SettingsNotificationsPanel } from "./SettingsNotificationsPanel";
@@ -27,9 +28,10 @@ const SETTINGS_TABS = [
 ] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
-export function SettingsContent() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("Account");
+export function SettingsContent({ initialTab = "Account" }: { initialTab?: SettingsTab }) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const { theme, setTheme } = useTheme();
+  const { isLoaded } = useAuth();
   const settingsQuery = useSettingsQuery();
   const updateProfileMutation = useUpdateProfileMutation();
   const updatePrivacyMutation = useUpdatePrivacyMutation();
@@ -44,34 +46,41 @@ export function SettingsContent() {
 
   const settings = settingsQuery.data;
 
-  const fallbackSettings = useMemo<UserSettings>(
-    () => ({
-      profile: {
-        displayName: "Srithan",
-        username: "srithan",
-        email: "srithan@example.com",
-      },
-      privacy: {
-        privateAccount: false,
-        allowMessagesFromAnyone: true,
-        showActivityStatus: true,
-      },
-      notifications: {
-        newFollowers: true,
-        likesOnPosts: true,
-        commentsAndReplies: true,
-        mentions: true,
-        festivalUpdates: true,
-        watchlistStreaming: true,
-        emailDigest: false,
-      },
-      appearance: {
-        theme,
-        videoAutoplay: true,
-      },
-    }),
-    [theme]
-  );
+  const fallbackSettings: UserSettings = {
+    profile: {
+      displayName: "",
+      username: "",
+      email: "",
+    },
+    privacy: {
+      privateAccount: false,
+      allowMessagesFromAnyone: true,
+      showActivityStatus: true,
+    },
+    notifications: {
+      newFollowers: true,
+      likesOnPosts: true,
+      commentsAndReplies: true,
+      mentions: true,
+      festivalUpdates: true,
+      watchlistStreaming: true,
+      emailDigest: false,
+    },
+    appearance: {
+      theme,
+      videoAutoplay: true,
+    },
+  };
+
+  if (!isLoaded || !settingsQuery.isFetched) {
+    return (
+      <div className="px-10 py-8">
+        <div className="rounded-xl border border-border bg-elevated p-6 text-sm text-fg-muted">
+          Loading settings...
+        </div>
+      </div>
+    );
+  }
 
   const hydratedSettings = settings ?? fallbackSettings;
 
@@ -125,11 +134,7 @@ export function SettingsContent() {
       />
 
       <div className="px-10 py-8">
-        {settingsQuery.isLoading ? (
-          <div className="rounded-xl border border-border bg-elevated p-6 text-sm text-fg-muted">
-            Loading settings...
-          </div>
-        ) : settingsQuery.isError ? (
+        {settingsQuery.isError ? (
           <div className="rounded-xl border border-accent/30 bg-elevated p-6">
             <p className="text-sm text-accent">
               Could not load settings. Please retry.

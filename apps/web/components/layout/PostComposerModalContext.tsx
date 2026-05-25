@@ -1,15 +1,9 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { PostComposerModal } from "@/features/feed/components/PostComposerModal";
-import { CURRENT_USER } from "@/lib/constants/currentUser";
+import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
-
-const DEFAULT_USER = {
-  name: CURRENT_USER.name,
-  avatarUrl: CURRENT_USER.avatarUrl,
-  initial: CURRENT_USER.initial,
-  handle: CURRENT_USER.handle,
-};
 
 export function ComposerModalProvider({
   children,
@@ -18,6 +12,20 @@ export function ComposerModalProvider({
 }) {
   const isComposerModalOpen = useComposerModalStore((s) => s.isOpen);
   const closeComposerModal = useComposerModalStore((s) => s.close);
+  const quotedPost = useComposerModalStore((s) => s.quotedPost);
+  const editingPost = useComposerModalStore((s) => s.editingPost);
+  const { user: clerkUser } = useUser();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
+  const displayName =
+    currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
+  const username = currentUser?.username ?? clerkUser?.username;
+  const modalUser = {
+    name: displayName,
+    avatarUrl: currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null,
+    initial: initialForName(displayName),
+    handle: username ?? undefined,
+  };
 
   return (
     <>
@@ -25,7 +33,9 @@ export function ComposerModalProvider({
       <PostComposerModal
         isOpen={isComposerModalOpen}
         onClose={closeComposerModal}
-        user={DEFAULT_USER}
+        user={modalUser}
+        quotedPost={quotedPost}
+        editingPost={editingPost}
       />
     </>
   );

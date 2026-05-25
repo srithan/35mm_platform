@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { isAuthenticated } from "@/lib/auth";
+import { getIsAuthenticated } from "@/lib/auth";
 import { LandingPage } from "@/features/landing/components/LandingPage";
 import { LandingCarousel } from "@/features/landing/components/LandingCarousel";
 import { ShellGrid } from "@/components/layout/ShellGrid";
 import { ScrollRestore } from "@/features/feed/components/FeedScrollRestore";
 import { FeedWithComposer } from "@/features/feed/components/FeedWithComposer";
 import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
-import { FeedOnboardingModal } from "@/features/feed/components/FeedOnboardingModal";
-
-const SHOW_ONBOARDING_MODAL = false;
+import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 
 export const metadata: Metadata = {
   title: "35mm.in — The Social Network for Cinema",
@@ -27,8 +25,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootPage() {
-  if (!isAuthenticated) {
+export default async function RootPage() {
+  const authenticated = await getIsAuthenticated();
+
+  if (!authenticated) {
     return (
       <LandingPage>
         <Suspense
@@ -49,6 +49,7 @@ export default function RootPage() {
   return (
     <>
       <ScrollRestore />
+      <OnboardingGate />
       <a href="#main-content" className="sr-only">
         Skip to main content
       </a>
@@ -57,7 +58,6 @@ export default function RootPage() {
           <FeedWithComposer>
             <InfinitePostList />
           </FeedWithComposer>
-          {SHOW_ONBOARDING_MODAL ? <FeedOnboardingModal /> : null}
         </div>
       </ShellGrid>
     </>

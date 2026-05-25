@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo } from "react";
+import { useUser } from "@clerk/nextjs";
 import { Avatar } from "@/components/Avatar";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import { Icon } from "@/components/Icon/Icon";
-import { CURRENT_USER } from "@/lib/constants/currentUser";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { isRouteActive } from "@/lib/utils/navigation";
+import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 
 type MobileSidebarIconName =
   | "home"
@@ -25,15 +26,6 @@ interface MobileSidebarItem {
   icon: MobileSidebarIconName;
   badge?: number;
 }
-
-const NAV_ITEMS: readonly MobileSidebarItem[] = [
-  { label: "Your Feed", href: ROUTES.HOME, icon: "home" },
-  { label: "Discover", href: ROUTES.DISCOVER, icon: "search" },
-  { label: "Notifications", href: ROUTES.NOTIFICATIONS, badge: 3, icon: "bell" },
-  { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
-  { label: "Profile", href: ROUTES.PROFILE(CURRENT_USER.username), icon: "user" },
-  { label: "Settings", href: ROUTES.SETTINGS, icon: "settings" },
-] as const;
 
 interface MobileSidebarProps {
   open: boolean;
@@ -55,7 +47,7 @@ function MobileSidebarSection({
         const active = isActive(item.href);
         return (
           <Link
-            key={item.href}
+            key={item.label + ":" + item.href}
             href={item.href}
             onClick={onClose}
             data-active={active}
@@ -84,7 +76,27 @@ function MobileSidebarSection({
 
 export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   const pathname = usePathname();
+  const { user: clerkUser } = useUser();
   const { openComposerModal } = useComposerModal();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
+  const profileUsername = currentUser?.username ?? clerkUser?.username ?? null;
+  const profileHref = profileUsername ? ROUTES.PROFILE(profileUsername) : ROUTES.HOME;
+  const displayName = currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
+  const username = profileUsername ?? "profile";
+  const avatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
+  const initial = initialForName(displayName);
+  const navItems: readonly MobileSidebarItem[] = useMemo(
+    () => [
+      { label: "Your Feed", href: ROUTES.HOME, icon: "home" },
+      { label: "Discover", href: ROUTES.DISCOVER, icon: "search" },
+      { label: "Notifications", href: ROUTES.NOTIFICATIONS, badge: 3, icon: "bell" },
+      { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
+      { label: "Profile", href: profileHref, icon: "user" },
+      { label: "Settings", href: ROUTES.SETTINGS, icon: "settings" },
+    ],
+    [profileHref]
+  );
 
   const isActive = useMemo(
     () => (href: string) => isRouteActive(pathname ?? "", href),
@@ -138,24 +150,24 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
         aria-hidden={!open}
       >
         <Link
-          href={ROUTES.PROFILE(CURRENT_USER.username)}
+          href={profileHref}
           onClick={onClose}
           className="block px-4 py-4 border-b border-border no-underline text-inherit hover:bg-border/40 transition-colors active:opacity-90"
         >
           <div className="flex items-start">
             <Avatar
-              initial={CURRENT_USER.initial}
-              src={CURRENT_USER.avatarUrl}
+              initial={initial}
+              src={avatarUrl}
               size="lg"
               variant="ring"
             />
           </div>
           <div className="mt-3">
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-[17px] text-fg">{CURRENT_USER.username}</span>
+              <span className="font-bold text-[17px] text-fg">{displayName}</span>
               <Icon name="check" className="w-4 h-4 text-accent shrink-0" strokeWidth={3} />
             </div>
-            <p className="text-[13px] text-fg-muted mt-0.5">@{CURRENT_USER.username}</p>
+            <p className="text-[13px] text-fg-muted mt-0.5">@{username}</p>
             <div className="flex gap-4 mt-2 text-[13px] text-fg-muted">
               <span>
                 <span className="font-bold text-fg">2,961</span> Following
@@ -168,7 +180,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
         </Link>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Mobile navigation">
-          <MobileSidebarSection items={NAV_ITEMS} onClose={onClose} isActive={isActive} />
+          <MobileSidebarSection items={navItems} onClose={onClose} isActive={isActive} />
         </nav>
 
         <div className="px-2 pb-2">

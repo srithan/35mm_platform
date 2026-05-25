@@ -10,6 +10,7 @@ import {
 import Image from "next/image";
 import { Search, X, Clock, Loader2, Film, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { EmptyState } from "@/components/EmptyState";
 import { useSearch } from "./useSearch";
 import type { SearchBarProps, SearchResult } from "./types";
 
@@ -415,9 +416,16 @@ export function SearchBar({
               results.length === 0 && (
                 <li
                   role="presentation"
-                  className="px-3 py-3.5 text-[12px] text-fg-muted"
+                  className="px-3 py-2"
                 >
-                  No results for &lsquo;{debouncedQuery}&rsquo;
+                  <EmptyState
+                    size="sm"
+                    icon={<span className="text-[18px]">🔎</span>}
+                    headline={`No results for "${debouncedQuery}"`}
+                    subline="Try a different search or browse the discover page"
+                    primaryCta={{ label: "Browse discover", href: "/discover" }}
+                    className="py-4"
+                  />
                 </li>
               )}
 

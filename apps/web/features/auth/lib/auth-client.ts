@@ -1,97 +1,133 @@
 /**
- * Client-callable auth operations. Replace implementations with real API calls
- * (fetch to your route handlers or SDK) when the backend is ready.
- *
- * All functions return a discriminated result so callers can branch without try/catch.
+ * Clerk-backed auth operations.
+ * Each function receives the Clerk signUp / signIn object from the component
+ * that calls it (via useSignUp / useSignIn hooks).
  */
 
 export type AuthResult<T = void> =
   | (T extends void ? { ok: true } : { ok: true; data: T })
   | { ok: false; code: string; message: string };
 
-export type SignInSuccess = { userId: string };
-
-export type SignUpSuccess = { userId: string; requiresVerification: boolean };
-
-function delay(ms: number) {
-  return new Promise(function (resolve) {
-    setTimeout(resolve, ms);
-  });
+function clerkErrorMessage(err: unknown): string {
+  if (err && typeof err === "object" && "errors" in err) {
+    var errors = (err as any).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return errors[0].longMessage || errors[0].message || "Something went wrong";
+    }
+  }
+  if (err instanceof Error) return err.message;
+  return "Something went wrong";
 }
 
-/** POST /api/auth/login — session cookie or token in response. */
-export async function signInWithPassword(input: {
-  identifier: string;
-  password: string;
-}): Promise<AuthResult<SignInSuccess>> {
-  await delay(500);
-  void input;
-  // TODO: const res = await fetch("/api/auth/login", { method: "POST", body: JSON.stringify(input), credentials: "include" });
-  return { ok: true, data: { userId: "stub-user" } };
+export async function clerkSignUp(
+  signUp: any,
+  input: {
+    fullName: string;
+    username: string;
+    email: string;
+    password: string;
+  }
+): Promise<AuthResult<{ requiresVerification: boolean }>> {
+  try {
+    var nameParts = input.fullName.trim().split(/\s+/);
+    var firstName = nameParts[0] || "";
+    var lastName = nameParts.slice(1).join(" ") || "";
+
+    await signUp.create({
+      firstName: firstName,
+      lastName: lastName,
+      username: input.username.trim().toLowerCase(),
+      emailAddress: input.email.trim(),
+      password: input.password,
+    });
+
+    await signUp.prepareEmailAddressVerification({
+      strategy: "email_code",
+    });
+
+    return { ok: true, data: { requiresVerification: true } };
+  } catch (err) {
+    return { ok: false, code: "SIGNUP_FAILED", message: clerkErrorMessage(err) };
+  }
 }
 
-/** POST /api/auth/signup */
-export async function signUp(input: {
-  fullName: string;
-  username: string;
-  email: string;
-  password: string;
-}): Promise<AuthResult<SignUpSuccess>> {
-  await delay(600);
-  void input;
-  // TODO: real signup + optional auto sign-in
-  return { ok: true, data: { userId: "stub-user", requiresVerification: true } };
+export async function clerkVerifyEmail(
+  signUp: any,
+  code: string
+): Promise<AuthResult> {
+  try {
+    var result = await signUp.attemptEmailAddressVerification({ code: code });
+    if (result.status === "complete") {
+      return { ok: true };
+    }
+    return { ok: false, code: "VERIFY_INCOMPLETE", message: "Verification not complete. Please try again." };
+  } catch (err) {
+    return { ok: false, code: "VERIFY_FAILED", message: clerkErrorMessage(err) };
+  }
 }
 
-/** POST /api/auth/forgot-password — sends OTP or magic link. */
-export async function requestPasswordReset(input: { identifier: string }): Promise<AuthResult> {
-  await delay(600);
-  void input;
-  // TODO
-  return { ok: true };
+export async function clerkSignIn(
+  signIn: any,
+  input: { identifier: string; password: string }
+): Promise<AuthResult> {
+  try {
+    var result = await signIn.create({
+      identifier: input.identifier.trim(),
+      password: input.password,
+    });
+    if (result.status === "complete") {
+      return { ok: true };
+    }
+    return { ok: false, code: "SIGNIN_INCOMPLETE", message: "Sign in not complete." };
+  } catch (err) {
+    return { ok: false, code: "SIGNIN_FAILED", message: clerkErrorMessage(err) };
+  }
 }
 
-/** POST /api/auth/forgot-password/verify — validates OTP before allowing reset. */
-export async function verifyPasswordResetOtp(input: {
-  identifier: string;
-  otp: string;
-}): Promise<AuthResult<{ resetToken: string }>> {
-  await delay(500);
-  void input;
-  // TODO: return short-lived reset token for the next step
-  return { ok: true, data: { resetToken: "stub-reset-token" } };
+export async function clerkForgotPassword(
+  signIn: any,
+  email: string
+): Promise<AuthResult> {
+  try {
+    await signIn.create({
+      strategy: "reset_password_email_code",
+      identifier: email.trim(),
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, code: "RESET_FAILED", message: clerkErrorMessage(err) };
+  }
 }
 
-/** POST /api/auth/reset-password */
-export async function resetPassword(input: {
-  token?: string;
-  newPassword: string;
-}): Promise<AuthResult> {
-  await delay(600);
-  void input;
-  // TODO: Authorization: Bearer <token> or body { token, password }
-  return { ok: true };
+export async function clerkVerifyResetCode(
+  signIn: any,
+  code: string
+): Promise<AuthResult> {
+  try {
+    var result = await signIn.attemptFirstFactor({
+      strategy: "reset_password_email_code",
+      code: code,
+    });
+    if (result.status === "needs_new_password") {
+      return { ok: true };
+    }
+    return { ok: false, code: "CODE_INVALID", message: "Invalid or expired code." };
+  } catch (err) {
+    return { ok: false, code: "VERIFY_FAILED", message: clerkErrorMessage(err) };
+  }
 }
 
-/** POST /api/auth/logout — clear session cookie. */
-export async function signOut(): Promise<AuthResult> {
-  await delay(200);
-  // TODO: await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-  return { ok: true };
-}
-
-/** POST /api/auth/verify-email — link token from email. */
-export async function verifyEmailWithToken(token: string): Promise<AuthResult> {
-  await delay(500);
-  void token;
-  // TODO
-  return { ok: true };
-}
-
-/** POST /api/auth/resend-verification */
-export async function resendVerificationEmail(input: { email: string }): Promise<AuthResult> {
-  await delay(500);
-  void input;
-  // TODO
-  return { ok: true };
+export async function clerkResetPassword(
+  signIn: any,
+  newPassword: string
+): Promise<AuthResult> {
+  try {
+    var result = await signIn.resetPassword({ password: newPassword });
+    if (result.status === "complete") {
+      return { ok: true };
+    }
+    return { ok: false, code: "RESET_INCOMPLETE", message: "Password reset not complete." };
+  } catch (err) {
+    return { ok: false, code: "RESET_FAILED", message: clerkErrorMessage(err) };
+  }
 }

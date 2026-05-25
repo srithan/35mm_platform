@@ -13,9 +13,10 @@ export interface Author {
 }
 
 export interface FilmRef {
-  tmdbId: number;
+  id: string;
+  tmdbId?: number;
   title: string;
-  year: number;
+  year: number | null;
   posterUrl: string | null;
   genres: string[];
   rating: number | null;
@@ -33,18 +34,31 @@ export interface PostMedia {
 export interface Post {
   id: string;
   author: Author;
+  type: "text" | "discussion" | "log" | "review" | "image";
+  visibility?: "public" | "followers_only" | "private";
+  editedAt?: string | null;
+  isDeleted?: boolean;
   /** Discussion-style title. When set, `body` is only the post body (not the title). */
   headline?: string;
   body: string;
   media: PostMedia[];
+  mediaUrls?: string[];
+  linkPreview?: {
+    url: string;
+    title: string;
+    description: string | null;
+    image: string | null;
+    domain: string;
+    provider: "youtube" | "vimeo" | "link";
+  } | null;
   film: FilmRef | null;
   likeCount: number;
   commentCount: number;
   repostCount: number;
-  saveCount: number;
+  bookmarkCount: number;
   isLiked: boolean;
   isReposted: boolean;
-  isSaved: boolean;
+  isBookmarked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,9 +67,11 @@ export interface Comment {
   id: string;
   postId: string;
   author: Author;
-  body: string;
+  body: string | null;
   likeCount: number;
   isLiked: boolean;
+  isDeleted?: boolean;
+  editedAt?: string | null;
   createdAt: string;
   replies: Comment[];
   parentId: string | null;

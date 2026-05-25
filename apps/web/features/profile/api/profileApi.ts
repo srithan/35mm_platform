@@ -1,0 +1,227 @@
+import { ApiRequestError, apiRequest } from "@/features/feed/api/http";
+import { resolveProfileMediaUrls } from "@/lib/utils/r2Media";
+
+export interface PublicProfile {
+  userId: string;
+  username: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  location: string | null;
+  website: string | null;
+  role: string | null;
+  roleContext: string | null;
+  headline?: string | null;
+  headlineContext?: string | null;
+  filmsLoggedCount: number;
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  isFollowRequested?: boolean;
+  isPrivate?: boolean;
+  posts?: null;
+  isDeactivated: boolean;
+  createdAt?: string;
+}
+
+export interface CurrentUserProfile {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: string | null;
+  roleContext: string | null;
+  filmsLoggedCount: number;
+}
+
+export interface CurrentProfilePatch {
+  userId: string;
+  username: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  location: string | null;
+  website: string | null;
+  role: string | null;
+  roleContext: string | null;
+}
+
+type ProfileUpdateResponse = {
+  ok: boolean;
+  message?: string;
+  profile: CurrentProfilePatch;
+};
+
+export async function fetchPublicProfile(
+  username: string,
+  token?: string | null
+): Promise<PublicProfile | null> {
+  try {
+    var profile = await apiRequest<PublicProfile>(
+      "/v1/profiles/" + encodeURIComponent(username),
+      {
+        token,
+      }
+    );
+    return resolveProfileMediaUrls(profile);
+  } catch (err) {
+    if (err instanceof ApiRequestError && err.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function fetchCurrentUserProfile(token: string | null): Promise<CurrentUserProfile> {
+  var profile = await apiRequest<CurrentUserProfile>("/v1/me", {
+    token,
+  });
+  return resolveProfileMediaUrls(profile);
+}
+
+export async function followUser(
+  userId: string,
+  token: string | null
+): Promise<{ ok: true; isFollowing: boolean; status: "accepted" | "pending" }> {
+  return apiRequest<{ ok: true; isFollowing: boolean; status: "accepted" | "pending" }>(
+    `/v1/follows/${encodeURIComponent(userId)}`,
+    {
+      method: "POST",
+      token,
+    }
+  );
+}
+
+export async function unfollowUser(userId: string, token: string | null): Promise<void> {
+  await apiRequest<{ ok: true }>(`/v1/follows/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function blockUser(userId: string, token: string | null): Promise<void> {
+  await apiRequest<{ ok: true }>(`/v1/users/${encodeURIComponent(userId)}/block`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function unblockUser(userId: string, token: string | null): Promise<void> {
+  await apiRequest<{ ok: true }>(`/v1/users/${encodeURIComponent(userId)}/block`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function muteUser(userId: string, token: string | null): Promise<void> {
+  await apiRequest<{ ok: true }>(`/v1/users/${encodeURIComponent(userId)}/mute`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function unmuteUser(userId: string, token: string | null): Promise<void> {
+  await apiRequest<{ ok: true }>(`/v1/users/${encodeURIComponent(userId)}/mute`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export interface ModeratedUser {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface ProfileConnectionUser {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  followedAt: string;
+}
+
+export async function fetchMyBlocks(
+  token: string | null
+): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
+  return apiRequest<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }>(
+    "/v1/me/blocks?limit=50",
+    {
+      token,
+    }
+  );
+}
+
+export async function fetchMyMutes(
+  token: string | null
+): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
+  return apiRequest<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }>(
+    "/v1/me/mutes?limit=50",
+    {
+      token,
+    }
+  );
+}
+
+export async function fetchProfileConnections(params: {
+  username: string;
+  kind: "followers" | "following";
+  cursor?: string;
+  limit?: number;
+  token?: string | null;
+}): Promise<{ items: ProfileConnectionUser[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params.limit ?? 30),
+  });
+  if (params.cursor) query.set("cursor", params.cursor);
+
+  var path =
+    "/v1/profiles/" +
+    encodeURIComponent(params.username) +
+    "/" +
+    params.kind +
+    "?" +
+    query.toString();
+
+  return apiRequest<{ items: ProfileConnectionUser[]; nextCursor: string | null; hasMore: boolean }>(
+    path,
+    {
+      token: params.token,
+    }
+  );
+}
+
+export async function fetchUsernameAvailability(username: string): Promise<{
+  available: boolean;
+  reason?: string;
+}> {
+  return apiRequest<{ available: boolean; reason?: string }>(
+    "/v1/usernames/" + encodeURIComponent(username) + "/available"
+  );
+}
+
+export async function updateCurrentProfile(
+  input: Partial<{
+    displayName: string;
+    username: string;
+    bio: string | null;
+    location: string | null;
+    website: string | null;
+    avatarUrl: string | null;
+    coverUrl: string | null;
+    role: string | null;
+    roleContext: string | null;
+  }>,
+  token: string | null
+): Promise<CurrentProfilePatch> {
+  const payload = await apiRequest<ProfileUpdateResponse>("/v1/profiles/me", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
+
+  return resolveProfileMediaUrls(payload.profile);
+}

@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
+import { Avatar } from "@/components/Avatar/Avatar";
+import { initialForName } from "@/features/profile/hooks/useCurrentUserProfile";
 
 /**
  * Shrunk sticky identity row (`ProfileMiniHeader.appear`): width is set by fixed parent aligned to hero / cover bounds.
@@ -9,9 +10,11 @@ import { cn } from "@/lib/utils/cn";
 export function ProfileMiniHeader(props: {
   displayName: string;
   tagline: string;
-  avatarUrl: string;
+  avatarUrl?: string | null;
   visible: boolean;
 }) {
+  const initial = initialForName(props.displayName);
+
   return (
     <header
       className={cn(
@@ -27,12 +30,10 @@ export function ProfileMiniHeader(props: {
     >
       <div className="flex flex-row gap-4 items-center min-h-[3.25rem] py-2.5 w-full box-border px-5 sm:px-6 md:px-8">
         <div className="profilePhotoContainer shrink-0 w-11 h-11 rounded-full overflow-hidden ring-1 ring-border bg-sunken-2 relative">
-          <Image
+          <Avatar
+            initial={initial}
             src={props.avatarUrl}
-            alt=""
-            width={44}
-            height={44}
-            className="w-full h-full object-cover"
+            className="w-11 h-11"
           />
         </div>
         <div className="infoContainer flex flex-col min-w-0 flex-1 leading-tight">

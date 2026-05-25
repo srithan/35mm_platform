@@ -25,7 +25,7 @@ function getHeaderStickyOffsetPx(): number {
 export function ProfileScrollChrome(props: {
   displayName: string;
   tagline: string;
-  avatarUrl: string;
+  avatarUrl?: string | null;
   /** Cover banner only — docking rect excludes profile text so width matches photo. */
   cover: ReactNode;
   children: ReactNode;

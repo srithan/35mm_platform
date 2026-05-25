@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/Button";
 import { SettingsSection, SettingsToggle } from "./SettingsFormPrimitives";
 import { useForm } from "react-hook-form";
@@ -11,6 +13,12 @@ import {
   toFormErrorMessage,
 } from "../schemas/settingsSchemas";
 import type { PrivacySettings } from "../types/settings";
+import {
+  fetchMyBlocks,
+  fetchMyMutes,
+  unblockUser,
+  unmuteUser,
+} from "@/features/profile/api/profileApi";
 
 interface SettingsPrivacyPanelProps {
   initialValues: PrivacySettings;
@@ -23,6 +31,8 @@ export function SettingsPrivacyPanel({
 }: SettingsPrivacyPanelProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
 
   const {
     watch,
@@ -47,6 +57,35 @@ export function SettingsPrivacyPanel({
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     reset(values);
+  });
+
+  const blocksQuery = useQuery({
+    queryKey: ["privacy", "blocks"],
+    queryFn: async () => fetchMyBlocks(await getToken()),
+  });
+  const mutesQuery = useQuery({
+    queryKey: ["privacy", "mutes"],
+    queryFn: async () => fetchMyMutes(await getToken()),
+  });
+
+  const unblockMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await unblockUser(userId, await getToken());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["privacy", "blocks"] });
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+    },
+  });
+
+  const unmuteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await unmuteUser(userId, await getToken());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["privacy", "mutes"] });
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+    },
   });
 
   return (
@@ -93,6 +132,50 @@ export function SettingsPrivacyPanel({
               {isSubmitting ? "Saving…" : saved ? "Saved" : "Save changes"}
             </Button>
           </div>
+        </div>
+      </SettingsSection>
+      <SettingsSection title="Blocked accounts">
+        <div className="space-y-2">
+          {(blocksQuery.data?.items ?? []).length === 0 ? (
+            <p className="text-sm text-fg-muted">No blocked accounts.</p>
+          ) : (
+            blocksQuery.data?.items.map((item) => (
+              <div key={item.userId} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                <div className="text-sm text-fg">
+                  {item.displayName} <span className="text-fg-muted">@{item.username}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => unblockMutation.mutate(item.userId)}
+                >
+                  Unblock
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </SettingsSection>
+      <SettingsSection title="Muted accounts">
+        <div className="space-y-2">
+          {(mutesQuery.data?.items ?? []).length === 0 ? (
+            <p className="text-sm text-fg-muted">No muted accounts.</p>
+          ) : (
+            mutesQuery.data?.items.map((item) => (
+              <div key={item.userId} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                <div className="text-sm text-fg">
+                  {item.displayName} <span className="text-fg-muted">@{item.username}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => unmuteMutation.mutate(item.userId)}
+                >
+                  Unmute
+                </Button>
+              </div>
+            ))
+          )}
         </div>
       </SettingsSection>
     </div>

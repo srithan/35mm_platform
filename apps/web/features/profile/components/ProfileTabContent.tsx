@@ -1,8 +1,7 @@
 "use client";
 
 import { useQueryState } from "nuqs";
-import { PostCard } from "@/features/feed/components/PostCard";
-import { StarRating } from "@/components/StarRating";
+import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
 import { UserCard } from "@/components/UserCard";
 import { StatBox } from "./StatBox";
 import { ActivityHeatmap } from "./ActivityHeatmap";
@@ -10,10 +9,12 @@ import { GenreBreakdown } from "./GenreBreakdown";
 import { FilmPoster } from "@/components/FilmPoster";
 import { DiaryRow } from "./DiaryRow";
 import { Button } from "@/components/Button";
+import { EmptyState } from "@/components/EmptyState";
 import { formatCount } from "@/lib/utils/formatCount";
 import { MOCK_PROFILE_CONNECTIONS } from "@/features/profile/data/mockConnections";
-import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
 import { FavouriteFilms } from "./FavouriteFilms";
+import { useCurrentUserProfile } from "../hooks/useCurrentUserProfile";
+import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 
 const LISTS = [
   { name: "Films That Changed How I Light", desc: "Cinematography studies that rewired my brain — every DP should see these before they pick up a camera.", count: "28 films · 1,204 saves · Public", posters: ["https://m.media-amazon.com/images/M/MV5BMjIxNTU4MzY4MF5BMl5BanBnXkFtZTgwNzY1MTU0MTE@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BNDc2NTM1MjktYmVhNS00YzQwLWE5NjctNWQ4NzEzZGY5ODI4XkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg"] },
@@ -21,99 +22,63 @@ const LISTS = [
   { name: "African Cinema I Keep Coming Back To", desc: "Personal collection of essential African films. Ongoing.", count: "54 films · Private", posters: [null, null, null] },
 ];
 
-export function ProfileTabContent({ username, displayName }: { username: string; displayName?: string }) {
-  const postAuthorName = displayName ?? username.charAt(0).toUpperCase() + username.slice(1);
-  const profileMockAvatarUrl = getMockPortraitUrlForUsername(username);
+export function ProfileTabContent({
+  username,
+  displayName,
+}: {
+  username: string;
+  displayName?: string;
+}) {
   const [tab] = useQueryState("tab", { defaultValue: "posts" });
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
+  const { openComposerModal } = useComposerModal();
+  const isOwnProfile = currentUser?.username === username;
 
   if (tab === "posts") {
     return (
       <div className="w-full max-w-[640px] mx-auto xl:w-[640px] xl:max-w-[640px]">
-        <PostCard
-          postId="p1"
-          variant="text"
+        <InfinitePostList
           username={username}
-          displayName={postAuthorName}
-          handle={`@${username}`}
-          timestamp="3 days ago"
-          avatarInitial="M"
-          avatarUrl={profileMockAvatarUrl}
-          avatarBg="linear-gradient(135deg,#2a1a2e,#8a4a6a)"
-          avatarColor="#fff"
-          text="Finally finished editing Ashes and Embers. Four years, three countries, two blown budgets, one film. The grain structure in the final reel makes everything worth it."
-          imageSrc="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=700&q=75"
-          likeCount={2341}
-          liked
-          commentCount={187}
+          emptyState={
+            isOwnProfile
+              ? {
+                  icon: <span className="text-[24px]">📝</span>,
+                  headline: "You haven't posted yet",
+                  primaryCta: {
+                    label: "Write your first post",
+                    onClick: openComposerModal,
+                  },
+                }
+              : {
+                  icon: <span className="text-[24px]">📝</span>,
+                  headline: `${displayName ?? username} hasn't posted yet`,
+                }
+          }
         />
-        <PostCard
-          postId="p2"
-          variant="text"
-          username={username}
-          displayName={postAuthorName}
-          handle={`@${username}`}
-          timestamp="5 days ago"
-          avatarInitial="M"
-          avatarUrl={profileMockAvatarUrl}
-          avatarBg="linear-gradient(135deg,#2a1a2e,#8a4a6a)"
-          avatarColor="#fff"
-          text="The difference between shooting on 16mm and digital isn't just aesthetic — it changes how your whole crew moves. Everyone slows down."
-          likeCount={892}
-          commentCount={74}
-        />
-        <PostCard
-          postId="p3"
-          variant="film-log"
-          username={username}
-          displayName={postAuthorName}
-          handle={`@${username}`}
-          timestamp="5 days ago"
-          avatarInitial="M"
-          avatarUrl={profileMockAvatarUrl}
-          avatarBg="linear-gradient(135deg,#2a1a2e,#8a4a6a)"
-          avatarColor="#fff"
-          text="Sean Baker doing what he does best — humanising the margins. The handheld work in the final act is extraordinary."
-          filmCard={{ title: "Anora", meta: "Sean Baker · 2024 · Drama", posterSrc: "https://www.movieposters.com/cdn/shop/files/anora_zsv5lb9d_1024x1024.jpg?v=1762977642", imdbId: "tt30187306", rating: 5 }}
-          likeCount={1102}
-          commentCount={98}
-        />
-        <div className="py-10 text-center text-xs text-fg-muted cursor-pointer hover:text-fg transition-colors">
-          Load more ↓
-        </div>
       </div>
     );
   }
 
-  if (tab === "reviews") {
+  if (tab === "diary") {
     return (
-      <div className="px-10">
-        {[
-          { title: "The Brutalist", meta: "Brady Corbet · 2024", poster: "https://m.media-amazon.com/images/M/MV5BM2U0MWRjZTMtMDVhNC00MzY4LTgwOTktZGQ2MDdiYTI4OWMxXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", imdbId: "tt33451484", rating: 4, body: "A film about the cost of vision. Corbet understands something most directors never learn: that the camera itself must carry the weight of what it witnesses.", date: "Jan 14, 2025", likes: 841 },
-          { title: "Anora", meta: "Sean Baker · 2024", poster: "https://www.movieposters.com/cdn/shop/files/anora_zsv5lb9d_1024x1024.jpg?v=1762977642", imdbId: "tt30187306", rating: 5, body: "Baker shoots chaos the way only someone who loves their subjects can — never condescending, always alive to the next surprise.", date: "Feb 3, 2025", likes: 1204 },
-        ].map((r) => (
-          <div key={r.title} className="py-5 border-b border-border">
-            <div className="flex gap-4">
-              <div className="w-14 flex-shrink-0">
-                <FilmPoster src={r.poster} imdbId={r.imdbId} alt={r.title} size="review" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-display text-base font-semibold">{r.title}</div>
-                <div className="text-[11.5px] text-fg-muted mt-0.5">{r.meta}</div>
-                <div className="mt-2"><StarRating rating={r.rating} size="sm" /></div>
-              </div>
-            </div>
-            <p className="text-sm leading-[1.65] text-fg mt-3">{r.body}</p>
-            <div className="flex gap-4 mt-3 text-[11px] text-fg-muted">
-              <span>{r.date}</span>
-              <span>{formatCount(r.likes)} likes</span>
-              <span className="text-accent cursor-pointer">Read full review →</span>
-            </div>
-          </div>
-        ))}
-        <div className="py-10 text-center text-xs text-fg-muted cursor-pointer hover:text-fg transition-colors">
-          Load more ↓
-        </div>
-      </div>
+      <EmptyState
+        size="lg"
+        icon={<span className="text-[24px]">🎞️</span>}
+        headline={
+          isOwnProfile
+            ? "No films logged yet"
+            : `${displayName ?? username} hasn't logged any films yet`
+        }
+        primaryCta={
+          isOwnProfile
+            ? {
+                label: "Log a film",
+                onClick: openComposerModal,
+              }
+            : undefined
+        }
+      />
     );
   }
 
@@ -192,18 +157,47 @@ export function ProfileTabContent({ username, displayName }: { username: string;
           />
         </div>
         <div className="px-10 py-2">
-          {MOCK_PROFILE_CONNECTIONS.map((u) => (
-            <UserCard
-              key={u.username}
-              username={u.username}
-              handle={`@${u.username}`}
-              role={u.role}
-              initial={u.initial}
-              avatarBg={u.avatarBg}
-              avatarColor={u.avatarColor}
-              showFollowButton
-            />
-          ))}
+          {MOCK_PROFILE_CONNECTIONS.length === 0 ? (
+            tab === "following" ? (
+              <EmptyState
+                size="md"
+                icon={<span className="text-[22px]">👥</span>}
+                headline={
+                  isOwnProfile
+                    ? "You're not following anyone yet"
+                    : `${displayName ?? username} isn't following anyone yet`
+                }
+                primaryCta={
+                  isOwnProfile
+                    ? { label: "Find people", href: "/suggestions/people" }
+                    : undefined
+                }
+              />
+            ) : (
+              <EmptyState
+                size="md"
+                icon={<span className="text-[22px]">✨</span>}
+                headline={
+                  isOwnProfile
+                    ? "Nobody's following you yet — keep posting"
+                    : `${displayName ?? username} doesn't have any followers yet`
+                }
+              />
+            )
+          ) : (
+            MOCK_PROFILE_CONNECTIONS.map((u) => (
+              <UserCard
+                key={u.username}
+                username={u.username}
+                handle={`@${u.username}`}
+                role={u.role}
+                initial={u.initial}
+                avatarBg={u.avatarBg}
+                avatarColor={u.avatarColor}
+                showFollowButton
+              />
+            ))
+          )}
         </div>
       </div>
     );

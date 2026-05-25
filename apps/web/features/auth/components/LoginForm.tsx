@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useSignIn } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
-import { signInWithPassword } from "@/features/auth/lib/auth-client";
+import { clerkSignIn } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
 
-const loginSchema = z.object({
+var loginSchema = z.object({
   identifier: z.string().min(1, { message: "Please enter your username or email" }),
   password: z.string().min(1, { message: "Please enter your password" }),
 });
@@ -23,33 +25,60 @@ function safeNextPath(raw: string | null): string | null {
   return raw;
 }
 
-export function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+function completeSessionNavigation(path: string) {
+  window.location.assign(path);
+}
 
-  const form = useForm<LoginValues>({
+function isAlreadySignedInMessage(message: string) {
+  return message.toLowerCase().includes("already signed in");
+}
+
+export function LoginForm() {
+  var searchParams = useSearchParams();
+  var { isLoaded: authIsLoaded, isSignedIn } = useAuth();
+  var { signIn, setActive, isLoaded } = useSignIn();
+  var [showPassword, setShowPassword] = useState(false);
+  var [isLoading, setIsLoading] = useState(false);
+  var [formError, setFormError] = useState<string | null>(null);
+
+  var form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { identifier: "", password: "" },
   });
 
-  const onSubmit = async function (data: LoginValues) {
+  useEffect(
+    function () {
+      if (authIsLoaded && isSignedIn) {
+        completeSessionNavigation(safeNextPath(searchParams.get("next")) ?? ROUTES.HOME);
+      }
+    },
+    [authIsLoaded, isSignedIn, searchParams]
+  );
+
+  var onSubmit = async function (data: LoginValues) {
+    if (!isLoaded || !signIn || !setActive) return;
     setFormError(null);
     setIsLoading(true);
-    const result = await signInWithPassword({
+
+    var result = await clerkSignIn(signIn, {
       identifier: data.identifier.trim(),
       password: data.password,
     });
+
     setIsLoading(false);
     if (!result.ok) {
+      if (isAlreadySignedInMessage(result.message)) {
+        completeSessionNavigation(safeNextPath(searchParams.get("next")) ?? ROUTES.HOME);
+        return;
+      }
       setFormError(result.message);
       return;
     }
-    const next = safeNextPath(searchParams.get("next"));
-    router.push(next ?? ROUTES.HOME);
-    router.refresh();
+
+    await setActive({ session: signIn.createdSessionId });
+
+    var next = safeNextPath(searchParams.get("next"));
+    completeSessionNavigation(next ?? ROUTES.HOME);
   };
 
   return (
@@ -115,7 +144,7 @@ export function LoginForm() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !isLoaded}
           className="w-full flex justify-center items-center gap-2 bg-[var(--auth-accent)] text-white font-medium text-base py-4 rounded-full border-0 cursor-pointer no-underline transition-all hover:bg-[var(--auth-accent-bright)] hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
         >
           {isLoading ? (

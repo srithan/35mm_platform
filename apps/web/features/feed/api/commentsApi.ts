@@ -1,51 +1,104 @@
-import { getCommentsForPost as getMockComments } from "../data/mockComments";
-import type { Comment, CommentsResult } from "../types/feed";
-import { adaptCommentToFeedType } from "./adapters";
+import type { Comment } from "../types/feed";
+import { buildCommentTree } from "./adapters";
+import { apiRequest } from "./http";
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export async function fetchComments(postId: string): Promise<CommentsResult> {
-  await delay(200);
-  const raw = getMockComments(postId) ?? [];
-
-  return {
-    postId,
-    comments: raw.map((comment) => adaptCommentToFeedType(comment, 0)),
-  };
-}
-
-export async function createComment(
-  postId: string,
-  body: string,
-  parentId: string | null
-): Promise<Comment> {
-  await delay(250);
-  const now = new Date().toISOString();
-
-  return {
-    id: `temp-${Date.now()}`,
-    postId,
-    parentId,
-    depth: parentId ? 1 : 0,
-    body,
-    likeCount: 0,
-    isLiked: false,
-    createdAt: now,
-    replies: [],
+type CommentsEnvelope = {
+  items: Array<{
+    id: string;
+    postId: string;
+    parentId: string | null;
+    body: string | null;
+    isDeleted?: boolean;
+    likeCount: number;
+    editedAt?: string | null;
+    createdAt: string;
     author: {
-      id: "current-user",
-      username: "you",
-      displayName: "You",
-      avatarUrl: null,
-      isFollowing: false,
-    },
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      role?: string | null;
+      roleContext?: string | null;
+      filmsLoggedCount?: number | null;
+    };
+  }>;
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export async function fetchComments(params: {
+  postId: string;
+  cursor?: string;
+  limit?: number;
+  token?: string | null;
+}): Promise<{ comments: Comment[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params.limit ?? 20),
+  });
+  if (params.cursor) {
+    query.set("cursor", params.cursor);
+  }
+
+  var response = await apiRequest<CommentsEnvelope>(
+    `/v1/feed/posts/${encodeURIComponent(params.postId)}/comments?${query.toString()}`,
+    {
+      token: params.token,
+    }
+  );
+
+  return {
+    comments: buildCommentTree(response.items),
+    nextCursor: response.nextCursor,
+    hasMore: response.hasMore,
   };
 }
 
-export async function likeComment(_commentId: string): Promise<void> {
-  await delay(100);
+export async function createComment(params: {
+  postId: string;
+  body: string;
+  parentId: string | null;
+  token: string | null;
+}): Promise<Comment> {
+  var response = await apiRequest<{
+    id: string;
+    postId: string;
+    parentId: string | null;
+    body: string | null;
+    isDeleted?: boolean;
+    likeCount: number;
+    editedAt?: string | null;
+    createdAt: string;
+    author: {
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      role?: string | null;
+      roleContext?: string | null;
+      filmsLoggedCount?: number | null;
+    };
+  }>(`/v1/feed/posts/${encodeURIComponent(params.postId)}/comments`, {
+    method: "POST",
+    token: params.token,
+    body: {
+      body: params.body,
+      parentId: params.parentId,
+    },
+  });
+
+  return buildCommentTree([response])[0];
 }
 
-export async function unlikeComment(_commentId: string): Promise<void> {
-  await delay(100);
+export async function deleteComment(params: {
+  postId: string;
+  commentId: string;
+  token: string | null;
+}): Promise<void> {
+  await apiRequest<{ ok: true }>(
+    `/v1/feed/posts/${encodeURIComponent(params.postId)}/comments/${encodeURIComponent(params.commentId)}`,
+    {
+      method: "DELETE",
+      token: params.token,
+    }
+  );
 }

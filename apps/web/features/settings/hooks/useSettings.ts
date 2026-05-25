@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import {
   getSettings,
   updateAppearance,
@@ -33,10 +34,15 @@ export function getMutationStatus(mutation: {
 }
 
 export function useSettingsQuery() {
+  var { getToken, isLoaded, isSignedIn } = useAuth();
+
   return useQuery({
     queryKey: settingsKeys.detail(),
-    queryFn: getSettings,
-    staleTime: 60_000,
+    queryFn: async () => {
+      return getSettings(await getToken());
+    },
+    enabled: isLoaded && isSignedIn,
+    staleTime: 300_000,
     gcTime: 10 * 60_000,
     retry: 1,
   });
@@ -44,9 +50,12 @@ export function useSettingsQuery() {
 
 export function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
 
   return useMutation<UserSettings, Error, UpdateProfileInput, MutationContext>({
-    mutationFn: updateProfile,
+    mutationFn: async function (input) {
+      return updateProfile(input, await getToken());
+    },
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
       const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
@@ -73,9 +82,12 @@ export function useUpdateProfileMutation() {
 
 export function useUpdatePrivacyMutation() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
 
   return useMutation<UserSettings, Error, UpdatePrivacyInput, MutationContext>({
-    mutationFn: updatePrivacy,
+    mutationFn: async function (input) {
+      return updatePrivacy(input, await getToken());
+    },
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
       const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
@@ -102,9 +114,12 @@ export function useUpdatePrivacyMutation() {
 
 export function useUpdateNotificationsMutation() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
 
   return useMutation<UserSettings, Error, UpdateNotificationsInput, MutationContext>({
-    mutationFn: updateNotifications,
+    mutationFn: async function (input) {
+      return updateNotifications(input, await getToken());
+    },
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
       const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
@@ -131,9 +146,12 @@ export function useUpdateNotificationsMutation() {
 
 export function useUpdateAppearanceMutation() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
 
   return useMutation<UserSettings, Error, UpdateAppearanceInput, MutationContext>({
-    mutationFn: updateAppearance,
+    mutationFn: async function (input) {
+      return updateAppearance(input, await getToken());
+    },
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
       const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());

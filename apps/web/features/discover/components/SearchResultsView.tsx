@@ -1,6 +1,7 @@
 "use client";
 
 import { LazyImage } from "@/components/LazyImage";
+import { EmptyState } from "@/components/EmptyState";
 import { posterUrl, yearFromDate } from "../lib/tmdb-utils";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 
@@ -27,11 +28,13 @@ export function SearchResultsView({
 
   if (movies.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-fg-muted font-sans text-sm">
-          No results found for &lsquo;{query}&rsquo;
-        </p>
-      </div>
+      <EmptyState
+        size="md"
+        icon={<span className="text-[18px]">🔎</span>}
+        headline={`No results for "${query}"`}
+        subline="Try a different search or browse the discover page"
+        primaryCta={{ label: "Browse discover", href: "/discover" }}
+      />
     );
   }
 

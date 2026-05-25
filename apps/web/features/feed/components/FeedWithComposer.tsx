@@ -1,29 +1,29 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
-import { CURRENT_USER } from "@/lib/constants/currentUser";
+import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { PostComposerTrigger } from "./PostComposerTrigger";
 import type { PostComposerTriggerUser } from "./PostComposerTrigger";
-
-const DEFAULT_USER: PostComposerTriggerUser & { handle?: string } = {
-  name: CURRENT_USER.name,
-  avatarUrl: CURRENT_USER.avatarUrl,
-  initial: CURRENT_USER.initial,
-  handle: CURRENT_USER.handle,
-};
 
 interface FeedWithComposerProps {
   user?: PostComposerTriggerUser & { handle?: string };
   children: React.ReactNode;
 }
 
-export function FeedWithComposer({ user = DEFAULT_USER, children }: FeedWithComposerProps) {
+export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
   const { openComposerModal } = useComposerModal();
+  const { user: clerkUser } = useUser();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
+  const displayName =
+    user?.name ?? currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
+  const avatarUrl = user?.avatarUrl ?? currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
 
   const triggerUser: PostComposerTriggerUser = {
-    name: user.name,
-    avatarUrl: user.avatarUrl,
-    initial: user.initial,
+    name: displayName,
+    avatarUrl,
+    initial: user?.initial ?? initialForName(displayName),
   };
 
   return (

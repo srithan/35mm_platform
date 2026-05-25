@@ -16,17 +16,25 @@ import { EyeOff, CircleSlash, Flag, MessagesSquare, MoreHorizontal } from "lucid
 import { Icon } from "@/components/Icon/Icon";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews } from "../utils/videoPreviews";
-import { useLikePost, useRepostPost, useSavePost } from "../hooks/usePostMutations";
+import { useBookmarkPost, useLikePost, useRepostPost } from "../hooks/usePostMutations";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
 import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
+import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useComposerModalStore } from "@/stores/useComposerModalStore";
+import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
+import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
+import { ApiRequestError } from "../api/http";
 
 type PostVariant = "text" | "film-log" | "image" | "discussion";
+type SourcePostType = "text" | "discussion" | "log" | "review" | "image";
 
 interface PostCardProps {
   variant: PostVariant;
+  sourcePostType?: SourcePostType;
   username: string;
+  userId?: string;
   handle: string;
   postId?: string;
   /** Display name for UsernameLink (defaults to username). Use slug as username for links when different. */
@@ -48,10 +56,30 @@ interface PostCardProps {
     imdbId?: string | null;
     rating?: number;
   };
+  attachedFilm?: {
+    id: string;
+    tmdbId?: number;
+    title: string;
+    year: number | null;
+    posterUrl: string | null;
+    genres: string[];
+    rating: number | null;
+  } | null;
   imageSrc?: string;
   imageCaption?: string;
+  mediaUrls?: string[];
+  linkPreview?: {
+    url: string;
+    title: string;
+    description: string | null;
+    image: string | null;
+    domain: string;
+    provider: "youtube" | "vimeo" | "link";
+  } | null;
   likeCount: number;
   liked?: boolean;
+  bookmarked?: boolean;
+  reposted?: boolean;
   commentCount: number;
   replyPreview?: { username: string; text: string; time: string };
   replyCount?: number;
@@ -65,7 +93,9 @@ interface PostCardProps {
 
 export function PostCard({
   variant,
+  sourcePostType,
   username,
+  userId,
   handle,
   postId,
   displayName,
@@ -78,16 +108,21 @@ export function PostCard({
   text,
   filmRef,
   filmCard,
+  attachedFilm = null,
   imageSrc,
   imageCaption,
+  mediaUrls,
+  linkPreview,
   likeCount,
   liked: initialLiked = false,
+  bookmarked: initialBookmarked = false,
+  reposted: initialReposted = false,
   commentCount,
   replyPreview,
   replyCount,
   animationDelay = 0,
   disableAnimation = false,
-  tab = "following",
+  tab: _tab = "following",
   role,
   roleContext,
   filmsLoggedCount,
@@ -103,33 +138,34 @@ export function PostCard({
   const isPostDetailView = Boolean(postId && pathname === ROUTES.POST(username, postId));
   const shouldClamp = Boolean(postId) && !isPostDetailView;
   const stopRichLinkBubble = Boolean(postId && !isPostDetailView);
-  const likeMutation = useLikePost(tab);
-  const repostMutation = useRepostPost(tab);
-  const saveMutation = useSavePost(tab);
-  const avatarStyle =
-    avatarBg && avatarColor ? { background: avatarBg, color: avatarColor } : undefined;
+  const likeMutation = useLikePost();
+  const repostMutation = useRepostPost();
+  const bookmarkMutation = useBookmarkPost();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUserId = currentUserQuery.data?.userId;
+  const openComposerForEdit = useComposerModalStore((state) => state.openForEdit);
+  const isPostAuthor = Boolean(postId && userId && currentUserId && userId === currentUserId);
+  const blockUserMutation = useBlockUserMutation();
+  const muteUserMutation = useMuteUserMutation();
   const avatarInner =
-    avatarUrl != null && avatarUrl !== "" ? (
-      <Image
-        src={avatarUrl}
-        alt=""
-        width={40}
-        height={40}
-        className="w-10 h-10 rounded-full object-cover"
-      />
-    ) : (
-      <div
-        className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center font-display font-semibold text-sm",
-          !avatarBg && "bg-neutral-300"
-        )}
-        style={avatarStyle}
-      >
-        {avatarInitial}
-      </div>
-    );
+    <Image
+      src={avatarUrl && avatarUrl !== "" ? avatarUrl : DEFAULT_PROFILE_AVATAR_URL}
+      alt=""
+      width={40}
+      height={40}
+      className="w-10 h-10 rounded-full object-cover"
+    />;
   const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [muteToast, setMuteToast] = useState<string | null>(null);
+  const [actionErrorToast, setActionErrorToast] = useState<string | null>(null);
   var [showImageViewer, setShowImageViewer] = useState(false);
+  var normalizedMediaUrls = mediaUrls && mediaUrls.length > 0 ? mediaUrls : imageSrc ? [imageSrc] : [];
+  var videoUrls = normalizedMediaUrls.filter((url) => {
+    var lower = url.toLowerCase();
+    return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("video");
+  });
+  var imageUrls = normalizedMediaUrls.filter((url) => !videoUrls.includes(url));
 
   useLayoutEffect(() => {
     if (!shouldClamp) {
@@ -296,6 +332,62 @@ export function PostCard({
                 itemLayout="rich"
                 showArrow={false}
                 items={[
+                  ...(isPostAuthor
+                    ? [{
+                        id: "edit-post",
+                        label: "Edit post",
+                        description: "Update text, headline, or film",
+                        icon: <Icon name="quote" className="w-4 h-4" />,
+                        onSelect: () => {
+                          if (!postId || !userId) return;
+                          openComposerForEdit({
+                            postId,
+                            userId,
+                            type:
+                              sourcePostType ??
+                              (variant === "film-log"
+                                ? "log"
+                                : variant === "discussion"
+                                  ? "discussion"
+                                  : variant === "image"
+                                    ? "image"
+                                    : "text"),
+                            body: text,
+                            headline: headline ?? undefined,
+                            film: attachedFilm,
+                          });
+                        },
+                      }]
+                    : []),
+                  ...(!isPostAuthor && userId
+                    ? [
+                        {
+                          id: "mute-user",
+                          label: `Mute ${handle}`,
+                          description: "Hide their posts from your feed",
+                          icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
+                          onSelect: () => {
+                            muteUserMutation.mutate(
+                              { userId, muted: false },
+                              {
+                                onSuccess: () => {
+                                  setMuteToast(`${handle} muted`);
+                                  window.setTimeout(() => setMuteToast(null), 1800);
+                                },
+                              }
+                            );
+                          },
+                        },
+                        {
+                          id: "block-user",
+                          label: `Block ${handle}`,
+                          description: "Remove and prevent interaction",
+                          icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
+                          danger: true,
+                          onSelect: () => setShowBlockConfirm(true),
+                        },
+                      ]
+                    : []),
                   {
                     id: "share",
                     label: "Share post",
@@ -445,28 +537,44 @@ export function PostCard({
               </div>
             )}
 
-            {imageSrc && (
+            {videoUrls[0] ? (
+              <div className="mt-3.5 overflow-hidden rounded-lg border border-border bg-black">
+                <video src={videoUrls[0]} controls className="w-full h-auto" />
+              </div>
+            ) : null}
+
+            {imageUrls.length > 0 && (
               <>
-                <button
-                  type="button"
-                  className="mt-3.5 rounded overflow-hidden relative block w-full text-left cursor-zoom-in"
-                  onClick={function (e) {
-                    e.stopPropagation();
-                    setShowImageViewer(true);
-                  }}
+                <div
+                  className={cn(
+                    "mt-3.5 grid gap-1.5 overflow-hidden rounded-lg",
+                    imageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                  )}
                 >
-                  <Image
-                    src={imageSrc}
-                    alt={imageCaption || "Post image"}
-                    width={600}
-                    height={280}
-                    unoptimized={shouldLoadRemoteImageUnoptimized(imageSrc)}
-                    className={cn(
-                      "w-full h-auto block transition-opacity hover:opacity-90",
-                      !isPostDetailView && "max-h-[520px] object-contain bg-neutral-100"
-                    )}
-                  />
-                </button>
+                  {imageUrls.slice(0, 4).map((url, idx) => (
+                    <button
+                      key={`${url}-${idx}`}
+                      type="button"
+                      className={cn(
+                        "relative block overflow-hidden rounded text-left",
+                        imageUrls.length === 3 && idx === 0 && "col-span-2"
+                      )}
+                      onClick={function (e) {
+                        e.stopPropagation();
+                        setShowImageViewer(true);
+                      }}
+                    >
+                      <Image
+                        src={url}
+                        alt={imageCaption || "Post image"}
+                        width={600}
+                        height={360}
+                        unoptimized={shouldLoadRemoteImageUnoptimized(url)}
+                        className="block h-full w-full object-cover transition-opacity hover:opacity-90"
+                      />
+                    </button>
+                  ))}
+                </div>
                 {imageCaption && (
                   <p className="text-xs text-fg-muted mt-2 tracking-[0.02em]">
                     {imageCaption}
@@ -475,11 +583,45 @@ export function PostCard({
                 <ImageViewer
                   open={showImageViewer}
                   onClose={function () { setShowImageViewer(false); }}
-                  src={imageSrc}
+                  src={imageUrls[0]}
                   alt={imageCaption || "Post image"}
                 />
               </>
             )}
+
+            {linkPreview ? (
+              <a
+                href={linkPreview.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block rounded-xl border border-border bg-sunken p-3 no-underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-fg-muted">
+                      {linkPreview.domain}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-fg line-clamp-2">{linkPreview.title}</div>
+                    {linkPreview.description ? (
+                      <div className="mt-1 text-xs text-fg-muted line-clamp-2">
+                        {linkPreview.description}
+                      </div>
+                    ) : null}
+                  </div>
+                  {linkPreview.image ? (
+                    <Image
+                      src={linkPreview.image}
+                      alt=""
+                      width={72}
+                      height={72}
+                      className="h-[72px] w-[72px] rounded-md object-cover"
+                      unoptimized={shouldLoadRemoteImageUnoptimized(linkPreview.image)}
+                    />
+                  ) : null}
+                </div>
+              </a>
+            ) : null}
 
             {replyPreview && (
               <div className="mt-3 p-3 bg-neutral-100 rounded border-l-2 border-border">
@@ -512,24 +654,75 @@ export function PostCard({
               likes={likeCount}
               comments={commentCount}
               initialLiked={initialLiked}
+              initialBookmarked={initialBookmarked}
+              initialReposted={initialReposted}
               onCommentClick={postId ? navigateToPost : undefined}
               onLikeToggle={({ isLiked }) => {
                 if (!postId) return;
-                likeMutation.mutate({ postId, isLiked: !isLiked });
+                likeMutation.mutate(
+                  { postId, isLiked },
+                  {
+                    onError: (error) => {
+                      var message =
+                        error instanceof ApiRequestError
+                          ? error.message
+                          : "Could not update like";
+                      setActionErrorToast(message);
+                      window.setTimeout(() => setActionErrorToast(null), 2200);
+                    },
+                  }
+                );
               }}
               onRepostToggle={({ isReposted }) => {
                 if (!postId) return;
-                if (!isReposted) return;
-                repostMutation.mutate({ postId });
+                repostMutation.mutate(
+                  { postId, isReposted },
+                  {
+                    onError: (error) => {
+                      var message =
+                        error instanceof ApiRequestError
+                          ? error.message
+                          : "Could not update repost";
+                      setActionErrorToast(message);
+                      window.setTimeout(() => setActionErrorToast(null), 2200);
+                    },
+                  }
+                );
               }}
-              onSaveToggle={({ isSaved }) => {
+              onBookmarkToggle={({ isBookmarked }) => {
                 if (!postId) return;
-                saveMutation.mutate({ postId, isSaved: !isSaved });
+                bookmarkMutation.mutate(
+                  { postId, isBookmarked },
+                  {
+                    onError: (error) => {
+                      var message =
+                        error instanceof ApiRequestError
+                          ? error.message
+                          : "Could not update bookmark";
+                      setActionErrorToast(message);
+                      window.setTimeout(() => setActionErrorToast(null), 2200);
+                    },
+                  }
+                );
               }}
             />
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={showBlockConfirm}
+        onClose={() => setShowBlockConfirm(false)}
+        onConfirm={() => {
+          if (!userId) return;
+          blockUserMutation.mutate({ userId, blocked: false });
+          setShowBlockConfirm(false);
+        }}
+        title={`Block ${handle}?`}
+        description={`${handle} won't be able to see your profile or posts.`}
+        confirmLabel="Block"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
       <ConfirmDialog
         open={showReportConfirm}
         onClose={() => setShowReportConfirm(false)}
@@ -555,6 +748,16 @@ export function PostCard({
           image: filmCard?.posterSrc || undefined,
         }}
       />
+      {muteToast ? (
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-fg px-3 py-1.5 text-xs font-medium text-bg shadow-lg">
+          {muteToast}
+        </div>
+      ) : null}
+      {actionErrorToast ? (
+        <div className="pointer-events-none fixed bottom-14 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+          {actionErrorToast}
+        </div>
+      ) : null}
     </article>
   );
 }

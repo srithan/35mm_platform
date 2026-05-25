@@ -1,188 +1,303 @@
-import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
-import { FEED_DISPLAY_NAMES } from "../data/mockPosts";
-import { getCommentsForPost } from "../data/mockComments";
 import type { Comment, Post } from "../types/feed";
 
-/** Mock / legacy posts: real portrait when URL omitted; `null` means keep initials. */
-function resolveAuthorAvatarUrl(raw: Record<string, unknown>, username: string): string | null {
-  const author = raw.author;
-  const fromAuthor =
-    author != null && typeof author === "object"
-      ? (author as { avatarUrl?: unknown }).avatarUrl
-      : undefined;
-  const fromRoot = raw.avatarUrl;
-  const pick = fromAuthor !== undefined && fromAuthor !== null ? fromAuthor : fromRoot;
-  if (pick === null) return null;
-  if (typeof pick === "string" && pick.trim() !== "") return pick.trim();
-  return getMockPortraitUrlForUsername(username);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
 }
 
-function parseTimestampToIso(timestamp: string | undefined): string {
-  if (!timestamp) return new Date().toISOString();
-  if (!Number.isNaN(Date.parse(timestamp))) return new Date(timestamp).toISOString();
-
-  const now = Date.now();
-  const value = Number.parseInt(timestamp, 10);
-  if (Number.isNaN(value)) return new Date().toISOString();
-
-  if (timestamp.includes("m")) return new Date(now - value * 60_000).toISOString();
-  if (timestamp.includes("h")) return new Date(now - value * 3_600_000).toISOString();
-  if (timestamp.includes("d")) return new Date(now - value * 24 * 3_600_000).toISOString();
-  return new Date().toISOString();
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
 }
 
-// Keep feed card counts aligned with the mock comment tree available in post detail.
-// This avoids showing non-zero counts for posts that have no comment data.
-function countComments(comments: unknown): number {
-  if (!Array.isArray(comments)) return 0;
-  return comments.reduce((total, item) => {
-    if (!item || typeof item !== "object") return total;
-    const record = item as { replies?: unknown };
-    return total + 1 + countComments(record.replies);
-  }, 0);
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
 }
 
-function asRootRecord(raw: unknown): Record<string, unknown> {
-  return raw != null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-}
-
-/** Role fields may live on nested `author` or on the raw post/comment root (mock mocks). */
-function pickFilmsLogged(
-  authorObj: Record<string, unknown>,
-  root: Record<string, unknown>
-): number | undefined {
-  const candidates = [authorObj.filmsLoggedCount, root.filmsLoggedCount];
-  for (let i = 0; i < candidates.length; i++) {
-    const c = candidates[i];
-    if (typeof c === "number" && !Number.isNaN(c)) return c;
-    if (typeof c === "string" && c.trim() !== "") {
-      const n = Number.parseInt(c, 10);
-      if (!Number.isNaN(n)) return n;
-    }
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    var parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
   }
-  return undefined;
+  return fallback;
 }
 
-function pickRole(authorObj: Record<string, unknown>, root: Record<string, unknown>): string | undefined {
-  const a = typeof authorObj.role === "string" ? authorObj.role.trim() : "";
-  if (a) return a;
-  const r = typeof root.role === "string" ? root.role.trim() : "";
-  if (r) return r;
-  return undefined;
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(function (item): item is string {
+    return typeof item === "string";
+  });
 }
 
-function pickRoleContext(
-  authorObj: Record<string, unknown>,
-  root: Record<string, unknown>
-): string | undefined {
-  if (typeof authorObj.roleContext === "string") return authorObj.roleContext;
-  if (typeof root.roleContext === "string") return root.roleContext;
-  return undefined;
+function toRelativeTime(iso: string): string {
+  var then = Date.parse(iso);
+  if (Number.isNaN(then)) return "now";
+  var diff = Date.now() - then;
+  if (diff < 60_000) return "now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  return `${Math.floor(diff / 86_400_000)}d`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function adaptPostToFeedType(raw: any): Post {
-  const username = raw.author?.username ?? raw.username ?? raw.handle?.replace(/^@/, "") ?? "unknown";
-  const displayName =
-    raw.author?.displayName ?? raw.displayName ?? FEED_DISPLAY_NAMES[username] ?? username;
-  const createdAt = parseTimestampToIso(raw.createdAt ?? raw.timestamp);
-  const imageMedia =
-    raw.imageSrc && typeof raw.imageSrc === "string"
-      ? [{ type: "image" as const, url: raw.imageSrc, altText: raw.imageCaption }]
-      : [];
+function normalizeMedia(raw: Record<string, unknown>): Post["media"] {
+  if (Array.isArray(raw.media)) {
+    var normalized: Post["media"] = [];
+    for (var i = 0; i < raw.media.length; i += 1) {
+      var item = raw.media[i];
+      if (!isRecord(item)) continue;
 
-  const availableComments = getCommentsForPost(String(raw.id)) ?? [];
-  const syncedCommentCount = countComments(availableComments);
+      var type = asString(item.type);
+      if (
+        type !== "image" &&
+        type !== "video" &&
+        type !== "film_embed" &&
+        type !== "none"
+      ) {
+        continue;
+      }
 
-  const film =
-    raw.filmCard && typeof raw.filmCard === "object"
-      ? {
-          tmdbId: 0,
-          title: raw.filmCard.title ?? "Unknown",
-          year: Number.parseInt(String(raw.filmCard.meta ?? "").match(/\d{4}/)?.[0] ?? "0", 10),
-          posterUrl: raw.filmCard.posterSrc ?? null,
-          genres: [],
-          rating: raw.filmCard.rating ?? null,
-        }
-      : null;
+      var url = asString(item.url);
+      if (!url) continue;
 
-  const headlineRaw = raw.headline;
-  const headline =
-    typeof headlineRaw === "string" && headlineRaw.trim().length > 0 ? headlineRaw.trim() : undefined;
-  const body = headline
-    ? (raw.body ?? raw.content ?? raw.text ?? "")
-    : (raw.body ?? raw.content ?? raw.text ?? "");
+      var next: Post["media"][number] = { type, url };
+      var thumbnailUrl = asString(item.thumbnailUrl);
+      var altText = asString(item.altText);
+      if (thumbnailUrl) next.thumbnailUrl = thumbnailUrl;
+      if (altText) next.altText = altText;
+      normalized.push(next);
+    }
+    return normalized;
+  }
 
-  const rawAuthor =
-    raw.author != null && typeof raw.author === "object"
-      ? (raw.author as Record<string, unknown>)
-      : {};
-  const rootPost = asRootRecord(raw);
-  const filmsLogged = pickFilmsLogged(rawAuthor, rootPost);
+  var mediaUrls = asStringArray(raw.mediaUrls);
+  if (mediaUrls.length > 0) {
+    return mediaUrls.map(function (url) {
+      var lower = url.toLowerCase();
+      var type: Post["media"][number]["type"] = "image";
+      if (lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("video")) {
+        type = "video";
+      }
+      return { type, url };
+    });
+  }
+
+  var imageSrc = asString(raw.imageSrc);
+  if (!imageSrc) return [];
+  return [{ type: "image", url: imageSrc, altText: asString(raw.imageCaption) || undefined }];
+}
+
+export function adaptPostToFeedType(raw: unknown): Post {
+  var root = isRecord(raw) ? raw : {};
+  var authorRaw = isRecord(root.author) ? root.author : {};
+
+  var username =
+    asString(authorRaw.username) ||
+    asString(root.username) ||
+    asString(root.handle).replace(/^@/, "") ||
+    "unknown";
+  var displayName =
+    asString(authorRaw.displayName) ||
+    asString(root.displayName) ||
+    username;
+
+  var createdAt = asString(root.createdAt) || new Date().toISOString();
+  var updatedAt = asString(root.updatedAt) || createdAt;
+  var media = normalizeMedia(root);
+  var mediaUrls = asStringArray(root.mediaUrls);
+
+  var film: Post["film"] = null;
+  if (isRecord(root.film)) {
+    film = {
+      id: asString(root.film.id),
+      tmdbId: asNumber(root.film.tmdbId, NaN),
+      title: asString(root.film.title, "Unknown"),
+      year: root.film.year == null ? null : asNumber(root.film.year, 0),
+      posterUrl: asNullableString(root.film.posterUrl),
+      genres: asStringArray(root.film.genres),
+      rating: root.film.rating == null ? null : asNumber(root.film.rating, 0),
+    };
+
+    if (!Number.isFinite(film.tmdbId as number)) {
+      delete film.tmdbId;
+    }
+  } else if (isRecord(root.filmCard)) {
+    var filmCardTitle = asString(root.filmCard.title, "Unknown");
+    film = {
+      id: asString(root.filmCard.id) || asString(root.filmCard.tmdbId),
+      tmdbId: Number.isFinite(asNumber(root.filmCard.tmdbId, NaN))
+        ? asNumber(root.filmCard.tmdbId, NaN)
+        : undefined,
+      title: filmCardTitle,
+      year: null,
+      posterUrl: asNullableString(root.filmCard.posterSrc),
+      genres: [],
+      rating: root.filmCard.rating == null ? null : asNumber(root.filmCard.rating, 0),
+    };
+  }
+
+  var typeRaw = asString(root.type) || asString(root.variant);
+  var type: Post["type"] = "text";
+  if (typeRaw === "discussion") type = "discussion";
+  else if (typeRaw === "log" || typeRaw === "film-log") type = "log";
+  else if (typeRaw === "review") type = "review";
+  else if (typeRaw === "image") type = "image";
 
   return {
-    id: String(raw.id),
+    id: asString(root.id),
+    type,
+    visibility:
+      asString(root.visibility) === "followers_only" ||
+      asString(root.visibility) === "private"
+        ? (asString(root.visibility) as "followers_only" | "private")
+        : "public",
+    editedAt: asNullableString(root.editedAt),
+    isDeleted: Boolean(root.isDeleted),
     author: {
-      id: raw.author?.id ?? raw.userId ?? username,
+      id: asString(authorRaw.id) || asString(root.userId) || username,
       username,
       displayName,
-      avatarUrl: resolveAuthorAvatarUrl(raw as Record<string, unknown>, username),
-      isFollowing: raw.author?.isFollowing ?? false,
-      role: pickRole(rawAuthor, rootPost),
-      roleContext: pickRoleContext(rawAuthor, rootPost),
-      filmsLoggedCount: filmsLogged !== undefined && !Number.isNaN(filmsLogged) ? filmsLogged : undefined,
+      avatarUrl: asNullableString(authorRaw.avatarUrl) ?? asNullableString(root.avatarUrl),
+      isFollowing: Boolean(authorRaw.isFollowing),
+      role: asNullableString(authorRaw.role) ?? asNullableString(root.role),
+      roleContext:
+        asNullableString(authorRaw.roleContext) ?? asNullableString(root.roleContext),
+      filmsLoggedCount:
+        authorRaw.filmsLoggedCount == null
+          ? root.filmsLoggedCount == null
+            ? null
+            : asNumber(root.filmsLoggedCount, 0)
+          : asNumber(authorRaw.filmsLoggedCount, 0),
     },
-    ...(headline ? { headline } : {}),
-    body,
-    media: imageMedia,
+    headline: asString(root.headline) || undefined,
+    body: asString(root.body) || asString(root.content) || asString(root.text),
+    media,
+    mediaUrls,
+    linkPreview: isRecord(root.linkPreview)
+      ? {
+          url: asString(root.linkPreview.url),
+          title: asString(root.linkPreview.title),
+          description:
+            root.linkPreview.description == null
+              ? null
+              : asString(root.linkPreview.description),
+          image: root.linkPreview.image == null ? null : asString(root.linkPreview.image),
+          domain: asString(root.linkPreview.domain),
+          provider:
+            root.linkPreview.provider === "youtube" || root.linkPreview.provider === "vimeo"
+              ? root.linkPreview.provider
+              : "link",
+        }
+      : null,
     film,
-    likeCount: raw.likeCount ?? raw.likes ?? 0,
-    commentCount: syncedCommentCount,
-    repostCount: raw.repostCount ?? raw.reposts ?? 0,
-    saveCount: raw.saveCount ?? 0,
-    isLiked: raw.isLiked ?? raw.liked ?? false,
-    isReposted: raw.isReposted ?? false,
-    isSaved: raw.isSaved ?? false,
+    likeCount: asNumber(root.likeCount, asNumber(root.likes, 0)),
+    commentCount: asNumber(root.commentCount, 0),
+    repostCount: asNumber(root.repostCount, asNumber(root.reposts, 0)),
+    bookmarkCount: asNumber(root.bookmarkCount, 0),
+    isLiked: Boolean(root.isLiked ?? root.liked),
+    isReposted: Boolean(root.isReposted),
+    isBookmarked: Boolean(root.isBookmarked),
     createdAt,
-    updatedAt: raw.updatedAt ?? createdAt,
-    __raw: raw,
+    updatedAt,
+    __raw: {
+      variant: type === "log" || type === "review" ? "film-log" : type,
+      timestamp: asString(root.timestamp) || toRelativeTime(createdAt),
+      liked: Boolean(root.isLiked ?? root.liked),
+      imageSrc: media.find(function (m) { return m.type === "image"; })?.url,
+      imageCaption: media.find(function (m) { return m.type === "image"; })?.altText,
+      filmCard: film
+        ? {
+            title: film.title,
+            meta: [film.year, film.genres[0]].filter(Boolean).join(" · "),
+            posterSrc: film.posterUrl,
+            imdbId: null,
+            rating: film.rating ?? undefined,
+          }
+        : undefined,
+      tags: asStringArray(root.tags),
+    },
   } as Post;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function adaptCommentToFeedType(raw: any, depth: number): Comment {
-  const username = raw.author?.username ?? raw.username ?? raw.handle ?? "unknown";
-  const displayName = raw.author?.displayName ?? raw.displayName ?? username;
-  const rawCommentAuthor =
-    raw.author != null && typeof raw.author === "object"
-      ? (raw.author as Record<string, unknown>)
-      : {};
-  const rootComment = asRootRecord(raw);
-  const filmsComment = pickFilmsLogged(rawCommentAuthor, rootComment);
+type CommentDto = {
+  id: string;
+  postId: string;
+  parentId: string | null;
+  body: string | null;
+  isDeleted?: boolean;
+  likeCount: number;
+  editedAt?: string | null;
+  createdAt: string;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    role?: string | null;
+    roleContext?: string | null;
+    filmsLoggedCount?: number | null;
+  };
+};
 
-  return {
-    id: String(raw.id),
-    postId: String(raw.postId ?? ""),
-    parentId: raw.parentId ? String(raw.parentId) : null,
-    depth,
-    author: {
-      id: raw.author?.id ?? raw.userId ?? username,
-      username,
-      displayName,
-      avatarUrl: raw.author?.avatarUrl ?? null,
-      isFollowing: false,
-      role: pickRole(rawCommentAuthor, rootComment),
-      roleContext: pickRoleContext(rawCommentAuthor, rootComment),
-      filmsLoggedCount: filmsComment !== undefined && !Number.isNaN(filmsComment) ? filmsComment : undefined,
-    },
-    body: raw.body ?? raw.content ?? raw.text ?? "",
-    likeCount: raw.likeCount ?? raw.likes ?? 0,
-    isLiked: raw.isLiked ?? raw.liked ?? false,
-    createdAt: raw.createdAt ?? raw.timestamp ?? new Date().toISOString(),
-    replies: (raw.replies ?? []).map((reply: unknown) =>
-      adaptCommentToFeedType(reply, depth + 1)
-    ),
-    __raw: raw,
-  } as Comment;
+export function buildCommentTree(items: CommentDto[]): Comment[] {
+  var byId = new Map<string, Comment>();
+  var roots: Comment[] = [];
+
+  for (var i = 0; i < items.length; i += 1) {
+    var raw = items[i];
+    byId.set(raw.id, {
+      id: raw.id,
+      postId: raw.postId,
+      parentId: raw.parentId,
+      depth: 0,
+      body: raw.body,
+      isDeleted: raw.isDeleted,
+      likeCount: raw.likeCount,
+      isLiked: false,
+      editedAt: raw.editedAt ?? null,
+      createdAt: raw.createdAt,
+      author: {
+        id: raw.author.id,
+        username: raw.author.username,
+        displayName: raw.author.displayName,
+        avatarUrl: raw.author.avatarUrl,
+        isFollowing: false,
+        role: raw.author.role,
+        roleContext: raw.author.roleContext,
+        filmsLoggedCount: raw.author.filmsLoggedCount,
+      },
+      replies: [],
+      __raw: {
+        timestamp: toRelativeTime(raw.createdAt),
+      },
+    } as Comment);
+  }
+
+  for (var j = 0; j < items.length; j += 1) {
+    var rawItem = items[j];
+    var current = byId.get(rawItem.id);
+    if (!current) continue;
+
+    if (rawItem.parentId) {
+      var parent = byId.get(rawItem.parentId);
+      if (parent) {
+        current.depth = parent.depth + 1;
+        parent.replies.push(current);
+        continue;
+      }
+    }
+
+    roots.push(current);
+  }
+
+  function sortNodeList(list: Comment[]) {
+    list.sort(function (a, b) {
+      return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+    });
+
+    for (var k = 0; k < list.length; k += 1) {
+      sortNodeList(list[k].replies);
+    }
+  }
+
+  sortNodeList(roots);
+  return roots;
 }
-

@@ -11,6 +11,7 @@ interface ImageCropperProps {
   onCropComplete: (croppedAreaPixels: Area) => void;
   onCancel: () => void;
   onSave: () => void;
+  aspect?: number;
 }
 
 export function ImageCropper({
@@ -18,6 +19,7 @@ export function ImageCropper({
   onCropComplete,
   onCancel,
   onSave,
+  aspect = 1,
 }: ImageCropperProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -46,7 +48,7 @@ export function ImageCropper({
           crop={crop}
           zoom={zoom}
           rotation={rotation}
-          aspect={1}
+          aspect={aspect}
           cropShape="round"
           showGrid={false}
           onCropChange={onCropChange}

@@ -7,22 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { signInWithPassword, signUp } from "@/features/auth/lib/auth-client";
+import { useAuth } from "@clerk/nextjs";
+import { useSignUp, useSignIn } from "@clerk/nextjs/legacy";
+import { clerkSignUp, clerkSignIn } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
 import { LandingReveal } from "./LandingReveal";
 import { LandingFeedShowcase, LandingProfileShowcase } from "./LandingShowcases";
 
-const TAKEN_USERNAMES = new Set([
-  "maya",
-  "maya.frames",
-  "oliver",
-  "oliver_cuts",
-  "admin",
-  "film",
-  "cinema",
-  "user",
-  "srithan",
-]);
+const LANDING_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: "Enter your name" }),
@@ -48,6 +40,14 @@ function usernameStatusLabel(status: "" | "checking" | "free" | "taken" | "short
   if (status === "short") return "Too short";
   if (status === "free") return "Available";
   return "";
+}
+
+function completeSessionNavigation(path: string) {
+  window.location.assign(path);
+}
+
+function isAlreadySignedInMessage(message: string) {
+  return message.toLowerCase().includes("already signed in");
 }
 
 type LandingPageProps = {
@@ -344,6 +344,9 @@ function LandingAuthPanel(props: AuthPanelProps) {
 
 export function LandingPage({ children }: LandingPageProps) {
   const router = useRouter();
+  const { isLoaded: authIsLoaded, isSignedIn } = useAuth();
+  const { signUp: clerkSignUpObj, isLoaded: signUpLoaded } = useSignUp();
+  const { signIn: clerkSignInObj, setActive, isLoaded: signInLoaded } = useSignIn();
   const authRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<"signup" | "login">("signup");
   const [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
@@ -374,17 +377,21 @@ export function LandingPage({ children }: LandingPageProps) {
       setUsernameCheck("");
       return;
     }
+    if (trimmed.length < 2) {
+      setUsernameCheck("short");
+      return;
+    }
     setUsernameCheck("checking");
-    usernameTimerRef.current = setTimeout(function () {
-      if (TAKEN_USERNAMES.has(trimmed)) {
-        setUsernameCheck("taken");
-      } else if (trimmed.length < 2) {
-        setUsernameCheck("short");
-      } else {
+    usernameTimerRef.current = setTimeout(async function () {
+      try {
+        const res = await fetch(LANDING_API_URL + "/v1/usernames/" + encodeURIComponent(trimmed) + "/available");
+        const data = await res.json();
+        setUsernameCheck(data.available ? "free" : "taken");
+      } catch (_err) {
         setUsernameCheck("free");
       }
       usernameTimerRef.current = null;
-    }, 350);
+    }, 500);
   }, []);
 
   useEffect(
@@ -392,6 +399,15 @@ export function LandingPage({ children }: LandingPageProps) {
       checkUsername(watchUsername);
     },
     [watchUsername, checkUsername]
+  );
+
+  useEffect(
+    function () {
+      if (authIsLoaded && isSignedIn) {
+        completeSessionNavigation(ROUTES.HOME);
+      }
+    },
+    [authIsLoaded, isSignedIn]
   );
 
   const scrollToAuth = useCallback(function (nextMode: "signup" | "login") {
@@ -402,10 +418,11 @@ export function LandingPage({ children }: LandingPageProps) {
   }, []);
 
   const onSignupSubmit = async function (data: SignupValues) {
+    if (!signUpLoaded || !clerkSignUpObj) return;
     if (usernameCheck === "taken" || usernameCheck === "short") return;
     setSignupError(null);
     setIsSignupLoading(true);
-    const result = await signUp({
+    const result = await clerkSignUp(clerkSignUpObj, {
       fullName: data.fullName.trim(),
       username: data.username.trim(),
       email: data.email.trim(),
@@ -416,30 +433,30 @@ export function LandingPage({ children }: LandingPageProps) {
       setSignupError(result.message);
       return;
     }
-    if (result.data.requiresVerification) {
-      const q = new URLSearchParams();
-      q.set("email", data.email.trim());
-      router.push(ROUTES.AUTH_VERIFY + "?" + q.toString());
-      return;
-    }
-    router.push(ROUTES.HOME);
-    router.refresh();
+    const q = new URLSearchParams();
+    q.set("email", data.email.trim());
+    router.push(ROUTES.AUTH_VERIFY + "?" + q.toString());
   };
 
   const onLoginSubmit = async function (data: LoginValues) {
+    if (!signInLoaded || !clerkSignInObj || !setActive) return;
     setLoginError(null);
     setIsLoginLoading(true);
-    const result = await signInWithPassword({
+    const result = await clerkSignIn(clerkSignInObj, {
       identifier: data.identifier.trim(),
       password: data.password,
     });
     setIsLoginLoading(false);
     if (!result.ok) {
+      if (isAlreadySignedInMessage(result.message)) {
+        completeSessionNavigation(ROUTES.HOME);
+        return;
+      }
       setLoginError(result.message);
       return;
     }
-    router.push(ROUTES.HOME);
-    router.refresh();
+    await setActive({ session: clerkSignInObj.createdSessionId });
+    completeSessionNavigation(ROUTES.HOME);
   };
 
   const authPanelProps: AuthPanelProps = {

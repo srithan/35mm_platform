@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,8 +10,9 @@ import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
 import { Loader2, MapPin, Link2, User, AtSign, AlignLeft, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-
-const TAKEN_USERNAMES = ["admin", "root", "35mm", "official"];
+import { fetchUsernameAvailability, updateCurrentProfile } from "../api/profileApi";
+import { authKeys } from "@/features/auth/hooks/queryKeys";
+import { profileKeys } from "../hooks/queryKeys";
 
 const profileSchema = z.object({
   displayName: z.string().min(1, "Display name is required").max(50, "Name too long"),
@@ -37,7 +40,10 @@ export function EditProfileModal({
   onSave,
   initialData,
 }: EditProfileModalProps) {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const {
     register,
@@ -59,34 +65,52 @@ export function EditProfileModal({
   useEffect(() => {
     if (open) {
       reset(initialData);
+      setSaveError(null);
     }
   }, [open, initialData, reset]);
 
-  // Mock Username Availability Check
   useEffect(() => {
-    if (!usernameValue || usernameValue === initialData.username || errors.username?.type !== undefined) {
+    if (!usernameValue || usernameValue === initialData.username) {
       return;
     }
 
     const checkAvailability = async () => {
       setIsCheckingUsername(true);
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API lag
-      
-      if (TAKEN_USERNAMES.includes(usernameValue.toLowerCase())) {
-        setError("username", { type: "manual", message: "Username is already taken" });
-      } else {
-        clearErrors("username");
+      try {
+        const result = await fetchUsernameAvailability(usernameValue.toLowerCase());
+        if (!result.available) {
+          setError("username", { type: "manual", message: result.reason || "Username is already taken" });
+        } else {
+          clearErrors("username");
+        }
+      } catch (_err) {
+        setError("username", { type: "manual", message: "Could not check username" });
+      } finally {
+        setIsCheckingUsername(false);
       }
-      setIsCheckingUsername(false);
     };
 
     const timer = setTimeout(checkAvailability, 500);
     return () => clearTimeout(timer);
-  }, [usernameValue, initialData.username, setError, clearErrors, errors.username?.type]);
+  }, [usernameValue, initialData.username, setError, clearErrors]);
 
-  const onSubmit = (data: ProfileFormValues) => {
-    onSave(data);
-    onClose();
+  const onSubmit = async (data: ProfileFormValues) => {
+    setSaveError(null);
+    try {
+      const next = await updateCurrentProfile(data, await getToken());
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
+      onSave({
+        displayName: next.displayName,
+        username: next.username,
+        bio: next.bio ?? "",
+        location: next.location ?? "",
+        website: next.website ?? "",
+      });
+      onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to update profile");
+    }
   };
 
   return (
@@ -260,6 +284,12 @@ export function EditProfileModal({
             )}
           </div>
         </div>
+
+        {saveError ? (
+          <p className="rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-[12px] font-medium text-film-red">
+            {saveError}
+          </p>
+        ) : null}
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">

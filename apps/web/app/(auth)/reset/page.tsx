@@ -10,12 +10,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function ResetPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const params = await searchParams;
-  const token = typeof params.token === "string" ? params.token : undefined;
-  return <ResetPasswordPage resetToken={token} />;
+export default function ResetPage() {
+  return <ResetPasswordPage />;
 }

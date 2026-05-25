@@ -5,9 +5,9 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants/routes";
-import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
+import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 const PROFILE_POPOVER_SHOW_DELAY_MS = 520;
 const PROFILE_POPOVER_SCROLL_SUPPRESS_MS = 650;
@@ -193,7 +193,7 @@ export function UsernameLink({
   const label = displayName ?? username;
   const avatarInitial = initial ?? username.charAt(0).toUpperCase();
   const linkHref = href ?? ROUTES.PROFILE(username);
-  const profileImageSrc = avatarUrl ?? getMockPortraitUrlForUsername(username);
+  const profileImageSrc = avatarUrl ?? DEFAULT_PROFILE_AVATAR_URL;
   const roleHeadline = [role, roleContext]
     .filter((part): part is string => typeof part === "string" && part.trim() !== "")
     .join(" · ");

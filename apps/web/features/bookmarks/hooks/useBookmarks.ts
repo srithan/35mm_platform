@@ -1,95 +1,27 @@
 "use client";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import {
-  apiCreateFolder,
-  apiDeleteFolder,
-  apiMoveBookmark,
-  apiRemoveBookmark,
-  apiRenameFolder,
-  fetchBookmarkFoldersWithCounts,
-  fetchBookmarkItems,
-  searchBookmarks,
-} from "../api/bookmarksApi";
+import { useAuth } from "@clerk/nextjs";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { fetchBookmarks } from "../api/bookmarksApi";
 import { bookmarkKeys } from "./queryKeys";
 
-export function useBookmarkFoldersQuery() {
-  return useQuery({
-    queryKey: bookmarkKeys.folders(),
-    queryFn: fetchBookmarkFoldersWithCounts,
-    staleTime: 15_000,
-  });
-}
+export function useBookmarks() {
+  var { getToken, isLoaded, isSignedIn } = useAuth();
 
-export function useBookmarkItemsQuery(
-  folderId: string | null,
-  options?: { enabled?: boolean }
-) {
-  const enabled = options?.enabled !== false;
-  return useQuery({
-    queryKey: bookmarkKeys.items(folderId),
-    queryFn: () => fetchBookmarkItems(folderId),
-    staleTime: 15_000,
-    enabled,
-  });
-}
-
-export function useBookmarkSearchQuery(query: string) {
-  const q = query.trim();
-  return useQuery({
-    queryKey: bookmarkKeys.search(q),
-    queryFn: () => searchBookmarks(q),
-    enabled: q.length > 0,
-    staleTime: 10_000,
-  });
-}
-
-function invalidateAllBookmarks(qc: ReturnType<typeof useQueryClient>): void {
-  void qc.invalidateQueries({ queryKey: bookmarkKeys.all });
-}
-
-export function useCreateBookmarkFolderMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (name: string) => apiCreateFolder(name),
-    onSuccess: () => invalidateAllBookmarks(qc),
-  });
-}
-
-export function useRenameBookmarkFolderMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (p: { folderId: string; name: string }) =>
-      apiRenameFolder(p.folderId, p.name),
-    onSuccess: () => invalidateAllBookmarks(qc),
-  });
-}
-
-export function useDeleteBookmarkFolderMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (folderId: string) => apiDeleteFolder(folderId),
-    onSuccess: () => invalidateAllBookmarks(qc),
-  });
-}
-
-export function useMoveBookmarkMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (p: { bookmarkId: string; targetFolderId: string }) =>
-      apiMoveBookmark(p.bookmarkId, p.targetFolderId),
-    onSuccess: () => invalidateAllBookmarks(qc),
-  });
-}
-
-export function useRemoveBookmarkMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (bookmarkId: string) => apiRemoveBookmark(bookmarkId),
-    onSuccess: () => invalidateAllBookmarks(qc),
+  return useInfiniteQuery({
+    queryKey: bookmarkKeys.list(),
+    queryFn: async function ({ pageParam }) {
+      return fetchBookmarks({
+        cursor: pageParam as string | undefined,
+        token: await getToken(),
+      });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: function (lastPage) {
+      return lastPage.nextCursor ?? undefined;
+    },
+    enabled: isLoaded && Boolean(isSignedIn),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   });
 }

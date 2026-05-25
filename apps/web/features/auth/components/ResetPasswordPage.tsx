@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSignIn } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Lock, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
-import { resetPassword } from "@/features/auth/lib/auth-client";
+import { clerkResetPassword } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
 
-const resetSchema = z
+var resetSchema = z
   .object({
     newPassword: z.string().min(8, { message: "Password must be at least 8 characters." }),
     confirmPassword: z.string(),
@@ -25,34 +25,40 @@ const resetSchema = z
 
 type ResetValues = z.infer<typeof resetSchema>;
 
-export function ResetPasswordPage({ resetToken }: { resetToken?: string }) {
-  const router = useRouter();
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+function completeSessionNavigation(path: string) {
+  window.location.assign(path);
+}
 
-  const form = useForm<ResetValues>({
+export function ResetPasswordPage() {
+  var { signIn, setActive, isLoaded } = useSignIn();
+  var [isSuccess, setIsSuccess] = useState(false);
+  var [isLoading, setIsLoading] = useState(false);
+  var [formError, setFormError] = useState<string | null>(null);
+  var [showNewPassword, setShowNewPassword] = useState(false);
+  var [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  var form = useForm<ResetValues>({
     resolver: zodResolver(resetSchema),
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
 
-  const onSubmit = async function (data: ResetValues) {
+  var onSubmit = async function (data: ResetValues) {
+    if (!isLoaded || !signIn || !setActive) return;
     setFormError(null);
     setIsLoading(true);
-    const result = await resetPassword({
-      token: resetToken,
-      newPassword: data.newPassword,
-    });
+
+    var result = await clerkResetPassword(signIn, data.newPassword);
     setIsLoading(false);
+
     if (!result.ok) {
       setFormError(result.message);
       return;
     }
+
+    await setActive({ session: signIn.createdSessionId });
     setIsSuccess(true);
     window.setTimeout(function () {
-      router.push(ROUTES.AUTH_LOGIN);
+      completeSessionNavigation(ROUTES.HOME);
     }, 2000);
   };
 
@@ -68,7 +74,7 @@ export function ResetPasswordPage({ resetToken }: { resetToken?: string }) {
               Password <em className="italic text-[var(--auth-accent-bright)]">updated.</em>
             </h1>
             <p className="text-[0.9rem] text-[var(--auth-fg)]/60 leading-relaxed mb-6">
-              Your password has been reset. Redirecting you to log in…
+              Your password has been reset. Redirecting...
             </p>
             <div className="w-full h-1 bg-[var(--auth-progress-track)] rounded-full overflow-hidden">
               <div className="h-full bg-emerald-500/50 rounded-full animate-[auth-progress_2s_ease-in-out_forwards]" />
@@ -86,15 +92,6 @@ export function ResetPasswordPage({ resetToken }: { resetToken?: string }) {
               <p className="text-[0.85rem] text-[var(--auth-fg)]/40 leading-relaxed max-w-[280px] mx-auto">
                 Choose a new password for your account.
               </p>
-              {!resetToken ? (
-                <p className="text-[0.8rem] text-amber-400/90 mt-4 max-w-[300px] mx-auto leading-relaxed">
-                  No reset token in the URL. Use the link from your email, or complete the code step from{" "}
-                  <Link href={ROUTES.AUTH_FORGOT} className="underline underline-offset-2 text-[var(--auth-fg)]/80">
-                    forgot password
-                  </Link>
-                  .
-                </p>
-              ) : null}
             </div>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -157,7 +154,7 @@ export function ResetPasswordPage({ resetToken }: { resetToken?: string }) {
 
               <button
                 type="submit"
-                disabled={isLoading || !resetToken}
+                disabled={isLoading || !isLoaded}
                 className="w-full flex justify-center items-center gap-2 bg-[var(--auth-accent)] text-white font-medium text-base py-3.5 mt-2 rounded-full border-0 cursor-pointer no-underline transition-all hover:bg-[var(--auth-accent-bright)] hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
               >
                 {isLoading ? (

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, Link2, Calendar, MoreVertical, UserPlus, VolumeX, CircleSlash, Flag } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPin, Link2, Calendar, MoreVertical, UserPlus, VolumeX, CircleSlash, Flag, Lock } from "lucide-react";
 import { Icon } from "@/components/Icon/Icon";
 import { Button } from "@/components/Button";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
@@ -13,6 +13,8 @@ import { ShareModal } from "@/components/ShareModal/ShareModal";
 import { formatCount } from "@/lib/utils/formatCount";
 import { EditProfileModal } from "./EditProfileModal";
 import { ProfileConnectionsModal } from "./ProfileConnectionsModal";
+import { useBlockUserMutation, useFollowToggle, useMuteUserMutation } from "../hooks/useProfile";
+import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
 
 function websiteHref(raw: string): string {
   const t = raw.trim();
@@ -26,25 +28,50 @@ function websiteHref(raw: string): string {
 }
 
 interface ProfileHeaderProps {
+  userId: string;
   username: string;
   displayName: string;
   bio: string;
   isOwnProfile?: boolean;
   location?: string;
   website?: string;
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  isFollowRequested?: boolean;
+  isPrivate?: boolean;
+  role?: string | null;
+  roleContext?: string | null;
+  headline?: string | null;
+  headlineContext?: string | null;
+  avatarUrl?: string | null;
+  onAvatarUrlChange?: (imageUrl: string | null) => void;
 }
 
 export function ProfileHeader({
+  userId,
   username,
   displayName: initialDisplayName,
   bio: initialBio,
   isOwnProfile = false,
-  location: initialLocation = "London, UK",
-  website: initialWebsite = "maya-okonkwo.com",
+  location: initialLocation = "",
+  website: initialWebsite = "",
+  followerCount,
+  followingCount,
+  isFollowing: initialIsFollowing,
+  isFollowRequested: initialIsFollowRequested = false,
+  isPrivate = false,
+  role = null,
+  roleContext = null,
+  headline = null,
+  headlineContext = null,
+  avatarUrl: initialAvatarUrl = null,
+  onAvatarUrlChange,
 }: ProfileHeaderProps) {
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [isFollowRequested, setIsFollowRequested] = useState(initialIsFollowRequested);
   const [confirmAction, setConfirmAction] = useState<"block" | "report" | "mute" | null>(null);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(initialAvatarUrl);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
@@ -59,6 +86,31 @@ export function ProfileHeader({
     location: initialLocation,
     website: initialWebsite,
   });
+  const followToggleMutation = useFollowToggle(username);
+  const blockMutation = useBlockUserMutation();
+  const muteMutation = useMuteUserMutation();
+
+  useEffect(() => {
+    setProfileData({
+      displayName: initialDisplayName,
+      username,
+      bio: initialBio ?? "",
+      location: initialLocation ?? "",
+      website: initialWebsite ?? "",
+    });
+    setProfileImage(initialAvatarUrl);
+    onAvatarUrlChange?.(initialAvatarUrl);
+  }, [initialDisplayName, username, initialBio, initialLocation, initialWebsite, initialAvatarUrl]);
+
+  useEffect(() => {
+    setIsFollowing(initialIsFollowing);
+    setIsFollowRequested(initialIsFollowRequested);
+  }, [initialIsFollowing, initialIsFollowRequested]);
+
+  const handleAvatarChange = (imageUrl: string | null) => {
+    setProfileImage(imageUrl);
+    onAvatarUrlChange?.(imageUrl);
+  };
   const statItemClass =
     "cursor-pointer rounded-lg border border-border bg-bg px-3.5 py-2 text-left font-inherit shadow-[0_1px_0_rgb(15_23_42/4%)] transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
   const metaItemClass =
@@ -89,7 +141,7 @@ export function ProfileHeader({
     <div className="relative mt-3 sm:mt-4 pb-6 border-b border-border md:px-5 sm:px-6 md:px-8">
       <div className="absolute left-0 z-10" style={{ top: "-3.875rem" }}>
         {isOwnProfile ? (
-          <ProfilePictureUpload onUploadComplete={setProfileImage}>
+          <ProfilePictureUpload onUploadComplete={handleAvatarChange}>
             <Avatar
               initial={profileData.displayName[0]}
               src={profileImage}
@@ -127,9 +179,22 @@ export function ProfileHeader({
             <Button
               variant={isFollowing ? "secondary" : "primary"}
               size="sm"
-              onClick={() => setIsFollowing(!isFollowing)}
+              onClick={() => {
+                if (followToggleMutation.isPending) return;
+                followToggleMutation.mutate({
+                  userId,
+                  isFollowing,
+                  isFollowRequested,
+                });
+              }}
             >
-              {isFollowing ? "Following" : "Follow"}
+              {followToggleMutation.isPending
+                ? "..."
+                : isFollowing
+                  ? "Following"
+                  : isFollowRequested
+                    ? "Requested"
+                  : "Follow"}
             </Button>
             <PortalDropdown
               align="end"
@@ -194,18 +259,39 @@ export function ProfileHeader({
       <div className="pt-[4.5rem] sm:pt-[4.625rem] md:pt-[5.125rem] lg:pr-48">
         <div className="text-[26px] font-semibold leading-[1.08] text-fg md:text-[28px]">
           {profileData.displayName}
+          {isPrivate ? (
+            <span className="ml-2 inline-flex align-middle text-fg-muted" aria-label="Private account">
+              <Lock className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+          ) : null}
         </div>
         <div className="mt-2 inline-flex w-fit items-center rounded-full border border-border bg-sunken px-2.5 py-1 text-[12.5px] font-medium leading-none text-fg-muted">
           @{profileData.username}
         </div>
+        {headline && headline.trim().length > 0 ? (
+          <div className="mt-2.5 inline-flex w-fit items-center rounded-full border border-border bg-sunken px-2.5 py-1 text-[12px] font-medium leading-none text-fg-muted">
+            {headline.trim()}
+            {headlineContext && headlineContext.trim().length > 0 ? ` · ${headlineContext.trim()}` : ""}
+          </div>
+        ) : role && role.trim().length > 0 ? (
+          <div className="mt-2.5">
+            <UserRoleHeadline
+              role={role.trim()}
+              roleContext={roleContext}
+              textClassName="text-[12px]"
+            />
+          </div>
+        ) : null}
         <p className="mt-4 max-w-[650px] text-[15px] leading-[1.6] text-fg">
           {profileData.bio}
         </p>
         <div className="mt-3 flex max-w-[720px] flex-wrap gap-2.5">
-          <span className={metaItemClass}>
-            <MapPin className="h-[14px] w-[14px] shrink-0 text-fg-faint" strokeWidth={1.7} />
-            {profileData.location}
-          </span>
+          {profileData.location.trim().length > 0 ? (
+            <span className={metaItemClass}>
+              <MapPin className="h-[14px] w-[14px] shrink-0 text-fg-faint" strokeWidth={1.7} />
+              {profileData.location}
+            </span>
+          ) : null}
           {profileData.website.trim().length > 0 ? (
             <a
               href={websiteHref(profileData.website)}
@@ -217,12 +303,7 @@ export function ProfileHeader({
               <Link2 className="h-[14px] w-[14px] shrink-0 text-fg-faint" strokeWidth={1.7} aria-hidden />
               <span className="min-w-0 truncate">{profileData.website}</span>
             </a>
-          ) : (
-            <span className={metaItemClass}>
-              <Link2 className="h-[14px] w-[14px] shrink-0 text-fg-faint" strokeWidth={1.7} aria-hidden />
-              <span className="text-fg-muted/50">—</span>
-            </span>
-          )}
+          ) : null}
           <span className={metaItemClass}>
             <Calendar className="h-[14px] w-[14px] shrink-0 text-fg-faint" strokeWidth={1.7} />
             Joined Feb 2024
@@ -237,7 +318,7 @@ export function ProfileHeader({
               setConnectionsOpen(true);
             }}
           >
-            <span className="block text-[17px] font-semibold leading-none text-fg">{formatCount(1204)}</span>
+            <span className="block text-[17px] font-semibold leading-none text-fg">{formatCount(followingCount)}</span>
             <span className="mt-1 block text-[11.5px] font-medium text-fg-muted">following</span>
           </button>
           <button
@@ -248,7 +329,7 @@ export function ProfileHeader({
               setConnectionsOpen(true);
             }}
           >
-            <span className="block text-[17px] font-semibold leading-none text-fg">{formatCount(8417)}</span>
+            <span className="block text-[17px] font-semibold leading-none text-fg">{formatCount(followerCount)}</span>
             <span className="mt-1 block text-[11.5px] font-medium text-fg-muted">followers</span>
           </button>
           <div className="rounded-lg border border-border bg-bg px-3.5 py-2 text-left shadow-[0_1px_0_rgb(15_23_42/4%)]">
@@ -263,6 +344,11 @@ export function ProfileHeader({
           open={true}
           onClose={() => setConfirmAction(null)}
           onConfirm={() => {
+            if (confirmAction === "block") {
+              blockMutation.mutate({ userId, blocked: false });
+            } else if (confirmAction === "mute") {
+              muteMutation.mutate({ userId, muted: false });
+            }
             setConfirmAction(null);
           }}
           title={confirmConfig[confirmAction].title}
@@ -303,7 +389,12 @@ export function ProfileHeader({
       <ProfileConnectionsModal
         open={connectionsOpen}
         onClose={() => setConnectionsOpen(false)}
+        username={profileData.username}
         kind={connectionsKind}
+        isOwnProfile={isOwnProfile}
+        displayName={profileData.displayName}
+        followerCount={followerCount}
+        followingCount={followingCount}
       />
     </div>
   );

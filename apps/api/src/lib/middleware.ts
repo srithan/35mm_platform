@@ -1,0 +1,206 @@
+import { createMiddleware } from "hono/factory";
+import { createClerkClient, verifyToken } from "@clerk/backend";
+import { eq, sql } from "drizzle-orm";
+import { users, profiles, userSettings } from "@35mm/db/schema";
+import { getDb } from "./db.js";
+import { ApiError, unauthorized } from "./errors.js";
+
+export type AuthUser = {
+  clerkUserId: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+type AuthEnv = {
+  Variables: {
+    user: AuthUser;
+  };
+};
+
+function isApiError(err: unknown): err is ApiError {
+  return (
+    err instanceof ApiError ||
+    (err != null &&
+      typeof err === "object" &&
+      typeof (err as { status?: unknown }).status === "number" &&
+      typeof (err as { code?: unknown }).code === "string" &&
+      typeof (err as { message?: unknown }).message === "string")
+  );
+}
+
+function displayNameForClerkUser(user: {
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+}): string {
+  var fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  return fullName || user.username || "User";
+}
+
+function emailForClerkUser(user: {
+  primaryEmailAddressId: string | null;
+  emailAddresses: Array<{ id: string; emailAddress: string }>;
+}): string {
+  var primary = user.emailAddresses.find(function (email) {
+    return email.id === user.primaryEmailAddressId;
+  });
+  return primary?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? "";
+}
+
+async function ensureLocalUser(clerkUserId: string) {
+  var db = getDb();
+  var existing = await db
+    .select({
+      userId: users.id,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      status: users.status,
+    })
+    .from(users)
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.clerkUserId, clerkUserId))
+    .limit(1);
+
+  if (existing.length > 0) return existing[0];
+
+  var clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
+  var clerkUser = await clerk.users.getUser(clerkUserId);
+  var username = (clerkUser.username || clerkUserId).toLowerCase();
+  var displayName = displayNameForClerkUser(clerkUser);
+  var email = emailForClerkUser(clerkUser);
+  var inserted = await db
+    .insert(users)
+    .values({
+      clerkUserId: clerkUserId,
+      email: email,
+      ageVerifiedAt: new Date(),
+      status: "active",
+    })
+    .returning({ id: users.id })
+    .onConflictDoNothing();
+
+  var userId: string | null = inserted[0]?.id ?? null;
+  if (!userId) {
+    var rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.clerkUserId, clerkUserId))
+      .limit(1);
+    userId = rows[0]?.id ?? null;
+  }
+
+  if (!userId) {
+    throw unauthorized("User not found. Complete signup first.");
+  }
+
+  await db
+    .insert(profiles)
+    .values({
+      userId: userId,
+      username: username,
+      displayName: displayName,
+      avatarUrl: null,
+      bio: null,
+      coverUrl: null,
+      location: null,
+      website: null,
+      role: null,
+      roleContext: null,
+    })
+    .onConflictDoNothing();
+
+  await db.execute(
+    sql`insert into "user_settings" ("user_id") values (${userId}) on conflict ("user_id") do nothing`
+  );
+
+  var created = await db
+    .select({
+      userId: users.id,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      status: users.status,
+    })
+    .from(users)
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.clerkUserId, clerkUserId))
+    .limit(1);
+
+  if (created.length === 0) {
+    throw unauthorized("User not found. Complete signup first.");
+  }
+
+  return created[0];
+}
+
+async function verifyAndResolveUser(token: string): Promise<AuthUser | null> {
+  var payload;
+  try {
+    payload = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY!,
+    });
+  } catch (_err) {
+    return null;
+  }
+
+  var clerkUserId = payload.sub;
+  if (!clerkUserId) return null;
+
+  var row = await ensureLocalUser(clerkUserId);
+  if (row.status === "deactivated" || row.status === "suspended") {
+    return null;
+  }
+
+  return {
+    clerkUserId,
+    userId: row.userId,
+    username: row.username,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+  };
+}
+
+export async function getOptionalAuthUser(
+  authHeader: string | undefined
+): Promise<AuthUser | null> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  var token = authHeader.slice(7);
+  return verifyAndResolveUser(token);
+}
+
+export var requireAuth = createMiddleware<AuthEnv>(async function (c, next) {
+  var authHeader = c.req.header("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    throw unauthorized("Missing or invalid Authorization header");
+  }
+
+  var token = authHeader.slice(7);
+  var resolved = await verifyAndResolveUser(token);
+  if (!resolved) {
+    throw unauthorized("Invalid or expired token");
+  }
+
+  c.set("user", resolved);
+
+  await next();
+});
+
+export var errorHandler = createMiddleware(async function (c, next) {
+  try {
+    await next();
+  } catch (err) {
+    if (isApiError(err)) {
+      return c.json({ code: err.code, message: err.message }, err.status as 400);
+    }
+    console.error("Unhandled error:", err);
+    return c.json(
+      { code: "INTERNAL_ERROR", message: "Something went wrong" },
+      500
+    );
+  }
+});

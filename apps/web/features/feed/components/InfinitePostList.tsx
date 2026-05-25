@@ -2,89 +2,95 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils/cn";
+import { EmptyState } from "@/components/EmptyState";
 import { useFeed } from "../hooks/useFeed";
 import type { Post } from "../types/feed";
 import { PostCard } from "./PostCard";
 
-type LegacyPostShape = {
-  variant?: "text" | "film-log" | "image" | "discussion";
-  handle?: string;
-  timestamp?: string;
-  avatarInitial?: string;
-  avatarBg?: string;
-  avatarColor?: string;
-  filmRef?: string;
-  filmCard?: {
-    title: string;
-    meta: string;
-    posterSrc?: string | null;
-    imdbId?: string | null;
-    rating?: number;
-  };
-  imageSrc?: string;
-  imageCaption?: string;
-  liked?: boolean;
-  replyPreview?: { username: string; text: string; time: string };
-  replyCount?: number;
-};
+type PostVariant = "text" | "film-log" | "image" | "discussion";
 
-function getLegacyShape(post: Post): LegacyPostShape {
-  const candidate = post as Post & { __raw?: unknown };
-  if (!candidate.__raw || typeof candidate.__raw !== "object") {
-    return {};
-  }
-
-  return candidate.__raw as LegacyPostShape;
+function postToVariant(post: Post): PostVariant {
+  if (post.type === "discussion") return "discussion";
+  if (post.type === "log" || post.type === "review") return "film-log";
+  if (post.type === "image") return "image";
+  return "text";
 }
 
-export function InfinitePostList() {
+function formatPostTime(iso: string): string {
+  var then = Date.parse(iso);
+  if (Number.isNaN(then)) return "now";
+  var diff = Date.now() - then;
+  if (diff < 60_000) return "now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  return `${Math.floor(diff / 86_400_000)}d`;
+}
+
+interface InfinitePostListProps {
+  username?: string;
+  emptyState?: React.ComponentProps<typeof EmptyState>;
+}
+
+export function InfinitePostList({ username, emptyState }: InfinitePostListProps) {
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    status,
     isError,
     error,
     refetch,
-  } = useFeed();
+  } = useFeed(username);
 
   const posts = data?.pages.flatMap((page) => page.posts) ?? [];
 
+  if (status === "pending") return <FeedSkeleton />;
   if (isLoading) return <FeedSkeleton />;
   if (isError) return <FeedError error={error as Error} onRetry={() => void refetch()} />;
-  if (posts.length === 0) return <FeedEmpty />;
+  if (posts.length === 0) return <FeedEmpty emptyState={emptyState} />;
 
   return (
     <div>
       {posts.map((post, i) => {
-        const legacy = getLegacyShape(post);
+        const image = post.media.find((item) => item.type === "image");
+        const filmCard = post.film
+          ? {
+              title: post.film.title,
+              meta: [post.film.year, post.film.genres[0]].filter(Boolean).join(" · "),
+              posterSrc: post.film.posterUrl,
+              imdbId: null,
+              rating: post.film.rating ?? undefined,
+            }
+          : undefined;
+
         return (
           <PostCard
             key={post.id}
             postId={post.id}
-            variant={legacy.variant ?? "text"}
+            variant={postToVariant(post)}
+            sourcePostType={post.type}
             username={post.author.username}
-            handle={legacy.handle ?? `@${post.author.username}`}
+            userId={post.author.id}
+            handle={`@${post.author.username}`}
             displayName={post.author.displayName}
-            timestamp={legacy.timestamp ?? "now"}
-            avatarInitial={
-              legacy.avatarInitial ?? post.author.displayName.charAt(0).toUpperCase() ?? "U"
-            }
-            avatarBg={legacy.avatarBg}
-            avatarColor={legacy.avatarColor}
+            timestamp={formatPostTime(post.createdAt)}
+            avatarInitial={post.author.displayName.charAt(0).toUpperCase() || "U"}
             avatarUrl={post.author.avatarUrl}
             headline={post.headline}
             text={post.body}
-            filmRef={legacy.filmRef}
-            filmCard={legacy.filmCard}
-            imageSrc={legacy.imageSrc}
-            imageCaption={legacy.imageCaption}
+            filmCard={filmCard}
+            attachedFilm={post.film}
+            mediaUrls={post.mediaUrls}
+            linkPreview={post.linkPreview}
+            imageSrc={image?.url}
+            imageCaption={image?.altText}
             likeCount={post.likeCount}
-            liked={legacy.liked ?? post.isLiked}
+            liked={post.isLiked}
+            bookmarked={post.isBookmarked}
+            reposted={post.isReposted}
             commentCount={post.commentCount}
-            replyPreview={legacy.replyPreview}
-            replyCount={legacy.replyCount}
             role={post.author.role}
             roleContext={post.author.roleContext}
             filmsLoggedCount={post.author.filmsLoggedCount}
@@ -229,10 +235,29 @@ function FeedError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-function FeedEmpty() {
+function FeedEmpty({
+  emptyState,
+}: {
+  emptyState?: React.ComponentProps<typeof EmptyState>;
+}) {
+  if (emptyState) {
+    return <EmptyState size="lg" {...emptyState} />;
+  }
+
   return (
-    <div className="py-10 text-center text-xs text-fg-muted tracking-[0.05em]">
-      No posts yet.
-    </div>
+    <EmptyState
+      size="lg"
+      icon={
+        <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden>
+          <rect x="6" y="10" width="40" height="32" rx="5" stroke="#c2473a" strokeWidth="2" />
+          <path d="M15 20H37M15 27H37M15 34H31" stroke="#c2473a" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="42" cy="14" r="3" fill="#c2473a" />
+        </svg>
+      }
+      headline="Your feed is empty"
+      subline="Follow people or explore films to get started"
+      primaryCta={{ label: "Find people to follow", href: "/suggestions/people" }}
+      secondaryCta={{ label: "Explore films", href: "/discover" }}
+    />
   );
 }

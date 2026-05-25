@@ -3,27 +3,18 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSignUp } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
-import { signUp } from "@/features/auth/lib/auth-client";
+import { clerkSignUp } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
 
-const TAKEN_USERNAMES = new Set([
-  "maya",
-  "maya.frames",
-  "oliver",
-  "oliver_cuts",
-  "admin",
-  "film",
-  "cinema",
-  "user",
-  "srithan",
-]);
+var API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-const signupSchema = z
+var signupSchema = z
   .object({
     fullName: z.string().min(2, { message: "Full name must be at least 2 characters" }),
     username: z
@@ -49,16 +40,17 @@ function safeNextPath(raw: string | null): string | null {
 }
 
 export function SignupForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
-  const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  var router = useRouter();
+  var searchParams = useSearchParams();
+  var { signUp, isLoaded } = useSignUp();
+  var [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
+  var usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  var [showPassword, setShowPassword] = useState(false);
+  var [showConfirm, setShowConfirm] = useState(false);
+  var [isLoading, setIsLoading] = useState(false);
+  var [formError, setFormError] = useState<string | null>(null);
 
-  const form = useForm<SignupValues>({
+  var form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
       fullName: "",
@@ -69,22 +61,26 @@ export function SignupForm() {
     },
   });
 
-  const watchUsername = form.watch("username");
+  var watchUsername = form.watch("username");
 
-  const checkUsername = useCallback(function (val: string) {
+  var checkUsername = useCallback(function (val: string) {
     if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
-    const trimmed = val.trim().toLowerCase();
+    var trimmed = val.trim().toLowerCase();
     if (!trimmed) {
       setUsernameCheck("");
       return;
     }
+    if (trimmed.length < 2) {
+      setUsernameCheck("short");
+      return;
+    }
     setUsernameCheck("checking");
-    usernameTimerRef.current = setTimeout(function () {
-      if (TAKEN_USERNAMES.has(trimmed)) {
-        setUsernameCheck("taken");
-      } else if (trimmed.length < 2) {
-        setUsernameCheck("short");
-      } else {
+    usernameTimerRef.current = setTimeout(async function () {
+      try {
+        var res = await fetch(API_URL + "/v1/usernames/" + encodeURIComponent(trimmed) + "/available");
+        var data = await res.json();
+        setUsernameCheck(data.available ? "free" : "taken");
+      } catch (_err) {
         setUsernameCheck("free");
       }
       usernameTimerRef.current = null;
@@ -98,31 +94,30 @@ export function SignupForm() {
     [watchUsername, checkUsername]
   );
 
-  const onSubmit = async function (data: SignupValues) {
+  var onSubmit = async function (data: SignupValues) {
+    if (!isLoaded || !signUp) return;
     if (usernameCheck === "taken" || usernameCheck === "short") return;
     setFormError(null);
     setIsLoading(true);
-    const result = await signUp({
+
+    var result = await clerkSignUp(signUp, {
       fullName: data.fullName.trim(),
       username: data.username.trim(),
       email: data.email.trim(),
       password: data.password,
     });
+
     setIsLoading(false);
     if (!result.ok) {
       setFormError(result.message);
       return;
     }
-    const next = safeNextPath(searchParams.get("next"));
-    if (result.data.requiresVerification) {
-      const q = new URLSearchParams();
-      q.set("email", data.email.trim());
-      if (next) q.set("next", next);
-      router.push(`${ROUTES.AUTH_VERIFY}?${q.toString()}`);
-      return;
-    }
-    router.push(next ?? ROUTES.HOME);
-    router.refresh();
+
+    var next = safeNextPath(searchParams.get("next"));
+    var q = new URLSearchParams();
+    q.set("email", data.email.trim());
+    if (next) q.set("next", next);
+    router.push(ROUTES.AUTH_VERIFY + "?" + q.toString());
   };
 
   return (
@@ -276,7 +271,7 @@ export function SignupForm() {
 
         <button
           type="submit"
-          disabled={isLoading || usernameCheck === "taken" || usernameCheck === "short"}
+          disabled={isLoading || !isLoaded || usernameCheck === "taken" || usernameCheck === "short"}
           className="w-full flex justify-center items-center gap-2 bg-[var(--auth-accent)] text-white font-medium text-base py-4 rounded-full border-0 cursor-pointer no-underline transition-all hover:bg-[var(--auth-accent-bright)] hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
         >
           {isLoading ? (
@@ -290,7 +285,7 @@ export function SignupForm() {
       </form>
 
       <p className="mt-4 text-[0.7rem] text-[var(--auth-fg)]/20 tracking-wide text-center">
-        FREE · NO CREDIT CARD · NO ADS
+        FREE &middot; NO CREDIT CARD &middot; NO ADS
       </p>
 
       <div className="mt-6 pt-6 border-t border-[var(--auth-divider)] text-center">

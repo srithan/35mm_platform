@@ -12,7 +12,7 @@ import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { cn } from "@/lib/utils/cn";
 
 type TabDefinition = {
-  id: "posts" | "reviews" | "lists" | "stats";
+  id: "posts" | "diary" | "lists" | "stats";
   label: string;
   count?: number;
   Icon: LucideIcon;
@@ -20,7 +20,7 @@ type TabDefinition = {
 
 export const PROFILE_TABS: TabDefinition[] = [
   { id: "posts", label: "Posts", Icon: FileText },
-  { id: "reviews", label: "Reviews", count: 47, Icon: Clapperboard },
+  { id: "diary", label: "Diary", count: 0, Icon: Clapperboard },
   { id: "lists", label: "Lists", count: 12, Icon: ListIcon },
   { id: "stats", label: "Stats", Icon: BarChart2 },
 ];

@@ -871,6 +871,23 @@ body {
 
 /* ── Landing Page ── */
 .landing-root {
+    --bg: #ffffff;
+    --fg: #171717;
+    --fg-2: #1f1f1f;
+    --fg-light: #5f6368;
+    --fg-muted: #6f7378;
+    --fg-faint: #8f9398;
+    --accent: #c8432a;
+    --border: #ececec;
+    --color-bg: #ffffff;
+    --color-bg-sunken: #f5f5f7;
+    --color-bg-sunken-2: #eeeeef;
+    --color-bg-hover: #f8f8f8;
+    --color-text: #171717;
+    --color-text-secondary: #6f7378;
+    --color-text-tertiary: #8f9398;
+    --color-border: #ececec;
+    --color-border-strong: #d8d8d8;
     --landing-input-border: var(--color-border);
     --landing-input-border-focus: var(--color-text);
     --landing-input-bg: #ffffff;

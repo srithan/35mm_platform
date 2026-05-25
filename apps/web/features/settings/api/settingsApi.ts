@@ -1,11 +1,3 @@
-import {
-  adaptSettingsForUI,
-  patchAppearance,
-  patchNotifications,
-  patchPrivacy,
-  patchProfile,
-} from "./adapters";
-import { readMockSettings, writeMockSettings } from "../data/mockSettings";
 import type {
   UpdateAppearanceInput,
   UpdateNotificationsInput,
@@ -13,40 +5,68 @@ import type {
   UpdateProfileInput,
   UserSettings,
 } from "../types/settings";
+import { apiRequest } from "@/features/feed/api/http";
 
-export async function getSettings(): Promise<UserSettings> {
-  const data = await readMockSettings();
-  return adaptSettingsForUI(data);
+export async function getSettings(token: string | null): Promise<UserSettings> {
+  const data = await apiRequest<Pick<UserSettings, "profile" | "privacy" | "notifications" | "appearance">>(
+    "/v1/me/settings",
+    {
+      method: "GET",
+      token,
+    }
+  );
+
+  return data;
 }
 
 export async function updateProfile(
-  input: UpdateProfileInput
+  input: UpdateProfileInput,
+  token: string | null
 ): Promise<UserSettings> {
-  const current = await readMockSettings();
-  const next = patchProfile(current, input);
-  return writeMockSettings(next);
+  return apiRequest<UserSettings>("/v1/me/settings/profile", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
 }
 
 export async function updatePrivacy(
-  input: UpdatePrivacyInput
+  input: UpdatePrivacyInput,
+  token: string | null
 ): Promise<UserSettings> {
-  const current = await readMockSettings();
-  const next = patchPrivacy(current, input);
-  return writeMockSettings(next);
+  if (input.privateAccount !== undefined) {
+    await apiRequest<{ ok: boolean }>("/v1/profiles/me", {
+      method: "PATCH",
+      token,
+      body: { isPrivate: input.privateAccount },
+    });
+  }
+
+  return apiRequest<UserSettings>("/v1/me/settings/privacy", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
 }
 
 export async function updateNotifications(
-  input: UpdateNotificationsInput
+  input: UpdateNotificationsInput,
+  token: string | null
 ): Promise<UserSettings> {
-  const current = await readMockSettings();
-  const next = patchNotifications(current, input);
-  return writeMockSettings(next);
+  return apiRequest<UserSettings>("/v1/me/settings/notifications", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
 }
 
 export async function updateAppearance(
-  input: UpdateAppearanceInput
+  input: UpdateAppearanceInput,
+  token: string | null
 ): Promise<UserSettings> {
-  const current = await readMockSettings();
-  const next = patchAppearance(current, input);
-  return writeMockSettings(next);
+  return apiRequest<UserSettings>("/v1/me/settings/appearance", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
 }

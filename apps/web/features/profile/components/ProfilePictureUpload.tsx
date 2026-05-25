@@ -1,16 +1,22 @@
 "use client";
 
 import { useState, useRef, ChangeEvent } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { ImageCropper } from "./ImageCropper";
 import getCroppedImg from "@/lib/utils/imageUtils";
 import { Area } from "react-easy-crop";
-import { Loader2, Camera } from "lucide-react";
+import { Camera, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useQueryClient } from "@tanstack/react-query";
+import { presignProfileMediaUpload, uploadToPresignedUrl } from "../api/mediaApi";
+import { updateCurrentProfile } from "../api/profileApi";
+import { authKeys } from "@/features/auth/hooks/queryKeys";
+import { profileKeys } from "../hooks/queryKeys";
 
 interface ProfilePictureUploadProps {
   children: React.ReactNode;
-  onUploadComplete?: (imageUrl: string) => void;
+  onUploadComplete?: (imageUrl: string | null) => void;
   className?: string;
 }
 
@@ -19,16 +25,30 @@ export function ProfilePictureUpload({
   onUploadComplete,
   className,
 }: ProfilePictureUploadProps) {
+  const queryClient = useQueryClient();
   const [image, setImage] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { getToken } = useAuth();
+
+  const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      if (file.size > MAX_IMAGE_BYTES) {
+        setErrorMessage("Profile photo must be 12MB or less.");
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        setErrorMessage("Please choose an image file.");
+        return;
+      }
+      setErrorMessage(null);
       const reader = new FileReader();
       reader.addEventListener("load", () => {
         setImage(reader.result as string);
@@ -45,42 +65,74 @@ export function ProfilePictureUpload({
       setIsUploading(true);
       setIsCropping(false);
       setUploadProgress(10);
+      setErrorMessage(null);
 
       // 1. Process crop
       const croppedImage = await getCroppedImg(image, croppedAreaPixels);
       if (!croppedImage) throw new Error("Could not crop image");
-      
-      setUploadProgress(40);
 
-      // 2. Simulate Upload Progress
-      const simulateUpload = async () => {
-        for (let i = 40; i <= 90; i += 10) {
-          setUploadProgress(i);
-          await new Promise((r) => setTimeout(r, 200));
-        }
-      };
+      if (croppedImage.size <= 0) {
+        throw new Error("Cropped image is empty.");
+      }
 
-      await simulateUpload();
+      if (croppedImage.size > MAX_IMAGE_BYTES) {
+        throw new Error("Profile photo must be 12MB or less after processing.");
+      }
 
-      // 3. Finalize
-      const imageUrl = URL.createObjectURL(croppedImage);
-      setUploadProgress(100);
-      
-      await new Promise((r) => setTimeout(r, 400)); // Show 100% briefly
-      
-      onUploadComplete?.(imageUrl);
+      setUploadProgress(33);
+
+      const token = await getToken();
+      const presign = await presignProfileMediaUpload(
+        {
+          kind: "avatar",
+          contentType: "image/jpeg",
+          contentLength: croppedImage.size,
+        },
+        token
+      );
+
+      setUploadProgress(65);
+
+      await uploadToPresignedUrl({
+        uploadUrl: presign.uploadUrl,
+        contentType: presign.contentType,
+        blob: croppedImage,
+      });
+      const profile = await updateCurrentProfile(
+        {
+          avatarUrl: presign.publicUrl,
+        },
+        token
+      );
+
+      setUploadProgress(95);
+
+      onUploadComplete?.(profile.avatarUrl);
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
       setIsUploading(false);
       setImage(null);
+      setErrorMessage(null);
       setUploadProgress(0);
     } catch (error) {
-      console.error("Upload failed:", error);
-      setIsUploading(false);
       setUploadProgress(0);
+      console.error("Upload failed:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not upload profile photo."
+      );
+      setIsUploading(false);
     }
   };
 
   const handleClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const closeCropper = () => {
+    setIsCropping(false);
+    setImage(null);
+    setCroppedAreaPixels(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -129,6 +181,15 @@ export function ProfilePictureUpload({
             </span>
           </div>
         )}
+
+        {!isUploading && errorMessage ? (
+          <div className="absolute inset-0 bg-black/55 rounded-full flex items-center justify-center z-10 backdrop-blur-[2px]">
+            <div className="max-w-[92%] text-center px-3">
+              <AlertCircle className="w-4 h-4 text-white mx-auto mb-1" />
+              <div className="text-[10px] text-white leading-relaxed">{errorMessage}</div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <input
@@ -141,7 +202,7 @@ export function ProfilePictureUpload({
 
       <Dialog
         open={isCropping}
-        onClose={() => setIsCropping(false)}
+        onClose={closeCropper}
         title="Crop Profile Photo"
         description="Drag to reposition and use the slider to zoom."
       >
@@ -149,8 +210,9 @@ export function ProfilePictureUpload({
           <ImageCropper
             image={image}
             onCropComplete={setCroppedAreaPixels}
-            onCancel={() => setIsCropping(false)}
+            onCancel={closeCropper}
             onSave={handleUpload}
+            aspect={1}
           />
         )}
       </Dialog>

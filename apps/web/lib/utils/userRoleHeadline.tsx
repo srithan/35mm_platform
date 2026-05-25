@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils/cn";
 /** Dot colors by canonical role label (match API / display strings). */
 export const ROLE_DOT_COLORS: Record<string, string> = {
   Cinephile: "#c2473a",
+  Creator: "#6366f1",
+  Critic: "#0ea5e9",
   Director: "#6366f1",
   "Film Critic": "#0ea5e9",
   Cinematographer: "#10b981",

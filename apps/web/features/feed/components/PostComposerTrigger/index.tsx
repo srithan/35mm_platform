@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
+import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 export interface PostComposerTriggerUser {
   name: string;
@@ -79,19 +80,13 @@ export function PostComposerTrigger({ onOpen, user }: PostComposerTriggerProps) 
       >
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2.5">
           <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden bg-fg flex items-center justify-center">
-            {user.avatarUrl ? (
-              <Image
-                src={user.avatarUrl}
-                alt=""
-                width={36}
-                height={36}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-[14px] text-[#c8b99a]">
-                {user.initial}
-              </span>
-            )}
+            <Image
+              src={user.avatarUrl ?? DEFAULT_PROFILE_AVATAR_URL}
+              alt=""
+              width={36}
+              height={36}
+              className="w-full h-full object-cover"
+            />
           </div>
 
           <div className="flex-1 min-w-0 h-[46px] rounded-full bg-sunken px-5 flex items-center">

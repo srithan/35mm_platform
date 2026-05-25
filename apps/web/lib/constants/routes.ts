@@ -6,7 +6,17 @@ export const ROUTES = {
   AUTH_RESET: "/reset",
   AUTH_VERIFY: "/verify",
   NEW_POST: "/new",
+  CHAT: "/chat",
+  CHAT_WITH: (chatId: string) => `/chat/${chatId}`,
   DISCOVER: "/discover",
+  COMMUNITIES: "/communities",
+  COMMUNITY: (slug: string) => `/communities/${slug}`,
+  SHORT_FILMS: "/short-films",
+  SHORT_FILM: (id: string) => `/short-films/${id}`,
+  FESTIVALS: "/festivals",
+  FESTIVAL: (slug: string) => `/festivals/${slug}`,
+  FESTIVALS_PROJECTS: "/festivals/projects",
+  FESTIVALS_SUBMISSIONS: "/festivals/submissions",
   SUGGESTIONS_PEOPLE: "/suggestions/people",
   /**
    * TMDB-backed title: `movie` or `tv` (numeric id; media disambiguates ID collisions).

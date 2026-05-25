@@ -28,3 +28,6 @@ next-env.d.ts
 
 # Exclude HTML files as requested
 *.html
+
+# clerk configuration (can include secrets)
+/.clerk/

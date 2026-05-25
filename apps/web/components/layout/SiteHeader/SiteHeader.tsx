@@ -2,19 +2,18 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 // import type { QuotedPost } from "@/stores/useComposerModalStore";
-import { CURRENT_USER } from "@/lib/constants/currentUser";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { isRouteActive } from "@/lib/utils/navigation";
 import { Avatar } from "@/components/Avatar";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
-import { signOut } from "@/features/auth/lib/auth-client";
+import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useClerk, useUser } from "@clerk/nextjs";
 import {
   Bookmark,
   ChevronRight,
@@ -192,6 +191,10 @@ const INITIAL_UNREAD_NOTIF_COUNT = HEADER_NOTIF_PREVIEW_ROWS.filter(function (r)
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const { signOut } = useClerk();
+  const { user: clerkUser } = useUser();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
   const { openComposerModal } = useComposerModal();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -204,6 +207,12 @@ export function SiteHeader() {
   const profileWrapRef = useRef<HTMLDivElement>(null);
 
   const isActive = (href: string) => isRouteActive(pathname ?? "", href);
+  const profileUsername = currentUser?.username ?? clerkUser?.username ?? null;
+  const profileHref = profileUsername ? ROUTES.PROFILE(profileUsername) : ROUTES.HOME;
+  const currentDisplayName =
+    currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
+  const currentAvatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
+  const currentInitial = initialForName(currentDisplayName);
 
   useLayoutEffect(
     function () {
@@ -291,10 +300,8 @@ export function SiteHeader() {
   }
 
   function confirmLogout() {
-    void signOut().then(function (result) {
-      if (result.ok) {
-        router.push(ROUTES.AUTH_LOGIN);
-      }
+    void signOut().then(function () {
+      router.push(ROUTES.AUTH_LOGIN);
     });
   }
 
@@ -398,13 +405,13 @@ export function SiteHeader() {
             </Link>
 
             <Link
-              href={ROUTES.PROFILE(CURRENT_USER.username)}
+              href={profileHref}
               className={cn(
                 styles.navItem,
-                isActive(ROUTES.PROFILE(CURRENT_USER.username)) && styles.active
+                isActive(profileHref) && styles.active
               )}
               aria-current={
-                isActive(ROUTES.PROFILE(CURRENT_USER.username)) ? "page" : undefined
+                isActive(profileHref) ? "page" : undefined
               }
             >
               <span className={styles.navItemIcon}>
@@ -580,12 +587,11 @@ export function SiteHeader() {
                 aria-haspopup="menu"
                 onClick={toggleProfileMenu}
               >
-                <Image
+                <Avatar
+                  initial={currentInitial}
+                  src={currentAvatarUrl}
+                  size="sm"
                   className={styles.navAvatar}
-                  src={CURRENT_USER.avatarUrl}
-                  alt=""
-                  width={32}
-                  height={32}
                 />
               </button>
               {profileMenuOpen ? (
@@ -600,20 +606,19 @@ export function SiteHeader() {
                     aria-hidden
                   />
                   <Link
-                    href={ROUTES.PROFILE(CURRENT_USER.username)}
+                    href={profileHref}
                     className={styles.profileMenuIdentity}
                     role="menuitem"
                     onClick={closeProfileMenu}
                   >
-                    <Image
+                    <Avatar
+                      initial={currentInitial}
+                      src={currentAvatarUrl}
+                      size="md"
                       className={styles.profileMenuIdentityAvatar}
-                      src={CURRENT_USER.avatarUrl}
-                      alt=""
-                      width={40}
-                      height={40}
                     />
                     <span className={styles.profileMenuIdentityMeta}>
-                      <span className={styles.profileMenuIdentityName}>{CURRENT_USER.name}</span>
+                      <span className={styles.profileMenuIdentityName}>{currentDisplayName}</span>
                       <span className={styles.profileMenuIdentityHint}>See your profile</span>
                     </span>
                     <ChevronRight

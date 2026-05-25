@@ -12,6 +12,7 @@ import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
 import { Share2, Flag, MoreHorizontal } from "lucide-react";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews } from "../utils/videoPreviews";
+import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 export interface Comment {
   id: string;
@@ -36,9 +37,10 @@ export interface Comment {
 interface CommentCardProps {
   comment: Comment;
   depth?: number;
+  onReplySubmit?: (input: { parentId: string; body: string }) => Promise<void>;
 }
 
-export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
+export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardProps) {
   const [repliesExpanded, setRepliesExpanded] = useState(false);
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -118,18 +120,26 @@ export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
     setReplyBoxOpen((o) => !o);
   };
 
+  const handleReplySubmit = async () => {
+    var body = replyText.trim();
+    if (!body || !onReplySubmit) return;
+    try {
+      await onReplySubmit({ parentId: comment.id, body });
+      setReplyText("");
+      setReplyBoxOpen(false);
+    } catch (_err) {
+      // parent mutation controls error state
+    }
+  };
+
   const resizeReplyTextarea = (textarea: HTMLTextAreaElement) => {
     textarea.style.height = "0px";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
   };
 
-  const avatarStyle =
-    comment.avatarBg && comment.avatarColor
-      ? { background: comment.avatarBg, color: comment.avatarColor }
-      : undefined;
-
   return (
     <div
+      id={`comment-${comment.id}`}
       className={cn(
         "CommentCard w-full px-4 py-4 animate-fade-up border-b border-border last:border-b-0",
         depth > 0 && "border-l-2 border-l-border"
@@ -156,15 +166,13 @@ export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
           roleContext={comment.roleContext}
           className="mr-2 flex-shrink-0 self-start no-underline"
         >
-          <div
-            className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm",
-              !comment.avatarBg && "bg-neutral-300"
-            )}
-            style={avatarStyle}
-          >
-            {comment.avatarInitial}
-          </div>
+          <Image
+            src={comment.avatarUrl && comment.avatarUrl !== "" ? comment.avatarUrl : DEFAULT_PROFILE_AVATAR_URL}
+            alt=""
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-full object-cover"
+          />
         </UsernameLink>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -304,25 +312,19 @@ export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
               onCommentClick={handleCommentClick}
               onReplyClick={handleReplyClick}
               hideRepostSaveLabels
-              showReplyOption
+              showReplyOption={depth < 2}
             />
-            {replyBoxOpen && (
+            {replyBoxOpen && depth < 2 && (
               <div className="mt-2.5 ml-0.5">
                 <div className="flex items-start gap-2">
                   <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-fg flex items-center justify-center mt-1">
-                    {CURRENT_USER.avatarUrl ? (
-                      <Image
-                        src={CURRENT_USER.avatarUrl}
-                        alt=""
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-[12px] text-white/85">
-                        {CURRENT_USER.initial}
-                      </span>
-                    )}
+                    <Image
+                      src={CURRENT_USER.avatarUrl ?? DEFAULT_PROFILE_AVATAR_URL}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="relative flex-1">
                     <textarea
@@ -341,6 +343,7 @@ export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
                     <button
                       type="button"
                       disabled={replyText.trim().length === 0}
+                      onClick={() => void handleReplySubmit()}
                       className={cn(
                         "absolute right-2 top-1/2 -translate-y-1/2 h-7 text-[11px] font-medium px-2.5 rounded-md transition-colors flex items-center",
                         replyText.trim().length === 0
@@ -361,6 +364,7 @@ export function CommentCard({ comment, depth = 0 }: CommentCardProps) {
                     key={reply.id}
                     comment={reply}
                     depth={depth + 1}
+                    onReplySubmit={onReplySubmit}
                   />
                 ))}
               </div>

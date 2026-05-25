@@ -11,6 +11,7 @@
         "test": "vitest run"
     },
     "dependencies": {
+        "@clerk/nextjs": "^7.4.1",
         "@hookform/resolvers": "^5.2.2",
         "@paper-design/shaders": "^0.0.71",
         "@radix-ui/react-dropdown-menu": "^2.1.2",

@@ -29,6 +29,23 @@ type LegacyPostShape = {
   replyCount?: number;
 };
 
+function postToVariant(post: Post): "text" | "film-log" | "image" | "discussion" {
+  if (post.type === "discussion") return "discussion";
+  if (post.type === "log" || post.type === "review") return "film-log";
+  if (post.type === "image") return "image";
+  return "text";
+}
+
+function formatPostTime(iso: string): string {
+  var then = Date.parse(iso);
+  if (Number.isNaN(then)) return "now";
+  var diff = Date.now() - then;
+  if (diff < 60_000) return "now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  return `${Math.floor(diff / 86_400_000)}d`;
+}
+
 function getLegacyShape(post: Post): LegacyPostShape {
   const candidate = post as Post & { __raw?: unknown };
   if (!candidate.__raw || typeof candidate.__raw !== "object") {
@@ -46,7 +63,9 @@ export function PostDetailView({
   postId: string;
 }) {
   const { data: post, isLoading: postLoading, isError: postError } = usePost(username, postId);
-  const { data: commentsResult, isLoading: commentsLoading } = useComments(postId);
+  const commentsQuery = useComments(postId);
+  const comments = commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [];
+  const commentsHasMore = Boolean(commentsQuery.hasNextPage);
 
   if (postLoading) return <PostDetailSkeleton />;
 
@@ -59,6 +78,16 @@ export function PostDetailView({
   }
 
   const legacy = getLegacyShape(post);
+  const image = post.media.find((item) => item.type === "image");
+  const filmCard = post.film
+    ? {
+      title: post.film.title,
+      meta: [post.film.year, post.film.genres[0]].filter(Boolean).join(" · "),
+      posterSrc: post.film.posterUrl,
+      imdbId: null,
+      rating: post.film.rating ?? undefined,
+    }
+    : undefined;
 
   return (
     <div className="pt-4">
@@ -67,23 +96,30 @@ export function PostDetailView({
       </div>
       <PostCard
         postId={post.id}
-        variant={legacy.variant ?? "text"}
+        variant={legacy.variant ?? postToVariant(post)}
+        sourcePostType={post.type}
         username={post.author.username}
+        userId={post.author.id}
         displayName={post.author.displayName}
         handle={legacy.handle ?? `@${post.author.username}`}
-        timestamp={legacy.timestamp ?? "now"}
+        timestamp={legacy.timestamp ?? formatPostTime(post.createdAt)}
         avatarInitial={legacy.avatarInitial ?? post.author.displayName.charAt(0).toUpperCase()}
         avatarBg={legacy.avatarBg}
         avatarColor={legacy.avatarColor}
         avatarUrl={post.author.avatarUrl}
         headline={post.headline}
         text={post.body}
-        filmRef={legacy.filmRef}
-        filmCard={legacy.filmCard}
-        imageSrc={legacy.imageSrc}
-        imageCaption={legacy.imageCaption}
+        filmRef={legacy.filmRef ?? undefined}
+        filmCard={legacy.filmCard ?? filmCard}
+        attachedFilm={post.film}
+        mediaUrls={post.mediaUrls}
+        linkPreview={post.linkPreview}
+        imageSrc={legacy.imageSrc ?? image?.url}
+        imageCaption={legacy.imageCaption ?? image?.altText}
         likeCount={post.likeCount}
         liked={legacy.liked ?? post.isLiked}
+        reposted={post.isReposted}
+        bookmarked={post.isBookmarked}
         commentCount={post.commentCount}
         replyPreview={legacy.replyPreview}
         replyCount={legacy.replyCount}
@@ -92,9 +128,13 @@ export function PostDetailView({
         filmsLoggedCount={post.author.filmsLoggedCount}
       />
       <CommentSection
-        comments={commentsResult?.comments ?? []}
-        isLoading={commentsLoading}
+        comments={comments}
+        isLoading={commentsQuery.isLoading}
+        hasMore={commentsHasMore}
+        isFetchingMore={commentsQuery.isFetchingNextPage}
+        onLoadMore={() => void commentsQuery.fetchNextPage()}
         postId={postId}
+        postUsername={username}
       />
     </div>
   );

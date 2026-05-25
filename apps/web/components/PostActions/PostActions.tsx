@@ -9,12 +9,12 @@ interface PostActionsProps {
   likes: number;
   comments: number;
   initialLiked?: boolean;
-  initialSaved?: boolean;
+  initialBookmarked?: boolean;
   initialReposted?: boolean;
   onCommentClick?: () => void;
   onReplyClick?: () => void;
   onLikeToggle?: (state: { isLiked: boolean; likeCount: number }) => void;
-  onSaveToggle?: (state: { isSaved: boolean }) => void;
+  onBookmarkToggle?: (state: { isBookmarked: boolean }) => void;
   onRepostToggle?: (state: { isReposted: boolean }) => void;
   hideRepostSaveLabels?: boolean;
   showReplyOption?: boolean;
@@ -26,19 +26,19 @@ export function PostActions({
   likes,
   comments,
   initialLiked = false,
-  initialSaved = false,
+  initialBookmarked = false,
   initialReposted = false,
   onCommentClick,
   onReplyClick,
   onLikeToggle,
-  onSaveToggle,
+  onBookmarkToggle,
   onRepostToggle,
   hideRepostSaveLabels = false,
   showReplyOption = false,
 }: PostActionsProps) {
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(likes);
-  const [saved, setSaved] = useState(initialSaved);
+  const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [reposted, setReposted] = useState(initialReposted);
   const heartBtnRef = useRef<HTMLButtonElement>(null);
   const countRef = useRef<HTMLSpanElement>(null);
@@ -54,8 +54,8 @@ export function PostActions({
   }, [likes]);
 
   useEffect(() => {
-    setSaved(initialSaved);
-  }, [initialSaved]);
+    setBookmarked(initialBookmarked);
+  }, [initialBookmarked]);
 
   useEffect(() => {
     setReposted(initialReposted);
@@ -91,9 +91,9 @@ export function PostActions({
   }, [likeCount, liked, onLikeToggle]);
 
   const toggleSave = useCallback(() => {
-    const nextSaved = !saved;
-    setSaved(nextSaved);
-    onSaveToggle?.({ isSaved: nextSaved });
+    const nextBookmarked = !bookmarked;
+    setBookmarked(nextBookmarked);
+    onBookmarkToggle?.({ isBookmarked: nextBookmarked });
 
     const btn = saveBtnRef.current;
     if (!btn) return;
@@ -104,7 +104,7 @@ export function PostActions({
     btn.addEventListener("animationend", () => btn.classList.remove("save-pop"), {
       once: true,
     });
-  }, [onSaveToggle, saved]);
+  }, [bookmarked, onBookmarkToggle]);
 
   const toggleRepost = useCallback(() => {
     const nextReposted = !reposted;
@@ -173,13 +173,13 @@ export function PostActions({
         ref={saveBtnRef}
         type="button"
         onClick={toggleSave}
-        className={cn("action-btn save-btn w-full justify-center", saved && "saved")}
-        aria-pressed={saved}
-        aria-label={saved ? "Saved" : "Save"}
+        className={cn("action-btn save-btn w-full justify-center", bookmarked && "saved")}
+        aria-pressed={bookmarked}
+        aria-label={bookmarked ? "Saved" : "Save"}
       >
-        <Icon name="bookmark" fill={saved ? "currentColor" : "none"} strokeWidth={1.6} />
+        <Icon name="bookmark" fill={bookmarked ? "currentColor" : "none"} strokeWidth={1.6} />
         {!hideRepostSaveLabels && (
-          <span className="action-count hidden md:inline">{saved ? "Saved" : "Save"}</span>
+          <span className="action-count hidden md:inline">{bookmarked ? "Saved" : "Save"}</span>
         )}
       </button>
     </div>

@@ -9,6 +9,7 @@ import {
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import type { QuotedPost } from "@/stores/useComposerModalStore";
+import type { EditingPost } from "@/stores/useComposerModalStore";
 import { useScrollLock } from "@/lib/hooks/useScrollLock";
 import { PostComposer } from "../PostComposer";
 import { Icon } from "@/components/Icon/Icon";
@@ -25,6 +26,7 @@ interface PostComposerModalProps {
   onClose: () => void;
   user: PostComposerModalUser;
   quotedPost?: QuotedPost | null;
+  editingPost?: EditingPost | null;
 }
 
 const FOCUSABLE =
@@ -89,6 +91,7 @@ export function PostComposerModal({
   onClose,
   user,
   quotedPost,
+  editingPost,
 }: PostComposerModalProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -211,6 +214,7 @@ export function PostComposerModal({
                 onSubmit={() => onClose()}
                 onClose={handleClose}
                 quotedPost={quotedPost}
+                editingPost={editingPost}
               />
             </div>
 

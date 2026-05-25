@@ -149,6 +149,8 @@ export function DiscoverContent() {
               genreId={genreId}
               moodId={moodId}
               exploreFilters={exploreFilters}
+              activeFilterCount={activeFilterCount}
+              onClearFilters={clearFilters}
             />
           ) : null}
           {activeTab === "TV Shows" ? (

@@ -3,6 +3,9 @@
 import { useRef, useState } from "react";
 import { Image, Film, Smile, Link2, MapPin, Bold, Italic } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { EmptyState } from "@/components/EmptyState";
+import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useCreateComment } from "../hooks/useCommentMutations";
 import { CommentCard, type Comment as CommentCardType } from "./CommentCard";
 import type { Comment as FeedComment } from "../types/feed";
 
@@ -11,34 +14,33 @@ interface CommentSectionProps {
   isLoading?: boolean;
   postId: string;
   postUsername?: string;
-  /** Merged with default root spacing (e.g. pass mt-0 when nested in a card). */
   className?: string;
+  hasMore?: boolean;
+  isFetchingMore?: boolean;
+  onLoadMore?: () => void;
+}
+
+function formatCommentTime(value: string): string {
+  var then = Date.parse(value);
+  if (Number.isNaN(then)) return "now";
+  var diff = Date.now() - then;
+  if (diff < 60_000) return "now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  return `${Math.floor(diff / 86_400_000)}d`;
 }
 
 function toCommentCard(comment: FeedComment): CommentCardType {
-  const raw = comment as FeedComment & { __raw?: unknown };
-  const rawObj = raw.__raw && typeof raw.__raw === "object" ? raw.__raw : null;
-  const legacy = (rawObj ?? {}) as {
-    avatarInitial?: string;
-    avatarBg?: string;
-    avatarColor?: string;
-    timestamp?: string;
-    liked?: boolean;
-  };
-
   return {
     id: comment.id,
     username: comment.author.username,
     displayName: comment.author.displayName,
     avatarUrl: comment.author.avatarUrl,
-    avatarInitial:
-      legacy.avatarInitial ?? comment.author.displayName.charAt(0).toUpperCase() ?? "U",
-    avatarBg: legacy.avatarBg,
-    avatarColor: legacy.avatarColor,
-    text: comment.body,
-    timestamp: legacy.timestamp ?? comment.createdAt,
+    avatarInitial: comment.author.displayName.charAt(0).toUpperCase() || "U",
+    text: comment.body ?? "",
+    timestamp: formatCommentTime(comment.createdAt),
     likeCount: comment.likeCount,
-    liked: legacy.liked ?? comment.isLiked,
+    liked: comment.isLiked,
     replyCount: comment.replies.length,
     role: comment.author.role,
     roleContext: comment.author.roleContext,
@@ -53,15 +55,20 @@ export function CommentSection({
   postId,
   postUsername,
   className,
+  hasMore = false,
+  isFetchingMore = false,
+  onLoadMore,
 }: CommentSectionProps) {
   const [isComposerActive, setIsComposerActive] = useState(false);
   const [replyText, setReplyText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const createCommentMutation = useCreateComment(postId);
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
   const normalizedComments: CommentCardType[] = comments.map(toCommentCard);
 
   const handleActivateComposer = () => {
     setIsComposerActive(true);
-    // Focus after state update
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
@@ -69,22 +76,56 @@ export function CommentSection({
     setReplyText(e.target.value);
   };
 
-  const handleReplySubmit = () => {
-    if (!replyText.trim()) return;
-    // TODO: hook into real submit flow
-    setReplyText("");
-    setIsComposerActive(false);
+  const handleReplySubmit = async () => {
+    var body = replyText.trim();
+    if (!body || createCommentMutation.isPending) return;
+
+    try {
+      var created = await createCommentMutation.mutateAsync({ body, parentId: null });
+      setReplyText("");
+      setIsComposerActive(false);
+      requestAnimationFrame(() => {
+        var el = document.getElementById(`comment-${created.id}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } catch (_err) {
+      // handled by mutation state
+    }
   };
 
-  const replyEnabled = replyText.trim().length > 0;
+  const handleNestedReplySubmit = async (input: { parentId: string; body: string }) => {
+    if (!input.body.trim() || createCommentMutation.isPending) return;
+
+    var created = await createCommentMutation.mutateAsync({
+      body: input.body.trim(),
+      parentId: input.parentId,
+    });
+
+    requestAnimationFrame(() => {
+      var el = document.getElementById(`comment-${created.id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+
+  const replyEnabled =
+    replyText.trim().length > 0 && !createCommentMutation.isPending;
 
   return (
     <div className={cn("mt-2", className)}>
       <div className="border-b border-border">
         {!isComposerActive ? (
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-sm bg-skeleton text-fg-muted">
-              S
+            <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-skeleton flex items-center justify-center font-semibold text-sm text-fg-muted">
+              {currentUser?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentUser.avatarUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                initialForName(currentUser?.displayName ?? currentUser?.username)
+              )}
             </div>
             <button
               type="button"
@@ -103,8 +144,17 @@ export function CommentSection({
           </div>
         ) : (
           <div className="flex gap-3 items-start px-4 py-3">
-            <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-sm bg-skeleton text-fg-muted">
-              S
+            <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-skeleton flex items-center justify-center font-semibold text-sm text-fg-muted">
+              {currentUser?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentUser.avatarUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                initialForName(currentUser?.displayName ?? currentUser?.username)
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-fg-muted mb-1">
@@ -126,61 +176,47 @@ export function CommentSection({
               />
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center gap-3 text-fg-muted">
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors">
                     <Image className="w-5 h-5" />
                   </button>
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors">
                     <Film className="w-5 h-5" />
                   </button>
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors">
                     <Smile className="w-5 h-5" />
                   </button>
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
                     <Link2 className="w-5 h-5" />
                   </button>
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
                     <MapPin className="w-5 h-5" />
                   </button>
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
                     <Bold className="w-4 h-4" />
                   </button>
-                  <button
-                    type="button"
-                    className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex"
-                  >
+                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
                     <Italic className="w-4 h-4" />
                   </button>
                 </div>
                 <button
                   type="button"
-                  onClick={handleReplySubmit}
+                  onClick={() => void handleReplySubmit()}
                   disabled={!replyEnabled}
                   className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${replyEnabled
-                      ? "bg-fg text-bg hover:bg-black"
-                      : "bg-neutral-400 text-bg cursor-default"
+                    ? "bg-fg text-bg hover:bg-black"
+                    : "bg-neutral-400 text-bg cursor-default"
                     }`}
                 >
-                  Reply
+                  {createCommentMutation.isPending ? "Posting" : "Reply"}
                 </button>
               </div>
+              {createCommentMutation.isError ? (
+                <p className="mt-2 text-xs text-film-red">
+                  {createCommentMutation.error instanceof Error
+                    ? createCommentMutation.error.message
+                    : "Failed to post comment"}
+                </p>
+              ) : null}
             </div>
           </div>
         )}
@@ -188,12 +224,38 @@ export function CommentSection({
       <div className="pt-1">
         {isLoading ? (
           <CommentSectionSkeleton />
+        ) : normalizedComments.length === 0 ? (
+          <EmptyState
+            size="sm"
+            icon={<span className="text-[22px]">💬</span>}
+            headline="No comments yet"
+            subline="Be the first to say something"
+            primaryCta={{ label: "Write a comment", onClick: handleActivateComposer }}
+            className="py-8"
+          />
         ) : (
           normalizedComments.map((comment) => (
-            <CommentCard key={`${postId}-${comment.id}`} comment={comment} depth={0} />
+            <CommentCard
+              key={`${postId}-${comment.id}`}
+              comment={comment}
+              depth={0}
+              onReplySubmit={handleNestedReplySubmit}
+            />
           ))
         )}
       </div>
+      {hasMore ? (
+        <div className="px-4 py-3 border-t border-border">
+          <button
+            type="button"
+            className="w-full rounded-full border border-border px-4 py-2 text-sm font-medium text-fg hover:bg-hover disabled:opacity-60"
+            onClick={onLoadMore}
+            disabled={isFetchingMore}
+          >
+            {isFetchingMore ? "Loading..." : "Load more comments"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

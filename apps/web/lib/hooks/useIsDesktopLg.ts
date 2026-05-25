@@ -12,7 +12,7 @@ export function useIsDesktopLg(): boolean | null {
   const [value, setValue] = useState<boolean | null>(null);
 
   useEffect(function () {
-    var mq = window.matchMedia(QUERY);
+    const mq = window.matchMedia(QUERY);
     setValue(mq.matches);
     function onChange() {
       setValue(mq.matches);

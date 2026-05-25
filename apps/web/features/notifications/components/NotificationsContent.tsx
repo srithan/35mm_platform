@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
+import { EmptyState } from "@/components/EmptyState";
 import { NotificationGroup } from "@/features/notifications/components/NotificationGroup";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import {
@@ -12,7 +12,9 @@ import {
   type NotificationRecord,
 } from "@/features/notifications/data/notificationsData";
 import { useMarkAllRead } from "@/features/notifications/hooks/useMarkAllRead";
+import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { cn } from "@/lib/utils/cn";
+import { useQuery } from "@tanstack/react-query";
 
 interface NotificationGroupRecord {
   dateLabel: string;
@@ -103,26 +105,20 @@ function Actions({
 }
 
 export function NotificationsContent() {
-  const [data, setData] = useState<NotificationsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const notificationsQuery = useQuery({
+    queryKey: notificationsKeys.content(),
+    queryFn: async function () {
+      const response = await fetch("/api/notifications");
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
+      }
+      return response.json() as Promise<NotificationsResponse>;
+    },
+    staleTime: 30_000,
+  });
+  const data = notificationsQuery.data ?? null;
+  const loading = notificationsQuery.isLoading;
   const noopTabClick = () => undefined;
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/notifications")
-      .then((res) => res.json() as Promise<NotificationsResponse>)
-      .then((payload) => {
-        if (!active) return;
-        setData(payload);
-      })
-      .finally(() => {
-        if (!active) return;
-        setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const unreadIds = data?.unreadIds ?? [];
   const { isRead, unreadCount, markRead } = useMarkAllRead(unreadIds);
@@ -146,6 +142,13 @@ export function NotificationsContent() {
       <div className="pt-6">
         {loading && groups.length === 0 ? (
           <div className="px-4 text-[12px] text-fg-muted">Loading notifications…</div>
+        ) : groups.length === 0 ? (
+          <EmptyState
+            size="lg"
+            icon={<span className="text-[24px]">🔔</span>}
+            headline="You're all caught up"
+            subline="Likes, comments, and follows will appear here"
+          />
         ) : (
           groups.map((group) => (
             <NotificationGroup key={group.dateLabel} dateLabel={group.dateLabel}>
@@ -185,9 +188,11 @@ export function NotificationsContent() {
           ))
         )}
       </div>
-      <div className="py-10 text-center text-xs text-fg-muted tracking-wide cursor-pointer hover:text-fg transition-colors">
-        Load older notifications ↓
-      </div>
+      {groups.length > 0 ? (
+        <div className="py-10 text-center text-xs text-fg-muted tracking-wide cursor-pointer hover:text-fg transition-colors">
+          Load older notifications ↓
+        </div>
+      ) : null}
     </>
   );
 }

@@ -10,11 +10,13 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
-import { CURRENT_USER } from "@/lib/constants/currentUser";
 import type { QuotedPost } from "@/stores/useComposerModalStore";
 import type { ComposerMode, FilmResult } from "./types";
+import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZE } from "@/lib/tmdb/constants";
+import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { FormattingToolbar } from "./FormattingToolbar";
 import { EmojiPicker } from "./EmojiPicker";
 import { ImageAttachments } from "./ImageAttachments";
@@ -22,6 +24,14 @@ import { YouTubeEmbed } from "./YouTubeEmbed";
 import { FilmSearch } from "./FilmSearch";
 import { FilmCard } from "./FilmCard";
 import { Icon } from "@/components/Icon/Icon";
+import { useCreatePost } from "../../hooks/usePostMutations";
+import { useUpdatePost } from "../../hooks/usePostMutations";
+import { fetchLinkPreview, type CreatePostInput } from "../../api/postsApi";
+import type { EditingPost } from "@/stores/useComposerModalStore";
+import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboardingApi";
+import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
 
 const WRITE_MAX_CHARS = 500;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
@@ -36,6 +46,12 @@ const YOUTUBE_REGEX =
 function extractYouTubeId(text: string): string | null {
   const match = text.match(YOUTUBE_REGEX);
   return match ? match[1] : null;
+}
+
+function posterUrlForFilm(film: FilmResult): string | null {
+  if (!film.posterPath) return null;
+  if (film.posterPath.startsWith("http")) return film.posterPath;
+  return `${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZE}${film.posterPath}`;
 }
 
 const MODE_TABS: { id: ComposerMode; label: string; icon: React.ReactNode }[] = [
@@ -69,6 +85,7 @@ export interface PostComposerProps {
   /** When `header`, the primary publish control is rendered outside (e.g. nav bar). */
   postPrimaryPlacement?: "toolbar" | "header";
   onPublishStateChange?: (state: { canPost: boolean; label: string }) => void;
+  editingPost?: EditingPost | null;
 }
 
 export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
@@ -81,6 +98,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       quotedPost,
       postPrimaryPlacement = "toolbar",
       onPublishStateChange,
+      editingPost,
     },
     ref
   ) {
@@ -90,15 +108,40 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [discussionHeadline, setDiscussionHeadline] = useState("");
   const [logText, setLogText] = useState("");
   const [selectedFilm, setSelectedFilm] = useState<FilmResult | null>(null);
+  const [selectedFilmUlid, setSelectedFilmUlid] = useState<string | null>(null);
+  const [isResolvingFilm, setIsResolvingFilm] = useState(false);
   const [starRating, setStarRating] = useState(0);
   const [isRewatch, setIsRewatch] = useState(false);
   const [images, setImages] = useState<File[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubeTitle, setYoutubeTitle] = useState<string | null>(null);
+  const [linkPreview, setLinkPreview] = useState<{
+    url: string;
+    title: string;
+    description: string | null;
+    image: string | null;
+    domain: string;
+    provider: "youtube" | "vimeo" | "link";
+  } | null>(null);
+  const [dismissedPreviewUrl, setDismissedPreviewUrl] = useState<string | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [showDropZone, setShowDropZone] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [postToFeed, setPostToFeed] = useState(true);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const createPostMutation = useCreatePost();
+  const updatePostMutation = useUpdatePost();
+  const { getToken } = useAuth();
+  const { user: clerkUser } = useUser();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
+  const currentDisplayName =
+    currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
+  const currentAvatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
+  const currentInitial = initialForName(currentDisplayName);
 
   // Track which input is active to show the correct char limit (for discussion mode)
   const [activeField, setActiveField] = useState<"headline" | "body" | null>(null);
@@ -108,6 +151,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const discussionTextareaRef = useRef<HTMLTextAreaElement>(null);
   const logTextareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiBtnRef = useRef<HTMLButtonElement>(null);
+  const gifBtnRef = useRef<HTMLButtonElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const modeTabsPillRef = useRef<HTMLDivElement>(null);
   const modeTabBtnRefs = useRef<
@@ -117,6 +162,32 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     left: number;
     width: number;
   } | null>(null);
+  const activeText = mode === "discussion" ? discussionText : mode === "log" ? logText : writeText;
+  const debouncedActiveText = useDebounce(activeText, 500);
+
+  function extractFirstUrl(value: string): string | null {
+    var match = value.match(/https?:\/\/[^\s]+/i);
+    return match ? match[0] : null;
+  }
+
+  useEffect(() => {
+    var url = extractFirstUrl(debouncedActiveText);
+    if (!url) {
+      setLinkPreview(null);
+      return;
+    }
+    if (dismissedPreviewUrl && dismissedPreviewUrl === url) return;
+    if (linkPreview?.url === url) return;
+
+    void (async () => {
+      try {
+        var preview = await fetchLinkPreview(url, await getToken());
+        setLinkPreview(preview);
+      } catch (_err) {
+        // Ignore preview lookup failures
+      }
+    })();
+  }, [debouncedActiveText, dismissedPreviewUrl, getToken, linkPreview?.url]);
 
   const charCountData = useMemo(() => {
     if (mode === "write") return { count: writeText.length, max: WRITE_MAX_CHARS };
@@ -135,8 +206,33 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const showLogFormatBar = logText.length > REVIEW_THRESHOLD;
 
   const canPost = useMemo(() => {
+    if (editingPost) {
+      if (mode === "discussion") {
+        return (
+          discussionHeadline.trim().length > 0 &&
+          discussionHeadline.length <= DISCUSSION_HEADLINE_MAX_CHARS &&
+          discussionText.length <= DISCUSSION_BODY_MAX_CHARS
+        );
+      }
+      if (mode === "log") {
+        return (
+          selectedFilm !== null &&
+          selectedFilmUlid !== null &&
+          !isResolvingFilm &&
+          logText.length <= LOG_MAX_CHARS
+        );
+      }
+      return (
+        (writeText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
+        writeText.length <= WRITE_MAX_CHARS
+      );
+    }
+
     if (mode === "write") {
-      return writeText.trim().length > 0 && writeText.length <= WRITE_MAX_CHARS;
+      return (
+        (writeText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
+        writeText.length <= WRITE_MAX_CHARS
+      );
     }
     if (mode === "discussion") {
       return (
@@ -145,14 +241,33 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         discussionText.length <= DISCUSSION_BODY_MAX_CHARS
       );
     }
-    return selectedFilm !== null && logText.length <= LOG_MAX_CHARS;
-  }, [mode, writeText, discussionHeadline, discussionText, logText, selectedFilm]);
+    return (
+      selectedFilm !== null &&
+      selectedFilmUlid !== null &&
+      !isResolvingFilm &&
+      logText.length <= LOG_MAX_CHARS
+    );
+  }, [
+    editingPost,
+    mode,
+    writeText,
+    images.length,
+    videoFile,
+    gifUrl,
+    discussionHeadline,
+    discussionText,
+    logText,
+    selectedFilm,
+    selectedFilmUlid,
+    isResolvingFilm,
+  ]);
 
   const postButtonLabel = useMemo(() => {
+    if (editingPost) return "Save";
     if (mode === "discussion") return "Post";
     if (mode === "log") return isReview ? "Review" : "Log";
     return "Post";
-  }, [mode, isReview]);
+  }, [editingPost, mode, isReview]);
 
   const isDirty = useMemo(
     () =>
@@ -162,6 +277,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       logText.trim().length > 0 ||
       selectedFilm !== null ||
       images.length > 0 ||
+      videoFile !== null ||
+      gifUrl !== null ||
       youtubeVideoId !== null,
     [
       writeText,
@@ -170,9 +287,42 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       logText,
       selectedFilm,
       images.length,
+      videoFile,
+      gifUrl,
       youtubeVideoId,
     ]
   );
+
+  useEffect(() => {
+    if (!editingPost) return;
+
+    if (editingPost.type === "discussion") {
+      setMode("discussion");
+      setDiscussionHeadline(editingPost.headline ?? "");
+      setDiscussionText(editingPost.body ?? "");
+      setActiveField("headline");
+    } else if (editingPost.type === "log" || editingPost.type === "review") {
+      setMode("log");
+      setLogText(editingPost.body ?? "");
+      if (editingPost.film) {
+        setSelectedFilm({
+          id: editingPost.film.tmdbId ?? 0,
+          title: editingPost.film.title,
+          year: editingPost.film.year ? String(editingPost.film.year) : "",
+          language: "",
+          genres: editingPost.film.genres ?? [],
+          posterPath: editingPost.film.posterUrl,
+        });
+        setSelectedFilmUlid(editingPost.film.id);
+        setStarRating(editingPost.film.rating ?? 0);
+      }
+      setActiveField("body");
+    } else {
+      setMode("write");
+      setWriteText(editingPost.body ?? "");
+      setActiveField("body");
+    }
+  }, [editingPost]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -330,19 +480,163 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     [mode, writeText, discussionText, logText, insertEmojiInto]
   );
 
-  const handleFilmSelect = useCallback((film: FilmResult) => {
-    setSelectedFilm(film);
-  }, []);
+  const resolveFilmUlid = useCallback(
+    async function (film: FilmResult): Promise<string> {
+      const ids = await resolveOnboardingFilmsFromTmdb(
+        [
+          {
+            tmdbId: film.id,
+            title: film.title,
+            year: Number.parseInt(film.year, 10) || null,
+            posterUrl: posterUrlForFilm(film),
+            genres: film.genres,
+          },
+        ],
+        await getToken()
+      );
+      const resolvedId = ids[0];
+      if (!resolvedId) {
+        throw new Error("Unable to resolve film");
+      }
+      return resolvedId;
+    },
+    [getToken]
+  );
+
+  const handleFilmSelect = useCallback(
+    (film: FilmResult) => {
+      setSelectedFilm(film);
+      setSelectedFilmUlid(null);
+      setSubmitError(null);
+      setIsResolvingFilm(true);
+      void (async function () {
+        try {
+          const resolvedId = await resolveFilmUlid(film);
+          setSelectedFilmUlid(resolvedId);
+        } catch (err) {
+          setSubmitError(err instanceof Error ? err.message : "Failed to attach film");
+        } finally {
+          setIsResolvingFilm(false);
+        }
+      })();
+    },
+    [resolveFilmUlid]
+  );
 
   const handleClearFilm = useCallback(() => {
     setSelectedFilm(null);
+    setSelectedFilmUlid(null);
+    setIsResolvingFilm(false);
     setStarRating(0);
     setLogText("");
   }, []);
 
-  const handleSubmit = useCallback(() => {
-    if (!canPost) return;
-    onSubmit?.();
+  const handleSubmit = useCallback(async () => {
+    if (!canPost || createPostMutation.isPending || updatePostMutation.isPending) return;
+    setSubmitError(null);
+
+    async function uploadPostMedia(file: File): Promise<string> {
+      var token = await getToken();
+      var presign = await presignProfileMediaUpload(
+        {
+          kind: "post_media",
+          contentType: file.type || "application/octet-stream",
+          contentLength: file.size,
+        },
+        token
+      );
+
+      await uploadToPresignedUrl({
+        uploadUrl: presign.uploadUrl,
+        contentType: presign.contentType,
+        blob: file,
+      });
+
+      return presign.publicUrl;
+    }
+
+    let input: CreatePostInput;
+    var mediaUrls: string[] = [];
+    if (mode !== "log") {
+      if (images.length > 0) {
+        var imageFiles = images.slice(0, 9);
+        mediaUrls = await Promise.all(imageFiles.map(uploadPostMedia));
+      } else if (videoFile) {
+        mediaUrls = [await uploadPostMedia(videoFile)];
+      } else if (gifUrl) {
+        mediaUrls = [gifUrl];
+      }
+    }
+    if (mode === "discussion") {
+      input = {
+        type: "discussion",
+        headline: discussionHeadline.trim(),
+        body: discussionText.trim() || discussionHeadline.trim(),
+        mediaUrls,
+        linkPreview,
+      };
+    } else if (mode === "log" && selectedFilm) {
+      let resolvedFilmId = selectedFilmUlid;
+      if (!resolvedFilmId) {
+        setIsResolvingFilm(true);
+        try {
+          resolvedFilmId = await resolveFilmUlid(selectedFilm);
+          setSelectedFilmUlid(resolvedFilmId);
+        } catch (err) {
+          setSubmitError(err instanceof Error ? err.message : "Failed to attach film");
+          return;
+        } finally {
+          setIsResolvingFilm(false);
+        }
+      }
+      if (!resolvedFilmId) {
+        setSubmitError("Failed to attach film");
+        return;
+      }
+      input = {
+        type: isReview ? "review" : "log",
+        body: logText.trim() || `Logged ${selectedFilm.title}`,
+        film: {
+          id: resolvedFilmId,
+          tmdbId: selectedFilm.id,
+          title: selectedFilm.title,
+          year: Number.parseInt(selectedFilm.year, 10) || null,
+          posterUrl: posterUrlForFilm(selectedFilm),
+          genres: selectedFilm.genres,
+          rating: starRating > 0 ? starRating : null,
+        },
+      };
+    } else {
+      input = {
+        type: images.length > 0 || videoFile !== null || gifUrl !== null ? "image" : "text",
+        body: writeText.trim(),
+        mediaUrls,
+        linkPreview,
+      };
+    }
+
+    try {
+      if (editingPost) {
+        await updatePostMutation.mutateAsync({
+          postId: editingPost.postId,
+          body: input.body,
+          headline: input.headline ?? null,
+          filmId: input.film?.id ?? null,
+        });
+      } else {
+        await createPostMutation.mutateAsync(input);
+      }
+      await onSubmit?.();
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : editingPost
+            ? "Failed to update post"
+            : "Failed to publish post"
+      );
+      return;
+    }
 
     // Successful publish should clear draft content across modes.
     setWriteText("");
@@ -350,15 +644,42 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setDiscussionText("");
     setLogText("");
     setSelectedFilm(null);
+    setSelectedFilmUlid(null);
+    setIsResolvingFilm(false);
     setStarRating(0);
     setIsRewatch(false);
     setImages([]);
+    setVideoFile(null);
+    setGifUrl(null);
     setYoutubeVideoId(null);
     setYoutubeTitle(null);
+    setLinkPreview(null);
+    setDismissedPreviewUrl(null);
     setShowDropZone(false);
     setShowEmojiPicker(false);
     setPostToFeed(true);
-  }, [canPost, onSubmit]);
+  }, [
+    canPost,
+    createPostMutation,
+    editingPost,
+    discussionHeadline,
+    discussionText,
+    images.length,
+    videoFile,
+    gifUrl,
+    isReview,
+    logText,
+    mode,
+    onSubmit,
+    resolveFilmUlid,
+    selectedFilm,
+    selectedFilmUlid,
+    starRating,
+    updatePostMutation,
+    writeText,
+    linkPreview,
+    getToken,
+  ]);
 
   useImperativeHandle(
     ref,
@@ -446,6 +767,48 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 <Icon name="image" className="h-[20px] w-[20px]" strokeWidth={fixedMobileToolbar ? 1.85 : 2} />
               </button>
               <button
+                type="button"
+                onClick={() => videoInputRef.current?.click()}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
+                  fixedMobileToolbar
+                    ? "text-accent hover:bg-accent/[0.12]"
+                    : "text-fg-muted hover:bg-hover hover:text-fg"
+                )}
+                title="Add video"
+              >
+                <Icon name="play" className="h-[19px] w-[19px]" strokeWidth={2} />
+              </button>
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/mp4,video/webm"
+                className="hidden"
+                onChange={(e) => {
+                  var file = e.target.files?.[0] ?? null;
+                  if (!file) return;
+                  setVideoFile(file);
+                  setImages([]);
+                  setGifUrl(null);
+                  setShowDropZone(false);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                ref={gifBtnRef}
+                type="button"
+                onClick={() => setShowGifPicker((s) => !s)}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
+                  fixedMobileToolbar
+                    ? "text-accent hover:bg-accent/[0.12]"
+                    : "text-fg-muted hover:bg-hover hover:text-fg"
+                )}
+                title="Add GIF"
+              >
+                <span className="text-[11px] font-bold">GIF</span>
+              </button>
+              <button
                 ref={emojiBtnRef}
                 type="button"
                 onClick={() => setShowEmojiPicker((s) => !s)}
@@ -493,6 +856,17 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             onInsert={handleEmojiInsertFixed}
             anchorRef={emojiBtnRef}
             emojiStyle={POST_COMPOSER_EMOJI_STYLE}
+          />
+          <TenorGifPicker
+            isOpen={showGifPicker}
+            onClose={() => setShowGifPicker(false)}
+            onSelect={(url) => {
+              setGifUrl(url);
+              setImages([]);
+              setVideoFile(null);
+              setShowDropZone(false);
+            }}
+            anchorRef={gifBtnRef}
           />
         </div>
 
@@ -549,16 +923,18 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             <button
               type="button"
               data-composer-primary-action
-              disabled={!canPost}
+              disabled={!canPost || createPostMutation.isPending || updatePostMutation.isPending}
               onClick={handleSubmit}
               className={cn(
                 "text-[13px] font-medium px-5 py-1.5 rounded-full transition-all active:scale-[0.97]",
-                !canPost
+                !canPost || createPostMutation.isPending || updatePostMutation.isPending
                   ? "bg-sunken-2 text-fg-faint cursor-not-allowed"
                   : "bg-fg text-bg hover:opacity-90 shadow-sm"
               )}
             >
-              {postButtonLabel}
+              {createPostMutation.isPending || updatePostMutation.isPending
+                ? (editingPost ? "Saving" : "Posting")
+                : postButtonLabel}
             </button>
           )}
         </div>
@@ -655,8 +1031,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               );
             })}
           </div>
+
         </div>
-        </div>
+      </div>
         {isModal && onClose && (
           <button
             type="button"
@@ -692,9 +1069,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               background: "linear-gradient(to bottom right, #1c1c1c, #0f0f0f)",
             }}
           >
-            {CURRENT_USER.avatarUrl ? (
+            {currentAvatarUrl ? (
               <Image
-                src={CURRENT_USER.avatarUrl}
+                src={currentAvatarUrl}
                 alt=""
                 width={36}
                 height={36}
@@ -702,7 +1079,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 priority
               />
             ) : (
-              CURRENT_USER.initial
+              currentInitial
             )}
           </div>
         </div>
@@ -778,11 +1155,75 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               {(showDropZone || images.length > 0) && (
                 <ImageAttachments
                   images={images}
-                  onImagesChange={setImages}
+                  onImagesChange={(files) => {
+                    setImages(files.slice(0, 9));
+                    if (files.length > 0) {
+                      setVideoFile(null);
+                      setGifUrl(null);
+                    }
+                  }}
                   showDropZone={showDropZone}
                   onDropZoneToggle={setShowDropZone}
                 />
               )}
+              {videoFile ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  <video
+                    src={URL.createObjectURL(videoFile)}
+                    controls
+                    className="w-full rounded-md"
+                  />
+                  <button
+                    type="button"
+                    className="mt-2 text-xs text-fg-muted hover:text-fg"
+                    onClick={() => setVideoFile(null)}
+                  >
+                    Remove video
+                  </button>
+                </div>
+              ) : null}
+              {gifUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={gifUrl} alt="Selected GIF" className="w-full rounded-md object-cover" />
+                  <button
+                    type="button"
+                    className="mt-2 text-xs text-fg-muted hover:text-fg"
+                    onClick={() => setGifUrl(null)}
+                  >
+                    Remove GIF
+                  </button>
+                </div>
+              ) : null}
+              {linkPreview ? (
+                <div className="mt-2 rounded-xl border border-border bg-sunken p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold uppercase tracking-[0.06em] text-fg-muted">
+                        {linkPreview.domain}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-fg line-clamp-2">{linkPreview.title}</div>
+                      {linkPreview.description ? (
+                        <div className="mt-1 text-xs text-fg-muted line-clamp-2">{linkPreview.description}</div>
+                      ) : null}
+                    </div>
+                    {linkPreview.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={linkPreview.image} alt="" className="h-14 w-14 rounded-md object-cover" />
+                    ) : null}
+                    <button
+                      type="button"
+                      className="text-fg-muted hover:text-fg"
+                      onClick={() => {
+                        setDismissedPreviewUrl(linkPreview.url);
+                        setLinkPreview(null);
+                      }}
+                    >
+                      <Icon name="x" className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               {youtubeVideoId && (
                 <YouTubeEmbed
                   videoId={youtubeVideoId}
@@ -840,11 +1281,57 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               {(showDropZone || images.length > 0) && (
                 <ImageAttachments
                   images={images}
-                  onImagesChange={setImages}
+                  onImagesChange={(files) => {
+                    setImages(files.slice(0, 9));
+                    if (files.length > 0) {
+                      setVideoFile(null);
+                      setGifUrl(null);
+                    }
+                  }}
                   showDropZone={showDropZone}
                   onDropZoneToggle={setShowDropZone}
                 />
               )}
+              {videoFile ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  <video src={URL.createObjectURL(videoFile)} controls className="w-full rounded-md" />
+                </div>
+              ) : null}
+              {gifUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={gifUrl} alt="Selected GIF" className="w-full rounded-md object-cover" />
+                </div>
+              ) : null}
+              {linkPreview ? (
+                <div className="mt-2 rounded-xl border border-border bg-sunken p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold uppercase tracking-[0.06em] text-fg-muted">
+                        {linkPreview.domain}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-fg line-clamp-2">{linkPreview.title}</div>
+                      {linkPreview.description ? (
+                        <div className="mt-1 text-xs text-fg-muted line-clamp-2">{linkPreview.description}</div>
+                      ) : null}
+                    </div>
+                    {linkPreview.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={linkPreview.image} alt="" className="h-14 w-14 rounded-md object-cover" />
+                    ) : null}
+                    <button
+                      type="button"
+                      className="text-fg-muted hover:text-fg"
+                      onClick={() => {
+                        setDismissedPreviewUrl(linkPreview.url);
+                        setLinkPreview(null);
+                      }}
+                    >
+                      <Icon name="x" className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               {youtubeVideoId && (
                 <YouTubeEmbed
                   videoId={youtubeVideoId}
@@ -876,6 +1363,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   onClear={handleClearFilm}
                 />
               )}
+              {selectedFilm && isResolvingFilm ? (
+                <p className="text-[12px] text-fg-muted">Resolving film…</p>
+              ) : null}
               {selectedFilm && (
                 <div className="space-y-2">
                   {showLogFormatBar && (
@@ -948,6 +1438,15 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           </div>
         )}
       </div>
+
+      {submitError ? (
+        <p className={cn(
+          "mx-4 mb-3 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-[13px] font-medium text-film-red",
+          isFullPage ? "ml-4" : "ml-[52px]"
+        )}>
+          {submitError}
+        </p>
+      ) : null}
 
       {fixedMobileToolbar ? renderFormattingToolbarRow() : null}
 

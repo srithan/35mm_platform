@@ -31,6 +31,7 @@ export function NewPostPage() {
   const router = useRouter();
   const composerRef = useRef<PostComposerHandle | null>(null);
   const quotedPost = useComposerModalStore(function (s) { return s.quotedPost; });
+  const editingPost = useComposerModalStore(function (s) { return s.editingPost; });
   const [isDirty, setIsDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [publishUi, setPublishUi] = useState({ canPost: false, label: "Post" });
@@ -153,6 +154,7 @@ export function NewPostPage() {
             variant="fullPage"
             postPrimaryPlacement="header"
             quotedPost={quotedPost}
+            editingPost={editingPost}
             onDirtyChange={setIsDirty}
             onSubmit={handlePosted}
             onPublishStateChange={onPublishStateChange}
@@ -225,14 +227,19 @@ export function NewPostPage() {
       <div className="hidden md:flex min-h-[calc(100vh-2rem)] w-full flex-col items-center pt-10 pb-16 px-6">
         <div className="w-full max-w-[580px]">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-semibold text-fg tracking-tight">New post</h1>
+            <h1 className="text-2xl font-semibold text-fg tracking-tight">
+              {editingPost ? "Edit post" : "New post"}
+            </h1>
             <p className="text-[14px] text-fg-muted mt-1">
-              Share an update, start a discussion, or log a film.
+              {editingPost
+                ? "Update your post and save changes."
+                : "Share an update, start a discussion, or log a film."}
             </p>
           </div>
           <PostComposer
             variant="inline"
             quotedPost={quotedPost}
+            editingPost={editingPost}
             onDirtyChange={setIsDirty}
             onSubmit={handlePosted}
           />

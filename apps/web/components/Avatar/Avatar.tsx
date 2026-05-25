@@ -1,5 +1,13 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import {
+  resolvePublicMediaUrl,
+  shouldResolvePublicR2Url,
+} from "@/lib/utils/r2Media";
+import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 interface AvatarProps {
   initial?: string;
@@ -18,7 +26,6 @@ const sizeMap: Record<NonNullable<AvatarProps["size"]>, string> = {
 };
 
 export function Avatar({
-  initial,
   src,
   size = "md",
   className,
@@ -29,27 +36,32 @@ export function Avatar({
     variant === "ring"
       ? "bg-gradient-to-br from-fg to-accent text-white"
       : "bg-border text-fg-light";
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(src && !shouldResolvePublicR2Url(src) ? src : null);
 
-  if (src) {
-    return (
-      <div
-        className={cn(
-          "rounded-full overflow-hidden flex-shrink-0",
-          sizeClass,
-          bgClass,
-          className
-        )}
-      >
-        <Image
-          src={src}
-          alt=""
-          width={size === "lg" || size === "profile-lg" ? 80 : 36}
-          height={size === "lg" || size === "profile-lg" ? 80 : 36}
-          className="w-full h-full object-cover"
-        />
-      </div>
-    );
-  }
+  useEffect(function () {
+    let isCancelled = false;
+    if (!src) {
+      setResolvedSrc(null);
+      return;
+    }
+
+    if (!shouldResolvePublicR2Url(src)) {
+      setResolvedSrc(src);
+      return;
+    }
+
+    resolvePublicMediaUrl(src).then(function (nextSrc) {
+      if (!isCancelled) {
+        setResolvedSrc(nextSrc);
+      }
+    });
+
+    return function () {
+      isCancelled = true;
+    };
+  }, [src]);
+
+  const effectiveSrc = resolvedSrc ?? DEFAULT_PROFILE_AVATAR_URL;
 
   return (
     <div
@@ -60,7 +72,13 @@ export function Avatar({
         className
       )}
     >
-      {initial ?? "?"}
+      <Image
+        src={effectiveSrc}
+        alt=""
+        width={size === "lg" || size === "profile-lg" ? 80 : 36}
+        height={size === "lg" || size === "profile-lg" ? 80 : 36}
+        className="w-full h-full object-cover"
+      />
     </div>
   );
 }
