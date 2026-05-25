@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useLayoutEffect, useRef, useState } from "react";
+import { Avatar } from "@/components/Avatar";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { PostActions } from "@/components/PostActions/PostActions";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
@@ -12,7 +12,6 @@ import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
 import { Share2, Flag, MoreHorizontal } from "lucide-react";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews } from "../utils/videoPreviews";
-import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 export interface Comment {
   id: string;
@@ -166,12 +165,10 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
           roleContext={comment.roleContext}
           className="mr-2 flex-shrink-0 self-start no-underline"
         >
-          <Image
-            src={comment.avatarUrl && comment.avatarUrl !== "" ? comment.avatarUrl : DEFAULT_PROFILE_AVATAR_URL}
-            alt=""
-            width={40}
-            height={40}
-            className="h-10 w-10 rounded-full object-cover"
+          <Avatar
+            initial={comment.avatarInitial}
+            src={comment.avatarUrl}
+            className="h-10 w-10"
           />
         </UsernameLink>
         <div className="flex-1 min-w-0">
@@ -308,6 +305,7 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
             <PostActions
               likes={comment.likeCount}
               comments={comment.replyCount}
+              hideZeroCounts
               initialLiked={comment.liked}
               onCommentClick={handleCommentClick}
               onReplyClick={handleReplyClick}
@@ -317,15 +315,11 @@ export function CommentCard({ comment, depth = 0, onReplySubmit }: CommentCardPr
             {replyBoxOpen && depth < 2 && (
               <div className="mt-2.5 ml-0.5">
                 <div className="flex items-start gap-2">
-                  <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-fg flex items-center justify-center mt-1">
-                    <Image
-                      src={CURRENT_USER.avatarUrl ?? DEFAULT_PROFILE_AVATAR_URL}
-                      alt=""
-                      width={32}
-                      height={32}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <Avatar
+                    initial={CURRENT_USER.initial}
+                    src={CURRENT_USER.avatarUrl}
+                    className="mt-1 w-8 h-8"
+                  />
                   <div className="relative flex-1">
                     <textarea
                       ref={replyTextareaRef}

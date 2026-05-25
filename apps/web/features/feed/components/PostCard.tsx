@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import Image from "next/image";
+import { Avatar } from "@/components/Avatar";
 import { FilmCard } from "@/components/FilmCard";
 import { PostActions } from "@/components/PostActions/PostActions";
 import { ShareModal } from "@/components/ShareModal/ShareModal";
@@ -12,11 +13,11 @@ import { saveScrollPositionForBack } from "./PostPageBackButton";
 import { cn } from "@/lib/utils/cn";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
-import { EyeOff, CircleSlash, Flag, MessagesSquare, MoreHorizontal } from "lucide-react";
+import { EyeOff, CircleSlash, Flag, MessagesSquare, MoreHorizontal, Trash2 } from "lucide-react";
 import { Icon } from "@/components/Icon/Icon";
 import { VideoUrlPreview } from "./VideoUrlPreview";
-import { extractVideoPreviews } from "../utils/videoPreviews";
-import { useBookmarkPost, useLikePost, useRepostPost } from "../hooks/usePostMutations";
+import { extractVideoPreviews, type VideoPreview } from "../utils/videoPreviews";
+import { useBookmarkPost, useDeletePost, useLikePost, useRepostPost } from "../hooks/usePostMutations";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
@@ -24,11 +25,77 @@ import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
-import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 import { ApiRequestError } from "../api/http";
 
 type PostVariant = "text" | "film-log" | "image" | "discussion";
 type SourcePostType = "text" | "discussion" | "log" | "review" | "image";
+
+function extractYouTubeIdFromUrl(raw: string): string | null {
+  try {
+    var url = new URL(raw);
+    var host = url.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      var shortId = url.pathname.slice(1).split("/")[0];
+      return shortId || null;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") {
+        return url.searchParams.get("v");
+      }
+      if (url.pathname.startsWith("/shorts/") || url.pathname.startsWith("/embed/")) {
+        return url.pathname.split("/")[2] || null;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function extractVimeoIdFromUrl(raw: string): string | null {
+  try {
+    var url = new URL(raw);
+    var host = url.hostname.replace(/^www\./, "");
+    if (host !== "vimeo.com" && host !== "player.vimeo.com") return null;
+    var match = url.pathname.match(/\/(?:video\/)?(\d+)/);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function videoPreviewFromLinkPreview(linkPreview: PostCardProps["linkPreview"]): VideoPreview | null {
+  if (!linkPreview) return null;
+  if (linkPreview.provider === "youtube") {
+    var youtubeId = extractYouTubeIdFromUrl(linkPreview.url);
+    if (!youtubeId) return null;
+    return {
+      provider: "youtube",
+      id: youtubeId,
+      url: linkPreview.url,
+      thumbnailUrl:
+        linkPreview.image && linkPreview.image.trim().length > 0
+          ? linkPreview.image
+          : `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
+      label: "YouTube",
+    };
+  }
+  if (linkPreview.provider === "vimeo") {
+    var vimeoId = extractVimeoIdFromUrl(linkPreview.url);
+    if (!vimeoId) return null;
+    return {
+      provider: "vimeo",
+      id: vimeoId,
+      url: linkPreview.url,
+      thumbnailUrl:
+        linkPreview.image && linkPreview.image.trim().length > 0
+          ? linkPreview.image
+          : `https://vumbnail.com/${vimeoId}.jpg`,
+      label: "Vimeo",
+    };
+  }
+  return null;
+}
 
 interface PostCardProps {
   variant: PostVariant;
@@ -141,31 +208,43 @@ export function PostCard({
   const likeMutation = useLikePost();
   const repostMutation = useRepostPost();
   const bookmarkMutation = useBookmarkPost();
+  const deleteMutation = useDeletePost();
   const currentUserQuery = useCurrentUserProfile();
   const currentUserId = currentUserQuery.data?.userId;
   const openComposerForEdit = useComposerModalStore((state) => state.openForEdit);
   const isPostAuthor = Boolean(postId && userId && currentUserId && userId === currentUserId);
   const blockUserMutation = useBlockUserMutation();
   const muteUserMutation = useMuteUserMutation();
-  const avatarInner =
-    <Image
-      src={avatarUrl && avatarUrl !== "" ? avatarUrl : DEFAULT_PROFILE_AVATAR_URL}
-      alt=""
-      width={40}
-      height={40}
-      className="w-10 h-10 rounded-full object-cover"
-    />;
+  const avatarInner = (
+    <Avatar
+      initial={avatarInitial}
+      src={avatarUrl}
+      className="w-10 h-10"
+    />
+  );
   const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [muteToast, setMuteToast] = useState<string | null>(null);
   const [actionErrorToast, setActionErrorToast] = useState<string | null>(null);
   var [showImageViewer, setShowImageViewer] = useState(false);
   var normalizedMediaUrls = mediaUrls && mediaUrls.length > 0 ? mediaUrls : imageSrc ? [imageSrc] : [];
+  var hasAttachedMedia = normalizedMediaUrls.length > 0;
   var videoUrls = normalizedMediaUrls.filter((url) => {
     var lower = url.toLowerCase();
     return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("video");
   });
   var imageUrls = normalizedMediaUrls.filter((url) => !videoUrls.includes(url));
+  var linkPreviewVideo = videoPreviewFromLinkPreview(linkPreview);
+  var combinedVideoPreviews = previews;
+  if (linkPreviewVideo) {
+    var linkPreviewVideoUrl = linkPreviewVideo.url;
+    combinedVideoPreviews = [
+      linkPreviewVideo,
+      ...previews.filter((preview) => preview.url !== linkPreviewVideoUrl),
+    ];
+  }
+  var shouldRenderLinkPreviewCard = !hasAttachedMedia && Boolean(linkPreview) && !linkPreviewVideo;
 
   useLayoutEffect(() => {
     if (!shouldClamp) {
@@ -333,7 +412,8 @@ export function PostCard({
                 showArrow={false}
                 items={[
                   ...(isPostAuthor
-                    ? [{
+                    ? [
+                        {
                         id: "edit-post",
                         label: "Edit post",
                         description: "Update text, headline, or film",
@@ -354,10 +434,22 @@ export function PostCard({
                                     : "text"),
                             body: text,
                             headline: headline ?? undefined,
+                            mediaUrls: normalizedMediaUrls,
+                            linkPreview: linkPreview ?? null,
                             film: attachedFilm,
                           });
                         },
-                      }]
+                        },
+                        {
+                          id: "delete-post",
+                          label: "Delete post",
+                          description: "Remove this post from your profile and feeds",
+                          icon: <Trash2 className="w-4 h-4" strokeWidth={1.8} />,
+                          danger: true,
+                          dividerBefore: true,
+                          onSelect: () => setShowDeleteConfirm(true),
+                        },
+                      ]
                     : []),
                   ...(!isPostAuthor && userId
                     ? [
@@ -395,27 +487,31 @@ export function PostCard({
                     icon: <Icon name="share-2" className="w-4 h-4" />,
                     onSelect: () => setShowShareModal(true),
                   },
-                  {
-                    id: "hide",
-                    label: "Hide post",
-                    description: "Remove it from your feed",
-                    icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
-                  },
-                  {
-                    id: "fewer-like-this",
-                    label: "See fewer posts like this",
-                    description: "Tune your recommendations",
-                    icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
-                  },
-                  {
-                    id: "report",
-                    label: "Report post",
-                    description: "Flag a safety concern",
-                    icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
-                    danger: true,
-                    dividerBefore: true,
-                    onSelect: () => setShowReportConfirm(true),
-                  },
+                  ...(!isPostAuthor
+                    ? [
+                        {
+                          id: "hide",
+                          label: "Hide post",
+                          description: "Remove it from your feed",
+                          icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
+                        },
+                        {
+                          id: "fewer-like-this",
+                          label: "See fewer posts like this",
+                          description: "Tune your recommendations",
+                          icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
+                        },
+                        {
+                          id: "report",
+                          label: "Report post",
+                          description: "Flag a safety concern",
+                          icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
+                          danger: true,
+                          dividerBefore: true,
+                          onSelect: () => setShowReportConfirm(true),
+                        },
+                      ]
+                    : []),
                 ]}
                 trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
                   <button
@@ -521,9 +617,10 @@ export function PostCard({
               </div>
             )}
 
-            {previews.map((preview) => (
-              <VideoUrlPreview key={`${preview.provider}:${preview.id}`} preview={preview} />
-            ))}
+            {!hasAttachedMedia &&
+              combinedVideoPreviews.map((preview) => (
+                <VideoUrlPreview key={`${preview.provider}:${preview.id}:${preview.url}`} preview={preview} />
+              ))}
 
             {filmCard && (
               <div className="mt-3.5">
@@ -589,7 +686,7 @@ export function PostCard({
               </>
             )}
 
-            {linkPreview ? (
+            {shouldRenderLinkPreviewCard && linkPreview ? (
               <a
                 href={linkPreview.url}
                 target="_blank"
@@ -653,6 +750,7 @@ export function PostCard({
             <PostActions
               likes={likeCount}
               comments={commentCount}
+              hideZeroCounts
               initialLiked={initialLiked}
               initialBookmarked={initialBookmarked}
               initialReposted={initialReposted}
@@ -733,6 +831,36 @@ export function PostCard({
         title="Report this post?"
         description="If this post is violating our community guidelines, we'll review it and take appropriate action."
         confirmLabel="Report"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          if (!postId) return;
+          deleteMutation.mutate(
+            { postId },
+            {
+              onSuccess: () => {
+                if (isPostDetailView) {
+                  router.replace(ROUTES.PROFILE(username));
+                }
+              },
+              onError: (error) => {
+                var message =
+                  error instanceof ApiRequestError
+                    ? error.message
+                    : "Could not delete post";
+                setActionErrorToast(message);
+                window.setTimeout(() => setActionErrorToast(null), 2200);
+              },
+            }
+          );
+        }}
+        title="Delete this post?"
+        description="This will remove the post from your profile and all feeds."
+        confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"
       />

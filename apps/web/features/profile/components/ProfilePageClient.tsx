@@ -120,6 +120,7 @@ export function ProfilePageClient({ username }: ProfilePageClientProps) {
           onAvatarUrlChange={setAvatarUrlOverride}
           location={profile.location ?? ""}
           website={profile.website ?? ""}
+          dateOfBirth={profile.dateOfBirth ?? ""}
           followerCount={profile.followerCount}
           followingCount={profile.followingCount}
           isFollowing={profile.isFollowing}

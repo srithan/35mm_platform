@@ -7,6 +7,7 @@ import {
   jsonb,
   boolean,
   integer,
+  smallint,
   type AnyPgColumn,
   uniqueIndex,
   index,
@@ -70,6 +71,7 @@ export var posts = pgTable(
     filmId: text("film_id").references(function () {
       return films.id;
     }, { onDelete: "set null" }),
+    filmRating: smallint("film_rating"),
     visibility: postVisibilityEnum("visibility").default("public").notNull(),
     replyToId: uuid("reply_to_id").references(function (): AnyPgColumn {
       return posts.id;

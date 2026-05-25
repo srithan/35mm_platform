@@ -17,6 +17,15 @@ export interface EditingPost {
   type: "text" | "discussion" | "log" | "review" | "image";
   body: string;
   headline?: string;
+  mediaUrls?: string[];
+  linkPreview?: {
+    url: string;
+    title: string;
+    description: string | null;
+    image: string | null;
+    domain: string;
+    provider: "youtube" | "vimeo" | "link";
+  } | null;
   film?: {
     id: string;
     tmdbId?: number;

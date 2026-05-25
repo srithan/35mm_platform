@@ -28,6 +28,7 @@ export interface PublicProfile {
   coverUrl: string | null;
   location: string | null;
   website: string | null;
+  dateOfBirth: string | null;
   role: string | null;
   roleContext: string | null;
   headline: string | null;

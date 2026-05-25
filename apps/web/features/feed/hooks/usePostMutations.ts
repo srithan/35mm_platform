@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   bookmarkPost,
   createPost,
+  deletePost,
   likePost,
   repostPost,
   unbookmarkPost,
@@ -41,6 +42,25 @@ function updatePostInInfinite(
         ...page,
         posts: page.posts.map(function (post) {
           return post.id === postId ? updater(post) : post;
+        }),
+      };
+    }),
+  };
+}
+
+function removePostFromInfinite(
+  data: InfiniteData<FeedPage> | undefined,
+  postId: string
+): InfiniteData<FeedPage> | undefined {
+  if (!data) return data;
+
+  return {
+    ...data,
+    pages: data.pages.map(function (page) {
+      return {
+        ...page,
+        posts: page.posts.filter(function (post) {
+          return post.id !== postId;
         }),
       };
     }),
@@ -88,6 +108,21 @@ function patchAllFeedCaches(
   queryClient.setQueryData<Post | undefined>(feedKeys.post(postId), function (existing) {
     return existing ? updater(existing) : existing;
   });
+}
+
+function removePostFromAllFeedCaches(
+  queryClient: QueryClient,
+  postId: string
+) {
+  var entries = queryClient.getQueriesData<unknown>({
+    queryKey: feedKeys.all,
+  });
+
+  for (var i = 0; i < entries.length; i += 1) {
+    var [key, data] = entries[i];
+    if (!isInfiniteFeedData(data)) continue;
+    queryClient.setQueryData(key, removePostFromInfinite(data, postId));
+  }
 }
 
 export function useLikePost() {
@@ -236,6 +271,43 @@ export function useUpdatePost() {
       queryClient.setQueryData(feedKeys.post(updated.id), updated);
       queryClient.invalidateQueries({ queryKey: feedKeys.post(updated.id) });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
+    },
+  });
+}
+
+export function useDeletePost() {
+  var queryClient = useQueryClient();
+  var { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async function (input: { postId: string }) {
+      await deletePost(input.postId, await getToken());
+    },
+    onMutate: async function (input) {
+      await queryClient.cancelQueries({ queryKey: feedKeys.all });
+      await queryClient.cancelQueries({ queryKey: feedKeys.post(input.postId) });
+      await queryClient.cancelQueries({ queryKey: feedKeys.comments(input.postId) });
+
+      var snapshot = snapshotFeedCaches(queryClient);
+      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+      var previousComments = queryClient.getQueryData(feedKeys.comments(input.postId));
+
+      removePostFromAllFeedCaches(queryClient, input.postId);
+      queryClient.setQueryData(feedKeys.post(input.postId), undefined);
+
+      return { snapshot, previousPost, previousComments };
+    },
+    onError: function (_err, input, context) {
+      if (!context) return;
+      restoreFeedCaches(queryClient, context.snapshot);
+      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      queryClient.setQueryData(feedKeys.comments(input.postId), context.previousComments);
+    },
+    onSuccess: function (_data, input) {
+      queryClient.removeQueries({ queryKey: feedKeys.post(input.postId) });
+      queryClient.removeQueries({ queryKey: feedKeys.comments(input.postId) });
+      queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      queryClient.invalidateQueries({ queryKey: bookmarkKeys.list() });
     },
   });
 }

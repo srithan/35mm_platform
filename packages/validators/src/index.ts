@@ -54,10 +54,14 @@ export var usernameSchema = z
 
 export var updateProfileSchema = z.object({
   displayName: z.string().trim().min(1).max(100).optional(),
-  username: usernameSchema.optional(),
   bio: z.string().max(500).optional(),
   location: z.string().max(100).optional().nullable(),
   website: z.string().max(200).optional().nullable(),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected YYYY-MM-DD" })
+    .optional()
+    .nullable(),
   role: z.string().max(50).optional().nullable(),
   roleContext: z.string().max(200).optional().nullable(),
   isPrivate: z.boolean().optional(),

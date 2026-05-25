@@ -4,6 +4,7 @@ import { LazyImage } from "@/components/LazyImage";
 import { EmptyState } from "@/components/EmptyState";
 import { posterUrl, yearFromDate } from "../lib/tmdb-utils";
 import type { TMDBMovie } from "@/lib/tmdb/types";
+import { DiscoverSearchResultsSkeleton } from "./DiscoverSkeletons";
 
 interface SearchResultsViewProps {
   query: string;
@@ -19,11 +20,7 @@ export function SearchResultsView({
   onFilmClick,
 }: SearchResultsViewProps) {
   if (loading) {
-    return (
-      <div className="py-8 text-center text-fg-muted text-sm ">
-        Searching...
-      </div>
-    );
+    return <DiscoverSearchResultsSkeleton />;
   }
 
   if (movies.length === 0) {

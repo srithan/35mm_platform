@@ -35,6 +35,7 @@ interface ProfileHeaderProps {
   isOwnProfile?: boolean;
   location?: string;
   website?: string;
+  dateOfBirth?: string | null;
   followerCount: number;
   followingCount: number;
   isFollowing: boolean;
@@ -56,6 +57,7 @@ export function ProfileHeader({
   isOwnProfile = false,
   location: initialLocation = "",
   website: initialWebsite = "",
+  dateOfBirth: initialDateOfBirth = "",
   followerCount,
   followingCount,
   isFollowing: initialIsFollowing,
@@ -85,6 +87,7 @@ export function ProfileHeader({
     bio: initialBio,
     location: initialLocation,
     website: initialWebsite,
+    dateOfBirth: initialDateOfBirth ?? "",
   });
   const followToggleMutation = useFollowToggle(username);
   const blockMutation = useBlockUserMutation();
@@ -97,10 +100,11 @@ export function ProfileHeader({
       bio: initialBio ?? "",
       location: initialLocation ?? "",
       website: initialWebsite ?? "",
+      dateOfBirth: initialDateOfBirth ?? "",
     });
     setProfileImage(initialAvatarUrl);
     onAvatarUrlChange?.(initialAvatarUrl);
-  }, [initialDisplayName, username, initialBio, initialLocation, initialWebsite, initialAvatarUrl]);
+  }, [initialDisplayName, username, initialBio, initialLocation, initialWebsite, initialDateOfBirth, initialAvatarUrl]);
 
   useEffect(() => {
     setIsFollowing(initialIsFollowing);
@@ -374,8 +378,16 @@ export function ProfileHeader({
       <EditProfileModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
-        initialData={profileData}
-        onSave={setProfileData}
+        initialData={{
+          displayName: profileData.displayName,
+          dateOfBirth: profileData.dateOfBirth,
+          bio: profileData.bio,
+          location: profileData.location,
+          website: profileData.website,
+        }}
+        onSave={(next) => {
+          setProfileData((prev) => ({ ...prev, ...next }));
+        }}
       />
 
       <AvatarViewer

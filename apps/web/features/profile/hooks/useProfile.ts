@@ -110,6 +110,7 @@ export function useUpdateProfileMutation() {
             coverUrl: next.coverUrl,
             location: next.location,
             website: next.website,
+            dateOfBirth: next.dateOfBirth,
             role: next.role,
             roleContext: next.roleContext,
           };

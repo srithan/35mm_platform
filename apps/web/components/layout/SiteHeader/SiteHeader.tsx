@@ -211,7 +211,14 @@ export function SiteHeader() {
   const profileHref = profileUsername ? ROUTES.PROFILE(profileUsername) : ROUTES.HOME;
   const currentDisplayName =
     currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
-  const currentAvatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
+  const currentAvatarUrl = currentUser?.avatarUrl ?? null;
+  const suppressDefaultAvatar = !currentUser?.avatarUrl &&
+    (
+      currentUserQuery.isPending ||
+      currentUserQuery.isLoading ||
+      currentUserQuery.isFetching ||
+      currentUserQuery.fetchStatus !== "idle"
+    );
   const currentInitial = initialForName(currentDisplayName);
 
   useLayoutEffect(
@@ -590,6 +597,7 @@ export function SiteHeader() {
                 <Avatar
                   initial={currentInitial}
                   src={currentAvatarUrl}
+                  allowDefaultFallback={!suppressDefaultAvatar}
                   size="sm"
                   className={styles.navAvatar}
                 />
@@ -614,6 +622,7 @@ export function SiteHeader() {
                     <Avatar
                       initial={currentInitial}
                       src={currentAvatarUrl}
+                      allowDefaultFallback={!suppressDefaultAvatar}
                       size="md"
                       className={styles.profileMenuIdentityAvatar}
                     />

@@ -2,12 +2,11 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import Link from "next/link";
+import { Avatar } from "@/components/Avatar";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
-import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 const PROFILE_POPOVER_SHOW_DELAY_MS = 520;
 const PROFILE_POPOVER_SCROLL_SUPPRESS_MS = 650;
@@ -193,7 +192,6 @@ export function UsernameLink({
   const label = displayName ?? username;
   const avatarInitial = initial ?? username.charAt(0).toUpperCase();
   const linkHref = href ?? ROUTES.PROFILE(username);
-  const profileImageSrc = avatarUrl ?? DEFAULT_PROFILE_AVATAR_URL;
   const roleHeadline = [role, roleContext]
     .filter((part): part is string => typeof part === "string" && part.trim() !== "")
     .join(" · ");
@@ -205,10 +203,6 @@ export function UsernameLink({
   const resolvedPostsCount = postsCount ?? 12 + (usernameSeed % 280);
   const resolvedFollowersCount = followersCount ?? 90 + ((usernameSeed * 7) % 2400);
   const resolvedFollowingCount = followingCount ?? 20 + ((usernameSeed * 13) % 700);
-  const avatarStyle =
-    avatarBg && avatarColor
-      ? { background: avatarBg, color: avatarColor }
-      : undefined;
 
   const triggerProps = {
     ref: triggerRef as React.RefObject<HTMLAnchorElement & HTMLSpanElement>,
@@ -241,25 +235,11 @@ export function UsernameLink({
           <div className="px-3.5 pb-3.5">
             <div className="-mt-8 flex items-start gap-2.5">
               <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-neutral-200 ring-[3px] ring-white">
-              {profileImageSrc ? (
-                <Image
-                  src={profileImageSrc}
-                  alt={`${label} profile picture`}
-                  width={64}
-                  height={64}
-                  className="h-full w-full object-cover"
+                <Avatar
+                  initial={avatarInitial}
+                  src={avatarUrl}
+                  className="h-16 w-16 text-xl ring-0"
                 />
-              ) : (
-                <div
-                  className={cn(
-                    "flex h-full w-full items-center justify-center text-xl font-semibold",
-                    !avatarBg && "bg-neutral-200 text-neutral-600"
-                  )}
-                  style={avatarStyle}
-                >
-                  {avatarInitial}
-                </div>
-              )}
               </div>
               <div className="min-w-0 flex-1 pt-9">
                 <div className="truncate text-[16px] font-bold leading-tight text-neutral-950">

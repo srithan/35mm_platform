@@ -65,6 +65,13 @@ export async function updatePost(input: UpdatePostInput, token: string | null): 
   return adaptPostToFeedType(raw as Parameters<typeof adaptPostToFeedType>[0]);
 }
 
+export async function deletePost(postId: string, token: string | null): Promise<void> {
+  await apiRequest<{ ok: true }>(`/v1/feed/posts/${encodeURIComponent(postId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function likePost(postId: string, token: string | null): Promise<{ likeCount: number }> {
   return apiRequest<{ likeCount: number }>(`/v1/feed/posts/${encodeURIComponent(postId)}/likes`, {
     method: "POST",

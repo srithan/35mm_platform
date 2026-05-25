@@ -11,7 +11,7 @@ import {
   useImperativeHandle,
 } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
-import Image from "next/image";
+import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
 import type { QuotedPost } from "@/stores/useComposerModalStore";
 import type { ComposerMode, FilmResult } from "./types";
@@ -32,6 +32,7 @@ import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboar
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
+import { parseRichPostText } from "@/lib/utils/richPostText";
 
 const WRITE_MAX_CHARS = 500;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
@@ -52,6 +53,50 @@ function posterUrlForFilm(film: FilmResult): string | null {
   if (!film.posterPath) return null;
   if (film.posterPath.startsWith("http")) return film.posterPath;
   return `${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZE}${film.posterPath}`;
+}
+
+function isVideoMediaUrl(url: string): boolean {
+  var lower = url.toLowerCase();
+  return (
+    lower.endsWith(".mp4") ||
+    lower.endsWith(".webm") ||
+    lower.endsWith(".mov") ||
+    lower.endsWith(".m4v") ||
+    lower.includes("video")
+  );
+}
+
+function isGifMediaUrl(url: string): boolean {
+  var lower = url.toLowerCase();
+  return lower.endsWith(".gif") || lower.includes("giphy.com") || lower.includes("tenor.com");
+}
+
+function renderComposerRichText(text: string) {
+  const tokens = parseRichPostText(text);
+  return tokens.map(function (token, index) {
+    if (token.t === "url") {
+      return (
+        <span key={`token-${index}`} className="text-accent underline underline-offset-2">
+          {token.display}
+        </span>
+      );
+    }
+    if (token.t === "mention") {
+      return (
+        <span key={`token-${index}`} className="text-accent">
+          @{token.user}
+        </span>
+      );
+    }
+    if (token.t === "tag") {
+      return (
+        <span key={`token-${index}`} className="text-accent">
+          #{token.tag}
+        </span>
+      );
+    }
+    return <span key={`token-${index}`}>{token.s}</span>;
+  });
 }
 
 const MODE_TABS: { id: ComposerMode; label: string; icon: React.ReactNode }[] = [
@@ -113,6 +158,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [starRating, setStarRating] = useState(0);
   const [isRewatch, setIsRewatch] = useState(false);
   const [images, setImages] = useState<File[]>([]);
+  const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
@@ -147,6 +193,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [activeField, setActiveField] = useState<"headline" | "body" | null>(null);
 
   const writeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const writeOverlayRef = useRef<HTMLDivElement>(null);
   const discussionHeadlineRef = useRef<HTMLInputElement>(null);
   const discussionTextareaRef = useRef<HTMLTextAreaElement>(null);
   const logTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -164,6 +211,28 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   } | null>(null);
   const activeText = mode === "discussion" ? discussionText : mode === "log" ? logText : writeText;
   const debouncedActiveText = useDebounce(activeText, 500);
+  const hasVisibleQuotedPost = useMemo(() => {
+    if (!quotedPost) return false;
+    const name = quotedPost.displayName?.trim() ?? "";
+    const handle = quotedPost.handle?.trim() ?? "";
+    const text = quotedPost.text?.trim() ?? "";
+    return name.length > 0 || handle.length > 0 || text.length > 0;
+  }, [quotedPost]);
+  const existingVideoUrl = useMemo(
+    () => existingMediaUrls.find(isVideoMediaUrl) ?? null,
+    [existingMediaUrls]
+  );
+  const existingGifMediaUrl = useMemo(
+    () => existingMediaUrls.find(isGifMediaUrl) ?? null,
+    [existingMediaUrls]
+  );
+  const existingImageUrls = useMemo(
+    () =>
+      existingMediaUrls.filter(function (url) {
+        return !isVideoMediaUrl(url) && !isGifMediaUrl(url);
+      }),
+    [existingMediaUrls]
+  );
 
   function extractFirstUrl(value: string): string | null {
     var match = value.match(/https?:\/\/[^\s]+/i);
@@ -294,7 +363,18 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   );
 
   useEffect(() => {
-    if (!editingPost) return;
+    if (!editingPost) {
+      setExistingMediaUrls([]);
+      return;
+    }
+
+    setImages([]);
+    setVideoFile(null);
+    setGifUrl(null);
+    setShowDropZone(false);
+    setExistingMediaUrls(editingPost.mediaUrls ?? []);
+    setLinkPreview(editingPost.linkPreview ?? null);
+    setDismissedPreviewUrl(null);
 
     if (editingPost.type === "discussion") {
       setMode("discussion");
@@ -316,6 +396,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         setSelectedFilmUlid(editingPost.film.id);
         setStarRating(editingPost.film.rating ?? 0);
       }
+      setExistingMediaUrls([]);
       setActiveField("body");
     } else {
       setMode("write");
@@ -437,7 +518,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       const pasted = e.clipboardData.getData("text/plain");
       const vid = extractYouTubeId(pasted);
       if (vid && (targetMode === "write" || targetMode === "discussion")) {
-        e.preventDefault();
+        // Keep the pasted URL in the textarea so published posts retain both
+        // visible link text and URL-derived preview cards in PostCard.
         setYoutubeVideoId(vid);
         setYoutubeTitle("YouTube video");
       }
@@ -649,6 +731,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setStarRating(0);
     setIsRewatch(false);
     setImages([]);
+    setExistingMediaUrls([]);
     setVideoFile(null);
     setGifUrl(null);
     setYoutubeVideoId(null);
@@ -1063,25 +1146,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         >
         {/* Avatar */}
         <div className="pl-0 pr-3 flex-shrink-0 self-start">
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center font-sans text-sm text-white/90"
-            style={{
-              background: "linear-gradient(to bottom right, #1c1c1c, #0f0f0f)",
-            }}
-          >
-            {currentAvatarUrl ? (
-              <Image
-                src={currentAvatarUrl}
-                alt=""
-                width={36}
-                height={36}
-                className="w-full h-full object-cover rounded-full"
-                priority
-              />
-            ) : (
-              currentInitial
-            )}
-          </div>
+          <Avatar initial={currentInitial} src={currentAvatarUrl} className="w-9 h-9" />
         </div>
 
         {/* Content */}
@@ -1103,6 +1168,24 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 </div>
               )}
               <div className={cn("relative", isFullPage ? "min-h-0" : "min-h-[140px]")}>
+                {writeText.length > 0 ? (
+                  <div
+                    ref={writeOverlayRef}
+                    aria-hidden
+                    className={cn(
+                      "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words",
+                      isFullPage
+                        ? fixedMobileToolbar
+                          ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] text-[20px] font-normal leading-[1.35] tracking-[-0.02em]"
+                          : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45] tracking-[-0.015em]"
+                        : isModal
+                          ? "text-[19px] font-semibold leading-relaxed min-h-[170px]"
+                          : "text-[19px] font-semibold leading-relaxed min-h-[140px]"
+                    )}
+                  >
+                    {renderComposerRichText(writeText)}
+                  </div>
+                ) : null}
                 <textarea
                   ref={writeTextareaRef}
                   value={writeText}
@@ -1117,6 +1200,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                           : 220;
                       el.style.height = Math.min(el.scrollHeight, cap) + "px";
                     }
+                  }}
+                  onScroll={function () {
+                    if (!writeOverlayRef.current || !writeTextareaRef.current) return;
+                    writeOverlayRef.current.scrollTop = writeTextareaRef.current.scrollTop;
                   }}
                   onBlur={function (e) {
                     if (!fixedMobileToolbar || mode !== "write") return;
@@ -1135,6 +1222,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   rows={isFullPage ? (fixedMobileToolbar ? 1 : 2) : undefined}
                   className={cn(
                     "w-full resize-none border-none outline-none bg-transparent placeholder:text-fg-muted placeholder:font-normal text-fg",
+                    writeText.length > 0 && "text-transparent",
                     isFullPage
                       ? fixedMobileToolbar
                         ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] resize-none text-[20px] font-normal leading-[1.35] tracking-[-0.02em] [-webkit-tap-highlight-color:transparent] overflow-y-auto"
@@ -1166,6 +1254,21 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   onDropZoneToggle={setShowDropZone}
                 />
               )}
+              {images.length === 0 && videoFile == null && gifUrl == null && existingImageUrls.length > 0 ? (
+                <div className="mt-2 grid grid-cols-2 gap-[2px] rounded-[6px] overflow-hidden border border-border">
+                  {existingImageUrls.map(function (url, index) {
+                    return (
+                      <div
+                        key={url + ":" + index}
+                        className="relative aspect-video bg-sunken overflow-hidden"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
               {videoFile ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
                   <video
@@ -1181,6 +1284,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                     Remove video
                   </button>
                 </div>
+              ) : images.length === 0 && gifUrl == null && existingVideoUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  <video src={existingVideoUrl} controls className="w-full rounded-md" />
+                </div>
               ) : null}
               {gifUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
@@ -1193,6 +1300,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   >
                     Remove GIF
                   </button>
+                </div>
+              ) : images.length === 0 && videoFile == null && existingGifMediaUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={existingGifMediaUrl} alt="Existing GIF" className="w-full rounded-md object-cover" />
                 </div>
               ) : null}
               {linkPreview ? (
@@ -1292,15 +1404,39 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   onDropZoneToggle={setShowDropZone}
                 />
               )}
+              {images.length === 0 && videoFile == null && gifUrl == null && existingImageUrls.length > 0 ? (
+                <div className="mt-2 grid grid-cols-2 gap-[2px] rounded-[6px] overflow-hidden border border-border">
+                  {existingImageUrls.map(function (url, index) {
+                    return (
+                      <div
+                        key={url + ":" + index}
+                        className="relative aspect-video bg-sunken overflow-hidden"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
               {videoFile ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
                   <video src={URL.createObjectURL(videoFile)} controls className="w-full rounded-md" />
+                </div>
+              ) : images.length === 0 && gifUrl == null && existingVideoUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  <video src={existingVideoUrl} controls className="w-full rounded-md" />
                 </div>
               ) : null}
               {gifUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={gifUrl} alt="Selected GIF" className="w-full rounded-md object-cover" />
+                </div>
+              ) : images.length === 0 && videoFile == null && existingGifMediaUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={existingGifMediaUrl} alt="Existing GIF" className="w-full rounded-md object-cover" />
                 </div>
               ) : null}
               {linkPreview ? (
@@ -1415,7 +1551,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         </div>
 
         {/* Quoted post embed */}
-        {quotedPost && (
+        {hasVisibleQuotedPost && quotedPost && (
           <div
             className={cn(
               "mx-4 mb-3 rounded-xl border border-border bg-sunken overflow-hidden",

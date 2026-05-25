@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import {
   resolvePublicMediaUrl,
@@ -12,9 +12,11 @@ import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 interface AvatarProps {
   initial?: string;
   src?: string | null;
+  /** When false and src is empty, keep skeleton instead of showing default avatar image. */
+  allowDefaultFallback?: boolean;
   size?: "sm" | "md" | "lg" | "profile-lg";
   className?: string;
-  /** Gradient ring (ink → accent) like canonical sidebar avatar */
+  /** Extra border emphasis used in header/sidebar placements. */
   variant?: "default" | "ring";
 }
 
@@ -26,7 +28,9 @@ const sizeMap: Record<NonNullable<AvatarProps["size"]>, string> = {
 };
 
 export function Avatar({
+  initial,
   src,
+  allowDefaultFallback = true,
   size = "md",
   className,
   variant = "default",
@@ -34,51 +38,91 @@ export function Avatar({
   const sizeClass = sizeMap[size];
   const bgClass =
     variant === "ring"
-      ? "bg-gradient-to-br from-fg to-accent text-white"
+      ? "bg-sunken text-fg-light ring-1 ring-border/70"
       : "bg-border text-fg-light";
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(src && !shouldResolvePublicR2Url(src) ? src : null);
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [showInitialFallback, setShowInitialFallback] = useState(false);
+  const fallbackAttemptedRef = useRef(false);
+
+  useEffect(
+    function resetLoadState() {
+      setImageLoaded(false);
+      setShowInitialFallback(false);
+      fallbackAttemptedRef.current = false;
+    },
+    [src]
+  );
 
   useEffect(function () {
     let isCancelled = false;
-    if (!src) {
+
+    const trimmedSrc =
+      typeof src === "string" && src.trim().length > 0 ? src.trim() : null;
+    if (!trimmedSrc && !allowDefaultFallback) {
       setResolvedSrc(null);
       return;
     }
 
-    if (!shouldResolvePublicR2Url(src)) {
-      setResolvedSrc(src);
+    const desiredSrc = trimmedSrc ?? DEFAULT_PROFILE_AVATAR_URL;
+
+    if (!shouldResolvePublicR2Url(desiredSrc)) {
+      setResolvedSrc(desiredSrc);
       return;
     }
 
-    resolvePublicMediaUrl(src).then(function (nextSrc) {
+    setResolvedSrc(null);
+    resolvePublicMediaUrl(desiredSrc).then(function (nextSrc) {
       if (!isCancelled) {
-        setResolvedSrc(nextSrc);
+        setResolvedSrc(nextSrc ?? DEFAULT_PROFILE_AVATAR_URL);
       }
     });
 
     return function () {
       isCancelled = true;
     };
-  }, [src]);
+  }, [src, allowDefaultFallback]);
 
-  const effectiveSrc = resolvedSrc ?? DEFAULT_PROFILE_AVATAR_URL;
+  const showSkeleton = !resolvedSrc || (!imageLoaded && !showInitialFallback);
 
   return (
     <div
       className={cn(
-        "rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center font-semibold",
+        "relative rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center font-semibold",
         sizeClass,
         bgClass,
         className
       )}
     >
-      <Image
-        src={effectiveSrc}
-        alt=""
-        width={size === "lg" || size === "profile-lg" ? 80 : 36}
-        height={size === "lg" || size === "profile-lg" ? 80 : 36}
-        className="w-full h-full object-cover"
-      />
+      {resolvedSrc && !showInitialFallback ? (
+        <Image
+          src={resolvedSrc}
+          alt=""
+          width={size === "lg" || size === "profile-lg" ? 80 : 36}
+          height={size === "lg" || size === "profile-lg" ? 80 : 36}
+          className={cn(
+            "w-full h-full object-cover transition-opacity duration-150",
+            imageLoaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            if (resolvedSrc !== DEFAULT_PROFILE_AVATAR_URL && !fallbackAttemptedRef.current) {
+              fallbackAttemptedRef.current = true;
+              setImageLoaded(false);
+              setResolvedSrc(DEFAULT_PROFILE_AVATAR_URL);
+              return;
+            }
+            setShowInitialFallback(true);
+            setImageLoaded(true);
+          }}
+        />
+      ) : null}
+      {showSkeleton ? (
+        <div className="absolute inset-0 animate-pulse bg-sunken-2" aria-hidden />
+      ) : null}
+      {showInitialFallback ? (
+        <span className="text-fg-muted">{initial || "?"}</span>
+      ) : null}
     </div>
   );
 }

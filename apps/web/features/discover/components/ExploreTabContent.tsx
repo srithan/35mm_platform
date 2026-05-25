@@ -16,6 +16,10 @@ import {
   discoverUsesTvMedia,
   type DiscoverExploreFiltersState,
 } from "../lib/discoverExploreFilters";
+import {
+  DiscoverHeroSkeleton,
+  DiscoverShelfSkeleton,
+} from "./DiscoverSkeletons";
 
 interface ExploreTabContentProps {
   onOpenDetail: (film: TMDBMovie) => void;
@@ -56,9 +60,17 @@ export function ExploreTabContent({
   activeFilterCount,
   onClearFilters,
 }: ExploreTabContentProps) {
-  const { movies: popular } = usePopular(genreId, moodId, exploreFilters);
-  const { movies: nowPlaying } = useNowPlaying(genreId, moodId, exploreFilters);
-  const { movies: trending } = useTrending();
+  const { movies: popular, loading: popularLoading } = usePopular(
+    genreId,
+    moodId,
+    exploreFilters
+  );
+  const { movies: nowPlaying, loading: nowPlayingLoading } = useNowPlaying(
+    genreId,
+    moodId,
+    exploreFilters
+  );
+  const { movies: trending, loading: trendingLoading } = useTrending();
   const usesTv = discoverUsesTvMedia(exploreFilters.typeId);
   const recentShelfTitle = usesTv ? "Recently aired" : "Now playing";
   const recentShelfSubtitle = usesTv
@@ -96,6 +108,9 @@ export function ExploreTabContent({
     sciFiDramaMystery.length > 0 ||
     adventureFantasyHistory.length > 0;
   const showFilteredEmptyState = !isSearchActive && activeFilterCount > 0 && !hasAnyShelf;
+  const showPopularSkeleton = popularLoading && popular.length === 0;
+  const showNowPlayingSkeleton = nowPlayingLoading && nowPlaying.length === 0;
+  const showTrendingSkeleton = trendingLoading && trending.length === 0;
 
   return (
     <div className="w-full pb-8 pt-5">
@@ -124,6 +139,8 @@ export function ExploreTabContent({
                 onOpenDetail={onOpenDetail}
               />
             </div>
+          ) : showPopularSkeleton ? (
+            <DiscoverHeroSkeleton />
           ) : null}
 
           {trendingFilms.length > 0 ? (
@@ -133,6 +150,14 @@ export function ExploreTabContent({
                 subtitle="What’s rising across movies and TV on TMDB this week."
                 films={trendingFilms}
                 onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : showTrendingSkeleton ? (
+            <div className="mt-8">
+              <DiscoverShelfSkeleton
+                titleWidth="w-40"
+                subtitleWidth="w-72"
+                cardCount={7}
               />
             </div>
           ) : null}
@@ -146,6 +171,14 @@ export function ExploreTabContent({
                 onFilmClick={onOpenDetail}
               />
             </div>
+          ) : showPopularSkeleton ? (
+            <div className="mt-8">
+              <DiscoverShelfSkeleton
+                titleWidth="w-32"
+                subtitleWidth="w-64"
+                cardCount={7}
+              />
+            </div>
           ) : null}
 
           {newAndNear.length > 0 ? (
@@ -155,6 +188,14 @@ export function ExploreTabContent({
                 subtitle={recentShelfSubtitle}
                 films={newAndNear}
                 onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : showNowPlayingSkeleton ? (
+            <div className="mt-8">
+              <DiscoverShelfSkeleton
+                titleWidth="w-36"
+                subtitleWidth="w-68"
+                cardCount={7}
               />
             </div>
           ) : null}
@@ -167,6 +208,10 @@ export function ExploreTabContent({
                 onOpenDetail={onOpenDetail}
               />
             </div>
+          ) : showNowPlayingSkeleton ? (
+            <div className="mt-8">
+              <DiscoverHeroSkeleton />
+            </div>
           ) : null}
 
           {sciFiDramaMystery.length > 0 ? (
@@ -178,6 +223,14 @@ export function ExploreTabContent({
                 onFilmClick={onOpenDetail}
               />
             </div>
+          ) : showPopularSkeleton || showNowPlayingSkeleton ? (
+            <div className="mt-8">
+              <DiscoverShelfSkeleton
+                titleWidth="w-44"
+                subtitleWidth="w-72"
+                cardCount={7}
+              />
+            </div>
           ) : null}
 
           {adventureFantasyHistory.length > 0 ? (
@@ -187,6 +240,14 @@ export function ExploreTabContent({
                 subtitle="Epic adventures, fantasy, historical dramas, and war stories from your browse."
                 films={adventureFantasyHistory}
                 onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : showPopularSkeleton || showNowPlayingSkeleton ? (
+            <div className="mt-8">
+              <DiscoverShelfSkeleton
+                titleWidth="w-48"
+                subtitleWidth="w-72"
+                cardCount={7}
               />
             </div>
           ) : null}

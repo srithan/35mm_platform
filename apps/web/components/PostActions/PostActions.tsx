@@ -18,6 +18,7 @@ interface PostActionsProps {
   onRepostToggle?: (state: { isReposted: boolean }) => void;
   hideRepostSaveLabels?: boolean;
   showReplyOption?: boolean;
+  hideZeroCounts?: boolean;
 }
 
 import { Icon } from "@/components/Icon/Icon";
@@ -35,6 +36,7 @@ export function PostActions({
   onRepostToggle,
   hideRepostSaveLabels = false,
   showReplyOption = false,
+  hideZeroCounts = false,
 }: PostActionsProps) {
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(likes);
@@ -143,9 +145,11 @@ export function PostActions({
         aria-pressed={liked}
       >
         <Icon name="heart" fill={liked ? "currentColor" : "none"} strokeWidth={1.6} />
-        <span ref={countRef} className="action-count">
-          {formatCount(likeCount)}
-        </span>
+        {(!hideZeroCounts || likeCount > 0) && (
+          <span ref={countRef} className="action-count">
+            {formatCount(likeCount)}
+          </span>
+        )}
       </button>
       <button
         type="button"
@@ -154,7 +158,9 @@ export function PostActions({
         aria-label="Comments"
       >
         <Icon name="chat" strokeWidth={1.6} />
-        <span className="action-count">{formatCount(comments)}</span>
+        {(!hideZeroCounts || comments > 0) && (
+          <span className="action-count">{formatCount(comments)}</span>
+        )}
       </button>
       <button
         ref={repostBtnRef}

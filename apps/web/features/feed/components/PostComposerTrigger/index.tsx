@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
-import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
 
 export interface PostComposerTriggerUser {
   name: string;
@@ -13,6 +12,7 @@ export interface PostComposerTriggerUser {
 interface PostComposerTriggerProps {
   onOpen: () => void;
   user: PostComposerTriggerUser;
+  suppressDefaultAvatar?: boolean;
 }
 
 const TRIGGER_TOOLS = [
@@ -64,7 +64,11 @@ function TriggerTool({ label, icon }: { label: string; icon?: React.ReactNode })
   );
 }
 
-export function PostComposerTrigger({ onOpen, user }: PostComposerTriggerProps) {
+export function PostComposerTrigger({
+  onOpen,
+  user,
+  suppressDefaultAvatar = false,
+}: PostComposerTriggerProps) {
   return (
     <div className="PostComposerTrigger mt-4 pt-4 pb-4 rounded-lg">
       <button
@@ -79,15 +83,12 @@ export function PostComposerTrigger({ onOpen, user }: PostComposerTriggerProps) 
         aria-label="Create new post"
       >
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2.5">
-          <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden bg-fg flex items-center justify-center">
-            <Image
-              src={user.avatarUrl ?? DEFAULT_PROFILE_AVATAR_URL}
-              alt=""
-              width={36}
-              height={36}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <Avatar
+            initial={user.initial}
+            src={user.avatarUrl}
+            allowDefaultFallback={!suppressDefaultAvatar}
+            className="w-9 h-9"
+          />
 
           <div className="flex-1 min-w-0 h-[46px] rounded-full bg-sunken px-5 flex items-center">
             <span className="block truncate text-left text-[15px] font-normal text-fg-muted select-none">

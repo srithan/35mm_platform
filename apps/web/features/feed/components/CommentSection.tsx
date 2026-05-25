@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Image, Film, Smile, Link2, MapPin, Bold, Italic } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useCreateComment } from "../hooks/useCommentMutations";
@@ -65,6 +66,7 @@ export function CommentSection({
   const createCommentMutation = useCreateComment(postId);
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
+  const currentInitial = initialForName(currentUser?.displayName ?? currentUser?.username);
   const normalizedComments: CommentCardType[] = comments.map(toCommentCard);
 
   const handleActivateComposer = () => {
@@ -115,18 +117,7 @@ export function CommentSection({
       <div className="border-b border-border">
         {!isComposerActive ? (
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-skeleton flex items-center justify-center font-semibold text-sm text-fg-muted">
-              {currentUser?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={currentUser.avatarUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                initialForName(currentUser?.displayName ?? currentUser?.username)
-              )}
-            </div>
+            <Avatar initial={currentInitial} src={currentUser?.avatarUrl} className="w-10 h-10" />
             <button
               type="button"
               onClick={handleActivateComposer}
@@ -144,18 +135,7 @@ export function CommentSection({
           </div>
         ) : (
           <div className="flex gap-3 items-start px-4 py-3">
-            <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-skeleton flex items-center justify-center font-semibold text-sm text-fg-muted">
-              {currentUser?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={currentUser.avatarUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                initialForName(currentUser?.displayName ?? currentUser?.username)
-              )}
-            </div>
+            <Avatar initial={currentInitial} src={currentUser?.avatarUrl} className="w-10 h-10" />
             <div className="flex-1 min-w-0">
               <p className="text-xs text-fg-muted mb-1">
                 {postUsername ? (

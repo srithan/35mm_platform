@@ -51,7 +51,7 @@ export function AvatarViewer({
         <div
           className={cn(
             "w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl",
-            !src && "bg-gradient-to-br from-fg to-accent flex items-center justify-center"
+            !src && "bg-white/15 flex items-center justify-center"
           )}
         >
           {src ? (

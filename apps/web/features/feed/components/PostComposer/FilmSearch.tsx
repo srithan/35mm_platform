@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Search } from "lucide-react";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZE } from "@/lib/tmdb/constants";
@@ -69,18 +70,58 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
   const [results, setResults] = useState<FilmResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [panelStyle, setPanelStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      var target = e.target as Node;
+      if (panelRef.current && panelRef.current.contains(target)) return;
+      if (wrapperRef.current && !wrapperRef.current.contains(target)) {
         setIsOpen(false);
       }
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || query.trim().length === 0) return;
+
+    const updatePanelPosition = () => {
+      const anchor = wrapperRef.current;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      const openUpward = spaceBelow < 180 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(120, Math.min(260, openUpward ? spaceAbove : spaceBelow));
+      const top = openUpward ? Math.max(8, rect.top - maxHeight - 4) : rect.bottom + 4;
+
+      setPanelStyle({
+        top,
+        left: rect.left,
+        width: rect.width,
+        maxHeight,
+      });
+    };
+
+    updatePanelPosition();
+    window.addEventListener("resize", updatePanelPosition);
+    window.addEventListener("scroll", updatePanelPosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePanelPosition);
+      window.removeEventListener("scroll", updatePanelPosition, true);
+    };
+  }, [isOpen, query]);
 
   useEffect(() => {
     if (isHidden) return;
@@ -162,36 +203,19 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
     return `${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZE}${posterPath}`;
   };
 
-  return (
-    <div ref={wrapperRef} className="relative mb-3">
-      <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2.5 bg-sunken focus-within:border-fg-faint focus-within:bg-elevated transition-all">
-        <Search
-          className="w-3.5 h-3.5 text-fg-faint flex-shrink-0"
-          strokeWidth={1.6}
-        />
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => {
-            const value = e.target.value;
-            setQuery(value);
-            if (value.trim().length === 0) {
-              setIsOpen(false);
-            }
+  const shouldShowResults = isOpen && query.trim().length > 0;
+  const resultPanel = shouldShowResults && panelStyle
+    ? createPortal(
+        <div
+          ref={panelRef}
+          className="fixed mt-0.5 bg-elevated border border-border rounded-md shadow-lg z-[22050] overflow-y-auto"
+          style={{
+            top: panelStyle.top,
+            left: panelStyle.left,
+            width: panelStyle.width,
+            maxHeight: panelStyle.maxHeight,
           }}
-          onFocus={() => {
-            if (query.trim().length > 0) {
-              setIsOpen(true);
-            }
-          }}
-          placeholder="Search for a film…"
-          className="flex-1 bg-transparent text-[13.5px] text-fg font-light outline-none placeholder:text-fg-faint"
-        />
-      </div>
-
-      {isOpen && query.trim().length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-0.5 bg-elevated border border-border rounded-md shadow-lg z-50 max-h-52 overflow-y-auto">
+        >
           {isLoading && (
             <div className="px-3 py-3 text-[12px] text-fg-muted">Searching TMDB...</div>
           )}
@@ -244,8 +268,39 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
                 </div>
               </button>
             ))}
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div ref={wrapperRef} className="relative mb-3">
+      <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2.5 bg-sunken focus-within:border-fg-faint focus-within:bg-elevated transition-all">
+        <Search
+          className="w-3.5 h-3.5 text-fg-faint flex-shrink-0"
+          strokeWidth={1.6}
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            const value = e.target.value;
+            setQuery(value);
+            if (value.trim().length === 0) {
+              setIsOpen(false);
+            }
+          }}
+          onFocus={() => {
+            if (query.trim().length > 0) {
+              setIsOpen(true);
+            }
+          }}
+          placeholder="Search for a film…"
+          className="flex-1 bg-transparent text-[13.5px] text-fg font-light outline-none placeholder:text-fg-faint"
+        />
+      </div>
+      {resultPanel}
     </div>
   );
 }

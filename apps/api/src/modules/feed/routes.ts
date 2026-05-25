@@ -43,6 +43,7 @@ type CreatePostInput = {
   headline: string | null;
   body: string;
   filmId: string | null;
+  filmRating: number | null;
   visibility: "public" | "followers_only" | "private";
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
@@ -79,10 +80,17 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
   }
 
   var filmId: string | null = null;
+  var filmRating: number | null = null;
   if (typeof source.filmId === "string" && source.filmId.trim().length > 0) {
     filmId = source.filmId.trim();
   } else if (parsed.film?.id) {
     filmId = parsed.film.id;
+  }
+  if (typeof parsed.film?.rating === "number" && Number.isFinite(parsed.film.rating)) {
+    var scaled = Math.round(parsed.film.rating * 2);
+    if (scaled >= 1 && scaled <= 10) {
+      filmRating = scaled;
+    }
   }
 
   if (filmId && !isValidUlid(filmId)) {
@@ -94,6 +102,7 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     headline: parsed.headline ?? null,
     body: parsed.body,
     filmId,
+    filmRating,
     visibility,
     media: (parsed.media ?? []).slice(0, 10),
     mediaUrls: Array.isArray(source.mediaUrls)
@@ -270,6 +279,7 @@ async function toPostItem(row: {
   filmYear: number | null;
   filmPosterUrl: string | null;
   filmGenres: string[] | null;
+  filmRating: number | null;
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
@@ -363,7 +373,7 @@ async function toPostItem(row: {
           year: row.filmYear,
           posterUrl: row.filmPosterUrl,
           genres: row.filmGenres ?? [],
-          rating: null,
+          rating: row.filmRating == null ? null : row.filmRating / 2,
         }
       : null,
     createdAt: row.createdAt.toISOString(),
@@ -404,6 +414,7 @@ async function getPostById(postId: string, viewerUserId: string | null) {
       filmYear: films.year,
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
+      filmRating: posts.filmRating,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -538,6 +549,7 @@ feedRoutes.get("/", async function (c) {
         filmYear: films.year,
         filmPosterUrl: films.posterUrl,
         filmGenres: films.genres,
+        filmRating: posts.filmRating,
         media: posts.media,
         mediaUrls: posts.mediaUrls,
         linkPreview: posts.linkPreview,
@@ -608,6 +620,7 @@ feedRoutes.get("/", async function (c) {
       filmYear: films.year,
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
+      filmRating: posts.filmRating,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -687,6 +700,7 @@ feedRoutes.post("/", requireAuth, async function (c) {
       headline: input.headline ?? null,
       body: input.body,
       filmId: input.filmId ?? null,
+      filmRating: input.filmRating,
       visibility: input.visibility,
       media: normalizedMedia,
       mediaUrls: input.mediaUrls,
@@ -805,6 +819,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       filmYear: films.year,
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
+      filmRating: posts.filmRating,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -886,6 +901,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       filmYear: films.year,
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
+      filmRating: posts.filmRating,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -1079,6 +1095,7 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
       headline: posts.headline,
       body: posts.body,
       filmId: posts.filmId,
+      filmRating: posts.filmRating,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -1115,6 +1132,7 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
         headline: sourcePost.headline,
         body: sourcePost.body,
         filmId: sourcePost.filmId,
+        filmRating: sourcePost.filmRating,
         visibility: "public",
         media: sourcePost.media,
         mediaUrls: sourcePost.mediaUrls ?? [],

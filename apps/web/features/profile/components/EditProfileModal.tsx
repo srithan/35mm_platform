@@ -8,18 +8,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
-import { Loader2, MapPin, Link2, User, AtSign, AlignLeft, CheckCircle2, XCircle } from "lucide-react";
+import { MapPin, Link2, User, AlignLeft, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { fetchUsernameAvailability, updateCurrentProfile } from "../api/profileApi";
+import { updateCurrentProfile } from "../api/profileApi";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { profileKeys } from "../hooks/queryKeys";
 
 const profileSchema = z.object({
   displayName: z.string().min(1, "Display name is required").max(50, "Name too long"),
-  username: z.string()
-    .min(3, "Username must be at least 3 characters")
-    .max(30, "Username too long")
-    .regex(/^[a-zA-Z0-9_.]+$/, "Only letters, numbers, underscores and dots allowed"),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").or(z.literal("")),
   bio: z.string().max(160, "Bio must be 160 characters or less"),
   location: z.string().max(100, "Location too long"),
   website: z.string().url("Must be a valid URL").or(z.literal("")),
@@ -42,7 +39,6 @@ export function EditProfileModal({
 }: EditProfileModalProps) {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const {
@@ -50,8 +46,6 @@ export function EditProfileModal({
     handleSubmit,
     reset,
     watch,
-    setError,
-    clearErrors,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -60,7 +54,6 @@ export function EditProfileModal({
   });
 
   const bioContent = watch("bio") || "";
-  const usernameValue = watch("username");
 
   useEffect(() => {
     if (open) {
@@ -69,40 +62,21 @@ export function EditProfileModal({
     }
   }, [open, initialData, reset]);
 
-  useEffect(() => {
-    if (!usernameValue || usernameValue === initialData.username) {
-      return;
-    }
-
-    const checkAvailability = async () => {
-      setIsCheckingUsername(true);
-      try {
-        const result = await fetchUsernameAvailability(usernameValue.toLowerCase());
-        if (!result.available) {
-          setError("username", { type: "manual", message: result.reason || "Username is already taken" });
-        } else {
-          clearErrors("username");
-        }
-      } catch (_err) {
-        setError("username", { type: "manual", message: "Could not check username" });
-      } finally {
-        setIsCheckingUsername(false);
-      }
-    };
-
-    const timer = setTimeout(checkAvailability, 500);
-    return () => clearTimeout(timer);
-  }, [usernameValue, initialData.username, setError, clearErrors]);
-
   const onSubmit = async (data: ProfileFormValues) => {
     setSaveError(null);
     try {
-      const next = await updateCurrentProfile(data, await getToken());
+      const next = await updateCurrentProfile(
+        {
+          ...data,
+          dateOfBirth: data.dateOfBirth.trim().length > 0 ? data.dateOfBirth : null,
+        },
+        await getToken()
+      );
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
       queryClient.invalidateQueries({ queryKey: profileKeys.all });
       onSave({
         displayName: next.displayName,
-        username: next.username,
+        dateOfBirth: next.dateOfBirth ?? "",
         bio: next.bio ?? "",
         location: next.location ?? "",
         website: next.website ?? "",
@@ -121,7 +95,7 @@ export function EditProfileModal({
       className="max-w-[480px]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 pt-2">
-        {/* Name & Username Grid */}
+        {/* Name & DOB Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-fg-muted uppercase tracking-wider ml-1">
@@ -153,39 +127,27 @@ export function EditProfileModal({
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-fg-muted uppercase tracking-wider ml-1">
-              Username
+              DOB
             </label>
             <div className="relative group">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center">
-                <AtSign className={cn(
-                  "w-4 h-4 transition-colors",
-                  errors.username ? "text-red-500" : "text-fg-muted/50 group-focus-within:text-accent"
-                )} />
-              </div>
+              <CalendarDays className={cn(
+                "absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors",
+                errors.dateOfBirth ? "text-red-500" : "text-fg-muted/50 group-focus-within:text-accent"
+              )} />
               <input
-                {...register("username")}
-                type="text"
-                placeholder="username"
+                {...register("dateOfBirth")}
+                type="date"
                 className={cn(
-                  "w-full bg-sunken-2 dark:bg-elevated border rounded-xl pl-10 pr-10 py-2.5 text-[16px] md:text-sm transition-all outline-none",
-                  errors.username 
+                  "w-full bg-sunken-2 dark:bg-elevated border rounded-xl pl-10 pr-4 py-2.5 text-[16px] md:text-sm transition-all outline-none",
+                  errors.dateOfBirth
                     ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/10" 
                     : "border-border focus:border-accent focus:ring-2 focus:ring-accent/10"
                 )}
               />
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-                {isCheckingUsername ? (
-                  <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
-                ) : usernameValue && usernameValue !== initialData.username && !errors.username ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                ) : errors.username ? (
-                  <XCircle className="w-3.5 h-3.5 text-red-500" />
-                ) : null}
-              </div>
             </div>
-            {errors.username && (
+            {errors.dateOfBirth && (
               <p className="text-[10px] text-red-500 ml-1 uppercase tracking-tight">
-                {errors.username.message}
+                {errors.dateOfBirth.message}
               </p>
             )}
           </div>
@@ -304,7 +266,7 @@ export function EditProfileModal({
           <Button
             type="submit"
             variant="primary"
-            disabled={!isDirty || isCheckingUsername || isSubmitting}
+            disabled={!isDirty || isSubmitting}
             className="px-8 rounded-full font-bold text-xs uppercase tracking-wider disabled:opacity-50"
           >
             Save Changes

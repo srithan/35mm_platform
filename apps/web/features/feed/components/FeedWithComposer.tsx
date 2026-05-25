@@ -18,7 +18,15 @@ export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
   const currentUser = currentUserQuery.data;
   const displayName =
     user?.name ?? currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
-  const avatarUrl = user?.avatarUrl ?? currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
+  const avatarUrl = user?.avatarUrl ?? currentUser?.avatarUrl ?? null;
+  const suppressDefaultAvatar = !user?.avatarUrl &&
+    !currentUser?.avatarUrl &&
+    (
+      currentUserQuery.isPending ||
+      currentUserQuery.isLoading ||
+      currentUserQuery.isFetching ||
+      currentUserQuery.fetchStatus !== "idle"
+    );
 
   const triggerUser: PostComposerTriggerUser = {
     name: displayName,
@@ -31,6 +39,7 @@ export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
       <PostComposerTrigger
         onOpen={openComposerModal}
         user={triggerUser}
+        suppressDefaultAvatar={suppressDefaultAvatar}
       />
       {children}
     </>

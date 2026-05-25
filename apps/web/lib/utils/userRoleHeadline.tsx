@@ -28,6 +28,7 @@ export function formatRoleContextSegment(
   if (roleLabel === "Cinephile") {
     const n = opts.filmsLoggedCount;
     if (n == null || typeof n !== "number" || Number.isNaN(n)) return null;
+    if (n <= 0) return null;
     return `${n.toLocaleString()} films logged`;
   }
   const ctx = opts.roleContext;

@@ -3,7 +3,7 @@ import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { users, profiles, follows, userBlocks } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
-import { notFound, badRequest, conflict } from "../../lib/errors.js";
+import { notFound, badRequest } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "../media/url.js";
@@ -41,6 +41,13 @@ async function resolveTargetByUsername(username: string) {
   return rows[0].userId;
 }
 
+function isValidDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  var parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.toISOString().slice(0, 10) === value;
+}
+
 profileRoutes.get("/:username", async function (c) {
   var username = c.req.param("username").toLowerCase().trim();
   var db = getDb();
@@ -56,6 +63,7 @@ profileRoutes.get("/:username", async function (c) {
       coverUrl: profiles.coverUrl,
       location: profiles.location,
       website: profiles.website,
+      dateOfBirth: profiles.dateOfBirth,
       role: profiles.role,
       roleContext: profiles.roleContext,
       headline: profiles.headline,
@@ -135,6 +143,7 @@ profileRoutes.get("/:username", async function (c) {
       coverUrl: null,
       location: null,
       website: null,
+      dateOfBirth: null,
       role: null,
       roleContext: null,
       headline: null,
@@ -161,6 +170,7 @@ profileRoutes.get("/:username", async function (c) {
       coverUrl: media.coverUrl,
       location: row.location,
       website: row.website,
+      dateOfBirth: isOwner ? row.dateOfBirth : null,
       role: row.role,
       roleContext: row.roleContext,
       headline: row.headline,
@@ -186,6 +196,7 @@ profileRoutes.get("/:username", async function (c) {
     coverUrl: media.coverUrl,
     location: row.location,
     website: row.website,
+    dateOfBirth: isOwner ? row.dateOfBirth : null,
     role: row.role,
     roleContext: row.roleContext,
     headline: row.headline,
@@ -200,8 +211,6 @@ profileRoutes.get("/:username", async function (c) {
     createdAt: row.createdAt.toISOString(),
   });
 });
-
-var USERNAME_RE = /^[a-zA-Z0-9._]+$/;
 
 function dedupeStrings(values: string[]): string[] {
   var seen = new Set<string>();
@@ -244,6 +253,18 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
 
   if (body.website !== undefined) {
     updates.website = body.website ? String(body.website).slice(0, 200) : null;
+  }
+
+  if (body.dateOfBirth !== undefined) {
+    if (body.dateOfBirth === null || body.dateOfBirth === "") {
+      updates.dateOfBirth = null;
+    } else {
+      var dateOfBirth = String(body.dateOfBirth).trim();
+      if (!isValidDateOnly(dateOfBirth)) {
+        throw badRequest("Date of birth must be a valid date in YYYY-MM-DD format");
+      }
+      updates.dateOfBirth = dateOfBirth;
+    }
   }
 
   if (body.role !== undefined) {
@@ -324,36 +345,18 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
     }
   }
 
-  if (body.username !== undefined) {
-    var newUsername = String(body.username).toLowerCase().trim();
-    if (newUsername.length < 2) {
-      throw badRequest("Username must be at least 2 characters");
-    }
-    if (!USERNAME_RE.test(newUsername)) {
-      throw badRequest("Letters, numbers, dots and underscores only");
-    }
-    if (newUsername !== user.username) {
-      var existing = await db
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(eq(profiles.username, newUsername))
-        .limit(1);
-      if (existing.length > 0) {
-        throw conflict("Username is already taken");
-      }
-      updates.username = newUsername;
-    }
-  }
-
   if (Object.keys(updates).length === 0) {
     var existingRows = await db
       .select({
+        userId: profiles.userId,
+        username: profiles.username,
         displayName: profiles.displayName,
         bio: profiles.bio,
         avatarUrl: profiles.avatarUrl,
         coverUrl: profiles.coverUrl,
         location: profiles.location,
         website: profiles.website,
+        dateOfBirth: profiles.dateOfBirth,
         role: profiles.role,
         roleContext: profiles.roleContext,
         isPrivate: profiles.isPrivate,
@@ -401,6 +404,7 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
       coverUrl: profiles.coverUrl,
       location: profiles.location,
       website: profiles.website,
+      dateOfBirth: profiles.dateOfBirth,
       role: profiles.role,
       roleContext: profiles.roleContext,
       isPrivate: profiles.isPrivate,

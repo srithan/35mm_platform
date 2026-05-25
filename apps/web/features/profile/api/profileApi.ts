@@ -10,6 +10,7 @@ export interface PublicProfile {
   coverUrl: string | null;
   location: string | null;
   website: string | null;
+  dateOfBirth: string | null;
   role: string | null;
   roleContext: string | null;
   headline?: string | null;
@@ -44,6 +45,7 @@ export interface CurrentProfilePatch {
   coverUrl: string | null;
   location: string | null;
   website: string | null;
+  dateOfBirth: string | null;
   role: string | null;
   roleContext: string | null;
 }
@@ -206,10 +208,10 @@ export async function fetchUsernameAvailability(username: string): Promise<{
 export async function updateCurrentProfile(
   input: Partial<{
     displayName: string;
-    username: string;
     bio: string | null;
     location: string | null;
     website: string | null;
+    dateOfBirth: string | null;
     avatarUrl: string | null;
     coverUrl: string | null;
     role: string | null;

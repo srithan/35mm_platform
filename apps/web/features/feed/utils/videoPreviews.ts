@@ -10,6 +10,10 @@ export interface VideoPreview {
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi;
 
+function sanitizeCandidateUrl(raw: string): string {
+  return raw.replace(/[),.!?;:]+$/g, "");
+}
+
 function extractYouTubeId(url: URL): string | null {
   const host = url.hostname.replace(/^www\./, "");
   if (host === "youtu.be") {
@@ -93,22 +97,16 @@ export function extractVideoPreviews(text: string): {
 } {
   const matches = text.match(URL_REGEX) ?? [];
   const previewMap = new Map<string, VideoPreview>();
-  let cleaned = text;
 
   for (const match of matches) {
-    const preview = toVideoPreview(match);
+    const candidate = sanitizeCandidateUrl(match);
+    const preview = toVideoPreview(candidate);
     if (!preview) continue;
     previewMap.set(preview.url, preview);
-    cleaned = cleaned.split(match).join("");
   }
 
-  const cleanedText = cleaned
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
   return {
-    cleanedText,
+    cleanedText: text,
     previews: Array.from(previewMap.values()),
   };
 }
