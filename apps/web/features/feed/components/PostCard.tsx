@@ -13,12 +13,14 @@ import { saveScrollPositionForBack } from "./PostPageBackButton";
 import { cn } from "@/lib/utils/cn";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
+import { useFlashToast } from "@/components/FlashToast";
 import { EyeOff, CircleSlash, Flag, MessagesSquare, MoreHorizontal, Trash2 } from "lucide-react";
 import { Icon } from "@/components/Icon/Icon";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews, type VideoPreview } from "../utils/videoPreviews";
 import { useBookmarkPost, useDeletePost, useLikePost, useRepostPost } from "../hooks/usePostMutations";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
+import { PostImageGallery } from "./PostImageGallery";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
 import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
@@ -225,9 +227,10 @@ export function PostCard({
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
-  const [muteToast, setMuteToast] = useState<string | null>(null);
-  const [actionErrorToast, setActionErrorToast] = useState<string | null>(null);
+  const [muteToast, setMuteToast] = useState<{ handle: string; userId: string } | null>(null);
+  const { show: showFlashToast } = useFlashToast();
   var [showImageViewer, setShowImageViewer] = useState(false);
+  var [viewerImageIndex, setViewerImageIndex] = useState(0);
   var normalizedMediaUrls = mediaUrls && mediaUrls.length > 0 ? mediaUrls : imageSrc ? [imageSrc] : [];
   var hasAttachedMedia = normalizedMediaUrls.length > 0;
   var videoUrls = normalizedMediaUrls.filter((url) => {
@@ -463,8 +466,7 @@ export function PostCard({
                               { userId, muted: false },
                               {
                                 onSuccess: () => {
-                                  setMuteToast(`${handle} muted`);
-                                  window.setTimeout(() => setMuteToast(null), 1800);
+                                  setMuteToast({ handle, userId });
                                 },
                               }
                             );
@@ -642,45 +644,21 @@ export function PostCard({
 
             {imageUrls.length > 0 && (
               <>
-                <div
-                  className={cn(
-                    "mt-3.5 grid gap-1.5 overflow-hidden rounded-lg",
-                    imageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                  )}
-                >
-                  {imageUrls.slice(0, 4).map((url, idx) => (
-                    <button
-                      key={`${url}-${idx}`}
-                      type="button"
-                      className={cn(
-                        "relative block overflow-hidden rounded text-left",
-                        imageUrls.length === 3 && idx === 0 && "col-span-2"
-                      )}
-                      onClick={function (e) {
-                        e.stopPropagation();
-                        setShowImageViewer(true);
-                      }}
-                    >
-                      <Image
-                        src={url}
-                        alt={imageCaption || "Post image"}
-                        width={600}
-                        height={360}
-                        unoptimized={shouldLoadRemoteImageUnoptimized(url)}
-                        className="block h-full w-full object-cover transition-opacity hover:opacity-90"
-                      />
-                    </button>
-                  ))}
-                </div>
-                {imageCaption && (
-                  <p className="text-xs text-fg-muted mt-2 tracking-[0.02em]">
-                    {imageCaption}
-                  </p>
-                )}
+                <PostImageGallery
+                  urls={imageUrls}
+                  imageCaption={imageCaption}
+                  onImageClick={function (index) {
+                    setViewerImageIndex(index);
+                    setShowImageViewer(true);
+                  }}
+                />
                 <ImageViewer
                   open={showImageViewer}
-                  onClose={function () { setShowImageViewer(false); }}
-                  src={imageUrls[0]}
+                  onClose={function () {
+                    setShowImageViewer(false);
+                  }}
+                  srcs={imageUrls}
+                  initialIndex={viewerImageIndex}
                   alt={imageCaption || "Post image"}
                 />
               </>
@@ -765,8 +743,7 @@ export function PostCard({
                         error instanceof ApiRequestError
                           ? error.message
                           : "Could not update like";
-                      setActionErrorToast(message);
-                      window.setTimeout(() => setActionErrorToast(null), 2200);
+                      showFlashToast(message, "error");
                     },
                   }
                 );
@@ -781,8 +758,7 @@ export function PostCard({
                         error instanceof ApiRequestError
                           ? error.message
                           : "Could not update repost";
-                      setActionErrorToast(message);
-                      window.setTimeout(() => setActionErrorToast(null), 2200);
+                      showFlashToast(message, "error");
                     },
                   }
                 );
@@ -797,8 +773,7 @@ export function PostCard({
                         error instanceof ApiRequestError
                           ? error.message
                           : "Could not update bookmark";
-                      setActionErrorToast(message);
-                      window.setTimeout(() => setActionErrorToast(null), 2200);
+                      showFlashToast(message, "error");
                     },
                   }
                 );
@@ -816,7 +791,7 @@ export function PostCard({
           setShowBlockConfirm(false);
         }}
         title={`Block ${handle}?`}
-        description={`${handle} won't be able to see your profile or posts.`}
+        description={`They won't be able to see your profile, posts, or interact with you. You can unblock them anytime in Settings.`}
         confirmLabel="Block"
         cancelLabel="Cancel"
         variant="danger"
@@ -843,17 +818,10 @@ export function PostCard({
             { postId },
             {
               onSuccess: () => {
+                setShowDeleteConfirm(false);
                 if (isPostDetailView) {
                   router.replace(ROUTES.PROFILE(username));
                 }
-              },
-              onError: (error) => {
-                var message =
-                  error instanceof ApiRequestError
-                    ? error.message
-                    : "Could not delete post";
-                setActionErrorToast(message);
-                window.setTimeout(() => setActionErrorToast(null), 2200);
               },
             }
           );
@@ -877,13 +845,20 @@ export function PostCard({
         }}
       />
       {muteToast ? (
-        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-fg px-3 py-1.5 text-xs font-medium text-bg shadow-lg">
-          {muteToast}
-        </div>
-      ) : null}
-      {actionErrorToast ? (
-        <div className="pointer-events-none fixed bottom-14 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-lg">
-          {actionErrorToast}
+        <div className="pointer-events-auto fixed bottom-6 left-1/2 z-[120] flex -translate-x-1/2 items-center gap-3 rounded-full bg-fg px-4 py-2 text-xs font-medium text-bg shadow-lg">
+          <span>{muteToast.handle} muted</span>
+          <button
+            type="button"
+            className="border-none bg-transparent p-0 font-semibold text-bg underline underline-offset-2"
+            onClick={() => {
+              muteUserMutation.mutate(
+                { userId: muteToast.userId, muted: true },
+                { onSuccess: () => setMuteToast(null) }
+              );
+            }}
+          >
+            Undo
+          </button>
         </div>
       ) : null}
     </article>

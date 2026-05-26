@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { SettingsSection, SettingsToggle } from "./SettingsFormPrimitives";
 import { useForm } from "react-hook-form";
@@ -19,6 +20,9 @@ import {
   unblockUser,
   unmuteUser,
 } from "@/features/profile/api/profileApi";
+import { feedKeys } from "@/features/feed/hooks/queryKeys";
+import { profileKeys } from "@/features/profile/hooks/queryKeys";
+import { privacyKeys } from "../hooks/queryKeys";
 
 interface SettingsPrivacyPanelProps {
   initialValues: PrivacySettings;
@@ -60,11 +64,11 @@ export function SettingsPrivacyPanel({
   });
 
   const blocksQuery = useQuery({
-    queryKey: ["privacy", "blocks"],
+    queryKey: privacyKeys.blocks(),
     queryFn: async () => fetchMyBlocks(await getToken()),
   });
   const mutesQuery = useQuery({
-    queryKey: ["privacy", "mutes"],
+    queryKey: privacyKeys.mutes(),
     queryFn: async () => fetchMyMutes(await getToken()),
   });
 
@@ -73,8 +77,9 @@ export function SettingsPrivacyPanel({
       await unblockUser(userId, await getToken());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["privacy", "blocks"] });
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: privacyKeys.blocks() });
+      queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
     },
   });
 
@@ -83,8 +88,9 @@ export function SettingsPrivacyPanel({
       await unmuteUser(userId, await getToken());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["privacy", "mutes"] });
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: privacyKeys.mutes() });
+      queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
     },
   });
 
@@ -135,19 +141,31 @@ export function SettingsPrivacyPanel({
         </div>
       </SettingsSection>
       <SettingsSection title="Blocked accounts">
+        <p className="mb-3 text-[13px] text-fg-muted">
+          Blocked accounts cannot see your profile, posts, or message you.
+        </p>
         <div className="space-y-2">
           {(blocksQuery.data?.items ?? []).length === 0 ? (
             <p className="text-sm text-fg-muted">No blocked accounts.</p>
           ) : (
             blocksQuery.data?.items.map((item) => (
-              <div key={item.userId} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                <div className="text-sm text-fg">
-                  {item.displayName} <span className="text-fg-muted">@{item.username}</span>
+              <div key={item.userId} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Avatar
+                    initial={item.displayName[0] ?? item.username[0]}
+                    src={item.avatarUrl}
+                    className="h-9 w-9 shrink-0"
+                  />
+                  <div className="min-w-0 text-sm text-fg">
+                    <div className="truncate font-medium">{item.displayName}</div>
+                    <div className="truncate text-fg-muted">@{item.username}</div>
+                  </div>
                 </div>
                 <Button
                   size="sm"
                   variant="secondary"
                   onClick={() => unblockMutation.mutate(item.userId)}
+                  disabled={unblockMutation.isPending}
                 >
                   Unblock
                 </Button>
@@ -157,19 +175,31 @@ export function SettingsPrivacyPanel({
         </div>
       </SettingsSection>
       <SettingsSection title="Muted accounts">
+        <p className="mb-3 text-[13px] text-fg-muted">
+          Muted accounts stay on the platform but their posts are hidden from your feed.
+        </p>
         <div className="space-y-2">
           {(mutesQuery.data?.items ?? []).length === 0 ? (
             <p className="text-sm text-fg-muted">No muted accounts.</p>
           ) : (
             mutesQuery.data?.items.map((item) => (
-              <div key={item.userId} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                <div className="text-sm text-fg">
-                  {item.displayName} <span className="text-fg-muted">@{item.username}</span>
+              <div key={item.userId} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Avatar
+                    initial={item.displayName[0] ?? item.username[0]}
+                    src={item.avatarUrl}
+                    className="h-9 w-9 shrink-0"
+                  />
+                  <div className="min-w-0 text-sm text-fg">
+                    <div className="truncate font-medium">{item.displayName}</div>
+                    <div className="truncate text-fg-muted">@{item.username}</div>
+                  </div>
                 </div>
                 <Button
                   size="sm"
                   variant="secondary"
                   onClick={() => unmuteMutation.mutate(item.userId)}
+                  disabled={unmuteMutation.isPending}
                 >
                   Unmute
                 </Button>

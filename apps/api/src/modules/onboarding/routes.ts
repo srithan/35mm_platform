@@ -7,6 +7,7 @@ import {
 } from "@35mm/validators";
 import { films, follows, profiles, users } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import { blockFiltersForAuthor, notMutedByViewerSql } from "../../lib/moderation.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { createUlid, isValidUlid } from "../../lib/ulid.js";
@@ -308,7 +309,14 @@ onboardingRoutes.get("/onboarding/suggestions", requireAuth, async function (c) 
       follows,
       and(eq(follows.followingId, profiles.userId), eq(follows.status, "accepted"))
     )
-    .where(and(eq(users.status, "active"), sql`${profiles.userId} <> ${user.userId}`))
+    .where(
+      and(
+        eq(users.status, "active"),
+        sql`${profiles.userId} <> ${user.userId}`,
+        ...blockFiltersForAuthor(user.userId, profiles.userId),
+        notMutedByViewerSql(user.userId, profiles.userId)
+      )
+    )
     .groupBy(
       profiles.userId,
       profiles.username,

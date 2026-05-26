@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import { profiles, follows, userBlocks, userMutes, users } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import { purgeFeedItemsBetweenUsers } from "../../lib/moderation.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 import { cursorPaginationSchema } from "@35mm/validators";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
+import { resolvePublicMediaUrl } from "../media/url.js";
 
 export var userRoutes = new Hono();
 
@@ -43,6 +45,16 @@ userRoutes.post("/users/:userId/block", requireAuth, async function (c) {
         and(eq(follows.followerId, targetUserId), eq(follows.followingId, user.userId))
       )
     );
+
+  await db
+    .insert(userMutes)
+    .values({
+      muterId: user.userId,
+      mutedId: targetUserId,
+    })
+    .onConflictDoNothing();
+
+  await purgeFeedItemsBetweenUsers(user.userId, targetUserId);
 
   return c.json({ ok: true });
 });
@@ -133,14 +145,16 @@ userRoutes.get("/me/blocks", requireAuth, async function (c) {
   var tail = visible[visible.length - 1];
 
   return c.json({
-    items: visible.map(function (row) {
-      return {
-        userId: row.userId,
-        username: row.username,
-        displayName: row.displayName,
-        avatarUrl: row.avatarUrl,
-      };
-    }),
+    items: await Promise.all(
+      visible.map(async function (row) {
+        return {
+          userId: row.userId,
+          username: row.username,
+          displayName: row.displayName,
+          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        };
+      })
+    ),
     nextCursor:
       hasMore && tail
         ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
@@ -189,14 +203,16 @@ userRoutes.get("/me/mutes", requireAuth, async function (c) {
   var tail = visible[visible.length - 1];
 
   return c.json({
-    items: visible.map(function (row) {
-      return {
-        userId: row.userId,
-        username: row.username,
-        displayName: row.displayName,
-        avatarUrl: row.avatarUrl,
-      };
-    }),
+    items: await Promise.all(
+      visible.map(async function (row) {
+        return {
+          userId: row.userId,
+          username: row.username,
+          displayName: row.displayName,
+          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        };
+      })
+    ),
     nextCursor:
       hasMore && tail
         ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })

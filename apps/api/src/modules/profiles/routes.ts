@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { and, desc, eq, lt, or, sql } from "drizzle-orm";
-import { users, profiles, follows, userBlocks } from "@35mm/db/schema";
+import { users, profiles, follows } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
@@ -84,25 +85,17 @@ profileRoutes.get("/:username", async function (c) {
 
   var row = rows[0];
 
+  var isMutedByViewer = false;
+
   if (viewer) {
-    var blockRows = await db
-      .select({
-        blockedByViewer:
-          sql<boolean>`exists(select 1 from ${userBlocks} where ${userBlocks.blockerId} = ${viewer.userId} and ${userBlocks.blockedId} = ${row.userId})`,
-        blockedByTarget:
-          sql<boolean>`exists(select 1 from ${userBlocks} where ${userBlocks.blockerId} = ${row.userId} and ${userBlocks.blockedId} = ${viewer.userId})`,
-      })
-      .from(profiles)
-      .limit(1);
+    var moderation = await getModerationStatus(viewer.userId, row.userId);
+    isMutedByViewer = moderation.isMutedByViewer;
 
-    var blockedByViewer = Boolean(blockRows[0]?.blockedByViewer);
-    var blockedByTarget = Boolean(blockRows[0]?.blockedByTarget);
-
-    if (blockedByViewer || blockedByTarget) {
+    if (moderation.blockedByViewer || moderation.blockedByTarget) {
       return c.json(
         {
           code: "BLOCKED",
-          message: blockedByViewer ? `BLOCKED_BY_YOU:${row.userId}` : "BLOCKED_BY_THEM",
+          message: moderation.blockedByViewer ? `BLOCKED_BY_YOU:${row.userId}` : "BLOCKED_BY_THEM",
         },
         403
       );
@@ -183,6 +176,7 @@ profileRoutes.get("/:username", async function (c) {
       isPrivate: true,
       posts: null,
       isDeactivated: false,
+      isMutedByViewer,
       createdAt: row.createdAt.toISOString(),
     });
   }
@@ -208,6 +202,7 @@ profileRoutes.get("/:username", async function (c) {
     isFollowRequested,
     isPrivate: row.isPrivate,
     isDeactivated: false,
+    isMutedByViewer,
     createdAt: row.createdAt.toISOString(),
   });
 });
@@ -441,6 +436,7 @@ profileRoutes.get("/:username/followers", async function (c) {
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
   var followingId = await resolveTargetByUsername(username);
+  var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var db = getDb();
 
   var cursorFilter = cursor
@@ -465,7 +461,8 @@ profileRoutes.get("/:username/followers", async function (c) {
       and(
         eq(follows.followingId, followingId),
         eq(follows.status, "accepted"),
-        cursorFilter
+        cursorFilter,
+        viewer ? notBlockedWithViewerSql(viewer.userId, profiles.userId) : undefined
       )
     )
     .orderBy(desc(follows.createdAt), desc(follows.followerId))
@@ -501,6 +498,7 @@ profileRoutes.get("/:username/following", async function (c) {
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
   var followerId = await resolveTargetByUsername(username);
+  var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var db = getDb();
 
   var cursorFilter = cursor
@@ -525,7 +523,8 @@ profileRoutes.get("/:username/following", async function (c) {
       and(
         eq(follows.followerId, followerId),
         eq(follows.status, "accepted"),
-        cursorFilter
+        cursorFilter,
+        viewer ? notBlockedWithViewerSql(viewer.userId, profiles.userId) : undefined
       )
     )
     .orderBy(desc(follows.createdAt), desc(follows.followingId))

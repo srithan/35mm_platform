@@ -9,10 +9,22 @@ const mediaUrlCache = new Map<string, { value: string; expiresAt: number }>();
 
 const MEDIA_URL_CACHE_TTL_MS = 8 * 60 * 1000;
 
+function mediaCacheKey(value: string): string {
+  try {
+    const parsed = new URL(value);
+    return parsed.pathname;
+  } catch {
+    return value;
+  }
+}
+
 export function shouldResolvePublicR2Url(value: string): boolean {
   try {
     const parsed = new URL(value);
-    if (!/\.r2\.dev$/i.test(parsed.host) && !/\.r2\.cloudflarestorage\.com$/i.test(parsed.host)) {
+    if (/\.r2\.cloudflarestorage\.com$/i.test(parsed.host)) {
+      return true;
+    }
+    if (!/\.r2\.dev$/i.test(parsed.host)) {
       return false;
     }
 
@@ -25,16 +37,39 @@ export function shouldResolvePublicR2Url(value: string): boolean {
   }
 }
 
-export async function resolvePublicMediaUrl(value: string | null | undefined): Promise<string | null> {
+export async function resolvePublicMediaUrls(
+  values: string[]
+): Promise<string[]> {
+  if (values.length === 0) return [];
+
+  const resolved = await Promise.all(
+    values.map(function (value) {
+      return resolvePublicMediaUrl(value);
+    })
+  );
+
+  return resolved.filter(function (value): value is string {
+    return typeof value === "string" && value.trim().length > 0;
+  });
+}
+
+export async function resolvePublicMediaUrl(
+  value: string | null | undefined,
+  options?: { force?: boolean }
+): Promise<string | null> {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
   if (!shouldResolvePublicR2Url(trimmed)) return trimmed;
 
-  const cached = mediaUrlCache.get(trimmed);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.value;
+  const cacheKey = mediaCacheKey(trimmed);
+  if (!options?.force) {
+    const cached = mediaUrlCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
   }
+
   let response: Response;
   try {
     response = await fetch(
@@ -44,26 +79,26 @@ export async function resolvePublicMediaUrl(value: string | null | undefined): P
       }
     );
   } catch {
-    return trimmed;
+    return null;
   }
   if (!response.ok) {
-    return trimmed;
+    return null;
   }
 
   try {
     const payload = (await response.json()) as { url?: unknown };
     if (typeof payload.url === "string" && payload.url.trim().length > 0) {
-      mediaUrlCache.set(trimmed, {
+      mediaUrlCache.set(cacheKey, {
         value: payload.url,
         expiresAt: Date.now() + MEDIA_URL_CACHE_TTL_MS,
       });
       return payload.url;
     }
   } catch {
-    return trimmed;
+    return null;
   }
 
-  return trimmed;
+  return null;
 }
 
 export async function resolveProfileMediaUrls<T extends ResolveMediaProfile>(profile: T): Promise<T> {

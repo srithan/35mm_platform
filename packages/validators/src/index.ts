@@ -32,8 +32,9 @@ export var createPostSchema = z.object({
         altText: z.string().max(300).optional(),
       })
     )
-    .max(4)
+    .max(9)
     .optional(),
+  mediaUrls: z.array(z.string().min(1).max(1000)).max(9).optional(),
 });
 
 export var sendMessageSchema = z.object({

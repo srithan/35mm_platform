@@ -1,11 +1,13 @@
 "use client";
 
 import type { Post } from "../types/feed";
+import { ApiRequestError } from "../api/http";
 import { useComments } from "../hooks/useComments";
 import { usePost } from "../hooks/usePost";
 import { CommentSection } from "./CommentSection";
 import { PostCard } from "./PostCard";
 import { PostPageBackButton } from "./PostPageBackButton";
+import { resolvePostImageUrls } from "../utils/postMedia";
 
 type LegacyPostShape = {
   variant?: "text" | "film-log" | "image" | "discussion";
@@ -62,12 +64,30 @@ export function PostDetailView({
   username: string;
   postId: string;
 }) {
-  const { data: post, isLoading: postLoading, isError: postError } = usePost(username, postId);
+  const { data: post, isLoading: postLoading, isError: postError, error: postQueryError } = usePost(username, postId);
   const commentsQuery = useComments(postId);
   const comments = commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [];
   const commentsHasMore = Boolean(commentsQuery.hasNextPage);
 
   if (postLoading) return <PostDetailSkeleton />;
+
+  if (postError) {
+    if (postQueryError instanceof ApiRequestError && postQueryError.code === "BLOCKED") {
+      const blockedByYou = postQueryError.message.startsWith("BLOCKED_BY_YOU:");
+      return (
+        <div className="mx-auto mt-16 w-full max-w-[640px] rounded-2xl border border-border bg-bg px-6 py-10 text-center">
+          <h2 className="text-lg font-semibold text-fg">
+            {blockedByYou ? "You've blocked this account" : "You're blocked"}
+          </h2>
+          <p className="mt-2 text-sm text-fg-muted">
+            {blockedByYou
+              ? "Unblock them in Settings to view this post."
+              : "This account has blocked you."}
+          </p>
+        </div>
+      );
+    }
+  }
 
   if (postError || !post) {
     return (
@@ -112,7 +132,7 @@ export function PostDetailView({
         filmRef={legacy.filmRef ?? undefined}
         filmCard={legacy.filmCard ?? filmCard}
         attachedFilm={post.film}
-        mediaUrls={post.mediaUrls}
+        mediaUrls={resolvePostImageUrls(post)}
         linkPreview={post.linkPreview}
         imageSrc={legacy.imageSrc ?? image?.url}
         imageCaption={legacy.imageCaption ?? image?.altText}

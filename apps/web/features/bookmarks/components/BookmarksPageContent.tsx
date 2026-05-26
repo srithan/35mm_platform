@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { PostCard } from "@/features/feed/components/PostCard";
+import { resolvePostImageUrls } from "@/features/feed/utils/postMedia";
 import { useBookmarks } from "../hooks/useBookmarks";
 import type { Post } from "@/features/feed/types/feed";
 
@@ -81,7 +82,7 @@ export function BookmarksPageContent() {
             text={post.body}
             filmCard={filmCard}
             attachedFilm={post.film}
-            mediaUrls={post.mediaUrls}
+            mediaUrls={resolvePostImageUrls(post)}
             linkPreview={post.linkPreview}
             imageSrc={image?.url}
             imageCaption={image?.altText}

@@ -50,16 +50,36 @@ function configuredR2HostAndPath(): { host: string; path: string } {
   };
 }
 
-function extractObjectKeyFromUrl(urlString: string): string | null {
-  var publicConfig = configuredR2HostAndPath();
-  if (!publicConfig.host) return null;
+function extractObjectKeyFromPathStyleR2Url(parsed: URL): string | null {
+  if (!parsed.host.toLowerCase().endsWith(".r2.cloudflarestorage.com")) {
+    return null;
+  }
 
+  var path = trimLeadingSlash(trimTrailingSlash(parsed.pathname));
+  if (!path) return null;
+
+  var bucket = getBucketName();
+  var bucketPrefix = trimLeadingSlash(bucket + "/");
+  if (path.startsWith(bucketPrefix)) {
+    return path.slice(bucketPrefix.length);
+  }
+
+  return null;
+}
+
+function extractObjectKeyFromUrl(urlString: string): string | null {
   var parsed: URL;
   try {
     parsed = new URL(urlString);
   } catch (_err) {
     return null;
   }
+
+  var pathStyleKey = extractObjectKeyFromPathStyleR2Url(parsed);
+  if (pathStyleKey) return pathStyleKey;
+
+  var publicConfig = configuredR2HostAndPath();
+  if (!publicConfig.host) return null;
 
   if (parsed.host.toLowerCase() !== publicConfig.host) return null;
 

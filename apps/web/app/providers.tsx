@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
+import { FlashToastHost } from "@/components/FlashToast";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
+        <FlashToastHost />
         {children}
         {process.env.NODE_ENV === "development" ? (
           <ReactQueryDevtools initialIsOpen={false} />

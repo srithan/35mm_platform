@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useFeed } from "../hooks/useFeed";
 import type { Post } from "../types/feed";
 import { PostCard } from "./PostCard";
+import { resolvePostImageUrls } from "../utils/postMedia";
 
 type PostVariant = "text" | "film-log" | "image" | "discussion";
 
@@ -54,6 +55,7 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
   return (
     <div>
       {posts.map((post, i) => {
+        const resolvedMediaUrls = resolvePostImageUrls(post);
         const image = post.media.find((item) => item.type === "image");
         const filmCard = post.film
           ? {
@@ -82,7 +84,7 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
             text={post.body}
             filmCard={filmCard}
             attachedFilm={post.film}
-            mediaUrls={post.mediaUrls}
+            mediaUrls={resolvedMediaUrls}
             linkPreview={post.linkPreview}
             imageSrc={image?.url}
             imageCaption={image?.altText}

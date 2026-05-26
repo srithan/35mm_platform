@@ -2,6 +2,7 @@ import { useAuth } from "@clerk/nextjs";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createComment, deleteComment, updateComment } from "../api/commentsApi";
+import { showGlobalFlashToast } from "@/components/FlashToast";
 import type { Comment } from "../types/feed";
 import { feedKeys } from "./queryKeys";
 
@@ -157,6 +158,10 @@ export function useDeleteComment(postId: string) {
       if (context?.previous) {
         queryClient.setQueryData(feedKeys.comments(postId), context.previous);
       }
+      showGlobalFlashToast("Could not delete comment", "error");
+    },
+    onSuccess: function () {
+      showGlobalFlashToast("Comment deleted");
     },
     onSettled: function () {
       queryClient.invalidateQueries({ queryKey: feedKeys.comments(postId) });

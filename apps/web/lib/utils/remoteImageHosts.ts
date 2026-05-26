@@ -1,6 +1,6 @@
 /** Hosts that block or challenge Next.js image optimization fetches (e.g. Cloudflare). */
 const UNOPTIMIZED_REMOTE_IMAGE_HOSTS = new Set(["cdn.theplaylist.net"]);
-const UNOPTIMIZED_REMOTE_IMAGE_HOST_SUFFIXES = [".r2.dev"];
+const UNOPTIMIZED_REMOTE_IMAGE_HOST_SUFFIXES = [".r2.dev", ".r2.cloudflarestorage.com"];
 
 export function shouldLoadRemoteImageUnoptimized(src: string): boolean {
   try {

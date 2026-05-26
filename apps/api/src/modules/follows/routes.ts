@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { feedItems, follows, posts, profiles, users } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import { assertNoBlockBetween } from "../../lib/moderation.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 
@@ -45,6 +46,7 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
   }
 
   await assertTargetExists(followingId);
+  await assertNoBlockBetween(user.userId, followingId);
   var targetIsPrivate = await isPrivateAccount(followingId);
 
   var db = getDb();

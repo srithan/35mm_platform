@@ -17,6 +17,7 @@ import {
 import type { FeedPage, Post } from "../types/feed";
 import { feedKeys } from "./queryKeys";
 import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
+import { showGlobalFlashToast } from "@/components/FlashToast";
 
 type FeedCacheSnapshot = Array<[readonly unknown[], InfiniteData<FeedPage> | undefined]>;
 
@@ -302,8 +303,10 @@ export function useDeletePost() {
       restoreFeedCaches(queryClient, context.snapshot);
       queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
       queryClient.setQueryData(feedKeys.comments(input.postId), context.previousComments);
+      showGlobalFlashToast("Could not delete post", "error");
     },
     onSuccess: function (_data, input) {
+      showGlobalFlashToast("Post deleted");
       queryClient.removeQueries({ queryKey: feedKeys.post(input.postId) });
       queryClient.removeQueries({ queryKey: feedKeys.comments(input.postId) });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });

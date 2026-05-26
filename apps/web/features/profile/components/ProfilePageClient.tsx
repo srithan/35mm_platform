@@ -126,6 +126,7 @@ export function ProfilePageClient({ username }: ProfilePageClientProps) {
           filmsLoggedCount={profile.filmsLoggedCount ?? 0}
           isFollowing={profile.isFollowing}
           isFollowRequested={profile.isFollowRequested}
+          isMutedByViewer={Boolean(profile.isMutedByViewer)}
         />
       </ProfileScrollChrome>
       {isPrivateGate ? (

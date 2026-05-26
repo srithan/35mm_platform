@@ -201,14 +201,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const gifBtnRef = useRef<HTMLButtonElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
-  const modeTabsPillRef = useRef<HTMLDivElement>(null);
-  const modeTabBtnRefs = useRef<
-    Partial<Record<ComposerMode, HTMLButtonElement | null>>
-  >({});
-  const [modeTabIndicator, setModeTabIndicator] = useState<{
-    left: number;
-    width: number;
-  } | null>(null);
   const activeText = mode === "discussion" ? discussionText : mode === "log" ? logText : writeText;
   const debouncedActiveText = useDebounce(activeText, 500);
   const hasVisibleQuotedPost = useMemo(() => {
@@ -218,20 +210,30 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     const text = quotedPost.text?.trim() ?? "";
     return name.length > 0 || handle.length > 0 || text.length > 0;
   }, [quotedPost]);
+  const resolvedExistingMediaUrls = useMemo(
+    function () {
+      if (existingMediaUrls.length > 0) return existingMediaUrls;
+      if (editingPost?.mediaUrls && editingPost.mediaUrls.length > 0) {
+        return editingPost.mediaUrls;
+      }
+      return [];
+    },
+    [existingMediaUrls, editingPost]
+  );
   const existingVideoUrl = useMemo(
-    () => existingMediaUrls.find(isVideoMediaUrl) ?? null,
-    [existingMediaUrls]
+    () => resolvedExistingMediaUrls.find(isVideoMediaUrl) ?? null,
+    [resolvedExistingMediaUrls]
   );
   const existingGifMediaUrl = useMemo(
-    () => existingMediaUrls.find(isGifMediaUrl) ?? null,
-    [existingMediaUrls]
+    () => resolvedExistingMediaUrls.find(isGifMediaUrl) ?? null,
+    [resolvedExistingMediaUrls]
   );
   const existingImageUrls = useMemo(
     () =>
-      existingMediaUrls.filter(function (url) {
+      resolvedExistingMediaUrls.filter(function (url) {
         return !isVideoMediaUrl(url) && !isGifMediaUrl(url);
       }),
-    [existingMediaUrls]
+    [resolvedExistingMediaUrls]
   );
 
   function extractFirstUrl(value: string): string | null {
@@ -338,6 +340,13 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     return "Post";
   }, [editingPost, mode, isReview]);
 
+  const modeTabIndex = useMemo(function () {
+    var index = MODE_TABS.findIndex(function (tab) {
+      return tab.id === mode;
+    });
+    return index >= 0 ? index : 0;
+  }, [mode]);
+
   const isDirty = useMemo(
     () =>
       writeText.trim().length > 0 ||
@@ -418,6 +427,16 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const postInToolbar = postPrimaryPlacement === "toolbar";
   const fixedMobileToolbar =
     isFullPage && postPrimaryPlacement === "header";
+  const hasComposerMedia =
+    images.length > 0 ||
+    existingImageUrls.length > 0 ||
+    existingVideoUrl != null ||
+    existingGifMediaUrl != null ||
+    showDropZone ||
+    videoFile != null ||
+    gifUrl != null ||
+    youtubeVideoId != null;
+  const compactComposeBody = hasComposerMedia && !isFullPage;
 
   function focusWriteTextarea() {
     var ta = writeTextareaRef.current;
@@ -450,44 +469,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       }
     },
     [mode, fixedMobileToolbar]
-  );
-
-  /** Pill highlight position — layout-driven (not ref callbacks) so it matches modal and avoids opacity/transition fighting React re-renders. */
-  useLayoutEffect(
-    function () {
-      function measure() {
-        var pill = modeTabsPillRef.current;
-        var btn = modeTabBtnRefs.current[mode];
-        if (!pill || !btn) return;
-        var pr = pill.getBoundingClientRect();
-        var br = btn.getBoundingClientRect();
-        var left = br.left - pr.left + pill.scrollLeft;
-        var width = br.width;
-        setModeTabIndicator(function (prev) {
-          if (
-            prev &&
-            Math.abs(prev.left - left) < 0.5 &&
-            Math.abs(prev.width - width) < 0.5
-          ) {
-            return prev;
-          }
-          return { left: left, width: width };
-        });
-      }
-      measure();
-      var pillEl = modeTabsPillRef.current;
-      if (!pillEl || typeof ResizeObserver === "undefined") {
-        return undefined;
-      }
-      var ro = new ResizeObserver(function () {
-        measure();
-      });
-      ro.observe(pillEl);
-      return function () {
-        ro.disconnect();
-      };
-    },
-    [mode]
   );
 
   useEffect(
@@ -1071,50 +1052,34 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   "flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
           )}
         >
-        <div
-          ref={modeTabsPillRef}
-          className="relative inline-flex w-max max-w-full rounded-full border border-border bg-sunken p-1.5"
-        >
+        <div className="relative inline-grid w-max max-w-full grid-cols-3 gap-1 rounded-full border border-border bg-sunken p-1">
           <div
-            className="pointer-events-none absolute z-0 rounded-full border border-border bg-elevated shadow-sm transition-[left,width] duration-200 ease-out top-1.5 bottom-1.5"
-            style={
-              modeTabIndicator
-                ? {
-                    left: modeTabIndicator.left,
-                    width: modeTabIndicator.width,
-                    opacity: 1,
-                  }
-                : { left: 0, width: 0, opacity: 0 }
-            }
+            className="pointer-events-none absolute inset-y-1 z-0 rounded-full border border-border bg-elevated shadow-sm transition-transform duration-200 ease-out"
+            style={{
+              width: "calc((100% - 0.5rem) / 3)",
+              transform: "translateX(calc(" + modeTabIndex + " * (100% + 0.25rem)))",
+            }}
             aria-hidden
           />
 
-          <div className="relative z-10 flex items-center gap-1.5">
-            {MODE_TABS.map((tab) => {
-              const isActive = mode === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  ref={function (el) {
-                    modeTabBtnRefs.current[tab.id] = el;
-                  }}
-                  onClick={() => setMode(tab.id)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "relative flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-transparent px-4 py-2 text-[13px] font-medium transition-colors",
-                    isActive
-                      ? "text-fg font-semibold"
-                      : "text-fg-muted hover:bg-hover hover:text-fg"
-                  )}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
+          {MODE_TABS.map((tab) => {
+            const isActive = mode === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setMode(tab.id)}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-medium transition-colors",
+                  isActive ? "text-fg" : "text-fg-muted hover:text-fg"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
         {isModal && onClose && (
@@ -1167,7 +1132,16 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   </span>
                 </div>
               )}
-              <div className={cn("relative", isFullPage ? "min-h-0" : "min-h-[140px]")}>
+              <div
+                className={cn(
+                  "relative",
+                  isFullPage
+                    ? "min-h-0"
+                    : compactComposeBody
+                      ? "min-h-[3rem]"
+                      : "min-h-[140px]"
+                )}
+              >
                 {writeText.length > 0 ? (
                   <div
                     ref={writeOverlayRef}
@@ -1179,8 +1153,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                           ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] text-[20px] font-normal leading-[1.35] tracking-[-0.02em]"
                           : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45] tracking-[-0.015em]"
                         : isModal
-                          ? "text-[19px] font-semibold leading-relaxed min-h-[170px]"
-                          : "text-[19px] font-semibold leading-relaxed min-h-[140px]"
+                          ? compactComposeBody
+                            ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
+                            : "min-h-[170px] text-[19px] font-semibold leading-relaxed"
+                          : compactComposeBody
+                            ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
+                            : "min-h-[140px] text-[19px] font-semibold leading-relaxed"
                     )}
                   >
                     {renderComposerRichText(writeText)}
@@ -1228,8 +1206,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                         ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] resize-none text-[20px] font-normal leading-[1.35] tracking-[-0.02em] [-webkit-tap-highlight-color:transparent] overflow-y-auto"
                         : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45] tracking-[-0.015em] [-webkit-tap-highlight-color:transparent] overflow-y-auto"
                       : isModal
-                        ? "text-[19px] font-semibold leading-relaxed min-h-[170px]"
-                        : "text-[19px] font-semibold leading-relaxed min-h-[140px]"
+                        ? compactComposeBody
+                          ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
+                          : "min-h-[170px] text-[19px] font-semibold leading-relaxed"
+                        : compactComposeBody
+                          ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
+                          : "min-h-[140px] text-[19px] font-semibold leading-relaxed"
                   )}
                   style={{ caretColor: "var(--accent)" }}
                 />
@@ -1368,7 +1350,16 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   className="w-full text-[19px] font-semibold text-fg bg-transparent border-none outline-none placeholder:text-fg-muted placeholder:font-normal absolute inset-0"
                 />
               </div>
-              <div className={cn("relative", isFullPage ? "min-h-[3rem]" : "min-h-[140px]")}>
+              <div
+                className={cn(
+                  "relative",
+                  isFullPage
+                    ? "min-h-[3rem]"
+                    : compactComposeBody
+                      ? "min-h-[3rem]"
+                      : "min-h-[140px]"
+                )}
+              >
                 <textarea
                   ref={discussionTextareaRef}
                   value={discussionText}
@@ -1382,10 +1373,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   onPaste={(e) => handlePaste(e, "discussion")}
                   placeholder="Add more context… (optional)"
                   className={cn(
-                    "w-full resize-none border-none outline-none bg-transparent placeholder:text-fg-muted mt-2 text-fg",
+                    "mt-2 w-full resize-none border-none bg-transparent text-fg outline-none placeholder:text-fg-muted",
                     isFullPage
                       ? "min-h-[3rem] text-[17px] font-normal leading-relaxed"
-                      : "text-[16px] font-light leading-relaxed min-h-[140px]"
+                      : compactComposeBody
+                        ? "min-h-[3rem] text-[16px] font-light leading-relaxed"
+                        : "min-h-[140px] text-[16px] font-light leading-relaxed"
                   )}
                   style={{ caretColor: "var(--accent)" }}
                 />

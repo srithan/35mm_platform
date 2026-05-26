@@ -20,6 +20,7 @@ interface ProfileHeaderProps {
   displayName: string;
   bio: string;
   isOwnProfile?: boolean;
+  isMutedByViewer?: boolean;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
@@ -38,6 +39,7 @@ export function ProfileHeader({
   displayName: initialDisplayName,
   bio: initialBio,
   isOwnProfile = false,
+  isMutedByViewer: initialIsMutedByViewer = false,
   location: initialLocation = "",
   website: initialWebsite = "",
   dateOfBirth: initialDateOfBirth = "",
@@ -51,7 +53,8 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [isFollowRequested, setIsFollowRequested] = useState(initialIsFollowRequested);
-  const [confirmAction, setConfirmAction] = useState<"block" | "report" | "mute" | null>(null);
+  const [isMutedByViewer, setIsMutedByViewer] = useState(initialIsMutedByViewer);
+  const [confirmAction, setConfirmAction] = useState<"block" | "report" | "mute" | "unmute" | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(initialAvatarUrl);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -86,6 +89,10 @@ export function ProfileHeader({
     setIsFollowRequested(initialIsFollowRequested);
   }, [initialIsFollowing, initialIsFollowRequested]);
 
+  useEffect(() => {
+    setIsMutedByViewer(initialIsMutedByViewer);
+  }, [initialIsMutedByViewer]);
+
   const handleAvatarChange = (imageUrl: string | null) => {
     setProfileImage(imageUrl);
     onAvatarUrlChange?.(imageUrl);
@@ -105,6 +112,11 @@ export function ProfileHeader({
       title: `Mute @${username}?`,
       description: `Their posts won't appear in your feed but they can still follow you and see your content.`,
       confirmLabel: `Mute @${username}`,
+    },
+    unmute: {
+      title: `Unmute @${username}?`,
+      description: `Their posts will appear in your feed again.`,
+      confirmLabel: `Unmute @${username}`,
     },
   };
 
@@ -202,9 +214,9 @@ export function ProfileHeader({
                     },
                     {
                       id: "mute",
-                      label: `Mute @${username}`,
+                      label: isMutedByViewer ? `Unmute @${username}` : `Mute @${username}`,
                       icon: <VolumeX className="w-4 h-4" strokeWidth={1.8} />,
-                      onSelect: () => setConfirmAction("mute"),
+                      onSelect: () => setConfirmAction(isMutedByViewer ? "unmute" : "mute"),
                     },
                     {
                       id: "block",
@@ -255,7 +267,19 @@ export function ProfileHeader({
             if (confirmAction === "block") {
               blockMutation.mutate({ userId, blocked: false });
             } else if (confirmAction === "mute") {
-              muteMutation.mutate({ userId, muted: false });
+              muteMutation.mutate(
+                { userId, muted: false },
+                {
+                  onSuccess: () => setIsMutedByViewer(true),
+                }
+              );
+            } else if (confirmAction === "unmute") {
+              muteMutation.mutate(
+                { userId, muted: true },
+                {
+                  onSuccess: () => setIsMutedByViewer(false),
+                }
+              );
             }
             setConfirmAction(null);
           }}
@@ -263,7 +287,7 @@ export function ProfileHeader({
           description={confirmConfig[confirmAction].description}
           confirmLabel={confirmConfig[confirmAction].confirmLabel}
           cancelLabel="Cancel"
-          variant="danger"
+          variant={confirmAction === "block" || confirmAction === "report" ? "danger" : "default"}
         />
       )}
       <ShareModal

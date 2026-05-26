@@ -21,6 +21,7 @@ export interface PublicProfile {
   isFollowing: boolean;
   isFollowRequested?: boolean;
   isPrivate?: boolean;
+  isMutedByViewer?: boolean;
   posts?: null;
   isDeactivated: boolean;
   createdAt?: string;

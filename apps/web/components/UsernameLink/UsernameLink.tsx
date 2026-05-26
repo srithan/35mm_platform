@@ -17,7 +17,7 @@ import {
 } from "@/features/profile/api/profileApi";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
-import { useFollowToggle, usePublicProfile } from "@/features/profile/hooks/useProfile";
+import { useFollowToggle, useMuteUserMutation, usePublicProfile } from "@/features/profile/hooks/useProfile";
 
 const PROFILE_POPOVER_SHOW_DELAY_MS = 520;
 const PROFILE_POPOVER_SCROLL_SUPPRESS_MS = 650;
@@ -118,6 +118,7 @@ function ProfilePopover(props: {
   const profile = profileQuery.data;
   const currentUserQuery = useCurrentUserProfile();
   const followToggle = useFollowToggle(props.username);
+  const muteMutation = useMuteUserMutation();
 
   const isOwnProfile =
     Boolean(currentUserQuery.data?.username) &&
@@ -141,6 +142,12 @@ function ProfilePopover(props: {
       : profile?.isFollowRequested
         ? "Requested"
         : "Follow";
+
+  const muteLabel = muteMutation.isPending
+    ? "..."
+    : profile?.isMutedByViewer
+      ? "Unmute"
+      : "Mute";
 
   return (
     <div
@@ -193,32 +200,51 @@ function ProfilePopover(props: {
           <ProfilePopoverStat value={followersCount} label="followers" />
           <ProfilePopoverStat value={followingCount} label="following" />
         </div>
-        <div className={cn("mt-3 grid gap-2", isOwnProfile ? "grid-cols-1" : "grid-cols-2")}>
+        <div className={cn("mt-3 grid gap-2", isOwnProfile ? "grid-cols-1" : "grid-cols-3")}>
           {!isOwnProfile && profile?.userId ? (
-            <button
-              type="button"
-              disabled={followToggle.isPending}
-              onClick={function () {
-                if (followToggle.isPending || !profile?.userId) return;
-                followToggle.mutate({
-                  userId: profile.userId,
-                  isFollowing: Boolean(profile.isFollowing),
-                  isFollowRequested: Boolean(profile.isFollowRequested),
-                });
-              }}
-              className={cn(
-                "h-8 rounded-md border px-3 text-center text-[12px] font-bold transition-colors disabled:opacity-60",
-                profile.isFollowing || profile.isFollowRequested
-                  ? "border-neutral-300 bg-white text-neutral-950 hover:bg-neutral-100"
-                  : "border-black bg-black text-white hover:opacity-85"
-              )}
-            >
-              {followLabel}
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={followToggle.isPending}
+                onClick={function () {
+                  if (followToggle.isPending || !profile?.userId) return;
+                  followToggle.mutate({
+                    userId: profile.userId,
+                    isFollowing: Boolean(profile.isFollowing),
+                    isFollowRequested: Boolean(profile.isFollowRequested),
+                  });
+                }}
+                className={cn(
+                  "h-8 rounded-md border px-2 text-center text-[11px] font-bold transition-colors disabled:opacity-60",
+                  profile.isFollowing || profile.isFollowRequested
+                    ? "border-neutral-300 bg-white text-neutral-950 hover:bg-neutral-100"
+                    : "border-black bg-black text-white hover:opacity-85"
+                )}
+              >
+                {followLabel}
+              </button>
+              <button
+                type="button"
+                disabled={muteMutation.isPending}
+                onClick={function () {
+                  if (muteMutation.isPending || !profile?.userId) return;
+                  muteMutation.mutate({
+                    userId: profile.userId,
+                    muted: Boolean(profile.isMutedByViewer),
+                  });
+                }}
+                className="h-8 rounded-md border border-neutral-300 bg-white px-2 text-center text-[11px] font-bold text-neutral-950 transition-colors hover:bg-neutral-100 disabled:opacity-60"
+              >
+                {muteLabel}
+              </button>
+            </>
           ) : null}
           <Link
             href={props.linkHref}
-            className="flex h-8 items-center justify-center rounded-md border border-black bg-white px-3 text-center text-[12px] font-bold text-black no-underline transition-colors hover:bg-neutral-100"
+            className={cn(
+              "flex h-8 items-center justify-center rounded-md border border-black bg-white px-2 text-center text-[11px] font-bold text-black no-underline transition-colors hover:bg-neutral-100",
+              isOwnProfile ? "col-span-1" : "col-span-1"
+            )}
           >
             View Profile
           </Link>

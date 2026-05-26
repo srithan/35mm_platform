@@ -4,6 +4,8 @@ import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { feedKeys } from "@/features/feed/hooks/queryKeys";
+import { privacyKeys } from "@/features/settings/hooks/queryKeys";
+import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
 import {
   fetchPublicProfile,
   followUser,
@@ -133,9 +135,14 @@ export function useBlockUserMutation() {
         await blockUser(input.userId, token);
       }
     },
-    onSuccess: function () {
+    onSuccess: function (_data, input) {
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
       queryClient.invalidateQueries({ queryKey: profileKeys.all });
+      queryClient.invalidateQueries({ queryKey: privacyKeys.blocks() });
+      queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
+      if (!input.blocked) {
+        queryClient.invalidateQueries({ queryKey: privacyKeys.mutes() });
+      }
     },
   });
 }
@@ -155,6 +162,9 @@ export function useMuteUserMutation() {
     },
     onSuccess: function () {
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
+      queryClient.invalidateQueries({ queryKey: privacyKeys.mutes() });
+      queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
     },
   });
 }

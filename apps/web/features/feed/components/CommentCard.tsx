@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils/cn";
 import { RichPostInline } from "@/lib/utils/richPostText";
 import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
 import { useDeleteComment, useUpdateComment } from "../hooks/useCommentMutations";
-import { Share2, Flag, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Share2, Flag, MoreHorizontal, Pencil, Trash2, EyeOff, CircleSlash } from "lucide-react";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews } from "../utils/videoPreviews";
 
@@ -52,15 +53,24 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [truncatedText, setTruncatedText] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [muteToast, setMuteToast] = useState<{ handle: string; userId: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(comment.text);
   const currentUserQuery = useCurrentUserProfile();
   const deleteCommentMutation = useDeleteComment(postId);
   const updateCommentMutation = useUpdateComment(postId);
+  const blockUserMutation = useBlockUserMutation();
+  const muteUserMutation = useMuteUserMutation();
   const isOwnComment =
     Boolean(comment.authorId) &&
     Boolean(currentUserQuery.data?.userId) &&
     comment.authorId === currentUserQuery.data?.userId;
+  const canModerateAuthor =
+    Boolean(comment.authorId) &&
+    Boolean(currentUserQuery.data?.userId) &&
+    comment.authorId !== currentUserQuery.data?.userId;
+  const authorHandle = `@${comment.username}`;
   const hasReplies = comment.replies && comment.replies.length > 0;
   const threadLevel = Math.min(depth, 6);
   const threadInsetPx = threadLevel * 6;
@@ -201,13 +211,47 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
           },
         ]
       : [
+          ...(canModerateAuthor && comment.authorId
+            ? [
+                {
+                  id: "mute-user",
+                  label: `Mute ${authorHandle}`,
+                  description: "Hide their posts from your feed",
+                  icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
+                  dividerBefore: true,
+                  onSelect: function () {
+                    muteUserMutation.mutate(
+                      { userId: comment.authorId as string, muted: false },
+                      {
+                        onSuccess: function () {
+                          setMuteToast({
+                            handle: authorHandle,
+                            userId: comment.authorId as string,
+                          });
+                        },
+                      }
+                    );
+                  },
+                },
+                {
+                  id: "block-user",
+                  label: `Block ${authorHandle}`,
+                  description: "Remove and prevent interaction",
+                  icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
+                  danger: true,
+                  onSelect: function () {
+                    setShowBlockConfirm(true);
+                  },
+                },
+              ]
+            : []),
           {
             id: "report",
             label: "Report comment",
             description: "Flag a safety concern",
             icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
             danger: true,
-            dividerBefore: true,
+            dividerBefore: !canModerateAuthor,
           },
         ]),
   ];
@@ -482,7 +526,7 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
         onConfirm={function () {
           if (deleteCommentMutation.isPending) return;
           deleteCommentMutation.mutate(comment.id, {
-            onSettled: function () {
+            onSuccess: function () {
               setShowDeleteConfirm(false);
             },
           });
@@ -493,6 +537,39 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
         cancelLabel="Cancel"
         variant="danger"
       />
+      <ConfirmDialog
+        open={showBlockConfirm}
+        onClose={function () {
+          setShowBlockConfirm(false);
+        }}
+        onConfirm={function () {
+          if (!comment.authorId || blockUserMutation.isPending) return;
+          blockUserMutation.mutate({ userId: comment.authorId, blocked: false });
+          setShowBlockConfirm(false);
+        }}
+        title={`Block ${authorHandle}?`}
+        description="They won't be able to see your profile, posts, or interact with you."
+        confirmLabel="Block"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
+      {muteToast ? (
+        <div className="pointer-events-auto fixed bottom-6 left-1/2 z-[120] flex -translate-x-1/2 items-center gap-3 rounded-full bg-fg px-4 py-2 text-xs font-medium text-bg shadow-lg">
+          <span>{muteToast.handle} muted</span>
+          <button
+            type="button"
+            className="border-none bg-transparent p-0 font-semibold text-bg underline underline-offset-2"
+            onClick={function () {
+              muteUserMutation.mutate(
+                { userId: muteToast.userId, muted: true },
+                { onSuccess: function () { setMuteToast(null); } }
+              );
+            }}
+          >
+            Undo
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

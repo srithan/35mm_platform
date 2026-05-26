@@ -12,10 +12,14 @@ import {
   postEdits,
   comments,
   films,
-  userBlocks,
-  userMutes,
 } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import {
+  assertCanInteractWithPost,
+  assertNoBlockBetween,
+  blockFiltersForAuthor,
+  notMutedByViewerSql,
+} from "../../lib/moderation.js";
 import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
 import { ApiError, badRequest, forbidden, notFound } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
@@ -335,33 +339,12 @@ async function toPostItem(row: {
 }) {
   var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
   var mediaItems = Array.isArray(row.media) ? row.media : [];
-  var resolvedMedia = await Promise.all(
-    mediaItems.map(async function (item) {
-      if (!item || typeof item !== "object") return null;
-      var urlValue = (item as { url?: unknown }).url;
-      if (typeof urlValue !== "string" || urlValue.trim().length === 0) {
-        return null;
-      }
-
-      var thumbnailValue = (item as { thumbnailUrl?: unknown }).thumbnailUrl;
-      var resolvedUrl = await resolvePublicMediaUrl(urlValue);
-      var resolvedThumbnailUrl = await resolvePublicMediaUrl(
-        typeof thumbnailValue === "string" ? thumbnailValue : null
-      );
-
-      return {
-        ...item,
-        url: resolvedUrl ?? urlValue,
-        ...(resolvedThumbnailUrl ? { thumbnailUrl: resolvedThumbnailUrl } : {}),
-      };
-    })
-  );
-  var resolvedMediaUrls = await Promise.all(
-    (row.mediaUrls ?? []).map(async function (url) {
-      var resolved = await resolvePublicMediaUrl(url);
-      return resolved ?? url;
-    })
-  );
+  var resolvedMedia = mediaItems.filter(function (item): item is NonNullable<typeof item> {
+    if (!item || typeof item !== "object") return false;
+    var urlValue = (item as { url?: unknown }).url;
+    return typeof urlValue === "string" && urlValue.trim().length > 0;
+  });
+  var resolvedMediaUrls = row.mediaUrls ?? [];
   var resolvedLinkPreviewImage = row.linkPreview?.image
     ? await resolvePublicMediaUrl(row.linkPreview.image)
     : null;
@@ -505,26 +488,32 @@ async function assertPostOwner(postId: string, userId: string) {
 }
 
 async function assertReadablePost(postId: string, viewerUserId: string | null) {
+  if (viewerUserId) {
+    var db = getDb();
+    var authorRows = await db
+      .select({ userId: posts.userId })
+      .from(posts)
+      .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+      .limit(1);
+
+    if (authorRows.length === 0) {
+      throw notFound("Post not found");
+    }
+
+    await assertNoBlockBetween(viewerUserId, authorRows[0].userId);
+  }
+
   var post = await getPostById(postId, viewerUserId);
   if (!post) throw notFound("Post not found");
   return post;
 }
 
 async function assertReadablePostForInteraction(postId: string, viewerUserId: string | null) {
-  void viewerUserId;
-  var db = getDb();
-  var rows = await db
-    .select({ id: posts.id })
-    .from(posts)
-    .where(
-      and(
-        eq(posts.id, postId),
-        eq(posts.isDeleted, false)
-      )
-    )
-    .limit(1);
+  if (!viewerUserId) {
+    throw forbidden("Authentication required");
+  }
 
-  if (rows.length === 0) throw notFound("Post not found");
+  await assertCanInteractWithPost(viewerUserId, postId);
 }
 
 feedRoutes.get("/", async function (c) {
@@ -543,9 +532,8 @@ feedRoutes.get("/", async function (c) {
       eq(posts.isDeleted, false),
       postVisibilitySql(viewer.userId),
       profileAccessSql(viewer.userId),
-      sql<boolean>`not exists(select 1 from ${userBlocks} where ${userBlocks.blockerId} = ${viewer.userId} and ${userBlocks.blockedId} = ${posts.userId})`,
-      sql<boolean>`not exists(select 1 from ${userBlocks} where ${userBlocks.blockerId} = ${posts.userId} and ${userBlocks.blockedId} = ${viewer.userId})`,
-      sql<boolean>`not exists(select 1 from ${userMutes} where ${userMutes.muterId} = ${viewer.userId} and ${userMutes.mutedId} = ${posts.userId})`,
+      ...blockFiltersForAuthor(viewer.userId, posts.userId),
+      notMutedByViewerSql(viewer.userId, posts.userId),
     ];
 
     var cursorFilter = compositeCursorSql(feedItems.createdAt, feedItems.id, cursor);
@@ -796,6 +784,11 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   }
 
   var profileRow = profileRows[0];
+
+  if (viewerUserId && viewerUserId !== profileRow.userId) {
+    await assertNoBlockBetween(viewerUserId, profileRow.userId);
+  }
+
   if (profileRow.isPrivate && viewerUserId !== profileRow.userId) {
     if (!viewerUserId) {
       throw new ApiError(403, "PRIVATE_ACCOUNT", "This account is private");
@@ -899,6 +892,8 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
     eq(posts.isDeleted, false),
     postVisibilitySql(user.userId),
     profileAccessSql(user.userId),
+    ...blockFiltersForAuthor(user.userId, posts.userId),
+    notMutedByViewerSql(user.userId, posts.userId),
   ];
   var cursorFilter = compositeCursorSql(postBookmarks.createdAt, postBookmarks.postId, cursor);
   if (cursorFilter) filters.push(cursorFilter);
@@ -1295,6 +1290,9 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
 
   var db = getDb();
   var filters: any[] = [eq(comments.postId, postId)];
+  if (viewer) {
+    filters.push(...blockFiltersForAuthor(viewer.userId, comments.userId));
+  }
   var cursorFilter = compositeCursorSql(comments.createdAt, comments.id, cursor);
   if (cursorFilter) filters.push(cursorFilter);
 
