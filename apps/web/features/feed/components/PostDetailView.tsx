@@ -141,6 +141,7 @@ export function PostDetailView({
         linkPreview={post.linkPreview}
         imageSrc={legacy.imageSrc ?? image?.url}
         imageCaption={legacy.imageCaption ?? image?.altText}
+        media={post.media}
         likeCount={post.likeCount}
         liked={legacy.liked ?? post.isLiked}
         reposted={post.isReposted}

@@ -107,8 +107,10 @@ packages/config      → Shared TS config
 | Follows | ⬜ Does not exist yet |
 | Comments | ⬜ Does not exist yet |
 | Notifications | ⬜ Mock only |
-| BullMQ / Redis | ⬜ Worker is log-only stubs |
+| BullMQ / Redis | ⚠️ Wired for `media.process`; `feed.fanout` / `counter.increment` still stubs |
+| Worker daemon | ✅ Long-running BullMQ consumer (`35mm-jobs`) |
 | Ably realtime | ⬜ Noop transport stub |
 | Meilisearch | ⬜ Not wired |
 | Chat (backend) | ⚠️ 3 of ~10 routes, no auth |
+| Cloudflare Images | ⚠️ Optional delivery layer; R2 WebP variants are primary path |
 | Cloudflare Stream | ⬜ Not wired |

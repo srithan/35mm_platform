@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { createHash } from "node:crypto";
 import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { createPostSchema, cursorPaginationSchema } from "@35mm/validators";
 import {
@@ -40,11 +41,28 @@ import {
   profileFeedCacheKey,
   setFeedCache,
 } from "../../lib/feedCache.js";
+import { enqueueMediaProcessJob } from "../../lib/jobs.js";
+import { applyRateLimit, createRateLimitMiddleware, identifyByIp } from "../../lib/rateLimit.js";
 
 export var feedRoutes = new Hono();
 
+var createPostRateLimit = createRateLimitMiddleware({
+  keyPrefix: "feed:create",
+  limit: 20,
+  windowSeconds: 60,
+  identify: function (c) {
+    var user = c.get("user") as { userId?: string };
+    return typeof user.userId === "string" ? user.userId : null;
+  },
+});
+
 function isDbError(err: unknown): err is { code?: unknown; message?: unknown } {
   return err != null && typeof err === "object";
+}
+
+function weakEtag(input: unknown, prefix: string): string {
+  var digest = createHash("sha1").update(JSON.stringify(input)).digest("base64url");
+  return `W/"${prefix}-${digest}"`;
 }
 
 function toActionError(err: unknown): ApiError {
@@ -580,6 +598,13 @@ feedRoutes.get("/", async function (c) {
   var cursor = decodeCompositeCursor(parsed.cursor);
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var rateLimitResponse = await applyRateLimit(c, {
+    keyPrefix: "feed:read",
+    limit: 120,
+    windowSeconds: 60,
+    identifier: viewer?.userId ?? identifyByIp(c),
+  });
+  if (rateLimitResponse) return rateLimitResponse;
   var requestCursor = parsed.cursor ?? null;
 
   if (viewer) {
@@ -753,7 +778,7 @@ feedRoutes.get("/", async function (c) {
   return c.json(guestPayload);
 });
 
-feedRoutes.post("/", requireAuth, async function (c) {
+feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
   var user = c.get("user");
   var input = parseCreatePostInput(await c.req.json());
   var db = getDb();
@@ -846,6 +871,20 @@ feedRoutes.post("/", requireAuth, async function (c) {
     );
   }
 
+  var hasImageMedia = normalizedMedia.some(function (item) {
+    return item.type === "image";
+  });
+  if (hasImageMedia) {
+    try {
+      await enqueueMediaProcessJob({ postId });
+    } catch (error) {
+      console.error("[media-process] enqueue failed", {
+        postId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   await invalidateFeedAfterAuthorMutation({
     authorUserId: user.userId,
     includeFollowers: true,
@@ -932,6 +971,13 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   });
   var cached = await getFeedCache(cacheKey);
   if (cached) {
+    if (!viewerUserId) {
+      var cachedEtag = weakEtag(cached, `profile-posts-${username}`);
+      c.header("ETag", cachedEtag);
+      if (c.req.header("If-None-Match") === cachedEtag) {
+        return new Response(null, { status: 304 });
+      }
+    }
     c.header("X-Feed-Cache", "HIT");
     return c.json(cached);
   }
@@ -1007,6 +1053,13 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
     : null;
   var payload = { items, nextCursor, hasMore };
+  if (!viewerUserId) {
+    var etag = weakEtag(payload, `profile-posts-${username}`);
+    c.header("ETag", etag);
+    if (c.req.header("If-None-Match") === etag) {
+      return new Response(null, { status: 304 });
+    }
+  }
   await setFeedCache(cacheKey, payload, {
     viewerId: viewerUserId,
     authorUserId: profileRow.userId,

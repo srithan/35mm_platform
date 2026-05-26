@@ -79,9 +79,9 @@
 | File storage | Cloudflare R2 | ✅ Wired |
 | Video streaming | Cloudflare Stream | ⬜ Not yet wired |
 | Image optimization | Cloudflare Images | ⬜ Not yet wired |
-| Background jobs | BullMQ | ⬜ Worker stubs only |
-| Job queue broker | Upstash Redis | ⬜ Not yet wired |
-| Cache | Upstash Redis | ⬜ Not yet wired |
+| Background jobs | BullMQ | ⚠️ `media.process` live; fanout/counter/search jobs pending |
+| Job queue broker | Upstash Redis | ✅ Wired (`UPSTASH_REDIS_URL`) |
+| Cache | Upstash Redis | ✅ Wired for feed cache |
 | Realtime | Ably | ⬜ Not yet wired (noop transport) |
 | Search | Meilisearch | ⬜ Not yet wired |
 | Email | Resend | ⬜ Not yet wired |
@@ -388,21 +388,21 @@ Write path for a like:
 
 ## 7. Background Worker (`apps/worker`)
 
-### 7.1 Job Types (to implement with BullMQ + Upstash Redis)
+### 7.1 Job Types (BullMQ + Upstash Redis)
 
 | Job | Trigger | Action |
 |---|---|---|
-| `feed.fanout` | Post created | Push post to follower feed_items rows (< 10K followers) |
+| `feed.fanout` | Post created | Push post to follower feed_items rows (< 10K followers) *(stub handler today)* |
 | `notification.dispatch` | Like, comment, follow, mention | Insert notification row, push Ably event |
 | `notification.digest` | Cron (daily) | Bundle unread notifications, send Resend email |
-| `counter.increment` | Like, repost, bookmark, comment | Increment denormalized counter on posts/comments |
+| `counter.increment` | Like, repost, bookmark, comment | Increment denormalized counter on posts/comments *(stub handler today)* |
 | `counter.decrement` | Unlike, unrepost, unbookmark | Decrement counter |
 | `search.index` | Post/film/user created/updated | Index document in Meilisearch |
-| `media.process` | Upload complete | Trigger Cloudflare Images optimization |
+| `media.process` | Upload complete | Generate R2 `thumb/feed/full` WebP variants + blurhash, update `posts.media` |
 
 ### 7.2 Queue Config
 
-- Queue broker: Upstash Redis (connection via `@upstash/redis` or `ioredis`)
+- Queue broker: Upstash Redis (`UPSTASH_REDIS_URL`, Redis protocol)
 - Processor: BullMQ workers in `apps/worker`
 - Retry: exponential backoff, max 3 attempts
 - Dead letter queue: for failed jobs after retries
@@ -519,9 +519,15 @@ useMutation({
   - `full`: up to ~2048w WebP (viewer/post detail)
 - Metadata stored in `posts.media` JSON:
   - `key`, `variants`, `blurhash`, `width`, `height`, `thumbnailUrl`
+- Variant format status:
+  - primary: WebP (`thumb/feed/full`)
+  - AVIF generation: deferred (tracked follow-up)
 - Processing model:
   - `apps/worker` runs `media.process` job, generates variants + blurhash, updates `posts.media` and `posts.media_urls`
   - `apps/worker/src/scripts/backfillMedia.ts` handles idempotent historical backfill in cursor batches
+  - Run:
+    - `pnpm --filter @35mm/worker backfill:media`
+    - `pnpm --filter @35mm/worker backfill:media -- --dry-run --limit 200`
 
 ### 10.3 Feed Performance
 
@@ -550,10 +556,10 @@ useMutation({
   - `35mm-nav-*` (offline shell + navigation fallback)
   - `35mm-static-*` (Next static assets, scripts/styles/fonts/icons)
   - `35mm-image-*` (immutable CDN images: `*.r2.dev`, `*.imagedelivery.net`, `/images/*`)
-  - `35mm-api-*` (network-first cache for cacheable same-origin `GET /v1/*` responses)
-- API cache safety:
-  - skip cache when request has `Authorization` header
-  - skip cache when response `Cache-Control` is `private` or `no-store`
+- API cache branch removed (2026-05-26):
+  - Web app calls `NEXT_PUBLIC_API_URL` (cross-origin), so service worker cannot reliably intercept `/v1/*`
+  - Kept only nav/static/image caches to avoid false confidence
+  - If same-origin API proxy/rewrite is added later, reintroduce explicit API cache strategy
 
 ---
 
@@ -586,18 +592,19 @@ Current implementation (2026-05-26):
 - TTL: 60s, keyed by viewer + cursor + limit
 - Index sets track cache keys per viewer and per profile author for targeted invalidation
 - Response header `X-Feed-Cache: HIT|MISS` exposed for cache hit-rate measurement
+- Cache auto-disables when `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are missing
 - HTTP cache headers:
   - personalized feed: `Cache-Control: private, no-store`
   - guest profile-post feed: `Cache-Control: public, s-maxage=30, stale-while-revalidate=60`
 
 ### 11.3 Rate Limiting
 
-Every public-facing endpoint needs rate limiting via Upstash Redis (`@upstash/ratelimit`):
-- Feed: 60 req/min per IP
-- Post creation: 30 req/min per user
-- Like/bookmark: 120 req/min per user
-- Media presign: 20 req/min per user
-- Search: 30 req/min per IP
+Current enforced rate limits (Redis-backed fixed window):
+- `GET /v1/feed`: 120 req/min per user (auth) or per IP (guest)
+- `POST /v1/feed`: 20 req/min per user
+- `POST /v1/media/presign`: 20 req/min per user
+- Returns `429` with `Retry-After`
+- Skips limiter when `NODE_ENV=test` or `RATE_LIMIT_DISABLED=true`
 
 ### 11.4 API Response Targets
 
@@ -635,7 +642,7 @@ Meilisearch handles all search. Three indexes:
 4. **Denormalized counters** — add `like_count`, `comment_count`, `repost_count`, `bookmark_count` to `posts`
 5. **Post visibility** — add `visibility` column to `posts`
 6. **Soft deletes** — add `is_deleted` to `posts`, `comments`
-7. **BullMQ + Upstash Redis** — wire up `apps/worker`, implement `feed.fanout` and `counter.increment` jobs
+7. **Complete queue job set** — `media.process` is live; implement real `feed.fanout` and `counter.increment` handlers
 8. **Comments table** — needed for core social functionality
 9. **Notifications table** — needed for real-time notification bell
 10. **Ably wiring** — swap noop transport in `ChatRealtimeProvider`, add notification channel

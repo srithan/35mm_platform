@@ -7,8 +7,19 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { buildCfImagesVariantUrl } from "./cfImages.js";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "./url.js";
+import { createRateLimitMiddleware } from "../../lib/rateLimit.js";
 
 export var mediaRoutes = new Hono();
+
+var presignRateLimit = createRateLimitMiddleware({
+  keyPrefix: "media:presign",
+  limit: 20,
+  windowSeconds: 60,
+  identify: function (c) {
+    var user = c.get("user") as { userId?: string };
+    return typeof user.userId === "string" ? user.userId : null;
+  },
+});
 
 type MediaKind = "avatar" | "cover" | "post_media";
 
@@ -159,7 +170,7 @@ function createS3Client() {
   });
 }
 
-mediaRoutes.post("/presign", requireAuth, async function (c) {
+mediaRoutes.post("/presign", requireAuth, presignRateLimit, async function (c) {
   var user = c.get("user");
   var envError = isAuthorizedR2Configured();
   if (envError) {

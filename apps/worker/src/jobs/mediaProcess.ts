@@ -118,6 +118,12 @@ function needsVariantProcessing(item: PostMedia): boolean {
   return false;
 }
 
+export function postNeedsMediaProcessing(media: PostMedia[]): boolean {
+  return media.some(function (item) {
+    return needsVariantProcessing(item);
+  });
+}
+
 async function getObjectBytes(env: WorkerEnv, key: string): Promise<Uint8Array> {
   var response = await getS3Client(env).send(
     new GetObjectCommand({
@@ -319,6 +325,20 @@ async function fetchCandidateRows(limit: number): Promise<PostRow[]> {
     .limit(limit);
 }
 
+async function fetchRowByPostId(postId: string): Promise<PostRow | null> {
+  var db = getDb();
+  var rows = await db
+    .select({
+      id: posts.id,
+      media: posts.media,
+      mediaUrls: posts.mediaUrls,
+    })
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.isDeleted, false), sql`${posts.media} <> '[]'::jsonb`))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function processMediaRows(rows: PostRow[]): Promise<number> {
   var env = loadWorkerEnv();
   var updatedCount = 0;
@@ -347,4 +367,23 @@ export async function runMediaProcessJob() {
   }
   var updated = await processMediaRows(batch);
   console.log("[media-process] processed", batch.length, "posts,", updated, "updated");
+}
+
+export async function processPostById(postId: string): Promise<{
+  found: boolean;
+  changed: boolean;
+  skipped: boolean;
+}> {
+  var row = await fetchRowByPostId(postId);
+  if (!row) {
+    return { found: false, changed: false, skipped: true };
+  }
+
+  if (!postNeedsMediaProcessing(row.media)) {
+    return { found: true, changed: false, skipped: true };
+  }
+
+  var env = loadWorkerEnv();
+  var changed = await processPostRow(env, row);
+  return { found: true, changed, skipped: !changed };
 }

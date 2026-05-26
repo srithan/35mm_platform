@@ -357,6 +357,7 @@ function CommunityPostList({ slug, sortBy }: { slug: string; sortBy: CommunitySo
             filmCard={legacy.filmCard}
             imageSrc={legacy.imageSrc}
             imageCaption={legacy.imageCaption}
+            media={post.media}
             likeCount={post.likeCount}
             liked={legacy.liked ?? post.isLiked}
             commentCount={post.commentCount}

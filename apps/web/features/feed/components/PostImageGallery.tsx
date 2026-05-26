@@ -32,12 +32,14 @@ function cellClassName(count: number, index: number) {
 function PostGalleryImage({
   url,
   alt,
+  blurhash,
   className,
   shouldLoad = true,
   forceLoad = false,
 }: {
   url: string;
   alt: string;
+  blurhash?: string | null;
   className?: string;
   shouldLoad?: boolean;
   forceLoad?: boolean;
@@ -46,6 +48,7 @@ function PostGalleryImage({
     <LazyR2Image
       src={url}
       alt={alt}
+      blurhash={blurhash}
       className={className}
       containerClassName="absolute inset-0"
       rootMargin="200px"
@@ -59,11 +62,13 @@ function PostGalleryImage({
 
 function PostImageCarousel({
   urls,
+  blurhashes,
   imageCaption,
   onImageClick,
   saveData = false,
 }: {
   urls: string[];
+  blurhashes?: Array<string | null | undefined>;
   imageCaption?: string;
   onImageClick?: (index: number) => void;
   saveData?: boolean;
@@ -158,6 +163,7 @@ function PostImageCarousel({
               <PostGalleryImage
                 url={url}
                 alt={imageCaption || "Post image " + String(idx + 1)}
+                blurhash={blurhashes?.[idx] ?? null}
                 className="absolute inset-0 h-full w-full object-cover"
                 shouldLoad={shouldLoadImage}
                 forceLoad={shouldLoadImage}
@@ -236,10 +242,12 @@ function PostImageCarousel({
 
 function PostImageGrid({
   urls,
+  blurhashes,
   imageCaption,
   onImageClick,
 }: {
   urls: string[];
+  blurhashes?: Array<string | null | undefined>;
   imageCaption?: string;
   onImageClick?: (index: number) => void;
 }) {
@@ -264,6 +272,7 @@ function PostImageGrid({
             <PostGalleryImage
               url={url}
               alt={imageCaption || "Post image"}
+              blurhash={blurhashes?.[idx] ?? null}
               className={cn(
                 "absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-90",
                 count === 4 && "object-top"
@@ -278,11 +287,13 @@ function PostImageGrid({
 
 export function PostImageGallery({
   urls,
+  blurhashes,
   imageCaption,
   onImageClick,
   saveData = false,
 }: {
   urls: string[];
+  blurhashes?: Array<string | null | undefined>;
   imageCaption?: string;
   onImageClick?: (index: number) => void;
   saveData?: boolean;
@@ -294,12 +305,18 @@ export function PostImageGallery({
       {urls.length >= 5 ? (
         <PostImageCarousel
           urls={urls}
+          blurhashes={blurhashes}
           imageCaption={imageCaption}
           onImageClick={onImageClick}
           saveData={saveData}
         />
       ) : (
-        <PostImageGrid urls={urls} imageCaption={imageCaption} onImageClick={onImageClick} />
+        <PostImageGrid
+          urls={urls}
+          blurhashes={blurhashes}
+          imageCaption={imageCaption}
+          onImageClick={onImageClick}
+        />
       )}
       {imageCaption ? (
         <p className="mt-2 text-xs tracking-[0.02em] text-fg-muted">{imageCaption}</p>

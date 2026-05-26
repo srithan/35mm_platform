@@ -11,6 +11,7 @@ interface ImageViewerProps {
   onClose: () => void;
   src?: string;
   srcs?: string[];
+  blurhashes?: Array<string | null | undefined>;
   initialIndex?: number;
   alt?: string;
 }
@@ -26,6 +27,7 @@ export function ImageViewer({
   onClose,
   src,
   srcs,
+  blurhashes,
   initialIndex = 0,
   alt,
 }: ImageViewerProps) {
@@ -113,6 +115,7 @@ export function ImageViewer({
       <LazyR2Image
         key={currentUrl}
         src={currentUrl}
+        blurhash={blurhashes?.[activeIndex] ?? null}
         alt={alt ? alt + " " + String(activeIndex + 1) : "Full-size image " + String(activeIndex + 1)}
         forceLoad={open}
         loading="eager"

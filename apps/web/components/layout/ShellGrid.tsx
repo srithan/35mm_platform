@@ -12,8 +12,28 @@ import { ComposerModalProvider } from "@/components/layout/PostComposerModalCont
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { HomeSuggestionsSidebar } from "@/features/feed/components/HomeSuggestionsSidebar";
-import { isUsernameProfilePath } from "@/lib/utils/navigation";
 import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
+
+/** Inlined — imported helpers can go stale in Turbopack client bundles. */
+function isProfileShellPath(pathname: string): boolean {
+  const match = pathname.match(/^\/([^/]+)(?:\/(diary|lists|stats))?\/?$/);
+  if (!match) return false;
+  switch (match[1]) {
+    case "bookmarks":
+    case "discover":
+    case "drafts":
+    case "for-you":
+    case "new":
+    case "notifications":
+    case "settings":
+    case "title":
+    case "person":
+    case "profile":
+      return false;
+    default:
+      return true;
+  }
+}
 
 export function ShellGrid({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,7 +41,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const isTitlePage = Boolean(pathname?.startsWith("/title/"));
   const isHomePage = pathname === "/";
   const isProfileUsernamePage =
-    pathname != null ? isUsernameProfilePath(pathname) : false;
+    pathname != null ? isProfileShellPath(pathname) : false;
   const isDesktopLg = useIsDesktopLg();
 
   const isWideMainContent =

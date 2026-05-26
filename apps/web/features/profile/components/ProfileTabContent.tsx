@@ -1,8 +1,6 @@
 "use client";
 
-import { useQueryState } from "nuqs";
 import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
-import { UserCard } from "@/components/UserCard";
 import { StatBox } from "./StatBox";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { GenreBreakdown } from "./GenreBreakdown";
@@ -11,10 +9,10 @@ import { DiaryRow } from "./DiaryRow";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { formatCount } from "@/lib/utils/formatCount";
-import { MOCK_PROFILE_CONNECTIONS } from "@/features/profile/data/mockConnections";
 import { FavouriteFilms } from "./FavouriteFilms";
 import { useCurrentUserProfile } from "../hooks/useCurrentUserProfile";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
+import type { ProfileTab } from "@/features/profile/lib/profileRoutes";
 
 const LISTS = [
   { name: "Films That Changed How I Light", desc: "Cinematography studies that rewired my brain — every DP should see these before they pick up a camera.", count: "28 films · 1,204 saves · Public", posters: ["https://m.media-amazon.com/images/M/MV5BMjIxNTU4MzY4MF5BMl5BanBnXkFtZTgwNzY1MTU0MTE@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BNDc2NTM1MjktYmVhNS00YzQwLWE5NjctNWQ4NzEzZGY5ODI4XkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg"] },
@@ -25,11 +23,12 @@ const LISTS = [
 export function ProfileTabContent({
   username,
   displayName,
+  tab,
 }: {
   username: string;
   displayName?: string;
+  tab: ProfileTab;
 }) {
-  const [tab] = useQueryState("tab", { defaultValue: "posts" });
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const { openComposerModal } = useComposerModal();
@@ -138,64 +137,6 @@ export function ProfileTabContent({
         <DiaryRow date="FEB 7" title="Nickel Boys" meta="RaMell Ross · 2024 · 1st watch" imdbId="tt32699266" rating={5} />
         <div className="py-8 text-center text-xs text-fg-muted cursor-pointer hover:text-fg transition-colors">
           View full diary →
-        </div>
-      </div>
-    );
-  }
-
-  if (tab === "followers" || tab === "following") {
-    const placeholder = tab === "followers" ? "Search followers…" : "Search following…";
-    return (
-      <div>
-        <div className="px-10 py-3.5 border-b border-border">
-          <input
-            type="text"
-            placeholder={placeholder}
-            className="w-full border-none bg-transparent font-sans text-[16px] md:text-sm text-fg outline-none placeholder:text-fg-muted focus:border-b focus:border-fg-muted"
-          />
-        </div>
-        <div className="px-10 py-2">
-          {MOCK_PROFILE_CONNECTIONS.length === 0 ? (
-            tab === "following" ? (
-              <EmptyState
-                size="md"
-                icon={<span className="text-[22px]">👥</span>}
-                headline={
-                  isOwnProfile
-                    ? "You're not following anyone yet"
-                    : `${displayName ?? username} isn't following anyone yet`
-                }
-                primaryCta={
-                  isOwnProfile
-                    ? { label: "Find people", href: "/suggestions/people" }
-                    : undefined
-                }
-              />
-            ) : (
-              <EmptyState
-                size="md"
-                icon={<span className="text-[22px]">✨</span>}
-                headline={
-                  isOwnProfile
-                    ? "Nobody's following you yet — keep posting"
-                    : `${displayName ?? username} doesn't have any followers yet`
-                }
-              />
-            )
-          ) : (
-            MOCK_PROFILE_CONNECTIONS.map((u) => (
-              <UserCard
-                key={u.username}
-                username={u.username}
-                handle={`@${u.username}`}
-                role={u.role}
-                initial={u.initial}
-                avatarBg={u.avatarBg}
-                avatarColor={u.avatarColor}
-                showFollowButton
-              />
-            ))
-          )}
         </div>
       </div>
     );

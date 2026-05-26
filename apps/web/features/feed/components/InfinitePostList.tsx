@@ -172,6 +172,7 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
         linkPreview: post.linkPreview,
         imageSrc: image?.url,
         imageCaption: image?.altText,
+        media: post.media,
         likeCount: post.likeCount,
         liked: post.isLiked,
         bookmarked: post.isBookmarked,

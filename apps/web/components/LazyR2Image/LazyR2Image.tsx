@@ -9,6 +9,7 @@ import {
   type ImgHTMLAttributes,
   type SyntheticEvent,
 } from "react";
+import { decode as decodeBlurhash } from "blurhash";
 import { cn } from "@/lib/utils/cn";
 import { resolvePublicMediaUrl } from "@/lib/utils/r2Media";
 
@@ -17,6 +18,7 @@ type NativeImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt">
 interface LazyR2ImageProps extends NativeImageProps {
   src?: string | null;
   alt: string;
+  blurhash?: string | null;
   containerClassName?: string;
   placeholderClassName?: string;
   rootMargin?: string;
@@ -27,9 +29,50 @@ interface LazyR2ImageProps extends NativeImageProps {
 
 const DEFAULT_ROOT_MARGIN = "200px";
 
+function BlurhashPlaceholder({
+  hash,
+  className,
+}: {
+  hash: string;
+  className?: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(
+    function renderBlurhash() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      try {
+        const width = 32;
+        const height = 32;
+        const pixels = decodeBlurhash(hash, width, height);
+        const imageData = new ImageData(Uint8ClampedArray.from(pixels), width, height);
+        context.putImageData(imageData, 0, 0);
+      } catch {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    },
+    [hash]
+  );
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={32}
+      height={32}
+      className={cn("absolute inset-0 h-full w-full", className)}
+      aria-hidden
+    />
+  );
+}
+
 export function LazyR2Image({
   src,
   alt,
+  blurhash,
   className,
   containerClassName,
   placeholderClassName,
@@ -56,6 +99,12 @@ export function LazyR2Image({
     const value = src.trim();
     return value.length > 0 ? value : null;
   }, [src]);
+
+  const trimmedBlurhash = useMemo(function () {
+    if (typeof blurhash !== "string") return null;
+    const value = blurhash.trim();
+    return value.length > 0 ? value : null;
+  }, [blurhash]);
 
   useEffect(
     function resetStateOnSourceChange() {
@@ -147,7 +196,17 @@ export function LazyR2Image({
   return (
     <div ref={containerRef} className={cn("relative", containerClassName)}>
       {showPlaceholder ? (
-        <div className={cn("absolute inset-0 animate-pulse bg-sunken-2", placeholderClassName)} aria-hidden />
+        trimmedBlurhash ? (
+          <BlurhashPlaceholder
+            hash={trimmedBlurhash}
+            className={cn("scale-105 blur-[0.3px]", placeholderClassName)}
+          />
+        ) : (
+          <div
+            className={cn("absolute inset-0 animate-pulse bg-sunken-2", placeholderClassName)}
+            aria-hidden
+          />
+        )
       ) : null}
       {resolvedSrc ? (
         /* eslint-disable-next-line @next/next/no-img-element */

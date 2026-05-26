@@ -16,12 +16,25 @@ import { settingsRoutes } from "./modules/settings/routes.js";
 import { mediaRoutes } from "./modules/media/routes.js";
 import { onboardingRoutes } from "./modules/onboarding/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
+import { isRedisEnabled } from "./lib/redis.js";
+import { isQueueEnabled } from "./lib/jobs.js";
 
 var env = loadEnv();
 
 initDb(env.DATABASE_URL);
 
 var app = new Hono();
+
+console.log(
+  isRedisEnabled()
+    ? "[feed-cache] enabled"
+    : "[feed-cache] disabled (missing Upstash REST env)"
+);
+console.log(
+  isQueueEnabled()
+    ? "[jobs-queue] enabled"
+    : "[jobs-queue] disabled (missing UPSTASH_REDIS_URL)"
+);
 
 app.onError(function (err, c) {
   if (

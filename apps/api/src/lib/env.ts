@@ -23,8 +23,11 @@ export function loadEnv() {
     CF_IMAGES_DEFAULT_THUMB_VARIANT: process.env.CF_IMAGES_DEFAULT_THUMB_VARIANT ?? "thumb",
     CF_IMAGES_DEFAULT_FEED_VARIANT: process.env.CF_IMAGES_DEFAULT_FEED_VARIANT ?? "feed",
     CF_IMAGES_DEFAULT_FULL_VARIANT: process.env.CF_IMAGES_DEFAULT_FULL_VARIANT ?? "full",
+    UPSTASH_REDIS_URL: process.env.UPSTASH_REDIS_URL ?? "",
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? "",
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
+    RATE_LIMIT_DISABLED: (process.env.RATE_LIMIT_DISABLED ?? "").toLowerCase() === "true",
+    NODE_ENV: process.env.NODE_ENV ?? "development",
     CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:3000",
     PORT: Number(process.env.PORT ?? 4000),
   };

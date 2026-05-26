@@ -8,9 +8,11 @@ type UpstashResult<T = unknown> = {
 export type RedisClient = {
   get<T>(key: string): Promise<T | null>;
   set(key: string, value: unknown): Promise<void>;
+  incr(key: string): Promise<number>;
   sadd(key: string, ...members: string[]): Promise<void>;
   smembers<T = string>(key: string): Promise<T[]>;
   expire(key: string, seconds: number): Promise<void>;
+  ttl(key: string): Promise<number>;
   del(...keys: string[]): Promise<void>;
 };
 
@@ -68,6 +70,10 @@ function buildClient(): RedisClient {
       var serialized = JSON.stringify(value);
       await command("set", key, serialized);
     },
+    async incr(key: string) {
+      var value = await command<number>("incr", key);
+      return typeof value === "number" && Number.isFinite(value) ? value : 0;
+    },
     async sadd(key: string, ...members: string[]) {
       if (members.length === 0) return;
       await command("sadd", key, ...members);
@@ -78,6 +84,10 @@ function buildClient(): RedisClient {
     },
     async expire(key: string, seconds: number) {
       await command("expire", key, seconds);
+    },
+    async ttl(key: string) {
+      var value = await command<number>("ttl", key);
+      return typeof value === "number" && Number.isFinite(value) ? value : -1;
     },
     async del(...keys: string[]) {
       if (keys.length === 0) return;

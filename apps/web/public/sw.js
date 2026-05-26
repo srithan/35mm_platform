@@ -1,11 +1,9 @@
-var SW_VERSION = "v3";
+var SW_VERSION = "v5";
 var OFFLINE_URL = "/offline.html";
 var NAV_CACHE = "35mm-nav-" + SW_VERSION;
 var STATIC_CACHE = "35mm-static-" + SW_VERSION;
 var IMAGE_CACHE = "35mm-image-" + SW_VERSION;
-var API_CACHE = "35mm-api-" + SW_VERSION;
-
-var ALL_CACHES = [NAV_CACHE, STATIC_CACHE, IMAGE_CACHE, API_CACHE];
+var ALL_CACHES = [NAV_CACHE, STATIC_CACHE, IMAGE_CACHE];
 
 self.addEventListener("install", function (event) {
   event.waitUntil(
@@ -37,10 +35,6 @@ function isNavigationRequest(request) {
   return request.mode === "navigate";
 }
 
-function isApiRequest(url) {
-  return url.origin === self.location.origin && url.pathname.startsWith("/v1/");
-}
-
 function isStaticAssetRequest(request, url) {
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.startsWith("/_next/static/")) return true;
@@ -61,17 +55,6 @@ function isImmutableImageRequest(request, url) {
   return false;
 }
 
-function canCacheApiResponse(request, response) {
-  if (!response) return false;
-  if (!response.ok) return false;
-  if (request.headers.get("authorization")) return false;
-
-  var cacheControl = (response.headers.get("cache-control") || "").toLowerCase();
-  if (cacheControl.includes("no-store")) return false;
-  if (cacheControl.includes("private")) return false;
-  return true;
-}
-
 async function networkFirstNavigation(request) {
   try {
     return await fetch(request);
@@ -89,21 +72,23 @@ async function networkFirstNavigation(request) {
   }
 }
 
-async function networkFirstApi(request) {
-  var cache = await caches.open(API_CACHE);
+function isLocalDevHost(url) {
+  return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+}
+
+async function networkFirstWithCache(request, cacheName) {
   try {
     var response = await fetch(request);
-    if (canCacheApiResponse(request, response)) {
+    if (response.ok || response.type === "opaque") {
+      var cache = await caches.open(cacheName);
       await cache.put(request, response.clone());
     }
     return response;
   } catch (_error) {
+    var cache = await caches.open(cacheName);
     var cached = await cache.match(request);
     if (cached) return cached;
-    return new Response(JSON.stringify({ code: "OFFLINE", message: "Offline" }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+    throw _error;
   }
 }
 
@@ -130,13 +115,10 @@ self.addEventListener("fetch", function (event) {
     return;
   }
 
-  if (isApiRequest(url)) {
-    event.respondWith(networkFirstApi(request));
-    return;
-  }
-
   if (isStaticAssetRequest(request, url)) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    // Dev + Turbopack reuse URLs; cache-first caused stale layout JS in Safari.
+    if (isLocalDevHost(url)) return;
+    event.respondWith(networkFirstWithCache(request, STATIC_CACHE));
     return;
   }
 

@@ -91,6 +91,7 @@ export function BookmarksPageContent() {
             linkPreview={post.linkPreview}
             imageSrc={image?.url}
             imageCaption={image?.altText}
+            media={post.media}
             likeCount={post.likeCount}
             liked={post.isLiked}
             reposted={post.isReposted}

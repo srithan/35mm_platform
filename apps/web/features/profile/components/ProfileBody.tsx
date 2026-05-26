@@ -1,8 +1,10 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { ProfileTabs } from "./ProfileTabs";
 import { ProfileTabContent } from "./ProfileTabContent";
 import { ProfileDetails } from "./ProfileDetails";
+import { resolveProfileTabFromPathname } from "@/features/profile/lib/profileRoutes";
 
 export function ProfileBody(props: {
   username: string;
@@ -16,8 +18,10 @@ export function ProfileBody(props: {
   headline?: string | null;
   headlineContext?: string | null;
 }) {
-  const stickyTop = "calc(var(--site-header-sticky-offset, 4.5rem) + 1rem)";
-  const detailsProps = {
+  var pathname = usePathname();
+  var tab = resolveProfileTabFromPathname(pathname ?? "", props.username) ?? "posts";
+  var stickyTop = "calc(var(--site-header-sticky-offset, 4.5rem) + 1rem)";
+  var detailsProps = {
     username: props.username,
     displayName: props.displayName,
     bio: props.bio,
@@ -45,9 +49,13 @@ export function ProfileBody(props: {
         </aside>
 
         <div className="min-w-0">
-          <div className="ml-auto w-full max-w-[640px] xl:w-[640px] xl:max-w-[640px]">
-            <ProfileTabs />
-            <ProfileTabContent username={props.username} displayName={props.displayName} />
+          <div className="w-full max-w-[640px] xl:w-[640px] xl:max-w-[640px]">
+            <ProfileTabs username={props.username} />
+            <ProfileTabContent
+              username={props.username}
+              displayName={props.displayName}
+              tab={tab}
+            />
           </div>
         </div>
       </div>

@@ -140,6 +140,16 @@ interface PostCardProps {
   } | null;
   imageSrc?: string;
   imageCaption?: string;
+  media?: Array<{
+    type: "image" | "video" | "film_embed" | "none";
+    url: string;
+    blurhash?: string;
+    variants?: {
+      thumb?: string;
+      feed?: string;
+      full?: string;
+    };
+  }>;
   mediaUrls?: string[];
   viewerMediaUrls?: string[];
   saveData?: boolean;
@@ -186,6 +196,7 @@ function PostCardComponent({
   attachedFilm = null,
   imageSrc,
   imageCaption,
+  media,
   mediaUrls,
   viewerMediaUrls,
   saveData = false,
@@ -246,12 +257,41 @@ function PostCardComponent({
     viewerMediaUrls && viewerMediaUrls.length > 0
       ? viewerMediaUrls
       : normalizedMediaUrls;
-  var hasAttachedMedia = normalizedMediaUrls.length > 0;
-  var videoUrls = normalizedMediaUrls.filter((url) => {
-    var lower = url.toLowerCase();
-    return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("video");
+  var imageMedia = Array.isArray(media)
+    ? media.filter(function (item) {
+        return item.type === "image";
+      })
+    : [];
+  var galleryBlurhashes = normalizedMediaUrls.map(function (_url, index) {
+    return imageMedia[index]?.blurhash ?? null;
   });
-  var imageUrls = normalizedMediaUrls.filter((url) => !videoUrls.includes(url));
+  var viewerBlurhashes = normalizedViewerMediaUrls.map(function (_url, index) {
+    return imageMedia[index]?.blurhash ?? null;
+  });
+  var hasAttachedMedia = normalizedMediaUrls.length > 0;
+  var displayMediaEntries = normalizedMediaUrls.map(function (url, index) {
+    return {
+      url,
+      blurhash: galleryBlurhashes[index] ?? null,
+    };
+  });
+  var videoUrls = displayMediaEntries
+    .map(function (entry) {
+      return entry.url;
+    })
+    .filter((url) => {
+      var lower = url.toLowerCase();
+      return lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("video");
+    });
+  var imageEntries = displayMediaEntries.filter(function (entry) {
+    return !videoUrls.includes(entry.url);
+  });
+  var imageUrls = imageEntries.map(function (entry) {
+    return entry.url;
+  });
+  var imageBlurhashes = imageEntries.map(function (entry) {
+    return entry.blurhash;
+  });
   var linkPreviewVideo = videoPreviewFromLinkPreview(linkPreview);
   var combinedVideoPreviews = previews;
   if (linkPreviewVideo) {
@@ -682,6 +722,7 @@ function PostCardComponent({
               <>
                 <PostImageGallery
                   urls={imageUrls}
+                  blurhashes={imageBlurhashes}
                   imageCaption={imageCaption}
                   saveData={saveData}
                   onImageClick={function (index) {
@@ -695,6 +736,7 @@ function PostCardComponent({
                     setShowImageViewer(false);
                   }}
                   srcs={normalizedViewerMediaUrls}
+                  blurhashes={viewerBlurhashes}
                   initialIndex={viewerImageIndex}
                   alt={imageCaption || "Post image"}
                 />
@@ -978,6 +1020,30 @@ function areReplyPreviewsEqual(
   );
 }
 
+function areMediaItemsEqual(
+  prev?: PostCardProps["media"],
+  next?: PostCardProps["media"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  if (prev.length !== next.length) return false;
+
+  for (var index = 0; index < prev.length; index += 1) {
+    var a = prev[index];
+    var b = next[index];
+    if (!a || !b) return false;
+    if (a.type !== b.type) return false;
+    if (a.url !== b.url) return false;
+    if ((a.blurhash ?? null) !== (b.blurhash ?? null)) return false;
+    if ((a.variants?.thumb ?? null) !== (b.variants?.thumb ?? null)) return false;
+    if ((a.variants?.feed ?? null) !== (b.variants?.feed ?? null)) return false;
+    if ((a.variants?.full ?? null) !== (b.variants?.full ?? null)) return false;
+  }
+
+  return true;
+}
+
 function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) {
   return (
     prev.variant === next.variant &&
@@ -999,6 +1065,7 @@ function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) {
     areAttachedFilmsEqual(prev.attachedFilm, next.attachedFilm) &&
     prev.imageSrc === next.imageSrc &&
     prev.imageCaption === next.imageCaption &&
+    areMediaItemsEqual(prev.media, next.media) &&
     areStringArraysEqual(prev.mediaUrls, next.mediaUrls) &&
     areStringArraysEqual(prev.viewerMediaUrls, next.viewerMediaUrls) &&
     prev.saveData === next.saveData &&

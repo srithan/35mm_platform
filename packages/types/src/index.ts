@@ -131,4 +131,6 @@ export interface HealthResponse {
   ok: true;
   service: string;
   version: string;
+  feedCache?: "ok" | "disabled";
+  jobsQueue?: "ok" | "disabled";
 }
