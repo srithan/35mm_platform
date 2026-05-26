@@ -5,6 +5,11 @@ import { getDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
+import {
+  invalidateAuthorProfileFeedCaches,
+  invalidateFeedCacheForGuest,
+  invalidateViewerFeedCaches,
+} from "../../lib/feedCache.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "../media/url.js";
@@ -417,6 +422,22 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
   }
 
   var media = await resolveProfileMedia(updated[0].avatarUrl, updated[0].coverUrl);
+
+  if (body.isPrivate !== undefined) {
+    var followerRows = await db
+      .select({ followerId: follows.followerId })
+      .from(follows)
+      .where(and(eq(follows.followingId, user.userId), eq(follows.status, "accepted")));
+
+    await invalidateAuthorProfileFeedCaches([user.userId]);
+    await invalidateViewerFeedCaches([
+      user.userId,
+      ...followerRows.map(function (row) {
+        return row.followerId;
+      }),
+    ]);
+    await invalidateFeedCacheForGuest();
+  }
 
   return c.json({
     ok: true,

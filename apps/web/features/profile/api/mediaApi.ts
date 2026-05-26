@@ -12,6 +12,11 @@ export interface MediaPresignResponse {
   objectKey: string;
   contentType: string;
   expiresInSeconds: number;
+  variants: {
+    thumb: string;
+    feed: string;
+    full: string;
+  };
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";

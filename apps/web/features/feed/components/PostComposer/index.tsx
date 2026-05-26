@@ -598,7 +598,17 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     if (!canPost || createPostMutation.isPending || updatePostMutation.isPending) return;
     setSubmitError(null);
 
-    async function uploadPostMedia(file: File): Promise<string> {
+    async function uploadPostMedia(file: File): Promise<{
+      type: "image" | "video";
+      url: string;
+      key: string;
+      variants?: {
+        thumb?: string;
+        feed?: string;
+        full?: string;
+      };
+      thumbnailUrl?: string;
+    }> {
       var token = await getToken();
       var presign = await presignProfileMediaUpload(
         {
@@ -615,18 +625,38 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         blob: file,
       });
 
-      return presign.publicUrl;
+      var isVideo = presign.contentType.startsWith("video/");
+      return {
+        type: isVideo ? "video" : "image",
+        url: isVideo ? presign.publicUrl : presign.variants.full || presign.publicUrl,
+        key: presign.objectKey,
+        variants: isVideo
+          ? undefined
+          : {
+              thumb: presign.variants.thumb,
+              feed: presign.variants.feed,
+              full: presign.variants.full,
+            },
+        thumbnailUrl: isVideo ? undefined : presign.variants.thumb,
+      };
     }
 
     let input: CreatePostInput;
     var mediaUrls: string[] = [];
+    var media: CreatePostInput["media"] = [];
     if (mode !== "log") {
       if (images.length > 0) {
         var imageFiles = images.slice(0, 9);
-        mediaUrls = await Promise.all(imageFiles.map(uploadPostMedia));
+        media = await Promise.all(imageFiles.map(uploadPostMedia));
+        mediaUrls = media
+          .filter((item) => item.type === "image")
+          .map((item) => item.variants?.feed || item.url);
       } else if (videoFile) {
-        mediaUrls = [await uploadPostMedia(videoFile)];
+        var uploadedVideo = await uploadPostMedia(videoFile);
+        media = [uploadedVideo];
+        mediaUrls = [uploadedVideo.url];
       } else if (gifUrl) {
+        media = [{ type: "image", url: gifUrl }];
         mediaUrls = [gifUrl];
       }
     }
@@ -635,6 +665,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         type: "discussion",
         headline: discussionHeadline.trim(),
         body: discussionText.trim() || discussionHeadline.trim(),
+        media,
         mediaUrls,
         linkPreview,
       };
@@ -673,6 +704,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       input = {
         type: images.length > 0 || videoFile !== null || gifUrl !== null ? "image" : "text",
         body: writeText.trim(),
+        media,
         mediaUrls,
         linkPreview,
       };

@@ -1,13 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
-import {
-  resolvePublicMediaUrl,
-  shouldResolvePublicR2Url,
-} from "@/lib/utils/r2Media";
 import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
+import { LazyR2Image } from "@/components/LazyR2Image";
 
 interface AvatarProps {
   initial?: string;
@@ -40,50 +36,23 @@ export function Avatar({
     variant === "ring"
       ? "bg-sunken text-fg-light ring-1 ring-border/70"
       : "bg-border text-fg-light";
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [showInitialFallback, setShowInitialFallback] = useState(false);
   const fallbackAttemptedRef = useRef(false);
 
   useEffect(
     function resetLoadState() {
-      setImageLoaded(false);
+      const trimmedSrc =
+        typeof src === "string" && src.trim().length > 0 ? src.trim() : null;
+      const nextSrc = trimmedSrc ?? (allowDefaultFallback ? DEFAULT_PROFILE_AVATAR_URL : null);
+      setDisplaySrc(nextSrc);
       setShowInitialFallback(false);
       fallbackAttemptedRef.current = false;
     },
-    [src]
+    [src, allowDefaultFallback]
   );
 
-  useEffect(function () {
-    let isCancelled = false;
-
-    const trimmedSrc =
-      typeof src === "string" && src.trim().length > 0 ? src.trim() : null;
-    if (!trimmedSrc && !allowDefaultFallback) {
-      setResolvedSrc(null);
-      return;
-    }
-
-    const desiredSrc = trimmedSrc ?? DEFAULT_PROFILE_AVATAR_URL;
-
-    if (!shouldResolvePublicR2Url(desiredSrc)) {
-      setResolvedSrc(desiredSrc);
-      return;
-    }
-
-    setResolvedSrc(null);
-    resolvePublicMediaUrl(desiredSrc).then(function (nextSrc) {
-      if (!isCancelled) {
-        setResolvedSrc(nextSrc ?? DEFAULT_PROFILE_AVATAR_URL);
-      }
-    });
-
-    return function () {
-      isCancelled = true;
-    };
-  }, [src, allowDefaultFallback]);
-
-  const showSkeleton = !resolvedSrc || (!imageLoaded && !showInitialFallback);
+  const showSkeleton = !showInitialFallback && !displaySrc;
 
   return (
     <div
@@ -94,26 +63,21 @@ export function Avatar({
         className
       )}
     >
-      {resolvedSrc && !showInitialFallback ? (
-        <Image
-          src={resolvedSrc}
+      {displaySrc && !showInitialFallback ? (
+        <LazyR2Image
+          src={displaySrc}
           alt=""
-          width={size === "lg" || size === "profile-lg" ? 80 : 36}
-          height={size === "lg" || size === "profile-lg" ? 80 : 36}
-          className={cn(
-            "w-full h-full object-cover transition-opacity duration-150",
-            imageLoaded ? "opacity-100" : "opacity-0"
-          )}
-          onLoad={() => setImageLoaded(true)}
+          forceLoad
+          className="h-full w-full rounded-full object-cover"
+          containerClassName="absolute inset-0"
+          placeholderClassName="rounded-full bg-sunken-2"
           onError={() => {
-            if (resolvedSrc !== DEFAULT_PROFILE_AVATAR_URL && !fallbackAttemptedRef.current) {
+            if (displaySrc !== DEFAULT_PROFILE_AVATAR_URL && !fallbackAttemptedRef.current) {
               fallbackAttemptedRef.current = true;
-              setImageLoaded(false);
-              setResolvedSrc(DEFAULT_PROFILE_AVATAR_URL);
+              setDisplaySrc(DEFAULT_PROFILE_AVATAR_URL);
               return;
             }
             setShowInitialFallback(true);
-            setImageLoaded(true);
           }}
         />
       ) : null}

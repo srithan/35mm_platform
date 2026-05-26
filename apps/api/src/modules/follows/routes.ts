@@ -5,6 +5,10 @@ import { getDb } from "../../lib/db.js";
 import { assertNoBlockBetween } from "../../lib/moderation.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
+import {
+  invalidateAuthorProfileFeedCaches,
+  invalidateViewerFeedCaches,
+} from "../../lib/feedCache.js";
 
 export var followRoutes = new Hono();
 const FOLLOW_BACKFILL_LIMIT = 200;
@@ -110,6 +114,9 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
     }
   }
 
+  await invalidateViewerFeedCaches([user.userId]);
+  await invalidateAuthorProfileFeedCaches([followingId]);
+
   return c.json({
     ok: true,
     isFollowing: inserted[0]?.status === "accepted",
@@ -150,6 +157,9 @@ followRoutes.delete("/:userId", requireAuth, async function (c) {
       );
   }
 
+  await invalidateViewerFeedCaches([user.userId]);
+  await invalidateAuthorProfileFeedCaches([followingId]);
+
   return c.json({
     ok: true,
     isFollowing: false,
@@ -180,6 +190,11 @@ followRoutes.post("/:userId/accept", requireAuth, async function (c) {
     )
     .returning({ followerId: follows.followerId });
 
+  if (updated.length > 0) {
+    await invalidateViewerFeedCaches([followerId]);
+    await invalidateAuthorProfileFeedCaches([user.userId]);
+  }
+
   return c.json({ ok: true, accepted: updated.length > 0 });
 });
 
@@ -204,6 +219,11 @@ followRoutes.delete("/:userId/request", requireAuth, async function (c) {
       )
     )
     .returning({ followerId: follows.followerId });
+
+  if (deleted.length > 0) {
+    await invalidateViewerFeedCaches([followerId]);
+    await invalidateAuthorProfileFeedCaches([user.userId]);
+  }
 
   return c.json({ ok: true, declined: deleted.length > 0 });
 });

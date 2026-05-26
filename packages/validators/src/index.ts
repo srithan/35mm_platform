@@ -28,8 +28,19 @@ export var createPostSchema = z.object({
       z.object({
         type: z.enum(["image", "video", "film_embed", "none"]),
         url: z.string().min(1).max(1000),
+        key: z.string().max(1000).optional(),
         thumbnailUrl: z.string().max(1000).optional(),
         altText: z.string().max(300).optional(),
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
+        blurhash: z.string().max(200).optional(),
+        variants: z
+          .object({
+            thumb: z.string().max(1000).optional(),
+            feed: z.string().max(1000).optional(),
+            full: z.string().max(1000).optional(),
+          })
+          .optional(),
       })
     )
     .max(9)

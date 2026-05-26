@@ -5,6 +5,7 @@ import { requireAuth } from "../../lib/middleware.js";
 import { loadEnv } from "../../lib/env.js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { buildCfImagesVariantUrl } from "./cfImages.js";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "./url.js";
 
 export var mediaRoutes = new Hono();
@@ -23,6 +24,11 @@ interface PresignResponse {
   objectKey: string;
   contentType: string;
   expiresInSeconds: number;
+  variants: {
+    thumb: string;
+    feed: string;
+    full: string;
+  };
 }
 
 var MAX_IMAGE_BYTES = 12 * 1024 * 1024;
@@ -95,6 +101,51 @@ function getPresignTtl(): number {
   return Number.isFinite(ttl) && ttl > 0 ? ttl : 900;
 }
 
+function splitObjectKey(value: string): { base: string; ext: string } {
+  var lastDot = value.lastIndexOf(".");
+  if (lastDot <= 0) {
+    return { base: value, ext: "" };
+  }
+  return {
+    base: value.slice(0, lastDot),
+    ext: value.slice(lastDot),
+  };
+}
+
+function variantObjectKeys(objectKey: string): { thumb: string; feed: string; full: string } {
+  var parts = splitObjectKey(objectKey);
+  return {
+    thumb: parts.base + "__thumb.webp",
+    feed: parts.base + "__feed.webp",
+    full: parts.base + "__full.webp",
+  };
+}
+
+function joinPublicUrl(baseUrl: string, key: string): string {
+  return baseUrl + "/" + key.replace(/^\/+/, "");
+}
+
+function mediaVariantsForKey(key: string): { thumb: string; feed: string; full: string } {
+  var cfThumb = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_THUMB_VARIANT);
+  var cfFeed = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_FEED_VARIANT);
+  var cfFull = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_FULL_VARIANT);
+
+  if (cfThumb && cfFeed && cfFull) {
+    return {
+      thumb: cfThumb,
+      feed: cfFeed,
+      full: cfFull,
+    };
+  }
+
+  var baseUrl = getPublicBaseUrl();
+  return {
+    thumb: joinPublicUrl(baseUrl, variantObjectKeys(key).thumb),
+    feed: joinPublicUrl(baseUrl, variantObjectKeys(key).feed),
+    full: joinPublicUrl(baseUrl, variantObjectKeys(key).full),
+  };
+}
+
 function createS3Client() {
   var env = loadEnv();
   return new S3Client({
@@ -164,6 +215,7 @@ mediaRoutes.post("/presign", requireAuth, async function (c) {
     objectKey: key,
     contentType,
     expiresInSeconds: getPresignTtl(),
+    variants: mediaVariantsForKey(key),
   };
 
   return c.json(response);

@@ -67,7 +67,7 @@ function extractObjectKeyFromPathStyleR2Url(parsed: URL): string | null {
   return null;
 }
 
-function extractObjectKeyFromUrl(urlString: string): string | null {
+export function getR2ObjectKeyFromUrl(urlString: string): string | null {
   var parsed: URL;
   try {
     parsed = new URL(urlString);
@@ -109,14 +109,14 @@ function getSignedUrlTtlSeconds(): number {
 }
 
 export function isR2ConfiguredPublicUrl(value: string): boolean {
-  return extractObjectKeyFromUrl(value) !== null;
+  return getR2ObjectKeyFromUrl(value) !== null;
 }
 
 export async function resolvePublicMediaUrl(value: string | null | undefined): Promise<string | null> {
   if (typeof value !== "string") return null;
   if (value.length === 0) return null;
 
-  var key = extractObjectKeyFromUrl(value);
+  var key = getR2ObjectKeyFromUrl(value);
   if (!key) {
     return value;
   }

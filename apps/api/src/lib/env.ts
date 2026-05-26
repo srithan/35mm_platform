@@ -18,6 +18,13 @@ export function loadEnv() {
     R2_BUCKET: process.env.R2_BUCKET ?? "35mm-media",
     R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL ?? "",
     R2_PRESIGN_TTL_SECONDS: Number(process.env.R2_PRESIGN_TTL_SECONDS ?? "900"),
+    CF_IMAGES_ACCOUNT_HASH: process.env.CF_IMAGES_ACCOUNT_HASH ?? "",
+    CF_IMAGES_DELIVERY_BASE_URL: process.env.CF_IMAGES_DELIVERY_BASE_URL ?? "",
+    CF_IMAGES_DEFAULT_THUMB_VARIANT: process.env.CF_IMAGES_DEFAULT_THUMB_VARIANT ?? "thumb",
+    CF_IMAGES_DEFAULT_FEED_VARIANT: process.env.CF_IMAGES_DEFAULT_FEED_VARIANT ?? "feed",
+    CF_IMAGES_DEFAULT_FULL_VARIANT: process.env.CF_IMAGES_DEFAULT_FULL_VARIANT ?? "full",
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? "",
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
     CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:3000",
     PORT: Number(process.env.PORT ?? 4000),
   };

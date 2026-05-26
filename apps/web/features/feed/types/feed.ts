@@ -27,8 +27,17 @@ export type PostMediaType = "image" | "video" | "film_embed" | "none";
 export interface PostMedia {
   type: PostMediaType;
   url: string;
+  key?: string;
   thumbnailUrl?: string;
   altText?: string;
+  width?: number;
+  height?: number;
+  blurhash?: string;
+  variants?: {
+    thumb?: string;
+    feed?: string;
+    full?: string;
+  };
 }
 
 export interface Post {

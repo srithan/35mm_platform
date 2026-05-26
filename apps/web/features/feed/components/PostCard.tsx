@@ -1,7 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import Image from "next/image";
 import { Avatar } from "@/components/Avatar";
@@ -28,6 +30,8 @@ import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserPr
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
 import { ApiRequestError } from "../api/http";
+import { fetchPost } from "../api/postsApi";
+import { feedKeys } from "../hooks/queryKeys";
 
 type PostVariant = "text" | "film-log" | "image" | "discussion";
 type SourcePostType = "text" | "discussion" | "log" | "review" | "image";
@@ -137,6 +141,8 @@ interface PostCardProps {
   imageSrc?: string;
   imageCaption?: string;
   mediaUrls?: string[];
+  viewerMediaUrls?: string[];
+  saveData?: boolean;
   linkPreview?: {
     url: string;
     title: string;
@@ -160,7 +166,7 @@ interface PostCardProps {
   filmsLoggedCount?: number | null;
 }
 
-export function PostCard({
+function PostCardComponent({
   variant,
   sourcePostType,
   username,
@@ -181,6 +187,8 @@ export function PostCard({
   imageSrc,
   imageCaption,
   mediaUrls,
+  viewerMediaUrls,
+  saveData = false,
   linkPreview,
   likeCount,
   liked: initialLiked = false,
@@ -198,6 +206,8 @@ export function PostCard({
 }: PostCardProps) {
   var [showShareModal, setShowShareModal] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { getToken, isLoaded: isAuthLoaded } = useAuth();
   const pathname = usePathname();
   const { cleanedText, previews } = extractVideoPreviews(text);
   const bodyRef = useRef<HTMLParagraphElement>(null);
@@ -232,6 +242,10 @@ export function PostCard({
   var [showImageViewer, setShowImageViewer] = useState(false);
   var [viewerImageIndex, setViewerImageIndex] = useState(0);
   var normalizedMediaUrls = mediaUrls && mediaUrls.length > 0 ? mediaUrls : imageSrc ? [imageSrc] : [];
+  var normalizedViewerMediaUrls =
+    viewerMediaUrls && viewerMediaUrls.length > 0
+      ? viewerMediaUrls
+      : normalizedMediaUrls;
   var hasAttachedMedia = normalizedMediaUrls.length > 0;
   var videoUrls = normalizedMediaUrls.filter((url) => {
     var lower = url.toLowerCase();
@@ -248,6 +262,7 @@ export function PostCard({
     ];
   }
   var shouldRenderLinkPreviewCard = !hasAttachedMedia && Boolean(linkPreview) && !linkPreviewVideo;
+  var hoverPrefetchDoneRef = useRef(false);
 
   useLayoutEffect(() => {
     if (!shouldClamp) {
@@ -325,6 +340,25 @@ export function PostCard({
     navigateToPost();
   };
 
+  const prefetchPostDetail = () => {
+    if (!postId || isPostDetailView || !isAuthLoaded) return;
+    if (hoverPrefetchDoneRef.current) return;
+    hoverPrefetchDoneRef.current = true;
+
+    void queryClient.prefetchQuery({
+      queryKey: feedKeys.post(postId),
+      queryFn: async () => fetchPost(postId, await getToken()),
+      staleTime: 60_000,
+    });
+
+    var firstImageUrl = normalizedViewerMediaUrls[0];
+    if (typeof window !== "undefined" && firstImageUrl) {
+      var image = new window.Image();
+      image.decoding = "async";
+      image.src = firstImageUrl;
+    }
+  };
+
   return (
     <article
       style={{ backgroundColor: "var(--color-bg)" }}
@@ -341,6 +375,8 @@ export function PostCard({
           }
           : undefined
       }
+      onMouseEnter={prefetchPostDetail}
+      onFocus={prefetchPostDetail}
       className={cn(
         "PostCard w-full rounded-lg border-b border-border px-4 py-4 mb-3",
         !disableAnimation && "animate-fade-up",
@@ -647,6 +683,7 @@ export function PostCard({
                 <PostImageGallery
                   urls={imageUrls}
                   imageCaption={imageCaption}
+                  saveData={saveData}
                   onImageClick={function (index) {
                     setViewerImageIndex(index);
                     setShowImageViewer(true);
@@ -657,7 +694,7 @@ export function PostCard({
                   onClose={function () {
                     setShowImageViewer(false);
                   }}
-                  srcs={imageUrls}
+                  srcs={normalizedViewerMediaUrls}
                   initialIndex={viewerImageIndex}
                   alt={imageCaption || "Post image"}
                 />
@@ -864,3 +901,122 @@ export function PostCard({
     </article>
   );
 }
+
+function areStringArraysEqual(a?: string[], b?: string[]) {
+  if (a === b) return true;
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  for (var index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) return false;
+  }
+  return true;
+}
+
+function areFilmCardsEqual(
+  prev?: PostCardProps["filmCard"],
+  next?: PostCardProps["filmCard"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  return (
+    prev.title === next.title &&
+    prev.meta === next.meta &&
+    prev.posterSrc === next.posterSrc &&
+    prev.imdbId === next.imdbId &&
+    prev.rating === next.rating
+  );
+}
+
+function areAttachedFilmsEqual(
+  prev?: PostCardProps["attachedFilm"],
+  next?: PostCardProps["attachedFilm"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  return (
+    prev.id === next.id &&
+    prev.tmdbId === next.tmdbId &&
+    prev.title === next.title &&
+    prev.year === next.year &&
+    prev.posterUrl === next.posterUrl &&
+    prev.rating === next.rating &&
+    areStringArraysEqual(prev.genres, next.genres)
+  );
+}
+
+function areLinkPreviewsEqual(
+  prev?: PostCardProps["linkPreview"],
+  next?: PostCardProps["linkPreview"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  return (
+    prev.url === next.url &&
+    prev.title === next.title &&
+    prev.description === next.description &&
+    prev.image === next.image &&
+    prev.domain === next.domain &&
+    prev.provider === next.provider
+  );
+}
+
+function areReplyPreviewsEqual(
+  prev?: PostCardProps["replyPreview"],
+  next?: PostCardProps["replyPreview"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  return (
+    prev.username === next.username &&
+    prev.text === next.text &&
+    prev.time === next.time
+  );
+}
+
+function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) {
+  return (
+    prev.variant === next.variant &&
+    prev.sourcePostType === next.sourcePostType &&
+    prev.username === next.username &&
+    prev.userId === next.userId &&
+    prev.handle === next.handle &&
+    prev.postId === next.postId &&
+    prev.displayName === next.displayName &&
+    prev.timestamp === next.timestamp &&
+    prev.avatarInitial === next.avatarInitial &&
+    prev.avatarUrl === next.avatarUrl &&
+    prev.avatarBg === next.avatarBg &&
+    prev.avatarColor === next.avatarColor &&
+    prev.headline === next.headline &&
+    prev.text === next.text &&
+    prev.filmRef === next.filmRef &&
+    areFilmCardsEqual(prev.filmCard, next.filmCard) &&
+    areAttachedFilmsEqual(prev.attachedFilm, next.attachedFilm) &&
+    prev.imageSrc === next.imageSrc &&
+    prev.imageCaption === next.imageCaption &&
+    areStringArraysEqual(prev.mediaUrls, next.mediaUrls) &&
+    areStringArraysEqual(prev.viewerMediaUrls, next.viewerMediaUrls) &&
+    prev.saveData === next.saveData &&
+    areLinkPreviewsEqual(prev.linkPreview, next.linkPreview) &&
+    prev.likeCount === next.likeCount &&
+    prev.liked === next.liked &&
+    prev.bookmarked === next.bookmarked &&
+    prev.reposted === next.reposted &&
+    prev.commentCount === next.commentCount &&
+    areReplyPreviewsEqual(prev.replyPreview, next.replyPreview) &&
+    prev.replyCount === next.replyCount &&
+    prev.animationDelay === next.animationDelay &&
+    prev.disableAnimation === next.disableAnimation &&
+    prev.tab === next.tab &&
+    prev.role === next.role &&
+    prev.roleContext === next.roleContext &&
+    prev.filmsLoggedCount === next.filmsLoggedCount
+  );
+}
+
+export const PostCard = memo(PostCardComponent, arePostCardPropsEqual);

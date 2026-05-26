@@ -25,6 +25,21 @@ import { ApiError, badRequest, forbidden, notFound } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { isValidUlid } from "../../lib/ulid.js";
 import { resolvePublicMediaUrl } from "../media/url.js";
+import {
+  feedMediaUrl,
+  fullMediaUrl,
+  normalizePostMediaList,
+  type PostMediaItem,
+} from "../media/variants.js";
+import {
+  getFeedCache,
+  homeFeedCacheKey,
+  invalidateAuthorProfileFeedCaches,
+  invalidateFeedCacheForGuest,
+  invalidateViewerFeedCaches,
+  profileFeedCacheKey,
+  setFeedCache,
+} from "../../lib/feedCache.js";
 
 export var feedRoutes = new Hono();
 
@@ -52,8 +67,17 @@ type CreatePostInput = {
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
+    key?: string;
     thumbnailUrl?: string;
     altText?: string;
+    width?: number;
+    height?: number;
+    blurhash?: string;
+    variants?: {
+      thumb?: string;
+      feed?: string;
+      full?: string;
+    };
   }>;
   mediaUrls: string[];
   linkPreview: {
@@ -108,7 +132,7 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     filmId,
     filmRating,
     visibility,
-    media: (parsed.media ?? []).slice(0, 10),
+    media: normalizePostMediaList(source.media ?? parsed.media).slice(0, 10),
     mediaUrls: Array.isArray(source.mediaUrls)
       ? source.mediaUrls.filter(function (value): value is string {
           return typeof value === "string" && value.trim().length > 0;
@@ -288,6 +312,35 @@ function compositeCursorSql(createdAtColumn: unknown, idColumn: unknown, cursor:
   );
 }
 
+async function acceptedFollowerIds(userId: string): Promise<string[]> {
+  var db = getDb();
+  var rows = await db
+    .select({ followerId: follows.followerId })
+    .from(follows)
+    .where(and(eq(follows.followingId, userId), eq(follows.status, "accepted")));
+  return rows.map(function (row) {
+    return row.followerId;
+  });
+}
+
+async function invalidateFeedAfterAuthorMutation(input: {
+  authorUserId: string;
+  includeGuest: boolean;
+  includeFollowers?: boolean;
+}) {
+  var viewerIds = [input.authorUserId] as Array<string | null>;
+  if (input.includeFollowers) {
+    var followers = await acceptedFollowerIds(input.authorUserId);
+    viewerIds.push(...followers);
+  }
+
+  await invalidateViewerFeedCaches(viewerIds);
+  await invalidateAuthorProfileFeedCaches([input.authorUserId]);
+  if (input.includeGuest) {
+    await invalidateFeedCacheForGuest();
+  }
+}
+
 async function toPostItem(row: {
   id: string;
   type: "text" | "discussion" | "log" | "review" | "image";
@@ -301,12 +354,7 @@ async function toPostItem(row: {
   filmPosterUrl: string | null;
   filmGenres: string[] | null;
   filmRating: number | null;
-  media: Array<{
-    type: "image" | "video" | "film_embed" | "none";
-    url: string;
-    thumbnailUrl?: string;
-    altText?: string;
-  }>;
+  media: PostMediaItem[];
   mediaUrls: string[] | null;
   linkPreview: {
     url: string;
@@ -338,16 +386,24 @@ async function toPostItem(row: {
   isBookmarked: boolean;
 }) {
   var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
-  var mediaItems = Array.isArray(row.media) ? row.media : [];
-  var resolvedMedia = mediaItems.filter(function (item): item is NonNullable<typeof item> {
-    if (!item || typeof item !== "object") return false;
-    var urlValue = (item as { url?: unknown }).url;
-    return typeof urlValue === "string" && urlValue.trim().length > 0;
+  var mediaItems = normalizePostMediaList(row.media);
+  var responseMedia = mediaItems.map(function (item) {
+    return {
+      ...item,
+      url: feedMediaUrl(item),
+      variants: {
+        ...item.variants,
+        full: fullMediaUrl(item),
+      },
+    };
   });
-  var resolvedMediaUrls = row.mediaUrls ?? [];
-  var resolvedLinkPreviewImage = row.linkPreview?.image
-    ? await resolvePublicMediaUrl(row.linkPreview.image)
-    : null;
+  var responseMediaUrls = responseMedia
+    .filter(function (item) {
+      return item.type === "image";
+    })
+    .map(function (item) {
+      return item.url;
+    });
 
   return {
     id: row.id,
@@ -355,14 +411,12 @@ async function toPostItem(row: {
     headline: row.headline,
     body: row.body,
     visibility: row.visibility,
-    media: resolvedMedia.filter(function (item): item is NonNullable<typeof item> {
-      return item !== null;
-    }),
-    mediaUrls: resolvedMediaUrls,
+    media: responseMedia,
+    mediaUrls: responseMediaUrls,
     linkPreview: row.linkPreview
       ? {
           ...row.linkPreview,
-          image: resolvedLinkPreviewImage ?? row.linkPreview.image,
+          image: row.linkPreview.image,
         }
       : null,
     film: row.filmId
@@ -469,6 +523,7 @@ async function assertPostOwner(postId: string, userId: string) {
       id: posts.id,
       userId: posts.userId,
       isDeleted: posts.isDeleted,
+      visibility: posts.visibility,
       body: posts.body,
       headline: posts.headline,
     })
@@ -525,8 +580,22 @@ feedRoutes.get("/", async function (c) {
   var cursor = decodeCompositeCursor(parsed.cursor);
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var requestCursor = parsed.cursor ?? null;
 
   if (viewer) {
+    c.header("Cache-Control", "private, no-store");
+    var cacheKey = homeFeedCacheKey({
+      viewerId: viewer.userId,
+      cursor: requestCursor,
+      limit: parsed.limit,
+    });
+    var cached = await getFeedCache(cacheKey);
+    if (cached) {
+      c.header("X-Feed-Cache", "HIT");
+      return c.json(cached);
+    }
+    c.header("X-Feed-Cache", "MISS");
+
     var filters: any[] = [
       eq(feedItems.userId, viewer.userId),
       eq(posts.isDeleted, false),
@@ -595,9 +664,23 @@ feedRoutes.get("/", async function (c) {
     var nextCursor = hasMore && tail
       ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
       : null;
-
-    return c.json({ items, nextCursor, hasMore });
+    var payload = { items, nextCursor, hasMore };
+    await setFeedCache(cacheKey, payload, { viewerId: viewer.userId });
+    return c.json(payload);
   }
+
+  c.header("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+  var guestCacheKey = homeFeedCacheKey({
+    viewerId: null,
+    cursor: requestCursor,
+    limit: parsed.limit,
+  });
+  var guestCached = await getFeedCache(guestCacheKey);
+  if (guestCached) {
+    c.header("X-Feed-Cache", "HIT");
+    return c.json(guestCached);
+  }
+  c.header("X-Feed-Cache", "MISS");
 
   // Guest (unauthenticated) feed reads directly from posts table ordered by created_at.
   // Authenticated feed reads from feed_items (materialized fan-out).
@@ -665,15 +748,16 @@ feedRoutes.get("/", async function (c) {
   var guestNextCursor = guestHasMore && guestTail
     ? encodeCompositeCursor({ createdAt: guestTail.cursorCreatedAt, id: guestTail.cursorId })
     : null;
-
-  return c.json({ items: guestItems, nextCursor: guestNextCursor, hasMore: guestHasMore });
+  var guestPayload = { items: guestItems, nextCursor: guestNextCursor, hasMore: guestHasMore };
+  await setFeedCache(guestCacheKey, guestPayload, { viewerId: null });
+  return c.json(guestPayload);
 });
 
 feedRoutes.post("/", requireAuth, async function (c) {
   var user = c.get("user");
   var input = parseCreatePostInput(await c.req.json());
   var db = getDb();
-  var normalizedMedia =
+  var normalizedMedia: PostMediaItem[] =
     input.media.length > 0
       ? input.media
       : input.mediaUrls.map(function (url) {
@@ -682,8 +766,26 @@ feedRoutes.post("/", requireAuth, async function (c) {
           if (lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.includes("video")) {
             type = "video";
           }
+          if (type === "image") {
+            return {
+              type,
+              url,
+              variants: {
+                thumb: url,
+                feed: url,
+                full: url,
+              },
+            };
+          }
           return { type, url };
         });
+  var normalizedMediaUrls = normalizedMedia
+    .filter(function (item) {
+      return item.type === "image";
+    })
+    .map(function (item) {
+      return feedMediaUrl(item);
+    });
 
   if (input.filmId) {
     var filmRows = await db
@@ -708,7 +810,7 @@ feedRoutes.post("/", requireAuth, async function (c) {
       filmRating: input.filmRating,
       visibility: input.visibility,
       media: normalizedMedia,
-      mediaUrls: input.mediaUrls,
+      mediaUrls: normalizedMediaUrls,
       linkPreview: input.linkPreview,
     })
     .returning({ id: posts.id });
@@ -744,6 +846,12 @@ feedRoutes.post("/", requireAuth, async function (c) {
     );
   }
 
+  await invalidateFeedAfterAuthorMutation({
+    authorUserId: user.userId,
+    includeFollowers: true,
+    includeGuest: input.visibility === "public",
+  });
+
   var created = await getPostById(postId, user.userId);
   if (!created) {
     throw notFound("Created post not found");
@@ -756,6 +864,11 @@ feedRoutes.get("/posts/:postId", async function (c) {
   var postId = c.req.param("postId");
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var post = await assertReadablePost(postId, viewer?.userId ?? null);
+  var etag = `W/"post-${post.id}-${post.updatedAt}"`;
+  c.header("ETag", etag);
+  if (c.req.header("If-None-Match") === etag) {
+    return new Response(null, { status: 304 });
+  }
   return c.json(post);
 });
 
@@ -804,6 +917,25 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       throw new ApiError(403, "PRIVATE_ACCOUNT", "This account is private");
     }
   }
+
+  if (viewerUserId) {
+    c.header("Cache-Control", "private, no-store");
+  } else {
+    c.header("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+  }
+
+  var cacheKey = profileFeedCacheKey({
+    username,
+    viewerId: viewerUserId,
+    cursor: parsed.cursor ?? null,
+    limit: parsed.limit,
+  });
+  var cached = await getFeedCache(cacheKey);
+  if (cached) {
+    c.header("X-Feed-Cache", "HIT");
+    return c.json(cached);
+  }
+  c.header("X-Feed-Cache", "MISS");
 
   var filters: any[] = [
     eq(profiles.username, username),
@@ -874,8 +1006,12 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   var nextCursor = hasMore && tail
     ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
     : null;
-
-  return c.json({ items, nextCursor, hasMore });
+  var payload = { items, nextCursor, hasMore };
+  await setFeedCache(cacheKey, payload, {
+    viewerId: viewerUserId,
+    authorUserId: profileRow.userId,
+  });
+  return c.json(payload);
 });
 
 feedRoutes.get("/bookmarks", requireAuth, async function (c) {
@@ -960,7 +1096,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
 feedRoutes.delete("/posts/:postId", requireAuth, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
-  await assertPostOwner(postId, user.userId);
+  var current = await assertPostOwner(postId, user.userId);
 
   var db = getDb();
   await db
@@ -970,6 +1106,12 @@ feedRoutes.delete("/posts/:postId", requireAuth, async function (c) {
       updatedAt: new Date(),
     })
     .where(and(eq(posts.id, postId), eq(posts.userId, user.userId)));
+
+  await invalidateFeedAfterAuthorMutation({
+    authorUserId: user.userId,
+    includeFollowers: true,
+    includeGuest: current.visibility === "public",
+  });
 
   return c.json({ ok: true });
 });
@@ -1018,6 +1160,12 @@ feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
       updatedAt: new Date(),
     })
     .where(eq(posts.id, postId));
+
+  await invalidateFeedAfterAuthorMutation({
+    authorUserId: user.userId,
+    includeFollowers: true,
+    includeGuest: current.visibility === "public",
+  });
 
   var updated = await getPostById(postId, user.userId);
   if (!updated) throw notFound("Post not found");
@@ -1177,6 +1325,12 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
         );
       }
     }
+
+    await invalidateFeedAfterAuthorMutation({
+      authorUserId: user.userId,
+      includeFollowers: true,
+      includeGuest: true,
+    });
   }
 
   return c.json({ ok: true });
@@ -1216,6 +1370,12 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
           eq(posts.isDeleted, false)
         )
       );
+
+    await invalidateFeedAfterAuthorMutation({
+      authorUserId: user.userId,
+      includeFollowers: true,
+      includeGuest: true,
+    });
   }
 
   return c.json({ ok: true });

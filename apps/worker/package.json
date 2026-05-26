@@ -4,14 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node --watch --env-file=../api/.env --import tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "backfill:media": "node --env-file=../api/.env --import tsx src/scripts/backfillMedia.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@35mm/types": "workspace:*"
+    "@35mm/db": "workspace:*",
+    "@35mm/types": "workspace:*",
+    "@aws-sdk/client-s3": "^3.774.0",
+    "blurhash": "^2.0.5",
+    "drizzle-orm": "^0.45.2",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@35mm/config": "workspace:*",

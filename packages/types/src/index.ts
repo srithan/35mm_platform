@@ -72,8 +72,17 @@ export interface FeedPost {
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
+    key?: string;
     thumbnailUrl?: string;
     altText?: string;
+    width?: number;
+    height?: number;
+    blurhash?: string;
+    variants?: {
+      thumb?: string;
+      feed?: string;
+      full?: string;
+    };
   }>;
   film: {
     id: string;

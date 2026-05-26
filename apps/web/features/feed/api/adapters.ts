@@ -59,10 +59,28 @@ function normalizeMedia(raw: Record<string, unknown>): Post["media"] {
       if (!url) continue;
 
       var next: Post["media"][number] = { type, url };
+      var key = asString(item.key);
       var thumbnailUrl = asString(item.thumbnailUrl);
       var altText = asString(item.altText);
+      var blurhash = asString(item.blurhash);
+      var width = asNumber(item.width, 0);
+      var height = asNumber(item.height, 0);
+      var variants = isRecord(item.variants) ? item.variants : null;
+      var thumbVariant = variants ? asString(variants.thumb) : "";
+      var feedVariant = variants ? asString(variants.feed) : "";
+      var fullVariant = variants ? asString(variants.full) : "";
+      if (key) next.key = key;
       if (thumbnailUrl) next.thumbnailUrl = thumbnailUrl;
       if (altText) next.altText = altText;
+      if (blurhash) next.blurhash = blurhash;
+      if (width > 0) next.width = width;
+      if (height > 0) next.height = height;
+      if (thumbVariant || feedVariant || fullVariant) {
+        next.variants = {};
+        if (thumbVariant) next.variants.thumb = thumbVariant;
+        if (feedVariant) next.variants.feed = feedVariant;
+        if (fullVariant) next.variants.full = fullVariant;
+      }
       normalized.push(next);
     }
     return normalized;

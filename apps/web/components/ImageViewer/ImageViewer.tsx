@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { Modal } from "@/components/Modal/Modal";
-import { resolvePublicMediaUrl } from "@/lib/utils/r2Media";
+import { LazyR2Image } from "@/components/LazyR2Image";
 
 interface ImageViewerProps {
   open: boolean;
@@ -83,35 +83,6 @@ export function ImageViewer({
   );
 
   const currentUrl = urls.length > 0 ? (urls[activeIndex] ?? urls[0]) : "";
-  const [currentSrc, setCurrentSrc] = useState<string | null>(null);
-
-  useEffect(
-    function () {
-      if (!open || !currentUrl) return;
-      let cancelled = false;
-      setCurrentSrc(null);
-
-      resolvePublicMediaUrl(currentUrl).then(function (resolved) {
-        if (!cancelled && resolved) {
-          setCurrentSrc(resolved);
-        }
-      });
-
-      return function () {
-        cancelled = true;
-      };
-    },
-    [open, currentUrl]
-  );
-
-  const handleImageError = useCallback(function () {
-    if (!currentUrl) return;
-    resolvePublicMediaUrl(currentUrl, { force: true }).then(function (resolved) {
-      if (resolved) {
-        setCurrentSrc(resolved);
-      }
-    });
-  }, [currentUrl]);
 
   if (urls.length === 0) return null;
 
@@ -139,18 +110,16 @@ export function ImageViewer({
         </div>
       ) : null}
 
-      {currentSrc ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          key={currentSrc}
-          src={currentSrc}
-          alt={alt ? alt + " " + String(activeIndex + 1) : "Full-size image " + String(activeIndex + 1)}
-          className="block max-h-[85vh] w-auto max-w-[min(96vw,72rem)] rounded-lg object-contain shadow-2xl"
-          onError={handleImageError}
-        />
-      ) : (
-        <div className="h-[40vh] w-[min(96vw,32rem)] animate-pulse rounded-lg bg-white/10" aria-hidden />
-      )}
+      <LazyR2Image
+        key={currentUrl}
+        src={currentUrl}
+        alt={alt ? alt + " " + String(activeIndex + 1) : "Full-size image " + String(activeIndex + 1)}
+        forceLoad={open}
+        loading="eager"
+        className="block max-h-[85vh] w-auto max-w-[min(96vw,72rem)] rounded-lg object-contain shadow-2xl"
+        containerClassName="inline-flex min-h-[40vh] min-w-[min(96vw,32rem)] items-center justify-center"
+        placeholderClassName="rounded-lg bg-white/10"
+      />
 
       {hasMultiple ? (
         <>

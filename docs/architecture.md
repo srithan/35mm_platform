@@ -511,16 +511,31 @@ useMutation({
 
 ### 10.2 Image Strategy
 
-- Film posters: serve via Cloudflare Images with responsive sizing (`w=300`, `w=600`)
-- User avatars: Cloudflare Images with face crop
-- Next.js `<Image>` for all images — no raw `<img>` tags
-- Blur placeholder via `blurDataURL` on film posters
+- Upload path: client uploads original to private R2 via presigned `PUT`; presign response includes deterministic variant URLs (`thumb`, `feed`, `full`)
+- Read path: feed APIs return stable cacheable variant URLs from `posts.media[].variants` (`feed` for timeline, `full` for lightbox); no expiring presigned GET URLs in feed payloads
+- Variant targets:
+  - `thumb`: ~320w WebP (quick preview / low-bandwidth)
+  - `feed`: ~640w WebP (timeline/default)
+  - `full`: up to ~2048w WebP (viewer/post detail)
+- Metadata stored in `posts.media` JSON:
+  - `key`, `variants`, `blurhash`, `width`, `height`, `thumbnailUrl`
+- Processing model:
+  - `apps/worker` runs `media.process` job, generates variants + blurhash, updates `posts.media` and `posts.media_urls`
+  - `apps/worker/src/scripts/backfillMedia.ts` handles idempotent historical backfill in cursor batches
 
 ### 10.3 Feed Performance
 
-- `InfinitePostList` uses windowing (virtual scroll) for very long feeds — integrate `@tanstack/virtual` if scroll jank appears at 200+ posts
-- Images in feed are lazy-loaded (`loading="lazy"` or `LazyImage` component)
-- `PostCard` must be memoized (`React.memo`) — it renders N times per feed
+- `PostCard` is memoized (`React.memo`) with prop comparator to avoid scroll re-render storms
+- Feed image loading is viewport-aware:
+  - shared `LazyR2Image` gate via `IntersectionObserver` (`rootMargin: 200px`)
+  - carousel loads only active slide ±1 while near viewport
+  - on `saveData`, carousel auto-load is reduced to active slide only
+- Infinite sentinel prefetches upcoming page around 80% visibility (`queryClient.prefetchInfiniteQuery`), then hydrates main infinite cache
+- hover/focus on feed cards prefetches post detail query and first viewer image
+- `InfinitePostList` uses `@tanstack/react-virtual` when list size exceeds 50 cards to reduce DOM pressure
+- connection-aware variant selection:
+  - default: `feed` variant
+  - `slow-2g|2g|3g` or `saveData`: `thumb` variant in feed/profile/bookmarks
 
 ### 10.4 Bundle Strategy
 
@@ -530,8 +545,15 @@ useMutation({
 
 ### 10.5 Service Worker
 
-- `ServiceWorkerRegistration.tsx` exists — wire up for offline shell + asset caching
-- Cache strategy: network-first for API, cache-first for static assets and film posters
+- `ServiceWorkerRegistration.tsx` registers `/sw.js` in app shell
+- Versioned caches:
+  - `35mm-nav-*` (offline shell + navigation fallback)
+  - `35mm-static-*` (Next static assets, scripts/styles/fonts/icons)
+  - `35mm-image-*` (immutable CDN images: `*.r2.dev`, `*.imagedelivery.net`, `/images/*`)
+  - `35mm-api-*` (network-first cache for cacheable same-origin `GET /v1/*` responses)
+- API cache safety:
+  - skip cache when request has `Authorization` header
+  - skip cache when response `Cache-Control` is `private` or `no-store`
 
 ---
 
@@ -556,6 +578,17 @@ Cache invalidation:
 - On post creation: invalidate `feed:{userId}` cache for all followers (via BullMQ job)
 - On profile update: invalidate `profile:{username}` cache
 - On film update: invalidate `film:{filmId}` cache
+
+Current implementation (2026-05-26):
+- Feed endpoints cache in Upstash Redis:
+  - `GET /v1/feed`
+  - `GET /v1/feed/profiles/:username/posts`
+- TTL: 60s, keyed by viewer + cursor + limit
+- Index sets track cache keys per viewer and per profile author for targeted invalidation
+- Response header `X-Feed-Cache: HIT|MISS` exposed for cache hit-rate measurement
+- HTTP cache headers:
+  - personalized feed: `Cache-Control: private, no-store`
+  - guest profile-post feed: `Cache-Control: public, s-maxage=30, stale-while-revalidate=60`
 
 ### 11.3 Rate Limiting
 
@@ -627,6 +660,13 @@ R2_SECRET_ACCESS_KEY=
 R2_BUCKET=
 R2_PUBLIC_BASE_URL=
 R2_PRESIGN_TTL_SECONDS=
+CF_IMAGES_ACCOUNT_HASH=
+CF_IMAGES_ACCOUNT_ID=
+CF_IMAGES_API_TOKEN=
+CF_IMAGES_DELIVERY_BASE_URL=
+CF_IMAGES_DEFAULT_THUMB_VARIANT=thumb
+CF_IMAGES_DEFAULT_FEED_VARIANT=feed
+CF_IMAGES_DEFAULT_FULL_VARIANT=full
 PORT=
 # To add:
 UPSTASH_REDIS_REST_URL=
@@ -645,6 +685,7 @@ NEXT_PUBLIC_API_URL=
 TMDB_API_KEY=
 NEXT_PUBLIC_OMDB_API_KEY=
 NEXT_PUBLIC_IS_AUTHENTICATED=
+NEXT_PUBLIC_MEDIA_READS_PUBLIC=true
 # To add:
 NEXT_PUBLIC_CHAT_API_MODE=             # 'mock' | 'remote'
 NEXT_PUBLIC_CHAT_API_URL=

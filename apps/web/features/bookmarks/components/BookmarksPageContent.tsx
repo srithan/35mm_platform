@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { PostCard } from "@/features/feed/components/PostCard";
+import { useConnectionPreferences } from "@/features/feed/hooks/useConnectionPreferences";
 import { resolvePostImageUrls } from "@/features/feed/utils/postMedia";
 import { useBookmarks } from "../hooks/useBookmarks";
 import type { Post } from "@/features/feed/types/feed";
@@ -26,7 +27,9 @@ function formatPostTime(iso: string): string {
 
 export function BookmarksPageContent() {
   var query = useBookmarks();
+  var connection = useConnectionPreferences();
   var posts = query.data?.pages.flatMap((page) => page.items) ?? [];
+  var imageVariant: "feed" | "thumb" = connection.slow || connection.saveData ? "thumb" : "feed";
 
   if (query.status === "pending") {
     return <div className="px-4 py-10 text-sm text-fg-muted">Loading bookmarks...</div>;
@@ -82,7 +85,9 @@ export function BookmarksPageContent() {
             text={post.body}
             filmCard={filmCard}
             attachedFilm={post.film}
-            mediaUrls={resolvePostImageUrls(post)}
+            mediaUrls={resolvePostImageUrls(post, imageVariant)}
+            viewerMediaUrls={resolvePostImageUrls(post, "full")}
+            saveData={connection.saveData}
             linkPreview={post.linkPreview}
             imageSrc={image?.url}
             imageCaption={image?.altText}

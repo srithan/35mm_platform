@@ -5,6 +5,10 @@ import { getDb } from "../../lib/db.js";
 import { purgeFeedItemsBetweenUsers } from "../../lib/moderation.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
+import {
+  invalidateAuthorProfileFeedCaches,
+  invalidateViewerFeedCaches,
+} from "../../lib/feedCache.js";
 import { cursorPaginationSchema } from "@35mm/validators";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { resolvePublicMediaUrl } from "../media/url.js";
@@ -55,6 +59,8 @@ userRoutes.post("/users/:userId/block", requireAuth, async function (c) {
     .onConflictDoNothing();
 
   await purgeFeedItemsBetweenUsers(user.userId, targetUserId);
+  await invalidateViewerFeedCaches([user.userId, targetUserId]);
+  await invalidateAuthorProfileFeedCaches([user.userId, targetUserId]);
 
   return c.json({ ok: true });
 });
@@ -69,6 +75,8 @@ userRoutes.delete("/users/:userId/block", requireAuth, async function (c) {
   await db
     .delete(userBlocks)
     .where(and(eq(userBlocks.blockerId, user.userId), eq(userBlocks.blockedId, targetUserId)));
+  await invalidateViewerFeedCaches([user.userId, targetUserId]);
+  await invalidateAuthorProfileFeedCaches([user.userId, targetUserId]);
 
   return c.json({ ok: true });
 });

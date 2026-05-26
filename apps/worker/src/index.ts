@@ -1,7 +1,8 @@
 import { runFeedFanoutJob } from "./jobs/feedFanout.js";
+import { runMediaProcessJob } from "./jobs/mediaProcess.js";
 import { runNotificationDigestJob } from "./jobs/notificationDigest.js";
 
-const jobs = [runFeedFanoutJob, runNotificationDigestJob];
+const jobs = [runFeedFanoutJob, runMediaProcessJob, runNotificationDigestJob];
 
 async function main() {
   console.log("35mm worker booted");

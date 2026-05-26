@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { resolvePublicMediaUrl } from "@/lib/utils/r2Media";
+import { LazyR2Image } from "@/components/LazyR2Image";
 
 function gridClassName(count: number) {
   if (count === 1) return "grid-cols-1";
@@ -33,56 +33,27 @@ function PostGalleryImage({
   url,
   alt,
   className,
+  shouldLoad = true,
+  forceLoad = false,
 }: {
   url: string;
   alt: string;
   className?: string;
+  shouldLoad?: boolean;
+  forceLoad?: boolean;
 }) {
-  var stableUrlRef = useRef(url);
-  var [src, setSrc] = useState<string | null>(null);
-
-  useEffect(
-    function () {
-      stableUrlRef.current = url;
-      var cancelled = false;
-      setSrc(null);
-
-      resolvePublicMediaUrl(url).then(function (resolved) {
-        if (!cancelled && resolved) {
-          setSrc(resolved);
-        }
-      });
-
-      return function () {
-        cancelled = true;
-      };
-    },
-    [url]
-  );
-
-  var handleError = useCallback(function () {
-    resolvePublicMediaUrl(stableUrlRef.current, { force: true }).then(function (resolved) {
-      if (resolved) {
-        setSrc(resolved);
-      }
-    });
-  }, []);
-
   return (
-    <>
-      {!src ? (
-        <div className="absolute inset-0 animate-pulse bg-sunken-2" aria-hidden />
-      ) : (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={src}
-          alt={alt}
-          className={className}
-          onError={handleError}
-          draggable={false}
-        />
-      )}
-    </>
+    <LazyR2Image
+      src={url}
+      alt={alt}
+      className={className}
+      containerClassName="absolute inset-0"
+      rootMargin="200px"
+      shouldLoad={shouldLoad}
+      forceLoad={forceLoad}
+      loading={forceLoad ? "eager" : "lazy"}
+      draggable={false}
+    />
   );
 }
 
@@ -90,13 +61,43 @@ function PostImageCarousel({
   urls,
   imageCaption,
   onImageClick,
+  saveData = false,
 }: {
   urls: string[];
   imageCaption?: string;
   onImageClick?: (index: number) => void;
+  saveData?: boolean;
 }) {
   var trackRef = useRef<HTMLDivElement>(null);
+  var carouselRef = useRef<HTMLDivElement>(null);
   var [activeIndex, setActiveIndex] = useState(0);
+  var [isNearViewport, setIsNearViewport] = useState(false);
+
+  useEffect(function () {
+    var node = carouselRef.current;
+    if (!node) return;
+
+    var observer = new IntersectionObserver(
+      function (entries) {
+        var entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          setIsNearViewport(true);
+          return;
+        }
+        setIsNearViewport(false);
+      },
+      {
+        rootMargin: "200px",
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(node);
+    return function () {
+      observer.disconnect();
+    };
+  }, []);
 
   var syncActiveIndex = useCallback(function () {
     var track = trackRef.current;
@@ -123,6 +124,7 @@ function PostImageCarousel({
 
   return (
     <div
+      ref={carouselRef}
       className="group/carousel relative mt-3.5 w-full overflow-hidden rounded-lg bg-sunken"
       onClick={function (e) {
         e.stopPropagation();
@@ -138,6 +140,10 @@ function PostImageCarousel({
         aria-label="Post images"
       >
         {urls.map(function (url, idx) {
+          var shouldLoadImage = isNearViewport && Math.abs(idx - activeIndex) <= 1;
+          if (saveData) {
+            shouldLoadImage = isNearViewport && idx === activeIndex;
+          }
           return (
             <button
               key={url + ":" + idx}
@@ -153,6 +159,8 @@ function PostImageCarousel({
                 url={url}
                 alt={imageCaption || "Post image " + String(idx + 1)}
                 className="absolute inset-0 h-full w-full object-cover"
+                shouldLoad={shouldLoadImage}
+                forceLoad={shouldLoadImage}
               />
             </button>
           );
@@ -272,10 +280,12 @@ export function PostImageGallery({
   urls,
   imageCaption,
   onImageClick,
+  saveData = false,
 }: {
   urls: string[];
   imageCaption?: string;
   onImageClick?: (index: number) => void;
+  saveData?: boolean;
 }) {
   if (urls.length === 0) return null;
 
@@ -286,6 +296,7 @@ export function PostImageGallery({
           urls={urls}
           imageCaption={imageCaption}
           onImageClick={onImageClick}
+          saveData={saveData}
         />
       ) : (
         <PostImageGrid urls={urls} imageCaption={imageCaption} onImageClick={onImageClick} />

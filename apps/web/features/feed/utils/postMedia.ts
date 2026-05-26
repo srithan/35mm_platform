@@ -1,9 +1,10 @@
 import type { Post } from "../types/feed";
 
 export function resolvePostImageUrls(
-  post: Pick<Post, "media" | "mediaUrls">
+  post: Pick<Post, "media" | "mediaUrls">,
+  variant: "thumb" | "feed" | "full" = "feed"
 ): string[] {
-  if (post.mediaUrls && post.mediaUrls.length > 0) {
+  if (variant === "feed" && post.mediaUrls && post.mediaUrls.length > 0) {
     return post.mediaUrls;
   }
 
@@ -12,6 +13,12 @@ export function resolvePostImageUrls(
       return item.type === "image";
     })
     .map(function (item) {
-      return item.url;
+      if (variant === "thumb") {
+        return item.variants?.thumb || item.variants?.feed || item.url;
+      }
+      if (variant === "full") {
+        return item.variants?.full || item.url;
+      }
+      return item.variants?.feed || item.url;
     });
 }

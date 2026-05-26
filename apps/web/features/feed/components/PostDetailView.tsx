@@ -7,6 +7,7 @@ import { usePost } from "../hooks/usePost";
 import { CommentSection } from "./CommentSection";
 import { PostCard } from "./PostCard";
 import { PostPageBackButton } from "./PostPageBackButton";
+import { useConnectionPreferences } from "../hooks/useConnectionPreferences";
 import { resolvePostImageUrls } from "../utils/postMedia";
 
 type LegacyPostShape = {
@@ -64,6 +65,7 @@ export function PostDetailView({
   username: string;
   postId: string;
 }) {
+  const connection = useConnectionPreferences();
   const { data: post, isLoading: postLoading, isError: postError, error: postQueryError } = usePost(username, postId);
   const commentsQuery = useComments(postId);
   const comments = commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [];
@@ -98,6 +100,7 @@ export function PostDetailView({
   }
 
   const legacy = getLegacyShape(post);
+  const imageVariant: "feed" | "thumb" = connection.slow || connection.saveData ? "thumb" : "feed";
   const image = post.media.find((item) => item.type === "image");
   const filmCard = post.film
     ? {
@@ -132,7 +135,9 @@ export function PostDetailView({
         filmRef={legacy.filmRef ?? undefined}
         filmCard={legacy.filmCard ?? filmCard}
         attachedFilm={post.film}
-        mediaUrls={resolvePostImageUrls(post)}
+        mediaUrls={resolvePostImageUrls(post, imageVariant)}
+        viewerMediaUrls={resolvePostImageUrls(post, "full")}
+        saveData={connection.saveData}
         linkPreview={post.linkPreview}
         imageSrc={legacy.imageSrc ?? image?.url}
         imageCaption={legacy.imageCaption ?? image?.altText}

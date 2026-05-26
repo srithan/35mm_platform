@@ -5,9 +5,13 @@ export interface ResolveMediaProfile {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+function mediaReadsPublic(): boolean {
+  return (process.env.NEXT_PUBLIC_MEDIA_READS_PUBLIC || "true").toLowerCase() === "true";
+}
+
 const mediaUrlCache = new Map<string, { value: string; expiresAt: number }>();
 
-const MEDIA_URL_CACHE_TTL_MS = 8 * 60 * 1000;
+const MEDIA_URL_CACHE_TTL_MS = 7 * 60 * 1000;
 
 function mediaCacheKey(value: string): string {
   try {
@@ -25,6 +29,9 @@ export function shouldResolvePublicR2Url(value: string): boolean {
       return true;
     }
     if (!/\.r2\.dev$/i.test(parsed.host)) {
+      return false;
+    }
+    if (mediaReadsPublic()) {
       return false;
     }
 
