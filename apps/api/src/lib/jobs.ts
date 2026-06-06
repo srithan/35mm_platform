@@ -8,7 +8,12 @@ type MediaProcessJobPayload = {
   postId: string;
 };
 
-type QueueName = "media.process";
+type NotificationPublishJobPayload = {
+  notificationId: string;
+  delayMs?: number;
+};
+
+type QueueName = "media.process" | "notification.publish";
 
 var queue: Queue | null | undefined;
 
@@ -32,6 +37,47 @@ function defaultJobOptions(name: QueueName): JobsOptions {
       delay: 1_000,
     },
   };
+}
+
+export async function enqueueNotificationPublishJob(
+  payload: NotificationPublishJobPayload
+): Promise<boolean> {
+  var q = getQueue();
+  if (!q) return false;
+
+  try {
+    await q.add("notification.publish", payload, {
+      ...defaultJobOptions("notification.publish"),
+      jobId: "notification.publish-" + payload.notificationId,
+      delay: payload.delayMs ?? 0,
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    });
+  } catch (error) {
+    console.warn("[notification.publish] enqueue failed", error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function removeNotificationPublishJob(notificationId: string): Promise<boolean> {
+  var q = getQueue();
+  if (!q) return false;
+
+  var jobId = "notification.publish-" + notificationId;
+
+  try {
+    await q.remove(jobId);
+  } catch (error) {
+    console.warn("[notification.publish] remove failed", {
+      notificationId,
+      error,
+    });
+    return false;
+  }
+
+  return true;
 }
 
 function redisUrl(): string {

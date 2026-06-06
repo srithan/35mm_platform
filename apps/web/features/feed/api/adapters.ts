@@ -1,5 +1,7 @@
 import type { Comment, Post } from "../types/feed";
 
+var ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
@@ -26,6 +28,11 @@ function asStringArray(value: unknown): string[] {
   return value.filter(function (item): item is string {
     return typeof item === "string";
   });
+}
+
+function asUlid(value: unknown): string {
+  var candidate = asString(value);
+  return ULID_RE.test(candidate) ? candidate : "";
 }
 
 function toRelativeTime(iso: string): string {
@@ -124,32 +131,38 @@ export function adaptPostToFeedType(raw: unknown): Post {
 
   var film: Post["film"] = null;
   if (isRecord(root.film)) {
-    film = {
-      id: asString(root.film.id),
-      tmdbId: asNumber(root.film.tmdbId, NaN),
-      title: asString(root.film.title, "Unknown"),
-      year: root.film.year == null ? null : asNumber(root.film.year, 0),
-      posterUrl: asNullableString(root.film.posterUrl),
-      genres: asStringArray(root.film.genres),
-      rating: root.film.rating == null ? null : asNumber(root.film.rating, 0),
-    };
+    var filmId = asUlid(root.film.id);
+    if (filmId) {
+      film = {
+        id: filmId,
+        tmdbId: asNumber(root.film.tmdbId, NaN),
+        title: asString(root.film.title, "Unknown"),
+        year: root.film.year == null ? null : asNumber(root.film.year, 0),
+        posterUrl: asNullableString(root.film.posterUrl),
+        genres: asStringArray(root.film.genres),
+        rating: root.film.rating == null ? null : asNumber(root.film.rating, 0),
+      };
 
-    if (!Number.isFinite(film.tmdbId as number)) {
-      delete film.tmdbId;
+      if (!Number.isFinite(film.tmdbId as number)) {
+        delete film.tmdbId;
+      }
     }
   } else if (isRecord(root.filmCard)) {
     var filmCardTitle = asString(root.filmCard.title, "Unknown");
-    film = {
-      id: asString(root.filmCard.id) || asString(root.filmCard.tmdbId),
-      tmdbId: Number.isFinite(asNumber(root.filmCard.tmdbId, NaN))
-        ? asNumber(root.filmCard.tmdbId, NaN)
-        : undefined,
-      title: filmCardTitle,
-      year: null,
-      posterUrl: asNullableString(root.filmCard.posterSrc),
-      genres: [],
-      rating: root.filmCard.rating == null ? null : asNumber(root.filmCard.rating, 0),
-    };
+    var filmCardId = asUlid(root.filmCard.id);
+    if (filmCardId) {
+      film = {
+        id: filmCardId,
+        tmdbId: Number.isFinite(asNumber(root.filmCard.tmdbId, NaN))
+          ? asNumber(root.filmCard.tmdbId, NaN)
+          : undefined,
+        title: filmCardTitle,
+        year: null,
+        posterUrl: asNullableString(root.filmCard.posterSrc),
+        genres: [],
+        rating: root.filmCard.rating == null ? null : asNumber(root.filmCard.rating, 0),
+      };
+    }
   }
 
   var typeRaw = asString(root.type) || asString(root.variant);
@@ -244,6 +257,7 @@ type CommentDto = {
   likeCount: number;
   editedAt?: string | null;
   createdAt: string;
+  isLiked?: boolean;
   author: {
     id: string;
     username: string;
@@ -261,6 +275,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
 
   for (var i = 0; i < items.length; i += 1) {
     var raw = items[i];
+
     byId.set(raw.id, {
       id: raw.id,
       postId: raw.postId,
@@ -269,7 +284,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
       body: raw.body,
       isDeleted: raw.isDeleted,
       likeCount: raw.likeCount,
-      isLiked: false,
+      isLiked: Boolean(raw.isLiked),
       editedAt: raw.editedAt ?? null,
       createdAt: raw.createdAt,
       author: {
@@ -291,6 +306,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
 
   for (var j = 0; j < items.length; j += 1) {
     var rawItem = items[j];
+
     var current = byId.get(rawItem.id);
     if (!current) continue;
 
@@ -306,6 +322,19 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
     roots.push(current);
   }
 
+  function pruneDeletedLeaves(list: Comment[]): Comment[] {
+    return list
+      .map(function (comment) {
+        return {
+          ...comment,
+          replies: pruneDeletedLeaves(comment.replies),
+        };
+      })
+      .filter(function (comment) {
+        return !comment.isDeleted || comment.replies.length > 0;
+      });
+  }
+
   function sortNodeList(list: Comment[]) {
     list.sort(function (a, b) {
       return Date.parse(a.createdAt) - Date.parse(b.createdAt);
@@ -316,6 +345,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
     }
   }
 
-  sortNodeList(roots);
-  return roots;
+  var prunedRoots = pruneDeletedLeaves(roots);
+  sortNodeList(prunedRoots);
+  return prunedRoots;
 }

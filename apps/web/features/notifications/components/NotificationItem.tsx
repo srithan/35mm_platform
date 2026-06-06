@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
 
 interface AvatarStackItem {
@@ -12,6 +13,7 @@ interface NotificationItemProps {
   avatarBg?: string;
   avatarColor?: string;
   avatarStack?: AvatarStackItem[];
+  avatarUrl?: string | null;
   text: React.ReactNode;
   time: string;
   unread?: boolean;
@@ -26,6 +28,7 @@ export function NotificationItem({
   avatarBg,
   avatarColor,
   avatarStack,
+  avatarUrl,
   text,
   time,
   unread = false,
@@ -91,15 +94,24 @@ export function NotificationItem({
         </>
       ) : (
         <>
-          <div
-            className={cn(
-              "w-[38px] h-[38px] rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[15px]",
-              !avatarBg && "bg-border"
-            )}
-            style={avatarBg && avatarColor ? { background: avatarBg, color: avatarColor } : undefined}
-          >
-            {displayInitial}
-          </div>
+          {avatarUrl ? (
+            <Avatar
+              initial={displayInitial}
+              size="md"
+              src={avatarUrl}
+              className="w-[38px] h-[38px] flex-shrink-0"
+            />
+          ) : (
+            <div
+              className={cn(
+                "w-[38px] h-[38px] rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[15px]",
+                !avatarBg && "bg-border"
+              )}
+              style={avatarBg && avatarColor ? { background: avatarBg, color: avatarColor } : undefined}
+            >
+              {displayInitial}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="text-[13.5px] leading-[1.55] text-fg">{text}</div>
             <div className="text-[11px] text-fg-muted mt-0.5">{time}</div>

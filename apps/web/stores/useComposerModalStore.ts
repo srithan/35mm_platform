@@ -37,11 +37,14 @@ export interface EditingPost {
   } | null;
 }
 
+export type ComposerInitialMode = "write" | "discussion" | "log";
+
 interface ComposerModalState {
   isOpen: boolean;
   quotedPost: QuotedPost | null;
   editingPost: EditingPost | null;
-  open: (quoted?: QuotedPost) => void;
+  initialMode: ComposerInitialMode | null;
+  open: (quoted?: QuotedPost, initialMode?: ComposerInitialMode) => void;
   openForEdit: (post: EditingPost) => void;
   close: () => void;
   /** Sets quote context for `/new` on narrow viewports without opening the desktop modal. */
@@ -53,17 +56,23 @@ export var useComposerModalStore = create<ComposerModalState>(function (set) {
     isOpen: false,
     quotedPost: null,
     editingPost: null,
-    open: function (quoted) {
-      set({ isOpen: true, quotedPost: quoted || null, editingPost: null });
+    initialMode: null,
+    open: function (quoted, initialMode) {
+      set({
+        isOpen: true,
+        quotedPost: quoted || null,
+        editingPost: null,
+        initialMode: initialMode ?? null,
+      });
     },
     openForEdit: function (post) {
-      set({ isOpen: true, quotedPost: null, editingPost: post });
+      set({ isOpen: true, quotedPost: null, editingPost: post, initialMode: null });
     },
     close: function () {
-      set({ isOpen: false, quotedPost: null, editingPost: null });
+      set({ isOpen: false, quotedPost: null, editingPost: null, initialMode: null });
     },
     setQuotedPostOnly: function (quoted) {
-      set({ quotedPost: quoted, editingPost: null });
+      set({ quotedPost: quoted, editingPost: null, initialMode: null });
     },
   };
 });

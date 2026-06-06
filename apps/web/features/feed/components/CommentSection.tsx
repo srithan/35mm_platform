@@ -34,6 +34,8 @@ function formatCommentTime(value: string): string {
 function toCommentCard(comment: FeedComment): CommentCardType {
   return {
     id: comment.id,
+    parentId: comment.parentId,
+    isDeleted: comment.isDeleted,
     authorId: comment.author.id,
     username: comment.author.username,
     displayName: comment.author.displayName,

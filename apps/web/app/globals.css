@@ -459,6 +459,10 @@
         border-style: none;
     }
 
+    img:focus {
+        outline: none;
+    }
+
     /* Same default blue focus ring on video / iframes (incl. /video and embedded players). */
     video,
     iframe,
@@ -484,7 +488,6 @@
 }
 
 html {
-    scroll-behavior: smooth;
     /* Safari/macOS: avoid rubber-band overscroll dragging the whole page (incl. sticky header) */
     overscroll-behavior: none;
     /* Reserve scrollbar gutter so toggling overflow (e.g. modal scroll lock) does not shift layout */
@@ -551,6 +554,14 @@ body {
     margin-left: -8px;
 }
 
+.actions.actions-compact {
+    gap: 2px;
+}
+
+.actions.actions-compact .save-btn {
+    margin-left: 0;
+}
+
 .action-btn {
     position: relative;
     display: flex;
@@ -612,54 +623,190 @@ body {
     }
 }
 
-/* ── HEART (KFC-style bright red) ── */
-.heart-btn {
-    color: var(--fg-muted);
+/* ── LIKE (clapboard + heart) ── */
+.like-action:active {
+    transform: none;
 }
 
-.heart-btn:hover {
-    color: var(--color-like);
-    background: var(--color-like-bg);
-}
-
-.heart-btn:hover svg {
-    transform: scale(1.15);
-}
-
-.heart-btn.liked {
-    color: var(--color-like);
+.like-action.liked {
+    color: #c2473a;
     font-weight: 500;
 }
 
-.heart-btn.liked svg {
-    fill: var(--color-like);
-    stroke: var(--color-like);
+.like-btn {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+    pointer-events: none;
+    overflow: visible;
+    isolation: isolate;
 }
 
-.heart-btn.pop svg {
-    animation: heartSpring 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+.like-ripple {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #c2473a;
+    opacity: 0;
+    transform: scale(0.5);
+    pointer-events: none;
 }
 
-@keyframes heartSpring {
-    0% {
-        transform: scale(1);
-    }
+.like-btn.burst .like-ripple {
+    animation: like-ripple-out 0.45s cubic-bezier(0.2, 0, 0.3, 1) forwards;
+}
 
-    20% {
-        transform: scale(0.82) rotate(-6deg);
-    }
+@keyframes like-ripple-out {
+    0% { opacity: 0.22; transform: scale(0.5); }
+    100% { opacity: 0; transform: scale(2.2); }
+}
 
-    50% {
-        transform: scale(1.28) rotate(3deg);
-    }
+.like-icon-layer {
+    position: relative;
+    width: 20px;
+    height: 20px;
+}
 
-    75% {
-        transform: scale(0.96) rotate(-1deg);
-    }
+.like-action .like-heart-icon,
+.like-action .like-clap-icon {
+    width: 100%;
+    height: 100%;
+    flex-shrink: unset;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
 
-    100% {
-        transform: scale(1) rotate(0deg);
-    }
+.like-heart-icon {
+    position: absolute;
+    inset: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.like-heart-path {
+    fill: none;
+    stroke: var(--color-text-secondary);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: fill 0.25s ease, stroke 0.25s ease;
+}
+
+.like-btn.liked .like-heart-path {
+    fill: #c2473a;
+    stroke: #c2473a;
+}
+
+.like-clap-icon {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transform: scale(0.7) rotate(-8deg);
+    pointer-events: none;
+}
+
+.like-btn.animating .like-heart-icon {
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.like-btn.animating .like-clap-icon {
+    animation: like-clap-in-out 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes like-clap-in-out {
+    0%   { opacity: 0; transform: scale(0.5) rotate(-15deg); }
+    30%  { opacity: 1; transform: scale(1.2) rotate(5deg); }
+    55%  { opacity: 1; transform: scale(1.0) rotate(-3deg); }
+    75%  { opacity: 1; transform: scale(1.05) rotate(0deg); }
+    100% { opacity: 0; transform: scale(1.1) rotate(0deg); }
+}
+
+.like-clap-arm {
+    transform-origin: 0% 50%;
+    animation: none;
+}
+
+.like-btn.animating .like-clap-arm {
+    animation: like-clapper-snap 0.65s ease forwards;
+}
+
+@keyframes like-clapper-snap {
+    0%   { transform: rotate(0deg); }
+    20%  { transform: rotate(-38deg); }
+    40%  { transform: rotate(2deg); }
+    55%  { transform: rotate(-10deg); }
+    70%  { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+}
+
+.like-btn.settling .like-heart-icon {
+    opacity: 1;
+    transform: scale(1.25);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.like-btn.settled .like-heart-icon {
+    opacity: 1;
+    transform: scale(1);
+    transition: transform 0.2s ease;
+}
+
+.like-action.liked .action-count {
+    color: #c2473a;
+}
+
+.like-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 50%;
+    overflow: visible;
+}
+
+.like-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #c2473a;
+    top: 50%;
+    left: 50%;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+}
+
+.like-particle:nth-child(odd) {
+    background: #e8846a;
+    width: 2px;
+    height: 2px;
+}
+
+.like-btn.burst .like-particle { animation: like-particle-fly 0.5s ease forwards; }
+.like-btn.burst .like-particle:nth-child(1) { animation-delay: 0.04s; --angle: 0deg; --dist: 14px; }
+.like-btn.burst .like-particle:nth-child(2) { animation-delay: 0.06s; --angle: 45deg; --dist: 16px; }
+.like-btn.burst .like-particle:nth-child(3) { animation-delay: 0.03s; --angle: 90deg; --dist: 14px; }
+.like-btn.burst .like-particle:nth-child(4) { animation-delay: 0.07s; --angle: 135deg; --dist: 15px; }
+.like-btn.burst .like-particle:nth-child(5) { animation-delay: 0.05s; --angle: 180deg; --dist: 14px; }
+.like-btn.burst .like-particle:nth-child(6) { animation-delay: 0.04s; --angle: 225deg; --dist: 16px; }
+.like-btn.burst .like-particle:nth-child(7) { animation-delay: 0.06s; --angle: 270deg; --dist: 14px; }
+.like-btn.burst .like-particle:nth-child(8) { animation-delay: 0.05s; --angle: 315deg; --dist: 15px; }
+
+@keyframes like-particle-fly {
+    0% { opacity: 0.9; transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0); }
+    80% { opacity: 0.7; }
+    100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist)); }
 }
 
 /* Count flip on like */

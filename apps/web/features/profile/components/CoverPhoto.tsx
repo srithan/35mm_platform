@@ -3,7 +3,7 @@
 import { ChangeEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
-import { Camera, Loader2, AlertCircle } from "lucide-react";
+import { Camera, Crop, Loader2, AlertCircle } from "lucide-react";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
@@ -36,6 +36,7 @@ export function CoverPhoto(props: CoverPhotoProps) {
   var [localCoverUrl, setLocalCoverUrl] = useState<string | null>(null);
   var [image, setImage] = useState<string | null>(null);
   var [isCropping, setIsCropping] = useState(false);
+  var [isPreparingReposition, setIsPreparingReposition] = useState(false);
   var [isUploading, setIsUploading] = useState(false);
   var [uploadProgress, setUploadProgress] = useState(0);
   var [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -95,7 +96,11 @@ export function CoverPhoto(props: CoverPhotoProps) {
   }
 
   const handleUpload = async () => {
-    if (!image || !croppedAreaPixels) return;
+    if (!image) return;
+    if (!croppedAreaPixels) {
+      setErrorMessage("Cover preview is still loading. Please try again.");
+      return;
+    }
     setIsUploading(true);
     setUploadProgress(10);
     setErrorMessage(null);
@@ -154,6 +159,57 @@ export function CoverPhoto(props: CoverPhotoProps) {
   function handleCoverTrigger(event: MouseEvent<HTMLButtonElement>) {
     fileInputRef.current?.click();
     event.currentTarget.blur();
+  }
+
+  async function blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error("Could not read image data."));
+      };
+      reader.onerror = function () {
+        reject(new Error("Could not read image data."));
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function prepareImageForReposition(sourceUrl: string): Promise<string> {
+    var response = await fetch(sourceUrl, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Could not load cover photo for repositioning.");
+    }
+    var blob = await response.blob();
+    return blobToDataUrl(blob);
+  }
+
+  function handleRepositionTrigger(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur();
+    if (!localCoverUrl) return;
+    if (isPreparingReposition || isUploading) return;
+
+    setIsPreparingReposition(true);
+    setErrorMessage(null);
+    setCroppedAreaPixels(null);
+    void (async function () {
+      try {
+        var preparedImage = await prepareImageForReposition(localCoverUrl);
+        setImage(preparedImage);
+        setIsCropping(true);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not open reposition tool right now."
+        );
+      } finally {
+        setIsPreparingReposition(false);
+      }
+    })();
   }
 
     return (
@@ -217,6 +273,7 @@ export function CoverPhoto(props: CoverPhotoProps) {
               variant="ghost"
               size="sm"
               onClick={handleCoverTrigger}
+              disabled={isUploading || isPreparingReposition}
               className="h-auto border border-white/30 bg-black/45 px-3 py-1.5 text-[12px] font-medium text-white shadow-none backdrop-blur-md hover:border-white/45 hover:bg-black/55 hover:text-white"
             >
               <span className="inline-flex items-center gap-1.5">
@@ -224,6 +281,20 @@ export function CoverPhoto(props: CoverPhotoProps) {
                 {localCoverUrl ? "Edit cover" : "Add cover"}
               </span>
             </Button>
+            {localCoverUrl ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRepositionTrigger}
+                disabled={isUploading || isPreparingReposition}
+                className="h-auto border border-white/30 bg-black/45 px-3 py-1.5 text-[12px] font-medium text-white shadow-none backdrop-blur-md hover:border-white/45 hover:bg-black/55 hover:text-white"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <Crop className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  {isPreparingReposition ? "Preparing..." : "Reposition"}
+                </span>
+              </Button>
+            ) : null}
           </div>
         ) : null}
 

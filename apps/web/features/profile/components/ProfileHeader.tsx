@@ -122,7 +122,7 @@ export function ProfileHeader({
 
   return (
     <div className="ProfileHeader border-b border-border">
-      <div className="relative overflow-visible bg-white">
+      <div className="relative overflow-visible bg-bg">
         <div className="absolute bottom-0 left-5 z-10 translate-y-[22%] sm:left-6 md:left-8">
           {isOwnProfile ? (
             <ProfilePictureUpload onUploadComplete={handleAvatarChange}>
@@ -130,8 +130,7 @@ export function ProfileHeader({
                 initial={profileData.displayName[0]}
                 src={profileImage}
                 size="profile-lg"
-                variant="ring"
-                className="h-[200px] w-[200px] border-[4px] border-white text-[56px] shadow-sm"
+                className="h-[200px] w-[200px] border-[4px] border-bg ring-0 shadow-none text-[56px]"
               />
             </ProfilePictureUpload>
           ) : (
@@ -145,8 +144,7 @@ export function ProfileHeader({
                 initial={profileData.displayName[0]}
                 src={profileImage}
                 size="profile-lg"
-                variant="ring"
-                className="h-[200px] w-[200px] border-[4px] border-white text-[56px] shadow-sm"
+                className="h-[200px] w-[200px] border-[4px] border-bg ring-0 shadow-none text-[56px]"
               />
             </button>
           )}
@@ -169,7 +167,7 @@ export function ProfileHeader({
             <Button
               variant="secondary"
               size="sm"
-              className="h-auto border border-border-strong bg-white px-5 py-2 text-[13px] font-bold text-fg shadow-none hover:border-fg-muted hover:bg-[#fafafa]"
+              className="h-auto border border-border-strong bg-elevated px-5 py-2 text-[13px] font-bold text-fg shadow-none hover:border-fg-muted hover:bg-hover"
               onClick={() => setShowEditModal(true)}
             >
               Edit profile

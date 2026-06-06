@@ -7,6 +7,7 @@ export interface AvatarItem {
   initial: string;
   bg: string;
   color: string;
+  avatarUrl?: string | null;
 }
 
 export interface NotificationUserMeta {

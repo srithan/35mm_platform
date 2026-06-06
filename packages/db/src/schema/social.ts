@@ -122,6 +122,7 @@ export var notifications = pgTable(
     actorId: uuid("actor_id").references(function () {
       return users.id;
     }, { onDelete: "set null" }),
+    actorIds: text("actor_ids").array().default([]).notNull(),
     type: notificationTypeEnum("type").notNull(),
     entityId: text("entity_id"),
     entityType: text("entity_type"),

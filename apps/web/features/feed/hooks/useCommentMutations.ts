@@ -1,7 +1,13 @@
 import { useAuth } from "@clerk/nextjs";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createComment, deleteComment, updateComment } from "../api/commentsApi";
+import {
+  createComment,
+  deleteComment,
+  likeComment,
+  unlikeComment,
+  updateComment,
+} from "../api/commentsApi";
 import { showGlobalFlashToast } from "@/components/FlashToast";
 import type { Comment } from "../types/feed";
 import { feedKeys } from "./queryKeys";
@@ -28,21 +34,30 @@ function appendRootComment(data: InfiniteData<CommentsPage> | undefined, comment
   };
 }
 
-function markCommentDeletedInTree(list: Comment[], commentId: string): Comment[] {
-  return list.map(function (comment) {
-    if (comment.id === commentId) {
+function applyCommentDeleteInTree(list: Comment[], commentId: string): Comment[] {
+  return list
+    .map(function (comment) {
+      if (comment.id === commentId) {
+        if (comment.replies.length === 0) {
+          return null;
+        }
+
+        return {
+          ...comment,
+          body: null,
+          isDeleted: true,
+          replies: comment.replies,
+        };
+      }
+
       return {
         ...comment,
-        isDeleted: true,
-        body: null,
+        replies: applyCommentDeleteInTree(comment.replies, commentId),
       };
-    }
-
-    return {
-      ...comment,
-      replies: markCommentDeletedInTree(comment.replies, commentId),
-    };
-  });
+    })
+    .filter(function (comment): comment is Comment {
+      return comment !== null;
+    });
 }
 
 function updateCommentInTree(list: Comment[], next: Comment): Comment[] {
@@ -58,6 +73,23 @@ function updateCommentInTree(list: Comment[], next: Comment): Comment[] {
     return {
       ...comment,
       replies: updateCommentInTree(comment.replies, next),
+    };
+  });
+}
+
+function applyCommentLikeInTree(list: Comment[], commentId: string, isLiked: boolean): Comment[] {
+  return list.map(function (comment) {
+    if (comment.id === commentId) {
+      return {
+        ...comment,
+        isLiked: isLiked,
+        likeCount: Math.max(0, comment.likeCount + (isLiked ? 1 : -1)),
+      };
+    }
+
+    return {
+      ...comment,
+      replies: applyCommentLikeInTree(comment.replies, commentId, isLiked),
     };
   });
 }
@@ -90,7 +122,7 @@ function markCommentDeleted(
     pages: data.pages.map(function (page) {
       return {
         ...page,
-        comments: markCommentDeletedInTree(page.comments, commentId),
+        comments: applyCommentDeleteInTree(page.comments, commentId),
       };
     }),
   };
@@ -192,6 +224,65 @@ export function useUpdateComment(postId: string) {
           return applyCommentUpdate(oldData, comment);
         }
       );
+      queryClient.invalidateQueries({ queryKey: feedKeys.comments(postId) });
+    },
+  });
+}
+
+export function useLikeComment(postId: string) {
+  var queryClient = useQueryClient();
+  var { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async function (input: { commentId: string; isLiked: boolean }) {
+      var token = await getToken();
+      if (input.isLiked) {
+        return likeComment({
+          postId,
+          commentId: input.commentId,
+          token,
+        });
+      }
+
+      return unlikeComment({
+        postId,
+        commentId: input.commentId,
+        token,
+      });
+    },
+    onMutate: async function (input) {
+      await queryClient.cancelQueries({ queryKey: feedKeys.comments(postId) });
+
+      var previous = queryClient.getQueryData<InfiniteData<CommentsPage>>(
+        feedKeys.comments(postId)
+      );
+
+      queryClient.setQueryData<InfiniteData<CommentsPage>>(
+        feedKeys.comments(postId),
+        function (oldData) {
+          if (!oldData) return oldData;
+
+          return {
+            ...oldData,
+            pages: oldData.pages.map(function (page) {
+              return {
+                ...page,
+                comments: applyCommentLikeInTree(page.comments, input.commentId, input.isLiked),
+              };
+            }),
+          };
+        }
+      );
+
+      return { previous };
+    },
+    onError: function (_err, _input, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(feedKeys.comments(postId), context.previous);
+      }
+      showGlobalFlashToast("Could not update comment like", "error");
+    },
+    onSettled: function () {
       queryClient.invalidateQueries({ queryKey: feedKeys.comments(postId) });
     },
   });

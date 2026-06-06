@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,10 +17,15 @@ import {
 } from "@/features/profile/api/profileApi";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
-import { useFollowToggle, useMuteUserMutation, usePublicProfile } from "@/features/profile/hooks/useProfile";
+import { useFollowToggle, usePublicProfile } from "@/features/profile/hooks/useProfile";
 
 const PROFILE_POPOVER_SHOW_DELAY_MS = 520;
 const PROFILE_POPOVER_SCROLL_SUPPRESS_MS = 650;
+const PROFILE_POPOVER_OFFSET_PX = 6;
+const PROFILE_POPOVER_VIEWPORT_PADDING_X = 12;
+const PROFILE_POPOVER_VIEWPORT_PADDING_Y = 8;
+const PROFILE_POPOVER_DEFAULT_WIDTH = 300;
+const PROFILE_POPOVER_DEFAULT_HEIGHT = 315;
 
 let lastProfilePopoverScrollAt = 0;
 let scrollGuardRefCount = 0;
@@ -53,6 +58,33 @@ function subscribeProfilePopoverScrollGuard() {
       window.removeEventListener("touchmove", markProfilePopoverScroll, true);
     }
   };
+}
+
+function getPopoverPosition(
+  triggerRect: DOMRect,
+  popoverWidth: number,
+  popoverHeight: number
+) {
+  let top = triggerRect.bottom + PROFILE_POPOVER_OFFSET_PX;
+  let left = triggerRect.left;
+
+  if (top + popoverHeight > window.innerHeight - PROFILE_POPOVER_VIEWPORT_PADDING_Y) {
+    top = triggerRect.top - popoverHeight - PROFILE_POPOVER_OFFSET_PX;
+  }
+
+  const maxTop = window.innerHeight - popoverHeight - PROFILE_POPOVER_VIEWPORT_PADDING_Y;
+  if (top < PROFILE_POPOVER_VIEWPORT_PADDING_Y) {
+    top = Math.max(PROFILE_POPOVER_VIEWPORT_PADDING_Y, maxTop);
+  }
+
+  if (left + popoverWidth > window.innerWidth - PROFILE_POPOVER_VIEWPORT_PADDING_X) {
+    left = window.innerWidth - popoverWidth - PROFILE_POPOVER_VIEWPORT_PADDING_X;
+  }
+  if (left < PROFILE_POPOVER_VIEWPORT_PADDING_X) {
+    left = PROFILE_POPOVER_VIEWPORT_PADDING_X;
+  }
+
+  return { top, left };
 }
 
 function resolvePopoverHeadline(
@@ -99,6 +131,7 @@ function ProfilePopover(props: {
   username: string;
   linkHref: string;
   position: { top: number; left: number };
+  containerRef?: React.Ref<HTMLDivElement>;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   fallback: {
@@ -118,7 +151,6 @@ function ProfilePopover(props: {
   const profile = profileQuery.data;
   const currentUserQuery = useCurrentUserProfile();
   const followToggle = useFollowToggle(props.username);
-  const muteMutation = useMuteUserMutation();
 
   const isOwnProfile =
     Boolean(currentUserQuery.data?.username) &&
@@ -143,14 +175,9 @@ function ProfilePopover(props: {
         ? "Requested"
         : "Follow";
 
-  const muteLabel = muteMutation.isPending
-    ? "..."
-    : profile?.isMutedByViewer
-      ? "Unmute"
-      : "Mute";
-
   return (
     <div
+      ref={props.containerRef}
       className="fixed z-[200] w-[min(300px,calc(100vw-24px))] overflow-hidden rounded-lg border border-black/10 bg-white text-neutral-950 shadow-[0_18px_48px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.09)]"
       style={{ top: props.position.top, left: props.position.left }}
       onMouseEnter={props.onMouseEnter}
@@ -200,7 +227,7 @@ function ProfilePopover(props: {
           <ProfilePopoverStat value={followersCount} label="followers" />
           <ProfilePopoverStat value={followingCount} label="following" />
         </div>
-        <div className={cn("mt-3 grid gap-2", isOwnProfile ? "grid-cols-1" : "grid-cols-3")}>
+        <div className={cn("mt-3 grid gap-2", isOwnProfile ? "grid-cols-1" : "grid-cols-2")}>
           {!isOwnProfile && profile?.userId ? (
             <>
               <button
@@ -222,20 +249,6 @@ function ProfilePopover(props: {
                 )}
               >
                 {followLabel}
-              </button>
-              <button
-                type="button"
-                disabled={muteMutation.isPending}
-                onClick={function () {
-                  if (muteMutation.isPending || !profile?.userId) return;
-                  muteMutation.mutate({
-                    userId: profile.userId,
-                    muted: Boolean(profile.isMutedByViewer),
-                  });
-                }}
-                className="h-8 rounded-md border border-neutral-300 bg-white px-2 text-center text-[11px] font-bold text-neutral-950 transition-colors hover:bg-neutral-100 disabled:opacity-60"
-              >
-                {muteLabel}
               </button>
             </>
           ) : null}
@@ -303,6 +316,7 @@ export function UsernameLink({
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLAnchorElement | HTMLSpanElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringTrigger = useRef(false);
@@ -331,14 +345,13 @@ export function UsernameLink({
     const el = triggerRef.current;
     if (el) {
       const rect = el.getBoundingClientRect();
-      const popoverH = 315;
-      const popoverW = 300;
-      let top = rect.bottom + 6;
-      let left = rect.left;
-      if (top + popoverH > window.innerHeight - 8) top = rect.top - popoverH - 6;
-      if (left + popoverW > window.innerWidth - 12) left = window.innerWidth - popoverW - 12;
-      if (left < 12) left = 12;
-      setPos({ top, left });
+      setPos(
+        getPopoverPosition(
+          rect,
+          PROFILE_POPOVER_DEFAULT_WIDTH,
+          PROFILE_POPOVER_DEFAULT_HEIGHT
+        )
+      );
     }
     setVisible(true);
   }, []);
@@ -402,6 +415,35 @@ export function UsernameLink({
     };
   }, [clearShowTimeout, visible]);
 
+  useLayoutEffect(() => {
+    if (!visible) return;
+
+    const trigger = triggerRef.current;
+    const popoverEl = popoverRef.current;
+    if (!trigger || !popoverEl) return;
+
+    const reposition = () => {
+      const triggerRect = trigger.getBoundingClientRect();
+      const popoverRect = popoverEl.getBoundingClientRect();
+      const nextPos = getPopoverPosition(triggerRect, popoverRect.width, popoverRect.height);
+      setPos((current) => {
+        if (current.top === nextPos.top && current.left === nextPos.left) return current;
+        return nextPos;
+      });
+    };
+
+    reposition();
+
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(reposition) : null;
+    resizeObserver?.observe(popoverEl);
+    window.addEventListener("resize", reposition, { passive: true });
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", reposition);
+    };
+  }, [visible]);
+
   useEffect(() => {
     return () => {
       clearShowTimeout();
@@ -441,6 +483,7 @@ export function UsernameLink({
             username={username}
             linkHref={linkHref}
             position={pos}
+            containerRef={popoverRef}
             onMouseEnter={cancelHide}
             onMouseLeave={hide}
             fallback={{

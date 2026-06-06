@@ -14,8 +14,20 @@ function websiteHref(raw: string): string {
   return "https://" + t;
 }
 
+function formatDateOfBirth(raw: string): string | null {
+  const t = raw.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const dt = new Date(t + "T00:00:00");
+  if (Number.isNaN(dt.getTime())) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(dt);
+}
+
 const metaRowClass =
-  "flex max-w-full min-w-0 items-center gap-1.5 text-[12px] font-medium leading-snug text-fg-muted";
+  "flex max-w-full min-w-0 items-center gap-2 text-[12px] font-medium leading-[1.35] text-fg-muted";
 const metaLinkClass =
   metaRowClass +
   " no-underline transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -73,6 +85,8 @@ export function ProfileDetails(props: {
   bio: string;
   location: string;
   website: string;
+  dateOfBirth?: string | null;
+  isOwnProfile?: boolean;
   isPrivate?: boolean;
   role?: string | null;
   roleContext?: string | null;
@@ -82,6 +96,10 @@ export function ProfileDetails(props: {
   const bio = props.bio.trim();
   const location = props.location.trim();
   const website = props.website.trim();
+  const dateOfBirth = props.dateOfBirth?.trim() ?? "";
+  const formattedDob = formatDateOfBirth(dateOfBirth);
+  const isOwnProfile = Boolean(props.isOwnProfile);
+  const metaPlaceholderClass = metaRowClass + " text-fg-faint";
 
   return (
     <div className="w-full min-w-0">
@@ -107,14 +125,23 @@ export function ProfileDetails(props: {
       />
 
       {bio.length > 0 ? (
-        <p className="mt-3.5 font-sans text-[14.5px] leading-[1.55] text-fg">{bio}</p>
+        <p className="mt-4 font-sans text-[14.5px] leading-[1.55] text-fg">{bio}</p>
+      ) : isOwnProfile ? (
+        <p className="mt-4 font-sans text-[14.5px] leading-[1.55] text-fg-faint">
+          Add Profile Bio
+        </p>
       ) : null}
 
-      <div className="mt-2.5 flex flex-col items-start gap-1">
+      <div className="mt-3.5 flex flex-col items-start gap-2">
         {location.length > 0 ? (
           <span className={metaRowClass}>
             <MapPin className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} />
             {location}
+          </span>
+        ) : isOwnProfile ? (
+          <span className={metaPlaceholderClass}>
+            <MapPin className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} />
+            Add your location
           </span>
         ) : null}
         {website.length > 0 ? (
@@ -128,6 +155,22 @@ export function ProfileDetails(props: {
             <Link2 className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} aria-hidden />
             <span className="min-w-0 truncate">{website}</span>
           </a>
+        ) : isOwnProfile ? (
+          <span className={metaPlaceholderClass}>
+            <Link2 className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} />
+            Add your links
+          </span>
+        ) : null}
+        {formattedDob ? (
+          <span className={metaRowClass}>
+            <Calendar className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} />
+            Born {formattedDob}
+          </span>
+        ) : isOwnProfile ? (
+          <span className={metaPlaceholderClass}>
+            <Calendar className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} />
+            Add your date of birth
+          </span>
         ) : null}
         <span className={metaRowClass}>
           <Calendar className="h-[13px] w-[13px] shrink-0 text-fg-faint" strokeWidth={1.7} />

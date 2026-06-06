@@ -2,8 +2,9 @@
 
 import {
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useRef,
+  useState,
   type CSSProperties,
 } from "react";
 import Picker, {
@@ -11,8 +12,12 @@ import Picker, {
   Theme,
   type EmojiClickData,
 } from "emoji-picker-react";
+import { BodyPortal } from "@/components/BodyPortal/BodyPortal";
+import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 
 const CINEMA_EMOJIS = ["🎬", "🎞️", "📽️", "🎭", "⭐", "❤️", "🔥", "👁️"];
+const PANEL_WIDTH_PX = 296;
+const ESTIMATED_PANEL_HEIGHT_PX = 310;
 
 const EMOJI_STYLE_MAP = {
   native: EmojiStyle.NATIVE,
@@ -43,69 +48,154 @@ export function EmojiPicker({
     ["--epr-category-navigation-button-size" as string]: "24px",
     ["--epr-category-icon-active-color" as string]: "#8f8f8f",
   };
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [isPositioned, setIsPositioned] = useState(false);
 
   const handleSelect = useCallback(
-    (emoji: string) => {
+    function (emoji: string) {
       onInsert(emoji);
       onClose();
     },
     [onInsert, onClose]
   );
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const reposition = useCallback(
+    function () {
+      const btn = anchorRef.current;
+      if (!btn) return;
 
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (panelRef.current?.contains(target)) return;
-      if (anchorRef.current?.contains(target)) return;
-      onClose();
-    };
+      const panel = panelRef.current;
+      const triggerRect = btn.getBoundingClientRect();
+      const menuRect = panel?.getBoundingClientRect();
+      const menuHeight =
+        menuRect && menuRect.height > 0
+          ? menuRect.height
+          : ESTIMATED_PANEL_HEIGHT_PX;
+      const menuWidth =
+        menuRect && menuRect.width > 0 ? menuRect.width : PANEL_WIDTH_PX;
+      const margin = 8;
+      const sideOffset = 8;
+      const spaceAbove = triggerRect.top - margin;
+      const spaceBelow = window.innerHeight - triggerRect.bottom - margin;
+      const preferAbove =
+        spaceAbove >= menuHeight || spaceAbove >= spaceBelow;
 
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isOpen, onClose, anchorRef]);
+      var top = preferAbove
+        ? triggerRect.top - menuHeight - sideOffset
+        : triggerRect.bottom + sideOffset;
+      var left = triggerRect.left;
+
+      left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin));
+      top = Math.max(margin, Math.min(top, window.innerHeight - menuHeight - margin));
+
+      setPos({ top: top, left: left });
+      setIsPositioned(true);
+    },
+    [anchorRef]
+  );
+
+  const scheduleReposition = useCallback(
+    function () {
+      reposition();
+      window.requestAnimationFrame(function () {
+        reposition();
+        window.requestAnimationFrame(reposition);
+      });
+    },
+    [reposition]
+  );
+
+  const setPanelRef = useCallback(
+    function (node: HTMLDivElement | null) {
+      panelRef.current = node;
+      if (node && isOpen) {
+        scheduleReposition();
+      }
+    },
+    [isOpen, scheduleReposition]
+  );
+
+  const isInside = useCallback(
+    function (target: Node) {
+      if (anchorRef.current?.contains(target)) return true;
+      if (panelRef.current?.contains(target)) return true;
+      if (target instanceof Element && target.closest(".EmojiPickerReact")) {
+        return true;
+      }
+      return false;
+    },
+    [anchorRef]
+  );
+
+  usePopoverLayer({
+    open: isOpen,
+    reposition: scheduleReposition,
+    isInside: isInside,
+    onPointerOutsideDismiss: onClose,
+    onEscape: onClose,
+  });
+
+  useLayoutEffect(
+    function () {
+      if (!isOpen) {
+        setIsPositioned(false);
+        return;
+      }
+      scheduleReposition();
+    },
+    [isOpen, scheduleReposition]
+  );
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    isOpen && (
+    <BodyPortal>
       <div
-        ref={panelRef}
+        ref={setPanelRef}
         data-emoji-panel
-        className="absolute bottom-full mb-2 left-0 bg-elevated border border-border rounded-lg w-[296px] z-50 overflow-hidden"
+        className="fixed z-[calc(var(--z-composer)+2)] overflow-hidden overscroll-y-contain rounded-lg border border-border bg-elevated"
         style={{
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
+          top: pos.top,
+          left: pos.left,
+          width: PANEL_WIDTH_PX,
+          visibility: isPositioned ? "visible" : "hidden",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
         }}
       >
-        <div className="px-3 pt-2 pb-1.5 border-b border-border bg-elevated">
-          <p className="text-[9px] font-semibold tracking-widest uppercase text-fg-faint px-1 mb-1">
+        <div className="border-b border-border bg-elevated px-3 pb-1.5 pt-2">
+          <p className="mb-1 px-1 text-[9px] font-semibold uppercase tracking-widest text-fg-faint">
             Cinema quick picks
           </p>
           <div className="grid grid-cols-8 gap-0.5">
-            {CINEMA_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => handleSelect(emoji)}
-                className="text-[14px] p-0.5 rounded-md text-center leading-none hover:bg-sunken transition-colors"
-              >
-                {emoji}
-              </button>
-            ))}
+            {CINEMA_EMOJIS.map(function (emoji) {
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={function () {
+                    handleSelect(emoji);
+                  }}
+                  className="rounded-md p-0.5 text-center text-[14px] leading-none transition-colors hover:bg-sunken"
+                >
+                  {emoji}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="max-h-[230px] overflow-hidden">
+        <div className="max-h-[230px] min-h-0 touch-pan-y">
           <Picker
-            onEmojiClick={(emojiData: EmojiClickData) =>
-              handleSelect(emojiData.emoji)
-            }
-            onReactionClick={(emojiData: EmojiClickData) =>
-              handleSelect(emojiData.emoji)
-            }
+            onEmojiClick={function (emojiData: EmojiClickData) {
+              handleSelect(emojiData.emoji);
+            }}
+            onReactionClick={function (emojiData: EmojiClickData) {
+              handleSelect(emojiData.emoji);
+            }}
             lazyLoadEmojis={true}
             emojiStyle={EMOJI_STYLE_MAP[emojiStyle]}
             theme={Theme.LIGHT}
@@ -122,8 +212,13 @@ export function EmojiPicker({
           [data-emoji-panel] .EmojiPickerReact .epr-category-nav .epr-cat-btn.epr-active {
             background-position-y: 0 !important;
           }
+          [data-emoji-panel] .EmojiPickerReact .epr-body {
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+          }
         `}</style>
       </div>
-    )
+    </BodyPortal>
   );
 }

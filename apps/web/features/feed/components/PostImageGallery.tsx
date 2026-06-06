@@ -51,7 +51,7 @@ function PostGalleryImage({
       blurhash={blurhash}
       className={className}
       containerClassName="absolute inset-0"
-      rootMargin="200px"
+      rootMargin="800px"
       shouldLoad={shouldLoad}
       forceLoad={forceLoad}
       loading={forceLoad ? "eager" : "lazy"}
@@ -93,7 +93,7 @@ function PostImageCarousel({
         setIsNearViewport(false);
       },
       {
-        rootMargin: "200px",
+        rootMargin: "900px",
         threshold: 0.01,
       }
     );
@@ -151,7 +151,7 @@ function PostImageCarousel({
           }
           return (
             <button
-              key={url + ":" + idx}
+              key={`post-image-${idx}`}
               type="button"
               aria-label={"View image " + String(idx + 1) + " of " + String(urls.length)}
               className="relative aspect-[4/5] min-w-full flex-shrink-0 snap-start snap-always bg-sunken"
@@ -190,7 +190,7 @@ function PostImageCarousel({
               var isActive = idx === activeIndex;
               return (
                 <span
-                  key={"dot-" + idx}
+                  key={`post-image-dot-${idx}`}
                   className={cn(
                     "rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-all duration-200 ease-out",
                     urls.length > 7 ? "h-[5px]" : "h-[6px]",
@@ -258,7 +258,7 @@ function PostImageGrid({
       {urls.map(function (url, idx) {
         return (
           <button
-            key={url + ":" + idx}
+            key={`post-image-${idx}`}
             type="button"
             className={cn(
               "relative block w-full overflow-hidden rounded bg-sunken text-left",

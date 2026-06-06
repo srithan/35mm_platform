@@ -18,6 +18,8 @@ import { PostCard } from "./PostCard";
 import { resolvePostImageUrls } from "../utils/postMedia";
 
 type PostVariant = "text" | "film-log" | "image" | "discussion";
+type FeedPageData = Awaited<ReturnType<typeof fetchFeed>>;
+type FeedInfiniteData = InfiniteData<FeedPageData, string | undefined>;
 
 function postToVariant(post: Post): PostVariant {
   if (post.type === "discussion") return "discussion";
@@ -27,9 +29,9 @@ function postToVariant(post: Post): PostVariant {
 }
 
 function formatPostTime(iso: string): string {
-  var then = Date.parse(iso);
+  const then = Date.parse(iso);
   if (Number.isNaN(then)) return "now";
-  var diff = Date.now() - then;
+  const diff = Date.now() - then;
   if (diff < 60_000) return "now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
@@ -39,13 +41,22 @@ function formatPostTime(iso: string): string {
 interface InfinitePostListProps {
   username?: string;
   emptyState?: React.ComponentProps<typeof EmptyState>;
+  postTypes?: Array<Post["type"]>;
+  postFilter?: (post: Post) => boolean;
 }
+const PREFETCH_MAX_PAGES = 3;
+const SCROLL_FAST_THRESHOLD_PX_PER_SEC = 1_300;
+const SCROLL_FAST_EXIT_THRESHOLD_PX_PER_SEC = 900;
+const SCROLL_RAPID_THRESHOLD_PX_PER_SEC = 2_400;
+const RAPID_SCROLL_EXIT_DELAY_MS = 700;
 
-export function InfinitePostList({ username, emptyState }: InfinitePostListProps) {
+export function InfinitePostList({ username, emptyState, postTypes, postFilter }: InfinitePostListProps) {
   const queryClient = useQueryClient();
   const { getToken, isLoaded: isAuthLoaded } = useAuth();
   const connection = useConnectionPreferences();
   const [scrollMargin, setScrollMargin] = useState(0);
+  const [isRapidScroll, setIsRapidScroll] = useState(false);
+  const rapidScrollExitTimerRef = useRef<number | null>(null);
   const virtualListStartRef = useRef<HTMLDivElement>(null);
   const {
     data,
@@ -60,13 +71,37 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
   } = useFeed(username);
 
   const posts = data?.pages.flatMap((page) => page.posts) ?? [];
+  const filteredPosts = useMemo(
+    function () {
+      if (!postTypes || postTypes.length === 0) return posts;
+      const allowed = new Set(postTypes);
+      return posts.filter(function (post) {
+        return allowed.has(post.type);
+      });
+    },
+    [posts, postTypes]
+  );
+  const visiblePosts = useMemo(
+    function () {
+      if (!postFilter) return filteredPosts;
+      return filteredPosts.filter(postFilter);
+    },
+    [filteredPosts, postFilter]
+  );
   const queryKey = useMemo(
     function () {
       return username ? feedKeys.profile(username) : feedKeys.home();
     },
     [username]
   );
-  const prefetchedCursorRef = useRef<string | null>(null);
+  const prefetchInFlightRef = useRef(false);
+  const prefetchScrollVelocityRef = useRef(0);
+  const resolvePrefetchDepth = function (velocityPxPerSecond: number, isSlowConnection: boolean): number {
+    if (isSlowConnection) return 1;
+    if (velocityPxPerSecond >= SCROLL_RAPID_THRESHOLD_PX_PER_SEC) return PREFETCH_MAX_PAGES;
+    if (velocityPxPerSecond >= SCROLL_FAST_THRESHOLD_PX_PER_SEC) return 2;
+    return 1;
+  };
 
   const handleRetry = useCallback(function () {
     void refetch();
@@ -77,68 +112,85 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
   }, [fetchNextPage]);
 
   const handlePrefetch = useCallback(async function () {
+    if (prefetchInFlightRef.current) return;
     if (!isAuthLoaded || !hasNextPage || isFetchingNextPage) return;
     if (!data || data.pages.length === 0) return;
 
-    const lastPage = data.pages[data.pages.length - 1];
-    const nextCursor = lastPage?.nextCursor;
-    if (!nextCursor) return;
-    if (prefetchedCursorRef.current === nextCursor) return;
+    const velocity = prefetchScrollVelocityRef.current;
+    const pagesToPrefetch = resolvePrefetchDepth(velocity, connection.slow);
+    if (pagesToPrefetch <= 0) return;
 
-    prefetchedCursorRef.current = nextCursor;
-    const prefetchQueryKey = [...queryKey, "prefetch", nextCursor] as const;
-    const token = await getToken();
+    prefetchInFlightRef.current = true;
+    try {
+      const token = await getToken();
 
-    await queryClient.prefetchInfiniteQuery({
-      queryKey: prefetchQueryKey,
-      queryFn: async ({ pageParam }) =>
-        fetchFeed({
-          cursor: pageParam as string | undefined,
-          username,
-          token,
-        }),
-      initialPageParam: nextCursor,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-      pages: 1,
-      staleTime: 30_000,
-      gcTime: 5 * 60_000,
-    });
+      const updateCache = function (
+        existing: FeedInfiniteData | undefined,
+        page: FeedPageData,
+        cursor: string | undefined
+      ) {
+        if (!existing) return existing;
 
-    const prefetchedData = queryClient.getQueryData<
-      InfiniteData<Awaited<ReturnType<typeof fetchFeed>>, string | undefined>
-    >(prefetchQueryKey);
-    const prefetchedPage = prefetchedData?.pages?.[0];
-    if (!prefetchedPage) return;
+        const alreadyHydrated = existing.pageParams.some(function (existingCursor) {
+          return existingCursor === cursor;
+        });
+        if (alreadyHydrated) return existing;
 
-    queryClient.setQueryData<
-      InfiniteData<Awaited<ReturnType<typeof fetchFeed>>, string | undefined>
-    >(queryKey, function (existing) {
-      if (!existing) return existing;
-      const alreadyHydrated = existing.pageParams.some(function (param) {
-        return param === nextCursor;
-      });
-      if (alreadyHydrated) return existing;
-
-      return {
-        pages: [...existing.pages, prefetchedPage],
-        pageParams: [...existing.pageParams, nextCursor],
+        return {
+          pages: [...existing.pages, page],
+          pageParams: [...existing.pageParams, cursor],
+        };
       };
-    });
+
+      let nextCursor: string | null | undefined = data.pages[data.pages.length - 1]?.nextCursor;
+      for (let pageIndex = 0; pageIndex < pagesToPrefetch; pageIndex += 1) {
+        if (!nextCursor) break;
+        const cursor: string = nextCursor;
+        const alreadyCached = queryClient.getQueryData<FeedInfiniteData>(queryKey);
+        const alreadyHasCursor = !!alreadyCached?.pageParams.some(function (param) {
+          return param === cursor;
+        });
+        if (alreadyHasCursor) {
+          nextCursor = alreadyCached?.pages[alreadyCached.pageParams.indexOf(cursor)]?.nextCursor;
+          continue;
+        }
+
+        const pageRef = [...queryKey, "prefetch", cursor] as const;
+        const prefetchedPage = await queryClient.fetchQuery({
+          queryKey: pageRef,
+          queryFn: function () {
+            return fetchFeed({ cursor, username, token: token ?? undefined });
+          },
+          staleTime: 30_000,
+          gcTime: 5 * 60_000,
+        });
+
+        queryClient.setQueryData<FeedInfiniteData>(queryKey, function (existing) {
+          return updateCache(existing, prefetchedPage, cursor);
+        });
+
+        nextCursor = prefetchedPage.nextCursor;
+      }
+    } finally {
+      prefetchInFlightRef.current = false;
+    }
   }, [
     isAuthLoaded,
     hasNextPage,
     isFetchingNextPage,
     data,
+    data?.pages,
+    prefetchScrollVelocityRef,
+    queryClient,
+    connection.slow,
     queryKey,
     getToken,
-    queryClient,
     username,
   ]);
 
   const postCards = useMemo(function () {
-    var displayVariant: "feed" | "thumb" = connection.slow || connection.saveData ? "thumb" : "feed";
-    return posts.map(function (post, index) {
-      const resolvedMediaUrls = resolvePostImageUrls(post, displayVariant);
+    return visiblePosts.map(function (post, index) {
+      const resolvedMediaUrls = resolvePostImageUrls(post, "feed");
       const viewerMediaUrls = resolvePostImageUrls(post, "full");
       const image = post.media.find((item) => item.type === "image");
       const filmCard = post.film
@@ -184,7 +236,30 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
         animationDelay: (index + 1) * 50,
       };
     });
-  }, [posts, connection.slow, connection.saveData]);
+  }, [visiblePosts, connection.saveData]);
+
+  useEffect(
+    function cleanupRapidScrollTimer() {
+      return function () {
+        if (rapidScrollExitTimerRef.current !== null) {
+          window.clearTimeout(rapidScrollExitTimerRef.current);
+          rapidScrollExitTimerRef.current = null;
+        }
+      };
+    },
+    []
+  );
+
+  useEffect(
+    function () {
+      if (!postTypes || postTypes.length === 0) return;
+      if (status === "pending" || isLoading || isFetchingNextPage) return;
+      if (!hasNextPage) return;
+      if (postCards.length > 0) return;
+      void fetchNextPage();
+    },
+    [postTypes, status, isLoading, isFetchingNextPage, hasNextPage, postCards.length, fetchNextPage]
+  );
 
   const virtualFeedEnabled = postCards.length > 50;
 
@@ -192,7 +267,7 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
     function () {
       if (!virtualFeedEnabled) return;
       if (!virtualListStartRef.current) return;
-      var top = virtualListStartRef.current.getBoundingClientRect().top + window.scrollY;
+      const top = virtualListStartRef.current.getBoundingClientRect().top + window.scrollY;
       setScrollMargin(top);
     },
     [virtualFeedEnabled, postCards.length]
@@ -211,7 +286,9 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
   if (status === "pending") return <FeedSkeleton />;
   if (isLoading) return <FeedSkeleton />;
   if (isError) return <FeedError error={error as Error} onRetry={handleRetry} />;
-  if (posts.length === 0) return <FeedEmpty emptyState={emptyState} />;
+  if (postCards.length === 0 && !hasNextPage && !isFetchingNextPage) {
+    return <FeedEmpty emptyState={emptyState} />;
+  }
 
   return (
     <div>
@@ -225,7 +302,7 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
             }}
           >
             {rowVirtualizer.getVirtualItems().map(function (virtualRow) {
-              var post = postCards[virtualRow.index];
+              const post = postCards[virtualRow.index];
               if (!post) return null;
 
               return (
@@ -258,6 +335,35 @@ export function InfinitePostList({ username, emptyState }: InfinitePostListProps
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={handleLoadMore}
         onPrefetch={handlePrefetch}
+        setPrefetchVelocity={function (velocity) {
+          const shouldEnableRapidMode = velocity >= SCROLL_FAST_THRESHOLD_PX_PER_SEC;
+          prefetchScrollVelocityRef.current = velocity;
+          setIsRapidScroll(function (current) {
+            if (!current && shouldEnableRapidMode) {
+              if (rapidScrollExitTimerRef.current !== null) {
+                window.clearTimeout(rapidScrollExitTimerRef.current);
+                rapidScrollExitTimerRef.current = null;
+              }
+              return true;
+            }
+
+            if (current && velocity <= SCROLL_FAST_EXIT_THRESHOLD_PX_PER_SEC) {
+              if (rapidScrollExitTimerRef.current !== null) {
+                window.clearTimeout(rapidScrollExitTimerRef.current);
+              }
+              rapidScrollExitTimerRef.current = window.setTimeout(function () {
+                setIsRapidScroll(false);
+              }, RAPID_SCROLL_EXIT_DELAY_MS);
+              return true;
+            }
+
+            if (rapidScrollExitTimerRef.current !== null) {
+              window.clearTimeout(rapidScrollExitTimerRef.current);
+              rapidScrollExitTimerRef.current = null;
+            }
+            return current;
+          });
+        }}
       />
     </div>
   );
@@ -268,23 +374,45 @@ function InfiniteScrollTrigger({
   isFetchingNextPage,
   onLoadMore,
   onPrefetch,
+  setPrefetchVelocity,
 }: {
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
   onPrefetch: () => void;
+  setPrefetchVelocity: (velocity: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const lastScrollYRef = useRef(0);
+  const lastScrollSampleRef = useRef(0);
 
-  useEffect(() => {
+  useEffect(function () {
     const el = ref.current;
     if (!el) return;
+    lastScrollYRef.current = window.scrollY;
+    lastScrollSampleRef.current = performance.now();
 
+    const onScroll = function () {
+      const now = performance.now();
+      const lastSample = lastScrollSampleRef.current;
+      if (now - lastSample < 80) return;
+      const nowY = window.scrollY;
+      const lastY = lastScrollYRef.current;
+      const delta = Math.abs(nowY - lastY);
+      const elapsed = now - lastSample;
+
+      const velocity = elapsed > 0 ? (delta / elapsed) * 1000 : 0;
+      setPrefetchVelocity(velocity);
+      lastScrollYRef.current = nowY;
+      lastScrollSampleRef.current = now;
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry || !hasNextPage || isFetchingNextPage) return;
 
-        if (entry.intersectionRatio >= 0.8) {
+        if (entry.intersectionRatio > 0) {
           onPrefetch();
         }
 
@@ -292,12 +420,15 @@ function InfiniteScrollTrigger({
           onLoadMore();
         }
       },
-      { threshold: [0.1, 0.8] }
+      { rootMargin: "1800px", threshold: [0, 0.5] }
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, onLoadMore, onPrefetch]);
+    return function () {
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [hasNextPage, isFetchingNextPage, onLoadMore, onPrefetch, setPrefetchVelocity]);
 
   return (
     <div ref={ref} className="h-8 flex items-center justify-center">

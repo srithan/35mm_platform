@@ -12,6 +12,8 @@ export function ProfileBody(props: {
   bio: string;
   location: string;
   website: string;
+  dateOfBirth?: string | null;
+  isOwnProfile?: boolean;
   isPrivate?: boolean;
   role?: string | null;
   roleContext?: string | null;
@@ -27,6 +29,8 @@ export function ProfileBody(props: {
     bio: props.bio,
     location: props.location,
     website: props.website,
+    dateOfBirth: props.dateOfBirth,
+    isOwnProfile: props.isOwnProfile,
     isPrivate: props.isPrivate,
     role: props.role,
     roleContext: props.roleContext,

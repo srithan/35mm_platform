@@ -12,13 +12,21 @@ import { RichPostInline } from "@/lib/utils/richPostText";
 import { UserRoleHeadline } from "@/lib/utils/userRoleHeadline";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
-import { useDeleteComment, useUpdateComment } from "../hooks/useCommentMutations";
+import {
+  useDeleteComment,
+  useLikeComment,
+  useUpdateComment,
+} from "../hooks/useCommentMutations";
 import { Share2, Flag, MoreHorizontal, Pencil, Trash2, EyeOff, CircleSlash } from "lucide-react";
 import { VideoUrlPreview } from "./VideoUrlPreview";
 import { extractVideoPreviews } from "../utils/videoPreviews";
+import { ApiRequestError } from "../api/http";
+import { showGlobalFlashToast } from "@/components/FlashToast";
 
 export interface Comment {
   id: string;
+  parentId?: string | null;
+  isDeleted?: boolean;
   authorId?: string;
   username: string;
   /** Display name (defaults to username) */
@@ -60,6 +68,7 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
   const currentUserQuery = useCurrentUserProfile();
   const deleteCommentMutation = useDeleteComment(postId);
   const updateCommentMutation = useUpdateComment(postId);
+  const likeCommentMutation = useLikeComment(postId);
   const blockUserMutation = useBlockUserMutation();
   const muteUserMutation = useMuteUserMutation();
   const isOwnComment =
@@ -261,6 +270,42 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
     textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
   };
 
+  if (comment.isDeleted) {
+    return (
+      <div
+        id={`comment-${comment.id}`}
+        className={cn(
+          "CommentCard w-full px-4 py-4 animate-fade-up border-b border-border last:border-b-0",
+          depth > 0 && "border-l-2 border-l-border"
+        )}
+        style={{
+          backgroundColor: "var(--color-bg)",
+          ...(depth > 0
+            ? {
+                marginLeft: `${threadInsetPx}px`,
+                paddingLeft: "8px",
+              }
+            : {}),
+        }}
+      >
+        <p className="text-[13px] italic text-fg-muted">This comment was deleted</p>
+        {hasReplies ? (
+          <div className="mt-1.5 -mx-1">
+            {comment.replies!.map((reply) => (
+              <CommentCard
+                key={reply.id}
+                comment={reply}
+                postId={postId}
+                depth={depth + 1}
+                onReplySubmit={onReplySubmit}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
       id={`comment-${comment.id}`}
@@ -457,9 +502,24 @@ export function CommentCard({ comment, postId, depth = 0, onReplySubmit }: Comme
               likes={comment.likeCount}
               comments={comment.replyCount}
               hideZeroCounts
+              useCompactVariant
               initialLiked={comment.liked}
               onCommentClick={handleCommentClick}
               onReplyClick={handleReplyClick}
+              onLikeToggle={function ({ isLiked }) {
+                likeCommentMutation.mutate(
+                  { commentId: comment.id, isLiked },
+                  {
+                    onError: function (error) {
+                      var message =
+                        error instanceof ApiRequestError
+                          ? error.message
+                          : "Could not update comment like";
+                      showGlobalFlashToast(message, "error");
+                    },
+                  }
+                );
+              }}
               hideRepostSaveLabels
               showReplyOption={depth < 2}
             />

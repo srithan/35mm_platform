@@ -13,7 +13,11 @@ export var createPostSchema = z.object({
   body: z.string().max(5000),
   film: z
     .object({
-      id: z.string().trim().min(1),
+      id: z
+        .string()
+        .trim()
+        .min(1)
+        .regex(ULID_RE, "film.id must be a 35mm ULID"),
       tmdbId: z.number().int().nonnegative().optional(),
       title: z.string().trim().min(1).max(200),
       year: z.number().int().min(1800).max(2200).nullable(),
@@ -46,6 +50,34 @@ export var createPostSchema = z.object({
     .max(9)
     .optional(),
   mediaUrls: z.array(z.string().min(1).max(1000)).max(9).optional(),
+});
+
+export var notificationTypeSchema = z.enum([
+  "like",
+  "comment",
+  "reply",
+  "follow",
+  "follow_request",
+  "mention",
+  "repost",
+]);
+
+export var notificationQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  unreadOnly: z
+    .string()
+    .transform(function (value) {
+      return value === "true";
+    })
+    .pipe(z.boolean())
+    .default(false)
+    .optional()
+    .catch(false),
+});
+
+export var notificationIdSchema = z.object({
+  notificationId: z.string().uuid(),
 });
 
 export var sendMessageSchema = z.object({
@@ -139,3 +171,6 @@ export type OnboardingRoleInput = z.infer<typeof onboardingRoleSchema>;
 export type OnboardingSubmitInput = z.infer<typeof onboardingSubmitSchema>;
 export type ResolveOnboardingTmdbFilmInput = z.infer<typeof resolveOnboardingTmdbFilmSchema>;
 export type ResolveOnboardingTmdbFilmsInput = z.infer<typeof resolveOnboardingTmdbFilmsSchema>;
+export type NotificationType = z.infer<typeof notificationTypeSchema>;
+export type NotificationQueryInput = z.infer<typeof notificationQuerySchema>;
+export type NotificationIdInput = z.infer<typeof notificationIdSchema>;

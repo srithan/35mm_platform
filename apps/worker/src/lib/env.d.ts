@@ -1,0 +1,23 @@
+export declare function loadWorkerEnv(): {
+    DATABASE_URL: string;
+    R2_ACCOUNT_ID: string;
+    R2_ACCESS_KEY_ID: string;
+    R2_SECRET_ACCESS_KEY: string;
+    R2_BUCKET: string;
+    R2_PUBLIC_BASE_URL: string;
+    CF_IMAGES_ACCOUNT_ID: string;
+    CF_IMAGES_API_TOKEN: string;
+    CF_IMAGES_ACCOUNT_HASH: string;
+    CF_IMAGES_DELIVERY_BASE_URL: string;
+    CF_IMAGES_DEFAULT_THUMB_VARIANT: string;
+    CF_IMAGES_DEFAULT_FEED_VARIANT: string;
+    CF_IMAGES_DEFAULT_FULL_VARIANT: string;
+    ABLY_API_KEY: string;
+    UPSTASH_REDIS_URL: string;
+    UPSTASH_REDIS_REST_URL: string;
+    UPSTASH_REDIS_REST_TOKEN: string;
+    MEDIA_JOB_BATCH_SIZE: number;
+    MEDIA_BACKFILL_BATCH_SIZE: number;
+    WORKER_CONCURRENCY: number;
+};
+export type WorkerEnv = ReturnType<typeof loadWorkerEnv>;

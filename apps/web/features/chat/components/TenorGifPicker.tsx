@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { BodyPortal } from "@/components/BodyPortal/BodyPortal";
+import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 
 interface TenorResult {
   id: string;
@@ -53,7 +55,11 @@ export function TenorGifPicker({
   anchorRef,
   align = "left",
 }: TenorGifPickerProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [isPositioned, setIsPositioned] = useState(false);
+  const ESTIMATED_PANEL_HEIGHT_PX = 360;
+  const ESTIMATED_PANEL_WIDTH_PX = 360;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TenorResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,30 +123,91 @@ export function TenorGifPicker({
     [isOpen, fetchGifs, query]
   );
 
-  useEffect(
+  const reposition = useCallback(
+    function () {
+      const btn = anchorRef.current;
+      if (!btn) return;
+
+      const panel = panelRef.current;
+      const triggerRect = btn.getBoundingClientRect();
+      const menuRect = panel?.getBoundingClientRect();
+      const menuHeight =
+        menuRect && menuRect.height > 0
+          ? menuRect.height
+          : ESTIMATED_PANEL_HEIGHT_PX;
+      const menuWidth =
+        menuRect && menuRect.width > 0
+          ? menuRect.width
+          : ESTIMATED_PANEL_WIDTH_PX;
+      const margin = 8;
+      const sideOffset = 8;
+      const spaceAbove = triggerRect.top - margin;
+      const spaceBelow = window.innerHeight - triggerRect.bottom - margin;
+      const preferAbove =
+        spaceAbove >= menuHeight || spaceAbove >= spaceBelow;
+
+      var top = preferAbove
+        ? triggerRect.top - menuHeight - sideOffset
+        : triggerRect.bottom + sideOffset;
+      var left =
+        align === "right" ? triggerRect.right - menuWidth : triggerRect.left;
+
+      left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin));
+      top = Math.max(margin, Math.min(top, window.innerHeight - menuHeight - margin));
+
+      setPos({ top: top, left: left });
+      setIsPositioned(true);
+    },
+    [align, anchorRef]
+  );
+
+  const scheduleReposition = useCallback(
+    function () {
+      reposition();
+      window.requestAnimationFrame(function () {
+        reposition();
+        window.requestAnimationFrame(reposition);
+      });
+    },
+    [reposition]
+  );
+
+  const setPanelRef = useCallback(
+    function (node: HTMLDivElement | null) {
+      panelRef.current = node;
+      if (node && isOpen) {
+        scheduleReposition();
+      }
+    },
+    [isOpen, scheduleReposition]
+  );
+
+  const isInside = useCallback(
+    function (target: Node) {
+      return !!(
+        anchorRef.current?.contains(target) || panelRef.current?.contains(target)
+      );
+    },
+    [anchorRef]
+  );
+
+  usePopoverLayer({
+    open: isOpen,
+    reposition: scheduleReposition,
+    isInside: isInside,
+    onPointerOutsideDismiss: onClose,
+    onEscape: onClose,
+  });
+
+  useLayoutEffect(
     function () {
       if (!isOpen) {
+        setIsPositioned(false);
         return;
       }
-      function onPointerDown(e: PointerEvent) {
-        const target = e.target as Node | null;
-        if (!target) {
-          return;
-        }
-        if (panelRef.current && panelRef.current.contains(target)) {
-          return;
-        }
-        if (anchorRef.current && anchorRef.current.contains(target)) {
-          return;
-        }
-        onClose();
-      }
-      document.addEventListener("pointerdown", onPointerDown);
-      return function () {
-        document.removeEventListener("pointerdown", onPointerDown);
-      };
+      scheduleReposition();
     },
-    [isOpen, onClose, anchorRef]
+    [isOpen, scheduleReposition]
   );
 
   if (!isOpen) {
@@ -148,18 +215,19 @@ export function TenorGifPicker({
   }
 
   return (
-    <div
-      ref={panelRef}
-      className={cn(
-        "absolute z-[80] w-[min(100vw-20px,360px)] max-h-[min(70vh,420px)] flex flex-col rounded-2xl border border-border bg-elevated/95 backdrop-blur-md shadow-xl overflow-hidden",
-        "bottom-full mb-2",
-        align === "right" ? "right-0" : "left-0"
-      )}
-      style={{
-        boxShadow:
-          "0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.08)",
-      }}
-    >
+    <BodyPortal>
+      <div
+        ref={setPanelRef}
+        data-composer-popover
+        className="fixed z-[calc(var(--z-composer)+2)] flex max-h-[min(70vh,420px)] w-[min(100vw-20px,360px)] flex-col overflow-hidden overscroll-y-contain rounded-2xl border border-border bg-elevated/95 shadow-xl backdrop-blur-md"
+        style={{
+          top: pos.top,
+          left: pos.left,
+          visibility: isPositioned ? "visible" : "hidden",
+          boxShadow:
+            "0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.08)",
+        }}
+      >
       <div className="p-2 border-b border-border flex items-center gap-2">
         <div className="flex-1 flex items-center gap-1.5 rounded-xl bg-sunken px-2.5 py-1.5">
           <Search className="w-4 h-4 text-fg-muted shrink-0" strokeWidth={2} />
@@ -209,5 +277,6 @@ export function TenorGifPicker({
         )}
       </div>
     </div>
+    </BodyPortal>
   );
 }

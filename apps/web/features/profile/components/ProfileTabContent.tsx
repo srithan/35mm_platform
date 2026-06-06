@@ -7,12 +7,12 @@ import { GenreBreakdown } from "./GenreBreakdown";
 import { FilmPoster } from "@/components/FilmPoster";
 import { DiaryRow } from "./DiaryRow";
 import { Button } from "@/components/Button";
-import { EmptyState } from "@/components/EmptyState";
 import { formatCount } from "@/lib/utils/formatCount";
 import { FavouriteFilms } from "./FavouriteFilms";
 import { useCurrentUserProfile } from "../hooks/useCurrentUserProfile";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import type { ProfileTab } from "@/features/profile/lib/profileRoutes";
+import { ProfileDiaryTimeline } from "./ProfileDiaryTimeline";
 
 const LISTS = [
   { name: "Films That Changed How I Light", desc: "Cinematography studies that rewired my brain — every DP should see these before they pick up a camera.", count: "28 films · 1,204 saves · Public", posters: ["https://m.media-amazon.com/images/M/MV5BMjIxNTU4MzY4MF5BMl5BanBnXkFtZTgwNzY1MTU0MTE@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BNDc2NTM1MjktYmVhNS00YzQwLWE5NjctNWQ4NzEzZGY5ODI4XkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg"] },
@@ -38,6 +38,11 @@ export function ProfileTabContent({
     return (
       <InfinitePostList
         username={username}
+        postTypes={["text", "discussion", "image", "log", "review"]}
+        postFilter={function (post) {
+          if (post.type !== "log" && post.type !== "review") return true;
+          return post.visibility !== "private";
+        }}
         emptyState={
           isOwnProfile
             ? {
@@ -59,22 +64,13 @@ export function ProfileTabContent({
 
   if (tab === "diary") {
     return (
-      <EmptyState
-        size="lg"
-        icon={<span className="text-[24px]">🎞️</span>}
-        headline={
-          isOwnProfile
-            ? "No films logged yet"
-            : `${displayName ?? username} hasn't logged any films yet`
-        }
-        primaryCta={
-          isOwnProfile
-            ? {
-                label: "Log a film",
-                onClick: openComposerModal,
-              }
-            : undefined
-        }
+      <ProfileDiaryTimeline
+        username={username}
+        displayName={displayName}
+        isOwnProfile={isOwnProfile}
+        onLogFilm={function () {
+          openComposerModal(undefined, { initialMode: "log" });
+        }}
       />
     );
   }

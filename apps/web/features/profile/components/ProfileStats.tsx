@@ -6,7 +6,7 @@ import { formatCount } from "@/lib/utils/formatCount";
 import { ProfileConnectionsModal } from "./ProfileConnectionsModal";
 
 function StatDivider() {
-  return <div className="h-7 w-px shrink-0 bg-border/80" aria-hidden />;
+  return <div className="h-7 w-px shrink-0 bg-border" aria-hidden />;
 }
 
 function StatColumn(props: {
@@ -23,7 +23,7 @@ function StatColumn(props: {
           "flex min-w-[4.5rem] flex-col items-center justify-center gap-1 px-3 py-1",
           "rounded-md border-none bg-transparent font-inherit",
           "transition-colors duration-150",
-          "hover:bg-fg-muted/10 active:bg-fg-muted/15",
+          "hover:bg-hover active:bg-active",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-2"
         )}
       >

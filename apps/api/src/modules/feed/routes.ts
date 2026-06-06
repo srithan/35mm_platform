@@ -7,10 +7,12 @@ import {
   postLikes,
   postReposts,
   postBookmarks,
+  notifications,
   profiles,
   feedItems,
   follows,
   postEdits,
+  commentLikes,
   comments,
   films,
 } from "@35mm/db/schema";
@@ -41,7 +43,8 @@ import {
   profileFeedCacheKey,
   setFeedCache,
 } from "../../lib/feedCache.js";
-import { enqueueMediaProcessJob } from "../../lib/jobs.js";
+import { enqueueMediaProcessJob, removeNotificationPublishJob } from "../../lib/jobs.js";
+import { createNotification } from "../../lib/notifications.js";
 import { applyRateLimit, createRateLimitMiddleware, identifyByIp } from "../../lib/rateLimit.js";
 
 export var feedRoutes = new Hono();
@@ -58,6 +61,72 @@ var createPostRateLimit = createRateLimitMiddleware({
 
 function isDbError(err: unknown): err is { code?: unknown; message?: unknown } {
   return err != null && typeof err === "object";
+}
+
+function normalizeActorIds(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter(function (candidate): candidate is string {
+      return typeof candidate === "string" && candidate.length > 0;
+    });
+  }
+
+  if (typeof value === "string") {
+    var trimmed = value.trim();
+    if (!trimmed) return [];
+
+    if (trimmed[0] === "{" && trimmed[trimmed.length - 1] === "}") {
+      if (trimmed.length <= 2) return [];
+
+      return trimmed
+        .slice(1, -1)
+        .split(",")
+        .map(function (part) {
+          return part.trim().replace(/^"(.*)"$/s, "$1");
+        })
+        .filter(function (part) {
+          return part.length > 0;
+        });
+    }
+
+    try {
+      var parsed = JSON.parse(trimmed);
+      return normalizeActorIds(parsed);
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function isMissingActorIdsColumnError(err: unknown): boolean {
+  if (err == null || typeof err !== "object") return false;
+
+  var candidate = err as {
+    code?: unknown;
+    message?: unknown;
+    cause?: {
+      code?: unknown;
+      message?: unknown;
+    };
+  };
+
+  var code = typeof candidate.code === "string" ? candidate.code : "";
+  if (code === "42703") return true;
+
+  var cause = candidate.cause;
+  var causeCode = cause && typeof cause === "object" ? (cause.code as unknown) : "";
+  if (typeof causeCode === "string" && causeCode === "42703") return true;
+
+  var message = typeof candidate.message === "string" ? candidate.message : "";
+  var causeMessage =
+    cause && typeof cause === "object" && typeof cause.message === "string" ? cause.message : "";
+
+  return (
+    message.includes("actor_ids") ||
+    causeMessage.includes("actor_ids") ||
+    (message.includes("column") && message.includes("does not exist"))
+  );
 }
 
 function weakEtag(input: unknown, prefix: string): string {
@@ -79,6 +148,7 @@ type CreatePostInput = {
   type: "text" | "discussion" | "log" | "review" | "image";
   headline: string | null;
   body: string;
+  postToFeed: boolean;
   filmId: string | null;
   filmRating: number | null;
   visibility: "public" | "followers_only" | "private";
@@ -113,6 +183,8 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
   var source = (raw ?? {}) as Record<string, unknown>;
   var visibilityRaw = source.visibility;
   var visibility: CreatePostInput["visibility"] = "public";
+  var postToFeedRaw = source.postToFeed;
+  var postToFeed = true;
 
   if (visibilityRaw !== undefined) {
     if (
@@ -123,6 +195,13 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
       throw badRequest("Invalid visibility");
     }
     visibility = visibilityRaw;
+  }
+
+  if (postToFeedRaw !== undefined) {
+    if (typeof postToFeedRaw !== "boolean") {
+      throw badRequest("postToFeed must be a boolean");
+    }
+    postToFeed = postToFeedRaw;
   }
 
   var filmId: string | null = null;
@@ -147,6 +226,7 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     type: parsed.type,
     headline: parsed.headline ?? null,
     body: parsed.body,
+    postToFeed,
     filmId,
     filmRating,
     visibility,
@@ -339,6 +419,23 @@ async function acceptedFollowerIds(userId: string): Promise<string[]> {
   return rows.map(function (row) {
     return row.followerId;
   });
+}
+
+async function invalidatePostInteractionCaches(input: {
+  actorUserId: string;
+  postOwnerId: string;
+  isPostPublic: boolean;
+}) {
+  var followerIds = await acceptedFollowerIds(input.postOwnerId);
+  await invalidateViewerFeedCaches([
+    input.actorUserId,
+    input.postOwnerId,
+    ...followerIds,
+  ]);
+  await invalidateAuthorProfileFeedCaches([input.postOwnerId]);
+  if (input.isPostPublic) {
+    await invalidateFeedCacheForGuest();
+  }
 }
 
 async function invalidateFeedAfterAuthorMutation(input: {
@@ -846,7 +943,8 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
   }
 
   // Worker fanout not wired yet; synchronous insert into feed_items.
-  var followerRows = input.visibility === "private"
+  var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
+  var followerRows = !shouldFanoutToFeed
     ? []
     : await db
         .select({ followerId: follows.followerId })
@@ -854,9 +952,11 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         .where(and(eq(follows.followingId, user.userId), eq(follows.status, "accepted")));
 
   var targetUserIds = new Set<string>();
-  targetUserIds.add(user.userId);
-  for (var follower of followerRows) {
-    targetUserIds.add(follower.followerId);
+  if (shouldFanoutToFeed) {
+    targetUserIds.add(user.userId);
+    for (var follower of followerRows) {
+      targetUserIds.add(follower.followerId);
+    }
   }
 
   if (targetUserIds.size > 0) {
@@ -885,11 +985,15 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     }
   }
 
-  await invalidateFeedAfterAuthorMutation({
-    authorUserId: user.userId,
-    includeFollowers: true,
-    includeGuest: input.visibility === "public",
-  });
+  if (shouldFanoutToFeed) {
+    await invalidateFeedAfterAuthorMutation({
+      authorUserId: user.userId,
+      includeFollowers: true,
+      includeGuest: input.visibility === "public",
+    });
+  } else {
+    await invalidateAuthorProfileFeedCaches([user.userId]);
+  }
 
   var created = await getPostById(postId, user.userId);
   if (!created) {
@@ -1233,6 +1337,15 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
     await assertReadablePostForInteraction(postId, user.userId);
 
     var db = getDb();
+    var postOwnerRows = await db
+      .select({ userId: posts.userId, visibility: posts.visibility })
+      .from(posts)
+      .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+      .limit(1);
+
+    if (postOwnerRows.length === 0) {
+      throw notFound("Post not found");
+    }
 
     var inserted = await db
       .insert(postLikes)
@@ -1248,6 +1361,17 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
           updatedAt: new Date(),
         })
         .where(eq(posts.id, postId));
+
+      await createNotification(
+        {
+          recipientId: postOwnerRows[0].userId,
+          actorId: user.userId,
+          type: "like",
+          entityType: "post",
+          entityId: postId,
+        },
+        { delayMs: 10_000 }
+      );
     }
 
     var countRows = await db
@@ -1255,6 +1379,12 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
       .from(posts)
       .where(eq(posts.id, postId))
       .limit(1);
+
+    await invalidatePostInteractionCaches({
+      actorUserId: user.userId,
+      postOwnerId: postOwnerRows[0].userId,
+      isPostPublic: postOwnerRows[0].visibility === "public",
+    });
 
     return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
   } catch (err) {
@@ -1268,6 +1398,14 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
   await assertReadablePostForInteraction(postId, user.userId);
 
   var db = getDb();
+  var postOwnerRows = await db
+    .select({ userId: posts.userId, visibility: posts.visibility })
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+    .limit(1);
+  if (postOwnerRows.length === 0) {
+    throw notFound("Post not found");
+  }
 
   var deleted = await db
     .delete(postLikes)
@@ -1282,6 +1420,88 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
         updatedAt: new Date(),
       })
       .where(eq(posts.id, postId));
+
+    var existingNotificationRows: Array<{
+      id: string;
+      actorId: string | null;
+      bundleCount: number;
+      actorIds?: string[] | null;
+    }> = [];
+
+    try {
+      existingNotificationRows = await db
+        .select({
+          id: notifications.id,
+          actorId: notifications.actorId,
+          bundleCount: notifications.bundleCount,
+          actorIds: notifications.actorIds,
+        })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.recipientId, postOwnerRows[0].userId),
+            eq(notifications.actorId, user.userId),
+            eq(notifications.type, "like"),
+            eq(notifications.entityType, "post"),
+            eq(notifications.entityId, postId),
+            eq(notifications.isRead, false)
+          )
+        )
+        .limit(1);
+    } catch (error) {
+      if (!isMissingActorIdsColumnError(error)) {
+        throw error;
+      }
+
+      existingNotificationRows = await db
+        .select({
+          id: notifications.id,
+          actorId: notifications.actorId,
+          bundleCount: notifications.bundleCount,
+        })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.recipientId, postOwnerRows[0].userId),
+            eq(notifications.actorId, user.userId),
+            eq(notifications.type, "like"),
+            eq(notifications.entityType, "post"),
+            eq(notifications.entityId, postId),
+            eq(notifications.isRead, false)
+          )
+        )
+        .limit(1);
+    }
+
+    if (existingNotificationRows.length > 0) {
+      var existingNotification = existingNotificationRows[0];
+      var nextActorIds = normalizeActorIds(existingNotification.actorIds).filter(function (id) {
+        return id !== user.userId;
+      });
+
+      if ((existingNotification.bundleCount ?? 0) <= 1) {
+        await removeNotificationPublishJob(existingNotification.id);
+        await db.delete(notifications).where(eq(notifications.id, existingNotification.id));
+      } else {
+        var updateValues: {
+          bundleCount: number;
+          actorId: string | null;
+          actorIds?: string[];
+        } = {
+          bundleCount: existingNotification.bundleCount - 1,
+          actorId: nextActorIds[0] ?? existingNotification.actorId,
+        };
+
+        if (existingNotification.actorIds !== undefined) {
+          updateValues.actorIds = nextActorIds;
+        }
+
+        await db
+          .update(notifications)
+          .set(updateValues)
+          .where(eq(notifications.id, existingNotification.id));
+      }
+    }
   }
 
   var countRows = await db
@@ -1289,6 +1509,11 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
     .from(posts)
     .where(eq(posts.id, postId))
     .limit(1);
+  await invalidatePostInteractionCaches({
+    actorUserId: user.userId,
+    postOwnerId: postOwnerRows[0].userId,
+    isPostPublic: postOwnerRows[0].visibility === "public",
+  });
 
   return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
 });
@@ -1487,6 +1712,185 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
   return c.json({ ok: true });
 });
 
+feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, async function (c) {
+  var user = c.get("user");
+  var postId = c.req.param("postId");
+  var commentId = c.req.param("commentId");
+
+  try {
+    await assertReadablePostForInteraction(postId, user.userId);
+
+    var db = getDb();
+    var commentRows = await db
+      .select({ userId: comments.userId, isDeleted: comments.isDeleted })
+      .from(comments)
+      .where(and(eq(comments.id, commentId), eq(comments.postId, postId)))
+      .limit(1);
+
+    if (commentRows.length === 0 || commentRows[0].isDeleted) {
+      throw notFound("Comment not found");
+    }
+
+    var inserted = await db
+      .insert(commentLikes)
+      .values({ commentId: commentId, userId: user.userId })
+      .onConflictDoNothing()
+      .returning({ commentId: commentLikes.commentId });
+
+    if (inserted.length > 0) {
+      await db
+        .update(comments)
+        .set({
+          likeCount: sql`${comments.likeCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(comments.id, commentId));
+
+      await createNotification({
+        recipientId: commentRows[0].userId,
+        actorId: user.userId,
+        type: "like",
+        entityType: "comment",
+        entityId: commentId,
+      }, { delayMs: 10_000 });
+    }
+
+    var countRows = await db
+      .select({ likeCount: comments.likeCount })
+      .from(comments)
+      .where(eq(comments.id, commentId))
+      .limit(1);
+
+    return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
+  } catch (err) {
+    throw toActionError(err);
+  }
+});
+
+feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, async function (c) {
+  var user = c.get("user");
+  var postId = c.req.param("postId");
+  var commentId = c.req.param("commentId");
+
+  await assertReadablePostForInteraction(postId, user.userId);
+
+  var db = getDb();
+  var commentRows = await db
+    .select({ userId: comments.userId, isDeleted: comments.isDeleted })
+    .from(comments)
+    .where(and(eq(comments.id, commentId), eq(comments.postId, postId)))
+    .limit(1);
+
+  if (commentRows.length === 0 || commentRows[0].isDeleted) {
+    throw notFound("Comment not found");
+  }
+
+  var deleted = await db
+    .delete(commentLikes)
+    .where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.userId, user.userId)))
+    .returning({ commentId: commentLikes.commentId });
+
+  if (deleted.length > 0) {
+    await db
+      .update(comments)
+      .set({
+        likeCount: sql`greatest(${comments.likeCount} - 1, 0)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(comments.id, commentId));
+
+    var existingNotificationRows: Array<{
+      id: string;
+      actorId: string | null;
+      bundleCount: number;
+      actorIds?: string[] | null;
+    }> = [];
+
+    try {
+      existingNotificationRows = await db
+        .select({
+          id: notifications.id,
+          actorId: notifications.actorId,
+          bundleCount: notifications.bundleCount,
+          actorIds: notifications.actorIds,
+        })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.recipientId, commentRows[0].userId),
+            eq(notifications.actorId, user.userId),
+            eq(notifications.type, "like"),
+            eq(notifications.entityType, "comment"),
+            eq(notifications.entityId, commentId),
+            eq(notifications.isRead, false)
+          )
+        )
+        .limit(1);
+    } catch (error) {
+      if (!isMissingActorIdsColumnError(error)) {
+        throw error;
+      }
+
+      existingNotificationRows = await db
+        .select({
+          id: notifications.id,
+          actorId: notifications.actorId,
+          bundleCount: notifications.bundleCount,
+        })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.recipientId, commentRows[0].userId),
+            eq(notifications.actorId, user.userId),
+            eq(notifications.type, "like"),
+            eq(notifications.entityType, "comment"),
+            eq(notifications.entityId, commentId),
+            eq(notifications.isRead, false)
+          )
+        )
+        .limit(1);
+    }
+
+    if (existingNotificationRows.length > 0) {
+      var existingNotification = existingNotificationRows[0];
+      var nextActorIds = normalizeActorIds(existingNotification.actorIds).filter(function (id) {
+        return id !== user.userId;
+      });
+
+      if ((existingNotification.bundleCount ?? 0) <= 1) {
+        await removeNotificationPublishJob(existingNotification.id);
+        await db.delete(notifications).where(eq(notifications.id, existingNotification.id));
+      } else {
+        var updateValues: {
+          bundleCount: number;
+          actorId: string | null;
+          actorIds?: string[];
+        } = {
+          bundleCount: existingNotification.bundleCount - 1,
+          actorId: nextActorIds[0] ?? existingNotification.actorId,
+        };
+
+        if (existingNotification.actorIds !== undefined) {
+          updateValues.actorIds = nextActorIds;
+        }
+
+        await db
+          .update(notifications)
+          .set(updateValues)
+          .where(eq(notifications.id, existingNotification.id));
+      }
+    }
+  }
+
+  var countRows = await db
+    .select({ likeCount: comments.likeCount })
+    .from(comments)
+    .where(eq(comments.id, commentId))
+    .limit(1);
+
+  return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
+});
+
 // Comments are returned as a flat list with parentId for client-side tree construction.
 // Max depth: 3 levels, enforced on write. Do not change to nested API response
 // without updating the client tree builder in features/feed/api/adapters.ts.
@@ -1523,6 +1927,9 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
       editedAt: comments.editedAt,
       createdAt: comments.createdAt,
       updatedAt: comments.updatedAt,
+      isLiked: viewer
+        ? sql<boolean>`exists(select 1 from ${commentLikes} where ${commentLikes.commentId} = ${comments.id} and ${commentLikes.userId} = ${viewer.userId})`
+        : sql<boolean>`false`,
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
@@ -1543,6 +1950,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
         body: row.isDeleted ? null : row.body,
         isDeleted: row.isDeleted,
         likeCount: Number(row.likeCount ?? 0),
+        isLiked: Boolean(row.isLiked),
         editedAt: row.editedAt ? row.editedAt.toISOString() : null,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
@@ -1600,15 +2008,27 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
 
   await assertReadablePostForInteraction(postId, user.userId);
 
+  var db = getDb();
+  var postRows = await db
+    .select({ userId: posts.userId })
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+    .limit(1);
+
+  if (postRows.length === 0) {
+    throw notFound("Post not found");
+  }
+
+  var parentCommentOwnerId: string | null = null;
+
   if (input.parentId) {
     var parentDepth = await getCommentDepth(postId, input.parentId);
     if (parentDepth >= 3) {
       throw badRequest("Comments support max 3 levels");
     }
 
-    var db = getDb();
     var parentRows = await db
-      .select({ isDeleted: comments.isDeleted })
+      .select({ isDeleted: comments.isDeleted, userId: comments.userId })
       .from(comments)
       .where(and(eq(comments.id, input.parentId), eq(comments.postId, postId)))
       .limit(1);
@@ -1620,9 +2040,10 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
     if (parentRows[0].isDeleted) {
       throw badRequest("Cannot reply to deleted comment");
     }
+
+    parentCommentOwnerId = parentRows[0].userId;
   }
 
-  var db = getDb();
   var insertedRows = await db
     .insert(comments)
     .values({
@@ -1656,6 +2077,26 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
       updatedAt: new Date(),
     })
     .where(eq(posts.id, postId));
+
+  if (parentCommentOwnerId) {
+    await createNotification({
+      recipientId: parentCommentOwnerId,
+      actorId: user.userId,
+      type: "reply",
+      entityType: "comment",
+      entityId: inserted.id,
+    });
+  }
+
+  if (!parentCommentOwnerId || parentCommentOwnerId !== postRows[0].userId) {
+    await createNotification({
+      recipientId: postRows[0].userId,
+      actorId: user.userId,
+      type: "comment",
+      entityType: "comment",
+      entityId: inserted.id,
+    });
+  }
 
   var profileRows = await db
     .select({

@@ -165,6 +165,8 @@ export function ProfileShellClient(props: { username: string }) {
           bio={resolvedProfile.bio ?? ""}
           location={resolvedProfile.location ?? ""}
           website={resolvedProfile.website ?? ""}
+          dateOfBirth={resolvedProfile.dateOfBirth ?? ""}
+          isOwnProfile={isOwnProfile}
           isPrivate={Boolean(resolvedProfile.isPrivate)}
           role={resolvedProfile.role}
           roleContext={resolvedProfile.roleContext}

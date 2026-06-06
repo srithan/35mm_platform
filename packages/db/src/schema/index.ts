@@ -1,4 +1,5 @@
 export { users, accountStatusEnum } from "./users.js";
+export { followSuggestions } from "./follow_suggestions.js";
 export { profiles } from "./profiles.js";
 export { userSettings } from "./user_settings.js";
 export { films, filmSourceEnum } from "./films.js";

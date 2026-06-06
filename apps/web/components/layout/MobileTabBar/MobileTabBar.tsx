@@ -2,22 +2,54 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { isRouteActive } from "@/lib/utils/navigation";
 import { Home, Search, Bell } from "lucide-react";
-import { UNREAD_IDS } from "@/features/notifications/data/notificationsData";
+import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
+import { fetchNotifications } from "@/features/notifications/api/notificationsApi";
 
-const notificationsCount = UNREAD_IDS.length;
+function useNotificationBellCount() {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
 
-const TABS = [
-  { label: "Feed", href: ROUTES.HOME, icon: Home },
-  { label: "Discover", href: ROUTES.DISCOVER, icon: Search },
-  { label: "Notifications", href: ROUTES.NOTIFICATIONS, icon: Bell, badge: notificationsCount },
-] as const;
+  const query = useQuery({
+    queryKey: notificationsKeys.unread(),
+    queryFn: async function () {
+      return fetchNotifications({
+        token: await getToken(),
+        unreadOnly: true,
+        limit: 50,
+      });
+    },
+    enabled: isLoaded && Boolean(isSignedIn),
+    staleTime: 20_000,
+    refetchInterval: 5_000,
+    gcTime: 5 * 60_000,
+  });
+
+  return query.data?.items.length ?? 0;
+}
+
+function useMobileTabs() {
+  const notificationsCount = useNotificationBellCount();
+
+  return [
+    { label: "Feed", href: ROUTES.HOME, icon: Home },
+    { label: "Discover", href: ROUTES.DISCOVER, icon: Search },
+    {
+      label: "Notifications",
+      href: ROUTES.NOTIFICATIONS,
+      icon: Bell,
+      badge: notificationsCount,
+    },
+  ] as const;
+}
 
 export function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  const tabs = useMobileTabs();
 
   return (
     <nav
@@ -27,10 +59,11 @@ export function MobileTabBar() {
       aria-label="Main navigation"
     >
       <div className="flex items-center justify-around h-16 px-2">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const { label, href, icon: Icon } = tab;
+          const rawBadge = "badge" in tab ? tab.badge : 0;
           const active = isRouteActive(pathname, href);
-          const count = "badge" in tab ? (tab.badge ?? 0) : 0;
+          const count = typeof rawBadge === "number" ? rawBadge : Number(rawBadge || 0);
           return (
             <Link
               key={href}

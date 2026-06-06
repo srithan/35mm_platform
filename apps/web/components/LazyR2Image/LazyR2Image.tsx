@@ -27,7 +27,85 @@ interface LazyR2ImageProps extends NativeImageProps {
   forceLoad?: boolean;
 }
 
-const DEFAULT_ROOT_MARGIN = "200px";
+const DEFAULT_ROOT_MARGIN = "700px";
+const LOADED_IMAGE_CACHE_TTL_MS = 45 * 60 * 1000;
+
+type CachedImageState = {
+  resolvedSrc: string;
+  isLoaded: boolean;
+  lastSeenAt: number;
+};
+const IMAGE_STATE_CACHE = new Map<string, CachedImageState>();
+
+function getFreshImageState(value: string | null): CachedImageState | null {
+  if (!value) return null;
+  const cached = IMAGE_STATE_CACHE.get(value);
+  if (!cached) return null;
+  if (cached.lastSeenAt + LOADED_IMAGE_CACHE_TTL_MS <= Date.now()) {
+    IMAGE_STATE_CACHE.delete(value);
+    return null;
+  }
+  return cached;
+}
+
+function cacheImageState(
+  value: string | null,
+  nextState: Omit<CachedImageState, "lastSeenAt">
+) {
+  if (!value) return;
+  IMAGE_STATE_CACHE.set(value, {
+    ...nextState,
+    lastSeenAt: Date.now(),
+  });
+}
+
+function withCacheBust(value: string): string {
+  try {
+    const parsed = new URL(value);
+    parsed.searchParams.set("__r2_retry", Date.now().toString(36));
+    return parsed.toString();
+  } catch {
+    const joiner = value.includes("?") ? "&" : "?";
+    return value + joiner + "__r2_retry=" + Date.now().toString(36);
+  }
+}
+
+function normalizeMediaSource(value: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed, "https://media.35mm.local");
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+    return parsed.pathname;
+  } catch {
+    return trimmed;
+  }
+}
+
+function fallbackToCfPublicVariant(value: string): string | null {
+  try {
+    const parsed = new URL(value);
+    if (!parsed.hostname.endsWith("imagedelivery.net")) return null;
+
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (segments.length < 2) return null;
+
+    const variantIndex = segments.length - 1;
+    const variant = segments[variantIndex];
+    if (variant !== "thumb" && variant !== "feed" && variant !== "full") return null;
+
+    segments[variantIndex] = "public";
+    parsed.pathname = "/" + segments.join("/");
+    parsed.searchParams.set("__r2_retry", Date.now().toString(36));
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
 function BlurhashPlaceholder({
   hash,
@@ -80,7 +158,7 @@ export function LazyR2Image({
   threshold = 0.01,
   shouldLoad = true,
   forceLoad = false,
-  loading = "lazy",
+  loading,
   decoding = "async",
   onLoad,
   onError,
@@ -88,17 +166,27 @@ export function LazyR2Image({
 }: LazyR2ImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<string | null>(null);
+  const sourceIdentityRef = useRef<string | null>(null);
   const didRetryRef = useRef(false);
 
   const [isInView, setIsInView] = useState(forceLoad);
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   const trimmedSrc = useMemo(function () {
     if (typeof src !== "string") return null;
     const value = src.trim();
     return value.length > 0 ? value : null;
   }, [src]);
+  const trimmedSourceIdentity = useMemo(function () {
+    return normalizeMediaSource(trimmedSrc);
+  }, [trimmedSrc]);
+  const sourceStateCache = getFreshImageState(trimmedSourceIdentity);
+
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(() =>
+    sourceStateCache?.resolvedSrc ?? null
+  );
+  const [isLoaded, setIsLoaded] = useState(function () {
+    return Boolean(sourceStateCache?.isLoaded);
+  });
 
   const trimmedBlurhash = useMemo(function () {
     if (typeof blurhash !== "string") return null;
@@ -108,12 +196,35 @@ export function LazyR2Image({
 
   useEffect(
     function resetStateOnSourceChange() {
+      const previousIdentity = sourceIdentityRef.current;
+      const nextIdentity = trimmedSourceIdentity;
       sourceRef.current = trimmedSrc;
+      sourceIdentityRef.current = nextIdentity;
+
       didRetryRef.current = false;
+      if (!trimmedSrc) {
+        setResolvedSrc(null);
+        setIsLoaded(false);
+        return;
+      }
+
+      if (nextIdentity != null) {
+        const cached = getFreshImageState(nextIdentity);
+        if (cached) {
+          sourceIdentityRef.current = nextIdentity;
+          setResolvedSrc(cached.resolvedSrc);
+          setIsLoaded(cached.isLoaded);
+          return;
+        }
+      }
+
+      if (previousIdentity != null && previousIdentity === nextIdentity) {
+        return;
+      }
       setResolvedSrc(null);
       setIsLoaded(false);
     },
-    [trimmedSrc]
+    [trimmedSrc, trimmedSourceIdentity]
   );
 
   useEffect(
@@ -158,18 +269,33 @@ export function LazyR2Image({
       let cancelled = false;
       resolvePublicMediaUrl(trimmedSrc).then(function (nextSrc) {
         if (cancelled) return;
-        setResolvedSrc(nextSrc ?? trimmedSrc);
+        const nextResolved = nextSrc ?? trimmedSrc;
+        const identity = trimmedSourceIdentity;
+        if (identity) {
+          const currentState = getFreshImageState(identity);
+          cacheImageState(identity, {
+            resolvedSrc: nextResolved,
+            isLoaded: Boolean(currentState?.isLoaded),
+          });
+        }
+        setResolvedSrc(nextResolved);
       });
 
       return function () {
         cancelled = true;
       };
     },
-    [trimmedSrc, shouldLoad, isInView, forceLoad]
+    [trimmedSrc, shouldLoad, isInView, forceLoad, trimmedSourceIdentity]
   );
 
   const handleLoad = useCallback(
     function (event: SyntheticEvent<HTMLImageElement, Event>) {
+      const identity = sourceIdentityRef.current;
+      const loadedSrc = event.currentTarget.src;
+      cacheImageState(identity, {
+        resolvedSrc: loadedSrc,
+        isLoaded: true,
+      });
       setIsLoaded(true);
       onLoad?.(event);
     },
@@ -179,19 +305,46 @@ export function LazyR2Image({
   const handleError = useCallback(
     function (event: SyntheticEvent<HTMLImageElement, Event>) {
       const currentSource = sourceRef.current;
-      if (!didRetryRef.current && currentSource) {
+      const attemptedSource = resolvedSrc || currentSource;
+      const identity = trimmedSourceIdentity;
+      if (!didRetryRef.current && attemptedSource) {
         didRetryRef.current = true;
         setIsLoaded(false);
+
+          const cfPublicVariant = fallbackToCfPublicVariant(attemptedSource);
+        if (cfPublicVariant) {
+          setResolvedSrc(cfPublicVariant);
+          cacheImageState(identity, {
+            resolvedSrc: cfPublicVariant,
+            isLoaded: false,
+          });
+          onError?.(event);
+          return;
+        }
+
         resolvePublicMediaUrl(currentSource, { force: true }).then(function (nextSrc) {
-          if (nextSrc) setResolvedSrc(nextSrc);
+          if (typeof nextSrc === "string" && nextSrc.trim().length > 0) {
+            setResolvedSrc(withCacheBust(nextSrc));
+            cacheImageState(identity, {
+              resolvedSrc: withCacheBust(nextSrc),
+              isLoaded: false,
+            });
+            return;
+          }
+          setResolvedSrc(withCacheBust(attemptedSource));
+          cacheImageState(identity, {
+            resolvedSrc: withCacheBust(attemptedSource),
+            isLoaded: false,
+          });
         });
       }
       onError?.(event);
     },
-    [onError]
+    [onError, resolvedSrc, trimmedSourceIdentity]
   );
 
   const showPlaceholder = !resolvedSrc || !isLoaded;
+  const effectiveLoading = forceLoad ? "eager" : (loading ?? "lazy");
 
   return (
     <div ref={containerRef} className={cn("relative", containerClassName)}>
@@ -214,7 +367,7 @@ export function LazyR2Image({
           src={resolvedSrc}
           alt={alt}
           className={cn("transition-opacity duration-150", isLoaded ? "opacity-100" : "opacity-0", className)}
-          loading={loading}
+          loading={effectiveLoading}
           decoding={decoding}
           onLoad={handleLoad}
           onError={handleError}

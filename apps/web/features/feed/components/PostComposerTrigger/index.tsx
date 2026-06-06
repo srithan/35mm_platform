@@ -70,7 +70,7 @@ export function PostComposerTrigger({
   suppressDefaultAvatar = false,
 }: PostComposerTriggerProps) {
   return (
-    <div className="PostComposerTrigger mt-4 pt-4 pb-4 rounded-lg">
+    <div className="PostComposerTrigger pb-4 rounded-lg">
       <button
         type="button"
         onClick={onOpen}

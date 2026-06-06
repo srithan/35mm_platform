@@ -1,8 +1,10 @@
 import { QueueEvents, Worker, type Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { runFeedFanoutJob } from "./jobs/feedFanout.js";
+import { runSuggestionComputeJob } from "./workers/suggestionWorker.js";
 import { processPostById } from "./jobs/mediaProcess.js";
 import { runNotificationDigestJob } from "./jobs/notificationDigest.js";
+import { runNotificationPublishJob } from "./jobs/notificationPublish.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 
@@ -61,9 +63,19 @@ async function handleJob(job: Job): Promise<unknown> {
     return { ok: true, stub: true };
   }
 
+  if (job.name === "compute-suggestions") {
+    await runSuggestionComputeJob(job.data as { userId: string });
+    return { ok: true, stub: true };
+  }
+
   if (job.name === "counter.increment") {
     return { ok: true, stub: true };
   }
+
+      if (job.name === "notification.publish") {
+        await runNotificationPublishJob(job.data as { notificationId: string });
+        return { ok: true, stub: true };
+      }
 
   if (job.name === "notification.digest") {
     await runNotificationDigestJob();

@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import type { QuotedPost } from "@/stores/useComposerModalStore";
 import type { EditingPost } from "@/stores/useComposerModalStore";
-import { useScrollLock } from "@/lib/hooks/useScrollLock";
+import type { ComposerInitialMode } from "@/stores/useComposerModalStore";
 import { PostComposer } from "../PostComposer";
 import { Icon } from "@/components/Icon/Icon";
 
@@ -27,6 +27,7 @@ interface PostComposerModalProps {
   user: PostComposerModalUser;
   quotedPost?: QuotedPost | null;
   editingPost?: EditingPost | null;
+  initialMode?: ComposerInitialMode | null;
 }
 
 const FOCUSABLE =
@@ -92,17 +93,51 @@ export function PostComposerModal({
   user,
   quotedPost,
   editingPost,
+  initialMode,
 }: PostComposerModalProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
   const transformOrigin = !isMobile ? "top center" : undefined;
 
-  useScrollLock(isOpen && !isMobile);
   useFocusTrap(modalRef, isOpen && !showDiscardConfirm && !isMobile);
+
+  useEffect(
+    function () {
+      if (!isOpen || isMobile) return;
+
+      function shouldAllowScroll(target: EventTarget | null) {
+        if (!(target instanceof Node)) return false;
+        if (dialogRef.current?.contains(target)) return true;
+        if (target instanceof Element) {
+          return Boolean(
+            target.closest(
+              "[data-emoji-panel], [data-composer-popover], .EmojiPickerReact"
+            )
+          );
+        }
+        return false;
+      }
+
+      function preventBackgroundScroll(ev: Event) {
+        if (shouldAllowScroll(ev.target)) return;
+        ev.preventDefault();
+      }
+
+      document.addEventListener("wheel", preventBackgroundScroll, { passive: false });
+      document.addEventListener("touchmove", preventBackgroundScroll, { passive: false });
+
+      return function () {
+        document.removeEventListener("wheel", preventBackgroundScroll);
+        document.removeEventListener("touchmove", preventBackgroundScroll);
+      };
+    },
+    [isOpen, isMobile]
+  );
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -161,6 +196,7 @@ export function PostComposerModal({
 
   return createPortal(
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[var(--z-composer)] font-sans"
       role="dialog"
       aria-modal="true"
@@ -173,7 +209,7 @@ export function PostComposerModal({
       />
 
       <div
-        className="absolute inset-0 overflow-y-auto"
+        className="absolute inset-0 overflow-y-auto overscroll-y-contain"
         onClick={handleClose}
       >
         <div className="min-h-full flex items-end md:items-start md:pt-[12vh] md:px-4">
@@ -215,6 +251,7 @@ export function PostComposerModal({
                 onClose={handleClose}
                 quotedPost={quotedPost}
                 editingPost={editingPost}
+                initialMode={initialMode}
               />
             </div>
 

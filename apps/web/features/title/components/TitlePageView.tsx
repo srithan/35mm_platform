@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { yearFromDate } from "@/features/discover/lib/tmdb-utils";
 import { cn } from "@/lib/utils/cn";
 import type { TitleMedia } from "@/lib/title/paths";
@@ -23,6 +23,14 @@ export function TitlePageView(props: { media: TitleMedia; id: string }) {
   const [activeVideoKey, setActiveVideoKey] = useState<string | null>(null);
   const [contentTab, setContentTab] = useState<TitleContentTab>("overview");
   const [reviewsTabMounted, setReviewsTabMounted] = useState(false);
+
+  useLayoutEffect(
+    function () {
+      if (typeof window === "undefined") return;
+      window.scrollTo(0, 0);
+    },
+    [media, id]
+  );
 
   const goToReviewsTab = useCallback(
     function () {

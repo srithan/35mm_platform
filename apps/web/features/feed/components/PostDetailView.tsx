@@ -100,7 +100,6 @@ export function PostDetailView({
   }
 
   const legacy = getLegacyShape(post);
-  const imageVariant: "feed" | "thumb" = connection.slow || connection.saveData ? "thumb" : "feed";
   const image = post.media.find((item) => item.type === "image");
   const filmCard = post.film
     ? {
@@ -135,7 +134,7 @@ export function PostDetailView({
         filmRef={legacy.filmRef ?? undefined}
         filmCard={legacy.filmCard ?? filmCard}
         attachedFilm={post.film}
-        mediaUrls={resolvePostImageUrls(post, imageVariant)}
+        mediaUrls={resolvePostImageUrls(post, "feed")}
         viewerMediaUrls={resolvePostImageUrls(post, "full")}
         saveData={connection.saveData}
         linkPreview={post.linkPreview}

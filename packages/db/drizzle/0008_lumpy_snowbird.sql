@@ -1,0 +1,1 @@
+ALTER TABLE "notifications" ADD COLUMN "actor_ids" text[] DEFAULT '{}' NOT NULL;

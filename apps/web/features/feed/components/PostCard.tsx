@@ -302,6 +302,17 @@ function PostCardComponent({
     ];
   }
   var shouldRenderLinkPreviewCard = !hasAttachedMedia && Boolean(linkPreview) && !linkPreviewVideo;
+  var isShortTextOnlyPost =
+    variant === "text" &&
+    !hasAttachedMedia &&
+    !filmCard &&
+    combinedVideoPreviews.length === 0 &&
+    !shouldRenderLinkPreviewCard &&
+    cleanedText.length > 0 &&
+    cleanedText.length < 100;
+  var postBodyTextClassName = isShortTextOnlyPost
+    ? "text-[28px] leading-[1.45] tracking-[-0.015em] text-fg whitespace-pre-wrap break-words"
+    : "text-[16px] leading-[1.65] text-fg whitespace-pre-wrap break-words";
   var hoverPrefetchDoneRef = useRef(false);
 
   useLayoutEffect(() => {
@@ -418,7 +429,7 @@ function PostCardComponent({
       onMouseEnter={prefetchPostDetail}
       onFocus={prefetchPostDetail}
       className={cn(
-        "PostCard w-full rounded-lg border-b border-border px-4 py-4 mb-3",
+        "PostCard w-full rounded-lg border-b border-border px-4 py-4",
         !disableAnimation && "animate-fade-up",
         postId && !isPostDetailView && "cursor-pointer hover:bg-hover transition-colors",
         !disableAnimation && animationDelay && `[animation-delay:${animationDelay}ms]`
@@ -605,7 +616,7 @@ function PostCardComponent({
                     aria-controls={menuId}
                     aria-haspopup="menu"
                     className={cn(
-                      "group flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-fg-muted transition-all duration-150",
+                      "group flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-fg-muted transition-all duration-150",
                       "hover:border-border hover:bg-hover hover:text-fg active:scale-95",
                       isOpen && "border-border bg-sunken text-fg shadow-[inset_0_1px_0_rgb(255_255_255/45%)]"
                     )}
@@ -659,15 +670,15 @@ function PostCardComponent({
                     <div
                       ref={measureRef}
                       aria-hidden
-                      className="pointer-events-none invisible absolute left-0 top-0 -z-10 whitespace-pre-wrap break-words text-[16px] leading-[1.65] text-fg"
+                      className={cn(
+                        "pointer-events-none invisible absolute left-0 top-0 -z-10",
+                        postBodyTextClassName
+                      )}
                     />
                   ) : null}
                   <p
                     ref={bodyRef}
-                    className={cn(
-                      "text-[16px] leading-[1.65] text-fg whitespace-pre-wrap break-words",
-                      shouldClamp && "overflow-hidden"
-                    )}
+                    className={cn(postBodyTextClassName, shouldClamp && "overflow-hidden")}
                   >
                     <RichPostBodyWithFilmRef
                       text={truncatedText ?? cleanedText}
@@ -701,7 +712,7 @@ function PostCardComponent({
               ))}
 
             {filmCard && (
-              <div className="mt-3.5">
+              <div className={cn("mt-2", variant === "film-log" && "mt-2")}>
                 <FilmCard
                   title={filmCard.title}
                   meta={filmCard.meta}
@@ -713,7 +724,7 @@ function PostCardComponent({
             )}
 
             {videoUrls[0] ? (
-              <div className="mt-3.5 overflow-hidden rounded-lg border border-border bg-black">
+              <div className="mt-2 overflow-hidden rounded-lg border border-border bg-black">
                 <video src={videoUrls[0]} controls className="w-full h-auto" />
               </div>
             ) : null}
@@ -748,7 +759,7 @@ function PostCardComponent({
                 href={linkPreview.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 block rounded-xl border border-border bg-sunken p-3 no-underline"
+                className="mt-2 block rounded-xl border border-border bg-sunken p-3 no-underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-start gap-3">
@@ -808,6 +819,7 @@ function PostCardComponent({
               likes={likeCount}
               comments={commentCount}
               hideZeroCounts
+              useCompactVariant
               initialLiked={initialLiked}
               initialBookmarked={initialBookmarked}
               initialReposted={initialReposted}

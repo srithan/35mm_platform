@@ -18,7 +18,8 @@ interface FilmPosterProps {
   | "diary"
   | "recent"
   | "favourite"
-  | "list";
+  | "list"
+  | "log";
   className?: string;
   /** For placeholder when no image */
   placeholderGradient?: string;
@@ -36,6 +37,7 @@ const sizeMap = {
   recent: { w: 60, h: 90, class: "w-[60px]", icon: 14 },
   favourite: { w: 52, h: 78, class: "w-[52px]", icon: 14 },
   list: { w: 48, h: 64, class: "w-12", icon: 12 },
+  log: { w: 95, h: 142, class: "w-[95px]", icon: 18 },
 };
 
 function PlaceholderContent({

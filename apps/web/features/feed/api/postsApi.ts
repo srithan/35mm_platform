@@ -6,6 +6,8 @@ export interface CreatePostInput {
   type: "text" | "discussion" | "log" | "review" | "image";
   headline?: string;
   body: string;
+  postToFeed?: boolean;
+  visibility?: "public" | "followers_only" | "private";
   film?: {
     id: string;
     tmdbId?: number;

@@ -108,7 +108,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
           id="main-content"
           className={cn(
             /* Horizontal clip lives on <html>; overflow-x on <main> breaks position:sticky for TopStickyBar. */
-            "w-full bg-[#F2F3F4] pb-20 md:pb-0",
+            "w-full pb-20 md:pb-0",
             useHomeRailLayout
               ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
               : useProfileRailLayout
@@ -117,13 +117,13 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
             hasStickyBarBelow
               ? cn(
                   "pt-[calc(max(0.75rem,env(safe-area-inset-top,0px))+3.5rem)] md:pt-[var(--site-header-sticky-offset,4.5rem)]",
-                  useProfileRailLayout &&
-                    "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+1rem)]"
+                  (useHomeRailLayout || useProfileRailLayout) &&
+                    "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                 )
               : cn(
                   "pt-20 md:pt-[var(--site-header-sticky-offset,4.5rem)]",
-                  useProfileRailLayout &&
-                    "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+1rem)]"
+                  (useHomeRailLayout || useProfileRailLayout) &&
+                    "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                 )
           )}
         >
@@ -152,9 +152,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                   className="hidden xl:block shrink-0 w-[320px] self-start xl:sticky xl:z-10 xl:pb-12 min-h-0 overflow-y-auto [scrollbar-width:thin]"
                   style={
                     {
-                      top: "calc(var(--site-header-sticky-offset, 4.5rem) + 1rem)",
+                      top: "calc(var(--site-header-sticky-offset, 4.5rem) + var(--home-main-below-header-gap, 1rem))",
                       maxHeight:
-                        "calc(100vh - var(--site-header-sticky-offset, 4.5rem) - 1rem - env(safe-area-inset-bottom, 0px))",
+                        "calc(100vh - var(--site-header-sticky-offset, 4.5rem) - var(--home-main-below-header-gap, 1rem) - env(safe-area-inset-bottom, 0px))",
                     } as React.CSSProperties
                   }
                 >

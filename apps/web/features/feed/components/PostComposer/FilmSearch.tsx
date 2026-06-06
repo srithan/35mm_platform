@@ -275,9 +275,9 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
 
   return (
     <div ref={wrapperRef} className="relative mb-3">
-      <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2.5 bg-sunken focus-within:border-fg-faint focus-within:bg-elevated transition-all">
+      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-sunken px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-fg-muted/50 focus-within:bg-elevated focus-within:shadow-sm">
         <Search
-          className="w-3.5 h-3.5 text-fg-faint flex-shrink-0"
+          className="h-3.5 w-3.5 shrink-0 text-fg-faint"
           strokeWidth={1.6}
         />
         <input
@@ -297,7 +297,8 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
             }
           }}
           placeholder="Search for a film…"
-          className="flex-1 bg-transparent text-[13.5px] text-fg font-light outline-none placeholder:text-fg-faint"
+          aria-label="Search for a film"
+          className="flex-1 bg-transparent text-[14px] text-fg outline-none placeholder:text-fg-faint"
         />
       </div>
       {resultPanel}

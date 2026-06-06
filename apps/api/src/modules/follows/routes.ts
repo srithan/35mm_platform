@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { feedItems, follows, posts, profiles, users } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import { createNotification } from "../../lib/notifications.js";
 import { assertNoBlockBetween } from "../../lib/moderation.js";
+import { enqueueSuggestionRefresh } from "../../lib/queues/suggestionQueue.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 import {
@@ -112,6 +114,22 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
     if (missingFeedRows.length > 0) {
       await db.insert(feedItems).values(missingFeedRows);
     }
+  }
+
+  if (inserted[0]?.followerId) {
+    void enqueueSuggestionRefresh(user.userId).catch(function (error) {
+      console.error("[follows] failed to enqueue suggestion refresh", {
+        userId: user.userId,
+        error,
+      });
+    });
+    await createNotification({
+      recipientId: followingId,
+      actorId: user.userId,
+      type: targetIsPrivate ? "follow_request" : "follow",
+      entityType: "user",
+      entityId: user.userId,
+    });
   }
 
   await invalidateViewerFeedCaches([user.userId]);

@@ -57,7 +57,7 @@ export function DiscoverContent() {
   const activeFilterCount = exploreFilterCount(genreId, moodId, exploreFilters);
 
   const goToTitle = function (film: TMDBMovie) {
-    router.push(tmdbItemToTitlePath(film));
+    router.push(tmdbItemToTitlePath(film), { scroll: true });
   };
 
   const handleSearch = function (query: string) {

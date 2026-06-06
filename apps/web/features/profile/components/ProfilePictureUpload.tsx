@@ -137,7 +137,10 @@ export function ProfilePictureUpload({
 
   return (
     <div className={cn("relative group", className)}>
-      <div onClick={handleClick} className="cursor-pointer relative">
+      <div
+        onClick={handleClick}
+        className="relative cursor-pointer outline-none [-webkit-tap-highlight-color:transparent]"
+      >
         {children}
         
         {/* Hover Overlay */}

@@ -14,6 +14,7 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
 import type { QuotedPost } from "@/stores/useComposerModalStore";
+import type { ComposerInitialMode } from "@/stores/useComposerModalStore";
 import type { ComposerMode, FilmResult } from "./types";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZE } from "@/lib/tmdb/constants";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -23,6 +24,7 @@ import { ImageAttachments } from "./ImageAttachments";
 import { YouTubeEmbed } from "./YouTubeEmbed";
 import { FilmSearch } from "./FilmSearch";
 import { FilmCard } from "./FilmCard";
+import { LogNoteField, LOG_MAX_CHARS, REVIEW_THRESHOLD } from "./LogNoteField";
 import { Icon } from "@/components/Icon/Icon";
 import { useCreatePost } from "../../hooks/usePostMutations";
 import { useUpdatePost } from "../../hooks/usePostMutations";
@@ -37,8 +39,6 @@ import { parseRichPostText } from "@/lib/utils/richPostText";
 const WRITE_MAX_CHARS = 500;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
-const LOG_MAX_CHARS = 2000;
-const REVIEW_THRESHOLD = 200;
 const POST_COMPOSER_EMOJI_STYLE = "native" as const;
 
 const YOUTUBE_REGEX =
@@ -69,6 +69,60 @@ function isVideoMediaUrl(url: string): boolean {
 function isGifMediaUrl(url: string): boolean {
   var lower = url.toLowerCase();
   return lower.endsWith(".gif") || lower.includes("giphy.com") || lower.includes("tenor.com");
+}
+
+function extensionForImageMimeType(type: string): string {
+  if (type === "image/png") return "png";
+  if (type === "image/jpeg") return "jpg";
+  if (type === "image/webp") return "webp";
+  if (type === "image/gif") return "gif";
+  if (type === "image/avif") return "avif";
+  return "png";
+}
+
+function extractImageUrlFromClipboardHtml(html: string): string | null {
+  if (!html || html.trim().length === 0) return null;
+
+  try {
+    const documentNode = new DOMParser().parseFromString(html, "text/html");
+    const source = documentNode.querySelector("img[src]")?.getAttribute("src");
+    if (!source) return null;
+    const trimmed = source.trim();
+    if (/^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed)) {
+      return trimmed;
+    }
+    return null;
+  } catch {
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const source = match?.[1]?.trim();
+    if (!source) return null;
+    if (/^https?:\/\//i.test(source) || /^data:image\//i.test(source)) {
+      return source;
+    }
+    return null;
+  }
+}
+
+async function imageFileFromClipboardUrl(url: string): Promise<File | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) return null;
+
+    let fileName = "pasted-image." + extensionForImageMimeType(blob.type);
+    try {
+      const parsed = new URL(url);
+      const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
+      if (lastSegment) fileName = lastSegment;
+    } catch {
+      // Use generated fallback filename.
+    }
+
+    return new File([blob], fileName, { type: blob.type });
+  } catch {
+    return null;
+  }
 }
 
 function renderComposerRichText(text: string) {
@@ -131,6 +185,7 @@ export interface PostComposerProps {
   postPrimaryPlacement?: "toolbar" | "header";
   onPublishStateChange?: (state: { canPost: boolean; label: string }) => void;
   editingPost?: EditingPost | null;
+  initialMode?: ComposerInitialMode | null;
 }
 
 export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
@@ -144,10 +199,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       postPrimaryPlacement = "toolbar",
       onPublishStateChange,
       editingPost,
+      initialMode,
     },
     ref
   ) {
-  const [mode, setMode] = useState<ComposerMode>("write");
+  const resolvedInitialMode = initialMode ?? "write";
+  const [mode, setMode] = useState<ComposerMode>(resolvedInitialMode);
   const [writeText, setWriteText] = useState("");
   const [discussionText, setDiscussionText] = useState("");
   const [discussionHeadline, setDiscussionHeadline] = useState("");
@@ -372,6 +429,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   );
 
   useEffect(() => {
+    if (editingPost) return;
+    setMode(resolvedInitialMode);
+  }, [editingPost, resolvedInitialMode]);
+
+  useEffect(() => {
     if (!editingPost) {
       setExistingMediaUrls([]);
       return;
@@ -496,9 +558,49 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent, targetMode: ComposerMode) => {
+      if (targetMode !== "write" && targetMode !== "discussion") return;
+
+      const clipboardItems = Array.from(e.clipboardData.items ?? []);
+      const pastedImageFiles = clipboardItems
+        .map(function (item) {
+          if (item.kind !== "file") return null;
+          if (!item.type.startsWith("image/")) return null;
+          return item.getAsFile();
+        })
+        .filter(function (file): file is File {
+          return file instanceof File;
+        });
+
+      if (pastedImageFiles.length > 0) {
+        e.preventDefault();
+        setImages(function (current) {
+          return [...current, ...pastedImageFiles].slice(0, 9);
+        });
+        setVideoFile(null);
+        setGifUrl(null);
+        setShowDropZone(false);
+        return;
+      }
+
+      const html = e.clipboardData.getData("text/html");
+      const htmlImageUrl = extractImageUrlFromClipboardHtml(html);
+      if (htmlImageUrl) {
+        e.preventDefault();
+        void imageFileFromClipboardUrl(htmlImageUrl).then(function (file) {
+          if (!file) return;
+          setImages(function (current) {
+            return [...current, file].slice(0, 9);
+          });
+          setVideoFile(null);
+          setGifUrl(null);
+          setShowDropZone(false);
+        });
+        return;
+      }
+
       const pasted = e.clipboardData.getData("text/plain");
       const vid = extractYouTubeId(pasted);
-      if (vid && (targetMode === "write" || targetMode === "discussion")) {
+      if (vid) {
         // Keep the pasted URL in the textarea so published posts retain both
         // visible link text and URL-derived preview cards in PostCard.
         setYoutubeVideoId(vid);
@@ -690,6 +792,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       input = {
         type: isReview ? "review" : "log",
         body: logText.trim() || `Logged ${selectedFilm.title}`,
+        postToFeed,
+        visibility: postToFeed ? "public" : "private",
         film: {
           id: resolvedFilmId,
           tmdbId: selectedFilm.id,
@@ -775,6 +879,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     writeText,
     linkPreview,
     getToken,
+    postToFeed,
   ]);
 
   useImperativeHandle(
@@ -1527,49 +1632,23 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               {selectedFilm && isResolvingFilm ? (
                 <p className="text-[12px] text-fg-muted">Resolving film…</p>
               ) : null}
-              {selectedFilm && (
-                <div className="space-y-2">
-                  {showLogFormatBar && (
-                    <div className="flex items-center gap-1 -ml-1">
-                      <FormattingToolbar
-                        textareaRef={logTextareaRef}
-                        value={logText}
-                        onChange={setLogText}
-                        showDivider={false}
-                      />
-                    </div>
-                  )}
-                  <textarea
-                    ref={logTextareaRef}
-                    value={logText}
-                    onChange={(e) => setLogText(e.target.value)}
-                    onBlur={function (e) {
-                      if (!fixedMobileToolbar || mode !== "log") return;
-                      if (allowMobileComposeBlur(e.relatedTarget)) return;
-                      refocusMobileField(logTextareaRef);
-                    }}
-                    onFocus={() => setActiveField("body")}
-                    placeholder="Add a note… (optional — turns this into a review)"
-                    className="w-full text-[17px] font-normal leading-relaxed text-fg min-h-[120px] resize-none border-none outline-none bg-transparent placeholder:text-fg-muted placeholder:font-normal mt-1"
-                    style={{ caretColor: "var(--accent)" }}
-                  />
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className={cn(
-                        "text-[10px] font-medium tracking-widest uppercase px-1.5 py-0.5 rounded-sm",
-                        isReview
-                          ? "text-film-red bg-red-50"
-                          : "text-fg-faint bg-sunken"
-                      )}
-                    >
-                      {isReview ? "Review" : "Log"}
-                    </div>
-                    <span className="text-[10px] text-fg-faint">
-                      → write more to create a Review
-                    </span>
-                  </div>
-                </div>
-              )}
+              {selectedFilm ? (
+                <LogNoteField
+                  value={logText}
+                  onChange={setLogText}
+                  textareaRef={logTextareaRef}
+                  isReview={isReview}
+                  showFormatBar={showLogFormatBar}
+                  onBlur={function (e) {
+                    if (!fixedMobileToolbar || mode !== "log") return;
+                    if (allowMobileComposeBlur(e.relatedTarget)) return;
+                    refocusMobileField(logTextareaRef);
+                  }}
+                  onFocus={function () {
+                    setActiveField("body");
+                  }}
+                />
+              ) : null}
             </div>
           )}
         </div>

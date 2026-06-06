@@ -86,7 +86,6 @@ export interface FeedPost {
   }>;
   film: {
     id: string;
-    tmdbId?: number;
     title: string;
     year: number | null;
     posterUrl: string | null;
@@ -134,3 +133,59 @@ export interface HealthResponse {
   feedCache?: "ok" | "disabled";
   jobsQueue?: "ok" | "disabled";
 }
+
+export type NotificationType =
+  | "like"
+  | "comment"
+  | "reply"
+  | "follow"
+  | "follow_request"
+  | "mention"
+  | "repost";
+
+export interface NotificationActor {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface NotificationEntity {
+  type: "post" | "comment" | "user" | null;
+  id: string | null;
+  title: string | null;
+  thumbnailUrl: string | null;
+  /** Owner username for post/comment entities to help link navigation client-side. */
+  username?: string | null;
+  /** Target post id for comment entities, when available. */
+  postId?: string | null;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  actor: NotificationActor | null;
+  entity: NotificationEntity | null;
+  isRead: boolean;
+  actorIds?: string[];
+  actorProfiles?: {
+    userId: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  }[];
+  bundleCount: number;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  items: NotificationItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface NotificationUnreadCount {
+  count: number;
+}
+
+export type { FollowSuggestion, SuggestionsResponse } from "./suggestions.js";

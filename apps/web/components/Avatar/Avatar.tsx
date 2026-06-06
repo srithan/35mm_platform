@@ -23,6 +23,21 @@ const sizeMap: Record<NonNullable<AvatarProps["size"]>, string> = {
   "profile-lg": "w-20 h-20 text-[28px]",
 };
 
+function normalizeAvatarSource(value?: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveDisplayAvatar(
+  src?: string | null,
+  allowDefaultFallback?: boolean
+): string | null {
+  const nextSrc = normalizeAvatarSource(src);
+  if (nextSrc) return nextSrc;
+  return allowDefaultFallback ? DEFAULT_PROFILE_AVATAR_URL : null;
+}
+
 export function Avatar({
   initial,
   src,
@@ -34,19 +49,23 @@ export function Avatar({
   const sizeClass = sizeMap[size];
   const bgClass =
     variant === "ring"
-      ? "bg-sunken text-fg-light ring-1 ring-border/70"
+      ? "bg-sunken text-fg-light ring-1 ring-[color:var(--color-border)]"
       : "bg-border text-fg-light";
-  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
-  const [showInitialFallback, setShowInitialFallback] = useState(false);
+  const initialDisplaySrc = resolveDisplayAvatar(src, allowDefaultFallback);
+  const [displaySrc, setDisplaySrc] = useState<string | null>(initialDisplaySrc);
+  const [showInitialFallback, setShowInitialFallback] = useState(function () {
+    return initialDisplaySrc == null;
+  });
   const fallbackAttemptedRef = useRef(false);
+  const lastDisplaySrcRef = useRef(initialDisplaySrc);
 
   useEffect(
     function resetLoadState() {
-      const trimmedSrc =
-        typeof src === "string" && src.trim().length > 0 ? src.trim() : null;
-      const nextSrc = trimmedSrc ?? (allowDefaultFallback ? DEFAULT_PROFILE_AVATAR_URL : null);
+      const nextSrc = resolveDisplayAvatar(src, allowDefaultFallback);
+      if (lastDisplaySrcRef.current === nextSrc) return;
+      lastDisplaySrcRef.current = nextSrc;
       setDisplaySrc(nextSrc);
-      setShowInitialFallback(false);
+      setShowInitialFallback(!nextSrc);
       fallbackAttemptedRef.current = false;
     },
     [src, allowDefaultFallback]

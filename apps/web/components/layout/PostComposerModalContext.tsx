@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { PostComposerModal } from "@/features/feed/components/PostComposerModal";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
-import { useComposerModalStore } from "@/stores/useComposerModalStore";
+import { type ComposerInitialMode, useComposerModalStore } from "@/stores/useComposerModalStore";
 
 export function ComposerModalProvider({
   children,
@@ -14,6 +14,7 @@ export function ComposerModalProvider({
   const closeComposerModal = useComposerModalStore((s) => s.close);
   const quotedPost = useComposerModalStore((s) => s.quotedPost);
   const editingPost = useComposerModalStore((s) => s.editingPost);
+  const initialMode = useComposerModalStore((s) => s.initialMode);
   const { user: clerkUser } = useUser();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
@@ -36,6 +37,7 @@ export function ComposerModalProvider({
         user={modalUser}
         quotedPost={quotedPost}
         editingPost={editingPost}
+        initialMode={initialMode}
       />
     </>
   );
@@ -48,7 +50,9 @@ export function useComposerModal() {
 
   return {
     isComposerModalOpen,
-    openComposerModal,
+    openComposerModal: function (quoted?: Parameters<typeof openComposerModal>[0], options?: { initialMode?: ComposerInitialMode }) {
+      openComposerModal(quoted, options?.initialMode);
+    },
     closeComposerModal,
   };
 }

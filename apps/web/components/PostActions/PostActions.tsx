@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
-import { spawnParticles } from "@/lib/utils/spawnParticles";
+import { LikeButton } from "./LikeButton";
 
 interface PostActionsProps {
   likes: number;
@@ -19,6 +19,7 @@ interface PostActionsProps {
   hideRepostSaveLabels?: boolean;
   showReplyOption?: boolean;
   hideZeroCounts?: boolean;
+  useCompactVariant?: boolean;
 }
 
 import { Icon } from "@/components/Icon/Icon";
@@ -37,13 +38,12 @@ export function PostActions({
   hideRepostSaveLabels = false,
   showReplyOption = false,
   hideZeroCounts = false,
+  useCompactVariant = false,
 }: PostActionsProps) {
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(likes);
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [reposted, setReposted] = useState(initialReposted);
-  const heartBtnRef = useRef<HTMLButtonElement>(null);
-  const countRef = useRef<HTMLSpanElement>(null);
   const saveBtnRef = useRef<HTMLButtonElement>(null);
   const repostBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -69,27 +69,6 @@ export function PostActions({
     setLiked(isLiked);
     setLikeCount(nextLikeCount);
     onLikeToggle?.({ isLiked, likeCount: nextLikeCount });
-
-    const btn = heartBtnRef.current;
-    const countEl = countRef.current;
-    if (!btn || !countEl) return;
-
-    // Spring animation
-    btn.classList.remove("pop");
-    void btn.offsetWidth;
-    btn.classList.add("pop");
-    const removePop = () => btn.classList.remove("pop");
-    btn.addEventListener("animationend", removePop, { once: true });
-
-    // Count flip
-    countEl.classList.remove("flip-up", "flip-down");
-    void countEl.offsetWidth;
-    countEl.classList.add(isLiked ? "flip-up" : "flip-down");
-    countEl.addEventListener("animationend", () => {
-      countEl.classList.remove("flip-up", "flip-down");
-    }, { once: true });
-
-    if (isLiked) spawnParticles(btn);
   }, [likeCount, liked, onLikeToggle]);
 
   const toggleSave = useCallback(() => {
@@ -124,12 +103,15 @@ export function PostActions({
     });
   }, [onRepostToggle, reposted]);
 
+  const hideRepostSaveText = hideRepostSaveLabels || useCompactVariant;
+  const groupedActionClass = useCompactVariant ? "justify-start" : "w-full justify-center";
+
   return (
-    <div className={cn("actions grid gap-0", showReplyOption ? "grid-cols-5" : "grid-cols-4")}>
+    <div className={cn("actions", useCompactVariant && "actions-compact")}>
       {showReplyOption && (
         <button
           type="button"
-          className="action-btn comment-btn w-full justify-center"
+          className={cn("action-btn comment-btn", groupedActionClass)}
           onClick={onReplyClick}
           aria-label="Reply"
         >
@@ -137,23 +119,16 @@ export function PostActions({
           <span className="action-count hidden md:inline">Reply</span>
         </button>
       )}
-      <button
-        ref={heartBtnRef}
-        type="button"
-        onClick={toggleLike}
-        className={cn("action-btn heart-btn w-full justify-center", liked && "liked")}
-        aria-pressed={liked}
-      >
-        <Icon name="heart" fill={liked ? "currentColor" : "none"} strokeWidth={1.6} />
-        {(!hideZeroCounts || likeCount > 0) && (
-          <span ref={countRef} className="action-count">
-            {formatCount(likeCount)}
-          </span>
-        )}
-      </button>
+      <LikeButton
+        liked={liked}
+        likeCount={likeCount}
+        hideCount={hideZeroCounts && likeCount === 0}
+        onToggle={toggleLike}
+        className={groupedActionClass}
+      />
       <button
         type="button"
-        className="action-btn comment-btn w-full justify-center"
+        className={cn("action-btn comment-btn", groupedActionClass)}
         onClick={onCommentClick}
         aria-label="Comments"
       >
@@ -166,12 +141,12 @@ export function PostActions({
         ref={repostBtnRef}
         type="button"
         onClick={toggleRepost}
-        className={cn("action-btn repost-btn w-full justify-center", reposted && "reposted")}
+        className={cn("action-btn repost-btn", groupedActionClass, reposted && "reposted")}
         aria-pressed={reposted}
         aria-label="Repost"
       >
         <Icon name="repost" fill={reposted ? "currentColor" : "none"} strokeWidth={1.6} />
-        {!hideRepostSaveLabels && (
+        {!hideRepostSaveText && (
           <span className="action-count hidden md:inline">Repost</span>
         )}
       </button>
@@ -179,12 +154,12 @@ export function PostActions({
         ref={saveBtnRef}
         type="button"
         onClick={toggleSave}
-        className={cn("action-btn save-btn w-full justify-center", bookmarked && "saved")}
+        className={cn("action-btn save-btn", groupedActionClass, bookmarked && "saved")}
         aria-pressed={bookmarked}
         aria-label={bookmarked ? "Saved" : "Save"}
       >
         <Icon name="bookmark" fill={bookmarked ? "currentColor" : "none"} strokeWidth={1.6} />
-        {!hideRepostSaveLabels && (
+        {!hideRepostSaveText && (
           <span className="action-count hidden md:inline">{bookmarked ? "Saved" : "Save"}</span>
         )}
       </button>

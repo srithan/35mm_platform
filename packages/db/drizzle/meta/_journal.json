@@ -57,6 +57,13 @@
       "when": 1782600000002,
       "tag": "0007_funny_master_mold",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780684410826,
+      "tag": "0008_lumpy_snowbird",
+      "breakpoints": true
     }
   ]
 }
