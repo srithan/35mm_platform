@@ -13,7 +13,8 @@ import { Avatar } from "@/components/Avatar";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
-import { useClerk, useUser } from "@clerk/nextjs";
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
   ChevronRight,
@@ -25,185 +26,130 @@ import {
   Settings,
   UserPlus,
 } from "lucide-react";
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/features/notifications/api/notificationsApi";
+import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
+import { getNotificationDestination } from "@/features/notifications/utils/notificationDestination";
+import {
+  NotificationDropdownEmpty,
+  NotificationDropdownSkeleton,
+} from "@/features/notifications/components/NotificationDropdownStates";
+import type { NotificationItem as ApiNotificationItem, NotificationPage } from "@35mm/types";
 import styles from "./SiteHeader.module.css";
-
-/** Deterministic profile photo URLs for header dropdown previews (replace with real URLs from API). */
-function headerDropdownAvatarUrl(seed: string): string {
-  return "https://i.pravatar.cc/64?u=" + encodeURIComponent(seed);
-}
 
 const NOTIF_KIND_ICON = {
   like: Heart,
   follow: UserPlus,
+  follow_request: UserPlus,
+  mention: MessageCircle,
   comment: MessageCircle,
+  reply: MessageCircle,
   broadcast: Megaphone,
   repost: Repeat2,
 } as const;
 
-type HeaderNotifRow = {
-  id: string;
-  initial: string;
-  src: string;
-  time: string;
-  unread: boolean;
-  kind: keyof typeof NOTIF_KIND_ICON;
-  body: ReactNode;
+type HeaderNotifRow = Omit<ApiNotificationItem, "type"> & {
+  type: "like" | "comment" | "reply" | "follow" | "follow_request" | "mention" | "repost";
 };
 
-const HEADER_NOTIF_PREVIEW_ROWS_START: HeaderNotifRow[] = [
-  {
-    id: "n1",
-    initial: "F",
-    src: headerDropdownAvatarUrl("35mm-header-notif-filmsbratz"),
-    time: "2m",
-    unread: true,
-    kind: "like",
-    body: (
-      <>
-        <strong>filmsbratz</strong> liked your post about <em>The Green Pastures</em>
-      </>
-    ),
-  },
-  {
-    id: "n2",
-    initial: "C",
-    src: headerDropdownAvatarUrl("35mm-header-notif-cinephile-raj"),
-    time: "14m",
-    unread: true,
-    kind: "follow",
-    body: (
-      <>
-        <strong>cinephile_raj</strong> started following you
-      </>
-    ),
-  },
-  {
-    id: "n3",
-    initial: "R",
-    src: headerDropdownAvatarUrl("35mm-header-notif-reelcritic"),
-    time: "1h",
-    unread: true,
-    kind: "comment",
-    body: (
-      <>
-        <strong>reelcritic</strong> commented on your review:{" "}
-        <em>&quot;Totally agree about the third act…&quot;</em>
-      </>
-    ),
-  },
-  {
-    id: "n4",
-    initial: "A",
-    src: headerDropdownAvatarUrl("35mm-header-notif-a24"),
-    time: "3h",
-    unread: false,
-    kind: "broadcast",
-    body: (
-      <>
-        <strong>A24</strong> posted a new trailer — <em>The Drama</em>
-      </>
-    ),
-  },
-  {
-    id: "n5",
-    initial: "N",
-    src: headerDropdownAvatarUrl("35mm-header-notif-nouvelle-vague"),
-    time: "Yesterday",
-    unread: false,
-    kind: "repost",
-    body: (
-      <>
-        <strong>nouvelle_vague</strong> reposted your list: <em>Top 10 Criterion picks</em>
-      </>
-    ),
-  },
-];
+function actorDisplayName(row: HeaderNotifRow): string {
+  if (!row.actor) return "Someone";
+  return row.actor.displayName?.trim() || row.actor.username;
+}
 
-const HEADER_NOTIF_PREVIEW_ROWS_EXTRA: HeaderNotifRow[] = Array.from(
-  { length: 15 },
-  function (_, i) {
-    const n = i + 6;
-    const kinds: (keyof typeof NOTIF_KIND_ICON)[] = [
-      "like",
-      "follow",
-      "comment",
-      "broadcast",
-      "repost",
-    ];
-    const kind = kinds[n % 5];
-    const u = "user_" + n;
-    let body: ReactNode = (
+function relativeNotificationTime(isoDate: string): string {
+  const when = Date.parse(isoDate);
+  if (Number.isNaN(when)) return "now";
+
+  const diff = Date.now() - when;
+  if (diff < 60_000) return "now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 2_592_000_000) return `${Math.floor(diff / 86_400_000)}d ago`;
+  return new Date(isoDate).toLocaleDateString();
+}
+
+function formatNotificationText(row: HeaderNotifRow): ReactNode {
+  const actor = row.actor;
+  const actorName = actor?.displayName?.trim() || actor?.username || "Someone";
+  const isBundle = row.bundleCount > 1;
+  const actorLabel = isBundle ? `${actorName} and ${row.bundleCount - 1} others` : actorName;
+
+  if (row.type === "follow") {
+    return (
       <>
-        <strong>{u}</strong> interacted with your activity.
+        <strong>{actorLabel}</strong> followed you
       </>
     );
-    if (kind === "like") {
-      body = (
-        <>
-          <strong>{u}</strong> liked your post
-        </>
-      );
-    } else if (kind === "follow") {
-      body = (
-        <>
-          <strong>{u}</strong> started following you
-        </>
-      );
-    } else if (kind === "comment") {
-      body = (
-        <>
-          <strong>{u}</strong> commented on your review
-        </>
-      );
-    } else if (kind === "broadcast") {
-      body = (
-        <>
-          <strong>{u}</strong> posted an update
-        </>
-      );
-    } else {
-      body = (
-        <>
-          <strong>{u}</strong> reposted your list
-        </>
-      );
-    }
-    return {
-      id: "n" + n,
-      initial: String.fromCharCode(65 + (n % 26)),
-      src: headerDropdownAvatarUrl("35mm-header-notif-user-" + n),
-      time: (n % 9) + 1 + "h",
-      unread: n <= 14,
-      kind: kind,
-      body: body,
-    };
   }
-);
 
-const HEADER_NOTIF_PREVIEW_ROWS: HeaderNotifRow[] = HEADER_NOTIF_PREVIEW_ROWS_START.concat(
-  HEADER_NOTIF_PREVIEW_ROWS_EXTRA
-);
+  if (row.type === "follow_request") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> requested to follow you
+      </>
+    );
+  }
 
-const INITIAL_UNREAD_NOTIF_COUNT = HEADER_NOTIF_PREVIEW_ROWS.filter(function (r) {
-  return r.unread;
-}).length;
+  if (row.type === "mention") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> mentioned you
+      </>
+    );
+  }
+
+  if (row.type === "like") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> liked your {row.entity?.title ? <em>{row.entity.title}</em> : <strong>post</strong>}
+      </>
+    );
+  }
+
+  if (row.type === "comment") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> commented on your {row.entity?.title ? <em>{row.entity.title}</em> : "post"}
+      </>
+    );
+  }
+
+  if (row.type === "reply") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> replied to your comment
+      </>
+    );
+  }
+
+  return (
+    <>
+      <strong>{actorLabel}</strong> reposted your {row.entity?.title ? <em>{row.entity.title}</em> : "post"}
+    </>
+  );
+}
 
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useClerk();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const { user: clerkUser } = useUser();
+  const queryClient = useQueryClient();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const { openComposerModal } = useComposerModal();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [notifCount, setNotifCount] = useState(INITIAL_UNREAD_NOTIF_COUNT);
-  const [allNotificationsRead, setAllNotificationsRead] = useState(false);
   const standaloneSearchRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const notifWrapRef = useRef<HTMLDivElement>(null);
+  const notifListRef = useRef<HTMLUListElement>(null);
   const profileWrapRef = useRef<HTMLDivElement>(null);
 
   const isActive = (href: string) => isRouteActive(pathname ?? "", href);
@@ -220,6 +166,181 @@ export function SiteHeader() {
       currentUserQuery.fetchStatus !== "idle"
     );
   const currentInitial = initialForName(currentDisplayName);
+
+  const notifRowsQuery = useQuery({
+    queryKey: notificationsKeys.preview(),
+    queryFn: async function () {
+      return fetchNotifications({
+        token: await getToken(),
+        limit: 10,
+      });
+    },
+    enabled: isLoaded && Boolean(isSignedIn),
+    staleTime: 20_000,
+    refetchInterval: 5_000,
+    gcTime: 5 * 60_000,
+  });
+  const notifRows = (notifRowsQuery.data?.items ?? []) as HeaderNotifRow[];
+
+  const unreadRowsQuery = useQuery({
+    queryKey: notificationsKeys.unread(),
+    queryFn: async function () {
+      return fetchNotifications({
+        token: await getToken(),
+        unreadOnly: true,
+        limit: 50,
+      });
+    },
+    enabled: isLoaded && Boolean(isSignedIn),
+    staleTime: 20_000,
+    refetchInterval: 5_000,
+    gcTime: 5 * 60_000,
+  });
+  const unreadRows = unreadRowsQuery.data?.items ?? [];
+
+  const unreadBadgeCount =
+    unreadRowsQuery.data?.hasMore && unreadRowsQuery.data?.items.length
+      ? `${unreadRowsQuery.data.items.length}+`
+      : String(unreadRows.length);
+
+  const markAllMutation = useMutation({
+    mutationFn: async function () {
+      return markAllNotificationsRead({
+        token: await getToken(),
+      });
+    },
+    onMutate: async function () {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: notificationsKeys.preview() }),
+        queryClient.cancelQueries({ queryKey: notificationsKeys.unread() }),
+        queryClient.cancelQueries({ queryKey: notificationsKeys.content() }),
+      ]);
+
+      const previousContent = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      const previousPreview = queryClient.getQueryData(notificationsKeys.preview()) as
+        | { items: { id: string; isRead: boolean }[]; itemsLeft?: number; hasMore?: boolean }
+        | undefined;
+      const previousUnread = queryClient.getQueryData(notificationsKeys.unread()) as
+        | { items: { id: string; isRead: boolean }[]; hasMore?: boolean }
+        | undefined;
+
+      if (previousContent) {
+        queryClient.setQueryData(notificationsKeys.content(), {
+          ...previousContent,
+          items: previousContent.items.map(function (item) {
+            return { ...item, isRead: true };
+          }),
+        });
+      }
+
+      if (previousPreview) {
+        queryClient.setQueryData(notificationsKeys.preview(), {
+          ...previousPreview,
+          items: previousPreview.items.map(function (item) {
+            return { ...item, isRead: true };
+          }),
+        });
+      }
+
+      if (previousUnread) {
+        queryClient.setQueryData(notificationsKeys.unread(), {
+          ...previousUnread,
+          items: [],
+        });
+      }
+
+      return { previousContent, previousPreview, previousUnread };
+    },
+    onError: function (_error, _vars, context) {
+      if (!context) return;
+      if (context.previousContent) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previousContent);
+      }
+      if (context.previousPreview) {
+        queryClient.setQueryData(notificationsKeys.preview(), context.previousPreview);
+      }
+      if (context.previousUnread) {
+        queryClient.setQueryData(notificationsKeys.unread(), context.previousUnread);
+      }
+    },
+    onSuccess: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+    },
+  });
+
+  const markOneMutation = useMutation({
+    mutationFn: async function (notificationId: string) {
+      return markNotificationRead({
+        token: await getToken(),
+        notificationId,
+      });
+    },
+    onMutate: async function (notificationId: string) {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: notificationsKeys.preview() }),
+        queryClient.cancelQueries({ queryKey: notificationsKeys.unread() }),
+        queryClient.cancelQueries({ queryKey: notificationsKeys.content() }),
+      ]);
+
+      const previousContent = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      const previousPreview = queryClient.getQueryData(notificationsKeys.preview()) as
+        | { items: { id: string; isRead: boolean }[]; itemsLeft?: number; hasMore?: boolean }
+        | undefined;
+      const previousUnread = queryClient.getQueryData(notificationsKeys.unread()) as
+        | { items: { id: string; isRead: boolean }[]; hasMore?: boolean }
+        | undefined;
+
+      if (previousContent) {
+        queryClient.setQueryData(notificationsKeys.content(), {
+          ...previousContent,
+          items: previousContent.items.map(function (item) {
+            if (item.id !== notificationId) return item;
+            return { ...item, isRead: true };
+          }),
+        });
+      }
+
+      if (previousPreview) {
+        queryClient.setQueryData(notificationsKeys.preview(), {
+          ...previousPreview,
+          items: previousPreview.items.map(function (item) {
+            if (item.id !== notificationId) return item;
+            return { ...item, isRead: true };
+          }),
+        });
+      }
+
+      if (previousUnread) {
+        queryClient.setQueryData(notificationsKeys.unread(), {
+          ...previousUnread,
+          items: previousUnread.items.filter(function (item) {
+            return item.id !== notificationId;
+          }),
+        });
+      }
+
+      return { previousContent, previousPreview, previousUnread };
+    },
+    onError: function (_error, _id, context) {
+      if (!context) return;
+      if (context.previousContent) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previousContent);
+      }
+      if (context.previousPreview) {
+        queryClient.setQueryData(notificationsKeys.preview(), context.previousPreview);
+      }
+      if (context.previousUnread) {
+        queryClient.setQueryData(notificationsKeys.unread(), context.previousUnread);
+      }
+    },
+    onSuccess: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
 
   useLayoutEffect(
     function () {
@@ -283,6 +404,37 @@ export function SiteHeader() {
     [notifOpen, profileMenuOpen]
   );
 
+  useEffect(
+    function () {
+      if (!notifOpen && !profileMenuOpen) return;
+
+      function isInsideOpenPanel(target: EventTarget | null) {
+        if (!(target instanceof Node)) return false;
+        if (notifOpen && notifWrapRef.current && notifWrapRef.current.contains(target)) {
+          return true;
+        }
+        if (profileMenuOpen && profileWrapRef.current && profileWrapRef.current.contains(target)) {
+          return true;
+        }
+        return false;
+      }
+
+      function preventBackgroundScroll(ev: Event) {
+        if (isInsideOpenPanel(ev.target)) return;
+        ev.preventDefault();
+      }
+
+      document.addEventListener("wheel", preventBackgroundScroll, { passive: false });
+      document.addEventListener("touchmove", preventBackgroundScroll, { passive: false });
+
+      return function () {
+        document.removeEventListener("wheel", preventBackgroundScroll);
+        document.removeEventListener("touchmove", preventBackgroundScroll);
+      };
+    },
+    [notifOpen, profileMenuOpen]
+  );
+
   function toggleNotif() {
     setNotifOpen(function (v) {
       return !v;
@@ -295,6 +447,38 @@ export function SiteHeader() {
       return !v;
     });
     setNotifOpen(false);
+  }
+
+  function trapNotifPanelWheel(ev: React.WheelEvent<HTMLDivElement>) {
+    ev.stopPropagation();
+
+    const list = notifListRef.current;
+    if (!list) {
+      ev.preventDefault();
+      return;
+    }
+
+    const deltaY = ev.deltaY;
+    if (deltaY === 0) return;
+
+    const maxScrollTop = list.scrollHeight - list.clientHeight;
+    if (maxScrollTop <= 0) {
+      ev.preventDefault();
+      return;
+    }
+
+    const atTop = list.scrollTop <= 0;
+    const atBottom = list.scrollTop >= maxScrollTop - 1;
+
+    if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
+      ev.preventDefault();
+      return;
+    }
+
+    if (!list.contains(ev.target as Node)) {
+      list.scrollTop = Math.min(maxScrollTop, Math.max(0, list.scrollTop + deltaY));
+      ev.preventDefault();
+    }
   }
 
   function closeProfileMenu() {
@@ -313,8 +497,7 @@ export function SiteHeader() {
   }
 
   function markAllNotifRead() {
-    setNotifCount(0);
-    setAllNotificationsRead(true);
+    void markAllMutation.mutate();
   }
 
   return (
@@ -471,12 +654,12 @@ export function SiteHeader() {
                 />
                 <line x1="12" y1="1" x2="12" y2="4" strokeLinecap="round" />
               </svg>
-              {notifCount > 0 ? (
+              {Number(unreadRowsQuery.data?.items.length ?? 0) > 0 ? (
                 <span
                   className={cn(styles.btnNotifBadge, "unread-notification-badge")}
                   id="notif-badge"
                 >
-                  {notifCount}
+                  {unreadBadgeCount}
                 </span>
               ) : null}
             </button>
@@ -487,6 +670,7 @@ export function SiteHeader() {
                 id="notif-panel"
                 role="dialog"
                 aria-label="Notifications"
+                onWheel={trapNotifPanelWheel}
               >
                 <div className={styles.notifPanelArrow} aria-hidden />
                 <div className={styles.notifPanelHeader}>
@@ -500,55 +684,70 @@ export function SiteHeader() {
                     Mark all read
                   </button>
                 </div>
-                <ul className={styles.notifList} role="list">
-                  {HEADER_NOTIF_PREVIEW_ROWS.map(function (row) {
-                    const IconGlyph = NOTIF_KIND_ICON[row.kind];
-                    const isUnread = row.unread && !allNotificationsRead;
-                    return (
-                      <li key={row.id} className={styles.dropdownListItem}>
-                        <Link
-                          href={ROUTES.NOTIFICATIONS}
-                          className={cn(
-                            styles.dropdownRow,
-                            styles.dropdownRowNotif,
-                            isUnread ? styles.dropdownRowUnread : styles.dropdownRowRead
-                          )}
-                          onClick={function () {
-                            setNotifOpen(false);
-                          }}
-                        >
-                          <span
-                            className={styles.dropdownNotifGlyph}
-                            aria-hidden
-                          >
-                            <IconGlyph size={14} strokeWidth={2} />
-                          </span>
-                          <span className={styles.dropdownRowAvatar}>
-                            <Avatar
-                              initial={row.initial}
-                              size="sm"
-                              src={row.src}
-                            />
-                          </span>
-                          <span className={styles.dropdownRowMain}>
-                            <p className={styles.dropdownNotifText}>{row.body}</p>
-                            <span className={styles.dropdownNotifMetaRow}>
-                              <span className={styles.dropdownNotifTime}>{row.time}</span>
-                            </span>
-                          </span>
-                          <span
+                <ul
+                  ref={notifListRef}
+                  className={styles.notifList}
+                  role="list"
+                  aria-busy={notifRowsQuery.isPending}
+                  aria-live="polite"
+                >
+                  {notifRowsQuery.isPending ? (
+                    <NotificationDropdownSkeleton />
+                  ) : notifRows.length === 0 ? (
+                    <NotificationDropdownEmpty />
+                  ) : (
+                notifRows.map(function (row) {
+                      const IconGlyph = NOTIF_KIND_ICON[row.type];
+                      function markRowAsRead() {
+                        if (row.isRead || markOneMutation.isPending) return;
+                        markOneMutation.mutate(row.id);
+                      }
+                  return (
+                        <li key={row.id} className={styles.dropdownListItem}>
+                          <Link
+                            href={getNotificationDestination(row)}
                             className={cn(
-                              styles.rowDot,
-                              styles.rowDotTrailing,
-                              isUnread ? styles.rowDotUnread : styles.rowDotRead
+                              styles.dropdownRow,
+                              styles.dropdownRowNotif,
+                              row.isRead ? styles.dropdownRowRead : styles.dropdownRowUnread
                             )}
-                            title={isUnread ? "Unread" : "Read"}
-                            aria-hidden
-                          />
-                        </Link>
-                      </li>
-                    );
-                  })}
+                            onClick={function () {
+                              markRowAsRead();
+                              setNotifOpen(false);
+                            }}
+                          >
+                            <span className={styles.dropdownNotifGlyph} aria-hidden>
+                              <IconGlyph size={14} strokeWidth={2} />
+                            </span>
+                            <span className={styles.dropdownRowAvatar}>
+                              <Avatar
+                                initial={initialForName(actorDisplayName(row))}
+                                size="sm"
+                                src={row.actor?.avatarUrl ?? undefined}
+                              />
+                            </span>
+                            <span className={styles.dropdownRowMain}>
+                              <p className={styles.dropdownNotifText}>{formatNotificationText(row)}</p>
+                              <span className={styles.dropdownNotifMetaRow}>
+                                <span className={styles.dropdownNotifTime}>
+                                  {relativeNotificationTime(row.createdAt)}
+                                </span>
+                              </span>
+                            </span>
+                            <span
+                              className={cn(
+                                styles.rowDot,
+                                styles.rowDotTrailing,
+                                row.isRead ? styles.rowDotRead : styles.rowDotUnread
+                              )}
+                              title={row.isRead ? "Read" : "Unread"}
+                              aria-hidden
+                            />
+                          </Link>
+                        </li>
+                      );
+                    })
+                  )}
                 </ul>
                 <Link
                   href={ROUTES.NOTIFICATIONS}

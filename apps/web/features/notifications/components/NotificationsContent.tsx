@@ -1,133 +1,354 @@
 "use client";
 
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
-import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { EmptyState } from "@/components/EmptyState";
 import { NotificationGroup } from "@/features/notifications/components/NotificationGroup";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import {
-  type NotificationAction,
+  type AvatarItem,
   type NotificationTextPart,
-  type NotificationUserMeta,
   type NotificationRecord,
 } from "@/features/notifications/data/notificationsData";
-import { useMarkAllRead } from "@/features/notifications/hooks/useMarkAllRead";
+import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from "@/features/notifications/api/notificationsApi";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
-import { cn } from "@/lib/utils/cn";
-import { useQuery } from "@tanstack/react-query";
+import { getNotificationDestination } from "@/features/notifications/utils/notificationDestination";
+import type { NotificationItem as ApiNotificationItem, NotificationPage } from "@35mm/types";
+import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+
+interface NotificationRecordWithCreatedAt extends NotificationRecord {
+  createdAt: string;
+  destinationHref: string;
+}
 
 interface NotificationGroupRecord {
   dateLabel: string;
-  items: NotificationRecord[];
+  items: NotificationRecordWithCreatedAt[];
 }
 
-interface NotificationsResponse {
-  userMeta: Record<string, NotificationUserMeta>;
-  groups: NotificationGroupRecord[];
-  unreadIds: string[];
+function initialForName(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .toUpperCase();
+
+  return initials.length > 0 ? initials.slice(0, 2) : "?";
 }
 
-function User({
-  username,
-  userMeta,
-}: {
-  username: string;
-  userMeta: Record<string, NotificationUserMeta>;
-}) {
-  const meta = userMeta[username];
-  return (
-    <span onClick={(e) => e.stopPropagation()}>
-      <UsernameLink
-        username={username}
-        initial={meta?.initial}
-        avatarBg={meta?.avatarBg}
-        avatarColor={meta?.avatarColor}
-        role={meta?.role}
-        className="font-medium text-fg no-underline hover:underline"
-      >
-        {username}
-      </UsernameLink>
-    </span>
-  );
-}
+function colorFromSeed(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(i)) & 0xffffffff;
+  }
+  const hue = Math.abs(hash) % 360;
+  const secondaryHue = (hue + 24) % 360;
 
-function renderNotificationText(
-  parts: NotificationTextPart[],
-  userMeta: Record<string, NotificationUserMeta>
-) {
-  return parts.map((part, index) => {
-    if (part.type === "user") {
-      return <User key={`${part.type}-${index}`} username={part.value} userMeta={userMeta} />;
+  return `linear-gradient(135deg, hsl(${hue} 70% 42%), hsl(${secondaryHue} 68% 55%))`;
+}
+function actorSummary(item: ApiNotificationItem): string {
+  const actorProfiles = item.actorProfiles ?? [];
+
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  for (let index = 0; index < actorProfiles.length; index += 1) {
+    const profile = actorProfiles[index];
+    const actorId = profile.userId;
+    if (!actorId || seen.has(actorId)) continue;
+
+    const label = profile.displayName || profile.username;
+    seen.add(actorId);
+
+    if (label) {
+      names.push(label);
     }
-    if (part.type === "film") {
-      return (
-        <span key={`${part.type}-${index}`} className="italic">
-          {part.value}
-        </span>
-      );
-    }
-    if (part.type === "strong") {
-      return <strong key={`${part.type}-${index}`}>{part.value}</strong>;
-    }
-    return <span key={`${part.type}-${index}`}>{part.value}</span>;
-  });
+  }
+
+  const fallbackActor = item.actor?.displayName || item.actor?.username;
+  if (names.length === 0 && fallbackActor) {
+    names.push(fallbackActor);
+  }
+
+  if (names.length === 0) {
+    return "Someone";
+  }
+
+  const total = Math.max(item.bundleCount, names.length, 1);
+
+  if (total <= 1 || names.length === 1) {
+    return names[0] ?? "Someone";
+  }
+
+  if (total === 2) {
+    return `${names[0] ?? "Someone"} and ${names[1] ?? "Someone"}`;
+  }
+
+  return `${names[0] ?? "Someone"}, ${names[1] ?? "Someone"} and ${Math.max(total - 2, 1)} others`;
 }
 
-function Actions({
-  actions,
-  onFollowAction,
-  onDismissAction,
-}: {
-  actions: NotificationAction[];
-  onFollowAction?: () => void;
-  onDismissAction?: () => void;
-}) {
-  const btn =
-    "text-[11px] font-medium border border-border px-2.5 py-0.5 rounded cursor-pointer transition-colors";
-  const primary = "bg-fg text-bg border-fg hover:bg-[#2a2825]";
-  const secondary = "hover:bg-fg hover:text-bg hover:border-fg";
+function activityText(item: ApiNotificationItem): NotificationTextPart[] {
+  const textParts: NotificationTextPart[] = [
+    {
+      type: "user",
+      value: actorSummary(item),
+    },
+  ];
 
-  return actions.map((action) => (
-    <button
-      key={action.id}
-      className={cn(btn, action.variant === "primary" ? primary : secondary)}
-      onClick={
-        action.id === "follow"
-          ? onFollowAction
-          : action.id === "dismiss"
-            ? onDismissAction
-            : undefined
+  if (item.type === "follow") {
+    textParts.push({ type: "text", value: " started following you" });
+  } else if (item.type === "follow_request") {
+    textParts.push({ type: "text", value: " requested to follow you" });
+  } else if (item.type === "like") {
+    if (item.entity?.type === "comment") {
+      if (item.entity?.title) {
+        textParts.push({ type: "text", value: " liked your comment on " });
+        textParts.push({ type: "strong", value: item.entity.title });
+      } else {
+        textParts.push({ type: "text", value: " liked your comment" });
       }
-    >
-      {action.label}
-    </button>
-  ));
+    } else {
+      textParts.push({ type: "text", value: " liked your " });
+      textParts.push({
+        type: item.entity?.title ? "film" : "strong",
+        value: item.entity?.title ?? "post",
+      });
+    }
+  } else if (item.type === "comment") {
+    textParts.push({ type: "text", value: " commented on your " });
+    textParts.push({ type: item.entity?.title ? "film" : "strong", value: item.entity?.title ?? "post" });
+  } else if (item.type === "reply") {
+    textParts.push({ type: "text", value: " replied to your comment" });
+  } else if (item.type === "mention") {
+    textParts.push({ type: "text", value: " mentioned you" });
+  } else if (item.type === "repost") {
+    textParts.push({ type: "text", value: " reposted your " });
+    textParts.push({ type: item.entity?.title ? "film" : "strong", value: item.entity?.title ?? "post" });
+  } else {
+    textParts.push({ type: "text", value: " interacted with you" });
+  }
+
+  return textParts;
+}
+
+function relativeTime(isoDate: string): string {
+  const when = Date.parse(isoDate);
+  if (Number.isNaN(when)) return "now";
+
+  const diff = Date.now() - when;
+  if (diff < 60_000) return "now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 86_400_000 * 7) return `${Math.floor(diff / 86_400_000)}d ago`;
+
+  return new Date(isoDate).toLocaleDateString();
+}
+
+function labelForDate(isoDate: string): string {
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) return "Recent";
+
+  const now = new Date();
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const day = new Date(parsed);
+  day.setHours(0, 0, 0, 0);
+
+  if (day.getTime() === today.getTime()) return "Today";
+  if (day.getTime() === yesterday.getTime()) return "Yesterday";
+
+  const diffDays = Math.floor((today.getTime() - day.getTime()) / (86_400_000));
+  if (diffDays <= 6) return "This Week";
+
+  if (parsed.getFullYear() === now.getFullYear()) {
+    return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function notificationToRecord(item: ApiNotificationItem): NotificationRecordWithCreatedAt {
+  const textParts = activityText(item);
+
+  const actorUsername = item.actor?.username;
+  const avatarSeed = actorUsername || item.actor?.id || item.id;
+  const avatarBg = colorFromSeed(avatarSeed ?? item.id);
+  const avatarText = actorUsername ? initialForName(actorUsername) : item.id.slice(0, 2).toUpperCase();
+
+  return {
+    id: item.id,
+    destinationHref: getNotificationDestination(item),
+    unread: !item.isRead,
+    avatar: {
+      initial: avatarText,
+      bg: avatarBg,
+      color: "#e8d6c7",
+      avatarUrl: item.actor?.avatarUrl ?? null,
+    } as AvatarItem,
+    time: relativeTime(item.createdAt),
+    createdAt: item.createdAt,
+    preview: item.entity?.type === "comment" ? item.entity.title ?? undefined : undefined,
+    thumbnail: item.entity?.thumbnailUrl ?? undefined,
+    thumbnailAlt: item.entity?.title ?? undefined,
+    contentParts: textParts,
+  };
+}
+
+function groupNotificationsByDate(items: NotificationRecordWithCreatedAt[]): NotificationGroupRecord[] {
+  const byDate = new Map<string, NotificationRecordWithCreatedAt[]>();
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    const key = labelForDate(item.createdAt);
+    const list = byDate.get(key);
+    if (list) {
+      list.push(item);
+    } else {
+      byDate.set(key, [item]);
+    }
+  }
+
+  return Array.from(byDate.entries()).map(function (entry) {
+    return {
+      dateLabel: entry[0],
+      items: entry[1],
+    };
+  });
 }
 
 export function NotificationsContent() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const queryClient = useQueryClient();
+
   const notificationsQuery = useQuery({
     queryKey: notificationsKeys.content(),
     queryFn: async function () {
-      const response = await fetch("/api/notifications");
-      if (!response.ok) {
-        throw new Error("Failed to fetch notifications");
-      }
-      return response.json() as Promise<NotificationsResponse>;
+      return fetchNotifications({
+        token: await getToken(),
+        limit: 30,
+      });
     },
+    enabled: isLoaded && Boolean(isSignedIn),
     staleTime: 30_000,
+    refetchInterval: 5_000,
   });
-  const data = notificationsQuery.data ?? null;
-  const loading = notificationsQuery.isLoading;
-  const noopTabClick = () => undefined;
 
-  const unreadIds = data?.unreadIds ?? [];
-  const { isRead, unreadCount, markRead } = useMarkAllRead(unreadIds);
+  const data = notificationsQuery.data as NotificationPage | undefined;
+  const hasItems = (data?.items?.length ?? 0) > 0;
 
-  const groups = data?.groups ?? [];
+  const markOne = useMutation({
+    mutationFn: async function (notificationId: string) {
+      return markNotificationRead({
+        token: await getToken(),
+        notificationId,
+      });
+    },
+    onMutate: async function (notificationId: string) {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.content() });
+
+      const previous = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      if (!previous) return { previous: null };
+
+      queryClient.setQueryData(notificationsKeys.content(), {
+        ...previous,
+        items: previous.items.map(function (item) {
+          if (item.id !== notificationId) return item;
+          return { ...item, isRead: true };
+        }),
+      });
+
+      return { previous };
+    },
+    onError: function (_error, _id, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previous);
+      }
+    },
+    onSettled: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+
+  const markAll = useMutation({
+    mutationFn: async function () {
+      return markAllNotificationsRead({
+        token: await getToken(),
+      });
+    },
+    onMutate: async function () {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.content() });
+
+      const previous = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      if (!previous) return { previous: null };
+
+      queryClient.setQueryData(notificationsKeys.content(), {
+        ...previous,
+        items: previous.items.map(function (item) {
+          return { ...item, isRead: true };
+        }),
+      });
+
+      return { previous };
+    },
+    onError: function (_error, _vars, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previous);
+      }
+    },
+    onSettled: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+
+  const groups = useMemo(function () {
+    if (!data?.items) {
+      return [] as NotificationGroupRecord[];
+    }
+
+    const items = data.items.map((item) => notificationToRecord(item));
+    const grouped = groupNotificationsByDate(items);
+
+    return grouped;
+  }, [data]);
+
+  const unreadCount = data?.items?.filter(function (item) {
+    return !item.isRead;
+  }).length ?? 0;
+
+  const noNotificationRows = notificationsQuery.isLoading && !hasItems;
+
+  function markNotificationReadAction(id: string) {
+    if (markOne.isPending) return;
+    const current = notificationsQuery.data?.items.find(function (item) {
+      return item.id === id;
+    });
+    if (!current || current.isRead) return;
+    markOne.mutate(id);
+  }
+
+  function markAllAction() {
+    if (markAll.isPending) return;
+    markAll.mutate();
+  }
+
   const tabs = [
-    { id: "all", label: "All", badgeCount: unreadCount, onClick: noopTabClick },
-    { id: "priority", label: "Priority", onClick: noopTabClick },
-    { id: "mentions", label: "Mentions", onClick: noopTabClick },
+    {
+      id: "all",
+      label: "All",
+      badgeCount: unreadCount,
+      onClick: markAllAction,
+    },
+    { id: "priority", label: "Priority", onClick: function () {} },
+    { id: "mentions", label: "Mentions", onClick: function () {} },
   ];
 
   return (
@@ -140,9 +361,9 @@ export function NotificationsContent() {
         tabClassName="min-w-max flex-shrink-0 flex justify-center items-center text-[14px] py-3 md:flex-none"
       />
       <div className="pt-6">
-        {loading && groups.length === 0 ? (
+        {noNotificationRows ? (
           <div className="px-4 text-[12px] text-fg-muted">Loading notifications…</div>
-        ) : groups.length === 0 ? (
+        ) : !hasItems ? (
           <EmptyState
             size="lg"
             icon={<span className="text-[24px]">🔔</span>}
@@ -150,45 +371,75 @@ export function NotificationsContent() {
             subline="Likes, comments, and follows will appear here"
           />
         ) : (
-          groups.map((group) => (
-            <NotificationGroup key={group.dateLabel} dateLabel={group.dateLabel}>
-              {group.items.map((item) => {
-                const r = item as NotificationRecord;
-                const hasActions = (r.actions?.length ?? 0) > 0;
-                return (
-                  <div
-                    key={r.id}
-                    onClick={() => unreadIds.includes(r.id) && markRead(r.id)}
-                  >
-                    <NotificationItem
-                      avatarInitial={r.avatar?.initial}
-                      avatarBg={r.avatar?.bg}
-                      avatarColor={r.avatar?.color}
-                      avatarStack={r.avatarStack}
-                      text={renderNotificationText(r.contentParts, data?.userMeta ?? {})}
-                      time={r.time}
-                      unread={r.unread && !isRead(r.id)}
-                      preview={r.preview}
-                      thumbnail={r.thumbnail}
-                      thumbnailAlt={r.thumbnailAlt}
-                      actions={
-                        hasActions ? (
-                          <Actions
-                            actions={r.actions ?? []}
-                            onFollowAction={() => markRead(r.id)}
-                            onDismissAction={() => markRead(r.id)}
+          groups.map(function (group) {
+            return (
+              <NotificationGroup key={group.dateLabel} dateLabel={group.dateLabel}>
+                {group.items.map(function (item) {
+                  const hasActions = (item.actions?.length ?? 0) > 0;
+
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.destinationHref}
+                      className="block"
+                      onClick={function () {
+                        markNotificationReadAction(item.id);
+                      }}
+                    >
+                      <NotificationItem
+                        avatarInitial={item.avatar?.initial}
+                        avatarBg={item.avatar?.bg}
+                        avatarColor={item.avatar?.color}
+                        avatarUrl={item.avatar?.avatarUrl}
+                        avatarStack={item.avatarStack}
+                        text={
+                          item.contentParts
+                            .map(function (part, index) {
+                              if (part.type === "user") {
+                                return <span key={`${item.id}-${part.type}-${index}`}>{part.value}</span>;
+                              }
+                              if (part.type === "film") {
+                                return (
+                                  <span
+                                    key={`${item.id}-${part.type}-${index}`}
+                                    className="italic"
+                                  >
+                                    {part.value}
+                                  </span>
+                                );
+                              }
+                              if (part.type === "strong") {
+                                return (
+                                  <strong key={`${item.id}-${part.type}-${index}`}>{part.value}</strong>
+                                );
+                              }
+                              return <span key={`${item.id}-${part.type}-${index}`}>{part.value}</span>;
+                            })
+                        }
+                        time={item.time}
+                        unread={item.unread}
+                        preview={item.preview}
+                        thumbnail={item.thumbnail}
+                        thumbnailAlt={item.thumbnailAlt}
+                        actions={
+                          hasActions ? (
+                            <div className="flex gap-2 mt-2">
+                              {item.actions?.map((action, actionIndex) => {
+                                return <span key={`${item.id}-action-${actionIndex}`}>{action.label}</span>;
+                              })}
+                            </div>
+                          ) : undefined
+                        }
                           />
-                        ) : undefined
-                      }
-                    />
-                  </div>
-                );
-              })}
-            </NotificationGroup>
-          ))
+                    </Link>
+                  );
+                })}
+              </NotificationGroup>
+            );
+          })
         )}
       </div>
-      {groups.length > 0 ? (
+      {notificationsQuery.data?.hasMore ? (
         <div className="py-10 text-center text-xs text-fg-muted tracking-wide cursor-pointer hover:text-fg transition-colors">
           Load older notifications ↓
         </div>
