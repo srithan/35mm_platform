@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/nextjs";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { followUser, unfollowUser } from "@/features/profile/api/profileApi";
 import type { SuggestionsResponse } from "@35mm/types";
 import { fetchPeopleSuggestions } from "../api/suggestionsApi";
@@ -37,6 +37,7 @@ export function usePeopleSuggestions(params: SuggestionListParams = {}) {
 
 export function useSuggestionFollowMutation() {
   var { getToken } = useAuth();
+  var queryClient = useQueryClient();
 
   return useMutation<void, Error, SuggestionsFollowPayload>({
     mutationFn: async function (input) {
@@ -47,6 +48,9 @@ export function useSuggestionFollowMutation() {
       }
 
       await followUser(input.userId, token);
+    },
+    onSettled: function () {
+      return void queryClient.invalidateQueries({ queryKey: suggestionsKeys.all });
     },
   });
 }

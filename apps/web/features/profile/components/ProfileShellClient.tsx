@@ -24,8 +24,17 @@ export function ProfileShellClient(props: { username: string }) {
   var followToggleMutation = useFollowToggle(username);
   var blockMutation = useBlockUserMutation();
 
+  const profileUserId = profile?.userId;
+  const currentUserId = currentUser?.userId;
+  const profileUsername = profile?.username;
+  const currentUsername = currentUser?.username;
   var isOwnProfile =
-    Boolean(profile?.username) && profile?.username === currentUser?.username;
+    (Boolean(profileUserId) &&
+      Boolean(currentUserId) &&
+      profileUserId === currentUserId) ||
+    (Boolean(profileUsername) &&
+      Boolean(currentUsername) &&
+      profileUsername === currentUsername);
   var isPrivateGate =
     Boolean(profile?.isPrivate) &&
     !Boolean(profile?.isFollowing) &&
@@ -92,6 +101,16 @@ export function ProfileShellClient(props: { username: string }) {
   }
 
   var resolvedProfile = profile;
+  var followAction = followToggleMutation.variables;
+  var isCancelingPrivateFollowRequest =
+    Boolean(followAction?.isFollowing) || Boolean(followAction?.isFollowRequested);
+  var privateGateFollowLabel = followToggleMutation.isPending
+    ? isCancelingPrivateFollowRequest
+      ? "Canceling request..."
+      : "Requesting..."
+    : resolvedProfile.isFollowRequested
+      ? "Requested"
+      : "Follow";
 
   return (
     <>
@@ -125,6 +144,9 @@ export function ProfileShellClient(props: { username: string }) {
           filmsLoggedCount={resolvedProfile.filmsLoggedCount ?? 0}
           isFollowing={resolvedProfile.isFollowing}
           isFollowRequested={resolvedProfile.isFollowRequested}
+          hasIncomingFollowRequest={Boolean(resolvedProfile.hasIncomingFollowRequest)}
+          isPrivate={Boolean(resolvedProfile.isPrivate)}
+          showFollowButton={!isPrivateGate}
           isMutedByViewer={Boolean(resolvedProfile.isMutedByViewer)}
         />
       </ProfileScrollChrome>
@@ -141,6 +163,7 @@ export function ProfileShellClient(props: { username: string }) {
             <Button
               variant={resolvedProfile.isFollowRequested ? "secondary" : "primary"}
               size="sm"
+              disabled={followToggleMutation.isPending}
               onClick={function () {
                 if (followToggleMutation.isPending) return;
                 followToggleMutation.mutate({
@@ -150,11 +173,7 @@ export function ProfileShellClient(props: { username: string }) {
                 });
               }}
             >
-              {followToggleMutation.isPending
-                ? "..."
-                : resolvedProfile.isFollowRequested
-                  ? "Requested"
-                  : "Follow"}
+              {privateGateFollowLabel}
             </Button>
           </div>
         </div>

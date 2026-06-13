@@ -66,6 +66,9 @@ function normalizeContentType(value: string | undefined, fallback = "image/jpeg"
     candidate === "image/png" ||
     candidate === "image/webp" ||
     candidate === "image/gif" ||
+    candidate === "image/avif" ||
+    candidate === "image/heic" ||
+    candidate === "image/heif" ||
     candidate === "video/mp4" ||
     candidate === "video/webm"
   ) {
@@ -78,9 +81,23 @@ function extensionForContentType(contentType: string): string {
   if (contentType === "image/png") return ".png";
   if (contentType === "image/webp") return ".webp";
   if (contentType === "image/gif") return ".gif";
+  if (contentType === "image/avif") return ".avif";
+  if (contentType === "image/heic") return ".heic";
+  if (contentType === "image/heif") return ".heif";
   if (contentType === "video/mp4") return ".mp4";
   if (contentType === "video/webm") return ".webm";
   return ".jpg";
+}
+
+function isVariantOptimizableImage(contentType: string): boolean {
+  if (!contentType.startsWith("image/")) return false;
+  return (
+    contentType === "image/jpeg" ||
+    contentType === "image/png" ||
+    contentType === "image/webp" ||
+    contentType === "image/avif" ||
+    contentType === "image/gif"
+  );
 }
 
 function getBucketName(): string {
@@ -136,7 +153,19 @@ function joinPublicUrl(baseUrl: string, key: string): string {
   return baseUrl + "/" + key.replace(/^\/+/, "");
 }
 
-function mediaVariantsForKey(key: string): { thumb: string; feed: string; full: string } {
+function mediaVariantsForKey(
+  key: string,
+  contentType: string
+): { thumb: string; feed: string; full: string } {
+  var publicUrl = joinPublicUrl(getPublicBaseUrl(), key);
+  if (!isVariantOptimizableImage(contentType)) {
+    return {
+      thumb: publicUrl,
+      feed: publicUrl,
+      full: publicUrl,
+    };
+  }
+
   var cfThumb = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_THUMB_VARIANT);
   var cfFeed = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_FEED_VARIANT);
   var cfFull = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_FULL_VARIANT);
@@ -226,7 +255,7 @@ mediaRoutes.post("/presign", requireAuth, presignRateLimit, async function (c) {
     objectKey: key,
     contentType,
     expiresInSeconds: getPresignTtl(),
-    variants: mediaVariantsForKey(key),
+    variants: mediaVariantsForKey(key, contentType),
   };
 
   return c.json(response);

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/components/EmptyState";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { UserCard } from "@/components/UserCard";
 import { fetchProfileConnections } from "@/features/profile/api/profileApi";
+import { ProfileFollowRequestsSection } from "@/features/profile/components/ProfileFollowRequestsSection";
 
 export function ProfileConnectionsModal({
   open,
@@ -28,8 +29,8 @@ export function ProfileConnectionsModal({
   followingCount: number;
 }) {
   const title = kind === "followers" ? "Followers" : "Following";
-  const placeholder =
-    kind === "followers" ? "Search followers…" : "Search following…";
+  const isOwnFollowersModal = isOwnProfile && kind === "followers";
+  const [followersSubTab, setFollowersSubTab] = useState<"followers" | "requests">("followers");
   const { getToken, isLoaded } = useAuth();
   const [queryText, setQueryText] = useState("");
   const connectionsQuery = useInfiniteQuery({
@@ -66,6 +67,26 @@ export function ProfileConnectionsModal({
   );
   const hasConnections = allConnections.length > 0;
 
+  const followersSubView = isOwnFollowersModal ? followersSubTab : "followers";
+  const followersSectionTitle =
+    followersSubView === "followers" ? "Search followers…" : "Search follow requests…";
+
+  function handleResetSubTabToFollowers() {
+    setFollowersSubTab("followers");
+  }
+
+  useEffect(function () {
+    if (!open) {
+      handleResetSubTabToFollowers();
+    }
+  }, [open]);
+
+  useEffect(function () {
+    if (!isOwnFollowersModal) {
+      handleResetSubTabToFollowers();
+    }
+  }, [isOwnFollowersModal]);
+
   return (
     <Dialog
       open={open}
@@ -74,33 +95,69 @@ export function ProfileConnectionsModal({
       className="max-w-md"
       contentClassName="p-0 flex flex-col max-h-[min(520px,85vh)]"
     >
-      <div className="shrink-0 border-b border-border px-5 py-3">
+      {isOwnFollowersModal ? (
+        <div className="shrink-0 border-b border-border px-0 py-1 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={function () {
+              handleResetSubTabToFollowers();
+            }}
+            className={`rounded-full px-3 py-1 text-xs font-medium border border-transparent transition-colors ${
+              followersSubView === "followers"
+                ? "bg-accent text-accent-contrast"
+                : "bg-sunken text-fg-muted hover:text-fg"
+            }`}
+          >
+            Followers
+          </button>
+          <button
+            type="button"
+            onClick={function () {
+              setFollowersSubTab("requests");
+            }}
+            className={`rounded-full px-3 py-1 text-xs font-medium border border-transparent transition-colors ${
+              followersSubView === "requests"
+                ? "bg-accent text-accent-contrast"
+                : "bg-sunken text-fg-muted hover:text-fg"
+            }`}
+          >
+            Follow requests
+          </button>
+        </div>
+      ) : null}
+      <div className="shrink-0 border-b border-border px-0 py-1">
         <input
           type="search"
-          placeholder={placeholder}
-          disabled={connectionsQuery.isPending || (!hasConnections && queryText.trim().length === 0)}
+          placeholder={followersSectionTitle}
+          disabled={
+            followersSubView === "requests"
+              ? false
+              : connectionsQuery.isPending || (!hasConnections && queryText.trim().length === 0)
+          }
           value={queryText}
           onChange={(event) => setQueryText(event.target.value)}
           className="w-full border-none bg-transparent font-sans text-[16px] md:text-sm text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0"
-          aria-label={placeholder}
+          aria-label={followersSectionTitle}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
-        {connectionsQuery.isPending ? (
+      <div className="min-h-0 flex-1 overflow-y-auto px-0 py-1">
+        {followersSubView === "requests" && isOwnFollowersModal ? (
+          <ProfileFollowRequestsSection username={username} />
+        ) : connectionsQuery.isPending ? (
           <div className="py-6 text-sm text-fg-muted">Loading…</div>
         ) : connectionsQuery.isError ? (
           <div className="py-6 text-sm text-fg-muted">Could not load right now.</div>
         ) : filteredConnections.length > 0 ? (
           <>
             {filteredConnections.map((u) => (
-            <UserCard
-              key={u.userId}
-              username={u.username}
-              handle={`@${u.username}`}
-              role={u.displayName}
-              initial={(u.displayName || u.username).charAt(0).toUpperCase()}
-              showFollowButton={false}
-            />
+              <UserCard
+                key={u.userId}
+                username={u.username}
+                handle={`@${u.username}`}
+                role={u.displayName}
+                initial={(u.displayName || u.username).charAt(0).toUpperCase()}
+                showFollowButton={false}
+              />
             ))}
             {connectionsQuery.hasNextPage ? (
               <div className="py-3">

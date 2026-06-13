@@ -21,6 +21,7 @@ export interface PublicProfile {
   isFollowing: boolean;
   isFollowRequested?: boolean;
   isPrivate?: boolean;
+  hasIncomingFollowRequest?: boolean;
   isMutedByViewer?: boolean;
   posts?: null;
   isDeactivated: boolean;
@@ -147,6 +148,14 @@ export interface ProfileConnectionUser {
   followedAt: string;
 }
 
+export interface ProfileFollowRequest {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  followedAt: string;
+}
+
 export async function fetchMyBlocks(
   token: string | null
 ): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
@@ -190,6 +199,31 @@ export async function fetchProfileConnections(params: {
     query.toString();
 
   return apiRequest<{ items: ProfileConnectionUser[]; nextCursor: string | null; hasMore: boolean }>(
+    path,
+    {
+      token: params.token,
+    }
+  );
+}
+
+export async function fetchProfileFollowRequests(params: {
+  username: string;
+  cursor?: string;
+  limit?: number;
+  token?: string | null;
+}): Promise<{ items: ProfileFollowRequest[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params.limit ?? 30),
+  });
+  if (params.cursor) query.set("cursor", params.cursor);
+
+  var path =
+    "/v1/profiles/" +
+    encodeURIComponent(params.username) +
+    "/follow-requests?" +
+    query.toString();
+
+  return apiRequest<{ items: ProfileFollowRequest[]; nextCursor: string | null; hasMore: boolean }>(
     path,
     {
       token: params.token,

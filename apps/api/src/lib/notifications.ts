@@ -142,13 +142,20 @@ async function hasNotificationSettingsEnabled(recipientId: string, type: Notific
     .where(eq(userSettings.userId, recipientId))
     .limit(1);
 
-  if (rows.length === 0) return false;
+  if (rows.length === 0) {
+    return canPreferenceNotify(type, {
+      notifyLikesOnPosts: true,
+      notifyCommentsAndReplies: true,
+      notifyNewFollowers: true,
+      notifyMentions: true,
+    });
+  }
 
   var settings: NotificationSettings = {
-    notifyLikesOnPosts: rows[0].likesOnPosts,
-    notifyCommentsAndReplies: rows[0].commentsAndReplies,
-    notifyNewFollowers: rows[0].newFollowers,
-    notifyMentions: rows[0].mentions,
+    notifyLikesOnPosts: rows[0]?.likesOnPosts ?? true,
+    notifyCommentsAndReplies: rows[0]?.commentsAndReplies ?? true,
+    notifyNewFollowers: rows[0]?.newFollowers ?? true,
+    notifyMentions: rows[0]?.mentions ?? true,
   };
 
   return canPreferenceNotify(type, settings);

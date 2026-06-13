@@ -11,7 +11,11 @@ import { ImageCropper } from "./ImageCropper";
 import { resolvePublicMediaUrl } from "@/lib/utils/r2Media";
 import { cn } from "@/lib/utils/cn";
 import { Area } from "react-easy-crop";
-import getCroppedImg from "@/lib/utils/imageUtils";
+import getCroppedImg, {
+  canDecodeImage,
+  convertHeicToJpeg,
+  normalizeImageContentType,
+} from "@/lib/utils/imageUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "../api/mediaApi";
 import { updateCurrentProfile } from "../api/profileApi";
@@ -36,6 +40,7 @@ export function CoverPhoto(props: CoverPhotoProps) {
   var [localCoverUrl, setLocalCoverUrl] = useState<string | null>(null);
   var [image, setImage] = useState<string | null>(null);
   var [isCropping, setIsCropping] = useState(false);
+  var [selectedImageType, setSelectedImageType] = useState("image/jpeg");
   var [isPreparingReposition, setIsPreparingReposition] = useState(false);
   var [isUploading, setIsUploading] = useState(false);
   var [uploadProgress, setUploadProgress] = useState(0);
@@ -63,22 +68,43 @@ export function CoverPhoto(props: CoverPhotoProps) {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return;
     var file = event.target.files[0];
-    if (!file.type.startsWith("image/")) {
+    var normalizedContentType = normalizeImageContentType(file.type, file.name);
+    if (!normalizedContentType) {
       setErrorMessage("Please choose an image file.");
       return;
     }
+    setSelectedImageType(normalizedContentType);
     if (file.size > MAX_IMAGE_BYTES) {
       setErrorMessage("Cover photo must be 12MB or less.");
       return;
     }
 
     setErrorMessage(null);
-    var reader = new FileReader();
-    reader.addEventListener("load", function () {
-      setImage(reader.result as string);
-      setIsCropping(true);
-    });
-    reader.readAsDataURL(file);
+    var isHeicUpload =
+      normalizedContentType === "image/heic" || normalizedContentType === "image/heif";
+    if (isHeicUpload) {
+      setSelectedImageType("image/jpeg");
+    } else {
+      setSelectedImageType(normalizedContentType);
+    }
+
+    void (async function () {
+      try {
+        var fileForCrop: File | Blob = file;
+        if (isHeicUpload) {
+          fileForCrop = await convertHeicToJpeg(file);
+        }
+        var imageDataUrl = await canDecodeImage(fileForCrop);
+        setImage(imageDataUrl);
+        setIsCropping(true);
+      } catch (_error) {
+        if (isHeicUpload) {
+          setErrorMessage("Could not convert HEIC image for crop. Try an older format like JPG or PNG.");
+          return;
+        }
+        setErrorMessage("Could not decode image for cropping.");
+      }
+    })();
   };
 
   const closeCropper = function () {
@@ -117,7 +143,7 @@ export function CoverPhoto(props: CoverPhotoProps) {
       var presign = await presignProfileMediaUpload(
         {
           kind: "cover",
-          contentType: "image/jpeg",
+          contentType: croppedImage.type || selectedImageType,
           contentLength: croppedImage.size,
         },
         token

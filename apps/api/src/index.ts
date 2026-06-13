@@ -61,7 +61,7 @@ app.onError(function (err, c) {
 });
 
 app.use("*", cors({
-  origin: env.CORS_ORIGIN,
+  origin: env.CORS_ORIGINS,
   credentials: true,
   allowHeaders: ["Content-Type", "Authorization"],
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],

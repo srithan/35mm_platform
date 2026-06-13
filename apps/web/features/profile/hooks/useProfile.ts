@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { feedKeys } from "@/features/feed/hooks/queryKeys";
 import { privacyKeys } from "@/features/settings/hooks/queryKeys";
@@ -9,6 +9,7 @@ import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
 import {
   fetchPublicProfile,
   followUser,
+  fetchProfileFollowRequests,
   blockUser,
   muteUser,
   unblockUser,
@@ -38,15 +39,22 @@ export function useFollowToggle(username: string) {
   var { getToken } = useAuth();
 
   return useMutation({
-    mutationFn: async function (input: { userId: string; isFollowing: boolean; isFollowRequested?: boolean }) {
+    mutationFn: async function (input: {
+      userId: string;
+      isFollowing: boolean;
+      isFollowRequested?: boolean;
+    }) {
       var token = await getToken();
       if (input.isFollowing || input.isFollowRequested) {
         await unfollowUser(input.userId, token);
-        return { mode: "unfollow" as const };
+        return { mode: "unfollow" as const, isFollowing: false, isFollowRequested: false };
       } else {
         var result = await followUser(input.userId, token);
         return {
-          mode: result.status === "pending" ? "request" as const : "follow" as const,
+          mode:
+            result.status === "pending" ? "request" as const : "follow" as const,
+          isFollowing: result.isFollowing,
+          isFollowRequested: result.status === "pending",
         };
       }
     },
@@ -58,24 +66,53 @@ export function useFollowToggle(username: string) {
       );
 
       if (previous) {
-        var optimisticIsFollowing = input.isFollowing ? false : previous.isPrivate ? false : true;
-        var optimisticIsRequested = input.isFollowing
-          ? false
-          : previous.isPrivate
-            ? true
-            : false;
+        var isToggleOff = input.isFollowing || input.isFollowRequested;
+        var optimisticIsFollowing = isToggleOff ? false : previous.isPrivate ? false : true;
+        var optimisticIsRequested = isToggleOff ? false : previous.isPrivate;
+        var followerCountDelta =
+          Number(optimisticIsFollowing) - Number(previous.isFollowing);
+        var nextFollowerCount = Math.max(0, previous.followerCount + followerCountDelta);
+
         queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
           ...previous,
           isFollowing: optimisticIsFollowing,
           isFollowRequested: optimisticIsRequested,
-          followerCount: Math.max(
-            0,
-            previous.followerCount + (input.isFollowing || input.isFollowRequested ? -1 : 1)
-          ),
+          followerCount: nextFollowerCount,
         });
       }
 
       return { previous };
+    },
+    onSuccess: async function (result, _input, context) {
+      var current = queryClient.getQueryData<PublicProfile | null>(
+        profileKeys.detail(username)
+      );
+      if (!current) return;
+      if (!context?.previous) {
+        queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
+          ...current,
+          isFollowing: result.isFollowing,
+          isFollowRequested: result.isFollowRequested,
+        });
+        return;
+      }
+      var previous = context.previous;
+      var nextIsFollowing = result.isFollowing;
+      var nextIsFollowRequested = result.isFollowRequested;
+
+      if (result.mode === "request") {
+        nextIsFollowing = false;
+        nextIsFollowRequested = true;
+      } else if (result.mode === "unfollow") {
+        nextIsFollowing = false;
+        nextIsFollowRequested = false;
+      }
+
+      queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
+        ...previous,
+        isFollowing: nextIsFollowing,
+        isFollowRequested: nextIsFollowRequested,
+      });
     },
     onError: function (_err, _vars, context) {
       if (context?.previous) {
@@ -85,6 +122,28 @@ export function useFollowToggle(username: string) {
     onSettled: function () {
       queryClient.invalidateQueries({ queryKey: profileKeys.detail(username) });
     },
+  });
+}
+
+export function useIncomingFollowRequests(username: string) {
+  var { getToken, isLoaded } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: profileKeys.followRequests(username),
+    queryFn: async function ({ pageParam }) {
+      return fetchProfileFollowRequests({
+        username,
+        cursor: pageParam as string | undefined,
+        token: await getToken(),
+      });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: function (lastPage) {
+      return lastPage.nextCursor ?? undefined;
+    },
+    enabled: isLoaded && username.trim().length > 0,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   });
 }
 

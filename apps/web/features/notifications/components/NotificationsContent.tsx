@@ -2,6 +2,7 @@
 
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/Button/Button";
 import { NotificationGroup } from "@/features/notifications/components/NotificationGroup";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import {
@@ -9,7 +10,13 @@ import {
   type NotificationTextPart,
   type NotificationRecord,
 } from "@/features/notifications/data/notificationsData";
-import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from "@/features/notifications/api/notificationsApi";
+import {
+  acceptFollowRequest,
+  declineFollowRequest,
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/features/notifications/api/notificationsApi";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { getNotificationDestination } from "@/features/notifications/utils/notificationDestination";
 import type { NotificationItem as ApiNotificationItem, NotificationPage } from "@35mm/types";
@@ -21,6 +28,7 @@ import { useMemo } from "react";
 interface NotificationRecordWithCreatedAt extends NotificationRecord {
   createdAt: string;
   destinationHref: string;
+  followRequestUserId?: string;
 }
 
 interface NotificationGroupRecord {
@@ -89,6 +97,16 @@ function actorSummary(item: ApiNotificationItem): string {
   }
 
   return `${names[0] ?? "Someone"}, ${names[1] ?? "Someone"} and ${Math.max(total - 2, 1)} others`;
+}
+
+function extractFollowRequestUserId(item: ApiNotificationItem): string | undefined {
+  if (item.type !== "follow_request") return undefined;
+
+  return (
+    item.actor?.id ||
+    item.entity?.id ||
+    item.actorProfiles?.[0]?.userId
+  );
 }
 
 function activityText(item: ApiNotificationItem): NotificationTextPart[] {
@@ -185,6 +203,7 @@ function notificationToRecord(item: ApiNotificationItem): NotificationRecordWith
     id: item.id,
     destinationHref: getNotificationDestination(item),
     unread: !item.isRead,
+    followRequestUserId: extractFollowRequestUserId(item),
     avatar: {
       initial: avatarText,
       bg: avatarBg,
@@ -309,6 +328,84 @@ export function NotificationsContent() {
     },
   });
 
+  const acceptFollowRequestMutation = useMutation({
+    mutationFn: async function (input: { notificationId: string; userId: string }) {
+      return acceptFollowRequest({
+        token: await getToken(),
+        userId: input.userId,
+      });
+    },
+    onMutate: async function (input: { notificationId: string; userId: string }) {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.content() });
+
+      const previous = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      if (!previous) return { previous: null };
+
+      queryClient.setQueryData(notificationsKeys.content(), {
+        ...previous,
+        items: previous.items.filter(function (item) {
+          return item.id !== input.notificationId;
+        }),
+      });
+
+      return { previous };
+    },
+    onError: function (_error, _vars, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previous);
+      }
+    },
+    onSuccess: function (data, _input, context) {
+      if (!data.accepted && context?.previous) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previous);
+      }
+    },
+    onSettled: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+
+  const declineFollowRequestMutation = useMutation({
+    mutationFn: async function (input: { notificationId: string; userId: string }) {
+      return declineFollowRequest({
+        token: await getToken(),
+        userId: input.userId,
+      });
+    },
+    onMutate: async function (input: { notificationId: string; userId: string }) {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.content() });
+
+      const previous = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      if (!previous) return { previous: null };
+
+      queryClient.setQueryData(notificationsKeys.content(), {
+        ...previous,
+        items: previous.items.filter(function (item) {
+          return item.id !== input.notificationId;
+        }),
+      });
+
+      return { previous };
+    },
+    onError: function (_error, _vars, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previous);
+      }
+    },
+    onSuccess: function (data, _input, context) {
+      if (!data.declined && context?.previous) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previous);
+      }
+    },
+    onSettled: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+
   const groups = useMemo(function () {
     if (!data?.items) {
       return [] as NotificationGroupRecord[];
@@ -338,6 +435,29 @@ export function NotificationsContent() {
   function markAllAction() {
     if (markAll.isPending) return;
     markAll.mutate();
+  }
+
+  function handleFollowRequestAction(
+    notificationId: string,
+    userId: string | undefined,
+    action: "accept" | "ignore"
+  ) {
+    if (!userId) return;
+
+    if (action === "accept") {
+      if (acceptFollowRequestMutation.isPending) return;
+      acceptFollowRequestMutation.mutate({
+        notificationId,
+        userId,
+      });
+      return;
+    }
+
+    if (declineFollowRequestMutation.isPending) return;
+    declineFollowRequestMutation.mutate({
+      notificationId,
+      userId,
+    });
   }
 
   const tabs = [
@@ -375,7 +495,12 @@ export function NotificationsContent() {
             return (
               <NotificationGroup key={group.dateLabel} dateLabel={group.dateLabel}>
                 {group.items.map(function (item) {
-                  const hasActions = (item.actions?.length ?? 0) > 0;
+                  const isFollowRequest = item.followRequestUserId !== undefined;
+                  const isProcessingFollowRequest =
+                    (acceptFollowRequestMutation.isPending &&
+                      acceptFollowRequestMutation.variables?.notificationId === item.id) ||
+                    (declineFollowRequestMutation.isPending &&
+                      declineFollowRequestMutation.variables?.notificationId === item.id);
 
                   return (
                     <Link
@@ -422,11 +547,38 @@ export function NotificationsContent() {
                         thumbnail={item.thumbnail}
                         thumbnailAlt={item.thumbnailAlt}
                         actions={
-                          hasActions ? (
+                          isFollowRequest ? (
                             <div className="flex gap-2 mt-2">
-                              {item.actions?.map((action, actionIndex) => {
-                                return <span key={`${item.id}-action-${actionIndex}`}>{action.label}</span>;
-                              })}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={isProcessingFollowRequest}
+                                onClick={function (event) {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleFollowRequestAction(item.id, item.followRequestUserId, "ignore");
+                                }}
+                              >
+                                {declineFollowRequestMutation.isPending &&
+                                declineFollowRequestMutation.variables?.notificationId === item.id
+                                  ? "Ignoring..."
+                                  : "Ignore"}
+                              </Button>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={isProcessingFollowRequest}
+                                onClick={function (event) {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleFollowRequestAction(item.id, item.followRequestUserId, "accept");
+                                }}
+                              >
+                                {acceptFollowRequestMutation.isPending &&
+                                acceptFollowRequestMutation.variables?.notificationId === item.id
+                                  ? "Accepting..."
+                                  : "Accept"}
+                              </Button>
                             </div>
                           ) : undefined
                         }

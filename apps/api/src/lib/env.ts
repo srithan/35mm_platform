@@ -6,7 +6,20 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function parseCorsOrigins(value: string): string[] {
+  return value
+    .split(",")
+    .map(function (origin) {
+      return origin.trim();
+    })
+    .filter(function (origin) {
+      return origin.length > 0;
+    });
+}
+
 export function loadEnv() {
+  var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+
   return {
     DATABASE_URL: requireEnv("DATABASE_URL"),
     CLERK_SECRET_KEY: requireEnv("CLERK_SECRET_KEY"),
@@ -28,7 +41,8 @@ export function loadEnv() {
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
     RATE_LIMIT_DISABLED: (process.env.RATE_LIMIT_DISABLED ?? "").toLowerCase() === "true",
     NODE_ENV: process.env.NODE_ENV ?? "development",
-    CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:3000",
+    CORS_ORIGIN: corsOrigin,
+    CORS_ORIGINS: parseCorsOrigins(corsOrigin),
     PORT: Number(process.env.PORT ?? 4000),
   };
 }

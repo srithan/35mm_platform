@@ -107,12 +107,14 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
         <section className="rounded-lg border border-border bg-bg px-4 py-3.5 shadow-sm">
           <div className="flex items-center justify-between gap-2 mb-4">
             <h2 className="text-[15px] font-bold text-fg tracking-tight">Suggestions for you</h2>
-            <Link
-              href={ROUTES.SUGGESTIONS_PEOPLE}
-              className="text-[12px] font-bold text-fg hover:text-fg-muted transition-colors uppercase tracking-wide"
-            >
-              See All
-            </Link>
+            {suggestions.length > 0 ? (
+              <Link
+                href={ROUTES.SUGGESTIONS_PEOPLE}
+                className="text-[12px] font-bold text-fg hover:text-fg-muted transition-colors uppercase tracking-wide"
+              >
+                See All
+              </Link>
+            ) : null}
           </div>
           <ul
             className="space-y-4 m-0 p-0 list-none"

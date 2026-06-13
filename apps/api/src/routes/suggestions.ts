@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
-import { followSuggestions, profiles, users } from "@35mm/db/schema";
+import { followSuggestions, follows, profiles, users } from "@35mm/db/schema";
 import type { FollowSuggestion } from "@35mm/types";
 import { getDb } from "../lib/db.js";
 import { getRedisClient } from "../lib/redis.js";
@@ -185,6 +185,18 @@ suggestionsRoutes.get("/suggestions/users", requireAuth, async function (c) {
 
     var filteredRows = suggestionRows.filter(function (row) {
       return row.suggestedUserId !== userId;
+    });
+    var followedRows = await getDb()
+      .select({ followingId: follows.followingId })
+      .from(follows)
+      .where(eq(follows.followerId, userId));
+    var followedByViewer = new Set<string>(
+      followedRows.map(function (row) {
+        return row.followingId;
+      })
+    );
+    filteredRows = filteredRows.filter(function (row) {
+      return !followedByViewer.has(row.suggestedUserId);
     });
     var filteredIds = filteredRows.map(function (row) {
       return row.suggestedUserId;

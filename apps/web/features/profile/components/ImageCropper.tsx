@@ -70,9 +70,9 @@ export function ImageCropper({
               min={1}
               max={3}
               step={0.1}
-              aria-labelledby="Zoom"
+              aria-label="Zoom"
               onChange={(e) => setZoom(Number(e.target.value))}
-              className="flex-1 h-1 bg-border rounded-lg appearance-none cursor-pointer accent-fg"
+              className="flex-1 h-1 bg-border rounded-lg appearance-none cursor-pointer accent-fg outline-none ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
             />
             <ZoomIn className="w-4 h-4 text-fg-muted" />
           </div>

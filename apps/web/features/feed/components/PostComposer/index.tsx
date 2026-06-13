@@ -77,7 +77,29 @@ function extensionForImageMimeType(type: string): string {
   if (type === "image/webp") return "webp";
   if (type === "image/gif") return "gif";
   if (type === "image/avif") return "avif";
+  if (type === "image/heic") return "heic";
+  if (type === "image/heif") return "heif";
   return "png";
+}
+
+function normalizeImageContentType(value: string | null | undefined): string {
+  var raw = (value || "").toLowerCase().trim();
+  if (!raw) return "image/jpeg";
+
+  var normalized = raw.split(";")[0]!;
+  if (
+    normalized === "image/jpeg" ||
+    normalized === "image/png" ||
+    normalized === "image/webp" ||
+    normalized === "image/gif" ||
+    normalized === "image/avif" ||
+    normalized === "image/heic" ||
+    normalized === "image/heif"
+  ) {
+    return normalized;
+  }
+
+  return "image/jpeg";
 }
 
 function extractImageUrlFromClipboardHtml(html: string): string | null {
@@ -715,7 +737,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       var presign = await presignProfileMediaUpload(
         {
           kind: "post_media",
-          contentType: file.type || "application/octet-stream",
+          contentType: normalizeImageContentType(file.type),
           contentLength: file.size,
         },
         token

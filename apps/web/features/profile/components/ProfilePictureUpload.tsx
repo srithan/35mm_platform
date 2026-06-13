@@ -4,7 +4,11 @@ import { useState, useRef, ChangeEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { ImageCropper } from "./ImageCropper";
-import getCroppedImg from "@/lib/utils/imageUtils";
+import getCroppedImg, {
+  canDecodeImage,
+  convertHeicToJpeg,
+  normalizeImageContentType,
+} from "@/lib/utils/imageUtils";
 import { Area } from "react-easy-crop";
 import { Camera, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -27,6 +31,7 @@ export function ProfilePictureUpload({
 }: ProfilePictureUploadProps) {
   const queryClient = useQueryClient();
   const [image, setImage] = useState<string | null>(null);
+  const [selectedImageType, setSelectedImageType] = useState<string>("image/jpeg");
   const [isCropping, setIsCropping] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -37,24 +42,42 @@ export function ProfilePictureUpload({
 
   const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (file.size > MAX_IMAGE_BYTES) {
         setErrorMessage("Profile photo must be 12MB or less.");
         return;
       }
-      if (!file.type.startsWith("image/")) {
+      const normalizedContentType = normalizeImageContentType(file.type, file.name);
+      if (!normalizedContentType) {
         setErrorMessage("Please choose an image file.");
         return;
       }
+      setSelectedImageType(normalizedContentType);
       setErrorMessage(null);
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        setImage(reader.result as string);
+
+      const isHeicUpload =
+        normalizedContentType === "image/heic" || normalizedContentType === "image/heif";
+
+      try {
+        var fileForCrop: File | Blob = file;
+        if (isHeicUpload) {
+          fileForCrop = await convertHeicToJpeg(file);
+          setSelectedImageType("image/jpeg");
+        }
+        var imageDataUrl = await canDecodeImage(fileForCrop);
+        setImage(imageDataUrl);
         setIsCropping(true);
-      });
-      reader.readAsDataURL(file);
+      } catch (_error) {
+        if (isHeicUpload) {
+          setErrorMessage(
+            "Could not convert HEIC image for crop. Try an older format like JPG or PNG."
+          );
+          return;
+        }
+        setErrorMessage("Could not decode image for cropping.");
+      }
     }
   };
 
@@ -85,7 +108,7 @@ export function ProfilePictureUpload({
       const presign = await presignProfileMediaUpload(
         {
           kind: "avatar",
-          contentType: "image/jpeg",
+          contentType: croppedImage.type || selectedImageType,
           contentLength: croppedImage.size,
         },
         token
@@ -112,6 +135,7 @@ export function ProfilePictureUpload({
       queryClient.invalidateQueries({ queryKey: profileKeys.all });
       setIsUploading(false);
       setImage(null);
+      setCroppedAreaPixels(null);
       setErrorMessage(null);
       setUploadProgress(0);
     } catch (error) {

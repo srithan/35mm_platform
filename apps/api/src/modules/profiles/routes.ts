@@ -4,7 +4,7 @@ import { users, profiles, follows } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
-import { notFound, badRequest } from "../../lib/errors.js";
+import { notFound, badRequest, forbidden } from "../../lib/errors.js";
 import {
   invalidateAuthorProfileFeedCaches,
   invalidateFeedCacheForGuest,
@@ -107,7 +107,12 @@ profileRoutes.get("/:username", async function (c) {
     }
   }
 
-  var [followerRows, followingRows, followRelationRows] = await Promise.all([
+  var [
+    followerRows,
+    followingRows,
+    followRelationRows,
+    incomingFollowRequestRows,
+  ] = await Promise.all([
     db
       .select({ id: follows.followerId })
       .from(follows)
@@ -123,6 +128,19 @@ profileRoutes.get("/:username", async function (c) {
           .where(and(eq(follows.followerId, viewer.userId), eq(follows.followingId, row.userId)))
           .limit(1)
       : Promise.resolve([] as Array<{ status: "pending" | "accepted" }>),
+    viewer && viewer.userId !== row.userId
+      ? db
+          .select({ followerId: follows.followerId })
+          .from(follows)
+          .where(
+            and(
+              eq(follows.followerId, row.userId),
+              eq(follows.followingId, viewer.userId),
+              eq(follows.status, "pending")
+            )
+          )
+          .limit(1)
+      : Promise.resolve([] as Array<{ followerId: string }>),
   ]);
 
   var followerCount = followerRows.length;
@@ -130,6 +148,7 @@ profileRoutes.get("/:username", async function (c) {
   var followStatus = followRelationRows[0]?.status ?? null;
   var isFollowing = followStatus === "accepted";
   var isFollowRequested = followStatus === "pending";
+  var hasIncomingFollowRequest = incomingFollowRequestRows.length > 0;
   var isOwner = viewer?.userId === row.userId;
 
   if (row.status === "deactivated") {
@@ -152,6 +171,7 @@ profileRoutes.get("/:username", async function (c) {
       isFollowing,
       isFollowRequested,
       isPrivate: false,
+      hasIncomingFollowRequest,
       isDeactivated: true,
     });
   }
@@ -179,6 +199,7 @@ profileRoutes.get("/:username", async function (c) {
       isFollowing: false,
       isFollowRequested,
       isPrivate: true,
+      hasIncomingFollowRequest,
       posts: null,
       isDeactivated: false,
       isMutedByViewer,
@@ -206,6 +227,7 @@ profileRoutes.get("/:username", async function (c) {
     isFollowing,
     isFollowRequested,
     isPrivate: row.isPrivate,
+    hasIncomingFollowRequest,
     isDeactivated: false,
     isMutedByViewer,
     createdAt: row.createdAt.toISOString(),
@@ -549,6 +571,70 @@ profileRoutes.get("/:username/following", async function (c) {
       )
     )
     .orderBy(desc(follows.createdAt), desc(follows.followingId))
+    .limit(parsed.limit + 1);
+
+  var visibleRows = rows.slice(0, parsed.limit);
+  var items = await Promise.all(
+    visibleRows.map(async function (row) {
+      return {
+        userId: row.userId,
+        username: row.username,
+        displayName: row.displayName,
+        avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        followedAt: row.createdAt.toISOString(),
+      };
+    })
+  );
+
+  var hasMore = rows.length > parsed.limit;
+  var tail = visibleRows[visibleRows.length - 1];
+  var nextCursor = hasMore && tail
+    ? encodeCompositeCursor({ createdAt: tail.createdAt, id: tail.cursorId })
+    : null;
+
+  return c.json({ items, nextCursor, hasMore });
+});
+
+profileRoutes.get("/:username/follow-requests", requireAuth, async function (c) {
+  var username = c.req.param("username").toLowerCase().trim();
+  var parsed = cursorPaginationSchema.parse({
+    cursor: c.req.query("cursor"),
+    limit: c.req.query("limit"),
+  });
+  var cursor = decodeCompositeCursor(parsed.cursor);
+  var viewer = c.get("user");
+  var followingId = await resolveTargetByUsername(username);
+  if (viewer.userId !== followingId) {
+    throw forbidden("Cannot view follow requests for another account");
+  }
+
+  var db = getDb();
+  var cursorFilter = cursor
+    ? or(
+        lt(follows.createdAt, cursor.createdAt),
+        and(eq(follows.createdAt, cursor.createdAt), lt(follows.followerId, cursor.id))
+      )
+    : undefined;
+
+  var rows = await db
+    .select({
+      userId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      createdAt: follows.createdAt,
+      cursorId: follows.followerId,
+    })
+    .from(follows)
+    .innerJoin(profiles, eq(profiles.userId, follows.followerId))
+    .where(
+      and(
+        eq(follows.followingId, followingId),
+        eq(follows.status, "pending"),
+        cursorFilter
+      )
+    )
+    .orderBy(desc(follows.createdAt), desc(follows.followerId))
     .limit(parsed.limit + 1);
 
   var visibleRows = rows.slice(0, parsed.limit);

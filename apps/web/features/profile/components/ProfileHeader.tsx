@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { MoreVertical, UserPlus, VolumeX, CircleSlash, Flag } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/Icon/Icon";
 import { Button } from "@/components/Button";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
@@ -12,23 +14,29 @@ import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { ShareModal } from "@/components/ShareModal/ShareModal";
 import { EditProfileModal } from "./EditProfileModal";
 import { ProfileStats } from "./ProfileStats";
+import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { useBlockUserMutation, useFollowToggle, useMuteUserMutation } from "../hooks/useProfile";
+import { profileKeys } from "../hooks/queryKeys";
+import { acceptFollowRequest, declineFollowRequest } from "@/features/notifications/api/notificationsApi";
 
 interface ProfileHeaderProps {
   userId: string;
   username: string;
   displayName: string;
   bio: string;
+  showFollowButton?: boolean;
   isOwnProfile?: boolean;
   isMutedByViewer?: boolean;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
+  isPrivate?: boolean;
   followerCount: number;
   followingCount: number;
   filmsLoggedCount: number;
   isFollowing: boolean;
   isFollowRequested?: boolean;
+  hasIncomingFollowRequest?: boolean;
   avatarUrl?: string | null;
   onAvatarUrlChange?: (imageUrl: string | null) => void;
 }
@@ -48,13 +56,18 @@ export function ProfileHeader({
   filmsLoggedCount,
   isFollowing: initialIsFollowing,
   isFollowRequested: initialIsFollowRequested = false,
+  isPrivate = false,
+  hasIncomingFollowRequest = false,
+  showFollowButton = true,
   avatarUrl: initialAvatarUrl = null,
   onAvatarUrlChange,
 }: ProfileHeaderProps) {
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
-  const [isFollowRequested, setIsFollowRequested] = useState(initialIsFollowRequested);
+  const { getToken, isLoaded } = useAuth();
+  const queryClient = useQueryClient();
   const [isMutedByViewer, setIsMutedByViewer] = useState(initialIsMutedByViewer);
-  const [confirmAction, setConfirmAction] = useState<"block" | "report" | "mute" | "unmute" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "block" | "report" | "mute" | "unmute" | "unfollow" | null
+  >(null);
   const [profileImage, setProfileImage] = useState<string | null>(initialAvatarUrl);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -70,8 +83,45 @@ export function ProfileHeader({
   const followToggleMutation = useFollowToggle(username);
   const blockMutation = useBlockUserMutation();
   const muteMutation = useMuteUserMutation();
+  const acceptFollowRequestMutation = useMutation({
+    mutationFn: async function () {
+      return acceptFollowRequest({
+        token: await getToken(),
+        userId,
+      });
+    },
+    onSuccess: async function () {
+      await queryClient.invalidateQueries({ queryKey: profileKeys.detail(username) });
+      await queryClient.invalidateQueries({ queryKey: profileKeys.followers(username) });
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+  const declineFollowRequestMutation = useMutation({
+    mutationFn: async function () {
+      return declineFollowRequest({
+        token: await getToken(),
+        userId,
+      });
+    },
+    onSuccess: async function () {
+      await queryClient.invalidateQueries({ queryKey: profileKeys.detail(username) });
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      await queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+  const isFollowing = initialIsFollowing;
+  const isFollowRequested = Boolean(initialIsFollowRequested);
+  const hasIncomingFollowRequestAction = Boolean(hasIncomingFollowRequest);
+  const followAction = followToggleMutation.variables;
+  const isPendingUnfollow = followAction?.isFollowing === true;
+  const isCancelFollowRequest = followAction?.isFollowRequested === true;
+  const isRespondingToIncomingFollowRequest =
+    acceptFollowRequestMutation.isPending || declineFollowRequestMutation.isPending;
 
-  useEffect(() => {
+  useEffect(function () {
     setProfileData({
       displayName: initialDisplayName,
       username,
@@ -83,11 +133,6 @@ export function ProfileHeader({
     setProfileImage(initialAvatarUrl);
     onAvatarUrlChange?.(initialAvatarUrl);
   }, [initialDisplayName, username, initialBio, initialLocation, initialWebsite, initialDateOfBirth, initialAvatarUrl]);
-
-  useEffect(() => {
-    setIsFollowing(initialIsFollowing);
-    setIsFollowRequested(initialIsFollowRequested);
-  }, [initialIsFollowing, initialIsFollowRequested]);
 
   useEffect(() => {
     setIsMutedByViewer(initialIsMutedByViewer);
@@ -118,7 +163,27 @@ export function ProfileHeader({
       description: `Their posts will appear in your feed again.`,
       confirmLabel: `Unmute @${username}`,
     },
+    unfollow: {
+      title: `Unfollow @${username}?`,
+      description:
+        "You'll no longer see private posts from this account. This action can be undone by following again.",
+      confirmLabel: `Unfollow @${username}`,
+    },
   };
+
+  const followButtonLabel = followToggleMutation.isPending
+    ? isPendingUnfollow
+      ? "Unfollowing..."
+      : isCancelFollowRequest
+        ? "Canceling request..."
+        : isPrivate
+          ? "Requesting..."
+          : "Following..."
+    : isFollowing
+      ? "Following"
+      : isFollowRequested
+        ? "Requested"
+        : "Follow";
 
   return (
     <div className="ProfileHeader border-b border-border">
@@ -175,26 +240,52 @@ export function ProfileHeader({
             ) : (
               <>
                 <Button variant="ghost" size="sm">Message</Button>
-                <Button
-                  variant={isFollowing ? "secondary" : "primary"}
-                  size="sm"
-                  onClick={() => {
-                    if (followToggleMutation.isPending) return;
-                    followToggleMutation.mutate({
-                      userId,
-                      isFollowing,
-                      isFollowRequested,
-                    });
-                  }}
-                >
-                  {followToggleMutation.isPending
-                    ? "..."
-                    : isFollowing
-                      ? "Following"
-                      : isFollowRequested
-                        ? "Requested"
-                        : "Follow"}
-                </Button>
+                {hasIncomingFollowRequestAction ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isRespondingToIncomingFollowRequest || !isLoaded}
+                      onClick={() => {
+                        if (!isLoaded || isRespondingToIncomingFollowRequest) return;
+                        declineFollowRequestMutation.mutate();
+                      }}
+                    >
+                      {declineFollowRequestMutation.isPending ? "Ignoring..." : "Ignore"}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isRespondingToIncomingFollowRequest || !isLoaded}
+                      onClick={() => {
+                        if (!isLoaded || isRespondingToIncomingFollowRequest) return;
+                        acceptFollowRequestMutation.mutate();
+                      }}
+                    >
+                      {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
+                    </Button>
+                  </>
+                ) : showFollowButton ? (
+                  <Button
+                    variant={isFollowing ? "secondary" : "primary"}
+                    size="sm"
+                    disabled={followToggleMutation.isPending}
+                    onClick={() => {
+                      if (followToggleMutation.isPending) return;
+                      if (isFollowing && isPrivate) {
+                        setConfirmAction("unfollow");
+                        return;
+                      }
+                      followToggleMutation.mutate({
+                        userId,
+                        isFollowing,
+                        isFollowRequested,
+                      });
+                    }}
+                  >
+                    {followButtonLabel}
+                  </Button>
+                ) : null}
                 <PortalDropdown
                   align="end"
                   menuLabel="Profile actions"
@@ -271,6 +362,12 @@ export function ProfileHeader({
                   onSuccess: () => setIsMutedByViewer(true),
                 }
               );
+            } else if (confirmAction === "unfollow") {
+              followToggleMutation.mutate({
+                userId,
+                isFollowing,
+                isFollowRequested,
+              });
             } else if (confirmAction === "unmute") {
               muteMutation.mutate(
                 { userId, muted: true },

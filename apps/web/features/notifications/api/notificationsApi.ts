@@ -44,3 +44,23 @@ export async function markAllNotificationsRead(params: {
     token: params.token,
   });
 }
+
+export async function acceptFollowRequest(params: {
+  token?: string | null;
+  userId: string;
+}): Promise<{ ok: true; accepted: boolean }> {
+  return apiRequest(`/v1/follows/${encodeURIComponent(params.userId)}/accept`, {
+    method: "POST",
+    token: params.token,
+  });
+}
+
+export async function declineFollowRequest(params: {
+  token?: string | null;
+  userId: string;
+}): Promise<{ ok: true; declined: boolean }> {
+  return apiRequest(`/v1/follows/${encodeURIComponent(params.userId)}/request`, {
+    method: "DELETE",
+    token: params.token,
+  });
+}
