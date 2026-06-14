@@ -613,6 +613,35 @@ body {
     display: inline-block;
 }
 
+/* Post actions inside the image lightbox (dark backdrop) */
+.image-viewer-footer .actions {
+    margin-top: 0;
+    margin-left: 0;
+    justify-content: center;
+}
+
+.image-viewer-footer .action-btn {
+    color: rgb(255 255 255 / 0.72);
+}
+
+.image-viewer-footer .action-btn:hover {
+    background: rgb(255 255 255 / 0.12);
+    color: rgb(255 255 255 / 0.95);
+}
+
+.image-viewer-footer .action-btn.reposted,
+.image-viewer-footer .action-btn.saved {
+    color: var(--accent);
+}
+
+.image-viewer-footer .like-action.liked {
+    color: var(--accent);
+}
+
+.image-viewer-footer .like-action.liked .action-count {
+    color: var(--accent);
+}
+
 /* Hide share button and Repost/Save labels on mobile (< 768px) */
 @media (max-width: 767px) {
     .action-btn.share-btn {

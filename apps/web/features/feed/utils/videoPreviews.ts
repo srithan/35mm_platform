@@ -91,6 +91,61 @@ function toVideoPreview(rawUrl: string): VideoPreview | null {
   }
 }
 
+export type LinkPreviewInput = {
+  url: string;
+  title: string;
+  description: string | null;
+  image: string | null;
+  domain: string;
+  provider: "youtube" | "vimeo" | "link";
+};
+
+export function videoPreviewFromLinkPreview(
+  linkPreview: LinkPreviewInput | null | undefined
+): VideoPreview | null {
+  if (!linkPreview) return null;
+
+  if (linkPreview.provider === "youtube") {
+    try {
+      const youtubeId = extractYouTubeId(new URL(linkPreview.url));
+      if (!youtubeId) return null;
+      return {
+        provider: "youtube",
+        id: youtubeId,
+        url: linkPreview.url,
+        thumbnailUrl:
+          linkPreview.image && linkPreview.image.trim().length > 0
+            ? linkPreview.image
+            : `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
+        label: "YouTube",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  if (linkPreview.provider === "vimeo") {
+    try {
+      const vimeoId = extractVimeoId(new URL(linkPreview.url));
+      if (!vimeoId) return null;
+      return {
+        provider: "vimeo",
+        id: vimeoId,
+        url: linkPreview.url,
+        thumbnailUrl:
+          linkPreview.image && linkPreview.image.trim().length > 0
+            ? linkPreview.image
+            : `https://vumbnail.com/${vimeoId}.jpg`,
+        label: "Vimeo",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export function extractVideoPreviews(text: string): {
   cleanedText: string;
   previews: VideoPreview[];

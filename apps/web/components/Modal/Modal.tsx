@@ -113,6 +113,8 @@ export interface ModalProps {
   zIndex?: "modal" | "lightbox" | string;
   /** Framer Motion enter/exit. Set false for instant open/close (legacy viewers, confirms). */
   animated?: boolean;
+  /** Sibling content rendered in the viewport below the panel (outside the panel box). */
+  outsidePanel?: ReactNode;
 }
 
 const VARIANT_PANEL: Record<ModalVariant, string> = {
@@ -174,9 +176,12 @@ export function Modal({
   lockScroll = true,
   zIndex,
   animated = true,
+  outsidePanel,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const hasOutsidePanel = Boolean(outsidePanel);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -204,7 +209,7 @@ export function Modal({
   useEffect(
     function () {
       if (!open || !trapFocus) return;
-      const container = contentRef.current;
+      const container = hasOutsidePanel ? viewportRef.current : contentRef.current;
       if (!container) return;
 
       const runFocus = function () {
@@ -247,7 +252,7 @@ export function Modal({
         container.removeEventListener("keydown", handleKey);
       };
     },
-    [open, closeOnEsc, initialFocusRef, initialFocusWithinSelector, trapFocus]
+    [open, closeOnEsc, initialFocusRef, initialFocusWithinSelector, trapFocus, hasOutsidePanel]
   );
 
   useEffect(
@@ -282,11 +287,29 @@ export function Modal({
           : defaultZ;
 
   const pm = VARIANT_PANEL_MOTION[variant];
+  const viewportClassName = cn(
+    VARIANT_CONTAINER[variant],
+    zClass,
+    containerClassName,
+    hasOutsidePanel && "flex-col gap-6"
+  );
+  const panelClassName = cn(VARIANT_PANEL[variant], contentClassName);
+  const dialogLabelProps = {
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    "aria-describedby": ariaDescribedBy,
+  };
 
   if (!animated) {
     return createPortal(
       open ? (
-        <div className={cn(VARIANT_CONTAINER[variant], zClass, containerClassName)}>
+        <div
+          ref={hasOutsidePanel ? viewportRef : undefined}
+          className={viewportClassName}
+          {...(hasOutsidePanel
+            ? { role, "aria-modal": true as const, ...dialogLabelProps }
+            : {})}
+        >
           <button
             type="button"
             aria-hidden
@@ -295,16 +318,15 @@ export function Modal({
             onClick={closeOnBackdrop ? onClose : undefined}
           />
           <div
-            role={role}
-            aria-modal="true"
-            aria-label={ariaLabel}
-            aria-labelledby={ariaLabelledBy}
-            aria-describedby={ariaDescribedBy}
+            role={hasOutsidePanel ? undefined : role}
+            aria-modal={hasOutsidePanel ? undefined : true}
+            {...(hasOutsidePanel ? {} : dialogLabelProps)}
             ref={contentRef}
-            className={cn(VARIANT_PANEL[variant], contentClassName)}
+            className={panelClassName}
           >
             {children}
           </div>
+          {outsidePanel}
         </div>
       ) : null,
       document.body
@@ -316,10 +338,14 @@ export function Modal({
       {open ? (
         <motion.div
           key="modal-root"
-          className={cn(VARIANT_CONTAINER[variant], zClass, containerClassName)}
+          ref={hasOutsidePanel ? viewportRef : undefined}
+          className={viewportClassName}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          {...(hasOutsidePanel
+            ? { role, "aria-modal": true as const, ...dialogLabelProps }
+            : {})}
         >
           <motion.button
             key="backdrop"
@@ -335,20 +361,19 @@ export function Modal({
 
           <motion.div
             key="panel"
-            role={role}
-            aria-modal="true"
-            aria-label={ariaLabel}
-            aria-labelledby={ariaLabelledBy}
-            aria-describedby={ariaDescribedBy}
+            role={hasOutsidePanel ? undefined : role}
+            aria-modal={hasOutsidePanel ? undefined : true}
+            {...(hasOutsidePanel ? {} : dialogLabelProps)}
             ref={contentRef}
             initial={pm.initial}
             animate={pm.animate}
             exit={pm.exit}
             transition={{ type: "spring", damping: 26, stiffness: 240, mass: 0.9 }}
-            className={cn(VARIANT_PANEL[variant], contentClassName)}
+            className={panelClassName}
           >
             {children}
           </motion.div>
+          {outsidePanel}
         </motion.div>
       ) : null}
     </AnimatePresence>,

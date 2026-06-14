@@ -1,0 +1,206 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils/cn";
+import { extractVideoPreviews } from "../../utils/videoPreviews";
+import { useClampText } from "../../hooks/useClampText";
+import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useUpdateComment } from "../../hooks/useCommentMutations";
+import type { CommentCardProps } from "./types";
+import { getCommentThreadStyles } from "./types";
+import { CommentCardDeleted } from "./CommentCardDeleted";
+import { CommentCardHeader } from "./CommentCardHeader";
+import { CommentCardMoreMenu } from "./CommentCardMoreMenu";
+import { CommentCardBody } from "./CommentCardBody";
+import {
+  CommentCardReplyComposer,
+  handleReplyTextareaChange,
+} from "./CommentCardReplyComposer";
+import { CommentCardActionsBar } from "./CommentCardActionsBar";
+import { CommentCardReplies } from "./CommentCardReplies";
+import { CommentCardOverlays } from "./CommentCardOverlays";
+
+export function CommentCard({
+  comment,
+  postId,
+  depth = 0,
+  onReplySubmit,
+}: CommentCardProps) {
+  const [repliesExpanded, setRepliesExpanded] = useState(false);
+  const [replyBoxOpen, setReplyBoxOpen] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [muteToast, setMuteToast] = useState<{ handle: string; userId: string } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(comment.text);
+
+  const currentUserQuery = useCurrentUserProfile();
+  const updateCommentMutation = useUpdateComment(postId);
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const isOwnComment =
+    Boolean(comment.authorId) &&
+    Boolean(currentUserQuery.data?.userId) &&
+    comment.authorId === currentUserQuery.data?.userId;
+  const canModerateAuthor =
+    Boolean(comment.authorId) &&
+    Boolean(currentUserQuery.data?.userId) &&
+    comment.authorId !== currentUserQuery.data?.userId;
+  const authorHandle = `@${comment.username}`;
+  const hasReplies = comment.replies && comment.replies.length > 0;
+  const { containerStyle } = getCommentThreadStyles(depth);
+  const { cleanedText, previews } = extractVideoPreviews(comment.text);
+
+  const { bodyRef, measureRef, isOverflowing, truncatedText } = useClampText({
+    text: cleanedText,
+    enabled: !isEditing,
+    lineHeightFallback: 24.75,
+  });
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditDraft(comment.text);
+    }
+  }, [comment.text, isEditing]);
+
+  if (comment.isDeleted) {
+    return (
+      <CommentCardDeleted
+        comment={comment}
+        postId={postId}
+        depth={depth}
+        onReplySubmit={onReplySubmit}
+      />
+    );
+  }
+
+  const handleReplySubmit = async () => {
+    const body = replyText.trim();
+    if (!body || !onReplySubmit) return;
+    try {
+      await onReplySubmit({ parentId: comment.id, body });
+      setReplyText("");
+      setReplyBoxOpen(false);
+    } catch (_err) {
+      // parent mutation controls error state
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    const body = editDraft.trim();
+    if (!body || updateCommentMutation.isPending) return;
+
+    try {
+      await updateCommentMutation.mutateAsync({
+        commentId: comment.id,
+        body,
+      });
+      setIsEditing(false);
+    } catch (_err) {
+      // mutation error surfaces via invalidation/refetch
+    }
+  };
+
+  const moreMenu = (
+    <CommentCardMoreMenu
+      isOwnComment={isOwnComment}
+      canModerateAuthor={canModerateAuthor}
+      authorHandle={authorHandle}
+      authorId={comment.authorId}
+      onEdit={() => {
+        setEditDraft(comment.text);
+        setIsEditing(true);
+      }}
+      onDeleteRequest={() => setShowDeleteConfirm(true)}
+      onBlockRequest={() => setShowBlockConfirm(true)}
+      onMuteSuccess={setMuteToast}
+    />
+  );
+
+  return (
+    <div
+      id={`comment-${comment.id}`}
+      className={cn(
+        "CommentCard w-full px-4 py-4 animate-fade-up border-b border-border last:border-b-0",
+        depth > 0 && "border-l-2 border-l-border"
+      )}
+      style={{
+        backgroundColor: "var(--color-bg)",
+        ...containerStyle,
+      }}
+    >
+      <div className="flex items-start min-w-0">
+        <CommentCardHeader comment={comment} menu={moreMenu}>
+          <CommentCardBody
+            isEditing={isEditing}
+            editDraft={editDraft}
+            isSaving={updateCommentMutation.isPending}
+            cleanedText={cleanedText}
+            previews={previews}
+            expanded={expanded}
+            isOverflowing={isOverflowing}
+            truncatedText={truncatedText}
+            bodyRef={bodyRef}
+            measureRef={measureRef}
+            onEditDraftChange={setEditDraft}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={() => {
+              setIsEditing(false);
+              setEditDraft(comment.text);
+            }}
+            onExpand={() => setExpanded(true)}
+            onCollapse={() => setExpanded(false)}
+          />
+
+          <CommentCardActionsBar
+            postId={postId}
+            commentId={comment.id}
+            likeCount={comment.likeCount}
+            replyCount={comment.replyCount}
+            liked={comment.liked}
+            depth={depth}
+            onCommentClick={() => setRepliesExpanded((value) => !value)}
+            onReplyClick={() => setReplyBoxOpen((value) => !value)}
+          />
+
+          <CommentCardReplyComposer
+            open={replyBoxOpen}
+            depth={depth}
+            username={comment.username}
+            replyText={replyText}
+            replyTextareaRef={replyTextareaRef as React.RefObject<HTMLTextAreaElement>}
+            onReplyTextChange={(value, textarea) =>
+              handleReplyTextareaChange(value, textarea, setReplyText)
+            }
+            onSubmit={handleReplySubmit}
+          />
+
+          {hasReplies ? (
+            <CommentCardReplies
+              replies={comment.replies!}
+              postId={postId}
+              depth={depth}
+              expanded={repliesExpanded}
+              onReplySubmit={onReplySubmit}
+            />
+          ) : null}
+        </CommentCardHeader>
+      </div>
+
+      <CommentCardOverlays
+        postId={postId}
+        commentId={comment.id}
+        authorHandle={authorHandle}
+        authorId={comment.authorId}
+        showDeleteConfirm={showDeleteConfirm}
+        showBlockConfirm={showBlockConfirm}
+        muteToast={muteToast}
+        onCloseDeleteConfirm={() => setShowDeleteConfirm(false)}
+        onCloseBlockConfirm={() => setShowBlockConfirm(false)}
+        onClearMuteToast={() => setMuteToast(null)}
+      />
+    </div>
+  );
+}
