@@ -4,21 +4,14 @@ import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
 import { StatBox } from "./StatBox";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { GenreBreakdown } from "./GenreBreakdown";
-import { FilmPoster } from "@/components/FilmPoster";
 import { DiaryRow } from "./DiaryRow";
-import { Button } from "@/components/Button";
 import { formatCount } from "@/lib/utils/formatCount";
 import { FavouriteFilms } from "./FavouriteFilms";
 import { useCurrentUserProfile } from "../hooks/useCurrentUserProfile";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import type { ProfileTab } from "@/features/profile/lib/profileRoutes";
 import { ProfileDiaryTimeline } from "./ProfileDiaryTimeline";
-
-const LISTS = [
-  { name: "Films That Changed How I Light", desc: "Cinematography studies that rewired my brain — every DP should see these before they pick up a camera.", count: "28 films · 1,204 saves · Public", posters: ["https://m.media-amazon.com/images/M/MV5BMjIxNTU4MzY4MF5BMl5BanBnXkFtZTgwNzY1MTU0MTE@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BNDc2NTM1MjktYmVhNS00YzQwLWE5NjctNWQ4NzEzZGY5ODI4XkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg"] },
-  { name: "Sundance 2025 — My Picks", desc: "Everything I watched at this year's festival, ranked from best to most interesting failure.", count: "17 films · 342 saves · Public", posters: [null, "https://m.media-amazon.com/images/M/MV5BZTE2MmFiYjYtMjVjNS00MGEyLWFjZmItMmUwMDAxMWRhNTYxXkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", null] },
-  { name: "African Cinema I Keep Coming Back To", desc: "Personal collection of essential African films. Ongoing.", count: "54 films · Private", posters: [null, null, null] },
-];
+import { ProfileListsPanel } from "@/features/lists/components/ProfileListsPanel";
 
 export function ProfileTabContent({
   username,
@@ -77,36 +70,7 @@ export function ProfileTabContent({
 
   if (tab === "lists") {
     return (
-      <div>
-        <div className="px-10 py-4 border-b border-border flex items-center justify-between">
-          <span className="text-[13px] text-fg-muted">12 lists · 3 public</span>
-          <Button variant="primary" className="text-[11px] py-1.5 px-3.5">+ New list</Button>
-        </div>
-        <div className="px-10 divide-y divide-border">
-          {LISTS.map((list) => (
-            <div key={list.name} className="py-5 flex gap-4">
-              <div className="flex gap-2">
-                {list.posters.map((src, i) => (
-                  <div key={i} className="w-12 flex-shrink-0 -mr-2 last:mr-0 relative z-[3]">
-                    <FilmPoster
-                      src={src}
-                      alt=""
-                      size="list"
-                      placeholderGradient="from-[#1a1a2e] to-[#3a3a6e]"
-                      placeholderStrokeColor="rgba(255,255,255,0.3)"
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-display text-[15px] font-semibold">{list.name}</div>
-                <div className="text-[13px] text-fg-light mt-1 leading-relaxed">{list.desc}</div>
-                <div className="text-[11px] text-fg-muted mt-2">{list.count}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ProfileListsPanel username={username} displayName={displayName} isOwnProfile={isOwnProfile} />
     );
   }
 

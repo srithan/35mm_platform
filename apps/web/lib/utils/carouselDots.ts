@@ -29,3 +29,11 @@ export function carouselDotStyle(size: number) {
     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.18)",
   };
 }
+
+/** Theme-aware nav pill for in-feed / in-app carousels */
+export const carouselNavButtonClass =
+  "flex items-center justify-center rounded-full border border-border bg-elevated/95 text-fg shadow-sm transition-colors hover:bg-hover hover:border-border-strong";
+
+/** Nav pill for carousels on dark photo/video backgrounds */
+export const carouselNavButtonOnDarkClass =
+  "flex items-center justify-center rounded-full border border-white/20 bg-black/45 text-white shadow-md backdrop-blur-sm transition-colors hover:bg-black/60 hover:border-white/35";

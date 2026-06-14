@@ -4,6 +4,13 @@ export { profiles } from "./profiles.js";
 export { userSettings } from "./user_settings.js";
 export { films, filmSourceEnum } from "./films.js";
 export {
+  filmLists,
+  filmListEntries,
+  filmListLikes,
+  filmListTypeEnum,
+  filmListVisibilityEnum,
+} from "./lists.js";
+export {
   posts,
   postLikes,
   postReposts,

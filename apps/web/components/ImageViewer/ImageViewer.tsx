@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { carouselDotSize, carouselDotStyle } from "@/lib/utils/carouselDots";
+import { carouselDotSize, carouselDotStyle, carouselNavButtonClass } from "@/lib/utils/carouselDots";
 import { Modal } from "@/components/Modal/Modal";
 import { LazyR2Image } from "@/components/LazyR2Image";
 
@@ -135,7 +135,10 @@ export function ImageViewer({
                 e.stopPropagation();
                 goPrev();
               }}
-              className="absolute left-0 top-1/2 z-30 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-fg shadow-md transition-colors hover:bg-white"
+              className={cn(
+                carouselNavButtonClass,
+                "absolute left-0 top-1/2 z-30 h-10 w-10 -translate-x-1/2 -translate-y-1/2 shadow-md"
+              )}
             >
               <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
             </button>
@@ -149,7 +152,10 @@ export function ImageViewer({
                 e.stopPropagation();
                 goNext();
               }}
-              className="absolute right-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-white/90 text-fg shadow-md transition-colors hover:bg-white"
+              className={cn(
+                carouselNavButtonClass,
+                "absolute right-0 top-1/2 z-30 h-10 w-10 -translate-y-1/2 translate-x-1/2 shadow-md"
+              )}
             >
               <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
             </button>

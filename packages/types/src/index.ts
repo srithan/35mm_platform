@@ -109,6 +109,61 @@ export interface FeedPage {
   hasMore: boolean;
 }
 
+export interface FilmListFilm {
+  id: string;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+  genres: string[];
+}
+
+export interface FilmListEntry {
+  id: string;
+  film: FilmListFilm;
+  position: number | null;
+  note: string | null;
+  addedAt: string;
+}
+
+export interface FilmListSummary {
+  id: string;
+  userId: string;
+  type: "custom" | "watchlist";
+  title: string;
+  description: string | null;
+  visibility: "public" | "private";
+  isRanked: boolean;
+  tags: string[];
+  shareSlug: string;
+  likeCount: number;
+  commentCount: number;
+  entryCount: number;
+  isLiked: boolean;
+  isOwner: boolean;
+  createdAt: string;
+  updatedAt: string;
+  owner: PublicUser;
+  posterUrls: Array<string | null>;
+}
+
+export interface FilmListDetail extends FilmListSummary {
+  entries: FilmListEntry[];
+  clonedFromListId: string | null;
+}
+
+export interface FilmListPage {
+  items: FilmListSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface WatchlistStatus {
+  filmId: string;
+  isInWatchlist: boolean;
+  watchlistId: string;
+  entryId: string | null;
+}
+
 export interface ChatPreview {
   id: ConversationId;
   name: string;

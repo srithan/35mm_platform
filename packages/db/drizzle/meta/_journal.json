@@ -64,6 +64,20 @@
       "when": 1780684410826,
       "tag": "0008_lumpy_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780684410827,
+      "tag": "0009_follow_suggestions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781481600000,
+      "tag": "0010_film_lists",
+      "breakpoints": true
     }
   ]
 }

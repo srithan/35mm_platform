@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { carouselDotSize, carouselDotStyle } from "@/lib/utils/carouselDots";
+import { carouselDotSize, carouselDotStyle, carouselNavButtonClass } from "@/lib/utils/carouselDots";
 import { LazyR2Image } from "@/components/LazyR2Image";
 
 function gridClassName(count: number) {
@@ -205,7 +205,10 @@ function PostImageCarousel({
             e.stopPropagation();
             scrollToIndex(activeIndex - 1);
           }}
-          className="absolute left-2 top-1/2 z-30 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-fg shadow-sm transition-opacity hover:bg-white md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
+          className={cn(
+            carouselNavButtonClass,
+            "absolute left-2 top-1/2 z-30 hidden h-7 w-7 -translate-y-1/2 transition-opacity md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
+          )}
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
         </button>
@@ -219,7 +222,10 @@ function PostImageCarousel({
             e.stopPropagation();
             scrollToIndex(activeIndex + 1);
           }}
-          className="absolute right-2 top-1/2 z-30 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-fg shadow-sm transition-opacity hover:bg-white md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
+          className={cn(
+            carouselNavButtonClass,
+            "absolute right-2 top-1/2 z-30 hidden h-7 w-7 -translate-y-1/2 transition-opacity md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
+          )}
         >
           <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
         </button>

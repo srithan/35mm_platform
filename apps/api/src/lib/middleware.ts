@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { users, profiles, userSettings } from "@35mm/db/schema";
 import { getDb } from "./db.js";
 import { ApiError, unauthorized } from "./errors.js";
+import { tryEnsureWatchlistForUser } from "./filmLists.js";
 
 export type AuthUser = {
   clerkUserId: string;
@@ -64,7 +65,10 @@ async function ensureLocalUser(clerkUserId: string) {
     .where(eq(users.clerkUserId, clerkUserId))
     .limit(1);
 
-  if (existing.length > 0) return existing[0];
+  if (existing.length > 0) {
+    await tryEnsureWatchlistForUser(existing[0].userId);
+    return existing[0];
+  }
 
   var clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
   var clerkUser = await clerk.users.getUser(clerkUserId);
@@ -132,6 +136,8 @@ async function ensureLocalUser(clerkUserId: string) {
   if (created.length === 0) {
     throw unauthorized("User not found. Complete signup first.");
   }
+
+  await tryEnsureWatchlistForUser(created[0].userId);
 
   return created[0];
 }

@@ -106,8 +106,8 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
           <div className="flex-1 min-w-0">
             <div
               className={cn(
-                "overflow-hidden rounded-xl bg-black",
-                "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1),0_16px_40px_-24px_rgba(0,0,0,0.28)]"
+                "overflow-hidden rounded-xl bg-black ring-1 ring-border",
+                "shadow-[0_16px_40px_-24px_rgba(0,0,0,0.28)]"
               )}
             >
               {film.vimeoPlayerSrc ? (
@@ -165,7 +165,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                 type="button"
                 className={cn(
                   "inline-flex items-center gap-2 px-3 py-2 rounded-full text-[13px] font-semibold",
-                  "bg-sunken text-fg border border-border/80 hover:bg-border/40 transition-colors"
+                  "bg-sunken text-fg border border-border hover:bg-hover transition-colors"
                 )}
               >
                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -177,7 +177,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                 type="button"
                 className={cn(
                   "inline-flex items-center gap-2 px-3 py-2 rounded-full text-[13px] font-semibold",
-                  "bg-sunken text-fg border border-border/80 hover:bg-border/40 transition-colors"
+                  "bg-sunken text-fg border border-border hover:bg-hover transition-colors"
                 )}
               >
                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -191,7 +191,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                 type="button"
                 className={cn(
                   "inline-flex items-center gap-2 px-3 py-2 rounded-full text-[13px] font-semibold",
-                  "bg-sunken text-fg border border-border/80 hover:bg-border/40 transition-colors"
+                  "bg-sunken text-fg border border-border hover:bg-hover transition-colors"
                 )}
               >
                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -203,7 +203,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                 type="button"
                 className={cn(
                   "inline-flex items-center justify-center w-10 h-10 rounded-full",
-                  "bg-sunken text-fg border border-border/80 hover:bg-border/40 transition-colors"
+                  "bg-sunken text-fg border border-border hover:bg-hover transition-colors"
                 )}
                 aria-label="More actions"
               >
@@ -213,7 +213,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
 
             <div
               className={cn(
-                "mt-4 rounded-xl border border-border/70 bg-sunken/50 px-3 py-3 md:px-4 md:py-3.5"
+                "mt-4 rounded-xl border border-border bg-sunken/50 px-3 py-3 md:px-4 md:py-3.5"
               )}
             >
               <p className="text-[13px] font-semibold text-fg mb-2">
@@ -257,7 +257,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
               ) : null}
             </div>
 
-            <div className="mt-6 rounded-xl border border-border/70 bg-bg overflow-hidden">
+            <div className="mt-6 rounded-xl border border-border bg-bg overflow-hidden">
               <CommentSection
                 className="mt-0"
                 comments={mockComments}
@@ -284,7 +284,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                   "shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border",
                   chip === "all"
                     ? "bg-fg text-bg border-fg"
-                    : "bg-sunken text-fg-muted border-border/80 hover:text-fg hover:border-border"
+                    : "bg-sunken text-fg-muted border-border hover:text-fg hover:border-border-strong"
                 )}
               >
                 All
@@ -298,7 +298,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                   "shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border max-w-[200px] truncate",
                   chip === "director"
                     ? "bg-fg text-bg border-fg"
-                    : "bg-sunken text-fg-muted border-border/80 hover:text-fg hover:border-border"
+                    : "bg-sunken text-fg-muted border-border hover:text-fg hover:border-border-strong"
                 )}
                 title={"From " + film.director}
               >
@@ -313,7 +313,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                   "shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border",
                   chip === "category"
                     ? "bg-fg text-bg border-fg"
-                    : "bg-sunken text-fg-muted border-border/80 hover:text-fg hover:border-border"
+                    : "bg-sunken text-fg-muted border-border hover:text-fg hover:border-border-strong"
                 )}
               >
                 {film.category}
@@ -328,7 +328,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
                     "shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border",
                     chip === "staff"
                       ? "bg-fg text-bg border-fg"
-                      : "bg-sunken text-fg-muted border-border/80 hover:text-fg hover:border-border"
+                      : "bg-sunken text-fg-muted border-border hover:text-fg hover:border-border-strong"
                   )}
                 >
                   Staff picks

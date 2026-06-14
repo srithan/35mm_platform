@@ -17,11 +17,16 @@ import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
+  Check,
+  ChevronLeft,
   ChevronRight,
+  FileText,
   Heart,
+  Lock,
   LogOut,
   Megaphone,
   MessageCircle,
+  Palette,
   Repeat2,
   Settings,
   UserPlus,
@@ -38,6 +43,14 @@ import {
   NotificationDropdownSkeleton,
 } from "@/features/notifications/components/NotificationDropdownStates";
 import type { NotificationItem as ApiNotificationItem, NotificationPage } from "@35mm/types";
+import { useTheme } from "@/lib/theme/useTheme";
+import type { ThemeOption } from "@/lib/theme/ThemeProvider";
+import {
+  useSettingsQuery,
+  useUpdateAppearanceMutation,
+  useUpdatePrivacyMutation,
+} from "@/features/settings/hooks/useSettings";
+import type { AppearanceSettings, PrivacySettings } from "@/features/settings/types/settings";
 import styles from "./SiteHeader.module.css";
 
 const NOTIF_KIND_ICON = {
@@ -54,6 +67,18 @@ const NOTIF_KIND_ICON = {
 type HeaderNotifRow = Omit<ApiNotificationItem, "type"> & {
   type: "like" | "comment" | "reply" | "follow" | "follow_request" | "mention" | "repost";
 };
+
+type ProfileMenuView = "main" | "appearance" | "privacy";
+type ProfileMenuDirection = "forward" | "back";
+
+const PROFILE_THEME_OPTIONS: { id: ThemeOption; label: string; swatch: string }[] = [
+  { id: "auto", label: "Auto", swatch: "linear-gradient(90deg, #faf9f7 0 50%, #1f1d1a 50% 100%)" },
+  { id: "light", label: "Light", swatch: "#faf9f7" },
+  { id: "dark", label: "Dark", swatch: "#1f1d1a" },
+  { id: "matrix", label: "Matrix", swatch: "#0f2d1b" },
+  { id: "oppenheimer-bw", label: "Oppenheimer B&W", swatch: "linear-gradient(135deg, #f4f4f1, #1d1d1b)" },
+  { id: "barbie", label: "Barbie", swatch: "#f3a6c8" },
+];
 
 function actorDisplayName(row: HeaderNotifRow): string {
   if (!row.actor) return "Someone";
@@ -142,9 +167,15 @@ export function SiteHeader() {
   const queryClient = useQueryClient();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
+  const { theme, setTheme } = useTheme();
+  const settingsQuery = useSettingsQuery();
+  const updateAppearanceMutation = useUpdateAppearanceMutation();
+  const updatePrivacyMutation = useUpdatePrivacyMutation();
   const { openComposerModal } = useComposerModal();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileMenuView, setProfileMenuView] = useState<ProfileMenuView>("main");
+  const [profileMenuDirection, setProfileMenuDirection] = useState<ProfileMenuDirection>("forward");
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const standaloneSearchRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -166,6 +197,15 @@ export function SiteHeader() {
       currentUserQuery.fetchStatus !== "idle"
     );
   const currentInitial = initialForName(currentDisplayName);
+  const appearanceSettings: AppearanceSettings = settingsQuery.data?.appearance ?? {
+    theme,
+    videoAutoplay: true,
+  };
+  const privacySettings: PrivacySettings = settingsQuery.data?.privacy ?? {
+    privateAccount: false,
+    allowMessagesFromAnyone: true,
+    showActivityStatus: true,
+  };
 
   const notifRowsQuery = useQuery({
     queryKey: notificationsKeys.preview(),
@@ -435,6 +475,15 @@ export function SiteHeader() {
     [notifOpen, profileMenuOpen]
   );
 
+  useEffect(
+    function () {
+      if (profileMenuOpen) return;
+      setProfileMenuView("main");
+      setProfileMenuDirection("forward");
+    },
+    [profileMenuOpen]
+  );
+
   function toggleNotif() {
     setNotifOpen(function (v) {
       return !v;
@@ -444,6 +493,10 @@ export function SiteHeader() {
 
   function toggleProfileMenu() {
     setProfileMenuOpen(function (v) {
+      if (!v) {
+        setProfileMenuView("main");
+        setProfileMenuDirection("forward");
+      }
       return !v;
     });
     setNotifOpen(false);
@@ -483,6 +536,44 @@ export function SiteHeader() {
 
   function closeProfileMenu() {
     setProfileMenuOpen(false);
+  }
+
+  function openProfileSubmenu(view: Extract<ProfileMenuView, "appearance" | "privacy">) {
+    setProfileMenuDirection("forward");
+    setProfileMenuView(view);
+  }
+
+  function returnToProfileMainMenu() {
+    setProfileMenuDirection("back");
+    setProfileMenuView("main");
+  }
+
+  function selectProfileTheme(nextTheme: ThemeOption) {
+    if (nextTheme === appearanceSettings.theme) return;
+    const previousTheme = theme;
+    setTheme(nextTheme);
+    updateAppearanceMutation.mutate(
+      { ...appearanceSettings, theme: nextTheme },
+      {
+        onError: function () {
+          setTheme(previousTheme);
+        },
+      }
+    );
+  }
+
+  function toggleProfileVideoAutoplay(checked: boolean) {
+    updateAppearanceMutation.mutate({
+      ...appearanceSettings,
+      videoAutoplay: checked,
+    });
+  }
+
+  function toggleProfilePrivacySetting(key: keyof PrivacySettings, checked: boolean) {
+    updatePrivacyMutation.mutate({
+      ...privacySettings,
+      [key]: checked,
+    });
   }
 
   function handleLogoutClick() {
@@ -840,64 +931,265 @@ export function SiteHeader() {
                     className={cn(styles.notifPanelArrow, styles.notifPanelArrowProfile)}
                     aria-hidden
                   />
-                  <Link
-                    href={profileHref}
-                    className={styles.profileMenuIdentity}
-                    role="menuitem"
-                    onClick={closeProfileMenu}
-                  >
-                    <Avatar
-                      initial={currentInitial}
-                      src={currentAvatarUrl}
-                      allowDefaultFallback={!suppressDefaultAvatar}
-                      size="md"
-                      className={styles.profileMenuIdentityAvatar}
-                    />
-                    <span className={styles.profileMenuIdentityMeta}>
-                      <span className={styles.profileMenuIdentityName}>{currentDisplayName}</span>
-                      <span className={styles.profileMenuIdentityHint}>See your profile</span>
-                    </span>
-                    <ChevronRight
-                      className={styles.profileMenuIdentityChevron}
-                      strokeWidth={2}
-                      aria-hidden
-                    />
-                  </Link>
-                  <div className={styles.profileMenuDivider} aria-hidden />
-                  <Link
-                    href={ROUTES.BOOKMARKS}
-                    className={styles.profileMenuRow}
-                    role="menuitem"
-                    onClick={closeProfileMenu}
-                  >
-                    <span className={styles.profileMenuRowIcon} aria-hidden>
-                      <Bookmark size={18} strokeWidth={1.75} />
-                    </span>
-                    Bookmarks
-                  </Link>
-                  <Link
-                    href={ROUTES.SETTINGS}
-                    className={styles.profileMenuRow}
-                    role="menuitem"
-                    onClick={closeProfileMenu}
-                  >
-                    <span className={styles.profileMenuRowIcon} aria-hidden>
-                      <Settings size={18} strokeWidth={1.75} />
-                    </span>
-                    Settings
-                  </Link>
-                  <div className={styles.profileMenuDivider} aria-hidden />
-                  <button
-                    type="button"
-                    className={cn(styles.profileMenuRow, styles.profileMenuRowLogout)}
-                    role="menuitem"
-                    onClick={handleLogoutClick}
-                  >
-                    <span className={styles.profileMenuRowIcon} aria-hidden>
-                      <LogOut size={18} strokeWidth={1.75} />
-                    </span>
-                    Log out
-                  </button>
+                  <div className={styles.profileMenuViewport}>
+                    <div
+                      key={profileMenuView}
+                      className={cn(
+                        styles.profileMenuPanel,
+                        profileMenuView !== "main" && profileMenuDirection === "forward"
+                          ? styles.profileMenuPanelForward
+                          : null,
+                        profileMenuDirection === "back" ? styles.profileMenuPanelBack : null
+                      )}
+                    >
+                      {profileMenuView === "main" ? (
+                        <>
+                          <Link
+                            href={profileHref}
+                            className={styles.profileMenuIdentity}
+                            role="menuitem"
+                            onClick={closeProfileMenu}
+                          >
+                            <Avatar
+                              initial={currentInitial}
+                              src={currentAvatarUrl}
+                              allowDefaultFallback={!suppressDefaultAvatar}
+                              size="md"
+                              className={styles.profileMenuIdentityAvatar}
+                            />
+                            <span className={styles.profileMenuIdentityMeta}>
+                              <span className={styles.profileMenuIdentityName}>{currentDisplayName}</span>
+                              <span className={styles.profileMenuIdentityHint}>See your profile</span>
+                            </span>
+                            <ChevronRight
+                              className={styles.profileMenuIdentityChevron}
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                          </Link>
+                          <div className={styles.profileMenuDivider} aria-hidden />
+                          <Link
+                            href={ROUTES.BOOKMARKS}
+                            className={styles.profileMenuRow}
+                            role="menuitem"
+                            onClick={closeProfileMenu}
+                          >
+                            <span className={styles.profileMenuRowIcon} aria-hidden>
+                              <Bookmark size={18} strokeWidth={1.75} />
+                            </span>
+                            <span className={styles.profileMenuRowText}>Bookmarks</span>
+                          </Link>
+                          <Link
+                            href={ROUTES.DRAFTS}
+                            className={styles.profileMenuRow}
+                            role="menuitem"
+                            onClick={closeProfileMenu}
+                          >
+                            <span className={styles.profileMenuRowIcon} aria-hidden>
+                              <FileText size={18} strokeWidth={1.75} />
+                            </span>
+                            <span className={styles.profileMenuRowText}>Drafts</span>
+                          </Link>
+                          <button
+                            type="button"
+                            className={styles.profileMenuRow}
+                            role="menuitem"
+                            onClick={function () {
+                              openProfileSubmenu("appearance");
+                            }}
+                          >
+                            <span className={styles.profileMenuRowIcon} aria-hidden>
+                              <Palette size={18} strokeWidth={1.75} />
+                            </span>
+                            <span className={styles.profileMenuRowText}>Appearance</span>
+                            <ChevronRight className={styles.profileMenuRowChevron} strokeWidth={2} aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.profileMenuRow}
+                            role="menuitem"
+                            onClick={function () {
+                              openProfileSubmenu("privacy");
+                            }}
+                          >
+                            <span className={styles.profileMenuRowIcon} aria-hidden>
+                              <Lock size={18} strokeWidth={1.75} />
+                            </span>
+                            <span className={styles.profileMenuRowText}>Privacy</span>
+                            <ChevronRight className={styles.profileMenuRowChevron} strokeWidth={2} aria-hidden />
+                          </button>
+                          <Link
+                            href={ROUTES.SETTINGS}
+                            className={styles.profileMenuRow}
+                            role="menuitem"
+                            onClick={closeProfileMenu}
+                          >
+                            <span className={styles.profileMenuRowIcon} aria-hidden>
+                              <Settings size={18} strokeWidth={1.75} />
+                            </span>
+                            <span className={styles.profileMenuRowText}>Settings</span>
+                          </Link>
+                          <div className={styles.profileMenuDivider} aria-hidden />
+                          <button
+                            type="button"
+                            className={cn(styles.profileMenuRow, styles.profileMenuRowLogout)}
+                            role="menuitem"
+                            onClick={handleLogoutClick}
+                          >
+                            <span className={styles.profileMenuRowIcon} aria-hidden>
+                              <LogOut size={18} strokeWidth={1.75} />
+                            </span>
+                            <span className={styles.profileMenuRowText}>Log out</span>
+                          </button>
+                        </>
+                      ) : null}
+
+                      {profileMenuView === "appearance" ? (
+                        <>
+                          <div className={styles.profileSubmenuHeader}>
+                            <button
+                              type="button"
+                              className={styles.profileSubmenuBack}
+                              aria-label="Back to account menu"
+                              onClick={returnToProfileMainMenu}
+                            >
+                              <ChevronLeft size={18} strokeWidth={2} aria-hidden />
+                            </button>
+                            <h2 className={styles.profileSubmenuTitle}>Appearance</h2>
+                          </div>
+                          <div className={styles.profileInlineSection}>
+                            <div className={styles.profileInlineSectionTitle}>Theme</div>
+                            <div className={styles.profileThemeGrid} role="group" aria-label="Theme">
+                              {PROFILE_THEME_OPTIONS.map(function (option) {
+                                const selected = appearanceSettings.theme === option.id;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    className={cn(
+                                      styles.profileThemeOption,
+                                      selected && styles.profileThemeOptionSelected
+                                    )}
+                                    aria-pressed={selected}
+                                    disabled={updateAppearanceMutation.isPending}
+                                    onClick={function () {
+                                      selectProfileTheme(option.id);
+                                    }}
+                                  >
+                                    <span
+                                      className={styles.profileThemeSwatch}
+                                      style={{ background: option.swatch }}
+                                      aria-hidden
+                                    />
+                                    <span className={styles.profileThemeLabel}>{option.label}</span>
+                                    {selected ? (
+                                      <Check className={styles.profileThemeCheck} size={13} strokeWidth={2.25} aria-hidden />
+                                    ) : null}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <label className={styles.profileSwitchRow}>
+                            <span className={styles.profileSwitchCopy}>
+                              <span className={styles.profileSwitchLabel}>Video autoplay</span>
+                              <span className={styles.profileSwitchHint}>Auto-play videos in feed</span>
+                            </span>
+                            <span className={styles.profileSwitch}>
+                              <input
+                                type="checkbox"
+                                checked={appearanceSettings.videoAutoplay}
+                                disabled={updateAppearanceMutation.isPending}
+                                onChange={function (event) {
+                                  toggleProfileVideoAutoplay(event.target.checked);
+                                }}
+                              />
+                              <span className={styles.profileSwitchTrack} aria-hidden />
+                              <span className={styles.profileSwitchThumb} aria-hidden />
+                            </span>
+                          </label>
+                          {updateAppearanceMutation.isError ? (
+                            <p className={styles.profileInlineError}>Could not update appearance.</p>
+                          ) : null}
+                        </>
+                      ) : null}
+
+                      {profileMenuView === "privacy" ? (
+                        <>
+                          <div className={styles.profileSubmenuHeader}>
+                            <button
+                              type="button"
+                              className={styles.profileSubmenuBack}
+                              aria-label="Back to account menu"
+                              onClick={returnToProfileMainMenu}
+                            >
+                              <ChevronLeft size={18} strokeWidth={2} aria-hidden />
+                            </button>
+                            <h2 className={styles.profileSubmenuTitle}>Privacy</h2>
+                          </div>
+                          <div className={styles.profileSwitchStack}>
+                            <label className={styles.profileSwitchRow}>
+                              <span className={styles.profileSwitchCopy}>
+                                <span className={styles.profileSwitchLabel}>Private account</span>
+                                <span className={styles.profileSwitchHint}>Only approved followers can see your posts</span>
+                              </span>
+                              <span className={styles.profileSwitch}>
+                                <input
+                                  type="checkbox"
+                                  checked={privacySettings.privateAccount}
+                                  disabled={updatePrivacyMutation.isPending}
+                                  onChange={function (event) {
+                                    toggleProfilePrivacySetting("privateAccount", event.target.checked);
+                                  }}
+                                />
+                                <span className={styles.profileSwitchTrack} aria-hidden />
+                                <span className={styles.profileSwitchThumb} aria-hidden />
+                              </span>
+                            </label>
+                            <label className={styles.profileSwitchRow}>
+                              <span className={styles.profileSwitchCopy}>
+                                <span className={styles.profileSwitchLabel}>Allow messages from anyone</span>
+                                <span className={styles.profileSwitchHint}>Otherwise only people you follow can message you</span>
+                              </span>
+                              <span className={styles.profileSwitch}>
+                                <input
+                                  type="checkbox"
+                                  checked={privacySettings.allowMessagesFromAnyone}
+                                  disabled={updatePrivacyMutation.isPending}
+                                  onChange={function (event) {
+                                    toggleProfilePrivacySetting("allowMessagesFromAnyone", event.target.checked);
+                                  }}
+                                />
+                                <span className={styles.profileSwitchTrack} aria-hidden />
+                                <span className={styles.profileSwitchThumb} aria-hidden />
+                              </span>
+                            </label>
+                            <label className={styles.profileSwitchRow}>
+                              <span className={styles.profileSwitchCopy}>
+                                <span className={styles.profileSwitchLabel}>Show activity status</span>
+                                <span className={styles.profileSwitchHint}>Let others see when you are active</span>
+                              </span>
+                              <span className={styles.profileSwitch}>
+                                <input
+                                  type="checkbox"
+                                  checked={privacySettings.showActivityStatus}
+                                  disabled={updatePrivacyMutation.isPending}
+                                  onChange={function (event) {
+                                    toggleProfilePrivacySetting("showActivityStatus", event.target.checked);
+                                  }}
+                                />
+                                <span className={styles.profileSwitchTrack} aria-hidden />
+                                <span className={styles.profileSwitchThumb} aria-hidden />
+                              </span>
+                            </label>
+                          </div>
+                          {updatePrivacyMutation.isError ? (
+                            <p className={styles.profileInlineError}>Could not update privacy.</p>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </div>

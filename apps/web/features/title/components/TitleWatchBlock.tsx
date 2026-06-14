@@ -7,6 +7,57 @@ type WatchBlockProps = {
   >["results"]["US"];
 };
 
+type WatchProvider = NonNullable<
+  NonNullable<TMDBMedia["watch/providers"]>["results"]["US"]["flatrate"]
+>[number];
+
+function WatchProviderLogo(props: {
+  provider: WatchProvider;
+  link?: string;
+  action: "Stream" | "Rent" | "Buy";
+}) {
+  const content = (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={"https://image.tmdb.org/t/p/w45" + props.provider.logo_path}
+        alt=""
+        className="h-8 w-8 rounded-md"
+      />
+      <span className="sr-only">
+        {props.action} on {props.provider.provider_name}
+      </span>
+    </>
+  );
+
+  const className =
+    "rounded-lg bg-sunken/70 p-1.5 transition " +
+    (props.link
+      ? "hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-film-gold/60"
+      : "");
+
+  if (!props.link) {
+    return (
+      <div title={props.provider.provider_name} className={className}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={props.link}
+      target="_blank"
+      rel="noreferrer"
+      title={`${props.action} on ${props.provider.provider_name}`}
+      aria-label={`${props.action} on ${props.provider.provider_name}`}
+      className={className}
+    >
+      {content}
+    </a>
+  );
+}
+
 export function TitleWatchBlock(props: WatchBlockProps) {
   const w = props.watchProvidersUS;
   if (!w) return null;
@@ -36,18 +87,12 @@ export function TitleWatchBlock(props: WatchBlockProps) {
             <div className="flex flex-wrap gap-2">
               {w.flatrate!.map(function (p) {
                 return (
-                  <div
+                  <WatchProviderLogo
                     key={"f-" + p.provider_id}
-                    title={p.provider_name}
-                    className="rounded-lg bg-sunken/70 p-1.5"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={"https://image.tmdb.org/t/p/w45" + p.logo_path}
-                      alt=""
-                      className="w-8 h-8 rounded-md"
-                    />
-                  </div>
+                    provider={p}
+                    link={w.link}
+                    action="Stream"
+                  />
                 );
               })}
             </div>
@@ -59,18 +104,12 @@ export function TitleWatchBlock(props: WatchBlockProps) {
             <div className="flex flex-wrap gap-2">
               {w.rent!.map(function (p) {
                 return (
-                  <div
+                  <WatchProviderLogo
                     key={"r-" + p.provider_id}
-                    title={p.provider_name}
-                    className="rounded-lg bg-sunken/70 p-1.5"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={"https://image.tmdb.org/t/p/w45" + p.logo_path}
-                      alt=""
-                      className="w-8 h-8 rounded-md"
-                    />
-                  </div>
+                    provider={p}
+                    link={w.link}
+                    action="Rent"
+                  />
                 );
               })}
             </div>
@@ -82,18 +121,12 @@ export function TitleWatchBlock(props: WatchBlockProps) {
             <div className="flex flex-wrap gap-2">
               {w.buy!.map(function (p) {
                 return (
-                  <div
+                  <WatchProviderLogo
                     key={"b-" + p.provider_id}
-                    title={p.provider_name}
-                    className="rounded-lg bg-sunken/70 p-1.5"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={"https://image.tmdb.org/t/p/w45" + p.logo_path}
-                      alt=""
-                      className="w-8 h-8 rounded-md"
-                    />
-                  </div>
+                    provider={p}
+                    link={w.link}
+                    action="Buy"
+                  />
                 );
               })}
             </div>

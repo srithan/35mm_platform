@@ -18,6 +18,7 @@ import { mediaRoutes } from "./modules/media/routes.js";
 import { onboardingRoutes } from "./modules/onboarding/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
 import { notificationsRoutes } from "./modules/notifications/routes.js";
+import { listRoutes } from "./modules/lists/routes.js";
 import { isRedisEnabled } from "./lib/redis.js";
 import { isQueueEnabled } from "./lib/jobs.js";
 
@@ -78,6 +79,7 @@ app.route("/v1/profiles", profileRoutes);
 app.route("/v1/follows", followRoutes);
 app.route("/v1", suggestionsRoutes);
 app.route("/v1", notificationsRoutes);
+app.route("/v1/lists", listRoutes);
 app.route("/v1/me/settings", settingsRoutes);
 app.route("/v1/media", mediaRoutes);
 app.route("/v1", userRoutes);

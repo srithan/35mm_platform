@@ -14,7 +14,7 @@ export function ShortFilmWatchSidebarRow({ film }: { film: ShortFilm }) {
         "hover:bg-sunken/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
       )}
     >
-      <div className="relative w-[136px] sm:w-[152px] lg:w-[168px] shrink-0 aspect-video rounded-lg overflow-hidden bg-fg/10 ring-1 ring-black/5">
+      <div className="relative w-[136px] sm:w-[152px] lg:w-[168px] shrink-0 aspect-video rounded-lg overflow-hidden bg-fg/10 ring-1 ring-border">
         <img src={film.posterSrc} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
         <span className="absolute bottom-1 right-1 text-[11px] font-semibold tabular-nums text-white bg-black/80 px-1 py-0.5 rounded">
           {film.durationLabel}

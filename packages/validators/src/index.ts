@@ -161,6 +161,69 @@ export var resolveOnboardingTmdbFilmsSchema = z.object({
   films: z.array(resolveOnboardingTmdbFilmSchema).min(1).max(5),
 });
 
+export var resolveCatalogFilmSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  year: z.number().int().min(1800).max(2200).nullable().optional(),
+  posterUrl: z.string().trim().max(1000).nullable().optional(),
+  genres: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
+  director: z.string().trim().max(200).nullable().optional(),
+  overview: z.string().trim().max(5000).nullable().optional(),
+});
+
+export var listVisibilitySchema = z.enum(["public", "private"]);
+
+export var createFilmListSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  description: z.string().max(5000).optional().nullable(),
+  visibility: listVisibilitySchema.default("public"),
+  isRanked: z.boolean().default(false),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+});
+
+export var updateFilmListSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  description: z.string().max(5000).optional().nullable(),
+  visibility: listVisibilitySchema.optional(),
+  isRanked: z.boolean().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+});
+
+export var filmListEntrySchema = z.object({
+  filmId: z.string().trim().regex(ULID_RE, "filmId must be a 35mm ULID").optional(),
+  film: resolveOnboardingTmdbFilmSchema.optional(),
+  catalogFilm: resolveCatalogFilmSchema.optional(),
+  note: z.string().max(1000).optional().nullable(),
+  position: z.number().int().positive().optional().nullable(),
+});
+
+export var updateFilmListEntrySchema = z.object({
+  note: z.string().max(1000).optional().nullable(),
+  position: z.number().int().positive().optional().nullable(),
+});
+
+export var reorderFilmListEntriesSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        entryId: z.string().trim().min(1),
+        position: z.number().int().positive(),
+      })
+    )
+    .min(1)
+    .max(500),
+});
+
+export var cloneFilmListSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  visibility: listVisibilitySchema.default("private"),
+});
+
+export var watchlistFilmSchema = z.object({
+  filmId: z.string().trim().regex(ULID_RE, "filmId must be a 35mm ULID").optional(),
+  film: resolveOnboardingTmdbFilmSchema.optional(),
+  catalogFilm: resolveCatalogFilmSchema.optional(),
+});
+
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
@@ -171,6 +234,14 @@ export type OnboardingRoleInput = z.infer<typeof onboardingRoleSchema>;
 export type OnboardingSubmitInput = z.infer<typeof onboardingSubmitSchema>;
 export type ResolveOnboardingTmdbFilmInput = z.infer<typeof resolveOnboardingTmdbFilmSchema>;
 export type ResolveOnboardingTmdbFilmsInput = z.infer<typeof resolveOnboardingTmdbFilmsSchema>;
+export type ResolveCatalogFilmInput = z.infer<typeof resolveCatalogFilmSchema>;
+export type CreateFilmListInput = z.infer<typeof createFilmListSchema>;
+export type UpdateFilmListInput = z.infer<typeof updateFilmListSchema>;
+export type FilmListEntryInput = z.infer<typeof filmListEntrySchema>;
+export type UpdateFilmListEntryInput = z.infer<typeof updateFilmListEntrySchema>;
+export type ReorderFilmListEntriesInput = z.infer<typeof reorderFilmListEntriesSchema>;
+export type CloneFilmListInput = z.infer<typeof cloneFilmListSchema>;
+export type WatchlistFilmInput = z.infer<typeof watchlistFilmSchema>;
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type NotificationQueryInput = z.infer<typeof notificationQuerySchema>;
 export type NotificationIdInput = z.infer<typeof notificationIdSchema>;

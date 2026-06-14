@@ -21,6 +21,7 @@ export function TitlePageAside(props: TitlePageAsideProps) {
     <>
       <div className={PANEL + " w-full"}>
         <TitleActionButtons
+          detail={props.detail}
           media={props.media}
           tmdbId={props.titleId}
           imdbId={props.detail.external_ids?.imdb_id}

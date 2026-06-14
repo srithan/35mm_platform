@@ -25,7 +25,7 @@ export function FilmCard({
   const content = (
     <div
       className={cn(
-        "border border-border rounded overflow-hidden flex transition-colors cursor-pointer hover:border-fg-muted",
+        "border border-border rounded overflow-hidden flex transition-colors cursor-pointer hover:border-border-strong",
         className
       )}
     >

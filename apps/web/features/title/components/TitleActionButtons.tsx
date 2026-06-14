@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bookmark, BookmarkPlus, Check, ExternalLink, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import type { TMDBMovie } from "@/lib/tmdb/types";
 import type { TitleMedia } from "@/lib/title/paths";
+import { tmdbMovieToFilmPayload } from "@/features/lists/api/listsApi";
+import { useWatchlistMutation } from "@/features/lists/hooks/useLists";
 import {
   readTitleActionState,
   writeTitleActionState,
@@ -23,6 +26,7 @@ const accent =
   "border border-transparent bg-accent text-white shadow-sm hover:opacity-95";
 
 type TitleActionButtonsProps = {
+  detail: TMDBMovie;
   media: TitleMedia;
   tmdbId: string;
   imdbId: string | null | undefined;
@@ -32,7 +36,9 @@ type TitleActionButtonsProps = {
 export function TitleActionButtons(props: TitleActionButtonsProps) {
   const [watched, setWatched] = useState(false);
   const [onWatchlist, setOnWatchlist] = useState(false);
+  const [watchlistFilmId, setWatchlistFilmId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const watchlistMutation = useWatchlistMutation();
 
   useEffect(
     function () {
@@ -65,9 +71,34 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
   const onToggleWatchlist = useCallback(
     function () {
       if (!hydrated || watched) return;
-      persist(watched, !onWatchlist);
+      if (onWatchlist) {
+        watchlistMutation.mutate(
+          { filmId: watchlistFilmId ?? undefined, inWatchlist: Boolean(watchlistFilmId) },
+          {
+            onSuccess: function () {
+              setWatchlistFilmId(null);
+              persist(watched, false);
+            },
+            onError: function () {
+              setWatchlistFilmId(null);
+              persist(watched, false);
+            },
+          }
+        );
+        return;
+      }
+
+      watchlistMutation.mutate(
+        { film: tmdbMovieToFilmPayload(props.detail) },
+        {
+          onSuccess: function (result) {
+            if ("filmId" in result) setWatchlistFilmId(result.filmId);
+            persist(watched, true);
+          },
+        }
+      );
     },
-    [hydrated, watched, onWatchlist, persist]
+    [hydrated, watched, onWatchlist, watchlistFilmId, watchlistMutation, props.detail, persist]
   );
 
   return (
@@ -86,7 +117,7 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
         type="button"
         onClick={onToggleWatchlist}
         aria-pressed={onWatchlist}
-        disabled={!hydrated || watched}
+        disabled={!hydrated || watched || watchlistMutation.isPending}
         title={watched ? "Remove “Watched” to add this title to your watchlist again" : undefined}
         className={cn(
           btnBase,
