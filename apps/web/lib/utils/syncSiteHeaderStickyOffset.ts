@@ -1,12 +1,26 @@
 /**
- * Sets --site-header-sticky-offset from #site-nav height so sticky subheaders sit flush under SiteHeader.
+ * Sets sticky header offsets from measured nav heights so subheaders sit flush underneath.
  */
 export function syncSiteHeaderStickyOffset() {
   if (typeof window === "undefined") return;
-  if (!window.matchMedia("(min-width: 768px)").matches) {
-    document.documentElement.style.removeProperty("--site-header-sticky-offset");
+
+  const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+  const mobileNav = document.getElementById("mobile-site-nav");
+
+  if (mobileNav && !isDesktop) {
+    const mobileHeight = mobileNav.getBoundingClientRect().height;
+    if (mobileHeight >= 1) {
+      document.documentElement.style.setProperty(
+        "--mobile-header-sticky-offset",
+        `${mobileHeight}px`
+      );
+    }
+  }
+
+  if (!isDesktop) {
     return;
   }
+
   const nav = document.getElementById("site-nav");
   if (!nav) return;
   const h = nav.getBoundingClientRect().height;

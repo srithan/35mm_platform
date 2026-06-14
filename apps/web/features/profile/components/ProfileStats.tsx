@@ -49,6 +49,35 @@ function StatColumn(props: {
   );
 }
 
+function StatInline(props: {
+  label: string;
+  value: string;
+  onClick?: () => void;
+}) {
+  const content = (
+    <>
+      <span className="font-semibold tabular-nums text-fg">{props.value}</span>
+      <span className="font-normal text-fg-muted">{props.label}</span>
+    </>
+  );
+
+  const className = cn(
+    "inline-flex items-baseline gap-1 text-[14px] leading-none",
+    props.onClick &&
+      "rounded-sm border-none bg-transparent p-0 font-inherit transition-opacity active:opacity-70"
+  );
+
+  if (props.onClick) {
+    return (
+      <button type="button" onClick={props.onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return <span className={className}>{content}</span>;
+}
+
 export function ProfileStats(props: {
   username: string;
   displayName: string;
@@ -57,42 +86,72 @@ export function ProfileStats(props: {
   filmsLoggedCount: number;
   isOwnProfile: boolean;
   className?: string;
+  variant?: "toolbar" | "inline";
 }) {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [connectionsKind, setConnectionsKind] = useState<"followers" | "following">("followers");
+  const variant = props.variant ?? "toolbar";
 
   return (
     <>
       <div
         className={cn(
-          "flex h-full min-w-0 flex-1 items-center overflow-x-auto scrollbar-hide",
+          variant === "inline"
+            ? "flex flex-wrap items-center gap-x-4 gap-y-2"
+            : "flex h-full min-w-0 flex-1 items-center overflow-x-auto scrollbar-hide",
           props.className
         )}
       >
-        <StatColumn
-          label="Following"
-          value={formatCount(props.followingCount)}
-          onClick={() => {
-            setConnectionsKind("following");
-            setConnectionsOpen(true);
-          }}
-        />
-        <StatDivider />
-        <StatColumn
-          label="Followers"
-          value={formatCount(props.followerCount)}
-          onClick={() => {
-            setConnectionsKind("followers");
-            setConnectionsOpen(true);
-          }}
-        />
-        <StatDivider />
-        <StatColumn label="Films" value={formatCount(props.filmsLoggedCount)} />
+        {variant === "inline" ? (
+          <>
+            <StatInline
+              label="Following"
+              value={formatCount(props.followingCount)}
+              onClick={function () {
+                setConnectionsKind("following");
+                setConnectionsOpen(true);
+              }}
+            />
+            <StatInline
+              label="Followers"
+              value={formatCount(props.followerCount)}
+              onClick={function () {
+                setConnectionsKind("followers");
+                setConnectionsOpen(true);
+              }}
+            />
+            <StatInline label="Films" value={formatCount(props.filmsLoggedCount)} />
+          </>
+        ) : (
+          <>
+            <StatColumn
+              label="Following"
+              value={formatCount(props.followingCount)}
+              onClick={function () {
+                setConnectionsKind("following");
+                setConnectionsOpen(true);
+              }}
+            />
+            <StatDivider />
+            <StatColumn
+              label="Followers"
+              value={formatCount(props.followerCount)}
+              onClick={function () {
+                setConnectionsKind("followers");
+                setConnectionsOpen(true);
+              }}
+            />
+            <StatDivider />
+            <StatColumn label="Films" value={formatCount(props.filmsLoggedCount)} />
+          </>
+        )}
       </div>
 
       <ProfileConnectionsModal
         open={connectionsOpen}
-        onClose={() => setConnectionsOpen(false)}
+        onClose={function () {
+          setConnectionsOpen(false);
+        }}
         username={props.username}
         kind={connectionsKind}
         isOwnProfile={props.isOwnProfile}

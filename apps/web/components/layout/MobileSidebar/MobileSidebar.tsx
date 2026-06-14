@@ -15,6 +15,7 @@ import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/
 type MobileSidebarIconName =
   | "home"
   | "search"
+  | "frames"
   | "bell"
   | "user"
   | "bookmark"
@@ -90,6 +91,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
     () => [
       { label: "Your Feed", href: ROUTES.HOME, icon: "home" },
       { label: "Discover", href: ROUTES.DISCOVER, icon: "search" },
+      { label: "Short films", href: ROUTES.SHORT_FILMS, icon: "frames" },
       { label: "Notifications", href: ROUTES.NOTIFICATIONS, badge: 3, icon: "bell" },
       { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
       { label: "Profile", href: profileHref, icon: "user" },

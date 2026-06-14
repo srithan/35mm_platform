@@ -19,6 +19,9 @@ export function ProfileBody(props: {
   roleContext?: string | null;
   headline?: string | null;
   headlineContext?: string | null;
+  followerCount: number;
+  followingCount: number;
+  filmsLoggedCount: number;
 }) {
   var pathname = usePathname();
   var tab = resolveProfileTabFromPathname(pathname ?? "", props.username) ?? "posts";
@@ -39,9 +42,15 @@ export function ProfileBody(props: {
   };
 
   return (
-    <div className="pt-5 sm:pl-6 md:pl-8">
-      <div className="mb-6 pt-10 lg:hidden">
-        <ProfileDetails {...detailsProps} />
+    <div className="pt-2 md:pl-8 md:pt-5">
+      <div className="mb-6 px-5 sm:px-6 lg:hidden">
+        <ProfileDetails
+          {...detailsProps}
+          followerCount={props.followerCount}
+          followingCount={props.followingCount}
+          filmsLoggedCount={props.filmsLoggedCount}
+          showInlineStats
+        />
       </div>
 
       <div className="grid items-start gap-11 lg:grid-cols-[242px_minmax(0,1fr)] lg:gap-12">

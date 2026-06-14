@@ -39,7 +39,7 @@ export function ProfileTabs(props: { username: string }) {
       aria-label="Profile sections"
       className={cn(
         "sticky z-40 border-b border-border bg-bg/95 backdrop-blur-md supports-[backdrop-filter]:bg-bg/80",
-        "top-[calc(max(0.75rem,env(safe-area-inset-top,0px))+3.5rem)]",
+        "top-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))]",
         "md:top-[var(--site-header-sticky-offset,4.5rem)]"
       )}
     >

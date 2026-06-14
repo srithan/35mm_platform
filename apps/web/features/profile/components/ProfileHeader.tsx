@@ -185,17 +185,137 @@ export function ProfileHeader({
         ? "Requested"
         : "Follow";
 
+  const avatarClassName =
+    "h-[88px] w-[88px] border-[4px] border-bg text-[28px] ring-0 shadow-none sm:h-[112px] sm:w-[112px] sm:text-[36px] md:h-[200px] md:w-[200px] md:text-[56px]";
+
+  const actionButtons = isOwnProfile ? (
+    <Button
+      variant="secondary"
+      size="sm"
+      className="h-auto border border-border-strong bg-elevated px-5 py-2 text-[13px] font-bold text-fg shadow-none hover:border-fg-muted hover:bg-hover"
+      onClick={() => setShowEditModal(true)}
+    >
+      Edit profile
+    </Button>
+  ) : (
+    <>
+      <Button variant="ghost" size="sm">Message</Button>
+      {hasIncomingFollowRequestAction ? (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={isRespondingToIncomingFollowRequest || !isLoaded}
+            onClick={() => {
+              if (!isLoaded || isRespondingToIncomingFollowRequest) return;
+              declineFollowRequestMutation.mutate();
+            }}
+          >
+            {declineFollowRequestMutation.isPending ? "Ignoring..." : "Ignore"}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={isRespondingToIncomingFollowRequest || !isLoaded}
+            onClick={() => {
+              if (!isLoaded || isRespondingToIncomingFollowRequest) return;
+              acceptFollowRequestMutation.mutate();
+            }}
+          >
+            {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
+          </Button>
+        </>
+      ) : showFollowButton ? (
+        <Button
+          variant={isFollowing ? "secondary" : "primary"}
+          size="sm"
+          disabled={followToggleMutation.isPending}
+          onClick={() => {
+            if (followToggleMutation.isPending) return;
+            if (isFollowing && isPrivate) {
+              setConfirmAction("unfollow");
+              return;
+            }
+            followToggleMutation.mutate({
+              userId,
+              isFollowing,
+              isFollowRequested,
+            });
+          }}
+        >
+          {followButtonLabel}
+        </Button>
+      ) : null}
+      <PortalDropdown
+        align="end"
+        menuLabel="Profile actions"
+        items={[
+          {
+            id: "share",
+            label: "Share profile",
+            icon: <Icon name="share-2" className="w-4 h-4" />,
+            onSelect: () => setShowShareModal(true),
+          },
+          {
+            id: "add-to-list",
+            label: "Add to list",
+            icon: <UserPlus className="w-4 h-4" strokeWidth={1.8} />,
+          },
+          {
+            id: "mute",
+            label: isMutedByViewer ? `Unmute @${username}` : `Mute @${username}`,
+            icon: <VolumeX className="w-4 h-4" strokeWidth={1.8} />,
+            onSelect: () => setConfirmAction(isMutedByViewer ? "unmute" : "mute"),
+          },
+          {
+            id: "block",
+            label: `Block @${username}`,
+            icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
+            danger: true,
+            onSelect: () => setConfirmAction("block"),
+          },
+          {
+            id: "report",
+            label: "Report",
+            icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
+            danger: true,
+            onSelect: () => setConfirmAction("report"),
+          },
+        ]}
+        trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
+          <Button
+            ref={ref}
+            variant="secondary"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle();
+            }}
+            onKeyDown={onKeyDown}
+            aria-label="More options"
+            aria-expanded={isOpen}
+            aria-controls={menuId}
+            aria-haspopup="menu"
+            title="More"
+          >
+            <MoreVertical className="w-3.5 h-3.5" strokeWidth={1.5} />
+          </Button>
+        )}
+      />
+    </>
+  );
+
   return (
-    <div className="ProfileHeader border-b border-border">
-      <div className="relative overflow-visible bg-bg">
-        <div className="absolute bottom-0 left-5 z-10 translate-y-[22%] sm:left-6 md:left-8">
+    <div className="ProfileHeader md:border-b md:border-border">
+      <div className="relative overflow-visible bg-bg px-5 pb-4 sm:px-6 md:px-8 md:pb-6">
+        <div className="absolute -top-11 left-5 z-10 sm:-top-14 sm:left-6 md:-top-[100px] md:left-8">
           {isOwnProfile ? (
             <ProfilePictureUpload onUploadComplete={handleAvatarChange}>
               <Avatar
                 initial={profileData.displayName[0]}
                 src={profileImage}
                 size="profile-lg"
-                className="h-[200px] w-[200px] border-[4px] border-bg ring-0 shadow-none text-[56px]"
+                className={avatarClassName}
               />
             </ProfilePictureUpload>
           ) : (
@@ -209,141 +329,28 @@ export function ProfileHeader({
                 initial={profileData.displayName[0]}
                 src={profileImage}
                 size="profile-lg"
-                className="h-[200px] w-[200px] border-[4px] border-bg ring-0 shadow-none text-[56px]"
+                className={avatarClassName}
               />
             </button>
           )}
         </div>
 
-        <div className="flex h-[3.5rem] items-center gap-2 px-5 sm:gap-3 sm:px-6 md:px-8">
-          <div className="w-[200px] shrink-0" aria-hidden />
+        <div className="flex min-h-[2.75rem] items-center justify-end gap-2 sm:min-h-[3rem] md:min-h-[3.5rem] md:justify-between">
+          <div className="hidden min-w-0 flex-1 items-center md:flex">
+            <div className="w-[200px] shrink-0" aria-hidden />
 
-          <ProfileStats
-            username={profileData.username}
-            displayName={profileData.displayName}
-            followerCount={followerCount}
-            followingCount={followingCount}
-            filmsLoggedCount={filmsLoggedCount}
-            isOwnProfile={isOwnProfile}
-          />
+            <ProfileStats
+              username={profileData.username}
+              displayName={profileData.displayName}
+              followerCount={followerCount}
+              followingCount={followingCount}
+              filmsLoggedCount={filmsLoggedCount}
+              isOwnProfile={isOwnProfile}
+            />
+          </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            {isOwnProfile ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="h-auto border border-border-strong bg-elevated px-5 py-2 text-[13px] font-bold text-fg shadow-none hover:border-fg-muted hover:bg-hover"
-              onClick={() => setShowEditModal(true)}
-            >
-              Edit profile
-            </Button>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm">Message</Button>
-                {hasIncomingFollowRequestAction ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={isRespondingToIncomingFollowRequest || !isLoaded}
-                      onClick={() => {
-                        if (!isLoaded || isRespondingToIncomingFollowRequest) return;
-                        declineFollowRequestMutation.mutate();
-                      }}
-                    >
-                      {declineFollowRequestMutation.isPending ? "Ignoring..." : "Ignore"}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      disabled={isRespondingToIncomingFollowRequest || !isLoaded}
-                      onClick={() => {
-                        if (!isLoaded || isRespondingToIncomingFollowRequest) return;
-                        acceptFollowRequestMutation.mutate();
-                      }}
-                    >
-                      {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
-                    </Button>
-                  </>
-                ) : showFollowButton ? (
-                  <Button
-                    variant={isFollowing ? "secondary" : "primary"}
-                    size="sm"
-                    disabled={followToggleMutation.isPending}
-                    onClick={() => {
-                      if (followToggleMutation.isPending) return;
-                      if (isFollowing && isPrivate) {
-                        setConfirmAction("unfollow");
-                        return;
-                      }
-                      followToggleMutation.mutate({
-                        userId,
-                        isFollowing,
-                        isFollowRequested,
-                      });
-                    }}
-                  >
-                    {followButtonLabel}
-                  </Button>
-                ) : null}
-                <PortalDropdown
-                  align="end"
-                  menuLabel="Profile actions"
-                  items={[
-                    {
-                      id: "share",
-                      label: "Share profile",
-                      icon: <Icon name="share-2" className="w-4 h-4" />,
-                      onSelect: () => setShowShareModal(true),
-                    },
-                    {
-                      id: "add-to-list",
-                      label: "Add to list",
-                      icon: <UserPlus className="w-4 h-4" strokeWidth={1.8} />,
-                    },
-                    {
-                      id: "mute",
-                      label: isMutedByViewer ? `Unmute @${username}` : `Mute @${username}`,
-                      icon: <VolumeX className="w-4 h-4" strokeWidth={1.8} />,
-                      onSelect: () => setConfirmAction(isMutedByViewer ? "unmute" : "mute"),
-                    },
-                    {
-                      id: "block",
-                      label: `Block @${username}`,
-                      icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
-                      danger: true,
-                      onSelect: () => setConfirmAction("block"),
-                    },
-                    {
-                      id: "report",
-                      label: "Report",
-                      icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
-                      danger: true,
-                      onSelect: () => setConfirmAction("report"),
-                    },
-                  ]}
-                  trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
-                    <Button
-                      ref={ref}
-                      variant="secondary"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggle();
-                      }}
-                      onKeyDown={onKeyDown}
-                      aria-label="More options"
-                      aria-expanded={isOpen}
-                      aria-controls={menuId}
-                      aria-haspopup="menu"
-                      title="More"
-                    >
-                      <MoreVertical className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    </Button>
-                  )}
-                />
-              </>
-            )}
+          <div className="flex shrink-0 items-center gap-2 pl-[calc(88px+0.75rem)] sm:pl-[calc(112px+1rem)] md:pl-0">
+            {actionButtons}
           </div>
         </div>
       </div>

@@ -544,10 +544,31 @@ function PostCardComponent({
                   ...(!isPostAuthor && userId
                     ? [
                         {
+                          id: "share",
+                          label: "Share post",
+                          description: "Send or copy this post",
+                          icon: <Icon name="share-2" className="w-4 h-4" />,
+                          onSelect: () => setShowShareModal(true),
+                        },
+                        {
+                          id: "hide",
+                          label: "Hide post",
+                          description: "Remove it from your feed",
+                          icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
+                          dividerBefore: true,
+                        },
+                        {
+                          id: "fewer-like-this",
+                          label: "See fewer posts like this",
+                          description: "Tune your recommendations",
+                          icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
+                        },
+                        {
                           id: "mute-user",
                           label: `Mute ${handle}`,
                           description: "Hide their posts from your feed",
                           icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
+                          dividerBefore: true,
                           onSelect: () => {
                             muteUserMutation.mutate(
                               { userId, muted: false },
@@ -567,29 +588,6 @@ function PostCardComponent({
                           danger: true,
                           onSelect: () => setShowBlockConfirm(true),
                         },
-                      ]
-                    : []),
-                  {
-                    id: "share",
-                    label: "Share post",
-                    description: "Send or copy this post",
-                    icon: <Icon name="share-2" className="w-4 h-4" />,
-                    onSelect: () => setShowShareModal(true),
-                  },
-                  ...(!isPostAuthor
-                    ? [
-                        {
-                          id: "hide",
-                          label: "Hide post",
-                          description: "Remove it from your feed",
-                          icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
-                        },
-                        {
-                          id: "fewer-like-this",
-                          label: "See fewer posts like this",
-                          description: "Tune your recommendations",
-                          icon: <CircleSlash className="w-4 h-4" strokeWidth={1.8} />,
-                        },
                         {
                           id: "report",
                           label: "Report post",
@@ -600,7 +598,15 @@ function PostCardComponent({
                           onSelect: () => setShowReportConfirm(true),
                         },
                       ]
-                    : []),
+                    : [
+                        {
+                          id: "share",
+                          label: "Share post",
+                          description: "Send or copy this post",
+                          icon: <Icon name="share-2" className="w-4 h-4" />,
+                          onSelect: () => setShowShareModal(true),
+                        },
+                      ]),
                 ]}
                 trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
                   <button

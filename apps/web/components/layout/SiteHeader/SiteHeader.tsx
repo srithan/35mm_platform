@@ -595,6 +595,34 @@ export function SiteHeader() {
             </Link>
 
             <Link
+              href={ROUTES.SHORT_FILMS}
+              className={cn(
+                styles.navItem,
+                isActive(ROUTES.SHORT_FILMS) && styles.active
+              )}
+              aria-current={isActive(ROUTES.SHORT_FILMS) ? "page" : undefined}
+            >
+              <span className={styles.navItemIcon}>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 21 23"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M1.5 2.35965C1.5 1.32355 2.6323 0.685338 3.51868 1.22183L18.6201 10.3622C19.4752 10.8797 19.4752 12.1203 18.6201 12.6378L3.51868 21.7782C2.6323 22.3147 1.5 21.6764 1.5 20.6404V2.35965Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </span>
+              <span className={styles.navItemText}>Short Films</span>
+            </Link>
+
+            <Link
               href={profileHref}
               className={cn(
                 styles.navItem,

@@ -242,7 +242,9 @@ export function CoverPhoto(props: CoverPhotoProps) {
     <>
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-t-xl rounded-b-none border border-border bg-sunken-2",
+          "relative w-full overflow-hidden bg-sunken-2",
+          "max-md:rounded-none max-md:border-0",
+          "md:rounded-t-xl md:rounded-b-none md:border md:border-border",
           "shadow-[0_1px_2px_rgb(15_23_42/6%)]",
           "min-h-[176px] h-[clamp(11rem,32vw,20.75rem)]",
           isOwnProfile ? "group/cover" : "cursor-pointer"

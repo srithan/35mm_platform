@@ -191,6 +191,9 @@ export function ProfileShellClient(props: { username: string }) {
           roleContext={resolvedProfile.roleContext}
           headline={resolvedProfile.headline ?? null}
           headlineContext={resolvedProfile.headlineContext ?? null}
+          followerCount={resolvedProfile.followerCount}
+          followingCount={resolvedProfile.followingCount}
+          filmsLoggedCount={resolvedProfile.filmsLoggedCount ?? 0}
         />
       )}
     </>

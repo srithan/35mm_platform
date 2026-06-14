@@ -26,6 +26,7 @@ function isProfileShellPath(pathname: string): boolean {
     case "new":
     case "notifications":
     case "settings":
+    case "short-films":
     case "title":
     case "person":
     case "profile":
@@ -39,6 +40,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isTitlePage = Boolean(pathname?.startsWith("/title/"));
+  const isShortFilmsSection =
+    pathname === ROUTES.SHORT_FILMS ||
+    Boolean(pathname?.startsWith("/short-films/"));
   const isHomePage = pathname === "/";
   const isProfileUsernamePage =
     pathname != null ? isProfileShellPath(pathname) : false;
@@ -48,6 +52,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/discover" ||
     pathname === ROUTES.BOOKMARKS ||
     pathname === ROUTES.SUGGESTIONS_PEOPLE ||
+    isShortFilmsSection ||
     isTitlePage;
 
   /** Home keeps a fixed 640px center column inside a lg+ three-column strip; shell var stays aligned. */
@@ -71,6 +76,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/discover" ||
     pathname?.startsWith("/profile") ||
     (isProfileUsernamePage && isDesktopLg !== true) ||
+    isShortFilmsSection ||
     pathname === "/notifications" ||
     pathname === "/settings";
 
@@ -116,7 +122,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                 : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
             hasStickyBarBelow
               ? cn(
-                  "pt-[calc(max(0.75rem,env(safe-area-inset-top,0px))+3.5rem)] md:pt-[var(--site-header-sticky-offset,4.5rem)]",
+                  "pt-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))] md:pt-[var(--site-header-sticky-offset,4.5rem)]",
                   (useHomeRailLayout || useProfileRailLayout) &&
                     "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                 )

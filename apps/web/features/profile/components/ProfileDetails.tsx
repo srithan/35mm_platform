@@ -2,6 +2,7 @@
 
 import { MapPin, Link2, Calendar, Lock } from "lucide-react";
 import { formatRoleContextSegment, getRoleDotColor } from "@/lib/utils/userRoleHeadline";
+import { ProfileStats } from "./ProfileStats";
 
 function websiteHref(raw: string): string {
   const t = raw.trim();
@@ -92,6 +93,10 @@ export function ProfileDetails(props: {
   roleContext?: string | null;
   headline?: string | null;
   headlineContext?: string | null;
+  followerCount?: number;
+  followingCount?: number;
+  filmsLoggedCount?: number;
+  showInlineStats?: boolean;
 }) {
   const bio = props.bio.trim();
   const location = props.location.trim();
@@ -116,6 +121,23 @@ export function ProfileDetails(props: {
           @{props.username}
         </p>
       </div>
+
+      {props.showInlineStats &&
+      typeof props.followerCount === "number" &&
+      typeof props.followingCount === "number" &&
+      typeof props.filmsLoggedCount === "number" ? (
+        <div className="mt-3">
+          <ProfileStats
+            variant="inline"
+            username={props.username}
+            displayName={props.displayName}
+            followerCount={props.followerCount}
+            followingCount={props.followingCount}
+            filmsLoggedCount={props.filmsLoggedCount}
+            isOwnProfile={Boolean(props.isOwnProfile)}
+          />
+        </div>
+      ) : null}
 
       <ProfileHeadline
         headline={props.headline}

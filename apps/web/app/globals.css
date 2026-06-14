@@ -94,6 +94,8 @@
 
     /* Fallback until SiteHeader measures real height (see ResizeObserver in SiteHeader.tsx) */
     --site-header-sticky-offset: 4.5rem;
+    /* Fallback until MobileHeader measures real height (see ResizeObserver in MobileHeader.tsx) */
+    --mobile-header-sticky-offset: calc(max(0.75rem, env(safe-area-inset-top, 0px)) + 3.25rem);
 
     /* Desktop main column + SiteHeader center track (ShellGrid updates on wide routes) */
     --shell-main-max-width: 640px;
