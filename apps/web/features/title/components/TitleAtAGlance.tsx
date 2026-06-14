@@ -17,56 +17,29 @@ import { cn } from "@/lib/utils/cn";
 import type { TMDBMedia } from "@/lib/tmdb/types";
 import { TitleSectionTitle } from "./titlePageLayoutTokens";
 
-const iconInCircle =
-  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full " +
-  "border border-border bg-sunken/90 text-fg/70 dark:bg-sunken/40 dark:text-fg/75";
+const stroke = 1.75;
+const icoSm = "h-3.5 w-3.5 shrink-0 opacity-55";
 
-const statCard =
-  "flex gap-3 rounded-2xl border border-border bg-elevated/50 p-4 shadow-sm " +
-  "dark:bg-sunken/25";
-
-const textBlockBase =
-  "flex gap-4 rounded-2xl border border-border bg-elevated/30 p-5 shadow-sm " +
-  "dark:bg-sunken/20";
-
-function GlanceStat(props: {
-  label: string;
-  value: string;
-  icon: ReactNode;
-}) {
+function GlanceMetric(props: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className={statCard}>
-      <div className={iconInCircle} aria-hidden>
-        {props.icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
-          {props.label}
-        </p>
-        <p className="mt-1.5 text-[16px] font-semibold leading-snug tracking-[-0.02em] text-fg">
-          {props.value}
-        </p>
-      </div>
+    <div className="min-w-0">
+      <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
+        <span aria-hidden>{props.icon}</span>
+        {props.label}
+      </dt>
+      <dd className="mt-1 text-[15px] font-semibold tracking-[-0.01em] text-fg">{props.value}</dd>
     </div>
   );
 }
 
-function GlanceTextBlock(props: {
-  label: string;
-  value: string;
-  icon: ReactNode;
-}) {
+function GlanceDetailRow(props: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className={textBlockBase}>
-      <div className={iconInCircle + " h-10 w-10 self-start"} aria-hidden>
-        {props.icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
-          {props.label}
-        </p>
-        <p className="mt-2 text-[14px] font-medium leading-[1.6] text-fg/95">{props.value}</p>
-      </div>
+    <div className="grid min-w-0 gap-1 sm:grid-cols-[8.25rem_minmax(0,1fr)] sm:items-baseline sm:gap-x-8">
+      <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
+        <span aria-hidden>{props.icon}</span>
+        {props.label}
+      </dt>
+      <dd className="text-[14px] leading-[1.55] text-fg/90">{props.value}</dd>
     </div>
   );
 }
@@ -81,9 +54,6 @@ type TitleAtAGlanceProps = {
   writers: string | undefined;
 };
 
-const stroke = 2;
-const ico = "h-5 w-5";
-
 export function TitleAtAGlance(props: TitleAtAGlanceProps) {
   const d = props.detail;
   const stats: { label: string; value: string; icon: ReactNode; key: string }[] = [];
@@ -93,7 +63,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "year",
       label: props.isTv ? "First aired" : "Release",
       value: props.yearStr,
-      icon: <Calendar className={ico} strokeWidth={stroke} />,
+      icon: <Calendar className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (props.certification) {
@@ -101,7 +71,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "cert",
       label: "Content rating",
       value: props.certification,
-      icon: <Shield className={ico} strokeWidth={stroke} />,
+      icon: <Shield className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (d.status) {
@@ -109,7 +79,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "status",
       label: "Status",
       value: d.status,
-      icon: <PlayCircle className={ico} strokeWidth={stroke} />,
+      icon: <PlayCircle className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (!props.isTv && d.runtime && d.runtime > 0) {
@@ -117,7 +87,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "runtime",
       label: "Runtime",
       value: d.runtime + " min",
-      icon: <Clock className={ico} strokeWidth={stroke} />,
+      icon: <Clock className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (props.isTv && d.number_of_seasons != null) {
@@ -125,7 +95,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "seasons",
       label: "Seasons",
       value: String(d.number_of_seasons),
-      icon: <Layers className={ico} strokeWidth={stroke} />,
+      icon: <Layers className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (props.isTv && d.number_of_episodes != null) {
@@ -133,7 +103,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "epcount",
       label: "Total episodes",
       value: String(d.number_of_episodes),
-      icon: <ListVideo className={ico} strokeWidth={stroke} />,
+      icon: <ListVideo className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (!props.isTv && d.budget != null && d.budget > 0) {
@@ -141,7 +111,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "budget",
       label: "Budget",
       value: "$" + (d.budget / 1000000).toFixed(1) + "M",
-      icon: <DollarSign className={ico} strokeWidth={stroke} />,
+      icon: <DollarSign className={icoSm} strokeWidth={stroke} />,
     });
   }
   if (!props.isTv && d.revenue != null && d.revenue > 0) {
@@ -149,7 +119,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
       key: "revenue",
       label: "Box office",
       value: "$" + (d.revenue / 1000000).toFixed(1) + "M",
-      icon: <TrendingUp className={ico} strokeWidth={stroke} />,
+      icon: <TrendingUp className={icoSm} strokeWidth={stroke} />,
     });
   }
 
@@ -162,71 +132,86 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
           .join(" · ")
       : "";
 
-  const hasAny =
-    stats.length > 0 ||
-    Boolean(props.creators) ||
-    (Boolean(props.directors) && !props.isTv) ||
-    (Boolean(props.writers) && !props.isTv) ||
-    Boolean(studiosText);
+  const detailRows: { key: string; label: string; value: string; icon: ReactNode }[] = [];
+
+  if (props.creators) {
+    detailRows.push({
+      key: "creators",
+      label: "Created by",
+      value: props.creators,
+      icon: <UserCircle className={icoSm} strokeWidth={stroke} />,
+    });
+  }
+  if (!props.isTv && props.directors) {
+    detailRows.push({
+      key: "directors",
+      label: "Directed by",
+      value: props.directors,
+      icon: <Clapperboard className={icoSm} strokeWidth={stroke} />,
+    });
+  }
+  if (!props.isTv && props.writers) {
+    detailRows.push({
+      key: "writers",
+      label: "Written by",
+      value: props.writers,
+      icon: <Pencil className={icoSm} strokeWidth={stroke} />,
+    });
+  }
+  if (studiosText) {
+    detailRows.push({
+      key: "studios",
+      label: "Studios",
+      value: studiosText,
+      icon: <Building2 className={icoSm} strokeWidth={stroke} />,
+    });
+  }
+
+  const hasAny = stats.length > 0 || detailRows.length > 0;
 
   if (!hasAny) return null;
 
   return (
     <section className="min-w-0" aria-label="Key facts at a glance">
-      <TitleSectionTitle className="mb-5 text-xl sm:text-2xl">At a glance</TitleSectionTitle>
+      <TitleSectionTitle className="mb-3">At a glance</TitleSectionTitle>
 
-      {stats.length > 0 ? (
-        <ul
-          className={cn(
-            "mb-4 grid list-none gap-3 p-0",
-            "grid-cols-1 sm:grid-cols-2",
-            stats.length >= 3 && "lg:grid-cols-3"
-          )}
-        >
-          {stats.map(function (s) {
-            return (
-              <li key={s.key}>
-                <GlanceStat label={s.label} value={s.value} icon={s.icon} />
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+      <div className="min-w-0">
+        {stats.length > 0 ? (
+          <dl
+            className={cn(
+              "grid list-none gap-x-6 gap-y-5 p-0",
+              stats.length === 1 && "grid-cols-1",
+              stats.length === 2 && "grid-cols-2",
+              stats.length >= 3 && "grid-cols-2 sm:grid-cols-3",
+              stats.length >= 5 && "lg:grid-cols-4"
+            )}
+          >
+            {stats.map(function (s) {
+              return (
+                <GlanceMetric key={s.key} label={s.label} value={s.value} icon={s.icon} />
+              );
+            })}
+          </dl>
+        ) : null}
 
-      <div className="flex flex-col gap-3">
-        {props.creators ? (
-          <GlanceTextBlock
-            label="Created by"
-            value={props.creators}
-            icon={<UserCircle className="h-5 w-5" strokeWidth={stroke} />}
-          />
-        ) : null}
-        {!props.isTv && props.directors ? (
-          <GlanceTextBlock
-            label="Directed by"
-            value={props.directors}
-            icon={<Clapperboard className="h-5 w-5" strokeWidth={stroke} />}
-          />
-        ) : null}
-        {!props.isTv && props.writers ? (
-          <GlanceTextBlock
-            label="Written by"
-            value={props.writers}
-            icon={<Pencil className="h-5 w-5" strokeWidth={stroke} />}
-          />
-        ) : null}
-        {studiosText ? (
-          <div className={textBlockBase}>
-            <div className={iconInCircle + " h-10 w-10 self-start"} aria-hidden>
-              <Building2 className="h-5 w-5" strokeWidth={stroke} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
-                Studios
-              </p>
-              <p className="mt-2 text-[14px] font-medium leading-[1.65] text-fg/90">{studiosText}</p>
-            </div>
-          </div>
+        {detailRows.length > 0 ? (
+          <dl
+            className={cn(
+              "flex list-none flex-col gap-4 p-0",
+              stats.length > 0 && "mt-5 border-t border-border/50 pt-5"
+            )}
+          >
+            {detailRows.map(function (row) {
+              return (
+                <GlanceDetailRow
+                  key={row.key}
+                  label={row.label}
+                  value={row.value}
+                  icon={row.icon}
+                />
+              );
+            })}
+          </dl>
         ) : null}
       </div>
     </section>
