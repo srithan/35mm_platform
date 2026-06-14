@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { carouselDotSize, carouselDotStyle } from "@/lib/utils/carouselDots";
 import { LazyR2Image } from "@/components/LazyR2Image";
 
 function gridClassName(count: number) {
@@ -177,35 +178,22 @@ function PostImageCarousel({
         {activeIndex + 1}/{urls.length}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
-        <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent px-3 pb-3 pt-10">
-          <div
-            className={cn(
-              "flex items-center justify-center",
-              urls.length > 7 ? "gap-[3px]" : "gap-1.5"
-            )}
-            aria-hidden
-          >
-            {urls.map(function (_, idx) {
-              var isActive = idx === activeIndex;
-              return (
-                <span
-                  key={`post-image-dot-${idx}`}
-                  className={cn(
-                    "rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-all duration-200 ease-out",
-                    urls.length > 7 ? "h-[5px]" : "h-[6px]",
-                    isActive
-                      ? urls.length > 7
-                        ? "w-[14px] opacity-100"
-                        : "w-[18px] opacity-100"
-                      : urls.length > 7
-                        ? "w-[5px] opacity-40"
-                        : "w-[6px] opacity-40"
-                  )}
-                />
-              );
-            })}
-          </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/35 via-black/10 to-transparent px-3 pb-3 pt-10">
+        <div className="flex h-3 items-center justify-center gap-[7px]" aria-hidden>
+          {urls.map(function (_, idx) {
+            var isActive = idx === activeIndex;
+            var size = carouselDotSize(idx, activeIndex, urls.length);
+            return (
+              <span
+                key={`post-image-dot-${idx}`}
+                className={cn(
+                  "rounded-full transition-[background-color,height,width] duration-200 ease-out",
+                  isActive ? "bg-[#38a8f4]" : "bg-[#dedede]"
+                )}
+                style={carouselDotStyle(size)}
+              />
+            );
+          })}
         </div>
       </div>
 

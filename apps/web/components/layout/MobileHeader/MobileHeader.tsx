@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLayoutEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
+import { Search } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
@@ -105,6 +106,13 @@ export function MobileHeader({
 
       <div className="min-w-10 flex items-center justify-end gap-1 shrink-0">
         {rightSlot}
+        <Link
+          href={ROUTES.DISCOVER}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          aria-label="Search"
+        >
+          <Search className="h-[22px] w-[22px]" strokeWidth={2} />
+        </Link>
       </div>
     </header>
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants/routes";
+import { carouselDotSize, carouselDotStyle } from "@/lib/utils/carouselDots";
 import { cn } from "@/lib/utils/cn";
 import { directorAvatarSrc, SHORT_FILMS_HERO_SLIDES } from "../data/mockShortFilms";
 
@@ -136,8 +137,10 @@ export function ShortFilmsHero() {
           </Link>
         </div>
 
-        <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-2">
+        <div className="absolute bottom-4 left-0 right-0 z-20 flex h-3 items-center justify-center gap-[7px]">
           {slides.map(function (_, idx) {
+            const isActive = idx === i;
+            const size = carouselDotSize(idx, i, slides.length);
             return (
               <button
                 key={idx}
@@ -146,9 +149,10 @@ export function ShortFilmsHero() {
                   setI(idx);
                 }}
                 className={cn(
-                  "w-2 h-2 rounded-full transition-all",
-                  idx === i ? "bg-white w-6" : "bg-white/45 hover:bg-white/70"
+                  "rounded-full transition-[background-color,height,width] duration-200 ease-out",
+                  isActive ? "bg-[#38a8f4]" : "bg-[#dedede] hover:bg-white"
                 )}
+                style={carouselDotStyle(size)}
                 aria-label={"Go to slide " + (idx + 1)}
               />
             );

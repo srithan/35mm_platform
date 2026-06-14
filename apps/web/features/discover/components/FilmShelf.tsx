@@ -6,14 +6,12 @@ import type { TMDBMovie } from "@/lib/tmdb/types";
 
 interface FilmShelfProps {
   title: string;
-  subtitle?: string;
   films: TMDBMovie[];
   onFilmClick: (film: TMDBMovie) => void;
 }
 
 export function FilmShelf({
   title,
-  subtitle,
   films,
   onFilmClick,
 }: FilmShelfProps) {
@@ -21,16 +19,12 @@ export function FilmShelf({
 
   return (
     <section>
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-fg">
+      <div className="mb-4 flex items-center gap-2.5">
+        <span className="h-5 w-1 rounded-full bg-accent" aria-hidden />
+        <div className="min-w-0">
+          <h3 className="text-[17px] font-semibold leading-none tracking-tight text-fg">
             {title}
           </h3>
-          {subtitle ? (
-            <p className="mt-1 text-[12px] leading-relaxed text-fg-muted">
-              {subtitle}
-            </p>
-          ) : null}
         </div>
       </div>
       <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 md:-mx-6 md:px-6 lg:-mx-2 lg:px-2">

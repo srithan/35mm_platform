@@ -73,9 +73,6 @@ export function ExploreTabContent({
   const { movies: trending, loading: trendingLoading } = useTrending();
   const usesTv = discoverUsesTvMedia(exploreFilters.typeId);
   const recentShelfTitle = usesTv ? "Recently aired" : "Now playing";
-  const recentShelfSubtitle = usesTv
-    ? "Series and episodes currently on the air."
-    : "Films in theaters now, from TMDB's now playing list.";
   const { movies: searchResults, loading: searchLoading } = useSearchMulti(searchQuery);
 
   const editorPick = popular[0];
@@ -147,7 +144,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <FilmShelf
                 title="Trending this week"
-                subtitle="What’s rising across movies and TV on TMDB this week."
                 films={trendingFilms}
                 onFilmClick={onOpenDetail}
               />
@@ -156,7 +152,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-40"
-                subtitleWidth="w-72"
                 cardCount={7}
               />
             </div>
@@ -166,7 +161,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <FilmShelf
                 title="Popular films"
-                subtitle="Top titles from TMDB’s popular list."
                 films={popularFilms}
                 onFilmClick={onOpenDetail}
               />
@@ -175,7 +169,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-32"
-                subtitleWidth="w-64"
                 cardCount={7}
               />
             </div>
@@ -185,7 +178,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <FilmShelf
                 title={recentShelfTitle}
-                subtitle={recentShelfSubtitle}
                 films={newAndNear}
                 onFilmClick={onOpenDetail}
               />
@@ -194,7 +186,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-36"
-                subtitleWidth="w-68"
                 cardCount={7}
               />
             </div>
@@ -218,7 +209,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <FilmShelf
                 title="Sci-fi, drama & mystery"
-                subtitle="Titles tagged with science fiction, drama, or mystery in your current browse."
                 films={sciFiDramaMystery}
                 onFilmClick={onOpenDetail}
               />
@@ -227,7 +217,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-44"
-                subtitleWidth="w-72"
                 cardCount={7}
               />
             </div>
@@ -237,7 +226,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <FilmShelf
                 title="Adventure, fantasy & history"
-                subtitle="Epic adventures, fantasy, historical dramas, and war stories from your browse."
                 films={adventureFantasyHistory}
                 onFilmClick={onOpenDetail}
               />
@@ -246,7 +234,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-48"
-                subtitleWidth="w-72"
                 cardCount={7}
               />
             </div>

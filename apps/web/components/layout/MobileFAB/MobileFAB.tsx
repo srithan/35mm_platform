@@ -1,35 +1,23 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { PostComposer } from "@/features/feed/components/PostComposer";
 import { cn } from "@/lib/utils/cn";
+import { useMobileBottomChromeStore } from "@/stores/useMobileBottomChromeStore";
 
 export function MobileFAB() {
   const [isOpen, setIsOpen] = useState(false);
-  const [visible, setVisible] = useState(true);
-  const pathname = usePathname();
-  const isDiscover = pathname === "/discover";
+  const navVisible = useMobileBottomChromeStore(function (state) {
+    return state.navVisible;
+  });
 
-  useEffect(() => {
-    if (!isDiscover) return;
-
-    let lastY = window.scrollY;
-    const handleScroll = () => {
-      const y = window.scrollY;
-      const delta = y - lastY;
-      if (delta > 5) setVisible(false);
-      else if (delta < -5) setVisible(true);
-      lastY = y;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [isDiscover]);
-
-  const open = useCallback(() => setIsOpen(true), []);
-  const close = useCallback(() => setIsOpen(false), []);
+  const open = useCallback(function () {
+    setIsOpen(true);
+  }, []);
+  const close = useCallback(function () {
+    setIsOpen(false);
+  }, []);
 
   return (
     <>
@@ -37,26 +25,30 @@ export function MobileFAB() {
         type="button"
         onClick={open}
         className={cn(
-          "md:hidden fixed right-4 bottom-[72px] z-50 w-12 h-12 rounded-full bg-accent text-bg shadow-lg flex items-center justify-center transition-transform duration-200 active:scale-95 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-          isDiscover && !visible && "translate-y-16 opacity-0 pointer-events-none"
+          "md:hidden fixed right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full",
+          "bg-accent text-bg shadow-lg transition-[transform,opacity,bottom] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "hover:opacity-90 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+          navVisible
+            ? "bottom-[calc(3.75rem+max(0.625rem,env(safe-area-inset-bottom,0px)))]"
+            : "bottom-[max(0.875rem,env(safe-area-inset-bottom,0px))]"
         )}
         aria-label="New post"
       >
-        <Plus className="w-6 h-6" strokeWidth={2.5} />
+        <Plus className="h-6 w-6" strokeWidth={2.5} />
       </button>
 
-      {isOpen && (
+      {isOpen ? (
         <div
           className="md:hidden fixed inset-0 z-[60] flex flex-col bg-bg"
           role="dialog"
           aria-modal="true"
           aria-label="New post"
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border pt-[env(safe-area-inset-top,0px)]">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 pt-[env(safe-area-inset-top,0px)]">
             <button
               type="button"
               onClick={close}
-              className="text-fg-muted text-sm font-medium active:opacity-80"
+              className="text-sm font-medium text-fg-muted active:opacity-80"
             >
               Cancel
             </button>
@@ -64,12 +56,12 @@ export function MobileFAB() {
             <div className="w-14" />
           </div>
           <div className="flex-1 overflow-y-auto">
-            <div className="px-4 py-4 border-b border-border">
+            <div className="border-b border-border px-4 py-4">
               <PostComposer />
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

@@ -97,7 +97,7 @@ export function DiscoverContent() {
 
   return (
     <div className="min-h-full w-full bg-bg md:max-w-none md:mx-0">
-      <div className="mx-auto w-full max-w-[1280px] px-4 pb-10 pt-safe md:px-6 lg:pt-0">
+      <div className="w-full px-4 pb-10 pt-safe lg:pt-0">
         <header className="flex flex-col gap-4 border-b border-border py-4 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
             <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-fg md:text-[26px]">

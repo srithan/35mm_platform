@@ -28,20 +28,18 @@ function PosterCardSkeleton() {
 
 export function DiscoverShelfSkeleton({
   titleWidth = "w-36",
-  subtitleWidth = "w-64",
   cardCount = 6,
   className,
 }: {
   titleWidth?: string;
-  subtitleWidth?: string;
   cardCount?: number;
   className?: string;
 }) {
   return (
     <section className={className}>
-      <div className="mb-3 space-y-2">
-        <Skeleton className={cn("h-3 rounded", titleWidth)} />
-        <Skeleton className={cn("h-3 rounded", subtitleWidth)} />
+      <div className="mb-4 flex items-center gap-2.5">
+        <Skeleton className="h-5 w-1 rounded-full" />
+        <Skeleton className={cn("h-5 rounded", titleWidth)} />
       </div>
       <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 md:-mx-6 md:px-6 lg:-mx-2 lg:px-2">
         <div className="flex items-start gap-3 pb-2 md:gap-4">
@@ -130,21 +128,18 @@ export function DiscoverPageLoadingState() {
           <div className="mt-8">
             <DiscoverShelfSkeleton
               titleWidth="w-40"
-              subtitleWidth="w-72"
               cardCount={7}
             />
           </div>
           <div className="mt-8">
             <DiscoverShelfSkeleton
               titleWidth="w-32"
-              subtitleWidth="w-64"
               cardCount={7}
             />
           </div>
           <div className="mt-8">
             <DiscoverShelfSkeleton
               titleWidth="w-36"
-              subtitleWidth="w-60"
               cardCount={7}
             />
           </div>

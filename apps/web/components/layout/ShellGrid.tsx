@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
-import { MobileFAB } from "@/components/layout/MobileFAB";
+import { MobileScrollChromeListener } from "@/components/layout/MobileScrollChromeListener";
 import { ComposerModalProvider } from "@/components/layout/PostComposerModalContext";
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
@@ -114,7 +114,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
           id="main-content"
           className={cn(
             /* Horizontal clip lives on <html>; overflow-x on <main> breaks position:sticky for TopStickyBar. */
-            "w-full pb-20 md:pb-0",
+            "w-full pb-[calc(5.25rem+max(0.625rem,env(safe-area-inset-bottom,0px)))] md:pb-0",
             useHomeRailLayout
               ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
               : useProfileRailLayout
@@ -174,10 +174,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
         </main>
 
         <div className="md:hidden">
+          <MobileScrollChromeListener />
           <MobileTabBar />
-        </div>
-        <div className="md:hidden">
-          <MobileFAB />
         </div>
       </div>
     </ComposerModalProvider>

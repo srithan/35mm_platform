@@ -51,7 +51,7 @@ export function ShortFilmThumbCard({ film }: { film: ShortFilm }) {
           <p className="text-[12px] text-fg-muted mt-0.5">
             {film.views != null && film.views > 0
               ? formatCount(film.views) + " views"
-              : "Vimeo Staff Picks"}
+              : "35mm Staff Picks"}
           </p>
         </div>
       </div>

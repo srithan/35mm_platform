@@ -1,10 +1,10 @@
 /**
  * Film catalog is loaded from `mockShortFilmsCatalog.json`, built by merging several
- * public Vimeo channel RSS feeds (titles, thumbnails, credits, descriptions, durations,
+ * public 35mm channel RSS feeds (titles, thumbnails, credits, descriptions, durations,
  * signed player URLs):
- * - Staff Picks: https://vimeo.com/channels/staffpicks/videos/rss
- * - Documentary: https://vimeo.com/channels/documentaryfilm/videos/rss
- * - Short of the Week: https://vimeo.com/channels/shortoftheweek/videos/rss
+ * - Staff Picks: https://35mm.com/channels/staffpicks/videos/rss
+ * - Documentary: https://35mm.com/channels/documentaryfilm/videos/rss
+ * - Short of the Week: https://35mm.com/channels/shortoftheweek/videos/rss
  * - Music video(s): musicvideo, musicvideos
  * - Experimental, Comedy, Drama, Animation channel feeds
  *
@@ -39,9 +39,9 @@ export type ShortFilm = {
   category: ShortFilmCategory;
   year: number;
   staffPick: boolean;
-  /** Signed Vimeo player URL (iframe). When set, the watch page embeds the Vimeo player. */
+  /** Signed player URL (iframe). When set, the watch page embeds the hosted player. */
   vimeoPlayerSrc?: string;
-  /** Optional direct file URL for non-Vimeo samples. */
+  /** Optional direct file URL for non-35mm samples. */
   videoUrl?: string;
 };
 
@@ -63,9 +63,9 @@ export type ShortFilmShelf = {
   items: ShortFilm[];
 };
 
-/** Staff Picks channel hero image (Vimeo Staff Picks RSS channel image). */
-export const VIMEO_STAFF_PICKS_CHANNEL_COVER =
-  "https://i.vimeocdn.com/channel/578363_980?mh=250&sig=6b080883995d8d77f6f439e44a649b79fc1b5f9ea53f2fcf0f93dd730566ee7c&v=1&region=us";
+/** Staff Picks channel hero image (35mm Staff Picks RSS channel image). */
+export const THIRTY_FIVE_MM_STAFF_PICKS_CHANNEL_COVER =
+  "https://i.35mmcdn.com/channel/578363_980?mh=250&sig=6b080883995d8d77f6f439e44a649b79fc1b5f9ea53f2fcf0f93dd730566ee7c&v=1&region=us";
 
 const SHELF_GRADIENT_BY_ID: Record<string, string> = {
   "staff-picks":
@@ -171,8 +171,8 @@ const CATEGORY_SHELF_BLUEPRINTS: CategoryShelfBlueprint[] = [
     heading: "Documentary",
     category: "Documentary",
     description:
-      "Nonfiction portraits, essays, and vérité moments from Vimeo’s documentary channel and Staff Picks.",
-    statsHint: "Real stories · Multiple Vimeo channels",
+      "Nonfiction portraits, essays, and vérité moments from 35mm’s documentary channel and Staff Picks.",
+    statsHint: "Real stories · Multiple 35mm channels",
     minItems: 10,
   },
   {
@@ -189,7 +189,7 @@ const CATEGORY_SHELF_BLUEPRINTS: CategoryShelfBlueprint[] = [
     heading: "Music videos",
     category: "Music Video",
     description:
-      "Official promos and experimental music films from Vimeo’s music video channels.",
+      "Official promos and experimental music films from 35mm’s music video channels.",
     statsHint: "Promos & visual albums",
     minItems: 10,
   },
@@ -197,7 +197,7 @@ const CATEGORY_SHELF_BLUEPRINTS: CategoryShelfBlueprint[] = [
     id: "comedy",
     heading: "Comedy",
     category: "Comedy",
-    description: "Funny, awkward, and sharp — straight from Vimeo’s comedy channel.",
+    description: "Funny, awkward, and sharp — straight from 35mm’s comedy channel.",
     statsHint: "Laugh-focused shorts",
     minItems: 10,
   },
@@ -231,7 +231,7 @@ const CATEGORY_SHELF_BLUEPRINTS: CategoryShelfBlueprint[] = [
     heading: "Short of the Week",
     category: "Narrative",
     description:
-      "A rotating spotlight in the spirit of Vimeo’s Short of the Week channel — festival-ready fiction.",
+      "A rotating spotlight in the spirit of 35mm’s Short of the Week channel — festival-ready fiction.",
     statsHint: "From the Short of the Week channel",
     minItems: 10,
   },
@@ -302,7 +302,7 @@ function buildExtraCategoryShelf(category: ShortFilmCategory): ShortFilmShelf | 
       title: heading,
       statsLine: items.length + " films · " + category + " picks",
       description:
-        "Genre-tagged shorts from the merged Vimeo feeds. Row may include similar films to keep the shelf full.",
+        "Genre-tagged shorts from the merged 35mm feeds. Row may include similar films to keep the shelf full.",
       gradient: shelfFeaturedGradient(sid),
       watermarkLetter: shelfWatermarkFromHeading(heading),
       href: "/short-films/" + lead.id,
@@ -326,7 +326,7 @@ export const MOCK_SHORT_FILM_SHELVES: ShortFilmShelf[] = (function () {
       heading: "Watch human-curated Staff Picks",
       featured: {
         title: "Staff Picks",
-        statsLine: staffItems.length + " films · Vimeo Staff Picks channel",
+        statsLine: staffItems.length + " films · 35mm Staff Picks channel",
         description:
           "The flagship short-film row — handpicked Staff Picks plus nearby highlights from the same catalog.",
         gradient: shelfFeaturedGradient("staff-picks"),
@@ -355,7 +355,7 @@ export const MOCK_SHORT_FILM_SHELVES: ShortFilmShelf[] = (function () {
 })();
 
 export function directorAvatarSrc(filmId: string): string {
-  return "https://picsum.photos/seed/vimeo-credit-" + filmId + "/96/96";
+  return "https://picsum.photos/seed/35mm-credit-" + filmId + "/96/96";
 }
 
 export function getShortFilmById(id: string): ShortFilm | undefined {

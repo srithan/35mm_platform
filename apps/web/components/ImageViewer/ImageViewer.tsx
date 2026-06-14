@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { carouselDotSize, carouselDotStyle } from "@/lib/utils/carouselDots";
 import { Modal } from "@/components/Modal/Modal";
 import { LazyR2Image } from "@/components/LazyR2Image";
 
@@ -154,16 +155,18 @@ export function ImageViewer({
             </button>
           ) : null}
 
-          <div className="pointer-events-none absolute inset-x-0 -bottom-8 flex items-center justify-center gap-1.5">
+          <div className="pointer-events-none absolute inset-x-0 -bottom-8 flex h-3 items-center justify-center gap-[7px]">
             {urls.map(function (_, idx) {
               const isActive = idx === activeIndex;
+              const size = carouselDotSize(idx, activeIndex, urls.length);
               return (
                 <span
                   key={"viewer-dot-" + idx}
                   className={cn(
-                    "rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-all duration-200 ease-out",
-                    isActive ? "h-[6px] w-[18px] opacity-100" : "h-[6px] w-[6px] opacity-40"
+                    "rounded-full transition-[background-color,height,width] duration-200 ease-out",
+                    isActive ? "bg-[#38a8f4]" : "bg-[#dedede]"
                   )}
+                  style={carouselDotStyle(size)}
                 />
               );
             })}
