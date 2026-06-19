@@ -196,10 +196,11 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
       const filmCard = post.film
         ? {
             title: post.film.title,
-            meta: [post.film.year, post.film.genres[0]].filter(Boolean).join(" · "),
-            posterSrc: post.film.posterUrl,
-            imdbId: null,
-            rating: post.film.rating ?? undefined,
+            year: post.film.year ?? 0,
+            genre: post.film.genres[0],
+            posterUrl: post.film.posterUrl,
+            rating:
+              post.film.rating == null ? undefined : Math.round(post.film.rating * 2),
           }
         : undefined;
 

@@ -19,9 +19,9 @@ type CommunityRawPost = {
   imageCaption?: string;
   filmCard?: {
     title: string;
-    meta: string;
-    posterSrc?: string | null;
-    imdbId?: string | null;
+    year: number;
+    genre?: string;
+    posterUrl?: string | null;
     rating?: number;
   };
   festivalBadge?: string;
@@ -72,10 +72,10 @@ export const MOCK_COMMUNITY_POSTS: readonly CommunityRawPost[] = [
     commentCount: 93,
     filmCard: {
       title: "Parasite",
-      meta: "Bong Joon Ho · 2019 · Korea",
-      imdbId: "tt6751668",
-      posterSrc: null,
-      rating: 5,
+      year: 2019,
+      genre: "Thriller",
+      posterUrl: null,
+      rating: 10,
     },
   },
   {
@@ -156,10 +156,10 @@ export const MOCK_COMMUNITY_POSTS: readonly CommunityRawPost[] = [
     commentCount: 71,
     filmCard: {
       title: "The Zone of Interest",
-      meta: "Jonathan Glazer · 2023 · Drama",
-      imdbId: "tt7160372",
-      posterSrc: null,
-      rating: 4,
+      year: 2023,
+      genre: "Drama",
+      posterUrl: null,
+      rating: 8,
     },
   },
   {
@@ -223,10 +223,10 @@ export const MOCK_COMMUNITY_POSTS: readonly CommunityRawPost[] = [
     commentCount: 44,
     filmCard: {
       title: "There Will Be Blood",
-      meta: "Paul Thomas Anderson · 2007",
-      imdbId: "tt0469494",
-      posterSrc: null,
-      rating: 5,
+      year: 2007,
+      genre: "Drama",
+      posterUrl: null,
+      rating: 10,
     },
   },
   {
@@ -321,10 +321,10 @@ export const MOCK_COMMUNITY_POSTS: readonly CommunityRawPost[] = [
     commentCount: 138,
     filmCard: {
       title: "Weathering With You",
-      meta: "Makoto Shinkai · 2019 · Animation",
-      imdbId: "tt9426210",
-      posterSrc: null,
-      rating: 4,
+      year: 2019,
+      genre: "Animation",
+      posterUrl: null,
+      rating: 8,
     },
   },
   {

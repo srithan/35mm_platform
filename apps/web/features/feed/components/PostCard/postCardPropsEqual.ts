@@ -20,9 +20,9 @@ function areFilmCardsEqual(
   if (!prev || !next) return false;
   return (
     prev.title === next.title &&
-    prev.meta === next.meta &&
-    prev.posterSrc === next.posterSrc &&
-    prev.imdbId === next.imdbId &&
+    prev.year === next.year &&
+    prev.genre === next.genre &&
+    prev.posterUrl === next.posterUrl &&
     prev.rating === next.rating
   );
 }

@@ -80,9 +80,9 @@ export function PostCardAttachments({
         <div className={cn("mt-2", variant === "film-log" && "mt-2")}>
           <FilmCard
             title={filmCard.title}
-            meta={filmCard.meta}
-            posterSrc={filmCard.posterSrc}
-            imdbId={filmCard.imdbId}
+            year={filmCard.year}
+            genre={filmCard.genre}
+            posterUrl={filmCard.posterUrl ?? undefined}
             rating={filmCard.rating}
           />
         </div>

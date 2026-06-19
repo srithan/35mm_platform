@@ -19,9 +19,9 @@ type ShowcasePost = {
   text: string;
   filmCard?: {
     title: string;
-    meta: string;
-    posterSrc?: string | null;
-    imdbId?: string | null;
+    year: number;
+    genre?: string;
+    posterUrl?: string | null;
     rating?: number;
   };
   likeCount: number;
@@ -42,9 +42,10 @@ const SHOWCASE_POSTS: ShowcasePost[] = [
     text: "Finally watched Jeanne Dielman in its entirety. The horror is in the routine — nothing prepares you for the final act.",
     filmCard: {
       title: "Jeanne Dielman, 23 quai du Commerce",
-      meta: "Chantal Akerman · 1975 · Belgium · 201 min",
-      imdbId: "tt0073198",
-      rating: 5,
+      year: 1975,
+      genre: "Drama",
+      posterUrl: null,
+      rating: 10,
     },
     likeCount: 84,
     commentCount: 17,
@@ -77,9 +78,10 @@ const SHOWCASE_POSTS: ShowcasePost[] = [
     text: "Fourth watch. Still don't fully understand it. Still think that's the point.",
     filmCard: {
       title: "Mulholland Drive",
-      meta: "David Lynch · 2001 · USA · 147 min",
-      imdbId: "tt0166924",
-      rating: 4,
+      year: 2001,
+      genre: "Mystery",
+      posterUrl: null,
+      rating: 8,
     },
     likeCount: 213,
     commentCount: 58,
@@ -140,11 +142,10 @@ function ShowcasePostRow({ post, className }: { post: ShowcasePost; className?: 
             <div className="mt-3">
               <FilmCard
                 title={post.filmCard.title}
-                meta={post.filmCard.meta}
-                posterSrc={post.filmCard.posterSrc}
-                imdbId={post.filmCard.imdbId}
+                year={post.filmCard.year}
+                genre={post.filmCard.genre}
+                posterUrl={post.filmCard.posterUrl ?? undefined}
                 rating={post.filmCard.rating}
-                href="#"
               />
             </div>
           ) : null}

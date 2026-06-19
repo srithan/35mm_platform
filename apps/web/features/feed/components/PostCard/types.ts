@@ -3,9 +3,10 @@ export type SourcePostType = "text" | "discussion" | "log" | "review" | "image";
 
 export interface PostCardFilmCard {
   title: string;
-  meta: string;
-  posterSrc?: string | null;
-  imdbId?: string | null;
+  year: number;
+  genre?: string;
+  posterUrl?: string | null;
+  /** Stored as 1–10 int; displayed as half-stars (÷2 → 0.5–5.0). */
   rating?: number;
 }
 

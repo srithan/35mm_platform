@@ -120,7 +120,7 @@ export function PostCardOverlays({
           type: "post",
           title: username,
           description: (headline ? headline + " — " : "") + cleanedText.slice(0, 100),
-          image: filmCard?.posterSrc || undefined,
+          image: filmCard?.posterUrl || undefined,
         }}
       />
       {muteToast ? (

@@ -1,1 +1,1 @@
-export { FilmCard } from "./FilmCard";
+export { FilmCard, type FilmCardProps } from "./FilmCard";

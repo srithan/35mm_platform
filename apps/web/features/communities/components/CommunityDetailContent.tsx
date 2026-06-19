@@ -23,9 +23,9 @@ type LegacyPostShape = {
   filmRef?: string;
   filmCard?: {
     title: string;
-    meta: string;
-    posterSrc?: string | null;
-    imdbId?: string | null;
+    year: number;
+    genre?: string;
+    posterUrl?: string | null;
     rating?: number;
   };
   imageSrc?: string;

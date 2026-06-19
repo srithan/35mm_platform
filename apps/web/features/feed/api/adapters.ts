@@ -237,10 +237,10 @@ export function adaptPostToFeedType(raw: unknown): Post {
       filmCard: film
         ? {
             title: film.title,
-            meta: [film.year, film.genres[0]].filter(Boolean).join(" · "),
-            posterSrc: film.posterUrl,
-            imdbId: null,
-            rating: film.rating ?? undefined,
+            year: film.year ?? 0,
+            genre: film.genres[0],
+            posterUrl: film.posterUrl,
+            rating: film.rating == null ? undefined : Math.round(film.rating * 2),
           }
         : undefined,
       tags: asStringArray(root.tags),

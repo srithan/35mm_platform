@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type SyntheticEvent, type WheelEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -201,19 +201,10 @@ function PostImageCarousel({
     setActiveIndex(index);
   }, []);
 
-  var handleTrackWheel = useCallback(function (event: WheelEvent<HTMLDivElement>) {
-    var track = trackRef.current;
-    if (!track) return;
-    if (track.scrollWidth <= track.clientWidth) return;
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-    event.preventDefault();
-    track.scrollLeft += event.deltaY;
-  }, []);
-
   return (
     <div
       ref={carouselRef}
-      className="group/carousel relative mt-3.5 w-full touch-pan-x overflow-hidden rounded-lg bg-sunken"
+      className="group/carousel relative mt-3.5 w-full overflow-hidden rounded-lg bg-sunken"
       onClick={function (e) {
         e.stopPropagation();
       }}
@@ -224,8 +215,7 @@ function PostImageCarousel({
       <div
         ref={trackRef}
         onScroll={syncActiveIndex}
-        onWheel={handleTrackWheel}
-        className="flex w-full flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none scroll-smooth snap-x snap-mandatory touch-pan-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="flex w-full flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Post images"
       >
         {urls.map(function (url, idx) {
