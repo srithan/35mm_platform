@@ -12,6 +12,7 @@ export const ROUTES = {
   COMMUNITIES: "/communities",
   COMMUNITY: (slug: string) => `/communities/${slug}`,
   SHORT_FILMS: "/short-films",
+  SHORT_FILMS_UPLOAD: "/short-films/upload",
   SHORT_FILM: (id: string) => `/short-films/${id}`,
   FESTIVALS: "/festivals",
   FESTIVAL: (slug: string) => `/festivals/${slug}`,

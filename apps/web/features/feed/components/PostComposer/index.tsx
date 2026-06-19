@@ -34,7 +34,7 @@ import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboar
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
-import { parseRichPostText } from "@/lib/utils/richPostText";
+import { blueInlineLinkClassName, parseRichPostText } from "@/lib/utils/richPostText";
 
 const WRITE_MAX_CHARS = 500;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
@@ -152,7 +152,7 @@ function renderComposerRichText(text: string) {
   return tokens.map(function (token, index) {
     if (token.t === "url") {
       return (
-        <span key={`token-${index}`} className="text-accent underline underline-offset-2">
+        <span key={`token-${index}`} className={blueInlineLinkClassName}>
           {token.display}
         </span>
       );
@@ -166,7 +166,7 @@ function renderComposerRichText(text: string) {
     }
     if (token.t === "tag") {
       return (
-        <span key={`token-${index}`} className="text-accent">
+        <span key={`token-${index}`} className={blueInlineLinkClassName}>
           #{token.tag}
         </span>
       );
@@ -1211,11 +1211,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   "flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
           )}
         >
-        <div className="relative inline-grid w-max max-w-full grid-cols-3 gap-1 rounded-full border border-border bg-sunken p-1">
+        <div className="relative inline-grid w-max max-w-full grid-cols-3 gap-1 rounded-full border border-border bg-sunken px-1.5 py-1">
           <div
-            className="pointer-events-none absolute inset-y-1 z-0 rounded-full border border-border bg-elevated shadow-sm transition-transform duration-200 ease-out"
+            className="pointer-events-none absolute inset-y-1 left-1.5 z-0 rounded-full border border-border bg-elevated shadow-sm transition-transform duration-200 ease-out"
             style={{
-              width: "calc((100% - 0.5rem) / 3)",
+              width: "calc((100% - 1.25rem) / 3)",
               transform: "translateX(calc(" + modeTabIndex + " * (100% + 0.25rem)))",
             }}
             aria-hidden

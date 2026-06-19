@@ -97,7 +97,7 @@ export function CommentCardBody({
                 {" "}
                 <button
                   type="button"
-                  className="inline border-none bg-transparent p-0 font-[inherit] font-medium text-fg-muted underline-offset-2 transition-colors hover:text-fg hover:underline"
+                  className="inline border-none bg-transparent p-0 font-[inherit] font-bold text-[#0095f6] transition-colors hover:text-[#1877f2]"
                   onClick={onExpand}
                 >
                   more

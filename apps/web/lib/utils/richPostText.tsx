@@ -132,6 +132,9 @@ export function parseRichPostText(input: string): RichToken[] {
 const defaultLink =
   "text-accent underline underline-offset-2 hover:opacity-90 break-all";
 
+export const blueInlineLinkClassName =
+  "text-[#0095f6] underline underline-offset-2 hover:text-[#1877f2] break-all";
+
 export function tokensToRichNodes(
   tokens: RichToken[],
   opts: {
@@ -158,7 +161,7 @@ export function tokensToRichNodes(
         <a
           key={keyBase}
           href={tok.href}
-          className={cls}
+          className={blueInlineLinkClassName}
           target="_blank"
           rel="noopener noreferrer"
           {...(stop
@@ -198,7 +201,7 @@ export function tokensToRichNodes(
         <Link
           key={keyBase}
           href={ROUTES.DISCOVER_TAG(tok.tag)}
-          className={cls}
+          className={blueInlineLinkClassName}
           {...(stop
             ? {
                 onClick: function stopCardNav(e: MouseEvent) {

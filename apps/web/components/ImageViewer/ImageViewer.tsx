@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { carouselDotSize, carouselDotStyle, carouselNavButtonClass } from "@/lib/utils/carouselDots";
+import {
+  carouselDotSize,
+  carouselDotStyle,
+  carouselNavButtonOnDarkClass,
+} from "@/lib/utils/carouselDots";
 import { Modal } from "@/components/Modal/Modal";
 import { LazyR2Image } from "@/components/LazyR2Image";
 
@@ -89,7 +93,6 @@ export function ImageViewer({
   );
 
   const currentUrl = urls.length > 0 ? (urls[activeIndex] ?? urls[0]) : "";
-  const dotsInFlow = Boolean(footer && hasMultiple);
 
   if (urls.length === 0) return null;
 
@@ -100,7 +103,7 @@ export function ImageViewer({
       variant="lightbox"
       animated={false}
       ariaLabel={alt || "Full-size image"}
-      contentClassName="w-auto max-w-[min(96vw,72rem)] overflow-visible"
+      contentClassName="w-auto max-w-[min(96vw,72rem)] overflow-visible border-0 bg-transparent p-0 shadow-none rounded-none"
       outsidePanel={
         footer ? (
           <div
@@ -112,92 +115,91 @@ export function ImageViewer({
         ) : undefined
       }
     >
-      <div className="image-viewer-media relative">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute -right-2 -top-2 z-30 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-0 sm:top-0"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" strokeWidth={2} />
-        </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed right-4 top-4 z-[calc(var(--z-modal-lightbox)+1)] flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/45 text-white shadow-md backdrop-blur-sm transition-colors hover:border-white/35 hover:bg-black/60 sm:right-6 sm:top-6"
+        aria-label="Close"
+      >
+        <X className="h-5 w-5" strokeWidth={2} />
+      </button>
 
+      {hasMultiple ? (
+        <>
+          {activeIndex > 0 ? (
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={function (e) {
+                e.stopPropagation();
+                goPrev();
+              }}
+              className={cn(
+                carouselNavButtonOnDarkClass,
+                "fixed left-4 top-1/2 z-[calc(var(--z-modal-lightbox)+1)] h-11 w-11 -translate-y-1/2 sm:left-6"
+              )}
+            >
+              <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
+            </button>
+          ) : null}
+
+          {activeIndex < urls.length - 1 ? (
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={function (e) {
+                e.stopPropagation();
+                goNext();
+              }}
+              className={cn(
+                carouselNavButtonOnDarkClass,
+                "fixed right-4 top-1/2 z-[calc(var(--z-modal-lightbox)+1)] h-11 w-11 -translate-y-1/2 sm:right-6"
+              )}
+            >
+              <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
+            </button>
+          ) : null}
+        </>
+      ) : null}
+
+      <div className="flex flex-col items-center">
         {hasMultiple ? (
-          <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-white shadow-sm">
+          <div className="pointer-events-none mb-3 rounded-full bg-black/55 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-white shadow-sm">
             {activeIndex + 1}/{urls.length}
           </div>
         ) : null}
 
-        <LazyR2Image
-          key={currentUrl}
-          src={currentUrl}
-          blurhash={blurhashes?.[activeIndex] ?? null}
-          alt={alt ? alt + " " + String(activeIndex + 1) : "Full-size image " + String(activeIndex + 1)}
-          forceLoad={open}
-          loading="eager"
-          className="block max-h-[85vh] w-auto max-w-[min(96vw,72rem)] rounded-lg object-contain shadow-2xl"
-          containerClassName="inline-flex min-h-[40vh] min-w-[min(96vw,32rem)] items-center justify-center"
-          placeholderClassName="rounded-lg bg-white/10"
-        />
+        <div className="inline-flex max-w-[min(96vw,72rem)]">
+          <LazyR2Image
+            key={currentUrl}
+            src={currentUrl}
+            blurhash={blurhashes?.[activeIndex] ?? null}
+            alt={alt ? alt + " " + String(activeIndex + 1) : "Full-size image " + String(activeIndex + 1)}
+            forceLoad={open}
+            loading="eager"
+            className="block max-h-[85vh] w-auto max-w-[min(96vw,72rem)] object-contain"
+            containerClassName="inline-flex items-center justify-center"
+            placeholderClassName="bg-transparent"
+          />
+        </div>
 
         {hasMultiple ? (
-          <>
-            {activeIndex > 0 ? (
-              <button
-                type="button"
-                aria-label="Previous image"
-                onClick={function (e) {
-                  e.stopPropagation();
-                  goPrev();
-                }}
-                className={cn(
-                  carouselNavButtonClass,
-                  "absolute left-0 top-1/2 z-30 h-10 w-10 -translate-x-1/2 -translate-y-1/2 shadow-md"
-                )}
-              >
-                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
-              </button>
-            ) : null}
-
-            {activeIndex < urls.length - 1 ? (
-              <button
-                type="button"
-                aria-label="Next image"
-                onClick={function (e) {
-                  e.stopPropagation();
-                  goNext();
-                }}
-                className={cn(
-                  carouselNavButtonClass,
-                  "absolute right-0 top-1/2 z-30 h-10 w-10 -translate-y-1/2 translate-x-1/2 shadow-md"
-                )}
-              >
-                <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
-              </button>
-            ) : null}
-
-            <div
-              className={cn(
-                "pointer-events-none flex h-3 items-center justify-center gap-[7px]",
-                dotsInFlow ? "mt-4" : "absolute inset-x-0 -bottom-8"
-              )}
-            >
-              {urls.map(function (_, idx) {
-                const isActive = idx === activeIndex;
-                const size = carouselDotSize(idx, activeIndex, urls.length);
-                return (
-                  <span
-                    key={"viewer-dot-" + idx}
-                    className={cn(
-                      "rounded-full transition-[background-color,height,width] duration-200 ease-out",
-                      isActive ? "bg-[#38a8f4]" : "bg-[#dedede]"
-                    )}
-                    style={carouselDotStyle(size)}
-                  />
-                );
-              })}
-            </div>
-          </>
+          <div className="pointer-events-none mt-4 flex h-3 items-center justify-center gap-[7px]">
+            {urls.map(function (_, idx) {
+              const isActive = idx === activeIndex;
+              const size = carouselDotSize(idx, activeIndex, urls.length);
+              return (
+                <span
+                  key={"viewer-dot-" + idx}
+                  className={cn(
+                    "rounded-full transition-[background-color,height,width] duration-200 ease-out",
+                    isActive ? "bg-[#38a8f4]" : "bg-[#dedede]"
+                  )}
+                  style={carouselDotStyle(size)}
+                />
+              );
+            })}
+          </div>
         ) : null}
       </div>
     </Modal>

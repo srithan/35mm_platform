@@ -482,7 +482,7 @@ function PostCardSkeleton({
           </div>
 
           {showFilm ? (
-            <div className="mt-3.5 flex overflow-hidden rounded border border-border/50">
+            <div className="mt-3.5 flex overflow-hidden rounded border border-border">
               <Skeleton className="h-[88px] w-[72px] shrink-0 rounded-none" />
               <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 py-3">
                 <Skeleton className="h-3 w-[75%] rounded" />
