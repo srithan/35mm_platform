@@ -1,20 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent, type WheelEvent } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { carouselDotSize, carouselDotStyle, carouselNavButtonClass } from "@/lib/utils/carouselDots";
+import {
+  carouselDotSize,
+  carouselDotStyle,
+  carouselNavButtonOnDarkClass,
+} from "@/lib/utils/carouselDots";
 import { LazyR2Image } from "@/components/LazyR2Image";
 
+const SINGLE_IMAGE_MAX_HEIGHT = 510;
+
+type SingleImageLayout = "capped" | "intrinsic" | null;
+
+function resolveSingleImageLayout(naturalWidth: number, naturalHeight: number): "capped" | "intrinsic" {
+  if (naturalHeight >= SINGLE_IMAGE_MAX_HEIGHT) {
+    return "capped";
+  }
+  return "intrinsic";
+}
+
 function gridClassName(count: number) {
-  if (count === 1) return "grid-cols-1";
   return "grid-cols-2 gap-1.5";
 }
 
 function cellClassName(count: number, index: number) {
-  if (count === 1) {
-    return "aspect-[16/10]";
-  }
   if (count === 2) {
     return "aspect-[4/5]";
   }
@@ -58,6 +69,68 @@ function PostGalleryImage({
       loading={forceLoad ? "eager" : "lazy"}
       draggable={false}
     />
+  );
+}
+
+function SinglePostImageCell({
+  url,
+  blurhash,
+  imageCaption,
+  onImageClick,
+}: {
+  url: string;
+  blurhash?: string | null;
+  imageCaption?: string;
+  onImageClick?: () => void;
+}) {
+  const [layout, setLayout] = useState<SingleImageLayout>(null);
+
+  const handleLoad = useCallback(function (event: SyntheticEvent<HTMLImageElement>) {
+    const img = event.currentTarget;
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+    if (naturalWidth <= 0 || naturalHeight <= 0) return;
+    setLayout(resolveSingleImageLayout(naturalWidth, naturalHeight));
+  }, []);
+
+  const isCapped = layout === "capped";
+  const isLoaded = layout !== null;
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "relative block max-w-full overflow-hidden rounded-xl p-0 text-left",
+        !isLoaded && "aspect-[16/10] w-full bg-sunken",
+        isCapped && "w-fit bg-transparent",
+        layout === "intrinsic" && "w-full bg-sunken"
+      )}
+      onClick={function (e) {
+        e.stopPropagation();
+        onImageClick?.();
+      }}
+    >
+      <LazyR2Image
+        src={url}
+        alt={imageCaption || "Post image"}
+        blurhash={blurhash}
+        onLoad={handleLoad}
+        className={cn(
+          "rounded-xl transition-opacity hover:opacity-90",
+          isCapped
+            ? "block h-[510px] w-auto max-w-full"
+            : "block h-auto w-full"
+        )}
+        containerClassName={cn(
+          "relative leading-none",
+          isCapped ? "block w-fit max-w-full" : "block w-full"
+        )}
+        placeholderClassName="rounded-xl"
+        rootMargin="800px"
+        loading="lazy"
+        draggable={false}
+      />
+    </button>
   );
 }
 
@@ -128,10 +201,19 @@ function PostImageCarousel({
     setActiveIndex(index);
   }, []);
 
+  var handleTrackWheel = useCallback(function (event: WheelEvent<HTMLDivElement>) {
+    var track = trackRef.current;
+    if (!track) return;
+    if (track.scrollWidth <= track.clientWidth) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    track.scrollLeft += event.deltaY;
+  }, []);
+
   return (
     <div
       ref={carouselRef}
-      className="group/carousel relative mt-3.5 w-full overflow-hidden rounded-lg bg-sunken"
+      className="group/carousel relative mt-3.5 w-full touch-pan-x overflow-hidden rounded-lg bg-sunken"
       onClick={function (e) {
         e.stopPropagation();
       }}
@@ -142,7 +224,8 @@ function PostImageCarousel({
       <div
         ref={trackRef}
         onScroll={syncActiveIndex}
-        className="flex overflow-x-auto overscroll-x-contain scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        onWheel={handleTrackWheel}
+        className="flex w-full flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none scroll-smooth snap-x snap-mandatory touch-pan-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Post images"
       >
         {urls.map(function (url, idx) {
@@ -155,7 +238,7 @@ function PostImageCarousel({
               key={`post-image-${idx}`}
               type="button"
               aria-label={"View image " + String(idx + 1) + " of " + String(urls.length)}
-              className="relative aspect-[4/5] min-w-full flex-shrink-0 snap-start snap-always bg-sunken"
+              className="relative aspect-[4/5] w-full min-w-full max-w-full flex-shrink-0 flex-grow-0 snap-start snap-always bg-sunken"
               onClick={function (e) {
                 e.stopPropagation();
                 onImageClick?.(idx);
@@ -206,11 +289,11 @@ function PostImageCarousel({
             scrollToIndex(activeIndex - 1);
           }}
           className={cn(
-            carouselNavButtonClass,
-            "absolute left-2 top-1/2 z-30 hidden h-7 w-7 -translate-y-1/2 transition-opacity md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
+            carouselNavButtonOnDarkClass,
+            "absolute left-2 top-1/2 z-30 h-9 w-9 -translate-y-1/2"
           )}
         >
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+          <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
         </button>
       ) : null}
 
@@ -223,11 +306,11 @@ function PostImageCarousel({
             scrollToIndex(activeIndex + 1);
           }}
           className={cn(
-            carouselNavButtonClass,
-            "absolute right-2 top-1/2 z-30 hidden h-7 w-7 -translate-y-1/2 transition-opacity md:flex md:opacity-0 md:group-hover/carousel:opacity-100"
+            carouselNavButtonOnDarkClass,
+            "absolute right-2 top-1/2 z-30 h-9 w-9 -translate-y-1/2"
           )}
         >
-          <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
       ) : null}
     </div>
@@ -246,6 +329,21 @@ function PostImageGrid({
   onImageClick?: (index: number) => void;
 }) {
   var count = urls.length;
+
+  if (count === 1) {
+    return (
+      <div className="mt-3.5 w-full">
+        <SinglePostImageCell
+          url={urls[0]}
+          blurhash={blurhashes?.[0] ?? null}
+          imageCaption={imageCaption}
+          onImageClick={function () {
+            onImageClick?.(0);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("mt-3.5 grid w-full overflow-hidden rounded-lg", gridClassName(count))}>
