@@ -21,6 +21,7 @@ import { notificationsRoutes } from "./modules/notifications/routes.js";
 import { listRoutes } from "./modules/lists/routes.js";
 import { isRedisEnabled } from "./lib/redis.js";
 import { isQueueEnabled } from "./lib/jobs.js";
+import posterProxy from "./routes/poster-proxy.js";
 
 var env = loadEnv();
 
@@ -72,6 +73,7 @@ app.use("*", errorHandler);
 
 app.route("/health", healthRoutes);
 
+app.route("/poster-proxy", posterProxy);
 app.route("/v1/webhooks", webhookRoutes);
 app.route("/v1", authRoutes);
 app.route("/v1", onboardingRoutes);
