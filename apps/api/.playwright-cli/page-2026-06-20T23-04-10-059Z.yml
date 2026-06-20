@@ -1,0 +1,189 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e111] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e112]:
+    - dialog:
+      - link:
+        - /url: /srithan
+        - generic:
+          - generic:
+            - generic: Srithan Reddy Savela
+            - img
+          - paragraph: "@srithan"
+          - generic:
+            - generic: 2,961 Following
+            - generic: 950 Followers
+      - navigation:
+        - generic:
+          - link:
+            - /url: /
+            - img
+            - text: Your Feed
+          - link:
+            - /url: /discover
+            - img
+            - text: Discover
+          - link:
+            - /url: /short-films
+            - img
+            - text: Short films
+          - link:
+            - /url: /notifications
+            - img
+            - text: Notifications
+            - generic:
+              - text: "3"
+              - generic: 3 unread items
+          - link:
+            - /url: /bookmarks
+            - img
+            - text: Bookmarks
+          - link:
+            - /url: /srithan
+            - img
+            - text: Profile
+          - link:
+            - /url: /settings
+            - img
+            - text: Settings
+      - generic:
+        - button:
+          - img
+          - text: New post
+    - navigation [ref=e113]:
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - link "35mm." [ref=e116] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e117]:
+            - img [ref=e118]
+            - searchbox "Search films, people, and reviews" [ref=e121]
+        - generic [ref=e123]:
+          - link "Feed" [ref=e124] [cursor=pointer]:
+            - /url: /
+            - img [ref=e126]
+            - generic [ref=e128]: Feed
+          - link "Discover" [ref=e129] [cursor=pointer]:
+            - /url: /discover
+            - img [ref=e131]
+            - generic [ref=e134]: Discover
+          - link "Short Films" [ref=e135] [cursor=pointer]:
+            - /url: /short-films
+            - img [ref=e137]
+            - generic [ref=e139]: Short Films
+          - link "Profile" [ref=e140] [cursor=pointer]:
+            - /url: /srithan
+            - img [ref=e142]
+            - generic [ref=e145]: Profile
+        - generic [ref=e146]:
+          - button "Notifications" [ref=e148] [cursor=pointer]:
+            - img [ref=e149]
+          - button "New Post" [ref=e152] [cursor=pointer]:
+            - generic [ref=e153]:
+              - img [ref=e154]
+              - text: New Post
+          - button "Account menu" [ref=e156] [cursor=pointer]
+    - main [ref=e159]:
+      - generic [ref=e160]:
+        - button "Back to feed" [ref=e162] [cursor=pointer]:
+          - img [ref=e163]
+          - text: Back
+        - article [ref=e165]:
+          - generic [ref=e166]:
+            - link [ref=e167] [cursor=pointer]:
+              - /url: /kubrick
+            - generic [ref=e170]:
+              - generic [ref=e171]:
+                - generic [ref=e172]:
+                  - link "Stanley Kubrick @kubrick" [ref=e173] [cursor=pointer]:
+                    - /url: /kubrick
+                  - generic [ref=e174]: · 40m
+                - button "More options" [ref=e176] [cursor=pointer]:
+                  - img [ref=e177]
+              - generic [ref=e183]: Industry · Executive Producer
+              - generic [ref=e184]:
+                - paragraph [ref=e187]:
+                  - generic [ref=e189]:
+                    - text: Hey
+                    - link "@srithan" [ref=e190] [cursor=pointer]:
+                      - /url: /srithan
+                    - text: Just checking whether you are getting the mention notification or not.
+                - generic [ref=e191]:
+                  - button "Like this post" [ref=e192] [cursor=pointer]:
+                    - generic:
+                      - generic:
+                        - img
+                        - img
+                  - button "Comments" [ref=e193] [cursor=pointer]:
+                    - img
+                    - generic [ref=e194]: "1"
+                  - button "Repost" [ref=e195] [cursor=pointer]:
+                    - img
+                  - button "Save" [ref=e196] [cursor=pointer]:
+                    - img
+        - generic [ref=e197]:
+          - generic [ref=e233]:
+            - paragraph [ref=e234]:
+              - text: Replying to
+              - generic [ref=e235]: "@kubrick"
+            - combobox "Post your reply" [active] [ref=e237]:
+              - paragraph [ref=e238]: Post your reply
+            - generic [ref=e239]:
+              - generic [ref=e240]:
+                - button [ref=e241] [cursor=pointer]:
+                  - img [ref=e242]
+                - button [ref=e246] [cursor=pointer]:
+                  - img [ref=e247]
+                - button [ref=e249] [cursor=pointer]:
+                  - img [ref=e250]
+                - button [ref=e253] [cursor=pointer]:
+                  - img [ref=e254]
+                - button [ref=e257] [cursor=pointer]:
+                  - img [ref=e258]
+                - generic [ref=e261]:
+                  - button "Bold" [ref=e262] [cursor=pointer]:
+                    - img [ref=e263]
+                  - button "Italic" [ref=e265] [cursor=pointer]:
+                    - img [ref=e266]
+                  - button "Underline" [ref=e268] [cursor=pointer]:
+                    - img [ref=e269]
+                  - button "Toggle spoiler" [ref=e271] [cursor=pointer]:
+                    - img [ref=e272]
+              - button "Reply" [disabled] [ref=e277]
+          - generic [ref=e206]:
+            - link [ref=e207] [cursor=pointer]:
+              - /url: /srithan
+            - generic [ref=e210]:
+              - generic [ref=e211]:
+                - generic [ref=e212]:
+                  - link "Srithan Reddy Savela @srithan" [ref=e213] [cursor=pointer]:
+                    - /url: /srithan
+                    - text: Srithan Reddy Savela
+                    - generic [ref=e214]: "@srithan"
+                  - generic [ref=e215]: · 39m
+                - button "More options" [ref=e216] [cursor=pointer]:
+                  - img [ref=e217]
+              - paragraph [ref=e223]:
+                - generic [ref=e225]: nope
+              - generic [ref=e226]:
+                - button "Reply" [ref=e227] [cursor=pointer]:
+                  - img
+                  - generic [ref=e228]: Reply
+                - button "Like this post" [ref=e229] [cursor=pointer]:
+                  - generic:
+                    - generic:
+                      - img
+                      - img
+                - button "Comments" [ref=e230] [cursor=pointer]:
+                  - img
+                - button "Repost" [ref=e231] [cursor=pointer]:
+                  - img
+                - button "Save" [ref=e232] [cursor=pointer]:
+                  - img
+  - generic [ref=e2]:
+    - img [ref=e4]
+    - button "Open Tanstack query devtools" [ref=e52] [cursor=pointer]:
+      - img [ref=e53]
+  - button "Open Next.js Dev Tools" [ref=e106] [cursor=pointer]:
+    - img [ref=e107]
+  - alert [ref=e110]

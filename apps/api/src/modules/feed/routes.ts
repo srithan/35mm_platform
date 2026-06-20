@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
-import { createPostSchema, cursorPaginationSchema } from "@35mm/validators";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import {
+  createPostSchema,
+  cursorPaginationSchema,
+  richTextBodyToVisibleText,
+  richTextMentionIds,
+  validateRichTextBody,
+} from "@35mm/validators";
 import {
   posts,
   postLikes,
@@ -15,6 +21,7 @@ import {
   commentLikes,
   comments,
   films,
+  users,
 } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import {
@@ -132,6 +139,108 @@ function isMissingActorIdsColumnError(err: unknown): boolean {
 function weakEtag(input: unknown, prefix: string): string {
   var digest = createHash("sha1").update(JSON.stringify(input)).digest("base64url");
   return `W/"${prefix}-${digest}"`;
+}
+
+const RICH_TEXT_PREFIX = "__35MM_RICH_TEXT_V1__";
+
+type RichTextNode = {
+  type?: string;
+  attrs?: Record<string, unknown>;
+  content?: RichTextNode[];
+};
+
+function parseRichBody(value: string): RichTextNode | null {
+  if (!value.startsWith(RICH_TEXT_PREFIX)) return null;
+  try {
+    var parsed = JSON.parse(value.slice(RICH_TEXT_PREFIX.length));
+    if (parsed && typeof parsed === "object" && parsed.type === "doc") {
+      return parsed as RichTextNode;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function createMentionNotifications(params: {
+  body: string;
+  actorId: string;
+  entityType: "post" | "comment";
+  entityId: string;
+}) {
+  var mentionedIds = mentionNotificationRecipientIds(params.body, params.actorId);
+  if (mentionedIds.length === 0) return;
+
+  var db = getDb();
+  var activeRows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.id, mentionedIds), eq(users.status, "active")));
+  var activeIds = new Set(activeRows.map(function (row) { return row.id; }));
+
+  await Promise.all(
+    mentionedIds
+      .filter(function (id, index, arr) {
+        return activeIds.has(id) && arr.indexOf(id) === index;
+      })
+      .map(function (recipientId) {
+        return createNotification({
+          recipientId,
+          actorId: params.actorId,
+          type: "mention",
+          entityType: params.entityType,
+          entityId: params.entityId,
+        });
+      })
+  );
+}
+
+export function mentionNotificationRecipientIds(body: string, actorId: string): string[] {
+  return richTextMentionIds(body).filter(function (id, index, arr) {
+    return id !== actorId && arr.indexOf(id) === index;
+  });
+}
+
+async function hydrateRichMentions(value: string): Promise<string> {
+  var doc = parseRichBody(value);
+  if (!doc) return value;
+  var ids: string[];
+  try {
+    ids = richTextMentionIds(value);
+  } catch (_error) {
+    return value;
+  }
+  if (ids.length === 0) return value;
+
+  var db = getDb();
+  var rows = await db
+    .select({
+      id: profiles.userId,
+      username: profiles.username,
+      status: users.status,
+    })
+    .from(profiles)
+    .innerJoin(users, eq(users.id, profiles.userId))
+    .where(inArray(profiles.userId, ids));
+  var byId = new Map(
+    rows.map(function (row) {
+      return [row.id, row];
+    })
+  );
+
+  function walk(node: RichTextNode) {
+    if (node.type === "mention" && typeof node.attrs?.id === "string") {
+      var row = byId.get(node.attrs.id);
+      if (!row || row.status !== "active") {
+        node.attrs = { ...node.attrs, deleted: true };
+      } else {
+        node.attrs = { ...node.attrs, username: row.username, label: row.username, deleted: false };
+      }
+    }
+    for (var child of node.content ?? []) walk(child);
+  }
+  walk(doc);
+  return RICH_TEXT_PREFIX + JSON.stringify(doc);
 }
 
 function toActionError(err: unknown): ApiError {
@@ -326,8 +435,14 @@ function parseCreateCommentInput(raw: unknown): { body: string; parentId: string
   if (typeof source.body !== "string") {
     throw badRequest("Comment body must be string");
   }
-  var body = source.body.trim();
-  if (body.length < 1 || body.length > 1000) {
+  var body: string;
+  try {
+    body = validateRichTextBody(source.body.trim(), 1000);
+  } catch (_error) {
+    throw badRequest("Comment body must be 1-1000 characters");
+  }
+  var visibleBody = richTextBodyToVisibleText(body).trim();
+  if (body.length < 1 || body.length > 100000 || visibleBody.length < 1 || visibleBody.length > 1000) {
     throw badRequest("Comment body must be 1-1000 characters");
   }
 
@@ -354,8 +469,14 @@ function parseUpdateCommentInput(raw: unknown): { body: string } {
   if (typeof source.body !== "string") {
     throw badRequest("Comment body must be string");
   }
-  var body = source.body.trim();
-  if (body.length < 1 || body.length > 1000) {
+  var body: string;
+  try {
+    body = validateRichTextBody(source.body.trim(), 1000);
+  } catch (_error) {
+    throw badRequest("Comment body must be 1-1000 characters");
+  }
+  var visibleBody = richTextBodyToVisibleText(body).trim();
+  if (body.length < 1 || body.length > 100000 || visibleBody.length < 1 || visibleBody.length > 1000) {
     throw badRequest("Comment body must be 1-1000 characters");
   }
 
@@ -520,11 +641,14 @@ async function toPostItem(row: {
       return item.url;
     });
 
+  var hydratedBody = await hydrateRichMentions(row.body);
+  var hydratedHeadline = row.headline ? await hydrateRichMentions(row.headline) : row.headline;
+
   return {
     id: row.id,
     type: row.type,
-    headline: row.headline,
-    body: row.body,
+    headline: hydratedHeadline,
+    body: hydratedBody,
     visibility: row.visibility,
     media: responseMedia,
     mediaUrls: responseMediaUrls,
@@ -941,6 +1065,13 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
   if (!postId) {
     throw badRequest("Unable to create post");
   }
+
+  await createMentionNotifications({
+    body: input.body,
+    actorId: user.userId,
+    entityType: "post",
+    entityId: postId,
+  });
 
   // Worker fanout not wired yet; synchronous insert into feed_items.
   var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
@@ -1947,7 +2078,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
         id: row.id,
         postId: row.postId,
         parentId: row.parentId,
-        body: row.isDeleted ? null : row.body,
+        body: row.isDeleted ? null : await hydrateRichMentions(row.body),
         isDeleted: row.isDeleted,
         likeCount: Number(row.likeCount ?? 0),
         isLiked: Boolean(row.isLiked),
@@ -2078,6 +2209,13 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
     })
     .where(eq(posts.id, postId));
 
+  await createMentionNotifications({
+    body: inserted.body,
+    actorId: user.userId,
+    entityType: "comment",
+    entityId: inserted.id,
+  });
+
   if (parentCommentOwnerId) {
     await createNotification({
       recipientId: parentCommentOwnerId,
@@ -2117,7 +2255,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
       id: inserted.id,
       postId: inserted.postId,
       parentId: inserted.parentId,
-      body: inserted.body,
+      body: await hydrateRichMentions(inserted.body),
       isDeleted: inserted.isDeleted,
       likeCount: Number(inserted.likeCount ?? 0),
       editedAt: inserted.editedAt ? inserted.editedAt.toISOString() : null,
@@ -2210,7 +2348,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, async functi
     id: updated.id,
     postId: updated.postId,
     parentId: updated.parentId,
-    body: updated.body,
+    body: await hydrateRichMentions(updated.body),
     isDeleted: updated.isDeleted,
     likeCount: Number(updated.likeCount ?? 0),
     editedAt: updated.editedAt ? updated.editedAt.toISOString() : null,

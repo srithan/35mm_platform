@@ -1,8 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
+import type { Editor } from "@tiptap/react";
+import { useState } from "react";
+import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
+import { hasVisibleRichText, isStoredRichText } from "@/lib/utils/richContent";
 import { RichPostInline } from "@/lib/utils/richPostText";
 import { VideoUrlPreview } from "../VideoUrlPreview";
+import { FormattingToolbar } from "../PostComposer/FormattingToolbar";
+import { RichTextEditor } from "../PostComposer/RichTextEditor";
 import type { RefObject } from "react";
 import type { VideoPreview } from "../../utils/videoPreviews";
 
@@ -41,25 +47,34 @@ export function CommentCardBody({
   onExpand,
   onCollapse,
 }: CommentCardBodyProps) {
+  const [editEditor, setEditEditor] = useState<Editor | null>(null);
+  var canSaveEdit = hasVisibleRichText(editDraft) && !isSaving;
+
   return (
     <div className="mt-1">
       {isEditing ? (
         <div className="mt-1">
-          <textarea
+          <div className="rounded-md border border-border bg-elevated px-3 py-2 focus-within:border-fg-faint focus-within:ring-2 focus-within:ring-fg/5">
+            <RichTextEditor
             value={editDraft}
-            onChange={(e) => onEditDraftChange(e.target.value)}
-            rows={3}
-            className="w-full resize-y min-h-[84px] rounded-md border border-border bg-elevated px-3 py-2 text-[15px] leading-[1.55] text-fg outline-none focus:border-fg-faint focus:ring-2 focus:ring-fg/5"
+              onChange={(value) => onEditDraftChange(value)}
+              onEditorReady={setEditEditor}
+              placeholder="Edit comment"
+              className="min-h-[84px] text-[15px] leading-[1.55] text-fg"
             autoFocus
-          />
+            />
+            <div className="border-t border-border/60 pt-1">
+              <FormattingToolbar editor={editEditor} showDivider={false} />
+            </div>
+          </div>
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
-              disabled={editDraft.trim().length === 0 || isSaving}
+              disabled={!canSaveEdit}
               onClick={() => void onSaveEdit()}
               className={cn(
                 "rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors",
-                editDraft.trim().length === 0 || isSaving
+                !canSaveEdit
                   ? "cursor-not-allowed bg-sunken-2 text-fg-faint"
                   : "bg-fg text-bg hover:opacity-90"
               )}
@@ -88,16 +103,20 @@ export function CommentCardBody({
             ref={bodyRef}
             className="text-[15px] leading-[1.65] text-fg whitespace-pre-wrap break-words"
           >
-            <RichPostInline
-              text={expanded ? cleanedText : truncatedText ?? cleanedText}
-              segmentKeyPrefix="comment-body"
-            />
+            {isStoredRichText(cleanedText) && (expanded || truncatedText == null) ? (
+              <RichTextRenderer stored={cleanedText} />
+            ) : (
+              <RichPostInline
+                text={expanded ? cleanedText : truncatedText ?? cleanedText}
+                segmentKeyPrefix="comment-body"
+              />
+            )}
             {!expanded && truncatedText != null && isOverflowing ? (
               <>
                 {" "}
                 <button
                   type="button"
-                  className="inline border-none bg-transparent p-0 font-[inherit] font-bold text-[#0095f6] transition-colors hover:text-[#1877f2]"
+                  className="inline border-none bg-transparent p-0 font-[inherit] font-bold text-social-accent transition-colors hover:text-social-accent-hover"
                   onClick={onExpand}
                 >
                   more

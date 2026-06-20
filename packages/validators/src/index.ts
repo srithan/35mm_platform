@@ -1,6 +1,103 @@
 import { z } from "zod";
 
 var ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+var RICH_TEXT_PREFIX = "__35MM_RICH_TEXT_V1__";
+
+type RichTextNode = {
+  type: string;
+  text?: string;
+  marks?: Array<{ type: "bold" | "italic" | "underline" | "spoiler" }>;
+  attrs?: {
+    id?: string;
+    label?: string;
+    username?: string;
+    deleted?: boolean;
+  };
+  content?: RichTextNode[];
+};
+
+var richTextMarkSchema = z.object({
+  type: z.enum(["bold", "italic", "underline", "spoiler"]),
+});
+
+var richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(function () {
+  return z.union([
+    z.object({
+      type: z.literal("text"),
+      text: z.string().max(5000),
+      marks: z.array(richTextMarkSchema).max(8).optional(),
+    }),
+    z.object({
+      type: z.literal("hardBreak"),
+    }),
+    z.object({
+      type: z.literal("mention"),
+      attrs: z.object({
+        id: z.string().uuid(),
+        label: z.string().trim().min(1).max(30).regex(/^[a-zA-Z0-9._]+$/),
+        username: z.string().trim().min(1).max(30).regex(/^[a-zA-Z0-9._]+$/).optional(),
+        deleted: z.boolean().optional(),
+      }),
+    }),
+    z.object({
+      type: z.literal("paragraph"),
+      content: z.array(richTextNodeSchema).max(500).optional(),
+    }),
+    z.object({
+      type: z.literal("doc"),
+      content: z.array(richTextNodeSchema).max(200).optional(),
+    }),
+  ]);
+});
+
+export var richTextDocSchema = z.object({
+  type: z.literal("doc"),
+  content: z.array(richTextNodeSchema).max(200).optional(),
+});
+
+export function parseRichTextBody(value: string): z.infer<typeof richTextDocSchema> | null {
+  if (!value.startsWith(RICH_TEXT_PREFIX)) return null;
+  var parsed = JSON.parse(value.slice(RICH_TEXT_PREFIX.length));
+  return richTextDocSchema.parse(parsed);
+}
+
+function richTextNodeToText(node: RichTextNode): string {
+  if (node.type === "text") return node.text ?? "";
+  if (node.type === "mention") {
+    var label = node.attrs?.label ?? node.attrs?.username ?? "user";
+    return "@" + label.replace(/^@/, "");
+  }
+  if (node.type === "hardBreak") return "\n";
+  return (node.content ?? []).map(richTextNodeToText).join("");
+}
+
+export function richTextBodyToVisibleText(value: string): string {
+  var doc = parseRichTextBody(value);
+  if (!doc) return value;
+  return (doc.content ?? []).map(richTextNodeToText).join("\n");
+}
+
+export function richTextMentionIds(value: string): string[] {
+  var doc = parseRichTextBody(value);
+  if (!doc) return [];
+  var ids = new Set<string>();
+  function walk(node: RichTextNode) {
+    if (node.type === "mention" && typeof node.attrs?.id === "string") {
+      ids.add(node.attrs.id);
+    }
+    for (var child of node.content ?? []) walk(child);
+  }
+  walk(doc);
+  return Array.from(ids);
+}
+
+export function validateRichTextBody(value: string, maxVisibleChars: number): string {
+  var visible = richTextBodyToVisibleText(value).trim();
+  if (visible.length < 1 || visible.length > maxVisibleChars) {
+    throw new Error(`Body must be 1-${maxVisibleChars} visible characters`);
+  }
+  return value;
+}
 
 export var cursorPaginationSchema = z.object({
   cursor: z.string().min(1).optional(),
@@ -10,7 +107,16 @@ export var cursorPaginationSchema = z.object({
 export var createPostSchema = z.object({
   type: z.enum(["text", "discussion", "log", "review", "image"]).default("text"),
   headline: z.string().trim().min(1).max(120).optional(),
-  body: z.string().max(5000),
+  body: z.string().max(300000).superRefine(function (value, ctx) {
+    try {
+      validateRichTextBody(value, 5000);
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : "Invalid rich text body",
+      });
+    }
+  }),
   film: z
     .object({
       id: z

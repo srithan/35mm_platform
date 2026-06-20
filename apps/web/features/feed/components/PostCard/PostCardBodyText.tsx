@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
+import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
+import { isStoredRichText } from "@/lib/utils/richContent";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { ROUTES } from "@/lib/constants/routes";
 import { useRouter } from "next/navigation";
@@ -74,17 +76,24 @@ export function PostCardBodyText({
               ref={bodyRef}
               className={cn(postBodyTextClassName, shouldClamp && "overflow-hidden")}
             >
-              <RichPostBodyWithFilmRef
-                text={truncatedText ?? cleanedText}
-                filmRef={filmRef}
-                stopLinkPropagation={stopRichLinkBubble}
-              />
+              {isStoredRichText(cleanedText) && truncatedText == null ? (
+                <RichTextRenderer
+                  stored={cleanedText}
+                  stopLinkPropagation={stopRichLinkBubble}
+                />
+              ) : (
+                <RichPostBodyWithFilmRef
+                  text={truncatedText ?? cleanedText}
+                  filmRef={filmRef}
+                  stopLinkPropagation={stopRichLinkBubble}
+                />
+              )}
               {truncatedText != null && isOverflowing ? (
                 <>
                   {" "}
                   <button
                     type="button"
-                    className="inline border-none bg-transparent p-0 font-[inherit] font-bold text-[#0095f6] transition-colors hover:text-[#1877f2]"
+                    className="inline border-none bg-transparent p-0 font-[inherit] font-bold text-social-accent transition-colors hover:text-social-accent-hover"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!postId) return;

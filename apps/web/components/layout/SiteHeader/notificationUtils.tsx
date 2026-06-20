@@ -49,6 +49,14 @@ export function formatNotificationText(row: HeaderNotifRow): ReactNode {
   }
 
   if (row.type === "like") {
+    if (row.entity?.type === "comment") {
+      return (
+        <>
+          <strong>{actorLabel}</strong> liked your comment
+        </>
+      );
+    }
+
     return (
       <>
         <strong>{actorLabel}</strong> liked your {row.entity?.title ? <em>{row.entity.title}</em> : <strong>post</strong>}

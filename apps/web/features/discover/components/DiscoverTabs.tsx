@@ -23,7 +23,7 @@ export function DiscoverTabs({ active, onSelect }: DiscoverTabsProps) {
       rootClassName="w-full pt-0 pb-0"
       tabsListClassName=""
       tabClassName="min-w-max flex-shrink-0 py-3.5 text-[14px] tracking-[0.02em] md:flex-none"
-      activeTabClassName={cn("text-fg font-semibold", "border-[var(--discover-tab-active,#e03e3e)]")}
+      activeTabClassName={cn("text-fg font-semibold", "border-accent")}
       inactiveTabClassName="text-fg-muted hover:text-fg font-medium"
     />
   );

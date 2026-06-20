@@ -192,7 +192,7 @@ function entityFilterClauses(input: NotificationInput) {
   return [
     eq(notifications.recipientId, input.recipientId),
     eq(notifications.type, input.type),
-    isNull(notifications.isRead),
+    eq(notifications.isRead, false),
     input.entityId === null
       ? isNull(notifications.entityId)
       : eq(notifications.entityId, input.entityId),

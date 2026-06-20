@@ -1,0 +1,762 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e111] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e112]:
+    - dialog:
+      - link:
+        - /url: /srithan
+        - generic:
+          - generic:
+            - generic: Srithan Reddy Savela
+            - img
+          - paragraph: "@srithan"
+          - generic:
+            - generic: 2,961 Following
+            - generic: 950 Followers
+      - navigation:
+        - generic:
+          - link:
+            - /url: /
+            - img
+            - text: Your Feed
+          - link:
+            - /url: /discover
+            - img
+            - text: Discover
+          - link:
+            - /url: /short-films
+            - img
+            - text: Short films
+          - link:
+            - /url: /notifications
+            - img
+            - text: Notifications
+            - generic:
+              - text: "3"
+              - generic: 3 unread items
+          - link:
+            - /url: /bookmarks
+            - img
+            - text: Bookmarks
+          - link:
+            - /url: /srithan
+            - img
+            - text: Profile
+          - link:
+            - /url: /settings
+            - img
+            - text: Settings
+      - generic:
+        - button:
+          - img
+          - text: New post
+    - navigation [ref=e113]:
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - link "35mm." [ref=e116] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e117]:
+            - img [ref=e118]
+            - searchbox "Search films, people, and reviews" [ref=e121]
+        - generic [ref=e123]:
+          - link "Feed" [ref=e124] [cursor=pointer]:
+            - /url: /
+            - img [ref=e126]
+            - generic [ref=e128]: Feed
+          - link "Discover" [ref=e129] [cursor=pointer]:
+            - /url: /discover
+            - img [ref=e131]
+            - generic [ref=e134]: Discover
+          - link "Short Films" [ref=e135] [cursor=pointer]:
+            - /url: /short-films
+            - img [ref=e137]
+            - generic [ref=e139]: Short Films
+          - link "Profile" [ref=e140] [cursor=pointer]:
+            - /url: /srithan
+            - img [ref=e142]
+            - generic [ref=e145]: Profile
+        - generic [ref=e146]:
+          - button "Notifications" [ref=e148] [cursor=pointer]:
+            - img [ref=e149]
+          - button "New Post" [ref=e152] [cursor=pointer]:
+            - generic [ref=e153]:
+              - img [ref=e154]
+              - text: New Post
+          - button "Account menu" [ref=e156] [cursor=pointer]
+    - main [ref=e159]:
+      - generic [ref=e162]:
+        - button "Create new post" [active] [ref=e164] [cursor=pointer]:
+          - generic [ref=e165]:
+            - generic [ref=e169]: Drop your latest watch or hot take, Srithan Reddy Savela.
+            - generic: Post
+          - generic [ref=e170]:
+            - generic [ref=e171]:
+              - img [ref=e172]
+              - generic [ref=e176]: Photos/Video
+            - generic [ref=e178]: GIF
+            - generic [ref=e179]:
+              - img [ref=e180]
+              - generic [ref=e185]: Emoji
+        - generic [ref=e187]:
+          - link "Stanley Kubrick @kubrick · 39m More options Industry · Executive Producer Hey @srithan Just checking whether you are getting the mention notification or not. Like this post Comments Repost Save" [ref=e188] [cursor=pointer]:
+            - generic [ref=e189]:
+              - link [ref=e190]:
+                - /url: /kubrick
+              - generic [ref=e194]:
+                - generic [ref=e195]:
+                  - generic [ref=e196]:
+                    - link "Stanley Kubrick @kubrick" [ref=e197]:
+                      - /url: /kubrick
+                    - generic [ref=e198]: · 39m
+                  - button "More options" [ref=e200]:
+                    - img [ref=e201]
+                - generic [ref=e207]: Industry · Executive Producer
+                - generic [ref=e208]:
+                  - paragraph [ref=e211]:
+                    - generic [ref=e213]:
+                      - text: Hey
+                      - link "@srithan" [ref=e214]:
+                        - /url: /srithan
+                      - text: Just checking whether you are getting the mention notification or not.
+                  - generic [ref=e215]:
+                    - button "Like this post" [ref=e216]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e217]:
+                      - img
+                      - generic [ref=e218]: "1"
+                    - button "Repost" [ref=e219]:
+                      - img
+                    - button "Save" [ref=e220]:
+                      - img
+          - link "Tony @tony · 52m More options Cinephile The Reveal spoiler scene in Karuppu is one for ages. Theatre erupting moment across the state. Like this post Comments Repost Save" [ref=e221] [cursor=pointer]:
+            - generic [ref=e222]:
+              - link [ref=e223]:
+                - /url: /tony
+              - generic [ref=e227]:
+                - generic [ref=e228]:
+                  - generic [ref=e229]:
+                    - link "Tony @tony" [ref=e230]:
+                      - /url: /tony
+                    - generic [ref=e231]: · 52m
+                  - button "More options" [ref=e233]:
+                    - img [ref=e234]
+                - generic [ref=e240]: Cinephile
+                - generic [ref=e241]:
+                  - paragraph [ref=e244]:
+                    - generic [ref=e246]:
+                      - text: The
+                      - button "Reveal spoiler" [ref=e247]:
+                        - generic [ref=e248]: bike to horse transformation
+                      - text: scene in Karuppu is one for ages. Theatre erupting moment across the state.
+                  - generic [ref=e249]:
+                    - button "Like this post" [ref=e250]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e251]:
+                      - img
+                    - button "Repost" [ref=e252]:
+                      - img
+                    - button "Save" [ref=e253]:
+                      - img
+          - link "Stanley Kubrick @kubrick · 56m More options Industry · Executive Producer Hi @tony How's Disclosure Day? Like this post Comments Repost Save" [ref=e254] [cursor=pointer]:
+            - generic [ref=e255]:
+              - link [ref=e256]:
+                - /url: /kubrick
+              - generic [ref=e260]:
+                - generic [ref=e261]:
+                  - generic [ref=e262]:
+                    - link "Stanley Kubrick @kubrick" [ref=e263]:
+                      - /url: /kubrick
+                    - generic [ref=e264]: · 56m
+                  - button "More options" [ref=e266]:
+                    - img [ref=e267]
+                - generic [ref=e273]: Industry · Executive Producer
+                - generic [ref=e274]:
+                  - paragraph [ref=e277]:
+                    - generic [ref=e279]:
+                      - text: Hi
+                      - link "@tony" [ref=e280]:
+                        - /url: /tony
+                      - text: How's Disclosure Day?
+                  - generic [ref=e281]:
+                    - button "Like this post" [ref=e282]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e283]:
+                      - img
+                    - button "Repost" [ref=e284]:
+                      - img
+                    - button "Save" [ref=e285]:
+                      - img
+          - link "Stanley Kubrick @kubrick · 1d logged More options Industry · Executive Producer Amazing film and no number of rewatches could change that. Ye Maaya Chesave 2010 · Romance Like this post Comments Repost Save" [ref=e286] [cursor=pointer]:
+            - generic [ref=e287]:
+              - link [ref=e288]:
+                - /url: /kubrick
+              - generic [ref=e292]:
+                - generic [ref=e293]:
+                  - generic [ref=e294]:
+                    - link "Stanley Kubrick @kubrick" [ref=e295]:
+                      - /url: /kubrick
+                    - generic [ref=e296]: · 1d
+                    - generic [ref=e297]: logged
+                  - button "More options" [ref=e299]:
+                    - img [ref=e300]
+                - generic [ref=e306]: Industry · Executive Producer
+                - generic [ref=e307]:
+                  - paragraph [ref=e310]: Amazing film and no number of rewatches could change that.
+                  - generic [ref=e318]:
+                    - generic [ref=e319]: Ye Maaya Chesave
+                    - generic [ref=e320]: 2010 · Romance
+                    - generic [ref=e321]:
+                      - generic [ref=e322]: ★
+                      - generic [ref=e323]: ★
+                      - generic [ref=e324]: ★
+                      - generic [ref=e325]: ★
+                      - generic [ref=e326]: ★
+                  - generic [ref=e327]:
+                    - button "Like this post" [ref=e328]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e329]:
+                      - img
+                    - button "Repost" [ref=e330]:
+                      - img
+                    - button "Save" [ref=e331]:
+                      - img
+          - link "Stanley Kubrick @kubrick · 6d More options Industry · Executive Producer Hi cinephiles. How's your weekend going? Like this post Comments Repost Save" [ref=e332] [cursor=pointer]:
+            - generic [ref=e333]:
+              - link [ref=e334]:
+                - /url: /kubrick
+              - generic [ref=e338]:
+                - generic [ref=e339]:
+                  - generic [ref=e340]:
+                    - link "Stanley Kubrick @kubrick" [ref=e341]:
+                      - /url: /kubrick
+                    - generic [ref=e342]: · 6d
+                  - button "More options" [ref=e344]:
+                    - img [ref=e345]
+                - generic [ref=e351]: Industry · Executive Producer
+                - generic [ref=e352]:
+                  - paragraph [ref=e355]: Hi cinephiles. How's your weekend going?
+                  - generic [ref=e356]:
+                    - button "Like this post" [ref=e357]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e358]:
+                      - img
+                    - button "Repost" [ref=e359]:
+                      - img
+                    - button "Save" [ref=e360]:
+                      - img
+          - link "Stanley Kubrick @kubrick · 14d More options Industry · Executive Producer What kind of light setup was done here? Post image Like this post Comments Repost Save" [ref=e870] [cursor=pointer]:
+            - generic [ref=e362]:
+              - link [ref=e363]:
+                - /url: /kubrick
+              - generic [ref=e367]:
+                - generic [ref=e368]:
+                  - generic [ref=e369]:
+                    - link "Stanley Kubrick @kubrick" [ref=e370]:
+                      - /url: /kubrick
+                    - generic [ref=e371]: · 14d
+                  - button "More options" [ref=e373]:
+                    - img [ref=e374]
+                - generic [ref=e380]: Industry · Executive Producer
+                - generic [ref=e381]:
+                  - paragraph [ref=e384]: What kind of light setup was done here?
+                  - button "Post image" [ref=e871]:
+                    - img "Post image" [ref=e873]
+                  - generic [ref=e387]:
+                    - button "Like this post" [ref=e388]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e389]:
+                      - img
+                    - button "Repost" [ref=e390]:
+                      - img
+                    - button "Save" [ref=e391]:
+                      - img
+          - link "Srithan Reddy Savela @srithan · 15d More options Cinephile 👋 Like this post Comments Repost Save" [ref=e392] [cursor=pointer]:
+            - generic [ref=e393]:
+              - link [ref=e394]:
+                - /url: /srithan
+              - generic [ref=e397]:
+                - generic [ref=e398]:
+                  - generic [ref=e399]:
+                    - link "Srithan Reddy Savela @srithan" [ref=e400]:
+                      - /url: /srithan
+                    - generic [ref=e401]: · 15d
+                  - button "More options" [ref=e403]:
+                    - img [ref=e404]
+                - generic [ref=e410]: Cinephile
+                - generic [ref=e411]:
+                  - paragraph [ref=e414]: 👋
+                  - generic [ref=e415]:
+                    - button "Like this post" [ref=e416]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e417]: "1"
+                    - button "Comments" [ref=e418]:
+                      - img
+                      - generic [ref=e419]: "2"
+                    - button "Repost" [ref=e420]:
+                      - img
+                    - button "Save" [ref=e421]:
+                      - img
+          - 'link "Stanley Kubrick @kubrick · 15d More options Industry · Executive Producer Looking for movie recommendations. Genre: Thriller Unlike this post Comments Repost Save" [ref=e422] [cursor=pointer]':
+            - generic [ref=e423]:
+              - link [ref=e424]:
+                - /url: /kubrick
+              - generic [ref=e428]:
+                - generic [ref=e429]:
+                  - generic [ref=e430]:
+                    - link "Stanley Kubrick @kubrick" [ref=e431]:
+                      - /url: /kubrick
+                    - generic [ref=e432]: · 15d
+                  - button "More options" [ref=e434]:
+                    - img [ref=e435]
+                - generic [ref=e441]: Industry · Executive Producer
+                - generic [ref=e442]:
+                  - paragraph [ref=e445]: "Looking for movie recommendations. Genre: Thriller"
+                  - generic [ref=e446]:
+                    - button "Unlike this post" [pressed] [ref=e447]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e448]: "1"
+                    - button "Comments" [ref=e449]:
+                      - img
+                      - generic [ref=e450]: "1"
+                    - button "Repost" [ref=e451]:
+                      - img
+                    - button "Save" [ref=e452]:
+                      - img
+          - link "Tony @tony · 20d logged More options Cinephile Logged 24 24 2016 · Action Like this post Comments Repost Save" [ref=e453] [cursor=pointer]:
+            - generic [ref=e454]:
+              - link [ref=e455]:
+                - /url: /tony
+              - generic [ref=e459]:
+                - generic [ref=e460]:
+                  - generic [ref=e461]:
+                    - link "Tony @tony" [ref=e462]:
+                      - /url: /tony
+                    - generic [ref=e463]: · 20d
+                    - generic [ref=e464]: logged
+                  - button "More options" [ref=e466]:
+                    - img [ref=e467]
+                - generic [ref=e473]: Cinephile
+                - generic [ref=e474]:
+                  - paragraph [ref=e477]: Logged 24
+                  - generic [ref=e485]:
+                    - generic [ref=e486]: "24"
+                    - generic [ref=e487]: 2016 · Action
+                    - generic [ref=e488]:
+                      - generic [ref=e489]: ★
+                      - generic [ref=e490]: ★
+                      - generic [ref=e491]: ★
+                      - generic [ref=e492]: ★
+                      - generic [ref=e493]: ★
+                  - generic [ref=e494]:
+                    - button "Like this post" [ref=e495]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e496]:
+                      - img
+                    - button "Repost" [ref=e497]:
+                      - img
+                    - button "Save" [ref=e498]:
+                      - img
+          - link "Tony @tony · 20d logged More options Cinephile Creepy and a great watch Backrooms 2026 · Horror Unlike this post Comments Repost Save" [ref=e499] [cursor=pointer]:
+            - generic [ref=e500]:
+              - link [ref=e501]:
+                - /url: /tony
+              - generic [ref=e505]:
+                - generic [ref=e506]:
+                  - generic [ref=e507]:
+                    - link "Tony @tony" [ref=e508]:
+                      - /url: /tony
+                    - generic [ref=e509]: · 20d
+                    - generic [ref=e510]: logged
+                  - button "More options" [ref=e512]:
+                    - img [ref=e513]
+                - generic [ref=e519]: Cinephile
+                - generic [ref=e520]:
+                  - paragraph [ref=e523]: Creepy and a great watch
+                  - generic [ref=e531]:
+                    - generic [ref=e532]: Backrooms
+                    - generic [ref=e533]: 2026 · Horror
+                    - generic [ref=e534]:
+                      - generic [ref=e535]: ★
+                      - generic [ref=e536]: ★
+                      - generic [ref=e537]: ★
+                      - generic [ref=e538]: ★
+                      - generic [ref=e539]: ★
+                  - generic [ref=e540]:
+                    - button "Unlike this post" [pressed] [ref=e541]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e542]: "1"
+                    - button "Comments" [ref=e543]:
+                      - img
+                    - button "Repost" [ref=e544]:
+                      - img
+                    - button "Save" [ref=e545]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Curry Baker is here to stay and conquer the horror genre, only after the icon James Wan! Unlike this post Comments Repost Save" [ref=e546] [cursor=pointer]:
+            - generic [ref=e547]:
+              - link [ref=e548]:
+                - /url: /tony
+              - generic [ref=e552]:
+                - generic [ref=e553]:
+                  - generic [ref=e554]:
+                    - link "Tony @tony" [ref=e555]:
+                      - /url: /tony
+                    - generic [ref=e556]: · 20d
+                  - button "More options" [ref=e558]:
+                    - img [ref=e559]
+                - generic [ref=e565]: Cinephile
+                - generic [ref=e566]:
+                  - paragraph [ref=e569]: Curry Baker is here to stay and conquer the horror genre, only after the icon James Wan!
+                  - generic [ref=e570]:
+                    - button "Unlike this post" [pressed] [ref=e571]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e572]: "1"
+                    - button "Comments" [ref=e573]:
+                      - img
+                    - button "Repost" [ref=e574]:
+                      - img
+                    - button "Save" [ref=e575]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Like this post Comments Repost Save" [ref=e576] [cursor=pointer]:
+            - generic [ref=e577]:
+              - link [ref=e578]:
+                - /url: /tony
+              - generic [ref=e582]:
+                - generic [ref=e583]:
+                  - generic [ref=e584]:
+                    - link "Tony @tony" [ref=e585]:
+                      - /url: /tony
+                    - generic [ref=e586]: · 20d
+                  - button "More options" [ref=e588]:
+                    - img [ref=e589]
+                - generic [ref=e595]: Cinephile
+                - generic [ref=e596]:
+                  - button [ref=e598]
+                  - generic [ref=e599]:
+                    - button "Like this post" [ref=e600]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e601]:
+                      - img
+                    - button "Repost" [ref=e602]:
+                      - img
+                    - button "Save" [ref=e603]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Unlike this post Comments Repost Save" [ref=e604] [cursor=pointer]:
+            - generic [ref=e605]:
+              - link [ref=e606]:
+                - /url: /tony
+              - generic [ref=e610]:
+                - generic [ref=e611]:
+                  - generic [ref=e612]:
+                    - link "Tony @tony" [ref=e613]:
+                      - /url: /tony
+                    - generic [ref=e614]: · 20d
+                  - button "More options" [ref=e616]:
+                    - img [ref=e617]
+                - generic [ref=e623]: Cinephile
+                - generic [ref=e624]:
+                  - button [ref=e626]
+                  - generic [ref=e627]:
+                    - button "Unlike this post" [pressed] [ref=e628]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e629]: "1"
+                    - button "Comments" [ref=e630]:
+                      - img
+                      - generic [ref=e631]: "2"
+                    - button "Repost" [ref=e632]:
+                      - img
+                    - button "Save" [ref=e633]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Like this post Comments Repost Save" [ref=e634] [cursor=pointer]:
+            - generic [ref=e635]:
+              - link [ref=e636]:
+                - /url: /tony
+              - generic [ref=e640]:
+                - generic [ref=e641]:
+                  - generic [ref=e642]:
+                    - link "Tony @tony" [ref=e643]:
+                      - /url: /tony
+                    - generic [ref=e644]: · 20d
+                  - button "More options" [ref=e646]:
+                    - img [ref=e647]
+                - generic [ref=e653]: Cinephile
+                - generic [ref=e654]:
+                  - button [ref=e656]
+                  - generic [ref=e657]:
+                    - button "Like this post" [ref=e658]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e659]:
+                      - img
+                    - button "Repost" [ref=e660]:
+                      - img
+                    - button "Save" [ref=e661]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Like this post Comments Repost Save" [ref=e662] [cursor=pointer]:
+            - generic [ref=e663]:
+              - link [ref=e664]:
+                - /url: /tony
+              - generic [ref=e668]:
+                - generic [ref=e669]:
+                  - generic [ref=e670]:
+                    - link "Tony @tony" [ref=e671]:
+                      - /url: /tony
+                    - generic [ref=e672]: · 20d
+                  - button "More options" [ref=e674]:
+                    - img [ref=e675]
+                - generic [ref=e681]: Cinephile
+                - generic [ref=e682]:
+                  - button [ref=e684]
+                  - generic [ref=e685]:
+                    - button "Like this post" [ref=e686]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e687]:
+                      - img
+                    - button "Repost" [ref=e688]:
+                      - img
+                    - button "Save" [ref=e689]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Unlike this post Comments Repost Save" [ref=e690] [cursor=pointer]:
+            - generic [ref=e691]:
+              - link [ref=e692]:
+                - /url: /tony
+              - generic [ref=e696]:
+                - generic [ref=e697]:
+                  - generic [ref=e698]:
+                    - link "Tony @tony" [ref=e699]:
+                      - /url: /tony
+                    - generic [ref=e700]: · 20d
+                  - button "More options" [ref=e702]:
+                    - img [ref=e703]
+                - generic [ref=e709]: Cinephile
+                - generic [ref=e710]:
+                  - button [ref=e712]
+                  - generic [ref=e713]:
+                    - button "Unlike this post" [pressed] [ref=e714]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e715]: "1"
+                    - button "Comments" [ref=e716]:
+                      - img
+                    - button "Repost" [ref=e717]:
+                      - img
+                    - button "Save" [ref=e718]:
+                      - img
+          - link "Tony @tony · 20d More options Cinephile Width test Like this post Comments Repost Save" [ref=e719] [cursor=pointer]:
+            - generic [ref=e720]:
+              - link [ref=e721]:
+                - /url: /tony
+              - generic [ref=e725]:
+                - generic [ref=e726]:
+                  - generic [ref=e727]:
+                    - link "Tony @tony" [ref=e728]:
+                      - /url: /tony
+                    - generic [ref=e729]: · 20d
+                  - button "More options" [ref=e731]:
+                    - img [ref=e732]
+                - generic [ref=e738]: Cinephile
+                - generic [ref=e739]:
+                  - paragraph [ref=e742]: Width test
+                  - button [ref=e744]
+                  - generic [ref=e745]:
+                    - button "Like this post" [ref=e746]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e747]:
+                      - img
+                    - button "Repost" [ref=e748]:
+                      - img
+                    - button "Save" [ref=e749]:
+                      - img
+          - link "Stanley Kubrick @kubrick · 25d logged More options Industry · Executive Producer Good watch Athadu 2005 · Action Like this post Comments Repost Save" [ref=e750] [cursor=pointer]:
+            - generic [ref=e751]:
+              - link [ref=e752]:
+                - /url: /kubrick
+              - generic [ref=e756]:
+                - generic [ref=e757]:
+                  - generic [ref=e758]:
+                    - link "Stanley Kubrick @kubrick" [ref=e759]:
+                      - /url: /kubrick
+                    - generic [ref=e760]: · 25d
+                    - generic [ref=e761]: logged
+                  - button "More options" [ref=e763]:
+                    - img [ref=e764]
+                - generic [ref=e770]: Industry · Executive Producer
+                - generic [ref=e771]:
+                  - paragraph [ref=e774]: Good watch
+                  - generic [ref=e782]:
+                    - generic [ref=e783]: Athadu
+                    - generic [ref=e784]: 2005 · Action
+                    - generic [ref=e785]:
+                      - generic [ref=e786]: ★
+                      - generic [ref=e787]: ★
+                      - generic [ref=e788]: ★
+                      - generic [ref=e789]: ★
+                      - generic [ref=e790]: ★
+                  - generic [ref=e791]:
+                    - button "Like this post" [ref=e792]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e793]: "1"
+                    - button "Comments" [ref=e794]:
+                      - img
+                    - button "Repost" [ref=e795]:
+                      - img
+                    - button "Save" [ref=e796]:
+                      - img
+          - link "Srithan Reddy Savela @srithan · 25d More options Cinephile Does anybody know which movie this frame is from? I remember watching a clip from this and loved it. But couldn't find the film. Like this post Comments Repost Save" [ref=e797] [cursor=pointer]:
+            - generic [ref=e798]:
+              - link [ref=e799]:
+                - /url: /srithan
+              - generic [ref=e802]:
+                - generic [ref=e803]:
+                  - generic [ref=e804]:
+                    - link "Srithan Reddy Savela @srithan" [ref=e805]:
+                      - /url: /srithan
+                    - generic [ref=e806]: · 25d
+                  - button "More options" [ref=e808]:
+                    - img [ref=e809]
+                - generic [ref=e815]: Cinephile
+                - generic [ref=e816]:
+                  - paragraph [ref=e819]: Does anybody know which movie this frame is from? I remember watching a clip from this and loved it. But couldn't find the film.
+                  - button [ref=e821]
+                  - generic [ref=e822]:
+                    - button "Like this post" [ref=e823]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                      - generic [ref=e824]: "1"
+                    - button "Comments" [ref=e825]:
+                      - img
+                      - generic [ref=e826]: "2"
+                    - button "Repost" [ref=e827]:
+                      - img
+                    - button "Save" [ref=e828]:
+                      - img
+          - link "Stanley Kubrick @kubrick · 26d logged More options Industry · Executive Producer Good concept, but left the cinemas with a headache Obsession 2026 · Horror Like this post Comments Repost Save" [ref=e829] [cursor=pointer]:
+            - generic [ref=e830]:
+              - link [ref=e831]:
+                - /url: /kubrick
+              - generic [ref=e835]:
+                - generic [ref=e836]:
+                  - generic [ref=e837]:
+                    - link "Stanley Kubrick @kubrick" [ref=e838]:
+                      - /url: /kubrick
+                    - generic [ref=e839]: · 26d
+                    - generic [ref=e840]: logged
+                  - button "More options" [ref=e842]:
+                    - img [ref=e843]
+                - generic [ref=e849]: Industry · Executive Producer
+                - generic [ref=e850]:
+                  - paragraph [ref=e853]: Good concept, but left the cinemas with a headache
+                  - generic [ref=e861]:
+                    - generic [ref=e862]: Obsession
+                    - generic [ref=e863]: 2026 · Horror
+                  - generic [ref=e864]:
+                    - button "Like this post" [ref=e865]:
+                      - generic:
+                        - generic:
+                          - img
+                          - img
+                    - button "Comments" [ref=e866]:
+                      - img
+                    - button "Repost" [ref=e867]:
+                      - img
+                    - button "Save" [ref=e868]:
+                      - img
+  - generic [ref=e2]:
+    - img [ref=e4]
+    - button "Open Tanstack query devtools" [ref=e52] [cursor=pointer]:
+      - img [ref=e53]
+  - button "Open Next.js Dev Tools" [ref=e106] [cursor=pointer]:
+    - img [ref=e107]
+  - alert [ref=e110]
+  - dialog [ref=e874]:
+    - generic [ref=e880]:
+      - generic [ref=e881]:
+        - generic [ref=e883]:
+          - button "Write" [ref=e884] [cursor=pointer]:
+            - img [ref=e885]
+            - text: Write
+          - button "Discussion" [ref=e886] [cursor=pointer]:
+            - img [ref=e887]
+            - text: Discussion
+          - button "Log / Review" [ref=e889] [cursor=pointer]:
+            - img [ref=e890]
+            - text: Log / Review
+        - button "Close" [ref=e895] [cursor=pointer]:
+          - img [ref=e896]
+      - combobox "What's on your mind about cinema?" [ref=e907]:
+        - paragraph [ref=e908]: What's on your mind about cinema?
+      - generic [ref=e909]:
+        - generic [ref=e910]:
+          - button "Add images" [ref=e911] [cursor=pointer]:
+            - img [ref=e912]
+          - button "Add video" [ref=e916] [cursor=pointer]:
+            - img [ref=e917]
+          - button "GIF" [ref=e919] [cursor=pointer]:
+            - generic [ref=e920]: GIF
+          - button "Emoji" [ref=e921] [cursor=pointer]:
+            - img [ref=e922]
+          - generic [ref=e925]:
+            - button "Bold" [ref=e927] [cursor=pointer]:
+              - img [ref=e928]
+            - button "Italic" [ref=e930] [cursor=pointer]:
+              - img [ref=e931]
+            - button "Underline" [ref=e933] [cursor=pointer]:
+              - img [ref=e934]
+            - button "Toggle spoiler" [ref=e936] [cursor=pointer]:
+              - img [ref=e937]
+        - generic [ref=e942]:
+          - generic [ref=e943]: "500"
+          - button "Post" [disabled] [ref=e944]

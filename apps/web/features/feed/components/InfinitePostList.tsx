@@ -544,9 +544,9 @@ function FeedEmpty({
       size="lg"
       icon={
         <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden>
-          <rect x="6" y="10" width="40" height="32" rx="5" stroke="#c2473a" strokeWidth="2" />
-          <path d="M15 20H37M15 27H37M15 34H31" stroke="#c2473a" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="42" cy="14" r="3" fill="#c2473a" />
+          <rect x="6" y="10" width="40" height="32" rx="5" stroke="currentColor" strokeWidth="2" />
+          <path d="M15 20H37M15 27H37M15 34H31" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="42" cy="14" r="3" fill="currentColor" />
         </svg>
       }
       headline="Your feed is empty"

@@ -285,7 +285,7 @@ function SuggestionsSidebarEmptyState(props: { variant: "computing" | "empty" })
         </p>
         <Link
           href={ROUTES.DISCOVER}
-          className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-[#0095f6] transition-colors hover:text-[#1877f2]"
+          className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-fg transition-colors hover:opacity-80"
         >
           Explore Discover
           <ArrowRight className="h-3 w-3" strokeWidth={2.5} aria-hidden />
@@ -334,7 +334,7 @@ function SuggestionRow(props: {
         type="button"
         disabled={props.isSubmitting}
         onClick={props.onFollow}
-        className="shrink-0 text-[12px] font-bold text-[#0095f6] hover:text-[#1877f2] px-0 py-0.5 mt-1 bg-transparent border-none cursor-pointer disabled:opacity-60"
+        className="shrink-0 text-[12px] font-bold text-fg hover:opacity-80 px-0 py-0.5 mt-1 bg-transparent border-none cursor-pointer disabled:opacity-60"
       >
         {followLabel}
       </button>

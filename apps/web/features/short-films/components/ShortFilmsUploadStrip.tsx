@@ -7,10 +7,7 @@ import { cn } from "@/lib/utils/cn";
 
 export function ShortFilmsUploadStrip() {
   return (
-    <section
-      className="mx-4 md:mx-6 mb-10 md:mb-12"
-      aria-labelledby="short-films-upload-heading"
-    >
+    <section className="mb-0" aria-labelledby="short-films-upload-heading">
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border border-border bg-sunken/60",

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { MouseEvent, ReactNode } from "react";
 import { ROUTES } from "@/lib/constants/routes";
+import { SpoilerReveal } from "./SpoilerReveal";
 
 type RichToken =
   | { t: "txt"; s: string }
@@ -11,7 +12,16 @@ type RichToken =
   | { t: "tag"; tag: string };
 
 function isWordChar(ch: string): boolean {
-  return /[a-zA-Z0-9_]/.test(ch);
+  return /[\p{L}\p{N}_]/u.test(ch);
+}
+
+function isHashTagChar(ch: string): boolean {
+  return /[\u00C0-\u1FFF\u2C00-\uD7FF\w]/u.test(ch);
+}
+
+function isUrlBoundary(input: string, index: number): boolean {
+  const before = input.slice(Math.max(0, index - 12), index).toLowerCase();
+  return before.includes("http://") || before.includes("https://");
 }
 
 function trimTrailingFromUrl(raw: string): string {
@@ -105,10 +115,16 @@ export function parseRichPostText(input: string): RichToken[] {
         i === 0 ||
         /\s/.test(input.charAt(i - 1)) ||
         input.charAt(i - 1) === "(" ||
-        input.charAt(i - 1) === "[";
-      if (beforeHash && i + 1 < n && /[a-zA-Z0-9_]/.test(input.charAt(i + 1))) {
+        input.charAt(i - 1) === "[" ||
+        input.charAt(i - 1) === "{";
+      if (
+        beforeHash &&
+        !isUrlBoundary(input, i) &&
+        i + 1 < n &&
+        isHashTagChar(input.charAt(i + 1))
+      ) {
         let kt = i + 1;
-        while (kt < n && /[a-zA-Z0-9_]/.test(input.charAt(kt))) kt++;
+        while (kt < n && isHashTagChar(input.charAt(kt))) kt++;
         const tag = input.slice(i + 1, kt);
         if (tag.length > 0) {
           flushBuf();
@@ -129,11 +145,64 @@ export function parseRichPostText(input: string): RichToken[] {
   return out;
 }
 
-const defaultLink =
-  "text-accent underline underline-offset-2 hover:opacity-90 break-all";
+export const mentionInlineClassName =
+  "font-medium text-social-accent no-underline hover:text-social-accent-hover";
+
+export const hashtagInlineClassName =
+  "font-medium text-social-accent no-underline hover:text-social-accent-hover";
 
 export const blueInlineLinkClassName =
-  "text-[#0095f6] underline underline-offset-2 hover:text-[#1877f2] break-all";
+  "text-social-accent underline underline-offset-2 hover:text-social-accent-hover break-all";
+
+function formattedPlainTextNodes(text: string, keyBase: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let i = 0;
+  let index = 0;
+
+  function pushText(value: string) {
+    if (value.length > 0) nodes.push(value);
+  }
+
+  while (i < text.length) {
+    const candidates = [
+      { marker: "||", type: "spoiler" },
+      { marker: "**", type: "bold" },
+      { marker: "__", type: "underline" },
+      { marker: "*", type: "italic" },
+      { marker: "_", type: "italic" },
+    ];
+    let matched = false;
+
+    for (let ci = 0; ci < candidates.length; ci += 1) {
+      const candidate = candidates[ci];
+      if (!text.startsWith(candidate.marker, i)) continue;
+      const end = text.indexOf(candidate.marker, i + candidate.marker.length);
+      if (end <= i + candidate.marker.length) continue;
+
+      const before = text.slice(0, i);
+      pushText(before);
+      const inner = text.slice(i + candidate.marker.length, end);
+      const key = `${keyBase}-fmt-${index++}`;
+      if (candidate.type === "bold") nodes.push(<strong key={key}>{inner}</strong>);
+      else if (candidate.type === "italic") nodes.push(<em key={key}>{inner}</em>);
+      else if (candidate.type === "underline") nodes.push(<u key={key}>{inner}</u>);
+      else {
+        nodes.push(
+          <SpoilerReveal key={key}>{inner}</SpoilerReveal>
+        );
+      }
+      text = text.slice(end + candidate.marker.length);
+      i = 0;
+      matched = true;
+      break;
+    }
+
+    if (!matched) i += 1;
+  }
+
+  pushText(text);
+  return nodes;
+}
 
 export function tokensToRichNodes(
   tokens: RichToken[],
@@ -143,7 +212,7 @@ export function tokensToRichNodes(
     segmentKeyPrefix?: string;
   }
 ): ReactNode[] {
-  const cls = opts.linkClassName || defaultLink;
+  const mentionCls = opts.linkClassName || mentionInlineClassName;
   const stop = opts.stopLinkPropagation === true;
   const baseKey = opts.segmentKeyPrefix || "";
 
@@ -153,7 +222,7 @@ export function tokensToRichNodes(
     const keyBase = `${baseKey}t-${ti}`;
 
     if (tok.t === "txt") {
-      nodes.push(tok.s);
+      nodes.push(...formattedPlainTextNodes(tok.s, keyBase));
       continue;
     }
     if (tok.t === "url") {
@@ -182,7 +251,7 @@ export function tokensToRichNodes(
         <Link
           key={keyBase}
           href={ROUTES.PROFILE(tok.user)}
-          className={cls}
+          className={mentionCls}
           {...(stop
             ? {
                 onClick: function stopCardNav(e: MouseEvent) {
@@ -197,11 +266,12 @@ export function tokensToRichNodes(
       continue;
     }
     if (tok.t === "tag") {
+      const normalizedTag = tok.tag.toLocaleLowerCase();
       nodes.push(
         <Link
           key={keyBase}
-          href={ROUTES.DISCOVER_TAG(tok.tag)}
-          className={blueInlineLinkClassName}
+          href={ROUTES.DISCOVER_TAG(normalizedTag)}
+          className={hashtagInlineClassName}
           {...(stop
             ? {
                 onClick: function stopCardNav(e: MouseEvent) {

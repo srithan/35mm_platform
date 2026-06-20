@@ -36,9 +36,14 @@
     --color-skeleton: var(--neutral-200);
     --color-skeleton-strong: var(--neutral-300);
 
-    /* ── Brand / Accent ── */
-    --color-accent: #c8432a;
-    --color-accent-hover: #b53b24;
+    /* ── Brand / Accent (UI chrome: black in light, theme fg elsewhere) ── */
+    --color-accent: var(--neutral-900);
+    --color-accent-hover: var(--neutral-800);
+
+    /* ── Social inline (@mentions, #hashtags in posts/comments/composer only) ── */
+    --color-social-accent: rgba(0, 149, 246, 1);
+    --color-social-accent-hover: rgba(24, 119, 242, 1);
+    --color-social-accent-bg: rgba(0, 149, 246, 0.1);
 
     /* ── Action feedback ── */
     --color-like: #E4002B;
@@ -67,7 +72,7 @@
     /* ── Domain: Discover (light: pair with dark --fg / muted text) ── */
     --discover-hero-bg: var(--color-bg-elevated);
     --discover-shelf-bg: #f5f5f5;
-    --discover-tab-active: #e03e3e;
+    --discover-tab-active: var(--color-accent);
     --discover-placeholder: var(--neutral-200);
 
     /* ── Domain: Landing page ── */
@@ -147,9 +152,9 @@
     --color-skeleton: #252320;
     --color-skeleton-strong: #302d28;
 
-    /* ── Brand / Accent (raised lightness for dark bg contrast) ── */
-    --color-accent: #d4553a;
-    --color-accent-hover: #e06248;
+    /* ── Brand / Accent (primary UI emphasis = light on dark bg) ── */
+    --color-accent: var(--color-text);
+    --color-accent-hover: var(--neutral-800);
 
     /* ── Action feedback (slightly brighter for dark backgrounds) ── */
     --color-like: #ff2d55;
@@ -177,7 +182,7 @@
     --discover-hero-bg: #0a0a0a;
     --discover-shelf-bg: #1a1917;
     --discover-placeholder: #2d2b28;
-    --discover-tab-active: #e03e3e;
+    --discover-tab-active: var(--color-accent);
 
     color-scheme: dark;
 }
@@ -660,7 +665,7 @@ body {
 }
 
 .like-action.liked {
-    color: #c2473a;
+    color: var(--color-like);
     font-weight: 500;
 }
 
@@ -687,7 +692,7 @@ body {
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    background: #c2473a;
+    background: var(--color-like);
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
@@ -732,8 +737,8 @@ body {
 }
 
 .like-btn.liked .like-heart-path {
-    fill: #c2473a;
-    stroke: #c2473a;
+    fill: var(--color-like);
+    stroke: var(--color-like);
 }
 
 .like-clap-icon {
@@ -795,7 +800,7 @@ body {
 }
 
 .like-action.liked .action-count {
-    color: #c2473a;
+    color: var(--color-like);
 }
 
 .like-particles {
@@ -811,7 +816,7 @@ body {
     width: 3px;
     height: 3px;
     border-radius: 50%;
-    background: #c2473a;
+    background: var(--color-like);
     top: 50%;
     left: 50%;
     opacity: 0;
@@ -819,7 +824,7 @@ body {
 }
 
 .like-particle:nth-child(odd) {
-    background: #e8846a;
+    background: color-mix(in srgb, var(--color-like) 65%, white);
     width: 2px;
     height: 2px;
 }
@@ -1055,7 +1060,7 @@ body {
     --fg-light: #5f6368;
     --fg-muted: #6f7378;
     --fg-faint: #8f9398;
-    --accent: #c8432a;
+    --accent: var(--color-accent);
     --border: #ececec;
     --color-bg: #ffffff;
     --color-bg-sunken: #f5f5f7;
@@ -1329,4 +1334,86 @@ body {
     --auth-icon-bubble-border: rgba(255, 255, 255, 0.08);
     --auth-progress-track: rgba(255, 255, 255, 0.08);
     color-scheme: dark;
+}
+
+/* ── Spoiler: iMessage-style invisible ink (canvas grain overlay) ── */
+@layer components {
+    .spoiler-ink {
+        position: relative;
+        display: inline;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        vertical-align: baseline;
+        line-height: inherit;
+        font: inherit;
+        color: inherit;
+        text-align: inherit;
+        appearance: none;
+        -webkit-appearance: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .spoiler-ink--revealed {
+        cursor: default;
+    }
+
+    .spoiler-ink__text {
+        position: relative;
+        display: inline;
+        vertical-align: baseline;
+        line-height: inherit;
+    }
+
+    .spoiler-ink__content {
+        display: inline;
+    }
+
+    .spoiler-ink:not(.spoiler-ink--revealed) .spoiler-ink__content {
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        user-select: none;
+    }
+
+    .spoiler-ink:not(.spoiler-ink--revealed) .spoiler-ink__content * {
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .spoiler-ink--revealed .spoiler-ink__content {
+        color: inherit;
+        -webkit-text-fill-color: currentColor;
+        animation: spoiler-ink-clear 0.35s ease forwards;
+    }
+
+    .spoiler-ink--revealed .spoiler-ink__content * {
+        color: inherit;
+        -webkit-text-fill-color: currentColor;
+    }
+
+    .spoiler-ink__canvas {
+        position: absolute;
+        left: 0;
+        top: 0;
+        pointer-events: none;
+    }
+}
+
+@keyframes spoiler-ink-clear {
+    from {
+        opacity: 0.35;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spoiler-ink--revealed .spoiler-ink__content {
+        animation: none;
+        opacity: 1;
+    }
 }

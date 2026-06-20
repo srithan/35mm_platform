@@ -179,7 +179,7 @@ export function StepPublish({ upload }: { upload: ShortFilmUploadFormApi }) {
           <button
             type="button"
             onClick={upload.publish}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#d4553a] to-accent px-6 py-3.5 text-[15px] font-bold text-white shadow-lg shadow-accent/30 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/40"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-fg px-6 py-3.5 text-[15px] font-bold text-bg shadow-lg shadow-fg/10 transition hover:-translate-y-0.5 hover:opacity-90"
           >
             <Play className="h-4 w-4 fill-current" strokeWidth={2.2} aria-hidden />
             Publish film

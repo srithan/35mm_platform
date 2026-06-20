@@ -1,13 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Image, Film, Smile, Link2, MapPin, Bold, Italic } from "lucide-react";
+import { useState } from "react";
+import type { Editor } from "@tiptap/react";
+import { Image, Film, Smile, Link2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { hasVisibleRichText } from "@/lib/utils/richContent";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useCreateComment } from "../hooks/useCommentMutations";
 import { CommentCard, type Comment as CommentCardType } from "./CommentCard";
+import { FormattingToolbar } from "./PostComposer/FormattingToolbar";
+import { RichTextEditor } from "./PostComposer/RichTextEditor";
 import type { Comment as FeedComment } from "../types/feed";
 
 interface CommentSectionProps {
@@ -65,7 +69,7 @@ export function CommentSection({
 }: CommentSectionProps) {
   const [isComposerActive, setIsComposerActive] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [replyEditor, setReplyEditor] = useState<Editor | null>(null);
   const createCommentMutation = useCreateComment(postId);
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
@@ -74,19 +78,14 @@ export function CommentSection({
 
   const handleActivateComposer = () => {
     setIsComposerActive(true);
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  };
-
-  const handleReplyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setReplyText(e.target.value);
+    setTimeout(() => replyEditor?.commands.focus("end"), 0);
   };
 
   const handleReplySubmit = async () => {
-    var body = replyText.trim();
-    if (!body || createCommentMutation.isPending) return;
+    if (!hasVisibleRichText(replyText) || createCommentMutation.isPending) return;
 
     try {
-      var created = await createCommentMutation.mutateAsync({ body, parentId: null });
+      var created = await createCommentMutation.mutateAsync({ body: replyText, parentId: null });
       setReplyText("");
       setIsComposerActive(false);
       requestAnimationFrame(() => {
@@ -99,10 +98,10 @@ export function CommentSection({
   };
 
   const handleNestedReplySubmit = async (input: { parentId: string; body: string }) => {
-    if (!input.body.trim() || createCommentMutation.isPending) return;
+    if (!hasVisibleRichText(input.body) || createCommentMutation.isPending) return;
 
     var created = await createCommentMutation.mutateAsync({
-      body: input.body.trim(),
+      body: input.body,
       parentId: input.parentId,
     });
 
@@ -113,7 +112,7 @@ export function CommentSection({
   };
 
   const replyEnabled =
-    replyText.trim().length > 0 && !createCommentMutation.isPending;
+    hasVisibleRichText(replyText) && !createCommentMutation.isPending;
 
   return (
     <div className={cn("mt-2", className)}>
@@ -149,13 +148,13 @@ export function CommentSection({
                   "Write a reply"
                 )}
               </p>
-              <textarea
-                ref={textareaRef}
+              <RichTextEditor
                 value={replyText}
-                onChange={handleReplyChange}
-                rows={1}
+                onChange={(value) => setReplyText(value)}
+                onEditorReady={setReplyEditor}
                 placeholder="Post your reply"
-                className="w-full resize-none bg-transparent outline-none text-[15px] leading-[1.6] text-fg placeholder:text-fg-muted"
+                autoFocus
+                className="min-h-[44px] text-[15px] leading-[1.6] text-fg"
               />
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex items-center gap-3 text-fg-muted">
@@ -174,12 +173,7 @@ export function CommentSection({
                   <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
                     <MapPin className="w-5 h-5" />
                   </button>
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
-                    <Bold className="w-4 h-4" />
-                  </button>
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
-                    <Italic className="w-4 h-4" />
-                  </button>
+                  <FormattingToolbar editor={replyEditor} showDivider={false} />
                 </div>
                 <button
                   type="button"

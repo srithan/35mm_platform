@@ -311,7 +311,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                       key={dot}
                       className={cn(
                         "h-2 w-2 rounded-full transition-all",
-                        active ? "bg-[#c2473a]" : "bg-neutral-300"
+                        active ? "bg-fg" : "bg-neutral-300"
                       )}
                     />
                   );
@@ -345,7 +345,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                               className={cn(
                                 "rounded-xl p-3.5 text-left transition-colors",
                                 selected
-                                  ? "border border-[#c2473a] bg-[#fff3f1]"
+                                  ? "border border-fg bg-neutral-100"
                                   : "border border-neutral-200 bg-white hover:border-neutral-300"
                               )}
                               onClick={function () {
@@ -369,7 +369,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                           }}
                           maxLength={25}
                           placeholder="Add context... (25 chars max)"
-                          className="mt-4 h-11 w-full rounded-xl border border-neutral-200 px-3 text-[14px] text-[#222] outline-none focus:border-[#c2473a]"
+                          className="mt-4 h-11 w-full rounded-xl border border-neutral-200 px-3 text-[14px] text-[#222] outline-none focus:border-fg"
                         />
                       ) : null}
 
@@ -380,7 +380,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                           goToStep(1);
                         }}
                         disabled={!role}
-                        className="mt-5 h-11 w-full rounded-xl bg-[#c2473a] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        className="mt-5 h-11 w-full rounded-xl bg-fg text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Continue
                       </button>
@@ -398,7 +398,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                           }}
                           disabled={selectedFilms.length >= 5}
                           placeholder={selectedFilms.length >= 5 ? "5 max" : "Search films..."}
-                          className="h-10 w-full rounded-lg border border-neutral-200 px-3 text-[14px] outline-none focus:border-[#c2473a] disabled:bg-neutral-100"
+                          className="h-10 w-full rounded-lg border border-neutral-200 px-3 text-[14px] outline-none focus:border-fg disabled:bg-neutral-100"
                         />
                         <div className="mt-3 max-h-56 space-y-1 overflow-y-auto">
                           {searching ? (
@@ -486,7 +486,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                         onClick={function () {
                           goToStep(2);
                         }}
-                        className="mt-5 h-11 w-full rounded-xl bg-[#c2473a] text-[14px] font-semibold text-white"
+                        className="mt-5 h-11 w-full rounded-xl bg-fg text-[14px] font-semibold text-white"
                       >
                         Continue
                       </button>
@@ -518,7 +518,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                               className={cn(
                                 "rounded-full px-3 py-1.5 text-[13px] transition-colors",
                                 selected
-                                  ? "bg-[#c2473a] text-white"
+                                  ? "bg-fg text-white"
                                   : "border border-neutral-300 text-[#545454] hover:border-neutral-400"
                               )}
                             >
@@ -533,7 +533,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                         onClick={function () {
                           goToStep(3);
                         }}
-                        className="mt-5 h-11 w-full rounded-xl bg-[#c2473a] text-[14px] font-semibold text-white"
+                        className="mt-5 h-11 w-full rounded-xl bg-fg text-[14px] font-semibold text-white"
                       >
                         Continue
                       </button>
@@ -555,7 +555,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                         <button
                           type="button"
                           onClick={followAll}
-                          className="text-[12px] font-semibold text-[#c2473a] underline underline-offset-2"
+                          className="text-[12px] font-semibold text-fg underline underline-offset-2"
                         >
                           Follow all
                         </button>
@@ -601,7 +601,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                                 className={cn(
                                   "h-8 rounded-full px-3 text-[12px] font-semibold",
                                   selected
-                                    ? "bg-[#c2473a] text-white"
+                                    ? "bg-fg text-white"
                                     : "border border-neutral-300 text-[#555]"
                                 )}
                               >
@@ -618,7 +618,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                           void completeOnboarding();
                         }}
                         disabled={submitMutation.isPending}
-                        className="mt-5 h-11 w-full rounded-xl bg-[#c2473a] text-[14px] font-semibold text-white disabled:opacity-60"
+                        className="mt-5 h-11 w-full rounded-xl bg-fg text-[14px] font-semibold text-white disabled:opacity-60"
                       >
                         {submitMutation.isPending ? "Saving..." : "Let's go"}
                       </button>

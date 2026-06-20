@@ -10,6 +10,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import type { Editor } from "@tiptap/react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
@@ -19,6 +20,7 @@ import type { ComposerMode, FilmResult } from "./types";
 import { TMDB_IMAGE_BASE, TMDB_POSTER_SIZE } from "@/lib/tmdb/constants";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { FormattingToolbar } from "./FormattingToolbar";
+import { RichTextEditor } from "./RichTextEditor";
 import { EmojiPicker } from "./EmojiPicker";
 import { ImageAttachments } from "./ImageAttachments";
 import { YouTubeEmbed } from "./YouTubeEmbed";
@@ -34,7 +36,7 @@ import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboar
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
-import { blueInlineLinkClassName, parseRichPostText } from "@/lib/utils/richPostText";
+import { hasVisibleRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 
 const WRITE_MAX_CHARS = 500;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
@@ -71,17 +73,6 @@ function isGifMediaUrl(url: string): boolean {
   return lower.endsWith(".gif") || lower.includes("giphy.com") || lower.includes("tenor.com");
 }
 
-function extensionForImageMimeType(type: string): string {
-  if (type === "image/png") return "png";
-  if (type === "image/jpeg") return "jpg";
-  if (type === "image/webp") return "webp";
-  if (type === "image/gif") return "gif";
-  if (type === "image/avif") return "avif";
-  if (type === "image/heic") return "heic";
-  if (type === "image/heif") return "heif";
-  return "png";
-}
-
 function normalizeImageContentType(value: string | null | undefined): string {
   var raw = (value || "").toLowerCase().trim();
   if (!raw) return "image/jpeg";
@@ -100,79 +91,6 @@ function normalizeImageContentType(value: string | null | undefined): string {
   }
 
   return "image/jpeg";
-}
-
-function extractImageUrlFromClipboardHtml(html: string): string | null {
-  if (!html || html.trim().length === 0) return null;
-
-  try {
-    const documentNode = new DOMParser().parseFromString(html, "text/html");
-    const source = documentNode.querySelector("img[src]")?.getAttribute("src");
-    if (!source) return null;
-    const trimmed = source.trim();
-    if (/^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed)) {
-      return trimmed;
-    }
-    return null;
-  } catch {
-    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-    const source = match?.[1]?.trim();
-    if (!source) return null;
-    if (/^https?:\/\//i.test(source) || /^data:image\//i.test(source)) {
-      return source;
-    }
-    return null;
-  }
-}
-
-async function imageFileFromClipboardUrl(url: string): Promise<File | null> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) return null;
-
-    let fileName = "pasted-image." + extensionForImageMimeType(blob.type);
-    try {
-      const parsed = new URL(url);
-      const lastSegment = parsed.pathname.split("/").filter(Boolean).pop();
-      if (lastSegment) fileName = lastSegment;
-    } catch {
-      // Use generated fallback filename.
-    }
-
-    return new File([blob], fileName, { type: blob.type });
-  } catch {
-    return null;
-  }
-}
-
-function renderComposerRichText(text: string) {
-  const tokens = parseRichPostText(text);
-  return tokens.map(function (token, index) {
-    if (token.t === "url") {
-      return (
-        <span key={`token-${index}`} className={blueInlineLinkClassName}>
-          {token.display}
-        </span>
-      );
-    }
-    if (token.t === "mention") {
-      return (
-        <span key={`token-${index}`} className="text-accent">
-          @{token.user}
-        </span>
-      );
-    }
-    if (token.t === "tag") {
-      return (
-        <span key={`token-${index}`} className={blueInlineLinkClassName}>
-          #{token.tag}
-        </span>
-      );
-    }
-    return <span key={`token-${index}`}>{token.s}</span>;
-  });
 }
 
 const MODE_TABS: { id: ComposerMode; label: string; icon: React.ReactNode }[] = [
@@ -271,16 +189,18 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   // Track which input is active to show the correct char limit (for discussion mode)
   const [activeField, setActiveField] = useState<"headline" | "body" | null>(null);
 
-  const writeTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const writeOverlayRef = useRef<HTMLDivElement>(null);
   const discussionHeadlineRef = useRef<HTMLInputElement>(null);
-  const discussionTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const logTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [writeEditor, setWriteEditor] = useState<Editor | null>(null);
+  const [discussionEditor, setDiscussionEditor] = useState<Editor | null>(null);
+  const [logEditor, setLogEditor] = useState<Editor | null>(null);
   const emojiBtnRef = useRef<HTMLButtonElement>(null);
   const gifBtnRef = useRef<HTMLButtonElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
-  const activeText = mode === "discussion" ? discussionText : mode === "log" ? logText : writeText;
+  const writePlainText = storedRichTextToPlainText(writeText);
+  const discussionPlainText = storedRichTextToPlainText(discussionText);
+  const logPlainText = storedRichTextToPlainText(logText);
+  const activeText = mode === "discussion" ? discussionPlainText : mode === "log" ? logPlainText : writePlainText;
   const debouncedActiveText = useDebounce(activeText, 500);
   const hasVisibleQuotedPost = useMemo(() => {
     if (!quotedPost) return false;
@@ -340,20 +260,20 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   }, [debouncedActiveText, dismissedPreviewUrl, getToken, linkPreview?.url]);
 
   const charCountData = useMemo(() => {
-    if (mode === "write") return { count: writeText.length, max: WRITE_MAX_CHARS };
-    if (mode === "log") return { count: logText.length, max: LOG_MAX_CHARS };
+    if (mode === "write") return { count: writePlainText.length, max: WRITE_MAX_CHARS };
+    if (mode === "log") return { count: logPlainText.length, max: LOG_MAX_CHARS };
 
     // Discussion mode depends on which field is active. Defaults to body limit.
     if (activeField === "headline") {
       return { count: discussionHeadline.length, max: DISCUSSION_HEADLINE_MAX_CHARS };
     }
-    return { count: discussionText.length, max: DISCUSSION_BODY_MAX_CHARS };
-  }, [mode, activeField, writeText, logText, discussionHeadline, discussionText]);
+    return { count: discussionPlainText.length, max: DISCUSSION_BODY_MAX_CHARS };
+  }, [mode, activeField, writePlainText, logPlainText, discussionHeadline, discussionPlainText]);
 
   const charCountRemaining = charCountData.max - charCountData.count;
 
-  const isReview = logText.length > REVIEW_THRESHOLD;
-  const showLogFormatBar = logText.length > REVIEW_THRESHOLD;
+  const isReview = logPlainText.length > REVIEW_THRESHOLD;
+  const showLogFormatBar = logPlainText.length > REVIEW_THRESHOLD;
 
   const canPost = useMemo(() => {
     if (editingPost) {
@@ -361,7 +281,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         return (
           discussionHeadline.trim().length > 0 &&
           discussionHeadline.length <= DISCUSSION_HEADLINE_MAX_CHARS &&
-          discussionText.length <= DISCUSSION_BODY_MAX_CHARS
+          discussionPlainText.length <= DISCUSSION_BODY_MAX_CHARS
         );
       }
       if (mode === "log") {
@@ -369,44 +289,44 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           selectedFilm !== null &&
           selectedFilmUlid !== null &&
           !isResolvingFilm &&
-          logText.length <= LOG_MAX_CHARS
+          logPlainText.length <= LOG_MAX_CHARS
         );
       }
       return (
-        (writeText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
-        writeText.length <= WRITE_MAX_CHARS
+        (writePlainText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
+        writePlainText.length <= WRITE_MAX_CHARS
       );
     }
 
     if (mode === "write") {
       return (
-        (writeText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
-        writeText.length <= WRITE_MAX_CHARS
+        (writePlainText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
+        writePlainText.length <= WRITE_MAX_CHARS
       );
     }
     if (mode === "discussion") {
       return (
         discussionHeadline.trim().length > 0 &&
         discussionHeadline.length <= DISCUSSION_HEADLINE_MAX_CHARS &&
-        discussionText.length <= DISCUSSION_BODY_MAX_CHARS
+        discussionPlainText.length <= DISCUSSION_BODY_MAX_CHARS
       );
     }
     return (
       selectedFilm !== null &&
       selectedFilmUlid !== null &&
       !isResolvingFilm &&
-      logText.length <= LOG_MAX_CHARS
+      logPlainText.length <= LOG_MAX_CHARS
     );
   }, [
     editingPost,
     mode,
-    writeText,
+    writePlainText,
     images.length,
     videoFile,
     gifUrl,
     discussionHeadline,
-    discussionText,
-    logText,
+    discussionPlainText,
+    logPlainText,
     selectedFilm,
     selectedFilmUlid,
     isResolvingFilm,
@@ -428,20 +348,20 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
   const isDirty = useMemo(
     () =>
-      writeText.trim().length > 0 ||
-      discussionText.trim().length > 0 ||
+      writePlainText.trim().length > 0 ||
+      discussionPlainText.trim().length > 0 ||
       discussionHeadline.trim().length > 0 ||
-      logText.trim().length > 0 ||
+      logPlainText.trim().length > 0 ||
       selectedFilm !== null ||
       images.length > 0 ||
       videoFile !== null ||
       gifUrl !== null ||
       youtubeVideoId !== null,
     [
-      writeText,
-      discussionText,
+      writePlainText,
+      discussionPlainText,
       discussionHeadline,
-      logText,
+      logPlainText,
       selectedFilm,
       images.length,
       videoFile,
@@ -523,11 +443,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const compactComposeBody = hasComposerMedia && !isFullPage;
 
   function focusWriteTextarea() {
-    var ta = writeTextareaRef.current;
-    if (!ta) return;
-    ta.focus({ preventScroll: true });
-    var len = ta.value.length;
-    ta.setSelectionRange(len, len);
+    writeEditor?.commands.focus("end", { scrollIntoView: false });
   }
 
   /** Mobile /new: focus in the same frame as paint so iOS keeps keyboard permission after client nav. */
@@ -578,11 +494,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     [mode, isFullPage, fixedMobileToolbar]
   );
 
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent, targetMode: ComposerMode) => {
+  const handleEditorPaste = useCallback(
+    (e: ClipboardEvent, targetMode: ComposerMode) => {
       if (targetMode !== "write" && targetMode !== "discussion") return;
-
-      const clipboardItems = Array.from(e.clipboardData.items ?? []);
+      const clipboardItems = Array.from(e.clipboardData?.items ?? []);
       const pastedImageFiles = clipboardItems
         .map(function (item) {
           if (item.kind !== "file") return null;
@@ -604,27 +519,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         return;
       }
 
-      const html = e.clipboardData.getData("text/html");
-      const htmlImageUrl = extractImageUrlFromClipboardHtml(html);
-      if (htmlImageUrl) {
-        e.preventDefault();
-        void imageFileFromClipboardUrl(htmlImageUrl).then(function (file) {
-          if (!file) return;
-          setImages(function (current) {
-            return [...current, file].slice(0, 9);
-          });
-          setVideoFile(null);
-          setGifUrl(null);
-          setShowDropZone(false);
-        });
-        return;
-      }
-
-      const pasted = e.clipboardData.getData("text/plain");
+      const pasted = e.clipboardData?.getData("text/plain") ?? "";
       const vid = extractYouTubeId(pasted);
       if (vid) {
-        // Keep the pasted URL in the textarea so published posts retain both
-        // visible link text and URL-derived preview cards in PostCard.
         setYoutubeVideoId(vid);
         setYoutubeTitle("YouTube video");
       }
@@ -632,39 +529,18 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     []
   );
 
-  const insertEmojiInto = useCallback(
-    (emoji: string, value: string, setter: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement | null>) => {
-      const ta = ref.current;
-      if (!ta) return;
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      const before = value.slice(0, start);
-      const after = value.slice(end);
-      setter(before + emoji + after);
-      setTimeout(() => {
-        const pos = start + emoji.length;
-        ta.setSelectionRange(pos, pos);
-        ta.focus();
-      }, 0);
-    },
-    []
-  );
-
   const handleEmojiInsertFixed = useCallback(
     (emoji: string) => {
       if (mode === "write") {
-        insertEmojiInto(emoji, writeText, setWriteText, writeTextareaRef);
+        writeEditor?.chain().focus().insertContent(emoji).run();
       } else if (mode === "discussion") {
-        // If headline is focused, we typically don't allow emoji insert via toolbar 
-        // because it uses a textarea ref. But if we need to, we'd need an input ref handling.
-        // Default to body for discussion mode.
-        insertEmojiInto(emoji, discussionText, setDiscussionText, discussionTextareaRef);
+        discussionEditor?.chain().focus().insertContent(emoji).run();
       } else {
-        insertEmojiInto(emoji, logText, setLogText, logTextareaRef);
+        logEditor?.chain().focus().insertContent(emoji).run();
       }
       setShowEmojiPicker(false);
     },
-    [mode, writeText, discussionText, logText, insertEmojiInto]
+    [mode, writeEditor, discussionEditor, logEditor]
   );
 
   const resolveFilmUlid = useCallback(
@@ -788,7 +664,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       input = {
         type: "discussion",
         headline: discussionHeadline.trim(),
-        body: discussionText.trim() || discussionHeadline.trim(),
+        body: hasVisibleRichText(discussionText) ? discussionText : discussionHeadline.trim(),
         media,
         mediaUrls,
         linkPreview,
@@ -813,7 +689,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       }
       input = {
         type: isReview ? "review" : "log",
-        body: logText.trim() || `Logged ${selectedFilm.title}`,
+        body: hasVisibleRichText(logText) ? logText : `Logged ${selectedFilm.title}`,
         postToFeed,
         visibility: postToFeed ? "public" : "private",
         film: {
@@ -829,7 +705,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     } else {
       input = {
         type: images.length > 0 || videoFile !== null || gifUrl !== null ? "image" : "text",
-        body: writeText.trim(),
+        body: writeText,
         media,
         mediaUrls,
         linkPreview,
@@ -982,7 +858,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                       )
                     : cn(
                         "text-fg-muted hover:bg-hover hover:text-fg",
-                        showDropZone && "bg-red-50 text-accent"
+                        showDropZone && "bg-sunken text-fg"
                       )
                 )}
                 title="Add images"
@@ -1048,18 +924,14 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
               {mode === "write" && (
                 <FormattingToolbar
-                  textareaRef={writeTextareaRef}
-                  value={writeText}
-                  onChange={setWriteText}
+                  editor={writeEditor}
                   showDivider={true}
                   composeChrome={fixedMobileToolbar}
                 />
               )}
               {mode === "discussion" && (
                 <FormattingToolbar
-                  textareaRef={discussionTextareaRef}
-                  value={discussionText}
-                  onChange={setDiscussionText}
+                  editor={discussionEditor}
                   showDivider={true}
                   composeChrome={fixedMobileToolbar}
                 />
@@ -1291,90 +1163,39 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   </span>
                 </div>
               )}
-              <div
+              <RichTextEditor
+                value={writeText}
+                onChange={(value) => setWriteText(value)}
+                onEditorReady={setWriteEditor}
+                onFocus={() => setActiveField("body")}
+                onPaste={(e) => handleEditorPaste(e, "write")}
+                onBlur={(e) => {
+                  if (!fixedMobileToolbar || mode !== "write") return;
+                  if (allowMobileComposeBlur(e.relatedTarget)) return;
+                  window.requestAnimationFrame(function () {
+                    writeEditor?.commands.focus("end", { scrollIntoView: false });
+                  });
+                }}
+                autoFocus={fixedMobileToolbar && mode === "write"}
+                placeholder={
+                  fixedMobileToolbar
+                    ? "What's happening?"
+                    : "What's on your mind about cinema?"
+                }
                 className={cn(
-                  "relative",
                   isFullPage
-                    ? "min-h-0"
-                    : compactComposeBody
-                      ? "min-h-[3rem]"
-                      : "min-h-[140px]"
+                    ? fixedMobileToolbar
+                      ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] overflow-y-auto text-[20px] font-normal leading-[1.35]"
+                      : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45]"
+                    : isModal
+                      ? compactComposeBody
+                        ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
+                        : "min-h-[170px] text-[19px] font-semibold leading-relaxed"
+                      : compactComposeBody
+                        ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
+                        : "min-h-[140px] text-[19px] font-semibold leading-relaxed"
                 )}
-              >
-                {writeText.length > 0 ? (
-                  <div
-                    ref={writeOverlayRef}
-                    aria-hidden
-                    className={cn(
-                      "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words",
-                      isFullPage
-                        ? fixedMobileToolbar
-                          ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] text-[20px] font-normal leading-[1.35] tracking-[-0.02em]"
-                          : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45] tracking-[-0.015em]"
-                        : isModal
-                          ? compactComposeBody
-                            ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
-                            : "min-h-[170px] text-[19px] font-semibold leading-relaxed"
-                          : compactComposeBody
-                            ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
-                            : "min-h-[140px] text-[19px] font-semibold leading-relaxed"
-                    )}
-                  >
-                    {renderComposerRichText(writeText)}
-                  </div>
-                ) : null}
-                <textarea
-                  ref={writeTextareaRef}
-                  value={writeText}
-                  onChange={function (e) {
-                    setWriteText(e.target.value);
-                    if (isFullPage && !fixedMobileToolbar) {
-                      var el = e.target;
-                      el.style.height = "auto";
-                      var cap =
-                        typeof window !== "undefined"
-                          ? Math.round(window.innerHeight * 0.3)
-                          : 220;
-                      el.style.height = Math.min(el.scrollHeight, cap) + "px";
-                    }
-                  }}
-                  onScroll={function () {
-                    if (!writeOverlayRef.current || !writeTextareaRef.current) return;
-                    writeOverlayRef.current.scrollTop = writeTextareaRef.current.scrollTop;
-                  }}
-                  onBlur={function (e) {
-                    if (!fixedMobileToolbar || mode !== "write") return;
-                    if (allowMobileComposeBlur(e.relatedTarget)) return;
-                    refocusMobileField(writeTextareaRef);
-                  }}
-                  onFocus={() => setActiveField("body")}
-                  onPaste={(e) => handlePaste(e, "write")}
-                  placeholder={
-                    fixedMobileToolbar
-                      ? "What's happening?"
-                      : "What's on your mind about cinema?"
-                  }
-                  enterKeyHint="send"
-                  autoFocus={fixedMobileToolbar && mode === "write"}
-                  rows={isFullPage ? (fixedMobileToolbar ? 1 : 2) : undefined}
-                  className={cn(
-                    "w-full resize-none border-none outline-none bg-transparent placeholder:text-fg-muted placeholder:font-normal text-fg",
-                    writeText.length > 0 && "text-transparent",
-                    isFullPage
-                      ? fixedMobileToolbar
-                        ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] resize-none text-[20px] font-normal leading-[1.35] tracking-[-0.02em] [-webkit-tap-highlight-color:transparent] overflow-y-auto"
-                        : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45] tracking-[-0.015em] [-webkit-tap-highlight-color:transparent] overflow-y-auto"
-                      : isModal
-                        ? compactComposeBody
-                          ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
-                          : "min-h-[170px] text-[19px] font-semibold leading-relaxed"
-                        : compactComposeBody
-                          ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
-                          : "min-h-[140px] text-[19px] font-semibold leading-relaxed"
-                  )}
-                  style={{ caretColor: "var(--accent)" }}
-                />
-              </div>
+              />
               {fixedMobileToolbar && (
                 <div className="flex items-center gap-2 pt-0.5 text-[13px] font-medium text-accent">
                   <Icon name="globe" className="h-[18px] w-[18px] shrink-0" strokeWidth={2} />
@@ -1509,39 +1330,29 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   className="w-full text-[19px] font-semibold text-fg bg-transparent border-none outline-none placeholder:text-fg-muted placeholder:font-normal absolute inset-0"
                 />
               </div>
-              <div
+              <RichTextEditor
+                value={discussionText}
+                onChange={(value) => setDiscussionText(value)}
+                onEditorReady={setDiscussionEditor}
+                onFocus={() => setActiveField("body")}
+                onPaste={(e) => handleEditorPaste(e, "discussion")}
+                onBlur={(e) => {
+                  if (!fixedMobileToolbar || mode !== "discussion") return;
+                  if (allowMobileComposeBlur(e.relatedTarget)) return;
+                  window.requestAnimationFrame(function () {
+                    discussionEditor?.commands.focus("end", { scrollIntoView: false });
+                  });
+                }}
+                placeholder="Add more context... (optional)"
                 className={cn(
-                  "relative",
+                  "mt-2",
                   isFullPage
-                    ? "min-h-[3rem]"
+                    ? "min-h-[3rem] text-[17px] font-normal leading-relaxed"
                     : compactComposeBody
-                      ? "min-h-[3rem]"
-                      : "min-h-[140px]"
+                      ? "min-h-[3rem] text-[16px] font-light leading-relaxed"
+                      : "min-h-[140px] text-[16px] font-light leading-relaxed"
                 )}
-              >
-                <textarea
-                  ref={discussionTextareaRef}
-                  value={discussionText}
-                  onChange={(e) => setDiscussionText(e.target.value)}
-                  onBlur={function (e) {
-                    if (!fixedMobileToolbar || mode !== "discussion") return;
-                    if (allowMobileComposeBlur(e.relatedTarget)) return;
-                    refocusMobileField(discussionTextareaRef);
-                  }}
-                  onFocus={() => setActiveField("body")}
-                  onPaste={(e) => handlePaste(e, "discussion")}
-                  placeholder="Add more context… (optional)"
-                  className={cn(
-                    "mt-2 w-full resize-none border-none bg-transparent text-fg outline-none placeholder:text-fg-muted",
-                    isFullPage
-                      ? "min-h-[3rem] text-[17px] font-normal leading-relaxed"
-                      : compactComposeBody
-                        ? "min-h-[3rem] text-[16px] font-light leading-relaxed"
-                        : "min-h-[140px] text-[16px] font-light leading-relaxed"
-                  )}
-                  style={{ caretColor: "var(--accent)" }}
-                />
-              </div>
+              />
               {(showDropZone || images.length > 0) && (
                 <ImageAttachments
                   images={images}
@@ -1658,13 +1469,16 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 <LogNoteField
                   value={logText}
                   onChange={setLogText}
-                  textareaRef={logTextareaRef}
+                  editor={logEditor}
+                  onEditorReady={setLogEditor}
                   isReview={isReview}
                   showFormatBar={showLogFormatBar}
                   onBlur={function (e) {
                     if (!fixedMobileToolbar || mode !== "log") return;
                     if (allowMobileComposeBlur(e.relatedTarget)) return;
-                    refocusMobileField(logTextareaRef);
+                    window.requestAnimationFrame(function () {
+                      logEditor?.commands.focus("end", { scrollIntoView: false });
+                    });
                   }}
                   onFocus={function () {
                     setActiveField("body");

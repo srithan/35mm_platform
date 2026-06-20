@@ -42,7 +42,7 @@ export function UploadSuccess({
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#d4553a] to-accent px-6 py-3 text-[14px] font-bold text-white shadow-lg shadow-accent/30 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/40"
+          className="inline-flex items-center gap-2 rounded-xl bg-fg px-6 py-3 text-[14px] font-bold text-bg shadow-lg shadow-fg/10 transition hover:-translate-y-0.5 hover:opacity-90"
         >
           <Upload className="h-4 w-4" strokeWidth={2.2} aria-hidden />
           Upload another

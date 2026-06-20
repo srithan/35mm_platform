@@ -56,7 +56,7 @@ function MobileSidebarSection({
             className={cn(
               "group flex items-center gap-3 py-3 px-3 rounded-lg text-[15px] font-bold no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/10",
               active
-                ? "text-fg bg-[#f4e9e7] [&_svg]:text-accent"
+                ? "text-fg bg-neutral-100 [&_svg]:text-fg"
                 : "text-fg-muted hover:text-fg hover:bg-border/60"
             )}
           >

@@ -34,7 +34,7 @@ export function EmptyState({
 
     const baseClass =
       variant === "primary"
-        ? "inline-flex h-10 items-center justify-center rounded-full bg-[#c2473a] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#af3f34]"
+        ? "inline-flex h-10 items-center justify-center rounded-full bg-fg px-5 text-[13px] font-semibold text-bg transition-colors hover:opacity-90"
         : "inline-flex h-10 items-center justify-center rounded-full border border-neutral-300 px-5 text-[13px] font-semibold text-fg transition-colors hover:bg-neutral-100";
 
     if (cta.href) {
@@ -60,7 +60,7 @@ export function EmptyState({
         className
       )}
     >
-      {icon ? <div className="mb-3 text-[#c2473a]">{icon}</div> : null}
+      {icon ? <div className="mb-3 text-fg">{icon}</div> : null}
       <h3 className="font-display-discover text-[28px] leading-tight text-fg">{headline}</h3>
       {subline ? <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{subline}</p> : null}
       {primaryCta || secondaryCta ? (

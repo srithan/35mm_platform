@@ -1,0 +1,50 @@
+[     664ms] [ERROR]  Note that 'script-src' was not explicitly set, so 'default-src' is used as a fallback. @ https://polite-werewolf-55.accounts.dev/_next/static/chunks/pages/_app-2fc9629367be2ce2.js:18
+[     880ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://polite-werewolf-55.accounts.dev/_next/static/chunks/pages/_app-2fc9629367be2ce2.js:14
+[    1216ms] [WARNING] Clerk: Structural CSS detected that may break on updates.
+
+Found:
+  - CSS "body.cl-component"
+  - CSS ".cl-component .button:focus-visible"
+
+These selectors depend on the internal DOM structure of Clerk's components, which may change when Clerk deploys component updates.
+To prevent breaking changes, install @clerk/ui and pass it to ClerkProvider:
+
+  import { ui } from '@clerk/ui'
+  <ClerkProvider ui={ui}>
+
+Learn more: https://clerk.com/docs/reference/components/versioning
+(code=structural_css_pin_clerk_ui) @ https://polite-werewolf-55.accounts.dev/_next/static/chunks/pages/_app-2fc9629367be2ce2.js:14
+[    1750ms] [ERROR] Error: <svg> attribute width: Expected length, "fit-content". @ https://polite-werewolf-55.accounts.dev/_next/static/chunks/framework-155d793edb9d37ef.js:0
+[    1759ms] [ERROR] Error: <svg> attribute width: Expected length, "fit-content". @ https://polite-werewolf-55.accounts.dev/_next/static/chunks/framework-155d793edb9d37ef.js:0
+[    6799ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/9453e_next_dist_compiled_react-dom_0f99cfc7._.js:14537
+[    7170ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/9453e_next_dist_client_0ce180a2._.js:5956
+[    7171ms] [LOG] [Fast Refresh] done in 165ms @ http://localhost:3000/_next/static/chunks/9453e_next_dist_client_0ce180a2._.js:5816
+[    7288ms] [LOG] %c[Vercel Speed Insights]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[    7293ms] [LOG] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    7293ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /landing, path: /landing} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    7293ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /landing, path: /landing} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    7293ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/landing color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/landing, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1781996419762} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    7293ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/landing color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/landing, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1781996419762} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    7355ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://polite-werewolf-55.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:11
+[    7993ms] [VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:3000/landing:0
+[    7993ms] [VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:3000/landing:0
+[   13466ms] [LOG] %c[Vercel Speed Insights]%c [vitals] color: rgb(120, 120, 120) color: inherit {speed: 4g, metrics: Array(5), scriptVersion: 0.1.3, sdkName: @vercel/speed-insights/next, sdkVersion: 1.3.1} /_vercel/speed-insights/vitals @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[   13466ms] [LOG] %c[Vercel Speed Insights]%c [vitals] color: rgb(120, 120, 120) color: inherit {speed: 4g, metrics: Array(1), scriptVersion: 0.1.3, sdkName: @vercel/speed-insights/next, sdkVersion: 1.3.1} /_vercel/speed-insights/vitals @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[   13508ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/9453e_next_dist_compiled_react-dom_0f99cfc7._.js:14537
+[   13640ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://polite-werewolf-55.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:11
+[   13699ms] [LOG] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   13699ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /, path: /} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   13700ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /, path: /} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   13700ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1781996426168} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   13700ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1781996426168} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   13700ms] [LOG] %c[Vercel Speed Insights]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[   15134ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7039
+[   15142ms] [LOG] [FilmCard] extracted rgb: 101, 81, 23 sat: 0.77 @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7077
+[   15155ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7039
+[   15159ms] [LOG] [FilmCard] extracted rgb: 128, 57, 23 sat: 0.82 @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7077
+[   15365ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7039
+[   15366ms] [LOG] [FilmCard] extracted rgb: 35, 23, 18 sat: 0.49 @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7077
+[   15375ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7039
+[   15377ms] [LOG] [FilmCard] extracted rgb: 66, 45, 32 sat: 0.52 @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7077
+[   15429ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7039
+[   15431ms] [LOG] [FilmCard] extracted rgb: 224, 161, 17 sat: 0.92 @ http://localhost:3000/_next/static/chunks/apps_web_components_2aa24bcb._.js:7077

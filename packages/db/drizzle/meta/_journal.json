@@ -78,6 +78,13 @@
       "when": 1781481600000,
       "tag": "0010_film_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782000000000,
+      "tag": "0011_rich_text_comments",
+      "breakpoints": true
     }
   ]
 }

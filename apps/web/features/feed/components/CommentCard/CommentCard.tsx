@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import { hasVisibleRichText, isStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { extractVideoPreviews } from "../../utils/videoPreviews";
 import { useClampText } from "../../hooks/useClampText";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -12,10 +13,7 @@ import { CommentCardDeleted } from "./CommentCardDeleted";
 import { CommentCardHeader } from "./CommentCardHeader";
 import { CommentCardMoreMenu } from "./CommentCardMoreMenu";
 import { CommentCardBody } from "./CommentCardBody";
-import {
-  CommentCardReplyComposer,
-  handleReplyTextareaChange,
-} from "./CommentCardReplyComposer";
+import { CommentCardReplyComposer } from "./CommentCardReplyComposer";
 import { CommentCardActionsBar } from "./CommentCardActionsBar";
 import { CommentCardReplies } from "./CommentCardReplies";
 import { CommentCardOverlays } from "./CommentCardOverlays";
@@ -38,7 +36,6 @@ export function CommentCard({
 
   const currentUserQuery = useCurrentUserProfile();
   const updateCommentMutation = useUpdateComment(postId);
-  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isOwnComment =
     Boolean(comment.authorId) &&
@@ -51,7 +48,9 @@ export function CommentCard({
   const authorHandle = `@${comment.username}`;
   const hasReplies = comment.replies && comment.replies.length > 0;
   const { containerStyle } = getCommentThreadStyles(depth);
-  const { cleanedText, previews } = extractVideoPreviews(comment.text);
+  const displayText = storedRichTextToPlainText(comment.text);
+  const { cleanedText, previews } = extractVideoPreviews(displayText);
+  const renderText = isStoredRichText(comment.text) ? comment.text : cleanedText;
 
   const { bodyRef, measureRef, isOverflowing, truncatedText } = useClampText({
     text: cleanedText,
@@ -61,7 +60,7 @@ export function CommentCard({
 
   useEffect(() => {
     if (!isEditing) {
-      setEditDraft(comment.text);
+    setEditDraft(comment.text);
     }
   }, [comment.text, isEditing]);
 
@@ -77,8 +76,8 @@ export function CommentCard({
   }
 
   const handleReplySubmit = async () => {
-    const body = replyText.trim();
-    if (!body || !onReplySubmit) return;
+    const body = replyText;
+    if (!hasVisibleRichText(body) || !onReplySubmit) return;
     try {
       await onReplySubmit({ parentId: comment.id, body });
       setReplyText("");
@@ -89,8 +88,8 @@ export function CommentCard({
   };
 
   const handleSaveEdit = async () => {
-    const body = editDraft.trim();
-    if (!body || updateCommentMutation.isPending) return;
+    const body = editDraft;
+    if (!hasVisibleRichText(body) || updateCommentMutation.isPending) return;
 
     try {
       await updateCommentMutation.mutateAsync({
@@ -137,7 +136,7 @@ export function CommentCard({
             isEditing={isEditing}
             editDraft={editDraft}
             isSaving={updateCommentMutation.isPending}
-            cleanedText={cleanedText}
+            cleanedText={renderText}
             previews={previews}
             expanded={expanded}
             isOverflowing={isOverflowing}
@@ -170,10 +169,7 @@ export function CommentCard({
             depth={depth}
             username={comment.username}
             replyText={replyText}
-            replyTextareaRef={replyTextareaRef as React.RefObject<HTMLTextAreaElement>}
-            onReplyTextChange={(value, textarea) =>
-              handleReplyTextareaChange(value, textarea, setReplyText)
-            }
+            onReplyTextChange={setReplyText}
             onSubmit={handleReplySubmit}
           />
 

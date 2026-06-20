@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { parseStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { PostComposer } from "./index";
 
 const mocks = vi.hoisted(() => ({
@@ -15,6 +16,15 @@ const mocks = vi.hoisted(() => ({
     domain: "youtube.com",
     provider: "youtube" as const,
   })),
+  searchMentionSuggestionsMock: vi.fn(async () => [
+    {
+      id: "11111111-1111-4111-8111-111111111111",
+      username: "ava",
+      displayName: "Ava DuVernay",
+      avatarUrl: null,
+      isFollowing: true,
+    },
+  ]),
 }));
 
 vi.mock("@clerk/nextjs", () => ({
@@ -40,6 +50,14 @@ vi.mock("../../hooks/usePostMutations", () => ({
 
 vi.mock("../../api/postsApi", () => ({
   fetchLinkPreview: mocks.fetchLinkPreviewMock,
+}));
+
+vi.mock("../../api/mentionsApi", () => ({
+  searchMentionSuggestions: mocks.searchMentionSuggestionsMock,
+}));
+
+vi.mock("@/features/feed/api/mentionsApi", () => ({
+  searchMentionSuggestions: mocks.searchMentionSuggestionsMock,
 }));
 
 vi.mock("@/features/onboarding/api/onboardingApi", () => ({
@@ -86,7 +104,18 @@ beforeEach(() => {
   mocks.updatePostMutateAsync.mockClear();
   mocks.resolveOnboardingFilmsMock.mockClear();
   mocks.fetchLinkPreviewMock.mockClear();
+  mocks.searchMentionSuggestionsMock.mockClear();
 });
+
+function findMentionNode(node: any): any | null {
+  if (!node || typeof node !== "object") return null;
+  if (node.type === "mention") return node;
+  for (const child of node.content ?? []) {
+    const found = findMentionNode(child);
+    if (found) return found;
+  }
+  return null;
+}
 
 describe("PostComposer", () => {
   it("keeps pasted YouTube URL in text and submits it", async () => {
@@ -99,7 +128,7 @@ describe("PostComposer", () => {
     await user.type(textarea, "lit ");
     await user.paste(youtubeUrl);
 
-    expect(textarea).toHaveValue(`lit ${youtubeUrl}`);
+    expect(textarea).toHaveTextContent(`lit ${youtubeUrl}`);
 
     await user.click(screen.getByRole("button", { name: "Post" }));
 
@@ -107,11 +136,8 @@ describe("PostComposer", () => {
       expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(1);
     });
 
-    expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: `lit ${youtubeUrl}`,
-      })
-    );
+    var input = (mocks.createPostMutateAsync.mock.calls[0] as unknown[])[0] as { body: string };
+    expect(storedRichTextToPlainText(input.body)).toBe(`lit ${youtubeUrl}`);
   });
 
   it("accepts pasted clipboard image files", async () => {
@@ -135,6 +161,35 @@ describe("PostComposer", () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText("Attached images")).toBeInTheDocument();
+    });
+  });
+
+  it("opens mention autocomplete and inserts stable mention node", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+    const editor = screen.getByRole("combobox", { name: "What's on your mind about cinema?" });
+
+    await user.click(editor);
+    await user.type(editor, "@av");
+
+    var listbox = await screen.findByRole("listbox");
+    expect(listbox).toBeInTheDocument();
+    expect(listbox).toHaveClass("z-[calc(var(--z-composer)+10)]");
+    expect(await screen.findByRole("option", { name: /Ava DuVernay/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("option", { name: /Ava DuVernay/i }));
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    var input = (mocks.createPostMutateAsync.mock.calls[0] as unknown[])[0] as { body: string };
+    var mention = findMentionNode(parseStoredRichText(input.body));
+    expect(mention?.attrs).toMatchObject({
+      id: "11111111-1111-4111-8111-111111111111",
+      username: "ava",
+      label: "ava",
     });
   });
 

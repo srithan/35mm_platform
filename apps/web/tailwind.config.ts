@@ -33,7 +33,15 @@ const config: Config = {
           muted: "var(--fg-muted)",
           faint: "var(--fg-faint)",
         },
-        accent: "var(--accent)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--color-accent-hover)",
+        },
+        "social-accent": {
+          DEFAULT: "var(--color-social-accent)",
+          hover: "var(--color-social-accent-hover)",
+          bg: "var(--color-social-accent-bg)",
+        },
         elevated: "var(--elevated)",
         sunken: {
           DEFAULT: "var(--sunken)",

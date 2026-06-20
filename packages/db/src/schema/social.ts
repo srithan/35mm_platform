@@ -81,7 +81,7 @@ export var comments = pgTable(
   },
   function (table) {
     return {
-      bodyMaxLengthCheck: check("comments_body_max_1000_chk", sql`char_length(${table.body}) <= 1000`),
+      bodyMaxLengthCheck: check("comments_body_max_100000_chk", sql`char_length(${table.body}) <= 100000`),
       postCreatedAtIdx: index("comments_post_id_created_at_idx").on(table.postId, table.createdAt),
       parentIdIdx: index("comments_parent_id_idx").on(table.parentId),
     };

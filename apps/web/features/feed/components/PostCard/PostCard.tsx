@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
+import { isStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { saveScrollPositionForBack } from "../PostPageBackButton";
 import { extractVideoPreviews, videoPreviewFromLinkPreview } from "../../utils/videoPreviews";
 import { useClampText } from "../../hooks/useClampText";
@@ -79,7 +80,9 @@ function PostCardComponent(props: PostCardProps) {
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [viewerImageIndex, setViewerImageIndex] = useState(0);
 
-  const { cleanedText, previews } = extractVideoPreviews(text);
+  const displayText = storedRichTextToPlainText(text);
+  const { cleanedText, previews } = extractVideoPreviews(displayText);
+  const renderText = isStoredRichText(text) ? text : cleanedText;
   const resolvedMedia = resolvePostMedia(media, mediaUrls, viewerMediaUrls, imageSrc);
   const isPostDetailView = Boolean(postId && pathname === ROUTES.POST(username, postId));
   const shouldClamp = Boolean(postId) && !isPostDetailView;
@@ -210,7 +213,7 @@ function PostCardComponent(props: PostCardProps) {
           <PostCardBodyText
             variant={variant}
             headline={headline}
-            cleanedText={cleanedText}
+            cleanedText={renderText}
             filmRef={filmRef}
             stopRichLinkBubble={stopRichLinkBubble}
             shouldClamp={shouldClamp}

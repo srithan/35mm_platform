@@ -47,6 +47,69 @@ async function resolveTargetByUsername(username: string) {
   return rows[0].userId;
 }
 
+profileRoutes.get("/search", requireAuth, async function (c) {
+  var user = c.get("user");
+  var q = (c.req.query("q") ?? "").trim().toLowerCase();
+  var limitRaw = Number(c.req.query("limit") ?? 8);
+  var limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 8) : 8;
+  var db = getDb();
+
+  var searchFilter =
+    q.length === 0
+      ? sql<boolean>`true`
+      : sql<boolean>`(
+          lower(${profiles.username}) like ${q + "%"}
+          or lower(${profiles.displayName}) like ${"%" + q + "%"}
+        )`;
+
+  var rows = await db
+    .select({
+      id: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      isFollowing: sql<boolean>`exists(
+        select 1 from ${follows}
+        where ${follows.followerId} = ${user.userId}
+          and ${follows.followingId} = ${profiles.userId}
+          and ${follows.status} = 'accepted'
+      )`,
+    })
+    .from(profiles)
+    .innerJoin(users, eq(users.id, profiles.userId))
+    .where(
+      and(
+        eq(users.status, "active"),
+        searchFilter,
+        notBlockedWithViewerSql(user.userId, profiles.userId)
+      )
+    )
+    .orderBy(
+      sql`case when exists(
+        select 1 from ${follows}
+        where ${follows.followerId} = ${user.userId}
+          and ${follows.followingId} = ${profiles.userId}
+          and ${follows.status} = 'accepted'
+      ) then 0 else 1 end`,
+      profiles.username
+    )
+    .limit(limit);
+
+  return c.json({
+    users: await Promise.all(
+      rows.map(async function (row) {
+        return {
+          id: row.id,
+          username: row.username,
+          displayName: row.displayName,
+          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+          isFollowing: Boolean(row.isFollowing),
+        };
+      })
+    ),
+  });
+});
+
 function isValidDateOnly(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   var parsed = new Date(`${value}T00:00:00.000Z`);

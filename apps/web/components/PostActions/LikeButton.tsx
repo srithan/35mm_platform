@@ -127,8 +127,8 @@ export function LikeButton({
             xmlns="http://www.w3.org/2000/svg"
           >
             <rect x="3" y="10" width="22" height="15" rx="2" fill="#1a1a1a" stroke="#333" strokeWidth="0.8" />
-            <rect x="3" y="13" width="22" height="2.5" fill="#c2473a" opacity="0.9" />
-            <rect x="3" y="17.5" width="22" height="2" fill="#c2473a" opacity="0.5" />
+            <rect x="3" y="13" width="22" height="2.5" fill="var(--color-like)" opacity="0.9" />
+            <rect x="3" y="17.5" width="22" height="2" fill="var(--color-like)" opacity="0.5" />
             <rect x="3" y="8" width="22" height="3.5" rx="1.5" fill="#222" stroke="#444" strokeWidth="0.8" />
             <g className="like-clap-arm">
               <rect x="3" y="4.5" width="22" height="4" rx="1.5" fill="#1a1a1a" stroke="#444" strokeWidth="0.8" />
@@ -138,10 +138,10 @@ export function LikeButton({
                 </clipPath>
               </defs>
               <g clipPath={`url(#${armClipId})`}>
-                <line x1="7" y1="4" x2="5" y2="9" stroke="#c2473a" strokeWidth="2.5" />
-                <line x1="12" y1="4" x2="10" y2="9" stroke="#c2473a" strokeWidth="2.5" />
-                <line x1="17" y1="4" x2="15" y2="9" stroke="#c2473a" strokeWidth="2.5" />
-                <line x1="22" y1="4" x2="20" y2="9" stroke="#c2473a" strokeWidth="2.5" />
+                <line x1="7" y1="4" x2="5" y2="9" stroke="var(--color-like)" strokeWidth="2.5" />
+                <line x1="12" y1="4" x2="10" y2="9" stroke="var(--color-like)" strokeWidth="2.5" />
+                <line x1="17" y1="4" x2="15" y2="9" stroke="var(--color-like)" strokeWidth="2.5" />
+                <line x1="22" y1="4" x2="20" y2="9" stroke="var(--color-like)" strokeWidth="2.5" />
               </g>
             </g>
           </svg>

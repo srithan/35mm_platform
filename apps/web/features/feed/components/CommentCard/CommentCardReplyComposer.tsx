@@ -1,17 +1,20 @@
 "use client";
 
+import type { Editor } from "@tiptap/react";
 import { Avatar } from "@/components/Avatar";
 import { CURRENT_USER } from "@/lib/constants/currentUser";
 import { cn } from "@/lib/utils/cn";
-import type { RefObject } from "react";
+import { hasVisibleRichText } from "@/lib/utils/richContent";
+import { useState } from "react";
+import { FormattingToolbar } from "../PostComposer/FormattingToolbar";
+import { RichTextEditor } from "../PostComposer/RichTextEditor";
 
 interface CommentCardReplyComposerProps {
   open: boolean;
   depth: number;
   username: string;
   replyText: string;
-  replyTextareaRef: RefObject<HTMLTextAreaElement>;
-  onReplyTextChange: (value: string, textarea: HTMLTextAreaElement) => void;
+  onReplyTextChange: (value: string) => void;
   onSubmit: () => void;
 }
 
@@ -20,10 +23,11 @@ export function CommentCardReplyComposer({
   depth,
   username,
   replyText,
-  replyTextareaRef,
   onReplyTextChange,
   onSubmit,
 }: CommentCardReplyComposerProps) {
+  const [editor, setEditor] = useState<Editor | null>(null);
+
   if (!open || depth >= 2) return null;
 
   return (
@@ -34,46 +38,33 @@ export function CommentCardReplyComposer({
           src={CURRENT_USER.avatarUrl}
           className="mt-1 w-8 h-8"
         />
-        <div className="relative flex-1">
-          <textarea
-            ref={replyTextareaRef}
+        <div className="relative flex-1 rounded-md border border-border bg-elevated transition-colors focus-within:border-fg-faint focus-within:ring-2 focus-within:ring-fg/5">
+          <RichTextEditor
             value={replyText}
+            onChange={(value) => onReplyTextChange(value)}
+            onEditorReady={setEditor}
             placeholder={`Reply to ${username}...`}
-            aria-label={`Reply to ${username}`}
-            rows={1}
-            onChange={(e) => onReplyTextChange(e.target.value, e.target)}
-            className="w-full resize-none overflow-y-auto min-h-[42px] border border-border rounded-md pl-3 pr-16 py-2 text-[12.5px] leading-[1.45] text-fg bg-elevated outline-none placeholder:text-fg-muted focus:border-fg-faint focus:ring-2 focus:ring-fg/5 transition-colors"
             autoFocus
+            className="min-h-[42px] py-2 pl-3 pr-16 text-[12.5px] leading-[1.45] text-fg"
           />
           <button
             type="button"
-            disabled={replyText.trim().length === 0}
+            disabled={!hasVisibleRichText(replyText)}
             onClick={() => void onSubmit()}
             className={cn(
-              "absolute right-2 top-1/2 -translate-y-1/2 h-7 text-[11px] font-medium px-2.5 rounded-md transition-colors flex items-center",
-              replyText.trim().length === 0
+              "absolute right-2 top-2 h-7 text-[11px] font-medium px-2.5 rounded-md transition-colors flex items-center",
+              !hasVisibleRichText(replyText)
                 ? "bg-sunken-2 text-fg-faint cursor-not-allowed"
                 : "bg-fg text-white hover:bg-fg-2"
             )}
           >
             Reply
           </button>
+          <div className="border-t border-border/60 px-2 py-1">
+            <FormattingToolbar editor={editor} showDivider={false} />
+          </div>
         </div>
       </div>
     </div>
   );
-}
-
-function resizeReplyTextarea(textarea: HTMLTextAreaElement) {
-  textarea.style.height = "0px";
-  textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
-}
-
-export function handleReplyTextareaChange(
-  value: string,
-  textarea: HTMLTextAreaElement,
-  onChange: (value: string) => void
-) {
-  onChange(value);
-  resizeReplyTextarea(textarea);
 }
