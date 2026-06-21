@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
+import { applyAccentColor } from "@/lib/theme/applyAccentColor";
 import {
   SettingsRow,
   SettingsSection,
   ThemePicker,
 } from "./SettingsFormPrimitives";
+import { AccentColorPicker } from "./AccentColorPicker";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -29,6 +31,7 @@ export function SettingsAppearancePanel({
 }: SettingsAppearancePanelProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [isSavingAccentColor, setIsSavingAccentColor] = useState(false);
   const [isSavingVideoAutoplay, setIsSavingVideoAutoplay] = useState(false);
 
   const {
@@ -81,6 +84,43 @@ export function SettingsAppearancePanel({
             />
           </div>
           <div className="border-t border-border pt-6 mt-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-[13px] text-fg-light font-medium">Accent color</h3>
+                <p className="mt-1 text-[11.5px] text-fg-muted">
+                  Applies to buttons, links, and highlights across all themes.
+                </p>
+              </div>
+              <AccentColorPicker
+                value={watch("accentColor")}
+                disabled={isSubmitting || isSavingAccentColor}
+                onChange={(nextAccentColor) => void (async () => {
+                  if (nextAccentColor === watch("accentColor")) return;
+                  applyAccentColor(nextAccentColor);
+                  setValue("accentColor", nextAccentColor, { shouldDirty: true });
+                  setSubmitError(null);
+                  setIsSavingAccentColor(true);
+                  const nextValues: AppearanceSettingsFormValues = {
+                    ...getValues(),
+                    accentColor: nextAccentColor,
+                  };
+                  try {
+                    await onSave(nextValues);
+                    reset(nextValues);
+                  } catch (error: unknown) {
+                    applyAccentColor(initialValues.accentColor);
+                    setValue("accentColor", initialValues.accentColor);
+                    setSubmitError(
+                      toFormErrorMessage(error, "Could not update accent color.")
+                    );
+                  } finally {
+                    setIsSavingAccentColor(false);
+                  }
+                })()}
+              />
+            </div>
+          </div>
+          <div className="border-t border-border pt-6 mt-6">
             <SettingsRow
               label="Video autoplay"
               description="Auto-play videos in feed"
@@ -121,7 +161,7 @@ export function SettingsAppearancePanel({
           {submitError ? (
             <p className="pt-1 text-[12px] text-accent">{submitError}</p>
           ) : null}
-          {(isSavingTheme || isSavingVideoAutoplay) && (
+          {(isSavingTheme || isSavingAccentColor || isSavingVideoAutoplay) && (
             <p className="text-[11px] text-fg-muted">Saving appearance changes...</p>
           )}
         </div>

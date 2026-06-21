@@ -29,6 +29,7 @@ export var userSettings = pgTable("user_settings", {
   notifyEmailDigest: boolean("notify_email_digest").default(false).notNull(),
 
   theme: text("theme").default("auto").notNull(),
+  accentColor: text("accent_color").default("theme").notNull(),
   videoAutoplay: boolean("video_autoplay").default(true).notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

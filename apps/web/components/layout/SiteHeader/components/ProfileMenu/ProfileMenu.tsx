@@ -3,6 +3,12 @@ import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
+import {
+  DEFAULT_ACCENT_COLOR,
+  resolveAccentColor,
+  type AccentColorOption,
+} from "@/lib/theme/accentColors";
+import { applyAccentColor } from "@/lib/theme/applyAccentColor";
 import type { AppearanceSettings, PrivacySettings } from "@/features/settings/types/settings";
 import {
   useSettingsQuery,
@@ -48,10 +54,17 @@ export function ProfileMenu({
   const [profileMenuView, setProfileMenuView] = useState<ProfileMenuView>("main");
   const [profileMenuDirection, setProfileMenuDirection] = useState<ProfileMenuDirection>("forward");
 
-  const appearanceSettings: AppearanceSettings = settingsQuery.data?.appearance ?? {
-    theme,
-    videoAutoplay: true,
-  };
+  const appearanceSettings: AppearanceSettings = settingsQuery.data?.appearance
+    ? {
+        ...settingsQuery.data.appearance,
+        theme: settingsQuery.data.appearance.theme ?? theme,
+        accentColor: resolveAccentColor(settingsQuery.data.appearance.accentColor),
+      }
+    : {
+        theme,
+        accentColor: DEFAULT_ACCENT_COLOR,
+        videoAutoplay: true,
+      };
   const privacySettings: PrivacySettings = settingsQuery.data?.privacy ?? {
     privateAccount: false,
     allowMessagesFromAnyone: true,
@@ -94,6 +107,20 @@ export function ProfileMenu({
       {
         onError: function () {
           setTheme(previousTheme);
+        },
+      }
+    );
+  }
+
+  function selectProfileAccentColor(nextAccentColor: AccentColorOption) {
+    if (nextAccentColor === appearanceSettings.accentColor) return;
+    const previousAccentColor = appearanceSettings.accentColor;
+    applyAccentColor(nextAccentColor);
+    updateAppearanceMutation.mutate(
+      { ...appearanceSettings, accentColor: nextAccentColor },
+      {
+        onError: function () {
+          applyAccentColor(previousAccentColor);
         },
       }
     );
@@ -183,6 +210,7 @@ export function ProfileMenu({
                   updateAppearanceMutation={updateAppearanceMutation}
                   onBack={returnToProfileMainMenu}
                   onSelectTheme={selectProfileTheme}
+                  onSelectAccentColor={selectProfileAccentColor}
                   onToggleVideoAutoplay={toggleProfileVideoAutoplay}
                 />
               ) : null}

@@ -1207,6 +1207,13 @@
     color: var(--accent);
 }
 
+.profileAccentHint {
+    margin: 0.45rem 0.25rem 0;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    color: var(--fg-muted);
+}
+
 .profileSwitchStack {
     display: flex;
     flex-direction: column;

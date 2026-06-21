@@ -410,6 +410,56 @@
     color-scheme: light;
 }
 
+/* ── User accent color overrides (applied via data-accent on html) ── */
+[data-accent="warm-red"] {
+    --color-accent: #c2473a;
+    --color-accent-hover: #a83a30;
+    --discover-tab-active: #c2473a;
+}
+
+[data-accent="crimson"] {
+    --color-accent: #c93535;
+    --color-accent-hover: #b02d2d;
+    --discover-tab-active: #c93535;
+}
+
+[data-accent="amber"] {
+    --color-accent: #b8861a;
+    --color-accent-hover: #9a7116;
+    --discover-tab-active: #b8861a;
+}
+
+[data-accent="forest"] {
+    --color-accent: #2d6a4f;
+    --color-accent-hover: #25573f;
+    --discover-tab-active: #2d6a4f;
+}
+
+[data-accent="ocean"] {
+    --color-accent: #2a6f97;
+    --color-accent-hover: #235a7a;
+    --discover-tab-active: #2a6f97;
+}
+
+[data-accent="violet"] {
+    --color-accent: #6d4c9a;
+    --color-accent-hover: #5a3f80;
+    --discover-tab-active: #6d4c9a;
+}
+
+[data-accent="rose"] {
+    --color-accent: #c45c8a;
+    --color-accent-hover: #a84d74;
+    --discover-tab-active: #c45c8a;
+}
+
+/* Mentions, hashtags, and follow actions use social-accent tokens — sync when user picks a color */
+[data-accent] {
+    --color-social-accent: var(--color-accent);
+    --color-social-accent-hover: var(--color-accent-hover);
+    --color-social-accent-bg: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
 /* Notification unread badge — default follows film red; theme overrides below */
 .unread-notification-badge {
     background: var(--color-unread-badge);

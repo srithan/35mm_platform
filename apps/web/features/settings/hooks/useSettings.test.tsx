@@ -28,6 +28,7 @@ const fixture = {
   },
   appearance: {
     theme: "auto" as const,
+    accentColor: "theme" as const,
     videoAutoplay: true,
   },
 };

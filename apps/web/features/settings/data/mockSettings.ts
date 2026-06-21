@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   },
   appearance: {
     theme: "auto",
+    accentColor: "theme",
     videoAutoplay: true,
   },
 };

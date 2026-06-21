@@ -68,6 +68,7 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
     },
     appearance: {
       theme,
+      accentColor: "theme",
       videoAutoplay: true,
     },
   };

@@ -20,6 +20,7 @@ interface SettingsRecord {
   notifyWatchlistStreaming: boolean;
   notifyEmailDigest: boolean;
   theme: string | null;
+  accentColor: string | null;
   videoAutoplay: boolean;
 }
 
@@ -28,6 +29,22 @@ const USERNAME_RE = /^[a-zA-Z0-9._]+$/;
 function isValidTheme(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
   return ["auto", "light", "dark", "matrix", "oppenheimer-bw", "barbie"].includes(value);
+}
+
+var VALID_ACCENT_COLORS = [
+  "theme",
+  "warm-red",
+  "crimson",
+  "amber",
+  "forest",
+  "ocean",
+  "violet",
+  "rose",
+];
+
+function isValidAccentColor(value: string | null | undefined): value is string {
+  if (typeof value !== "string") return false;
+  return VALID_ACCENT_COLORS.includes(value);
 }
 
 function isLegacySettingsSchemaError(err: unknown): boolean {
@@ -42,7 +59,7 @@ function isLegacySettingsSchemaError(err: unknown): boolean {
   var message = String(root.message ?? "") + " " + String(root.cause?.message ?? "");
   if (code !== "42703") return false;
 
-  return message.includes("theme") || message.includes("video_autoplay");
+  return message.includes("theme") || message.includes("video_autoplay") || message.includes("accent_color");
 }
 
 async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
@@ -68,6 +85,7 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
         notifyWatchlistStreaming: userSettings.notifyWatchlistStreaming,
         notifyEmailDigest: userSettings.notifyEmailDigest,
         theme: userSettings.theme,
+        accentColor: userSettings.accentColor,
         videoAutoplay: userSettings.videoAutoplay,
       })
       .from(users)
@@ -115,6 +133,7 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
     return {
       ...legacyRows[0],
       theme: "auto",
+      accentColor: "theme",
       videoAutoplay: true,
     };
   }
@@ -143,6 +162,7 @@ function formatSettings(record: SettingsRecord) {
     },
     appearance: {
       theme: isValidTheme(record.theme) ? record.theme : "auto",
+      accentColor: isValidAccentColor(record.accentColor) ? record.accentColor : "theme",
       videoAutoplay: record.videoAutoplay,
     },
   } as const;
@@ -346,6 +366,14 @@ settingsRoutes.patch("/appearance", requireAuth, async function (c) {
     updates.videoAutoplay = videoAutoplay;
   }
 
+  if (body.accentColor !== undefined) {
+    var accentColor = String(body.accentColor).trim();
+    if (!isValidAccentColor(accentColor)) {
+      throw badRequest("Invalid accent color");
+    }
+    updates.accentColor = accentColor;
+  }
+
   if (Object.keys(updates).length > 0) {
     updates.updatedAt = new Date();
     try {
@@ -354,6 +382,12 @@ settingsRoutes.patch("/appearance", requireAuth, async function (c) {
         .set(updates)
         .where(eq(userSettings.userId, user.userId));
     } catch (err) {
+      if (updates.accentColor !== undefined) {
+        if (isLegacySettingsSchemaError(err)) {
+          throw badRequest("Accent color is unavailable until database migrations are applied.");
+        }
+        throw err;
+      }
       if (!isLegacySettingsSchemaError(err)) {
         throw err;
       }

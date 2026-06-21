@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { FlashToastHost } from "@/components/FlashToast";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { AccentColorProvider } from "@/lib/theme/AccentColorProvider";
 import { NotificationSoundPlayer } from "@/features/notifications/components/NotificationSoundPlayer";
 import { NotificationTitleBadge } from "@/features/notifications/components/NotificationTitleBadge";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -61,7 +62,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <ProvidersWithCurrentUser>{children}</ProvidersWithCurrentUser>
+        <AccentColorProvider>
+          <ProvidersWithCurrentUser>{children}</ProvidersWithCurrentUser>
+        </AccentColorProvider>
         {process.env.NODE_ENV === "development" ? (
           <ReactQueryDevtools initialIsOpen={false} />
         ) : null}

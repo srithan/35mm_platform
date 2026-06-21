@@ -33,6 +33,16 @@ export const notificationSettingsSchema = z.object({
 
 export const appearanceSettingsSchema = z.object({
   theme: z.enum(["auto", "light", "dark", "matrix", "oppenheimer-bw", "barbie"]),
+  accentColor: z.enum([
+    "theme",
+    "warm-red",
+    "crimson",
+    "amber",
+    "forest",
+    "ocean",
+    "violet",
+    "rose",
+  ]),
   videoAutoplay: z.boolean(),
 });
 

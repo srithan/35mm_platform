@@ -2,6 +2,9 @@ import type { UseMutationResult } from "@tanstack/react-query";
 import { Check, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
+import type { AccentColorOption } from "@/lib/theme/accentColors";
+import { ACCENT_COLOR_OPTIONS } from "@/lib/theme/accentColors";
+import { AccentColorPicker } from "@/features/settings/components/AccentColorPicker";
 import type { AppearanceSettings } from "@/features/settings/types/settings";
 import { PROFILE_THEME_OPTIONS } from "../../types";
 import styles from "../../SiteHeader.module.css";
@@ -11,6 +14,7 @@ type ProfileMenuAppearanceViewProps = {
   updateAppearanceMutation: UseMutationResult<unknown, Error, AppearanceSettings, unknown>;
   onBack: () => void;
   onSelectTheme: (theme: ThemeOption) => void;
+  onSelectAccentColor: (accentColor: AccentColorOption) => void;
   onToggleVideoAutoplay: (checked: boolean) => void;
 };
 
@@ -19,6 +23,7 @@ export function ProfileMenuAppearanceView({
   updateAppearanceMutation,
   onBack,
   onSelectTheme,
+  onSelectAccentColor,
   onToggleVideoAutoplay,
 }: ProfileMenuAppearanceViewProps) {
   return (
@@ -66,6 +71,20 @@ export function ProfileMenuAppearanceView({
             );
           })}
         </div>
+      </div>
+      <div className={styles.profileInlineSection}>
+        <div className={styles.profileInlineSectionTitle}>Accent color</div>
+        <AccentColorPicker
+          variant="compact"
+          value={appearanceSettings.accentColor}
+          disabled={updateAppearanceMutation.isPending}
+          onChange={onSelectAccentColor}
+        />
+        <p className={styles.profileAccentHint}>
+          {ACCENT_COLOR_OPTIONS.find(function (option) {
+            return option.id === appearanceSettings.accentColor;
+          })?.label ?? "Theme default"}
+        </p>
       </div>
       <label className={styles.profileSwitchRow}>
         <span className={styles.profileSwitchCopy}>

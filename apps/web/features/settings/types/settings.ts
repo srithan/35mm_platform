@@ -1,3 +1,4 @@
+import type { AccentColorOption } from "@/lib/theme/accentColors";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 
 export interface ProfileSettings {
@@ -24,6 +25,7 @@ export interface NotificationSettings {
 
 export interface AppearanceSettings {
   theme: ThemeOption;
+  accentColor: AccentColorOption;
   videoAutoplay: boolean;
 }
 

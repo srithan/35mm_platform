@@ -51,6 +51,7 @@ describe("settings schemas", () => {
     expect(
       appearanceSettingsSchema.safeParse({
         theme: "dark",
+        accentColor: "warm-red",
         videoAutoplay: true,
       }).success
     ).toBe(true);
