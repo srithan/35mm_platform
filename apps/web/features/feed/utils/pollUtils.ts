@@ -73,6 +73,7 @@ export var HOURS_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 export var MINUTES_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 type OptimisticPoll = {
+  type: "ranking" | "image";
   hasVoted: boolean;
   resultsVisibility: "after_vote" | "after_end";
   resultsVisible: boolean;
@@ -85,36 +86,47 @@ type OptimisticPoll = {
   }>;
 };
 
+export function computePollPercent(voteCount: number, denominator: number): number | null {
+  if (denominator <= 0) return null;
+  return Math.round((voteCount / denominator) * 1000) / 10;
+}
+
 export function applyOptimisticPollVote<T extends OptimisticPoll>(
   poll: T,
   optionIds: string[]
 ): T {
   if (poll.hasVoted || optionIds.length === 0) return poll;
 
-  var selected: Record<string, boolean> = {};
-  for (var i = 0; i < optionIds.length; i += 1) {
-    selected[optionIds[i]] = true;
-  }
-
   var newTotalVotes = poll.totalVotes + 1;
-  var revealResults = poll.resultsVisibility === "after_vote";
+
+  var newOptions = poll.options.map(function (opt) {
+    var voteCount = opt.voteCount ?? 0;
+    var rankIndex = optionIds.indexOf(opt.id);
+    var increment = 0;
+    if (rankIndex >= 0) {
+      increment = poll.type === "image" ? 1 : optionIds.length - rankIndex;
+    }
+    return {
+      ...opt,
+      voteCount: voteCount + increment,
+    };
+  });
+
+  var scoreTotal = newOptions.reduce(function (sum, opt) {
+    return sum + (opt.voteCount ?? 0);
+  }, 0);
+  var denominator = poll.type === "ranking" ? scoreTotal : newTotalVotes;
 
   return {
     ...poll,
     hasVoted: true,
     selectedOptionIds: optionIds,
     totalVotes: newTotalVotes,
-    resultsVisible: poll.resultsVisible || revealResults,
-    options: poll.options.map(function (opt) {
-      var voteCount = opt.voteCount ?? 0;
-      var newVoteCount = selected[opt.id] ? voteCount + 1 : voteCount;
+    resultsVisible: true,
+    options: newOptions.map(function (opt) {
       return {
         ...opt,
-        voteCount: newVoteCount,
-        percent:
-          revealResults && newTotalVotes > 0
-            ? (newVoteCount / newTotalVotes) * 100
-            : opt.percent,
+        percent: computePollPercent(opt.voteCount ?? 0, denominator),
       };
     }),
   };

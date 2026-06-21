@@ -55,6 +55,27 @@
     --color-success: #27ae60;
     --color-warning: #e67e22;
 
+    /* ── Domain: Polls ── */
+    --color-shockingly-green: #0ae448;
+    --color-lt-green: #abff84;
+    --color-poll-winner: var(--color-shockingly-green);
+    --color-poll-winner-muted: color-mix(in srgb, var(--color-shockingly-green) 16%, transparent);
+    --color-poll-track: color-mix(in srgb, var(--color-text) 6%, transparent);
+    --color-core-button-gradient: linear-gradient(114.41deg, #0ae448 20.74%, #abff84 65.5%);
+    --gradient-poll-winner: var(--gradient-macha);
+    --gradient-poll-bar: linear-gradient(
+        114.41deg,
+        color-mix(in srgb, var(--color-text) 16%, transparent) 20.74%,
+        color-mix(in srgb, var(--color-text) 7%, transparent) 65.5%
+    );
+    --gradient-macha: linear-gradient(114.41deg, var(--color-shockingly-green) 20.74%, var(--color-lt-green) 65.5%);
+    --gradient-orange-crush: linear-gradient(111.45deg, #ff9500 19.42%, #f7bdf8 73.08%);
+    --gradient-lipstick: linear-gradient(165.72deg, #f7bdf8 21.15%, #cd237f 81.93%);
+    --gradient-purple-haze: linear-gradient(153.58deg, #f7bdf8 32.25%, #2f3cc0 92.68%);
+    --gradient-skyfall: linear-gradient(131.77deg, #0a157a 30.82%, #15bfe4 81.82%);
+    --gradient-emerald-city: linear-gradient(166.9deg, var(--color-shockingly-green) 53.19%, #0085d0 107.69%);
+    --gradient-summer-fair: linear-gradient(144.02deg, #0085d0 4.56%, #f7bdf8 72.98%);
+
     /* ── Domain: Film ── */
     --color-film-red: #c93535;
     /* Count pills (header, tab bar, etc.) — follows --color-film-red per theme */
@@ -1891,4 +1912,12 @@ body {
         animation: none;
         opacity: 1;
     }
+}
+
+.poll-winner-gradient-bg {
+    background: var(--gradient-macha);
+}
+
+.poll-winner-on-gradient {
+    color: #0f0f0f;
 }

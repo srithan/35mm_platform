@@ -735,7 +735,7 @@ async function hydratePostPoll(postId: string, viewerUserId: string | null): Pro
       label: option.label,
       imageUrl: await resolvePublicMediaUrl(option.imageUrl),
       position: Number(option.position),
-      voteCount: resultsVisible ? voteCount : null,
+      voteCount,
       percent: resultsVisible && denominator > 0 ? Math.round((voteCount / denominator) * 1000) / 10 : null,
     };
   }));
@@ -1632,6 +1632,15 @@ feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
   var current = await assertPostOwner(postId, user.userId);
   if (current.isDeleted) {
     throw badRequest("Cannot edit deleted post");
+  }
+
+  var pollRows = await db
+    .select({ id: postPolls.id })
+    .from(postPolls)
+    .where(eq(postPolls.postId, postId))
+    .limit(1);
+  if (pollRows.length > 0) {
+    throw badRequest("Poll posts cannot be edited");
   }
 
   var headline = input.headline !== undefined ? input.headline : current.headline;

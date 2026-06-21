@@ -193,7 +193,7 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
           <button
             type="button"
             onClick={addOption}
-            className="flex w-full items-center px-4 py-2.5 text-[15px] text-accent transition-colors duration-150 hover:bg-accent/[0.05]"
+            className="flex w-full items-center px-4 py-2.5 text-[15px] text-accent transition-[background-color,transform] duration-150 hover:bg-[color-mix(in_srgb,var(--accent)_7%,transparent)] active:scale-[0.995] active:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
           >
             <Icon name="plus" className="w-4 h-4 mr-2" strokeWidth={2} />
             Add another choice

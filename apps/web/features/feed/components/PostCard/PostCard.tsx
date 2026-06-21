@@ -195,6 +195,7 @@ function PostCardComponent(props: PostCardProps) {
           menu={
             <PostCardMoreMenu
               isPostAuthor={isPostAuthor}
+              hasPoll={Boolean(poll)}
               postId={postId}
               userId={userId}
               variant={variant}

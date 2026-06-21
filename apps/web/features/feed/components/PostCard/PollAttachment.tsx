@@ -83,6 +83,20 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
     }
   });
 
+  var leaderCount = 0;
+  if (winningPercent > 0) {
+    displayPoll.options.forEach(function (opt) {
+      if (opt.percent === winningPercent) {
+        leaderCount += 1;
+      }
+    });
+  }
+  var hasUniqueWinner = leaderCount === 1;
+
+  function isOptionWinning(percent: number): boolean {
+    return showResults && hasUniqueWinner && percent === winningPercent && percent > 0;
+  }
+
   // Image poll layout
   if (isImagePoll) {
     var canVote = !hasVoted && !isEnded;
@@ -95,24 +109,22 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
         }}
       >
         {/* Poll container with clear styling */}
-        <div className="rounded-2xl border-2 border-accent/30 bg-accent/[0.03] p-3">
+        <div className="rounded-2xl border border-border bg-sunken/50 p-3">
           {/* Poll header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-accent/15 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full border border-border bg-elevated flex items-center justify-center">
                 <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M3 13h2v8H3v-8zm6-4h2v12H9V9zm6-4h2v16h-2V5zm6-4h2v20h-2V1z"/>
                 </svg>
               </div>
               <span className="text-[14px] font-semibold text-fg">Poll</span>
             </div>
-            {canVote ? (
-              <span className="text-[12px] font-medium text-accent">Pick one</span>
-            ) : (
+            {!canVote ? (
               <span className="text-[12px] font-medium text-fg-muted">
                 {displayPoll.totalVotes.toLocaleString()} votes
               </span>
-            )}
+            ) : null}
           </div>
 
           {/* Options grid */}
@@ -120,7 +132,7 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
             {displayPoll.options.map(function (option, index) {
               var isSelected = option.id === selectedId;
               var percent = option.percent ?? 0;
-              var isWinning = showResults && percent === winningPercent && percent > 0;
+              var isWinning = isOptionWinning(percent);
               var label = option.label?.trim() || "Option " + (index + 1);
 
               return (
@@ -132,14 +144,14 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
                     handleVote(option.id);
                   }}
                   className={cn(
-                    "group relative rounded-xl overflow-hidden",
-                    "transition-[transform,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    "group relative rounded-xl overflow-hidden border border-border",
+                    "transition-[transform,box-shadow,border-color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
                     canVote && [
                       "cursor-pointer",
-                      "hover:ring-2 hover:ring-accent/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-0.5",
+                      "hover:border-border-strong hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-0.5",
                       "active:scale-[0.98] active:translate-y-0 active:shadow-none",
                     ],
-                    isSelected && "ring-2 ring-accent"
+                    isSelected && "border-border-strong ring-2 ring-border-strong"
                   )}
                 >
                   {/* Image */}
@@ -168,49 +180,59 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
 
                     {/* Selected indicator */}
                     {isSelected && !showResults ? (
-                      <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shadow-lg">
-                          <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                      <div className="absolute inset-0 bg-fg/10 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-fg flex items-center justify-center shadow-lg">
+                          <svg className="w-7 h-7 text-bg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                       </div>
                     ) : null}
 
-                    {/* Results overlay */}
+                    {/* Results badges — corner overlays, image stays visible */}
                     {showResults ? (
-                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center p-2">
+                      <>
                         {isSelected ? (
-                          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center mb-2">
-                            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                          <div className="absolute top-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-fg shadow-md">
+                            <svg className="h-3.5 w-3.5 text-bg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
                         ) : null}
-                        <span className={cn(
-                          "text-[28px] tabular-nums font-bold",
-                          isWinning ? "text-[#88ce02]" : "text-white"
-                        )}>
-                          {percent.toFixed(0)}%
-                        </span>
-                        {isWinning ? (
-                          <span className="text-[11px] font-semibold text-[#88ce02] mt-1">WINNER</span>
-                        ) : null}
-                      </div>
+                        <div
+                          className={cn(
+                            "absolute bottom-2 right-2 rounded-lg px-2 py-1 shadow-md backdrop-blur-[2px]",
+                            isWinning
+                              ? "poll-winner-gradient-bg poll-winner-on-gradient"
+                              : "bg-black/70 text-white"
+                          )}
+                        >
+                          <span className={cn(
+                            "text-[13px] font-bold tabular-nums leading-none block",
+                            !isWinning && "text-white"
+                          )}>
+                            {percent.toFixed(0)}%
+                          </span>
+                          {isWinning ? (
+                            <span className="text-[9px] font-semibold uppercase tracking-[0.06em] leading-none mt-0.5 block">
+                              Winner
+                            </span>
+                          ) : null}
+                        </div>
+                      </>
                     ) : null}
                   </div>
 
                   {/* Label */}
-                  <div className={cn(
-                    "px-3 py-2 text-center",
-                    showResults && isWinning ? "bg-[#88ce02]/15" : "bg-bg"
-                  )}>
-                    <span className={cn(
-                      "text-[13px] font-medium block truncate",
-                      showResults && isWinning ? "text-[#88ce02]" : "text-fg"
-                    )}>
-                      {label}
-                    </span>
+                  <div
+                    className={cn(
+                      "px-3 py-2 text-center border-t border-border",
+                      showResults && isWinning
+                        ? "poll-winner-gradient-bg poll-winner-on-gradient"
+                        : "bg-elevated text-fg"
+                    )}
+                  >
+                    <span className="text-[13px] font-medium block truncate">{label}</span>
                   </div>
                 </button>
               );
@@ -218,7 +240,7 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
           </div>
 
           {/* Footer */}
-          <div className="mt-3 pt-3 border-t border-accent/20 flex items-center justify-between text-[12px]">
+          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-[12px]">
             <span className="text-fg-muted">{timeLabel}</span>
             {hasVoted ? (
               <span className="font-medium text-accent">Your vote</span>
@@ -241,38 +263,42 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
         {displayPoll.options.map(function (option) {
           var isSelected = option.id === selectedId;
           var percent = option.percent ?? 0;
-          var isWinning = showResults && percent === winningPercent && percent > 0;
+          var isWinning = isOptionWinning(percent);
           var label = option.label?.trim() || "Option";
 
           if (showResults) {
             return (
               <div key={option.id} className="relative overflow-hidden rounded-full">
-                {/* Full background bar (grey) */}
-                <div 
+                <div
                   className="absolute inset-0"
-                  style={{ backgroundColor: "rgba(0, 0, 0, 0.06)" }}
+                  style={{ backgroundColor: "var(--color-poll-track)" }}
                 />
-                
-                {/* Progress fill */}
+
                 <div
                   className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
-                  style={{ 
+                  style={{
                     width: percent + "%",
-                    backgroundColor: isWinning ? "rgba(136, 206, 2, 0.5)" : "rgba(96, 165, 250, 0.4)"
+                    background: isWinning ? "var(--gradient-macha)" : "var(--gradient-poll-bar)",
                   }}
                 />
-                
-                {/* Content */}
+
                 <div className="relative flex items-center justify-between px-3 py-2.5">
                   <div className="flex items-center gap-2 min-w-0">
                     {isSelected ? (
-                      <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24" fill="#88ce02">
+                      <svg
+                        className={cn(
+                          "w-[18px] h-[18px] shrink-0",
+                          isWinning ? "text-[#0f0f0f]" : "text-[var(--color-poll-winner)]"
+                        )}
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                       </svg>
                     ) : null}
                     <span className={cn(
-                      "text-[15px] truncate",
-                      isWinning ? "font-semibold text-fg" : "text-fg"
+                      "text-[15px] truncate text-fg",
+                      isWinning && "font-semibold"
                     )}>
                       {label}
                     </span>

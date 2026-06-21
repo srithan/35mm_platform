@@ -22,6 +22,7 @@ import type {
 
 interface PostCardMoreMenuProps {
   isPostAuthor: boolean;
+  hasPoll?: boolean;
   postId?: string;
   userId?: string;
   variant: PostVariant;
@@ -41,6 +42,7 @@ interface PostCardMoreMenuProps {
 
 export function PostCardMoreMenu({
   isPostAuthor,
+  hasPoll = false,
   postId,
   userId,
   variant,
@@ -71,40 +73,44 @@ export function PostCardMoreMenu({
       items={[
         ...(isPostAuthor
           ? [
-              {
-                id: "edit-post",
-                label: "Edit post",
-                description: "Update text, headline, or film",
-                icon: <Icon name="quote" className="w-4 h-4" />,
-                onSelect: () => {
-                  if (!postId || !userId) return;
-                  openComposerForEdit({
-                    postId,
-                    userId,
-                    type:
-                      sourcePostType ??
-                      (variant === "film-log"
-                        ? "log"
-                        : variant === "discussion"
-                          ? "discussion"
-                          : variant === "image"
-                            ? "image"
-                            : "text"),
-                    body: text,
-                    headline: headline ?? undefined,
-                    mediaUrls: normalizedMediaUrls,
-                    linkPreview: linkPreview ?? null,
-                    film: attachedFilm ?? null,
-                  });
-                },
-              },
+              ...(!hasPoll
+                ? [
+                    {
+                      id: "edit-post",
+                      label: "Edit post",
+                      description: "Update text, headline, or film",
+                      icon: <Icon name="quote" className="w-4 h-4" />,
+                      onSelect: () => {
+                        if (!postId || !userId) return;
+                        openComposerForEdit({
+                          postId,
+                          userId,
+                          type:
+                            sourcePostType ??
+                            (variant === "film-log"
+                              ? "log"
+                              : variant === "discussion"
+                                ? "discussion"
+                                : variant === "image"
+                                  ? "image"
+                                  : "text"),
+                          body: text,
+                          headline: headline ?? undefined,
+                          mediaUrls: normalizedMediaUrls,
+                          linkPreview: linkPreview ?? null,
+                          film: attachedFilm ?? null,
+                        });
+                      },
+                    },
+                  ]
+                : []),
               {
                 id: "delete-post",
                 label: "Delete post",
                 description: "Remove this post from your profile and feeds",
                 icon: <Trash2 className="w-4 h-4" strokeWidth={1.8} />,
                 danger: true,
-                dividerBefore: true,
+                dividerBefore: !hasPoll,
                 onSelect: onDeleteRequest,
               },
             ]
