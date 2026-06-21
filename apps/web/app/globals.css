@@ -23,7 +23,7 @@
     --color-bg-hover: #faf9f8;
     --color-bg-active: var(--neutral-50);
     /* Feed post/comment card hover (on --color-bg) */
-    --color-card-hover: #f5f5f5;
+    --color-card-hover: #fafafa;
 
     /* ── Semantic UI: Text ── */
     --color-text: var(--neutral-900);

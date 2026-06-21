@@ -728,6 +728,18 @@ async function hydratePostPoll(postId: string, viewerUserId: string | null): Pro
   }, 0);
   var denominator = poll.type === "ranking" ? scoreTotal : totalVotes;
 
+  var responseOptions = await Promise.all(optionRows.map(async function (option) {
+    var voteCount = Number(option.voteCount ?? 0);
+    return {
+      id: option.id,
+      label: option.label,
+      imageUrl: await resolvePublicMediaUrl(option.imageUrl),
+      position: Number(option.position),
+      voteCount: resultsVisible ? voteCount : null,
+      percent: resultsVisible && denominator > 0 ? Math.round((voteCount / denominator) * 1000) / 10 : null,
+    };
+  }));
+
   return {
     id: poll.id,
     type: poll.type,
@@ -738,17 +750,7 @@ async function hydratePostPoll(postId: string, viewerUserId: string | null): Pro
     isEnded,
     resultsVisible,
     selectedOptionIds,
-    options: optionRows.map(function (option) {
-      var voteCount = Number(option.voteCount ?? 0);
-      return {
-        id: option.id,
-        label: option.label,
-        imageUrl: option.imageUrl,
-        position: Number(option.position),
-        voteCount: resultsVisible ? voteCount : null,
-        percent: resultsVisible && denominator > 0 ? Math.round((voteCount / denominator) * 1000) / 10 : null,
-      };
-    }),
+    options: responseOptions,
   };
 }
 

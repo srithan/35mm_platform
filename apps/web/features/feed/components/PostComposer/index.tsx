@@ -37,33 +37,21 @@ import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/prof
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
 import { hasVisibleRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
+import {
+  emptyPollOption,
+  isPollDraftValid,
+  pollTotalMinutes,
+  type PollDraft,
+} from "../../utils/pollUtils";
+import { PollComposer } from "./PollComposer";
 import { postComposerWritePrompt } from "./writePrompt";
 
 const WRITE_MAX_CHARS = 500;
+const POLL_TEXT_MAX_CHARS = 140;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
 const POST_COMPOSER_EMOJI_STYLE = "native" as const;
 const VIDEO_PREVIEW_CLASS = "mx-auto max-h-[min(42vh,360px)] max-w-full rounded-md object-contain bg-black";
-const POLL_MIN_OPTIONS = 2;
-const POLL_MAX_OPTIONS = 10;
-const POLL_MIN_DURATION_MINUTES = 5;
-const POLL_MAX_DURATION_MINUTES = 10 * 24 * 60;
-
-type PollDurationUnit = "minutes" | "hours" | "days";
-
-type PollDraftOption = {
-  label: string;
-  imageUrl: string;
-  imageFile: File | null;
-};
-
-type PollDraft = {
-  type: "ranking" | "image";
-  durationValue: number;
-  durationUnit: PollDurationUnit;
-  resultsVisibility: "after_vote" | "after_end";
-  options: PollDraftOption[];
-};
 
 const YOUTUBE_REGEX =
   /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/;
@@ -113,17 +101,6 @@ function normalizeImageContentType(value: string | null | undefined): string {
   }
 
   return "image/jpeg";
-}
-
-function pollDurationMinutes(value: number, unit: PollDurationUnit): number {
-  if (!Number.isFinite(value)) return 0;
-  if (unit === "days") return Math.round(value * 24 * 60);
-  if (unit === "hours") return Math.round(value * 60);
-  return Math.round(value);
-}
-
-function emptyPollOption(): PollDraftOption {
-  return { label: "", imageUrl: "", imageFile: null };
 }
 
 const MODE_TABS: { id: ComposerMode; label: string; icon: React.ReactNode }[] = [
@@ -221,9 +198,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const currentInitial = initialForName(currentDisplayName);
   const writePlaceholder = useMemo(
     function () {
+      if (pollDraft) return "Ask your question...";
       return postComposerWritePrompt(currentDisplayName);
     },
-    [currentDisplayName]
+    [currentDisplayName, pollDraft]
   );
 
   // Track which input is active to show the correct char limit (for discussion mode)
@@ -304,7 +282,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   }, [debouncedActiveText, dismissedPreviewUrl, getToken, linkPreview?.url, pollDraft]);
 
   const charCountData = useMemo(() => {
-    if (mode === "write") return { count: writePlainText.length, max: WRITE_MAX_CHARS };
+    if (mode === "write") {
+      // Poll posts have a stricter character limit
+      var maxChars = pollDraft ? POLL_TEXT_MAX_CHARS : WRITE_MAX_CHARS;
+      return { count: writePlainText.length, max: maxChars };
+    }
     if (mode === "log") return { count: logPlainText.length, max: LOG_MAX_CHARS };
 
     // Discussion mode depends on which field is active. Defaults to body limit.
@@ -312,7 +294,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       return { count: discussionHeadline.length, max: DISCUSSION_HEADLINE_MAX_CHARS };
     }
     return { count: discussionPlainText.length, max: DISCUSSION_BODY_MAX_CHARS };
-  }, [mode, activeField, writePlainText, logPlainText, discussionHeadline, discussionPlainText]);
+  }, [mode, activeField, writePlainText, logPlainText, discussionHeadline, discussionPlainText, pollDraft]);
 
   const charCountRemaining = charCountData.max - charCountData.count;
 
@@ -320,25 +302,19 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const showLogFormatBar = logPlainText.length > REVIEW_THRESHOLD;
   const pollDuration = useMemo(function () {
     if (!pollDraft) return 0;
-    return pollDurationMinutes(pollDraft.durationValue, pollDraft.durationUnit);
+    return pollTotalMinutes(pollDraft.durationDays, pollDraft.durationHours, pollDraft.durationMinutes);
   }, [pollDraft]);
   const pollIsValid = useMemo(function () {
     if (!pollDraft) return false;
-    if (
-      pollDuration < POLL_MIN_DURATION_MINUTES ||
-      pollDuration > POLL_MAX_DURATION_MINUTES ||
-      pollDraft.options.length < POLL_MIN_OPTIONS ||
-      pollDraft.options.length > POLL_MAX_OPTIONS
-    ) {
-      return false;
-    }
-    return pollDraft.options.every(function (option) {
-      if (pollDraft.type === "ranking") return option.label.trim().length > 0;
-      return option.imageFile !== null || option.imageUrl.trim().length > 0;
-    });
-  }, [pollDraft, pollDuration]);
+    return isPollDraftValid(pollDraft);
+  }, [pollDraft]);
 
   const canPost = useMemo(() => {
+    // Poll posts require text (max 140 chars)
+    var pollTextValid = pollIsValid
+      ? writePlainText.trim().length > 0 && writePlainText.length <= POLL_TEXT_MAX_CHARS
+      : true;
+
     if (editingPost) {
       if (mode === "discussion") {
         return (
@@ -361,17 +337,21 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           videoFile !== null ||
           gifUrl !== null ||
           pollIsValid) &&
-        writePlainText.length <= WRITE_MAX_CHARS
+        writePlainText.length <= WRITE_MAX_CHARS &&
+        pollTextValid
       );
     }
 
     if (mode === "write") {
+      // Poll posts require text; regular posts can be media-only
+      if (pollIsValid) {
+        return pollTextValid;
+      }
       return (
         (writePlainText.trim().length > 0 ||
           images.length > 0 ||
           videoFile !== null ||
-          gifUrl !== null ||
-          pollIsValid) &&
+          gifUrl !== null) &&
         writePlainText.length <= WRITE_MAX_CHARS
       );
     }
@@ -683,8 +663,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const handleAddPoll = useCallback(function () {
     setPollDraft({
       type: "ranking",
-      durationValue: 1,
-      durationUnit: "days",
+      durationDays: 1,
+      durationHours: 0,
+      durationMinutes: 0,
       resultsVisibility: "after_vote",
       options: [emptyPollOption(), emptyPollOption()],
     });
@@ -699,40 +680,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setShowGifPicker(false);
   }, []);
 
-  const updatePollOption = useCallback(function (
-    index: number,
-    patch: Partial<PollDraftOption>
-  ) {
-    setPollDraft(function (current) {
-      if (!current) return current;
-      return {
-        ...current,
-        options: current.options.map(function (option, optionIndex) {
-          return optionIndex === index ? { ...option, ...patch } : option;
-        }),
-      };
-    });
-  }, []);
-
-  const addPollOption = useCallback(function () {
-    setPollDraft(function (current) {
-      if (!current || current.options.length >= POLL_MAX_OPTIONS) return current;
-      return { ...current, options: [...current.options, emptyPollOption()] };
-    });
-  }, []);
-
-  const removePollOption = useCallback(function (index: number) {
-    setPollDraft(function (current) {
-      if (!current || current.options.length <= POLL_MIN_OPTIONS) return current;
-      return {
-        ...current,
-        options: current.options.filter(function (_option, optionIndex) {
-          return optionIndex !== index;
-        }),
-      };
-    });
-  }, []);
-
   const handleSubmit = useCallback(async () => {
     if (!canPost || createPostMutation.isPending || updatePostMutation.isPending) return;
     setSubmitError(null);
@@ -740,6 +687,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     async function uploadPostMedia(file: File): Promise<{
       type: "image" | "video";
       url: string;
+      originalUrl: string;
       key: string;
       variants?: {
         thumb?: string;
@@ -768,6 +716,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       return {
         type: isVideo ? "video" : "image",
         url: isVideo ? presign.publicUrl : presign.variants.full || presign.publicUrl,
+        originalUrl: presign.publicUrl,
         key: presign.objectKey,
         variants: isVideo
           ? undefined
@@ -807,14 +756,19 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       }
       var pollOptions = await Promise.all(
         pollDraft.options.map(async function (option) {
-          var imageUrl = option.imageUrl.trim();
+          var imageUrl: string | null = null;
+          // Only use imageUrl if it's a real URL (not a blob URL)
+          if (option.imageUrl && !option.imageUrl.startsWith("blob:")) {
+            imageUrl = option.imageUrl.trim();
+          }
+          // Upload the file if present - use publicUrl (R2) instead of variants (Cloudflare Images)
           if (option.imageFile) {
             var uploadedOptionImage = await uploadPostMedia(option.imageFile);
-            imageUrl = uploadedOptionImage.variants?.feed || uploadedOptionImage.url;
+            imageUrl = uploadedOptionImage.originalUrl;
           }
           return {
             label: option.label.trim() || null,
-            imageUrl: imageUrl || null,
+            imageUrl: imageUrl,
           };
         })
       );
@@ -1389,150 +1343,21 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 </div>
               )}
               {pollDraft ? (
-                <div className="mt-3 rounded-lg border border-border bg-sunken p-3">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="inline-flex rounded-full border border-border bg-bg p-1">
-                      {(["ranking", "image"] as const).map(function (pollType) {
-                        return (
-                          <button
-                            key={pollType}
-                            type="button"
-                            onClick={() => {
-                              setPollDraft(function (current) {
-                                return current ? { ...current, type: pollType } : current;
-                              });
-                            }}
-                            className={cn(
-                              "rounded-full px-3 py-1 text-[12px] font-semibold capitalize transition-colors",
-                              pollDraft.type === pollType ? "bg-fg text-bg" : "text-fg-muted hover:text-fg"
-                            )}
-                          >
-                            {pollType}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setPollDraft(null)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-fg-muted hover:bg-hover hover:text-fg"
-                      aria-label="Remove poll"
-                    >
-                      <Icon name="x" className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {pollDraft.options.map(function (option, index) {
-                      return (
-                        <div key={index} className="flex min-w-0 items-center gap-2">
-                          <span className="w-5 shrink-0 text-right text-[12px] font-semibold text-fg-muted">
-                            {index + 1}
-                          </span>
-                          <input
-                            type="text"
-                            value={option.label}
-                            onChange={(event) => updatePollOption(index, { label: event.target.value })}
-                            placeholder={pollDraft.type === "image" ? "Label optional" : `Option ${index + 1}`}
-                            className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg outline-none placeholder:text-fg-muted focus:border-accent"
-                          />
-                          {pollDraft.type === "image" ? (
-                            <label className="shrink-0 cursor-pointer rounded-md border border-border bg-bg px-2.5 py-2 text-[12px] font-semibold text-fg-muted hover:text-fg">
-                              {option.imageFile || option.imageUrl ? "Image set" : "Image"}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(event) => {
-                                  var file = event.target.files?.[0] ?? null;
-                                  if (!file) return;
-                                  updatePollOption(index, {
-                                    imageFile: file,
-                                    imageUrl: URL.createObjectURL(file),
-                                  });
-                                  event.target.value = "";
-                                }}
-                              />
-                            </label>
-                          ) : null}
-                          {pollDraft.options.length > POLL_MIN_OPTIONS ? (
-                            <button
-                              type="button"
-                              onClick={() => removePollOption(index)}
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-hover hover:text-fg"
-                              aria-label="Remove option"
-                            >
-                              <Icon name="x" className="h-4 w-4" strokeWidth={2} />
-                            </button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={pollDraft.options.length >= POLL_MAX_OPTIONS}
-                      onClick={addPollOption}
-                      className={cn(
-                        "rounded-full border border-border px-3 py-1.5 text-[12px] font-semibold",
-                        pollDraft.options.length >= POLL_MAX_OPTIONS
-                          ? "cursor-not-allowed text-fg-faint"
-                          : "text-fg-muted hover:text-fg"
-                      )}
-                    >
-                      Add option
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      value={pollDraft.durationValue}
-                      onChange={(event) => {
-                        var next = Number(event.target.value);
-                        setPollDraft(function (current) {
-                          return current ? { ...current, durationValue: next } : current;
-                        });
-                      }}
-                      className="h-8 w-20 rounded-md border border-border bg-bg px-2 text-[13px] text-fg outline-none focus:border-accent"
-                      aria-label="Poll duration"
-                    />
-                    <select
-                      value={pollDraft.durationUnit}
-                      onChange={(event) => {
-                        var next = event.target.value as PollDurationUnit;
-                        setPollDraft(function (current) {
-                          return current ? { ...current, durationUnit: next } : current;
-                        });
-                      }}
-                      className="h-8 rounded-md border border-border bg-bg px-2 text-[13px] text-fg outline-none focus:border-accent"
-                      aria-label="Poll duration unit"
-                    >
-                      <option value="minutes">minutes</option>
-                      <option value="hours">hours</option>
-                      <option value="days">days</option>
-                    </select>
-                    <select
-                      value={pollDraft.resultsVisibility}
-                      onChange={(event) => {
-                        var next = event.target.value as PollDraft["resultsVisibility"];
-                        setPollDraft(function (current) {
-                          return current ? { ...current, resultsVisibility: next } : current;
-                        });
-                      }}
-                      className="h-8 rounded-md border border-border bg-bg px-2 text-[13px] text-fg outline-none focus:border-accent"
-                      aria-label="Poll result timing"
-                    >
-                      <option value="after_vote">results after vote</option>
-                      <option value="after_end">results after end</option>
-                    </select>
-                  </div>
-                  {!pollIsValid ? (
-                    <p className="mt-2 text-[12px] text-fg-muted">
-                      Poll needs 2-10 options and duration from 5 minutes to 10 days.
+                <>
+                  {writePlainText.trim().length === 0 ? (
+                    <p className="text-[12px] text-accent font-medium">
+                      Add a question above (max 140 characters)
                     </p>
                   ) : null}
-                </div>
+                  <PollComposer
+                    draft={pollDraft}
+                    isValid={pollIsValid}
+                    onChange={setPollDraft}
+                    onRemove={function () {
+                      setPollDraft(null);
+                    }}
+                  />
+                </>
               ) : null}
               {(showDropZone || images.length > 0) && (
                 <ImageAttachments
