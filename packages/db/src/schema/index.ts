@@ -15,11 +15,18 @@ export {
   postLikes,
   postReposts,
   postBookmarks,
+  postPolls,
+  pollOptions,
+  pollVotes,
   postTypeEnum,
   postVisibilityEnum,
+  pollTypeEnum,
+  pollResultsVisibilityEnum,
   type PostFilm,
   type PostMedia,
   type LinkPreview,
+  type PollType,
+  type PollResultsVisibility,
 } from "./posts.js";
 export {
   follows,

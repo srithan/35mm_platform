@@ -44,6 +44,26 @@ const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
 const POST_COMPOSER_EMOJI_STYLE = "native" as const;
 const VIDEO_PREVIEW_CLASS = "mx-auto max-h-[min(42vh,360px)] max-w-full rounded-md object-contain bg-black";
+const POLL_MIN_OPTIONS = 2;
+const POLL_MAX_OPTIONS = 10;
+const POLL_MIN_DURATION_MINUTES = 5;
+const POLL_MAX_DURATION_MINUTES = 10 * 24 * 60;
+
+type PollDurationUnit = "minutes" | "hours" | "days";
+
+type PollDraftOption = {
+  label: string;
+  imageUrl: string;
+  imageFile: File | null;
+};
+
+type PollDraft = {
+  type: "ranking" | "image";
+  durationValue: number;
+  durationUnit: PollDurationUnit;
+  resultsVisibility: "after_vote" | "after_end";
+  options: PollDraftOption[];
+};
 
 const YOUTUBE_REGEX =
   /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/;
@@ -93,6 +113,17 @@ function normalizeImageContentType(value: string | null | undefined): string {
   }
 
   return "image/jpeg";
+}
+
+function pollDurationMinutes(value: number, unit: PollDurationUnit): number {
+  if (!Number.isFinite(value)) return 0;
+  if (unit === "days") return Math.round(value * 24 * 60);
+  if (unit === "hours") return Math.round(value * 60);
+  return Math.round(value);
+}
+
+function emptyPollOption(): PollDraftOption {
+  return { label: "", imageUrl: "", imageFile: null };
 }
 
 const MODE_TABS: { id: ComposerMode; label: string; icon: React.ReactNode }[] = [
@@ -160,6 +191,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [pollDraft, setPollDraft] = useState<PollDraft | null>(null);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubeTitle, setYoutubeTitle] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<{
@@ -249,6 +281,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   }
 
   useEffect(() => {
+    if (pollDraft) {
+      setLinkPreview(null);
+      return;
+    }
     var url = extractFirstUrl(debouncedActiveText);
     if (!url) {
       setLinkPreview(null);
@@ -265,7 +301,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         // Ignore preview lookup failures
       }
     })();
-  }, [debouncedActiveText, dismissedPreviewUrl, getToken, linkPreview?.url]);
+  }, [debouncedActiveText, dismissedPreviewUrl, getToken, linkPreview?.url, pollDraft]);
 
   const charCountData = useMemo(() => {
     if (mode === "write") return { count: writePlainText.length, max: WRITE_MAX_CHARS };
@@ -282,6 +318,25 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
   const isReview = logPlainText.length > REVIEW_THRESHOLD;
   const showLogFormatBar = logPlainText.length > REVIEW_THRESHOLD;
+  const pollDuration = useMemo(function () {
+    if (!pollDraft) return 0;
+    return pollDurationMinutes(pollDraft.durationValue, pollDraft.durationUnit);
+  }, [pollDraft]);
+  const pollIsValid = useMemo(function () {
+    if (!pollDraft) return false;
+    if (
+      pollDuration < POLL_MIN_DURATION_MINUTES ||
+      pollDuration > POLL_MAX_DURATION_MINUTES ||
+      pollDraft.options.length < POLL_MIN_OPTIONS ||
+      pollDraft.options.length > POLL_MAX_OPTIONS
+    ) {
+      return false;
+    }
+    return pollDraft.options.every(function (option) {
+      if (pollDraft.type === "ranking") return option.label.trim().length > 0;
+      return option.imageFile !== null || option.imageUrl.trim().length > 0;
+    });
+  }, [pollDraft, pollDuration]);
 
   const canPost = useMemo(() => {
     if (editingPost) {
@@ -301,14 +356,22 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         );
       }
       return (
-        (writePlainText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
+        (writePlainText.trim().length > 0 ||
+          images.length > 0 ||
+          videoFile !== null ||
+          gifUrl !== null ||
+          pollIsValid) &&
         writePlainText.length <= WRITE_MAX_CHARS
       );
     }
 
     if (mode === "write") {
       return (
-        (writePlainText.trim().length > 0 || images.length > 0 || videoFile !== null || gifUrl !== null) &&
+        (writePlainText.trim().length > 0 ||
+          images.length > 0 ||
+          videoFile !== null ||
+          gifUrl !== null ||
+          pollIsValid) &&
         writePlainText.length <= WRITE_MAX_CHARS
       );
     }
@@ -332,6 +395,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     images.length,
     videoFile,
     gifUrl,
+    pollIsValid,
     discussionHeadline,
     discussionPlainText,
     logPlainText,
@@ -364,6 +428,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       images.length > 0 ||
       videoFile !== null ||
       gifUrl !== null ||
+      pollDraft !== null ||
       youtubeVideoId !== null,
     [
       writePlainText,
@@ -374,6 +439,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       images.length,
       videoFile,
       gifUrl,
+      pollDraft,
       youtubeVideoId,
     ]
   );
@@ -392,6 +458,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setImages([]);
     setVideoFile(null);
     setGifUrl(null);
+    setPollDraft(null);
     setShowDropZone(false);
     setExistingMediaUrls(editingPost.mediaUrls ?? []);
     setLinkPreview(editingPost.linkPreview ?? null);
@@ -458,7 +525,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     videoFile != null ||
     gifUrl != null ||
     youtubeVideoId != null;
-  const compactComposeBody = hasComposerMedia && !isFullPage;
+  const compactComposeBody = (hasComposerMedia || pollDraft !== null) && !isFullPage;
 
   function focusWriteTextarea() {
     writeEditor?.commands.focus("end", { scrollIntoView: false });
@@ -515,6 +582,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const handleEditorPaste = useCallback(
     (e: ClipboardEvent, targetMode: ComposerMode) => {
       if (targetMode !== "write" && targetMode !== "discussion") return;
+      if (pollDraft) return;
       const clipboardItems = Array.from(e.clipboardData?.items ?? []);
       const pastedImageFiles = clipboardItems
         .map(function (item) {
@@ -544,7 +612,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         setYoutubeTitle("YouTube video");
       }
     },
-    []
+    [pollDraft]
   );
 
   const handleEmojiInsertFixed = useCallback(
@@ -612,6 +680,59 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setLogText("");
   }, []);
 
+  const handleAddPoll = useCallback(function () {
+    setPollDraft({
+      type: "ranking",
+      durationValue: 1,
+      durationUnit: "days",
+      resultsVisibility: "after_vote",
+      options: [emptyPollOption(), emptyPollOption()],
+    });
+    setImages([]);
+    setExistingMediaUrls([]);
+    setVideoFile(null);
+    setGifUrl(null);
+    setYoutubeVideoId(null);
+    setYoutubeTitle(null);
+    setLinkPreview(null);
+    setShowDropZone(false);
+    setShowGifPicker(false);
+  }, []);
+
+  const updatePollOption = useCallback(function (
+    index: number,
+    patch: Partial<PollDraftOption>
+  ) {
+    setPollDraft(function (current) {
+      if (!current) return current;
+      return {
+        ...current,
+        options: current.options.map(function (option, optionIndex) {
+          return optionIndex === index ? { ...option, ...patch } : option;
+        }),
+      };
+    });
+  }, []);
+
+  const addPollOption = useCallback(function () {
+    setPollDraft(function (current) {
+      if (!current || current.options.length >= POLL_MAX_OPTIONS) return current;
+      return { ...current, options: [...current.options, emptyPollOption()] };
+    });
+  }, []);
+
+  const removePollOption = useCallback(function (index: number) {
+    setPollDraft(function (current) {
+      if (!current || current.options.length <= POLL_MIN_OPTIONS) return current;
+      return {
+        ...current,
+        options: current.options.filter(function (_option, optionIndex) {
+          return optionIndex !== index;
+        }),
+      };
+    });
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!canPost || createPostMutation.isPending || updatePostMutation.isPending) return;
     setSubmitError(null);
@@ -662,7 +783,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     let input: CreatePostInput;
     var mediaUrls: string[] = [];
     var media: CreatePostInput["media"] = [];
-    if (mode !== "log") {
+    if (mode !== "log" && !pollDraft) {
       if (images.length > 0) {
         var imageFiles = images.slice(0, 9);
         media = await Promise.all(imageFiles.map(uploadPostMedia));
@@ -677,6 +798,32 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         media = [{ type: "image", url: gifUrl }];
         mediaUrls = [gifUrl];
       }
+    }
+    var pollPayload: CreatePostInput["poll"] | undefined;
+    if (pollDraft) {
+      if (!pollIsValid) {
+        setSubmitError("Poll needs 2-10 valid options and a 5 minute to 10 day duration");
+        return;
+      }
+      var pollOptions = await Promise.all(
+        pollDraft.options.map(async function (option) {
+          var imageUrl = option.imageUrl.trim();
+          if (option.imageFile) {
+            var uploadedOptionImage = await uploadPostMedia(option.imageFile);
+            imageUrl = uploadedOptionImage.variants?.feed || uploadedOptionImage.url;
+          }
+          return {
+            label: option.label.trim() || null,
+            imageUrl: imageUrl || null,
+          };
+        })
+      );
+      pollPayload = {
+        type: pollDraft.type,
+        durationMinutes: pollDuration,
+        resultsVisibility: pollDraft.resultsVisibility,
+        options: pollOptions,
+      };
     }
     if (mode === "discussion") {
       input = {
@@ -726,7 +873,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         body: writeText,
         media,
         mediaUrls,
-        linkPreview,
+        linkPreview: pollPayload ? null : linkPreview,
+        poll: pollPayload,
       };
     }
 
@@ -767,6 +915,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setExistingMediaUrls([]);
     setVideoFile(null);
     setGifUrl(null);
+    setPollDraft(null);
     setYoutubeVideoId(null);
     setYoutubeTitle(null);
     setLinkPreview(null);
@@ -783,6 +932,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     images.length,
     videoFile,
     gifUrl,
+    pollDraft,
+    pollDuration,
+    pollIsValid,
     isReview,
     logText,
     mode,
@@ -863,9 +1015,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             <>
               <button
                 type="button"
+                disabled={pollDraft !== null}
                 onClick={() => setShowDropZone((s) => !s)}
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
+                  pollDraft !== null && "cursor-not-allowed opacity-40",
                   fixedMobileToolbar
                     ? cn(
                         "text-accent hover:bg-accent/[0.12]",
@@ -882,9 +1036,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               </button>
               <button
                 type="button"
+                disabled={pollDraft !== null}
                 onClick={() => videoInputRef.current?.click()}
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
+                  pollDraft !== null && "cursor-not-allowed opacity-40",
                   fixedMobileToolbar
                     ? "text-accent hover:bg-accent/[0.12]"
                     : "text-fg-muted hover:bg-hover hover:text-fg"
@@ -911,9 +1067,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               <button
                 ref={gifBtnRef}
                 type="button"
+                disabled={pollDraft !== null}
                 onClick={() => setShowGifPicker((s) => !s)}
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
+                  pollDraft !== null && "cursor-not-allowed opacity-40",
                   fixedMobileToolbar
                     ? "text-accent hover:bg-accent/[0.12]"
                     : "text-fg-muted hover:bg-hover hover:text-fg"
@@ -922,6 +1080,21 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               >
                 <span className="text-[11px] font-bold">GIF</span>
               </button>
+              {mode === "write" && !editingPost && (
+                <button
+                  type="button"
+                  onClick={pollDraft ? () => setPollDraft(null) : handleAddPoll}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
+                    fixedMobileToolbar
+                      ? cn("text-accent hover:bg-accent/[0.12]", pollDraft && "bg-accent/15")
+                      : cn("text-fg-muted hover:bg-hover hover:text-fg", pollDraft && "bg-sunken text-fg")
+                  )}
+                  title={pollDraft ? "Remove poll" : "Add poll"}
+                >
+                  <Icon name="poll" className="h-[20px] w-[20px]" strokeWidth={2} />
+                </button>
+              )}
               {!fixedMobileToolbar && (
                 <button
                   ref={emojiBtnRef}
@@ -1113,7 +1286,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setMode(tab.id)}
+                onClick={() => {
+                  setMode(tab.id);
+                  if (tab.id !== "write") setPollDraft(null);
+                }}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-medium transition-colors",
@@ -1212,6 +1388,152 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   <span>Everyone can reply</span>
                 </div>
               )}
+              {pollDraft ? (
+                <div className="mt-3 rounded-lg border border-border bg-sunken p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="inline-flex rounded-full border border-border bg-bg p-1">
+                      {(["ranking", "image"] as const).map(function (pollType) {
+                        return (
+                          <button
+                            key={pollType}
+                            type="button"
+                            onClick={() => {
+                              setPollDraft(function (current) {
+                                return current ? { ...current, type: pollType } : current;
+                              });
+                            }}
+                            className={cn(
+                              "rounded-full px-3 py-1 text-[12px] font-semibold capitalize transition-colors",
+                              pollDraft.type === pollType ? "bg-fg text-bg" : "text-fg-muted hover:text-fg"
+                            )}
+                          >
+                            {pollType}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPollDraft(null)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-fg-muted hover:bg-hover hover:text-fg"
+                      aria-label="Remove poll"
+                    >
+                      <Icon name="x" className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {pollDraft.options.map(function (option, index) {
+                      return (
+                        <div key={index} className="flex min-w-0 items-center gap-2">
+                          <span className="w-5 shrink-0 text-right text-[12px] font-semibold text-fg-muted">
+                            {index + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={option.label}
+                            onChange={(event) => updatePollOption(index, { label: event.target.value })}
+                            placeholder={pollDraft.type === "image" ? "Label optional" : `Option ${index + 1}`}
+                            className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg outline-none placeholder:text-fg-muted focus:border-accent"
+                          />
+                          {pollDraft.type === "image" ? (
+                            <label className="shrink-0 cursor-pointer rounded-md border border-border bg-bg px-2.5 py-2 text-[12px] font-semibold text-fg-muted hover:text-fg">
+                              {option.imageFile || option.imageUrl ? "Image set" : "Image"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(event) => {
+                                  var file = event.target.files?.[0] ?? null;
+                                  if (!file) return;
+                                  updatePollOption(index, {
+                                    imageFile: file,
+                                    imageUrl: URL.createObjectURL(file),
+                                  });
+                                  event.target.value = "";
+                                }}
+                              />
+                            </label>
+                          ) : null}
+                          {pollDraft.options.length > POLL_MIN_OPTIONS ? (
+                            <button
+                              type="button"
+                              onClick={() => removePollOption(index)}
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-hover hover:text-fg"
+                              aria-label="Remove option"
+                            >
+                              <Icon name="x" className="h-4 w-4" strokeWidth={2} />
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={pollDraft.options.length >= POLL_MAX_OPTIONS}
+                      onClick={addPollOption}
+                      className={cn(
+                        "rounded-full border border-border px-3 py-1.5 text-[12px] font-semibold",
+                        pollDraft.options.length >= POLL_MAX_OPTIONS
+                          ? "cursor-not-allowed text-fg-faint"
+                          : "text-fg-muted hover:text-fg"
+                      )}
+                    >
+                      Add option
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={pollDraft.durationValue}
+                      onChange={(event) => {
+                        var next = Number(event.target.value);
+                        setPollDraft(function (current) {
+                          return current ? { ...current, durationValue: next } : current;
+                        });
+                      }}
+                      className="h-8 w-20 rounded-md border border-border bg-bg px-2 text-[13px] text-fg outline-none focus:border-accent"
+                      aria-label="Poll duration"
+                    />
+                    <select
+                      value={pollDraft.durationUnit}
+                      onChange={(event) => {
+                        var next = event.target.value as PollDurationUnit;
+                        setPollDraft(function (current) {
+                          return current ? { ...current, durationUnit: next } : current;
+                        });
+                      }}
+                      className="h-8 rounded-md border border-border bg-bg px-2 text-[13px] text-fg outline-none focus:border-accent"
+                      aria-label="Poll duration unit"
+                    >
+                      <option value="minutes">minutes</option>
+                      <option value="hours">hours</option>
+                      <option value="days">days</option>
+                    </select>
+                    <select
+                      value={pollDraft.resultsVisibility}
+                      onChange={(event) => {
+                        var next = event.target.value as PollDraft["resultsVisibility"];
+                        setPollDraft(function (current) {
+                          return current ? { ...current, resultsVisibility: next } : current;
+                        });
+                      }}
+                      className="h-8 rounded-md border border-border bg-bg px-2 text-[13px] text-fg outline-none focus:border-accent"
+                      aria-label="Poll result timing"
+                    >
+                      <option value="after_vote">results after vote</option>
+                      <option value="after_end">results after end</option>
+                    </select>
+                  </div>
+                  {!pollIsValid ? (
+                    <p className="mt-2 text-[12px] text-fg-muted">
+                      Poll needs 2-10 options and duration from 5 minutes to 10 days.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {(showDropZone || images.length > 0) && (
                 <ImageAttachments
                   images={images}

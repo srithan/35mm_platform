@@ -104,59 +104,133 @@ export var cursorPaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-export var createPostSchema = z.object({
-  type: z.enum(["text", "discussion", "log", "review", "image"]).default("text"),
-  headline: z.string().trim().min(1).max(120).optional(),
-  body: z.string().max(300000).superRefine(function (value, ctx) {
+var postMediaItemSchema = z.object({
+  type: z.enum(["image", "video", "film_embed", "none"]),
+  url: z.string().min(1).max(1000),
+  key: z.string().max(1000).optional(),
+  thumbnailUrl: z.string().max(1000).optional(),
+  altText: z.string().max(300).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  blurhash: z.string().max(200).optional(),
+  variants: z
+    .object({
+      thumb: z.string().max(1000).optional(),
+      feed: z.string().max(1000).optional(),
+      full: z.string().max(1000).optional(),
+    })
+    .optional(),
+});
+
+export var createPostPollSchema = z
+  .object({
+    type: z.enum(["ranking", "image"]),
+    durationMinutes: z.number().int().min(5).max(10 * 24 * 60),
+    resultsVisibility: z.enum(["after_vote", "after_end"]).default("after_vote"),
+    options: z
+      .array(
+        z.object({
+          label: z.string().trim().max(120).optional().nullable(),
+          imageUrl: z.string().trim().max(1000).optional().nullable(),
+        })
+      )
+      .min(2)
+      .max(10),
+  })
+  .superRefine(function (poll, ctx) {
+    poll.options.forEach(function (option, index) {
+      var label = option.label?.trim() ?? "";
+      var imageUrl = option.imageUrl?.trim() ?? "";
+      if (poll.type === "ranking" && label.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["options", index, "label"],
+          message: "Ranking poll options need labels",
+        });
+      }
+      if (poll.type === "image" && imageUrl.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["options", index, "imageUrl"],
+          message: "Image poll options need images",
+        });
+      }
+      if (label.length === 0 && imageUrl.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["options", index],
+          message: "Poll option needs label or image",
+        });
+      }
+    });
+  });
+
+export var createPostSchema = z
+  .object({
+    type: z.enum(["text", "discussion", "log", "review", "image"]).default("text"),
+    headline: z.string().trim().min(1).max(120).optional(),
+    body: z.string().max(300000),
+    film: z
+      .object({
+        id: z
+          .string()
+          .trim()
+          .min(1)
+          .regex(ULID_RE, "film.id must be a 35mm ULID"),
+        tmdbId: z.number().int().nonnegative().optional(),
+        title: z.string().trim().min(1).max(200),
+        year: z.number().int().min(1800).max(2200).nullable(),
+        posterUrl: z.string().max(500).nullable(),
+        genres: z.array(z.string().max(60)).default([]),
+        rating: z.number().min(0).max(5).nullable(),
+      })
+      .nullable()
+      .optional(),
+    media: z.array(postMediaItemSchema).max(9).optional(),
+    mediaUrls: z.array(z.string().min(1).max(1000)).max(9).optional(),
+    poll: createPostPollSchema.optional(),
+  })
+  .superRefine(function (post, ctx) {
+    var visibleBody = "";
     try {
-      validateRichTextBody(value, 5000);
+      visibleBody = richTextBodyToVisibleText(post.body).trim();
     } catch (error) {
       ctx.addIssue({
         code: "custom",
+        path: ["body"],
         message: error instanceof Error ? error.message : "Invalid rich text body",
       });
+      return;
     }
-  }),
-  film: z
-    .object({
-      id: z
-        .string()
-        .trim()
-        .min(1)
-        .regex(ULID_RE, "film.id must be a 35mm ULID"),
-      tmdbId: z.number().int().nonnegative().optional(),
-      title: z.string().trim().min(1).max(200),
-      year: z.number().int().min(1800).max(2200).nullable(),
-      posterUrl: z.string().max(500).nullable(),
-      genres: z.array(z.string().max(60)).default([]),
-      rating: z.number().min(0).max(5).nullable(),
-    })
-    .nullable()
-    .optional(),
-  media: z
-    .array(
-      z.object({
-        type: z.enum(["image", "video", "film_embed", "none"]),
-        url: z.string().min(1).max(1000),
-        key: z.string().max(1000).optional(),
-        thumbnailUrl: z.string().max(1000).optional(),
-        altText: z.string().max(300).optional(),
-        width: z.number().int().positive().optional(),
-        height: z.number().int().positive().optional(),
-        blurhash: z.string().max(200).optional(),
-        variants: z
-          .object({
-            thumb: z.string().max(1000).optional(),
-            feed: z.string().max(1000).optional(),
-            full: z.string().max(1000).optional(),
-          })
-          .optional(),
-      })
-    )
-    .max(9)
-    .optional(),
-  mediaUrls: z.array(z.string().min(1).max(1000)).max(9).optional(),
-});
+
+    if (!post.poll || visibleBody.length > 0) {
+      try {
+        validateRichTextBody(post.body, 5000);
+      } catch (error) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["body"],
+          message: error instanceof Error ? error.message : "Invalid rich text body",
+        });
+      }
+    }
+
+    if (!post.poll) return;
+    if (post.type !== "text") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["poll"],
+        message: "Polls are only supported on regular posts",
+      });
+    }
+    if ((post.media?.length ?? 0) > 0 || (post.mediaUrls?.length ?? 0) > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["poll"],
+        message: "Poll posts cannot include images, GIFs, or videos",
+      });
+    }
+  });
 
 export var notificationTypeSchema = z.enum([
   "like",

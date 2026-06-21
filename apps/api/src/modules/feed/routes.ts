@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import {
   createPostSchema,
   cursorPaginationSchema,
@@ -13,6 +13,9 @@ import {
   postLikes,
   postReposts,
   postBookmarks,
+  postPolls,
+  pollOptions,
+  pollVotes,
   notifications,
   profiles,
   feedItems,
@@ -31,7 +34,7 @@ import {
   notMutedByViewerSql,
 } from "../../lib/moderation.js";
 import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
-import { ApiError, badRequest, forbidden, notFound } from "../../lib/errors.js";
+import { ApiError, badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { isValidUlid } from "../../lib/ulid.js";
 import { resolvePublicMediaUrl } from "../media/url.js";
@@ -285,6 +288,15 @@ type CreatePostInput = {
     domain: string;
     provider: "youtube" | "vimeo" | "link";
   } | null;
+  poll: {
+    type: "ranking" | "image";
+    durationMinutes: number;
+    resultsVisibility: "after_vote" | "after_end";
+    options: Array<{
+      label: string | null;
+      imageUrl: string | null;
+    }>;
+  } | null;
 };
 
 function parseCreatePostInput(raw: unknown): CreatePostInput {
@@ -331,6 +343,22 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     throw new ApiError(400, "INVALID_FILM_ID", "film.id must be a 35mm ULID");
   }
 
+  var poll = parsed.poll
+    ? {
+        type: parsed.poll.type,
+        durationMinutes: parsed.poll.durationMinutes,
+        resultsVisibility: parsed.poll.resultsVisibility,
+        options: parsed.poll.options.map(function (option) {
+          var label = option.label?.trim() ?? "";
+          var imageUrl = option.imageUrl?.trim() ?? "";
+          return {
+            label: label.length > 0 ? label : null,
+            imageUrl: imageUrl.length > 0 ? imageUrl : null,
+          };
+        }),
+      }
+    : null;
+
   return {
     type: parsed.type,
     headline: parsed.headline ?? null,
@@ -366,6 +394,7 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
                 : "link",
           }
         : null,
+    poll,
   };
 }
 
@@ -577,6 +606,152 @@ async function invalidateFeedAfterAuthorMutation(input: {
   }
 }
 
+type FeedPoll = {
+  id: string;
+  type: "ranking" | "image";
+  resultsVisibility: "after_vote" | "after_end";
+  endsAt: string;
+  totalVotes: number;
+  hasVoted: boolean;
+  isEnded: boolean;
+  resultsVisible: boolean;
+  selectedOptionIds: string[];
+  options: Array<{
+    id: string;
+    label: string | null;
+    imageUrl: string | null;
+    position: number;
+    voteCount: number | null;
+    percent: number | null;
+  }>;
+};
+
+var pollTablesAvailable: boolean | null = null;
+
+function dateFromDb(value: Date | string | number): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function isMissingRelationError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  var candidate = err as {
+    code?: unknown;
+    message?: unknown;
+    cause?: { code?: unknown; message?: unknown };
+  };
+  var code = typeof candidate.code === "string" ? candidate.code : "";
+  var causeCode = typeof candidate.cause?.code === "string" ? candidate.cause.code : "";
+  var message = typeof candidate.message === "string" ? candidate.message : "";
+  var causeMessage = typeof candidate.cause?.message === "string" ? candidate.cause.message : "";
+  return (
+    code === "42P01" ||
+    causeCode === "42P01" ||
+    message.includes("relation \"post_polls\" does not exist") ||
+    causeMessage.includes("relation \"post_polls\" does not exist")
+  );
+}
+
+async function hydratePostPoll(postId: string, viewerUserId: string | null): Promise<FeedPoll | null> {
+  if (pollTablesAvailable === false) return null;
+  var db = getDb();
+  var pollRows: Array<{
+    id: string;
+    type: "ranking" | "image";
+    resultsVisibility: "after_vote" | "after_end";
+    endsAt: Date;
+    totalVotes: number;
+  }>;
+
+  try {
+    pollRows = await db
+      .select({
+        id: postPolls.id,
+        type: postPolls.type,
+        resultsVisibility: postPolls.resultsVisibility,
+        endsAt: postPolls.endsAt,
+        totalVotes: postPolls.totalVotes,
+      })
+      .from(postPolls)
+      .where(eq(postPolls.postId, postId))
+      .limit(1);
+    pollTablesAvailable = true;
+  } catch (error) {
+    if (isMissingRelationError(error)) {
+      pollTablesAvailable = false;
+      return null;
+    }
+    throw error;
+  }
+
+  var poll = pollRows[0];
+  if (!poll) return null;
+
+  var optionRows = await db
+    .select({
+      id: pollOptions.id,
+      label: pollOptions.label,
+      imageUrl: pollOptions.imageUrl,
+      position: pollOptions.position,
+      voteCount: pollOptions.voteCount,
+    })
+    .from(pollOptions)
+    .where(eq(pollOptions.pollId, poll.id))
+    .orderBy(asc(pollOptions.position));
+
+  var voteRow: { optionId: string | null; rankingOptionIds: string[] } | null = null;
+  if (viewerUserId) {
+    var voteRows = await db
+      .select({
+        optionId: pollVotes.optionId,
+        rankingOptionIds: pollVotes.rankingOptionIds,
+      })
+      .from(pollVotes)
+      .where(and(eq(pollVotes.pollId, poll.id), eq(pollVotes.userId, viewerUserId)))
+      .limit(1);
+    voteRow = voteRows[0] ?? null;
+  }
+
+  var endsAt = dateFromDb(poll.endsAt);
+  var isEnded = endsAt.getTime() <= Date.now();
+  var selectedOptionIds = voteRow
+    ? poll.type === "ranking"
+      ? voteRow.rankingOptionIds
+      : voteRow.optionId
+        ? [voteRow.optionId]
+        : []
+    : [];
+  var hasVoted = selectedOptionIds.length > 0;
+  var resultsVisible = hasVoted || isEnded;
+  var totalVotes = Number(poll.totalVotes ?? 0);
+  var scoreTotal = optionRows.reduce(function (sum, option) {
+    return sum + Number(option.voteCount ?? 0);
+  }, 0);
+  var denominator = poll.type === "ranking" ? scoreTotal : totalVotes;
+
+  return {
+    id: poll.id,
+    type: poll.type,
+    resultsVisibility: poll.resultsVisibility,
+    endsAt: Number.isNaN(endsAt.getTime()) ? new Date().toISOString() : endsAt.toISOString(),
+    totalVotes,
+    hasVoted,
+    isEnded,
+    resultsVisible,
+    selectedOptionIds,
+    options: optionRows.map(function (option) {
+      var voteCount = Number(option.voteCount ?? 0);
+      return {
+        id: option.id,
+        label: option.label,
+        imageUrl: option.imageUrl,
+        position: Number(option.position),
+        voteCount: resultsVisible ? voteCount : null,
+        percent: resultsVisible && denominator > 0 ? Math.round((voteCount / denominator) * 1000) / 10 : null,
+      };
+    }),
+  };
+}
+
 async function toPostItem(row: {
   id: string;
   type: "text" | "discussion" | "log" | "review" | "image";
@@ -620,7 +795,7 @@ async function toPostItem(row: {
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
-}) {
+}, viewerUserId: string | null = null) {
   var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
   var mediaItems = normalizePostMediaList(row.media);
   var responseMedia = mediaItems.map(function (item) {
@@ -643,6 +818,7 @@ async function toPostItem(row: {
 
   var hydratedBody = await hydrateRichMentions(row.body);
   var hydratedHeadline = row.headline ? await hydrateRichMentions(row.headline) : row.headline;
+  var poll = await hydratePostPoll(row.id, viewerUserId);
 
   return {
     id: row.id,
@@ -658,6 +834,7 @@ async function toPostItem(row: {
           image: row.linkPreview.image,
         }
       : null,
+    poll,
     film: row.filmId
       ? {
           id: row.filmId,
@@ -752,7 +929,7 @@ async function getPostById(postId: string, viewerUserId: string | null) {
     .limit(1);
 
   if (rows.length === 0) return null;
-  return toPostItem(rows[0]);
+  return toPostItem(rows[0], viewerUserId);
 }
 
 async function assertPostOwner(postId: string, userId: string) {
@@ -903,7 +1080,9 @@ feedRoutes.get("/", async function (c) {
       .limit(parsed.limit + 1);
 
     var visibleRows = rows.slice(0, parsed.limit);
-    var items = await Promise.all(visibleRows.map(toPostItem));
+    var items = await Promise.all(visibleRows.map(function (row) {
+      return toPostItem(row, viewer?.userId ?? null);
+    }));
 
     var hasMore = rows.length > parsed.limit;
     var tail = visibleRows[visibleRows.length - 1];
@@ -987,7 +1166,9 @@ feedRoutes.get("/", async function (c) {
     .limit(parsed.limit + 1);
 
   var guestVisibleRows = guestRows.slice(0, parsed.limit);
-  var guestItems = await Promise.all(guestVisibleRows.map(toPostItem));
+  var guestItems = await Promise.all(guestVisibleRows.map(function (row) {
+    return toPostItem(row, null);
+  }));
 
   var guestHasMore = guestRows.length > parsed.limit;
   var guestTail = guestVisibleRows[guestVisibleRows.length - 1];
@@ -1033,6 +1214,10 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
       return feedMediaUrl(item);
     });
 
+  if (input.poll && normalizedMedia.length > 0) {
+    throw badRequest("Poll posts cannot include images, GIFs, or videos");
+  }
+
   if (input.filmId) {
     var filmRows = await db
       .select({ id: films.id })
@@ -1064,6 +1249,34 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
   var postId = insertedRows[0]?.id;
   if (!postId) {
     throw badRequest("Unable to create post");
+  }
+
+  if (input.poll) {
+    var endsAt = new Date(Date.now() + input.poll.durationMinutes * 60 * 1000);
+    var pollRows = await db
+      .insert(postPolls)
+      .values({
+        postId,
+        type: input.poll.type,
+        resultsVisibility: input.poll.resultsVisibility,
+        endsAt,
+      })
+      .returning({ id: postPolls.id });
+    var pollId = pollRows[0]?.id;
+    if (!pollId) {
+      throw badRequest("Unable to create poll");
+    }
+
+    await db.insert(pollOptions).values(
+      input.poll.options.map(function (option, index) {
+        return {
+          pollId,
+          label: option.label,
+          imageUrl: option.imageUrl,
+          position: index + 1,
+        };
+      })
+    );
   }
 
   await createMentionNotifications({
@@ -1281,7 +1494,9 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     .limit(parsed.limit + 1);
 
   var visibleRows = rows.slice(0, parsed.limit);
-  var items = await Promise.all(visibleRows.map(toPostItem));
+  var items = await Promise.all(visibleRows.map(function (row) {
+    return toPostItem(row, viewerUserId);
+  }));
   var hasMore = rows.length > parsed.limit;
   var tail = visibleRows[visibleRows.length - 1];
   var nextCursor = hasMore && tail
@@ -1371,7 +1586,9 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
     .limit(parsed.limit + 1);
 
   var visibleRows = rows.slice(0, parsed.limit);
-  var items = await Promise.all(visibleRows.map(toPostItem));
+  var items = await Promise.all(visibleRows.map(function (row) {
+    return toPostItem(row, user.userId);
+  }));
   var hasMore = rows.length > parsed.limit;
   var tail = visibleRows[visibleRows.length - 1];
   var nextCursor = hasMore && tail
@@ -1458,6 +1675,117 @@ feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
   var updated = await getPostById(postId, user.userId);
   if (!updated) throw notFound("Post not found");
 
+  return c.json(updated);
+});
+
+feedRoutes.post("/posts/:postId/poll/votes", requireAuth, async function (c) {
+  var user = c.get("user");
+  var postId = c.req.param("postId");
+  await assertReadablePostForInteraction(postId, user.userId);
+
+  var raw = await c.req.json();
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { optionIds?: unknown }).optionIds)) {
+    throw badRequest("optionIds is required");
+  }
+
+  var optionIds = (raw as { optionIds: unknown[] }).optionIds.filter(function (value): value is string {
+    return typeof value === "string" && value.length > 0;
+  });
+  var uniqueOptionIds = Array.from(new Set(optionIds));
+  if (uniqueOptionIds.length === 0 || uniqueOptionIds.length > 10) {
+    throw badRequest("Select 1-10 poll options");
+  }
+
+  var db = getDb();
+  var postOwnerRows = await db
+    .select({ userId: posts.userId, visibility: posts.visibility })
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+    .limit(1);
+  if (postOwnerRows.length === 0) {
+    throw notFound("Post not found");
+  }
+
+  var pollRows = await db
+    .select({
+      id: postPolls.id,
+      type: postPolls.type,
+      endsAt: postPolls.endsAt,
+    })
+    .from(postPolls)
+    .where(eq(postPolls.postId, postId))
+    .limit(1);
+
+  var poll = pollRows[0];
+  if (!poll) {
+    throw notFound("Poll not found");
+  }
+  if (poll.endsAt.getTime() <= Date.now()) {
+    throw badRequest("Poll has ended");
+  }
+  if (poll.type === "image" && uniqueOptionIds.length !== 1) {
+    throw badRequest("Image polls accept one option");
+  }
+
+  var optionRows = await db
+    .select({ id: pollOptions.id })
+    .from(pollOptions)
+    .where(and(eq(pollOptions.pollId, poll.id), inArray(pollOptions.id, uniqueOptionIds)));
+  if (optionRows.length !== uniqueOptionIds.length) {
+    throw badRequest("Invalid poll option");
+  }
+
+  var inserted = await db
+    .insert(pollVotes)
+    .values({
+      postId,
+      pollId: poll.id,
+      userId: user.userId,
+      optionId: poll.type === "image" ? uniqueOptionIds[0] : null,
+      rankingOptionIds: poll.type === "ranking" ? uniqueOptionIds : [],
+    })
+    .onConflictDoNothing()
+    .returning({ id: pollVotes.id });
+
+  if (inserted.length === 0) {
+    throw conflict("You already voted in this poll");
+  }
+
+  if (poll.type === "image") {
+    await db
+      .update(pollOptions)
+      .set({
+        voteCount: sql`${pollOptions.voteCount} + 1`,
+      })
+      .where(eq(pollOptions.id, uniqueOptionIds[0]));
+  } else {
+    for (var index = 0; index < uniqueOptionIds.length; index += 1) {
+      var score = uniqueOptionIds.length - index;
+      await db
+        .update(pollOptions)
+        .set({
+          voteCount: sql`${pollOptions.voteCount} + ${score}`,
+        })
+        .where(eq(pollOptions.id, uniqueOptionIds[index]));
+    }
+  }
+
+  await db
+    .update(postPolls)
+    .set({
+      totalVotes: sql`${postPolls.totalVotes} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(postPolls.id, poll.id));
+
+  await invalidatePostInteractionCaches({
+    actorUserId: user.userId,
+    postOwnerId: postOwnerRows[0].userId,
+    isPostPublic: postOwnerRows[0].visibility === "public",
+  });
+
+  var updated = await getPostById(postId, user.userId);
+  if (!updated) throw notFound("Post not found");
   return c.json(updated);
 });
 

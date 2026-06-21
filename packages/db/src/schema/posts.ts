@@ -30,6 +30,13 @@ export var postVisibilityEnum = pgEnum("post_visibility", [
   "private",
 ]);
 
+export var pollTypeEnum = pgEnum("poll_type", ["ranking", "image"]);
+
+export var pollResultsVisibilityEnum = pgEnum("poll_results_visibility", [
+  "after_vote",
+  "after_end",
+]);
+
 export type PostFilm = {
   id: string;
   tmdbId?: number;
@@ -64,6 +71,9 @@ export type LinkPreview = {
   domain: string;
   provider: "youtube" | "vimeo" | "link";
 };
+
+export type PollType = "ranking" | "image";
+export type PollResultsVisibility = "after_vote" | "after_end";
 
 export var posts = pgTable(
   "posts",
@@ -168,6 +178,89 @@ export var postBookmarks = pgTable(
   function (table) {
     return {
       postUserIdx: uniqueIndex("post_bookmarks_post_user_idx").on(table.postId, table.userId),
+    };
+  }
+);
+
+export var postPolls = pgTable(
+  "post_polls",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(function () {
+        return posts.id;
+      }, { onDelete: "cascade" }),
+    type: pollTypeEnum("type").notNull(),
+    resultsVisibility: pollResultsVisibilityEnum("results_visibility")
+      .default("after_vote")
+      .notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    totalVotes: integer("total_votes").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      postIdx: uniqueIndex("post_polls_post_idx").on(table.postId),
+      endsAtIdx: index("post_polls_ends_at_idx").on(table.endsAt),
+    };
+  }
+);
+
+export var pollOptions = pgTable(
+  "poll_options",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    pollId: uuid("poll_id")
+      .notNull()
+      .references(function () {
+        return postPolls.id;
+      }, { onDelete: "cascade" }),
+    label: text("label"),
+    imageUrl: text("image_url"),
+    position: smallint("position").notNull(),
+    voteCount: integer("vote_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      pollPositionIdx: uniqueIndex("poll_options_poll_position_idx").on(table.pollId, table.position),
+      pollIdx: index("poll_options_poll_idx").on(table.pollId),
+    };
+  }
+);
+
+export var pollVotes = pgTable(
+  "poll_votes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(function () {
+        return posts.id;
+      }, { onDelete: "cascade" }),
+    pollId: uuid("poll_id")
+      .notNull()
+      .references(function () {
+        return postPolls.id;
+      }, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(function () {
+        return users.id;
+      }, { onDelete: "cascade" }),
+    optionId: uuid("option_id").references(function () {
+      return pollOptions.id;
+    }, { onDelete: "set null" }),
+    rankingOptionIds: uuid("ranking_option_ids").array().default(sql`'{}'::uuid[]`).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      postUserIdx: uniqueIndex("poll_votes_post_user_idx").on(table.postId, table.userId),
+      pollUserIdx: uniqueIndex("poll_votes_poll_user_idx").on(table.pollId, table.userId),
+      pollIdx: index("poll_votes_poll_idx").on(table.pollId),
     };
   }
 );

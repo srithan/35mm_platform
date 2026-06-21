@@ -34,6 +34,7 @@ import {
   Trash2,
   X,
   PenLine,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -76,6 +77,7 @@ export type IconName =
   | "trash"
   | "trash-2"
   | "x"
+  | "poll"
   | "quote";
 
 const ICON_MAP: Record<Exclude<IconName, "home" | "chat" | "discover" | "share-2">, LucideIcon> = {
@@ -113,6 +115,7 @@ const ICON_MAP: Record<Exclude<IconName, "home" | "chat" | "discover" | "share-2
   trash: Trash,
   "trash-2": Trash2,
   x: X,
+  poll: BarChart3,
   quote: PenLine,
 };
 

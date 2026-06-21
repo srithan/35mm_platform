@@ -47,6 +47,7 @@ function PostCardComponent(props: PostCardProps) {
     media,
     mediaUrls,
     viewerMediaUrls,
+    poll,
     saveData = false,
     linkPreview,
     likeCount,
@@ -95,18 +96,21 @@ function PostCardComponent(props: PostCardProps) {
   });
 
   const linkPreviewVideo = videoPreviewFromLinkPreview(linkPreview);
-  const combinedVideoPreviews = linkPreviewVideo
+  const combinedVideoPreviews = poll
+    ? []
+    : linkPreviewVideo
     ? [
         linkPreviewVideo,
         ...previews.filter((preview) => preview.url !== linkPreviewVideo.url),
       ]
     : previews;
   const shouldRenderLinkPreviewCard =
-    !resolvedMedia.hasAttachedMedia && Boolean(linkPreview) && !linkPreviewVideo;
+    !poll && !resolvedMedia.hasAttachedMedia && Boolean(linkPreview) && !linkPreviewVideo;
   const isShortTextOnlyPost =
     variant === "text" &&
     !resolvedMedia.hasAttachedMedia &&
     !filmCard &&
+    !poll &&
     combinedVideoPreviews.length === 0 &&
     !shouldRenderLinkPreviewCard &&
     cleanedText.length > 0 &&
@@ -236,6 +240,8 @@ function PostCardComponent(props: PostCardProps) {
             imageUrls={resolvedMedia.imageUrls}
             imageBlurhashes={resolvedMedia.imageBlurhashes}
             imageCaption={imageCaption}
+            poll={poll}
+            postId={postId}
             saveData={saveData}
             normalizedViewerMediaUrls={resolvedMedia.normalizedViewerMediaUrls}
             viewerBlurhashes={resolvedMedia.viewerBlurhashes}

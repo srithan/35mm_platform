@@ -136,6 +136,7 @@ export function PostDetailView({
         attachedFilm={post.film}
         mediaUrls={resolvePostImageUrls(post, "feed")}
         viewerMediaUrls={resolvePostImageUrls(post, "full")}
+        poll={post.poll}
         saveData={connection.saveData}
         linkPreview={post.linkPreview}
         imageSrc={legacy.imageSrc ?? image?.url}

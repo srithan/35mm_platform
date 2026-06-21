@@ -221,6 +221,7 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
         attachedFilm: post.film,
         mediaUrls: resolvedMediaUrls,
         viewerMediaUrls,
+        poll: post.poll,
         saveData: connection.saveData,
         linkPreview: post.linkPreview,
         imageSrc: image?.url,

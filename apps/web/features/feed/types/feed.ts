@@ -60,6 +60,25 @@ export interface Post {
     domain: string;
     provider: "youtube" | "vimeo" | "link";
   } | null;
+  poll?: {
+    id: string;
+    type: "ranking" | "image";
+    resultsVisibility: "after_vote" | "after_end";
+    endsAt: string;
+    totalVotes: number;
+    hasVoted: boolean;
+    isEnded: boolean;
+    resultsVisible: boolean;
+    selectedOptionIds: string[];
+    options: Array<{
+      id: string;
+      label: string | null;
+      imageUrl: string | null;
+      position: number;
+      voteCount: number | null;
+      percent: number | null;
+    }>;
+  } | null;
   film: FilmRef | null;
   likeCount: number;
   commentCount: number;

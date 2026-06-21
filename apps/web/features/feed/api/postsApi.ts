@@ -41,6 +41,15 @@ export interface CreatePostInput {
     domain: string;
     provider: "youtube" | "vimeo" | "link";
   } | null;
+  poll?: {
+    type: "ranking" | "image";
+    durationMinutes: number;
+    resultsVisibility: "after_vote" | "after_end";
+    options: Array<{
+      label: string | null;
+      imageUrl: string | null;
+    }>;
+  };
 }
 
 export interface UpdatePostInput {
@@ -123,6 +132,19 @@ export async function unbookmarkPost(postId: string, token: string | null): Prom
     method: "DELETE",
     token,
   });
+}
+
+export async function votePoll(
+  postId: string,
+  optionIds: string[],
+  token: string | null
+): Promise<Post> {
+  const raw = await apiRequest<unknown>(`/v1/feed/posts/${encodeURIComponent(postId)}/poll/votes`, {
+    method: "POST",
+    token,
+    body: { optionIds },
+  });
+  return adaptPostToFeedType(raw as Parameters<typeof adaptPostToFeedType>[0]);
 }
 
 export async function fetchLinkPreview(url: string, token: string | null): Promise<{

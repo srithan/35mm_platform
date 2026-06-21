@@ -14,9 +14,11 @@ import type { VideoPreview } from "../../utils/videoPreviews";
 import type {
   PostCardFilmCard,
   PostCardLinkPreview,
+  PostCardPoll,
   PostCardReplyPreview,
   PostVariant,
 } from "./types";
+import { PollAttachment } from "./PollAttachment";
 
 interface PostCardAttachmentsProps {
   variant: PostVariant;
@@ -30,6 +32,8 @@ interface PostCardAttachmentsProps {
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
   imageCaption?: string;
+  poll?: PostCardPoll | null;
+  postId?: string;
   saveData: boolean;
   normalizedViewerMediaUrls: string[];
   viewerBlurhashes: Array<string | null>;
@@ -54,6 +58,8 @@ export function PostCardAttachments({
   imageUrls,
   imageBlurhashes,
   imageCaption,
+  poll,
+  postId,
   saveData,
   normalizedViewerMediaUrls,
   viewerBlurhashes,
@@ -114,6 +120,8 @@ export function PostCardAttachments({
           />
         </>
       )}
+
+      {poll ? <PollAttachment postId={postId} poll={poll} /> : null}
 
       {shouldRenderLinkPreviewCard && linkPreview ? (
         <a

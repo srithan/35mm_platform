@@ -46,6 +46,26 @@ export interface PostCardReplyPreview {
   time: string;
 }
 
+export interface PostCardPoll {
+  id: string;
+  type: "ranking" | "image";
+  resultsVisibility: "after_vote" | "after_end";
+  endsAt: string;
+  totalVotes: number;
+  hasVoted: boolean;
+  isEnded: boolean;
+  resultsVisible: boolean;
+  selectedOptionIds: string[];
+  options: Array<{
+    id: string;
+    label: string | null;
+    imageUrl: string | null;
+    position: number;
+    voteCount: number | null;
+    percent: number | null;
+  }>;
+}
+
 export interface PostCardProps {
   variant: PostVariant;
   sourcePostType?: SourcePostType;
@@ -72,6 +92,7 @@ export interface PostCardProps {
   media?: PostCardMediaItem[];
   mediaUrls?: string[];
   viewerMediaUrls?: string[];
+  poll?: PostCardPoll | null;
   saveData?: boolean;
   linkPreview?: PostCardLinkPreview | null;
   likeCount: number;

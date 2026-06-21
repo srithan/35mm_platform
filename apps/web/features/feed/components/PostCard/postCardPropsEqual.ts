@@ -100,6 +100,42 @@ function areMediaItemsEqual(
   return true;
 }
 
+function arePollsEqual(prev?: PostCardProps["poll"], next?: PostCardProps["poll"]) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  if (
+    prev.id !== next.id ||
+    prev.type !== next.type ||
+    prev.resultsVisibility !== next.resultsVisibility ||
+    prev.endsAt !== next.endsAt ||
+    prev.totalVotes !== next.totalVotes ||
+    prev.hasVoted !== next.hasVoted ||
+    prev.isEnded !== next.isEnded ||
+    prev.resultsVisible !== next.resultsVisible ||
+    !areStringArraysEqual(prev.selectedOptionIds, next.selectedOptionIds) ||
+    prev.options.length !== next.options.length
+  ) {
+    return false;
+  }
+  for (var index = 0; index < prev.options.length; index += 1) {
+    var a = prev.options[index];
+    var b = next.options[index];
+    if (!a || !b) return false;
+    if (
+      a.id !== b.id ||
+      a.label !== b.label ||
+      a.imageUrl !== b.imageUrl ||
+      a.position !== b.position ||
+      a.voteCount !== b.voteCount ||
+      a.percent !== b.percent
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) {
   return (
     prev.variant === next.variant &&
@@ -124,6 +160,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     areMediaItemsEqual(prev.media, next.media) &&
     areStringArraysEqual(prev.mediaUrls, next.mediaUrls) &&
     areStringArraysEqual(prev.viewerMediaUrls, next.viewerMediaUrls) &&
+    arePollsEqual(prev.poll, next.poll) &&
     prev.saveData === next.saveData &&
     areLinkPreviewsEqual(prev.linkPreview, next.linkPreview) &&
     prev.likeCount === next.likeCount &&

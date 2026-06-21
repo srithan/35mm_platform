@@ -30,6 +30,45 @@ function asStringArray(value: unknown): string[] {
   });
 }
 
+function normalizePoll(raw: Record<string, unknown>): Post["poll"] {
+  if (!isRecord(raw.poll)) return null;
+  var poll = raw.poll;
+  var type = asString(poll.type);
+  if (type !== "ranking" && type !== "image") return null;
+  var optionsRaw = Array.isArray(poll.options) ? poll.options : [];
+  var options = optionsRaw
+    .filter(isRecord)
+    .map(function (option) {
+      var percentRaw = option.percent;
+      var voteCountRaw = option.voteCount;
+      return {
+        id: asString(option.id),
+        label: option.label == null ? null : asString(option.label),
+        imageUrl: option.imageUrl == null ? null : asString(option.imageUrl),
+        position: asNumber(option.position, 0),
+        voteCount: voteCountRaw == null ? null : asNumber(voteCountRaw, 0),
+        percent: percentRaw == null ? null : asNumber(percentRaw, 0),
+      };
+    })
+    .filter(function (option) {
+      return option.id.length > 0;
+    });
+
+  var resultsVisibility: "after_vote" | "after_end" = asString(poll.resultsVisibility) === "after_end" ? "after_end" : "after_vote";
+  return {
+    id: asString(poll.id),
+    type,
+    resultsVisibility,
+    endsAt: asString(poll.endsAt),
+    totalVotes: asNumber(poll.totalVotes, 0),
+    hasVoted: Boolean(poll.hasVoted),
+    isEnded: Boolean(poll.isEnded),
+    resultsVisible: Boolean(poll.resultsVisible),
+    selectedOptionIds: asStringArray(poll.selectedOptionIds),
+    options,
+  };
+}
+
 function asUlid(value: unknown): string {
   var candidate = asString(value);
   return ULID_RE.test(candidate) ? candidate : "";
@@ -128,6 +167,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
   var updatedAt = asString(root.updatedAt) || createdAt;
   var media = normalizeMedia(root);
   var mediaUrls = asStringArray(root.mediaUrls);
+  var poll = normalizePoll(root);
 
   var film: Post["film"] = null;
   if (isRecord(root.film)) {
@@ -218,6 +258,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
               : "link",
         }
       : null,
+    poll,
     film,
     likeCount: asNumber(root.likeCount, asNumber(root.likes, 0)),
     commentCount: asNumber(root.commentCount, 0),

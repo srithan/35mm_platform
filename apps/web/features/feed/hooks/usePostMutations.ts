@@ -11,6 +11,7 @@ import {
   unlikePost,
   unrepostPost,
   updatePost,
+  votePoll,
   type CreatePostInput,
   type UpdatePostInput,
 } from "../api/postsApi";
@@ -241,6 +242,27 @@ export function useBookmarkPost() {
     },
     onSuccess: function () {
       queryClient.invalidateQueries({ queryKey: bookmarkKeys.list() });
+    },
+  });
+}
+
+export function useVotePoll() {
+  var queryClient = useQueryClient();
+  var { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async function (input: { postId: string; optionIds: string[] }) {
+      return votePoll(input.postId, input.optionIds, await getToken());
+    },
+    onSuccess: function (updated) {
+      patchAllFeedCaches(queryClient, updated.id, function () {
+        return updated;
+      });
+      queryClient.setQueryData(feedKeys.post(updated.id), updated);
+      queryClient.invalidateQueries({ queryKey: feedKeys.all });
+    },
+    onError: function () {
+      showGlobalFlashToast("Could not submit vote", "error");
     },
   });
 }

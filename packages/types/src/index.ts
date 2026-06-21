@@ -92,6 +92,25 @@ export interface FeedPost {
     genres: string[];
     rating: number | null;
   } | null;
+  poll: {
+    id: string;
+    type: "ranking" | "image";
+    resultsVisibility: "after_vote" | "after_end";
+    endsAt: string;
+    totalVotes: number;
+    hasVoted: boolean;
+    isEnded: boolean;
+    resultsVisible: boolean;
+    selectedOptionIds: string[];
+    options: Array<{
+      id: string;
+      label: string | null;
+      imageUrl: string | null;
+      position: number;
+      voteCount: number | null;
+      percent: number | null;
+    }>;
+  } | null;
   createdAt: string;
   updatedAt: string;
   likeCount: number;
