@@ -54,7 +54,7 @@ export function CommentCardBody({
     <div className="mt-1">
       {isEditing ? (
         <div className="mt-1">
-          <div className="rounded-md border border-border bg-elevated px-3 py-2 focus-within:border-fg-faint focus-within:ring-2 focus-within:ring-fg/5">
+          <div className="mt-1 overflow-hidden rounded-xl border border-border bg-sunken px-3 py-2 transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-fg-muted/50 focus-within:bg-elevated focus-within:shadow-sm">
             <RichTextEditor
             value={editDraft}
               onChange={(value) => onEditDraftChange(value)}

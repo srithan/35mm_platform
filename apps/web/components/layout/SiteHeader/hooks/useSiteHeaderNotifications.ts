@@ -6,6 +6,7 @@ import {
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  markNotificationUnread,
 } from "@/features/notifications/api/notificationsApi";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import type { NotificationPage } from "@35mm/types";
@@ -190,6 +191,81 @@ export function useSiteHeaderNotifications() {
     },
   });
 
+  const markUnreadMutation = useMutation({
+    mutationFn: async function (notificationId: string) {
+      return markNotificationUnread({
+        token: await getToken(),
+        notificationId,
+      });
+    },
+    onMutate: async function (notificationId: string) {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: notificationsKeys.preview() }),
+        queryClient.cancelQueries({ queryKey: notificationsKeys.unread() }),
+        queryClient.cancelQueries({ queryKey: notificationsKeys.content() }),
+      ]);
+
+      const previousContent = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
+      const previousPreview = queryClient.getQueryData(notificationsKeys.preview()) as
+        | { items: { id: string; isRead: boolean }[]; itemsLeft?: number; hasMore?: boolean }
+        | undefined;
+      const previousUnread = queryClient.getQueryData(notificationsKeys.unread()) as
+        | { items: { id: string; isRead: boolean }[]; hasMore?: boolean }
+        | undefined;
+
+      if (previousContent) {
+        queryClient.setQueryData(notificationsKeys.content(), {
+          ...previousContent,
+          items: previousContent.items.map(function (item) {
+            if (item.id !== notificationId) return item;
+            return { ...item, isRead: false };
+          }),
+        });
+      }
+
+      if (previousPreview) {
+        queryClient.setQueryData(notificationsKeys.preview(), {
+          ...previousPreview,
+          items: previousPreview.items.map(function (item) {
+            if (item.id !== notificationId) return item;
+            return { ...item, isRead: false };
+          }),
+        });
+      }
+
+      if (previousUnread) {
+        const previewItem = previousPreview?.items.find(function (item) {
+          return item.id === notificationId;
+        });
+        if (previewItem && !previousUnread.items.some(function (item) { return item.id === notificationId; })) {
+          queryClient.setQueryData(notificationsKeys.unread(), {
+            ...previousUnread,
+            items: [{ ...previewItem, isRead: false }, ...previousUnread.items],
+          });
+        }
+      }
+
+      return { previousContent, previousPreview, previousUnread };
+    },
+    onError: function (_error, _id, context) {
+      if (!context) return;
+      if (context.previousContent) {
+        queryClient.setQueryData(notificationsKeys.content(), context.previousContent);
+      }
+      if (context.previousPreview) {
+        queryClient.setQueryData(notificationsKeys.preview(), context.previousPreview);
+      }
+      if (context.previousUnread) {
+        queryClient.setQueryData(notificationsKeys.unread(), context.previousUnread);
+      }
+    },
+    onSuccess: function () {
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+    },
+  });
+
   const notifListRef = useRef<HTMLUListElement>(null);
 
   function trapNotifPanelWheel(ev: WheelEvent<HTMLDivElement>) {
@@ -231,6 +307,7 @@ export function useSiteHeaderNotifications() {
     unreadBadgeCount,
     markAllMutation,
     markOneMutation,
+    markUnreadMutation,
     notifListRef,
     trapNotifPanelWheel,
   };

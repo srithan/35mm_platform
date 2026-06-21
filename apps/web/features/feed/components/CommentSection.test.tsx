@@ -84,8 +84,8 @@ describe("CommentSection", () => {
     const user = userEvent.setup();
     render(<CommentSection comments={[]} postId="post-1" postUsername="ava" />);
 
-    await user.click(screen.getByRole("button", { name: "Post your reply" }));
-    const editor = screen.getByRole("combobox", { name: "Post your reply" });
+    await user.click(screen.getByRole("button", { name: "Post your reply…" }));
+    const editor = screen.getByRole("combobox", { name: "Post your reply…" });
     await user.type(editor, "@ma");
 
     var listbox = await screen.findByRole("listbox");

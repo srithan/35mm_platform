@@ -16,6 +16,7 @@ import { requireAuth } from "../../lib/middleware.js";
 import {
   markAllNotificationsRead,
   markNotificationRead,
+  markNotificationUnread,
 } from "../../lib/notifications.js";
 
 export var notificationsRoutes = new Hono();
@@ -477,6 +478,20 @@ notificationsRoutes.patch("/me/notifications/:notificationId/read", requireAuth,
   });
 
   var changed = await markNotificationRead(user.userId, input.notificationId);
+  if (!changed) {
+    throw notFound("Notification not found");
+  }
+
+  return c.json({ ok: true, updated: true });
+});
+
+notificationsRoutes.patch("/me/notifications/:notificationId/unread", requireAuth, async function (c) {
+  var user = c.get("user");
+  var input = notificationIdSchema.parse({
+    notificationId: c.req.param("notificationId"),
+  });
+
+  var changed = await markNotificationUnread(user.userId, input.notificationId);
   if (!changed) {
     throw notFound("Notification not found");
   }

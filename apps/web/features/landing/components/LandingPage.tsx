@@ -11,8 +11,9 @@ import { useAuth } from "@clerk/nextjs";
 import { useSignUp, useSignIn } from "@clerk/nextjs/legacy";
 import { clerkSignUp, clerkSignIn } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
+import { BrandLogo } from "@/components/Logo";
 import { LandingReveal } from "./LandingReveal";
-import { LandingFeedShowcase, LandingProfileShowcase } from "./LandingShowcases";
+import { LandingHero } from "./LandingHero";
 
 const LANDING_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -97,7 +98,7 @@ function LandingAuthPanel(props: AuthPanelProps) {
 
   return (
     <div className="landing-auth-panel">
-      <div className="grid grid-cols-2 gap-1 rounded-full bg-[#f5f5f7] p-1">
+      <div className="landing-auth-panel__tabs">
         <button
           type="button"
           onClick={function () {
@@ -105,8 +106,8 @@ function LandingAuthPanel(props: AuthPanelProps) {
           }}
           className={
             mode === "signup"
-              ? "rounded-full bg-white px-4 py-2.5 text-sm font-medium text-fg shadow-sm"
-              : "rounded-full px-4 py-2.5 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+              ? "landing-auth-panel__tab landing-auth-panel__tab--active"
+              : "landing-auth-panel__tab"
           }
         >
           Sign up
@@ -118,8 +119,8 @@ function LandingAuthPanel(props: AuthPanelProps) {
           }}
           className={
             mode === "login"
-              ? "rounded-full bg-white px-4 py-2.5 text-sm font-medium text-fg shadow-sm"
-              : "rounded-full px-4 py-2.5 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+              ? "landing-auth-panel__tab landing-auth-panel__tab--active"
+              : "landing-auth-panel__tab"
           }
         >
           Log in
@@ -127,13 +128,10 @@ function LandingAuthPanel(props: AuthPanelProps) {
       </div>
 
       {mode === "signup" ? (
-        <div className="pt-6">
-          <h2 className="text-xl font-semibold tracking-tight text-fg">Create your account</h2>
-          <p className="mt-1.5 text-sm leading-6 text-fg-muted">Email, username, password. That is it.</p>
-
-          <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="mt-5 flex flex-col gap-3">
+        <div className="landing-auth-panel__body">
+          <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="landing-auth-panel__form">
             {signupError ? (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              <p className="landing-auth-panel__alert" role="alert">
                 {signupError}
               </p>
             ) : null}
@@ -157,23 +155,23 @@ function LandingAuthPanel(props: AuthPanelProps) {
                   "landing-input-wrap" + (signupForm.formState.errors.username ? " landing-input-error" : "")
                 }
               >
-                <span className="shrink-0 text-sm text-fg-muted">35mm/</span>
+                <span className="landing-input-prefix">35mm/</span>
                 <input
                   type="text"
                   autoComplete="username"
                   {...signupForm.register("username")}
                   placeholder="username"
-                  className="min-w-0 flex-1 bg-transparent text-[0.95rem] text-fg outline-none placeholder:text-fg-muted/70"
+                  className="landing-input-inline"
                 />
                 {usernameStatus ? (
                   <span
                     className={
-                      "shrink-0 rounded-full px-2 py-1 text-[0.68rem] font-semibold " +
+                      "landing-input-badge " +
                       (usernameCheck === "free"
-                        ? "bg-[#f0fdf4] text-[#15803d]"
+                        ? "landing-input-badge--ok"
                         : usernameIsBlocked
-                          ? "bg-red-50 text-red-700"
-                          : "bg-[#f5f5f7] text-fg-muted")
+                          ? "landing-input-badge--bad"
+                          : "landing-input-badge--neutral")
                     }
                   >
                     {usernameStatus}
@@ -199,14 +197,15 @@ function LandingAuthPanel(props: AuthPanelProps) {
             </div>
 
             <div>
-              <div className="relative">
+              <div className="landing-input-password">
                 <input
                   type={showSignupPassword ? "text" : "password"}
                   autoComplete="new-password"
                   {...signupForm.register("password")}
                   placeholder="Password"
                   className={
-                    "landing-input pr-12" + (signupForm.formState.errors.password ? " landing-input-error" : "")
+                    "landing-input landing-input--password" +
+                    (signupForm.formState.errors.password ? " landing-input-error" : "")
                   }
                 />
                 <button
@@ -216,7 +215,7 @@ function LandingAuthPanel(props: AuthPanelProps) {
                       return !prev;
                     });
                   }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-fg-muted transition-colors hover:text-fg"
+                  className="landing-input-toggle"
                   aria-label={showSignupPassword ? "Hide password" : "Show password"}
                 >
                   {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -230,39 +229,23 @@ function LandingAuthPanel(props: AuthPanelProps) {
             <button
               type="submit"
               disabled={isSignupLoading || usernameIsBlocked}
-              className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-fg px-5 py-3.5 text-[0.9375rem] font-medium text-bg transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="landing-auth-panel__submit"
             >
               {isSignupLoading ? (
-                <span className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                <span className="landing-auth-panel__spinner" />
               ) : (
                 <>
-                  Create free account <ArrowRight className="h-4 w-4" aria-hidden />
+                  Create account <ArrowRight className="h-4 w-4" aria-hidden />
                 </>
               )}
             </button>
           </form>
-
-          <p className="mt-4 text-center text-sm text-fg-muted">
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={function () {
-                setMode("login");
-              }}
-              className="font-medium text-fg underline-offset-4 hover:underline"
-            >
-              Log in
-            </button>
-          </p>
         </div>
       ) : (
-        <div className="pt-6">
-          <h2 className="text-xl font-semibold tracking-tight text-fg">Welcome back</h2>
-          <p className="mt-1.5 text-sm leading-6 text-fg-muted">Use your username or email. No social detours.</p>
-
-          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="mt-5 flex flex-col gap-3">
+        <div className="landing-auth-panel__body">
+          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="landing-auth-panel__form">
             {loginError ? (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              <p className="landing-auth-panel__alert" role="alert">
                 {loginError}
               </p>
             ) : null}
@@ -281,13 +264,16 @@ function LandingAuthPanel(props: AuthPanelProps) {
             </div>
 
             <div>
-              <div className="relative">
+              <div className="landing-input-password">
                 <input
                   type={showLoginPassword ? "text" : "password"}
                   autoComplete="current-password"
                   {...loginForm.register("password")}
                   placeholder="Password"
-                  className={"landing-input pr-12" + (loginForm.formState.errors.password ? " landing-input-error" : "")}
+                  className={
+                    "landing-input landing-input--password" +
+                    (loginForm.formState.errors.password ? " landing-input-error" : "")
+                  }
                 />
                 <button
                   type="button"
@@ -296,7 +282,7 @@ function LandingAuthPanel(props: AuthPanelProps) {
                       return !prev;
                     });
                   }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-fg-muted transition-colors hover:text-fg"
+                  className="landing-input-toggle"
                   aria-label={showLoginPassword ? "Hide password" : "Show password"}
                 >
                   {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -307,13 +293,9 @@ function LandingAuthPanel(props: AuthPanelProps) {
               ) : null}
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoginLoading}
-              className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-fg px-5 py-3.5 text-[0.9375rem] font-medium text-bg transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <button type="submit" disabled={isLoginLoading} className="landing-auth-panel__submit">
               {isLoginLoading ? (
-                <span className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                <span className="landing-auth-panel__spinner" />
               ) : (
                 <>
                   Log in <ArrowRight className="h-4 w-4" aria-hidden />
@@ -322,19 +304,10 @@ function LandingAuthPanel(props: AuthPanelProps) {
             </button>
           </form>
 
-          <div className="mt-4 flex items-center justify-between gap-4 text-sm">
-            <Link href={ROUTES.AUTH_FORGOT} className="font-medium text-fg-muted no-underline hover:text-fg">
+          <div className="landing-auth-panel__footer">
+            <Link href={ROUTES.AUTH_FORGOT} className="landing-auth-panel__link">
               Forgot password?
             </Link>
-            <button
-              type="button"
-              onClick={function () {
-                setMode("signup");
-              }}
-              className="font-medium text-fg underline-offset-4 hover:underline"
-            >
-              Create account
-            </button>
           </div>
         </div>
       )}
@@ -347,7 +320,7 @@ export function LandingPage({ children }: LandingPageProps) {
   const { isLoaded: authIsLoaded, isSignedIn } = useAuth();
   const { signUp: clerkSignUpObj, isLoaded: signUpLoaded } = useSignUp();
   const { signIn: clerkSignInObj, setActive, isLoaded: signInLoaded } = useSignIn();
-  const authRef = useRef<HTMLDivElement | null>(null);
+  const authRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<"signup" | "login">("signup");
   const [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
@@ -480,19 +453,21 @@ export function LandingPage({ children }: LandingPageProps) {
   };
 
   return (
-    <main className="landing-root min-h-screen bg-white text-fg">
-      <div className="mx-auto w-full max-w-[1180px] px-5 pb-28 pt-2 sm:px-8">
-        <header className="flex items-center justify-between py-5">
-          <Link href="/" className="font-mono text-[1.05rem] font-medium tracking-[-0.02em] text-fg no-underline">
-            35<span className="text-accent">mm</span>
-          </Link>
-          <nav className="flex items-center gap-1 text-sm lg:hidden">
+    <main className="landing-root">
+      <div className="landing-hero__ambient" aria-hidden />
+
+      <div className="landing-shell">
+        <header className="landing-header">
+          <BrandLogo href="/landing" className="landing-header__logo">
+            35<span>mm</span>
+          </BrandLogo>
+          <nav className="landing-header__nav lg:hidden">
             <button
               type="button"
               onClick={function () {
                 scrollToAuth("login");
               }}
-              className="rounded-full px-3.5 py-2 font-medium text-fg-muted transition-colors hover:text-fg"
+              className="landing-header__link"
             >
               Log in
             </button>
@@ -501,132 +476,84 @@ export function LandingPage({ children }: LandingPageProps) {
               onClick={function () {
                 scrollToAuth("signup");
               }}
-              className="rounded-full bg-fg px-3.5 py-2 font-medium text-bg transition-colors hover:bg-neutral-800"
+              className="landing-header__cta"
             >
               Sign up
             </button>
           </nav>
         </header>
 
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-x-16 xl:gap-x-20">
-          <div className="min-w-0">
-            <LandingReveal>
-              <section className="max-w-[640px] pt-4 lg:pt-8">
-                <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-fg-muted">Social network</p>
-                <h1 className="mt-4 text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.035em] text-fg sm:text-[3.5rem] lg:text-[3.75rem]">
-                  Follow filmmakers.
-                  <br />
-                  Log what you watch.
-                  <br />
-                  <span className="font-display italic font-normal text-accent">Talk film.</span>
-                </h1>
-                <p className="mt-6 text-[1.0625rem] leading-[1.7] text-fg-muted sm:text-[1.125rem]">
-                  35mm is a home for directors, critics, programmers, and obsessive viewers — a feed of real posts,
-                  real ratings, and real arguments about movies. Not a tracker bolted onto Twitter. A social network
-                  built for cinema.
-                </p>
-              </section>
+        <LandingHero
+          authRef={authRef}
+          authPanel={<LandingAuthPanel {...authPanelProps} />}
+        />
+
+        <div className="landing-below">
+          {children ? (
+            <LandingReveal className="landing-block">
+              <h2 className="landing-block__title">Films in conversation</h2>
+              <p className="landing-block__text">
+                A rotating look at what people in the community are logging and arguing about right now —
+                new releases, repertory screenings, deep cuts, and everything in between.
+              </p>
+              {children}
             </LandingReveal>
+          ) : null}
 
-            <LandingReveal className="mt-12 sm:mt-16" delay={0.06}>
-              <LandingFeedShowcase />
-            </LandingReveal>
+          <LandingReveal className="landing-block landing-block--rule">
+            <h2 className="landing-block__title">Log what you watch</h2>
+            <p className="landing-block__text">
+              Every post can carry a film — a first watch, a rewatch, a half-star rating, a long review, a hot
+              take at 2am. Logs land in your diary. Reviews stay on your profile. Threads can run for days.
+            </p>
+            <p className="landing-block__text">
+              This is not a spreadsheet you update in private. It is a public record of taste that other people
+              can follow, reply to, and argue with.
+            </p>
+          </LandingReveal>
 
-            <div ref={authRef} className="mt-12 lg:hidden">
-              <LandingAuthPanel {...authPanelProps} />
-            </div>
+          <LandingReveal className="landing-block landing-block--rule" delay={0.03}>
+            <h2 className="landing-block__title">Profiles built from taste</h2>
+            <p className="landing-block__text">
+              Your 35mm profile is the films you have seen, the ones you would defend, and the ones you would
+              never sit through again. Favourites on display. Ratings in your diary. A history of what cinema
+              means to you — not a résumé with a poster pasted on.
+            </p>
+            <p className="landing-block__text">
+              When someone visits your page, they should understand how you watch movies before they read a
+              single word of your bio.
+            </p>
+          </LandingReveal>
 
-            {children ? (
-              <LandingReveal className="mt-20 overflow-hidden sm:mt-24" delay={0.04}>
-                <div className="mb-6 max-w-xl">
-                  <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-fg-muted">Now screening</p>
-                  <h2 className="mt-3 text-[1.875rem] font-semibold tracking-[-0.02em] text-fg sm:text-[2.125rem]">
-                    Films people are talking about.
-                  </h2>
-                </div>
-                {children}
-              </LandingReveal>
-            ) : null}
+          <LandingReveal className="landing-block landing-block--rule" delay={0.04}>
+            <h2 className="landing-block__title">A feed you choose</h2>
+            <p className="landing-block__text">
+              Follow filmmakers whose work you study. Follow critics who hate the same franchises you do.
+              Follow friends from film school, programmers you met at a festival, the person who posted a
+              perfect thread about Jeanne Dielman.
+            </p>
+            <p className="landing-block__text">
+              Your home timeline is built from those follows — film logs, festival dispatches, shorts,
+              recommendations, and arguments that go long after midnight. No trending tab. No engagement bait.
+              Just people you decided to hear from.
+            </p>
+          </LandingReveal>
 
-            <div className="mt-24 grid gap-16 sm:mt-32 sm:gap-24">
-              <LandingReveal>
-                <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-14">
-                  <div className="max-w-md">
-                    <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-fg-muted">Profiles</p>
-                    <h2 className="mt-3 text-[1.875rem] font-semibold leading-[1.12] tracking-[-0.02em] text-fg sm:text-[2.125rem]">
-                      Your taste is the whole point.
-                    </h2>
-                    <p className="mt-4 text-[1.0625rem] leading-[1.7] text-fg-muted">
-                      Every film you log builds a profile other people actually want to follow. Favourites on display.
-                      Diary entries with ratings. A record of what cinema means to you — not a résumé with a movie
-                      poster pasted on.
-                    </p>
-                  </div>
-                  <LandingProfileShowcase />
-                </section>
-              </LandingReveal>
+          <LandingReveal className="landing-block landing-block--rule" delay={0.05}>
+            <h2 className="landing-block__title">Who 35mm is for</h2>
+            <p className="landing-block__text">
+              Directors and DPs sharing work and influences. Critics and programmers writing in public.
+              Students building a canon. Casual viewers who care enough to log and rate. Anyone who would
+              rather talk about a film than scroll past it.
+            </p>
+            <p className="landing-block__text">
+              Free to join. Claim a username, follow a few people, and your feed starts there.
+            </p>
+          </LandingReveal>
 
-              <LandingReveal delay={0.05}>
-                <section className="grid items-start gap-10 border-t border-border pt-16 lg:grid-cols-2 lg:gap-14">
-                  <div>
-                    <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-fg-muted">Community</p>
-                    <h2 className="mt-3 text-[1.875rem] font-semibold leading-[1.12] tracking-[-0.02em] text-fg sm:text-[2.125rem]">
-                      Built around people you choose.
-                    </h2>
-                    <p className="mt-4 max-w-md text-[1.0625rem] leading-[1.7] text-fg-muted">
-                      Follow a DP whose colour work you steal. Follow a critic who hates the same franchises you do.
-                      Your feed is assembled from those relationships — film logs, hot takes, festival dispatches,
-                      and threads that go long after midnight.
-                    </p>
-                    <ul className="mt-8 space-y-4 border-t border-border pt-8">
-                      {[
-                        ["Post logs and reviews", "Share what you watched, rated, and rewatched — with the film attached."],
-                        ["Follow by taste", "Build a feed from filmmakers, critics, friends, and programmers."],
-                        ["Discover through people", "Festivals, shorts, and deep cuts from voices you trust."],
-                      ].map(function (item) {
-                        return (
-                          <li key={item[0]} className="grid grid-cols-[8rem_1fr] gap-4 sm:grid-cols-[9rem_1fr]">
-                            <span className="text-sm font-semibold text-fg">{item[0]}</span>
-                            <span className="text-sm leading-relaxed text-fg-muted">{item[1]}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                  <div className="rounded-[1.75rem] border border-border bg-sunken p-6 sm:p-8">
-                    <p className="font-display text-[2rem] italic leading-snug text-fg sm:text-[2.25rem]">
-                      &ldquo;Finally — a place where posting about Jeanne Dielman doesn&apos;t feel like shouting into
-                      the void.&rdquo;
-                    </p>
-                    <p className="mt-5 text-sm text-fg-muted">— early member, Berlin</p>
-                  </div>
-                </section>
-              </LandingReveal>
-
-              <LandingReveal delay={0.04}>
-                <section className="border-t border-border pt-16">
-                  <div className="max-w-xl">
-                    <h2 className="text-[1.875rem] font-semibold tracking-[-0.02em] text-fg sm:text-[2.125rem]">
-                      Claim your username. Follow a few people. Your feed starts there.
-                    </h2>
-                    <p className="mt-4 text-[1.0625rem] leading-[1.7] text-fg-muted">
-                      Free to join. No credit card. Under a minute to get in.
-                    </p>
-                  </div>
-                </section>
-              </LandingReveal>
-            </div>
-
-            <footer className="mt-24 border-t border-border pt-8">
-              <p className="text-sm text-fg-muted">© 35mm.in</p>
-            </footer>
-          </div>
-
-          <div className="hidden min-w-0 lg:block">
-            <div className="sticky top-8 pt-8">
-              <LandingAuthPanel {...authPanelProps} />
-            </div>
-          </div>
+          <footer className="landing-footer">
+            <p>© 35mm.in</p>
+          </footer>
         </div>
       </div>
     </main>

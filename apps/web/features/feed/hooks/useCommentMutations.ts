@@ -34,6 +34,22 @@ function appendRootComment(data: InfiniteData<CommentsPage> | undefined, comment
   };
 }
 
+function appendReplyToComment(list: Comment[], parentId: string, reply: Comment): Comment[] {
+  return list.map(function (comment) {
+    if (comment.id === parentId) {
+      return {
+        ...comment,
+        replies: [...comment.replies, reply],
+      };
+    }
+
+    return {
+      ...comment,
+      replies: appendReplyToComment(comment.replies, parentId, reply),
+    };
+  });
+}
+
 function applyCommentDeleteInTree(list: Comment[], commentId: string): Comment[] {
   return list
     .map(function (comment) {
@@ -145,7 +161,20 @@ export function useCreateComment(postId: string) {
       queryClient.setQueryData<InfiniteData<CommentsPage>>(
         feedKeys.comments(postId),
         function (oldData) {
-          if (comment.parentId) return oldData;
+          if (!oldData) return oldData;
+
+          if (comment.parentId) {
+            return {
+              ...oldData,
+              pages: oldData.pages.map(function (page) {
+                return {
+                  ...page,
+                  comments: appendReplyToComment(page.comments, comment.parentId!, comment),
+                };
+              }),
+            };
+          }
+
           return appendRootComment(oldData, comment);
         }
       );

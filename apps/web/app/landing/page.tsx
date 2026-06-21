@@ -4,9 +4,9 @@ import { LandingPage } from "@/features/landing/components/LandingPage";
 import { LandingCarousel } from "@/features/landing/components/LandingCarousel";
 
 export const metadata: Metadata = {
-  title: "35mm.in — The Social Network for Cinema",
+  title: "35mm.in — The Social Network for Film",
   description:
-    "Log films. Follow directors and DPs. Debate cuts at 2am. Discover festivals, shorts, and the people who actually care about movies.",
+    "35mm is a social network for directors, critics, and film lovers — log films, follow people you trust, and talk about cinema.",
 };
 
 export default function LandingRoutePage() {
@@ -14,10 +14,8 @@ export default function LandingRoutePage() {
     <LandingPage>
       <Suspense
         fallback={
-          <div className="relative z-10 py-4 pb-8">
-            <div className="scene flex min-h-[320px] items-center justify-center">
-              <span className="text-[0.7rem] uppercase tracking-wider text-[#bbb]">Loading films...</span>
-            </div>
+          <div className="landing-carousel-fallback">
+            <span>Loading…</span>
           </div>
         }
       >

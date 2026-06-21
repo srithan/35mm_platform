@@ -74,6 +74,25 @@
     color: var(--fg-faint);
 }
 
+.headerSearchWrap {
+    flex: 1 1 0;
+    min-width: 10rem;
+    max-width: 400px;
+}
+
+.headerSearch {
+    width: 100%;
+}
+
+.headerSearch form>div {
+    background: var(--sunken);
+    border-color: var(--border);
+}
+
+.headerSearch form>div:focus-within {
+    border-color: var(--border-strong);
+}
+
 .navLogo {
     flex-shrink: 0;
     min-width: 0;
@@ -457,6 +476,40 @@
     box-sizing: border-box;
 }
 
+.dropdownRowLink {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    flex: 1;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+.rowDotButton {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    padding: 0.35rem;
+    margin: -0.35rem -0.15rem -0.35rem 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 9999px;
+}
+
+.rowDotButton:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+
+.rowDotButton:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
 .dropdownRowNotif {
     gap: 0.45rem;
 }
@@ -781,14 +834,12 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    background: linear-gradient(
-        100deg,
-        transparent 0%,
-        color-mix(in srgb, var(--bg) 0%, transparent) 38%,
-        color-mix(in srgb, var(--bg) 48%, transparent) 50%,
-        color-mix(in srgb, var(--bg) 0%, transparent) 62%,
-        transparent 100%
-    );
+    background: linear-gradient(100deg,
+            transparent 0%,
+            color-mix(in srgb, var(--bg) 0%, transparent) 38%,
+            color-mix(in srgb, var(--bg) 48%, transparent) 50%,
+            color-mix(in srgb, var(--bg) 0%, transparent) 62%,
+            transparent 100%);
     background-size: 180% 100%;
     background-position: 120% 0;
     pointer-events: none;
@@ -821,6 +872,7 @@
     0% {
         background-position: 120% 0;
     }
+
     100% {
         background-position: -120% 0;
     }
@@ -893,6 +945,7 @@
         opacity: 0;
         transform: translateY(-0.35rem) scale(0.98);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -912,6 +965,7 @@
         opacity: 0;
         transform: translateX(1rem);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -923,6 +977,7 @@
         opacity: 0;
         transform: translateX(-1rem);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -930,6 +985,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .profileMenu,
     .profileMenuPanelForward,
     .profileMenuPanelBack {
@@ -1254,18 +1310,18 @@
     transition: transform 0.14s ease, border-color 0.14s ease;
 }
 
-.profileSwitch input:checked ~ .profileSwitchTrack {
+.profileSwitch input:checked~.profileSwitchTrack {
     border-color: var(--accent);
     background: var(--accent);
 }
 
-.profileSwitch input:checked ~ .profileSwitchThumb {
+.profileSwitch input:checked~.profileSwitchThumb {
     border-color: transparent;
     transform: translateX(0.8125rem);
 }
 
-.profileSwitch input:disabled ~ .profileSwitchTrack,
-.profileSwitch input:disabled ~ .profileSwitchThumb {
+.profileSwitch input:disabled~.profileSwitchTrack,
+.profileSwitch input:disabled~.profileSwitchThumb {
     opacity: 0.65;
 }
 

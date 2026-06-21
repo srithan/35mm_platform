@@ -7,10 +7,11 @@ import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/Button";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
-import { formatRoleContextSegment } from "@/lib/utils/userRoleHeadline";
+import { ProfileRoleHeadlinePill } from "@/lib/utils/userRoleHeadline";
 import {
   fetchPublicProfile,
   type PublicProfile,
@@ -24,8 +25,8 @@ const PROFILE_POPOVER_SCROLL_SUPPRESS_MS = 650;
 const PROFILE_POPOVER_OFFSET_PX = 6;
 const PROFILE_POPOVER_VIEWPORT_PADDING_X = 12;
 const PROFILE_POPOVER_VIEWPORT_PADDING_Y = 8;
-const PROFILE_POPOVER_DEFAULT_WIDTH = 300;
-const PROFILE_POPOVER_DEFAULT_HEIGHT = 315;
+const PROFILE_POPOVER_DEFAULT_WIDTH = 320;
+const PROFILE_POPOVER_DEFAULT_HEIGHT = 288;
 
 let lastProfilePopoverScrollAt = 0;
 let scrollGuardRefCount = 0;
@@ -87,43 +88,16 @@ function getPopoverPosition(
   return { top, left };
 }
 
-function resolvePopoverHeadline(
-  profile: PublicProfile | null | undefined,
-  fallback: {
-    headline?: string;
-    role?: string;
-    roleContext?: string | null;
-  }
-): string | null {
-  const customHeadline = (profile?.headline ?? fallback.headline)?.trim() ?? "";
-  if (customHeadline.length > 0) {
-    const context = profile?.headlineContext?.trim() ?? "";
-    return context.length > 0 ? customHeadline + " · " + context : customHeadline;
-  }
-
-  const role = (profile?.role ?? fallback.role)?.trim() ?? "";
-  if (role.length === 0) {
-    return null;
-  }
-
-  const context = formatRoleContextSegment(role, {
-    roleContext: profile?.roleContext ?? fallback.roleContext,
-    filmsLoggedCount: profile?.filmsLoggedCount,
-  });
-
-  return context ? role + " · " + context : role;
-}
-
 function ProfilePopoverStat(props: { value?: number; label: string }) {
   if (typeof props.value !== "number") {
     return null;
   }
 
   return (
-    <div>
-      <span className="font-bold text-neutral-950">{formatCount(props.value)}</span>{" "}
-      {props.label}
-    </div>
+    <span className="inline-flex items-baseline gap-1 text-[13px] leading-none">
+      <span className="font-semibold tabular-nums text-fg">{formatCount(props.value)}</span>
+      <span className="font-normal text-fg-muted">{props.label}</span>
+    </span>
   );
 }
 
@@ -160,13 +134,25 @@ function ProfilePopover(props: {
   const avatarInitial =
     props.fallback.initial ?? props.username.charAt(0).toUpperCase();
   const resolvedAvatarUrl = profile?.avatarUrl ?? props.fallback.avatarUrl ?? null;
-  const resolvedHeadline = resolvePopoverHeadline(profile, props.fallback);
+  const roleLabel = (
+    profile?.role ??
+    props.fallback.role ??
+    profile?.headline ??
+    props.fallback.headline
+  )?.trim() ?? "";
+  const roleContext =
+    profile?.roleContext ??
+    props.fallback.roleContext ??
+    profile?.headlineContext ??
+    null;
   const bioText = profile?.bio ?? props.fallback.bio ?? null;
   const followersCount = profile?.followerCount ?? props.fallback.followersCount;
   const followingCount = profile?.followingCount ?? props.fallback.followingCount;
   const filmsLoggedCount = profile?.filmsLoggedCount ?? props.fallback.filmsLoggedCount;
   const coverUrl = profile?.coverUrl ?? null;
 
+  const isLoading = profileQuery.isLoading && !profile;
+  const showFollowButton = !isOwnProfile;
   const followLabel = followToggle.isPending
     ? "..."
     : profile?.isFollowing
@@ -174,92 +160,101 @@ function ProfilePopover(props: {
       : profile?.isFollowRequested
         ? "Requested"
         : "Follow";
+  const followVariant =
+    profile?.isFollowing || profile?.isFollowRequested ? "secondary" : "primary";
 
   return (
     <div
       ref={props.containerRef}
-      className="fixed z-[200] w-[min(300px,calc(100vw-24px))] overflow-hidden rounded-lg border border-black/10 bg-white text-neutral-950 shadow-[0_18px_48px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.09)]"
+      className="fixed z-[200] w-[min(320px,calc(100vw-24px))] overflow-hidden rounded-xl border border-border bg-bg text-fg shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.05)] animate-[fadeUp_0.15s_ease-out_both]"
       style={{ top: props.position.top, left: props.position.left }}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
     >
-      <div className="relative h-16 bg-[linear-gradient(135deg,#050505_0%,#171717_58%,#2f2f2f_100%)]">
+      <div className="relative h-[72px] bg-gradient-to-br from-[var(--color-poster-bg-from)] via-neutral-800 to-[var(--color-poster-bg-to)]">
         {coverUrl ? (
           <Image
             src={coverUrl}
             alt=""
             fill
             className="object-cover"
-            sizes="300px"
+            sizes="320px"
           />
         ) : null}
       </div>
-      <div className="px-3.5 pb-3.5">
-        <div className="-mt-8 flex items-start gap-2.5">
-          <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-neutral-200 ring-[3px] ring-white">
+      <div className="px-4 pb-4">
+        <div className="-mt-[26px] mb-2.5">
+          <div className="inline-flex rounded-full ring-[3px] ring-bg">
             <Avatar
               initial={avatarInitial}
               src={resolvedAvatarUrl}
-              className="h-16 w-16 text-xl ring-0"
+              className="h-[52px] w-[52px] text-lg ring-0"
             />
           </div>
-          <div className="min-w-0 flex-1 pt-9">
-            <div className="truncate text-[16px] font-bold leading-tight text-neutral-950">
-              {label}
-            </div>
-            <div className="mt-0.5 truncate text-[12px] text-neutral-500">
-              @{props.username}
-            </div>
-          </div>
         </div>
-        {resolvedHeadline ? (
-          <div className="mt-2.5 text-[12.5px] font-semibold leading-snug text-neutral-900">
-            {resolvedHeadline}
-          </div>
+        <div className="min-w-0">
+          {isLoading ? (
+            <div className="space-y-2">
+              <div className="h-4 w-32 rounded bg-skeleton" />
+              <div className="h-3.5 w-24 rounded bg-skeleton" />
+            </div>
+          ) : (
+            <>
+              <div className="truncate text-[15px] font-bold leading-tight text-fg">
+                {label}
+              </div>
+              <div className="mt-0.5 truncate text-[13px] text-fg-muted">
+                @{props.username}
+              </div>
+            </>
+          )}
+        </div>
+        {roleLabel.length > 0 ? (
+          <ProfileRoleHeadlinePill
+            role={roleLabel}
+            roleContext={roleContext}
+            filmsLoggedCount={filmsLoggedCount}
+            className="mt-2.5"
+          />
         ) : null}
         {bioText ? (
-          <p className="mt-1 line-clamp-2 text-[12.5px] leading-[1.4] text-neutral-600">
+          <p className="mt-2.5 line-clamp-2 text-[13px] font-normal leading-[1.5] text-fg-muted">
             {bioText}
           </p>
         ) : null}
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] leading-none text-neutral-600">
-          <ProfilePopoverStat value={filmsLoggedCount} label="films" />
-          <ProfilePopoverStat value={followersCount} label="followers" />
-          <ProfilePopoverStat value={followingCount} label="following" />
+        <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-1">
+          <ProfilePopoverStat value={followingCount} label="Following" />
+          <ProfilePopoverStat value={followersCount} label="Followers" />
+          <ProfilePopoverStat value={filmsLoggedCount} label="Films" />
         </div>
-        <div className={cn("mt-3 grid gap-2", isOwnProfile ? "grid-cols-1" : "grid-cols-2")}>
-          {!isOwnProfile && profile?.userId ? (
-            <>
-              <button
-                type="button"
-                disabled={followToggle.isPending}
-                onClick={function () {
-                  if (followToggle.isPending || !profile?.userId) return;
-                  followToggle.mutate({
-                    userId: profile.userId,
-                    isFollowing: Boolean(profile.isFollowing),
-                    isFollowRequested: Boolean(profile.isFollowRequested),
-                  });
-                }}
-                className={cn(
-                  "h-8 rounded-md border px-2 text-center text-[11px] font-bold transition-colors disabled:opacity-60",
-                  profile.isFollowing || profile.isFollowRequested
-                    ? "border-neutral-300 bg-white text-neutral-950 hover:bg-neutral-100"
-                    : "border-black bg-black text-white hover:opacity-85"
-                )}
-              >
-                {followLabel}
-              </button>
-            </>
+        <div className="mt-3.5 flex gap-2">
+          {showFollowButton ? (
+            <Button
+              type="button"
+              variant={followVariant}
+              size="sm"
+              disabled={followToggle.isPending || isLoading || !profile?.userId}
+              onClick={function () {
+                if (followToggle.isPending || !profile?.userId) return;
+                followToggle.mutate({
+                  userId: profile.userId,
+                  isFollowing: Boolean(profile.isFollowing),
+                  isFollowRequested: Boolean(profile.isFollowRequested),
+                });
+              }}
+              className="h-8 min-w-0 flex-1 px-3 text-[12px] font-bold"
+            >
+              {followLabel}
+            </Button>
           ) : null}
           <Link
             href={props.linkHref}
             className={cn(
-              "flex h-8 items-center justify-center rounded-md border border-black bg-white px-2 text-center text-[11px] font-bold text-black no-underline transition-colors hover:bg-neutral-100",
-              isOwnProfile ? "col-span-1" : "col-span-1"
+              "flex h-8 min-w-0 items-center justify-center rounded-full border border-border px-3 text-center text-[12px] font-semibold text-fg no-underline transition-all duration-150 hover:border-fg-muted hover:bg-hover",
+              showFollowButton ? "flex-1" : "w-full"
             )}
           >
-            View Profile
+            View profile
           </Link>
         </div>
       </div>

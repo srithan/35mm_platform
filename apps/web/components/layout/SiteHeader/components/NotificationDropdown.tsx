@@ -49,6 +49,7 @@ type NotificationDropdownProps = {
   unreadBadgeCount: string;
   markAllMutation: UseMutationResult<unknown, Error, void, unknown>;
   markOneMutation: UseMutationResult<unknown, Error, string, unknown>;
+  markUnreadMutation: UseMutationResult<unknown, Error, string, unknown>;
   onTrapWheel: (ev: WheelEvent<HTMLDivElement>) => void;
 };
 
@@ -64,6 +65,7 @@ export function NotificationDropdown({
   unreadBadgeCount,
   markAllMutation,
   markOneMutation,
+  markUnreadMutation,
   onTrapWheel,
 }: NotificationDropdownProps) {
   function markAllNotifRead() {
@@ -143,52 +145,81 @@ export function NotificationDropdown({
             ) : (
               notifRows.map(function (row) {
                 const IconGlyph = NOTIF_KIND_ICON[row.type];
+                const isTogglingRead =
+                  (markOneMutation.isPending && markOneMutation.variables === row.id) ||
+                  (markUnreadMutation.isPending && markUnreadMutation.variables === row.id);
+
                 function markRowAsRead() {
                   if (row.isRead || markOneMutation.isPending) return;
                   markOneMutation.mutate(row.id);
                 }
+
+                function toggleRowReadState() {
+                  if (isTogglingRead) return;
+                  if (row.isRead) {
+                    markUnreadMutation.mutate(row.id);
+                    return;
+                  }
+                  markOneMutation.mutate(row.id);
+                }
+
                 return (
                   <li key={row.id} className={styles.dropdownListItem}>
-                    <Link
-                      href={getNotificationDestination(row)}
+                    <div
                       className={cn(
                         styles.dropdownRow,
                         styles.dropdownRowNotif,
                         row.isRead ? styles.dropdownRowRead : styles.dropdownRowUnread
                       )}
-                      onClick={function () {
-                        markRowAsRead();
-                        onClose();
-                      }}
                     >
-                      <span className={styles.dropdownNotifGlyph} aria-hidden>
-                        <IconGlyph size={14} strokeWidth={2} />
-                      </span>
-                      <span className={styles.dropdownRowAvatar}>
-                        <Avatar
-                          initial={initialForName(actorDisplayName(row))}
-                          size="sm"
-                          src={row.actor?.avatarUrl ?? undefined}
-                        />
-                      </span>
-                      <span className={styles.dropdownRowMain}>
-                        <p className={styles.dropdownNotifText}>{formatNotificationText(row)}</p>
-                        <span className={styles.dropdownNotifMetaRow}>
-                          <span className={styles.dropdownNotifTime}>
-                            {relativeNotificationTime(row.createdAt)}
+                      <Link
+                        href={getNotificationDestination(row)}
+                        className={styles.dropdownRowLink}
+                        onClick={function () {
+                          markRowAsRead();
+                          onClose();
+                        }}
+                      >
+                        <span className={styles.dropdownNotifGlyph} aria-hidden>
+                          <IconGlyph size={14} strokeWidth={2} />
+                        </span>
+                        <span className={styles.dropdownRowAvatar}>
+                          <Avatar
+                            initial={initialForName(actorDisplayName(row))}
+                            size="sm"
+                            src={row.actor?.avatarUrl ?? undefined}
+                          />
+                        </span>
+                        <span className={styles.dropdownRowMain}>
+                          <p className={styles.dropdownNotifText}>{formatNotificationText(row)}</p>
+                          <span className={styles.dropdownNotifMetaRow}>
+                            <span className={styles.dropdownNotifTime}>
+                              {relativeNotificationTime(row.createdAt)}
+                            </span>
                           </span>
                         </span>
-                      </span>
-                      <span
-                        className={cn(
-                          styles.rowDot,
-                          styles.rowDotTrailing,
-                          row.isRead ? styles.rowDotRead : styles.rowDotUnread
-                        )}
-                        title={row.isRead ? "Read" : "Unread"}
-                        aria-hidden
-                      />
-                    </Link>
+                      </Link>
+                      <button
+                        type="button"
+                        className={styles.rowDotButton}
+                        title={row.isRead ? "Mark as unread" : "Mark as read"}
+                        aria-label={row.isRead ? "Mark as unread" : "Mark as read"}
+                        disabled={isTogglingRead}
+                        onClick={function (event) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleRowReadState();
+                        }}
+                      >
+                        <span
+                          className={cn(
+                            styles.rowDot,
+                            row.isRead ? styles.rowDotRead : styles.rowDotUnread
+                          )}
+                          aria-hidden
+                        />
+                      </button>
+                    </div>
                   </li>
                 );
               })

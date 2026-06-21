@@ -367,6 +367,22 @@ export async function markNotificationRead(
   return updated.length > 0;
 }
 
+export async function markNotificationUnread(
+  recipientId: string,
+  notificationId: string
+): Promise<boolean> {
+  var db = getDb();
+  var updated = await db
+    .update(notifications)
+    .set({ isRead: false })
+    .where(
+      and(eq(notifications.recipientId, recipientId), eq(notifications.id, notificationId))
+    )
+    .returning({ id: notifications.id });
+
+  return updated.length > 0;
+}
+
 export async function markAllNotificationsRead(recipientId: string): Promise<number> {
   var db = getDb();
   var updated = await db

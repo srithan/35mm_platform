@@ -157,16 +157,25 @@ function ShowcasePostRow({ post, className }: { post: ShowcasePost; className?: 
   );
 }
 
-export function LandingFeedShowcase() {
+export function LandingFeedShowcase({ variant = "default" }: { variant?: "default" | "hero" }) {
+  var isHero = variant === "hero";
+
   return (
-    <div className="landing-feed-preview relative overflow-hidden rounded-[1.75rem] border border-border bg-bg shadow-[0_40px_100px_-24px_rgba(15,15,15,0.18)]">
+    <div
+      className={
+        "landing-feed-preview relative overflow-hidden bg-bg " +
+        (isHero
+          ? "landing-feed-preview--hero rounded-[1.35rem] border border-black/[0.08]"
+          : "rounded-[1.75rem] border border-border shadow-[0_40px_100px_-24px_rgba(15,15,15,0.18)]")
+      }
+    >
       <div className="flex items-center gap-2 border-b border-border bg-white px-4 py-3">
         <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" aria-hidden />
         <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" aria-hidden />
         <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" aria-hidden />
         <span className="mx-auto text-[11px] font-medium tracking-[0.04em] text-fg-muted">35mm.in · Home</span>
       </div>
-      <div className="relative max-h-[520px] overflow-hidden">
+      <div className={"relative overflow-hidden " + (isHero ? "max-h-[580px]" : "max-h-[520px]")}>
         {SHOWCASE_POSTS.map(function (post, index) {
           return (
             <ShowcasePostRow

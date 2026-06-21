@@ -1,41 +1,28 @@
-import { useRef } from "react";
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/constants/routes";
+import { BrandLogo } from "@/components/Logo";
+import { SearchBar } from "@/components/SearchBar";
 import styles from "../SiteHeader.module.css";
 
 export function HeaderLeft() {
-  const standaloneSearchRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   return (
     <div className={styles.navLeft}>
-      <Link href={ROUTES.HOME} className={styles.navLogo}>
+      <BrandLogo href={ROUTES.HOME} className={styles.navLogo}>
         35mm<span className={styles.dot}>.</span>
-      </Link>
-      <div className={styles.standaloneSearch}>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
-        <input
-          ref={standaloneSearchRef}
-          id="header-standalone-search"
-          className={styles.standaloneSearchInput}
-          type="search"
-          name="header-standalone-search"
+      </BrandLogo>
+      <div className={styles.headerSearchWrap}>
+        <SearchBar
           placeholder="Search films, people, reviews…"
-          aria-label="Search films, people, and reviews"
-          autoComplete="off"
-          enterKeyHint="search"
+          category="all"
+          variant="inline"
+          size="compact"
+          showEmptySuggestions
+          className={styles.headerSearch}
+          onNavigate={(href) => router.push(href)}
         />
       </div>
     </div>

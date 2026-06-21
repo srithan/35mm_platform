@@ -36,6 +36,16 @@ export async function markNotificationRead(params: {
   });
 }
 
+export async function markNotificationUnread(params: {
+  token?: string | null;
+  notificationId: string;
+}): Promise<{ ok: boolean; updated: boolean }> {
+  return apiRequest(`/v1/me/notifications/${encodeURIComponent(params.notificationId)}/unread`, {
+    method: "PATCH",
+    token: params.token,
+  });
+}
+
 export async function markAllNotificationsRead(params: {
   token?: string | null;
 }): Promise<{ ok: boolean; updatedCount: number }> {

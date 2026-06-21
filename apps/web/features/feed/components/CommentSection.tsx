@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import type { Editor } from "@tiptap/react";
-import { Image, Film, Smile, Link2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { hasVisibleRichText } from "@/lib/utils/richContent";
-import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useCreateComment } from "../hooks/useCommentMutations";
 import { CommentCard, type Comment as CommentCardType } from "./CommentCard";
-import { FormattingToolbar } from "./PostComposer/FormattingToolbar";
-import { RichTextEditor } from "./PostComposer/RichTextEditor";
+import {
+  ReplyComposerPanel,
+  ReplyComposerTrigger,
+} from "./ReplyComposer/ReplyComposerPanel";
 import type { Comment as FeedComment } from "../types/feed";
 
 interface CommentSectionProps {
@@ -69,7 +68,6 @@ export function CommentSection({
 }: CommentSectionProps) {
   const [isComposerActive, setIsComposerActive] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [replyEditor, setReplyEditor] = useState<Editor | null>(null);
   const createCommentMutation = useCreateComment(postId);
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
@@ -78,7 +76,11 @@ export function CommentSection({
 
   const handleActivateComposer = () => {
     setIsComposerActive(true);
-    setTimeout(() => replyEditor?.commands.focus("end"), 0);
+  };
+
+  const handleCancelComposer = () => {
+    setIsComposerActive(false);
+    setReplyText("");
   };
 
   const handleReplySubmit = async () => {
@@ -105,96 +107,42 @@ export function CommentSection({
       parentId: input.parentId,
     });
 
-    requestAnimationFrame(() => {
-      var el = document.getElementById(`comment-${created.id}`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        var el = document.getElementById(`comment-${created.id}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     });
   };
 
-  const replyEnabled =
-    hasVisibleRichText(replyText) && !createCommentMutation.isPending;
-
   return (
     <div className={cn("mt-2", className)}>
-      <div className="border-b border-border">
+      <div className={cn(!isComposerActive && "border-b border-border")}>
         {!isComposerActive ? (
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Avatar initial={currentInitial} src={currentUser?.avatarUrl} className="w-10 h-10" />
-            <button
-              type="button"
-              onClick={handleActivateComposer}
-              className="flex-1 text-left text-[17px] leading-[1.5] font-medium text-fg-light bg-transparent border-none outline-none cursor-text"
-            >
-              Post your reply
-            </button>
-            <button
-              type="button"
-              onClick={handleActivateComposer}
-              className="px-4 py-1.5 rounded-full text-[13px] font-medium bg-neutral-400 text-bg"
-            >
-              Reply
-            </button>
-          </div>
+          <ReplyComposerTrigger
+            onClick={handleActivateComposer}
+            avatarInitial={currentInitial}
+            avatarUrl={currentUser?.avatarUrl}
+            placeholder="Post your reply…"
+          />
         ) : (
-          <div className="flex gap-3 items-start px-4 py-3">
-            <Avatar initial={currentInitial} src={currentUser?.avatarUrl} className="w-10 h-10" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-fg-muted mb-1">
-                {postUsername ? (
-                  <>
-                    Replying to <span className="text-fg">@{postUsername}</span>
-                  </>
-                ) : (
-                  "Write a reply"
-                )}
-              </p>
-              <RichTextEditor
-                value={replyText}
-                onChange={(value) => setReplyText(value)}
-                onEditorReady={setReplyEditor}
-                placeholder="Post your reply"
-                autoFocus
-                className="min-h-[44px] text-[15px] leading-[1.6] text-fg"
-              />
-              <div className="mt-3 flex items-center justify-between">
-                <div className="flex items-center gap-3 text-fg-muted">
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors">
-                    <Image className="w-5 h-5" />
-                  </button>
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors">
-                    <Film className="w-5 h-5" />
-                  </button>
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors">
-                    <Smile className="w-5 h-5" />
-                  </button>
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
-                    <Link2 className="w-5 h-5" />
-                  </button>
-                  <button type="button" className="p-1 rounded-full hover:bg-hover transition-colors hidden sm:inline-flex">
-                    <MapPin className="w-5 h-5" />
-                  </button>
-                  <FormattingToolbar editor={replyEditor} showDivider={false} />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleReplySubmit()}
-                  disabled={!replyEnabled}
-                  className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${replyEnabled
-                    ? "bg-fg text-bg hover:bg-black"
-                    : "bg-neutral-400 text-bg cursor-default"
-                    }`}
-                >
-                  {createCommentMutation.isPending ? "Posting" : "Reply"}
-                </button>
-              </div>
-              {createCommentMutation.isError ? (
-                <p className="mt-2 text-xs text-film-red">
-                  {createCommentMutation.error instanceof Error
+          <div className="border-b border-border px-4 py-4">
+            <ReplyComposerPanel
+              replyToHandle={postUsername ?? "post"}
+              value={replyText}
+              onChange={setReplyText}
+              onSubmit={handleReplySubmit}
+              onCancel={handleCancelComposer}
+              placeholder="Post your reply…"
+              isSubmitting={createCommentMutation.isPending}
+              error={
+                createCommentMutation.isError
+                  ? createCommentMutation.error instanceof Error
                     ? createCommentMutation.error.message
-                    : "Failed to post comment"}
-                </p>
-              ) : null}
-            </div>
+                    : "Failed to post comment"
+                  : null
+              }
+            />
           </div>
         )}
       </div>

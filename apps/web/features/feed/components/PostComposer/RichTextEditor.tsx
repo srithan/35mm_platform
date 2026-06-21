@@ -55,18 +55,12 @@ const UserMention = Mention.extend({
   },
 });
 
-function debounce(ms: number) {
-  return new Promise(function (resolve) {
-    window.setTimeout(resolve, ms);
-  });
-}
-
 function createMentionSuggestion(getToken: () => Promise<string | null>) {
   return {
     char: "@",
     allowSpaces: false,
+    debounce: 225,
     items: async ({ query }: { query: string }) => {
-      await debounce(225);
       try {
         return await searchMentionSuggestions(query, await getToken());
       } catch (_err) {
@@ -78,6 +72,7 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
       var selectedIndex = 0;
       var items: MentionItem[] = [];
       var command: ((item: MentionItem) => void) | null = null;
+      var isLoading = false;
 
       function updateSelection() {
         if (!root) return;
@@ -99,7 +94,7 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
         if (items.length === 0) {
           var empty = document.createElement("div");
           empty.className = "px-3 py-2 text-[13px] text-fg-muted";
-          empty.textContent = "No users found";
+          empty.textContent = isLoading ? "Searching…" : "No users found";
           root.appendChild(empty);
           return;
         }
@@ -160,6 +155,7 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
         onStart: function (props: any) {
           root = document.createElement("div");
           document.body.appendChild(root);
+          isLoading = Boolean(props.loading);
           items = props.items ?? [];
           command = function (item: MentionItem) {
             props.command({
@@ -172,6 +168,7 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
           position(props.clientRect);
         },
         onUpdate: function (props: any) {
+          isLoading = Boolean(props.loading);
           items = props.items ?? [];
           selectedIndex = Math.min(selectedIndex, Math.max(items.length - 1, 0));
           command = function (item: MentionItem) {
@@ -269,7 +266,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
         "aria-label": props.placeholder,
         placeholder: props.placeholder,
         class: cn(
-          "ProseMirror min-h-[inherit] w-full outline-none",
+          "ProseMirror min-h-[inherit] w-full outline-none focus:outline-none focus-visible:outline-none",
           props.editorClassName
         ),
       },
@@ -316,7 +313,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
     <EditorContent
       editor={editor}
       className={cn(
-        "rich-text-editor [&_.ProseMirror]:whitespace-pre-wrap [&_.ProseMirror]:break-words [&_[data-type=mention]]:no-underline [&_.ProseMirror_p.is-editor-empty:first-child:before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child:before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child:before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child:before]:text-fg-muted [&_.ProseMirror_p.is-editor-empty:first-child:before]:content-[attr(data-placeholder)]",
+        "rich-text-editor [&_.ProseMirror]:whitespace-pre-wrap [&_.ProseMirror]:break-words [&_.ProseMirror]:outline-none [&_.ProseMirror:focus]:outline-none [&_.ProseMirror:focus-visible]:outline-none [&_[data-type=mention]]:no-underline [&_.ProseMirror_p.is-editor-empty:first-child:before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child:before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child:before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child:before]:text-fg-muted [&_.ProseMirror_p.is-editor-empty:first-child:before]:content-[attr(data-placeholder)]",
         props.className
       )}
     />

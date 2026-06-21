@@ -1,5 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import {
+  LegalBody,
+  LegalCard,
+  LegalCardGrid,
+  LegalHeading,
+  LegalInlineLink,
+  LegalLead,
+  LegalLink,
+  LegalPage,
+  LegalTitle,
+} from "@/components/legal/LegalPage";
 
 export const metadata: Metadata = {
   title: "Help Centre – 35mm",
@@ -39,36 +49,38 @@ const HELP_TOPICS = [
 
 export default function HelpPage() {
   return (
-    <div className="px-6 py-10 max-w-[540px]">
-      <h1 className="text-[22px] font-display font-bold text-fg tracking-tight">Help Centre</h1>
-      <p className="mt-4 text-[14px] leading-relaxed text-fg-muted">
+    <LegalPage>
+      <LegalTitle>Help Centre</LegalTitle>
+      <LegalLead>
         Find answers to common questions or reach out to our support team.
-      </p>
+      </LegalLead>
 
-      <div className="mt-6 space-y-3">
+      <LegalCardGrid>
         {HELP_TOPICS.map(function (topic) {
           return (
-            <div key={topic.title} className="border border-border rounded-xl p-4 hover:bg-hover transition-colors cursor-pointer">
-              <h2 className="text-[14px] font-semibold text-fg">{topic.title}</h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{topic.description}</p>
-            </div>
+            <LegalCard key={topic.title} interactive className="cursor-pointer">
+              <LegalHeading as="h3" className="text-[15px]">
+                {topic.title}
+              </LegalHeading>
+              <p className="mt-1.5 text-[14px] leading-[1.55] text-fg-muted">{topic.description}</p>
+            </LegalCard>
           );
         })}
-      </div>
+      </LegalCardGrid>
 
-      <div className="mt-8 border border-border rounded-xl p-5 text-center">
-        <p className="text-[14px] font-semibold text-fg">Still need help?</p>
-        <p className="mt-1 text-[13px] text-fg-muted">
+      <LegalCard className="mt-10 text-center">
+        <p className="text-[15px] font-semibold text-fg">Still need help?</p>
+        <p className="mt-2 text-[14px] leading-[1.55] text-fg-muted">
           Reach our support team at{" "}
-          <a href="mailto:support@35mm.in" className="text-accent hover:underline">support@35mm.in</a>
+          <LegalLink href="mailto:support@35mm.in">support@35mm.in</LegalLink>
         </p>
-        <p className="mt-3 text-[12px] text-fg-muted">
-          Or check our{" "}
-          <Link href="/privacy" className="text-accent hover:underline">Privacy Policy</Link>
+        <p className="mt-4 text-[13px] text-fg-faint">
+          Or review our{" "}
+          <LegalInlineLink href="/privacy">Privacy Policy</LegalInlineLink>
           {" and "}
-          <Link href="/terms" className="text-accent hover:underline">Terms of Service</Link>.
+          <LegalInlineLink href="/terms">Terms of Service</LegalInlineLink>.
         </p>
-      </div>
-    </div>
+      </LegalCard>
+    </LegalPage>
   );
 }

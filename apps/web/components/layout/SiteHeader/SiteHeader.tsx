@@ -45,6 +45,7 @@ export function SiteHeader() {
     unreadBadgeCount,
     markAllMutation,
     markOneMutation,
+    markUnreadMutation,
     notifListRef,
     trapNotifPanelWheel,
   } = useSiteHeaderNotifications();
@@ -97,6 +98,7 @@ export function SiteHeader() {
               unreadBadgeCount={unreadBadgeCount}
               markAllMutation={markAllMutation}
               markOneMutation={markOneMutation}
+              markUnreadMutation={markUnreadMutation}
               onTrapWheel={trapNotifPanelWheel}
             />
             <NewPostButton />

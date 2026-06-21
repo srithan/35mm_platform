@@ -17,14 +17,14 @@ const FOOTER_LINKS_ROW_ONE: { label: string; href: string }[] = [
   { label: "About", href: "/about" },
   { label: "Help", href: "/help" },
   { label: "Press", href: "/about" },
-  { label: "API", href: ROUTES.DISCOVER },
-  { label: "Jobs", href: ROUTES.DISCOVER },
+  { label: "API", href: "/api" },
+  { label: "Jobs", href: ROUTES.CAREERS },
 ];
 
 const FOOTER_LINKS_ROW_TWO: { label: string; href: string }[] = [
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
-  { label: "Locations", href: ROUTES.DISCOVER },
+  { label: "Locations", href: "/locations" },
   { label: "Language", href: ROUTES.SETTINGS },
 ];
 
@@ -334,7 +334,12 @@ function SuggestionRow(props: {
         type="button"
         disabled={props.isSubmitting}
         onClick={props.onFollow}
-        className="shrink-0 text-[12px] font-bold text-fg hover:opacity-80 px-0 py-0.5 mt-1 bg-transparent border-none cursor-pointer disabled:opacity-60"
+        className={cn(
+          "shrink-0 mt-1 cursor-pointer border-none bg-transparent px-0 py-0.5 text-[12px] font-bold transition-colors disabled:opacity-60",
+          props.isFollowing
+            ? "text-fg-muted hover:opacity-80"
+            : "text-social-accent hover:text-social-accent-hover"
+        )}
       >
         {followLabel}
       </button>

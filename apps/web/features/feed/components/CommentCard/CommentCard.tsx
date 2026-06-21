@@ -78,6 +78,9 @@ export function CommentCard({
   const handleReplySubmit = async () => {
     const body = replyText;
     if (!hasVisibleRichText(body) || !onReplySubmit) return;
+
+    setRepliesExpanded(true);
+
     try {
       await onReplySubmit({ parentId: comment.id, body });
       setReplyText("");
@@ -161,16 +164,24 @@ export function CommentCard({
             liked={comment.liked}
             depth={depth}
             onCommentClick={() => setRepliesExpanded((value) => !value)}
-            onReplyClick={() => setReplyBoxOpen((value) => !value)}
+            onReplyClick={() => {
+              setRepliesExpanded(true);
+              setReplyBoxOpen((value) => !value);
+            }}
           />
 
           <CommentCardReplyComposer
             open={replyBoxOpen}
             depth={depth}
             username={comment.username}
+            displayName={comment.displayName}
             replyText={replyText}
             onReplyTextChange={setReplyText}
             onSubmit={handleReplySubmit}
+            onCancel={function () {
+              setReplyBoxOpen(false);
+              setReplyText("");
+            }}
           />
 
           {hasReplies ? (

@@ -71,3 +71,39 @@ export function UserRoleHeadline(props: {
     </div>
   );
 }
+
+/** Accent pill — profile page + hover card; visually distinct from bio body text. */
+export function ProfileRoleHeadlinePill(props: {
+  role: string;
+  roleContext?: string | null;
+  filmsLoggedCount?: number | null;
+  className?: string;
+}) {
+  const label = props.role.trim();
+  if (!label) return null;
+
+  const dotColor = getRoleDotColor(label);
+  const context = formatRoleContextSegment(label, {
+    roleContext: props.roleContext,
+    filmsLoggedCount: props.filmsLoggedCount,
+  });
+
+  return (
+    <div
+      className={cn(
+        "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-[#fbf7f6] px-3 py-1",
+        props.className
+      )}
+    >
+      <span
+        className="h-[6px] w-[6px] shrink-0 rounded-full"
+        style={{ backgroundColor: dotColor }}
+        aria-hidden
+      />
+      <span className="min-w-0 text-[12px] font-semibold leading-none text-accent">
+        {label}
+        {context ? <span className="font-semibold"> · {context}</span> : null}
+      </span>
+    </div>
+  );
+}

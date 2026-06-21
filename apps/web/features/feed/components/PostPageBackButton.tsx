@@ -24,7 +24,7 @@ export function PostPageBackButton() {
     <button
       type="button"
       onClick={handleBack}
-      className="flex items-center gap-2 text-[13px] text-fg-muted hover:text-fg hover:bg-hover active:bg-active border border-border rounded-md px-3 py-2 font-medium transition-colors mt-2 mb-2 w-fit"
+      className="flex items-center gap-2 text-[13px] text-fg-muted hover:text-fg hover:bg-hover active:bg-active border border-border rounded-full px-3 py-2 font-medium transition-colors mt-2 mb-2 w-fit"
       aria-label="Back to feed"
     >
       <svg

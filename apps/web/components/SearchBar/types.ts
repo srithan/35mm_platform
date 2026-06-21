@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 /** A single result item rendered in the search dropdown. */
 export interface SearchResult {
@@ -6,9 +6,27 @@ export interface SearchResult {
   label: string;
   sublabel?: string;
   icon?: ReactNode;
-  type?: "film" | "user" | "community" | "festival";
+  type?: "film" | "user" | "community" | "festival" | "hashtag" | "post";
   imageUrl?: string | null;
   initial?: string;
+  /** Optional navigation target when the item is selected. */
+  href?: string;
+}
+
+/** Trending pill shown in the empty search dropdown. */
+export interface SearchTrendingPill {
+  id: string;
+  label: string;
+  query: string;
+}
+
+/** Quick-link row shown in the empty search dropdown. */
+export interface SearchQuickLink {
+  id: string;
+  label: string;
+  sublabel?: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
 }
 
 /** Props accepted by the SearchBar component. */
@@ -26,6 +44,11 @@ export interface SearchBarProps {
    * Called when a result or recent-search item is selected.
    */
   onSelect?: (result: SearchResult) => void;
+
+  /**
+   * Called when a result or quick link should navigate (e.g. `router.push`).
+   */
+  onNavigate?: (href: string) => void;
 
   /**
    * Called when the input is cleared via the clear button.
@@ -73,4 +96,10 @@ export interface SearchBarProps {
    * Defaults to `true`. Set to `false` for a pure input mode.
    */
   showDropdown?: boolean;
+
+  /**
+   * When true, focus opens an empty-state panel with trending pills and
+   * suggestions (used in the site header). Defaults to `false`.
+   */
+  showEmptySuggestions?: boolean;
 }

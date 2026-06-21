@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { Search } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
+import { BrandLogo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -92,15 +93,12 @@ export function MobileHeader({
             {title}
           </h1>
         ) : (
-          <Link
+          <BrandLogo
             href={ROUTES.HOME}
-            className="px-3 py-1 flex flex-col items-center justify-center no-underline shrink-0"
-            aria-label="35mm.in Home"
+            className="px-3 py-1 shrink-0 text-[20.5px] font-semibold tracking-wide text-fg"
           >
-            <div className="text-[20.5px] font-semibold tracking-wide text-fg">
-              35<span className="text-accent">mm</span>
-            </div>
-          </Link>
+            35<span className="text-accent">mm</span>
+          </BrandLogo>
         )}
       </div>
 
