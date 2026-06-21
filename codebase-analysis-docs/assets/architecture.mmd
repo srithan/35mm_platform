@@ -1,0 +1,25 @@
+flowchart LR
+  Browser["Browser / Next.js app"]
+  NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
+  Hono["Hono API\napps/api"]
+  Clerk["Clerk auth"]
+  Neon["Neon Postgres\nDrizzle schema"]
+  Redis["Upstash Redis\ncache + BullMQ broker"]
+  Worker["BullMQ worker\napps/worker"]
+  R2["Cloudflare R2\nmedia originals + variants"]
+  Ably["Ably\nnotifications channel"]
+  TMDB["TMDB\ncold-start search/fallback"]
+
+  Browser -->|React Query + fetch| Hono
+  Browser -->|server route proxy| NextApi
+  NextApi --> TMDB
+  Hono --> Clerk
+  Hono --> Neon
+  Hono --> Redis
+  Hono -->|presigned PUT metadata| R2
+  Hono -->|enqueue jobs| Redis
+  Worker -->|consume jobs| Redis
+  Worker --> Neon
+  Worker --> R2
+  Worker --> Ably
+  Browser -->|optional realtime subscribe| Ably

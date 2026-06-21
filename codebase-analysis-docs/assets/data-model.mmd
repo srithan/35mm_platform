@@ -1,0 +1,27 @@
+erDiagram
+  users ||--|| profiles : owns
+  users ||--|| user_settings : configures
+  users ||--o{ posts : authors
+  films ||--o{ posts : referenced_by
+  posts ||--o{ post_likes : receives
+  posts ||--o{ post_reposts : receives
+  posts ||--o{ post_bookmarks : receives
+  posts ||--o{ post_polls : has
+  post_polls ||--o{ poll_options : has
+  post_polls ||--o{ poll_votes : receives
+  posts ||--o{ comments : has
+  comments ||--o{ comments : replies
+  comments ||--o{ comment_likes : receives
+  users ||--o{ follows : follower
+  users ||--o{ follows : following
+  users ||--o{ notifications : recipient
+  users ||--o{ notifications : actor
+  users ||--o{ feed_items : owns
+  posts ||--o{ feed_items : materialized_into
+  posts ||--o{ post_edits : history
+  users ||--o{ film_lists : owns
+  film_lists ||--o{ film_list_entries : contains
+  films ||--o{ film_list_entries : listed
+  film_lists ||--o{ film_list_likes : receives
+  users ||--o{ user_blocks : blocker
+  users ||--o{ user_mutes : muter

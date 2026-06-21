@@ -1,660 +1,766 @@
-# 35mm Platform — Architecture & System Design
-> Master reference document. Use to onboard any AI session, IDE agent, or new engineer.
-> Last updated: 2026-05-24
+# 35mm Platform - Architecture and System Design
 
----
+> Master reference document for engineers, AI agents, and product architecture work.
+> Last updated: 2026-06-21
 
-## 0. What This Is
+35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
 
-35mm is a social film platform — think Letterboxd × Twitter for cinema. Target scale: **35M+ users**. Every architecture decision must hold at that load. This document is the single source of truth for product scope, system design, tech stack, DB schema, API contracts, state management strategy, scalability patterns, and performance guidelines.
+Target scale: 35M+ users. Architecture decisions should preserve cursor pagination, denormalized read counters, async side effects, cacheable media reads, and native-client-friendly REST contracts.
 
 ---
 
 ## 1. Monorepo Structure
 
-```
-35mm_platform/                   ← Turborepo + pnpm workspaces
+```txt
+35mm_platform/
 ├── apps/
-│   ├── web/                     ← Next.js 15 App Router (user-facing web)
-│   ├── api/                     ← Hono REST API (product data + mutations)
-│   └── worker/                  ← BullMQ background jobs (fanout, notifications, digests)
+│   ├── web/       Next.js 15 App Router web app
+│   ├── api/       Hono REST API
+│   └── worker/    BullMQ background worker
 ├── packages/
-│   ├── db/                      ← Drizzle schema + Neon client (source of truth for schema)
-│   ├── types/                   ← Shared TypeScript domain contracts
-│   ├── validators/              ← Shared Zod validation schemas
-│   ├── ui/                      ← Shared React UI primitives
-│   └── config/                  ← Shared TypeScript config
+│   ├── db/          Drizzle schema and Neon client
+│   ├── types/       Shared TypeScript contracts
+│   ├── validators/  Shared Zod schemas and parsing helpers
+│   ├── ui/          Shared React primitives
+│   └── config/      Shared TS config
+├── docs/
+└── codebase-analysis-docs/
 ```
 
-**Deploy targets:**
-- `apps/web` → Vercel
-- `apps/api` → Vercel (serverless) or dedicated Node (scale choice)
-- `apps/worker` → Long-running Node process (Railway / Fly.io)
-- `packages/db` → Not deployed; consumed by api + worker
+Deploy targets:
+
+- `apps/web`: Vercel.
+- `apps/api`: Vercel or dedicated Node host.
+- `apps/worker`: long-running Node process.
+- `packages/db`: not deployed directly; consumed by API and worker.
+
+Root commands:
+
+```bash
+pnpm dev
+pnpm dev:web
+pnpm dev:api
+pnpm dev:worker
+pnpm build
+pnpm typecheck
+pnpm lint
+```
+
+Node engine: `>=22.0.0`.
 
 ---
 
 ## 2. Tech Stack
 
-### 2.1 Frontend (`apps/web`)
+### Frontend: `apps/web`
 
 | Concern | Choice |
 |---|---|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 15 App Router |
 | React | React 18 |
-| Styling | Tailwind CSS v3 |
+| Styling | Tailwind CSS v3 with CSS variable tokens |
 | Server state | TanStack React Query v5 |
-| Client state | Zustand v5 |
-| Forms | React Hook Form + Zod (via `@hookform/resolvers`) |
-| Auth | Clerk (`@clerk/nextjs`) |
-| Animation | Framer Motion v11 |
-| URL state | nuqs v2 |
+| Client/UI state | Zustand v5 and local component state |
+| Auth | Clerk |
+| Forms | React Hook Form + Zod |
+| Rich text | TipTap |
+| Animation | Framer Motion |
+| URL state | nuqs |
 | Analytics | Vercel Analytics + Speed Insights |
-| Testing | Vitest + Testing Library + Happy DOM |
+| Tests | Vitest + Testing Library + Happy DOM |
 
-**Design system:**
-- Fonts: DM Serif Display (headings), DM Sans (body), DM Mono (code/counters)
-- Accent: `#c2473a` (warm red)
-- Always light mode (dark mode is user-configurable via `theme` setting, but default is light)
-- Feed max-width: 640px centered
-- Shell: 3-column layout (left nav, center feed, right panel)
+Design conventions:
 
-### 2.2 Backend (`apps/api`)
+- Default experience is light mode. Additional themes exist through `data-theme`.
+- Main feed column max width is 640px.
+- Shell layout is a left nav, center content, and right rail.
+- Server state belongs in React Query. Do not mirror DB-backed state in Zustand.
+- Query key factories live in feature folders. Do not use ad hoc query strings.
+
+### API: `apps/api`
 
 | Concern | Choice |
 |---|---|
-| API framework | Hono v4 (Node — chosen over tRPC for native Swift/Kotlin support) |
+| Framework | Hono v4 |
+| Contract style | REST, chosen over tRPC for Swift/Kotlin/native compatibility |
 | ORM | Drizzle ORM |
-| Database | Neon (serverless Postgres) |
-| Auth | Clerk backend (`verifyToken`) |
-| Webhook verification | Svix |
-| File storage | Cloudflare R2 (presigned uploads) |
-| Validation | Zod |
+| Database | Neon Postgres through `@neondatabase/serverless` |
+| Auth | Clerk backend token verification |
+| Webhooks | Svix for Clerk webhooks |
+| Validation | Zod from `packages/validators` |
+| Queues | BullMQ producer |
+| Cache/rate limits | Upstash Redis REST |
+| Media upload | Cloudflare R2 presigned PUT |
 
-### 2.3 Infrastructure & Services
+### Worker: `apps/worker`
 
-| Concern | Choice | Status |
-|---|---|---|
-| Database | Neon (Postgres) | ✅ Wired |
-| File storage | Cloudflare R2 | ✅ Wired |
-| Video streaming | Cloudflare Stream | ⬜ Not yet wired |
-| Image optimization | Cloudflare Images | ⬜ Not yet wired |
-| Background jobs | BullMQ | ⚠️ `media.process` live; fanout/counter/search jobs pending |
-| Job queue broker | Upstash Redis | ✅ Wired (`UPSTASH_REDIS_URL`) |
-| Cache | Upstash Redis | ✅ Wired for feed cache |
-| Realtime | Ably | ⬜ Not yet wired (noop transport) |
-| Search | Meilisearch | ⬜ Not yet wired |
-| Email | Resend | ⬜ Not yet wired |
-| Auth | Clerk | ✅ Wired |
-| Deploy (web) | Vercel | ✅ |
+| Concern | Choice |
+|---|---|
+| Runtime | Long-running Node process |
+| Queue | BullMQ |
+| Broker | Upstash Redis protocol URL |
+| Image processing | Sharp |
+| Blurhash | `blurhash` |
+| Storage | Cloudflare R2 |
+| Realtime publish | Ably REST for notifications |
 
----
+### External Services
 
-## 3. Film Database Strategy (Critical — Never Violate)
-
-- **35mm DB is always primary.** TMDB is a cold-start fallback only.
-- Films have their own `films` table. Film data is never stored as inline JSONB.
-- **Film PKs = ULIDs.** `imdb_id` and `tmdb_id` are unique indexes, never PKs.
-- **Film URLs use the 35mm ULID, never TMDB ID.** e.g. `/title/film/01HQ2...` not `/title/film/27205`
-- All films in a single `films` table with `source` enum: `35mm | tmdb_import | user_contributed`
-- `FilmRef.id` in all types/API contracts must always be the 35mm ULID — **never `tmdbId`**
-- TMDB proxy (`/api/tmdb/[...path]`) is for search autocomplete only, not for film identity
-
-**Pre-launch data strategy:**
-- Target: 30K–40K+ Indian regional cinema films (Kannada, Tamil, Telugu, Malayalam, Marathi, Bengali, Punjabi) seeded by beta contributors
-- Selective TMDB bulk import for Indian-language films before beta open
-- Full TMDB catalog import post-launch via daily delta sync (change list endpoint)
-
-**⚠️ Current gap:** `posts.film` is still a JSONB column using `tmdbId`. This must be migrated to a proper `films` table with ULID PKs and a `post_films` join or `film_id` FK on posts before the API contract is finalized.
+| Service | Status | Usage |
+|---|---:|---|
+| Clerk | Wired | Web auth, API bearer verification, webhooks |
+| Neon Postgres | Wired | Source-of-truth relational data |
+| Cloudflare R2 | Wired | Originals and processed media variants |
+| Upstash Redis | Wired | Feed cache, rate limits, BullMQ broker, suggestions cache |
+| BullMQ | Partially wired | Media processing, notifications, suggestions implemented; fanout/counters partial |
+| Ably | Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions |
+| TMDB | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports |
+| Cloudflare Images | Optional | Delivery layer for processed images |
+| Cloudflare Stream | Not wired | Future video streaming |
+| Meilisearch | Not wired | Future search |
+| Resend | Not wired | Future email digest |
 
 ---
 
-## 4. Database Schema
+## 3. Critical Film Identity Rules
 
-### 4.1 Current State (what exists in migrations)
+These rules are non-negotiable:
 
-**Enums:** `account_status` (`active | deactivated | suspended`), `post_type` (`text | discussion | log | review | image`)
+- The 35mm database is primary.
+- TMDB is a cold-start metadata source and autocomplete fallback only.
+- `films.id` is the canonical film ID and must be a 35mm ULID-shaped string.
+- `tmdb_id` and `imdb_id` are unique indexes, never primary keys.
+- App URLs and API contracts must use the 35mm film ID, not TMDB IDs.
+- `FilmRef.id` in frontend/API types is the 35mm ULID.
+- `tmdbId` may exist only as optional metadata.
+- Do not reintroduce inline film JSON as post identity.
 
-**Tables:** `users`, `profiles`, `user_settings`, `posts`, `post_likes`, `post_reposts`, `post_saves`
+Current implementation:
 
-**User PK:** currently `uuid` (gen_random_uuid). Needs decision: migrate to ULID for time-ordering benefits, or keep UUID and use ULID only for films.
-
-### 4.2 Pending Renames (do before writing API contract)
-
-- `post_saves` → `post_bookmarks`
-- `FeedPost.saveCount` → `FeedPost.bookmarkCount`
-- `FeedPost.isSaved` → `FeedPost.isBookmarked`
-
-### 4.3 Full Target Schema (what needs to be built in `packages/db`)
-
-#### Enums to add:
-```
-post_visibility:    public | followers_only | private
-follow_status:      pending | accepted
-notification_type:  like | comment | reply | follow | follow_request | mention | repost
-film_source:        35mm | tmdb_import | user_contributed
-rating_value:       1..10 (int, half-star = 0.5 in UI)
-```
-
-#### Tables to add:
-
-**`films`**
-- `id`: ULID (text), PK
-- `tmdb_id`: int, unique index, nullable
-- `imdb_id`: text, unique index, nullable
-- `title`: text, not null
-- `original_title`: text
-- `year`: int
-- `runtime`: int (minutes)
-- `overview`: text
-- `poster_url`: text
-- `backdrop_url`: text
-- `genres`: text[] (Postgres array)
-- `director`: text
-- `language`: text
-- `country`: text
-- `source`: `film_source`, not null
-- `contributed_by_user_id`: uuid, FK → users.id, nullable
-- `is_verified`: boolean, default false
-- `created_at`, `updated_at`: timestamptz
-
-Indexes: `films_tmdb_id_idx`, `films_imdb_id_idx`, `films_title_year_idx`
-
-**`follows`**
-- `follower_id`: uuid, FK → users.id
-- `following_id`: uuid, FK → users.id
-- `status`: `follow_status`, default `accepted`
-- `created_at`: timestamptz
-- PK: (`follower_id`, `following_id`)
-
-**`post_bookmarks`** (renamed from `post_saves`)
-- `post_id`: uuid, FK → posts.id
-- `user_id`: uuid, FK → users.id
-- `created_at`: timestamptz
-- Unique index: (`post_id`, `user_id`)
-
-**`comments`**
-- `id`: uuid, PK
-- `post_id`: uuid, FK → posts.id
-- `user_id`: uuid, FK → users.id
-- `parent_id`: uuid, FK → comments.id, nullable (max 3 levels, enforced in app layer)
-- `body`: text (max 1000)
-- `like_count`: int, default 0 (denormalized)
-- `is_deleted`: boolean, default false (soft delete)
-- `edited_at`: timestamptz, nullable
-- `created_at`, `updated_at`: timestamptz
-
-Indexes: `comments_post_id_created_at_idx`, `comments_parent_id_idx`
-
-**`comment_likes`**
-- `comment_id`: uuid, FK → comments.id
-- `user_id`: uuid, FK → users.id
-- `created_at`: timestamptz
-- Unique index: (`comment_id`, `user_id`)
-
-**`film_logs`** (for diary/reviews)
-- `id`: uuid, PK
-- `user_id`: uuid, FK → users.id
-- `film_id`: text (ULID), FK → films.id
-- `rating`: smallint (1–10), nullable
-- `review`: text, nullable
-- `watched_on`: date, nullable
-- `is_rewatch`: boolean, default false
-- `contains_spoilers`: boolean, default false
-- `post_id`: uuid, FK → posts.id, nullable (linked log post)
-- `created_at`, `updated_at`: timestamptz
-
-Indexes: `film_logs_user_id_film_id_idx`, `film_logs_user_id_watched_on_idx`
-
-**`watchlist`**
-- `user_id`: uuid, FK → users.id
-- `film_id`: text (ULID), FK → films.id
-- `created_at`: timestamptz
-- PK: (`user_id`, `film_id`)
-
-**`film_lists`**
-- `id`: uuid, PK
-- `user_id`: uuid, FK → users.id
-- `title`: text
-- `description`: text, nullable
-- `is_public`: boolean, default true
-- `film_count`: int, default 0 (denormalized)
-- `created_at`, `updated_at`: timestamptz
-
-**`film_list_items`**
-- `list_id`: uuid, FK → film_lists.id
-- `film_id`: text (ULID), FK → films.id
-- `position`: int
-- `note`: text, nullable
-- `created_at`: timestamptz
-- PK: (`list_id`, `film_id`)
-
-**`notifications`**
-- `id`: uuid, PK
-- `recipient_id`: uuid, FK → users.id
-- `actor_id`: uuid, FK → users.id, nullable
-- `type`: `notification_type`
-- `entity_id`: text, nullable (post id, comment id, etc.)
-- `entity_type`: text, nullable
-- `is_read`: boolean, default false
-- `bundle_count`: int, default 1 (for grouped notifs)
-- `created_at`: timestamptz
-
-Indexes: `notifications_recipient_id_created_at_idx`, `notifications_recipient_id_is_read_idx`
-
-**`feed_items`** (fanout table for hybrid feed)
-- `id`: uuid, PK
-- `user_id`: uuid (feed owner), FK → users.id
-- `post_id`: uuid, FK → posts.id
-- `score`: float8 (for ranking)
-- `created_at`: timestamptz
-
-Indexes: `feed_items_user_id_created_at_idx` (primary query path)
-
-**`post_edits`** (edit history)
-- `id`: uuid, PK
-- `post_id`: uuid, FK → posts.id
-- `body`: text
-- `headline`: text, nullable
-- `edited_at`: timestamptz
-
-**`communities`**
-- `id`: uuid, PK
-- `slug`: text, unique
-- `name`: text
-- `description`: text, nullable
-- `avatar_url`: text, nullable
-- `cover_url`: text, nullable
-- `member_count`: int, default 0 (denormalized)
-- `is_private`: boolean, default false
-- `created_by`: uuid, FK → users.id
-- `created_at`, `updated_at`: timestamptz
-
-**`community_members`**
-- `community_id`: uuid, FK → communities.id
-- `user_id`: uuid, FK → users.id
-- `role`: text, default `'member'`
-- `joined_at`: timestamptz
-- PK: (`community_id`, `user_id`)
-
-### 4.4 Posts table: changes needed
-
-Add to `posts`:
-- `visibility`: `post_visibility`, default `public`
-- `film_id`: text (ULID), FK → films.id, nullable (replaces JSONB `film` column)
-- `reply_to_id`: uuid, FK → posts.id, nullable (for quote posts)
-- `is_repost`: boolean, default false
-- `like_count`: int, default 0 (denormalized counter)
-- `comment_count`: int, default 0 (denormalized counter)
-- `repost_count`: int, default 0 (denormalized counter)
-- `bookmark_count`: int, default 0 (denormalized counter)
-- `is_deleted`: boolean, default false (soft delete)
-- `edited_at`: timestamptz, nullable
-- `community_id`: uuid, FK → communities.id, nullable
-
-Remove from `posts`:
-- `film` JSONB column (migrate to `film_id` FK after films table is populated)
+- `packages/db/src/schema/films.ts` defines the canonical `films` table.
+- `posts.film_id` references `films.id`.
+- Onboarding and list APIs can resolve TMDB/catalog metadata into canonical `films` rows.
+- Validators enforce ULID shape on many film write paths.
+- The DB column is `text`, so the ULID guarantee is currently app-layer validation, not a DB check constraint.
 
 ---
 
-## 5. API Architecture
+## 4. Runtime Architecture
 
-### 5.1 Structure
+```mermaid
+flowchart LR
+  Browser["Browser / Next.js app"]
+  NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
+  Hono["Hono API\napps/api"]
+  Clerk["Clerk auth"]
+  Neon["Neon Postgres\nDrizzle schema"]
+  Redis["Upstash Redis\ncache + BullMQ"]
+  Worker["BullMQ worker\napps/worker"]
+  R2["Cloudflare R2\noriginals + variants"]
+  Ably["Ably\nnotifications"]
+  TMDB["TMDB\nfallback metadata"]
 
+  Browser -->|React Query fetch| Hono
+  Browser -->|server route proxy| NextApi
+  NextApi --> TMDB
+  Hono --> Clerk
+  Hono --> Neon
+  Hono --> Redis
+  Hono --> R2
+  Hono -->|enqueue jobs| Redis
+  Worker -->|consume jobs| Redis
+  Worker --> Neon
+  Worker --> R2
+  Worker --> Ably
+  Browser -->|optional subscribe| Ably
 ```
-apps/api/src/
-├── index.ts              ← Hono app, CORS, middleware mount
-├── lib/
-│   ├── db.ts             ← Neon + Drizzle client
-│   ├── env.ts            ← Zod-validated env
-│   ├── errors.ts         ← ApiError class + error codes
-│   ├── middleware.ts      ← requireAuth, rateLimiter
-│   └── redis.ts          ← Upstash Redis client (to add)
-└── modules/
-    ├── auth/             ← /v1/me, /v1/usernames/:username/available
-    ├── profiles/         ← /v1/profiles/:username, PATCH /v1/profiles/me
-    ├── feed/             ← /v1/feed (home + profile feeds, post CRUD, likes, reposts)
-    ├── films/            ← /v1/films/:id, /v1/films/search (to add)
-    ├── logs/             ← /v1/logs (film diary, reviews) (to add)
-    ├── lists/            ← /v1/lists (to add)
-    ├── comments/         ← /v1/feed/posts/:id/comments (to add)
-    ├── notifications/    ← /v1/notifications (to add)
-    ├── follows/          ← /v1/follows (to add)
-    ├── search/           ← /v1/search (Meilisearch proxy) (to add)
-    ├── media/            ← /v1/media/presign, /v1/media/resolve-url
-    ├── settings/         ← /v1/me/settings/*
-    ├── chat/             ← /v1/chat/* (partially implemented)
-    └── webhooks/         ← /v1/webhooks/clerk
-```
 
-### 5.2 Auth Pattern
+Request path:
 
-Every protected route uses `requireAuth` middleware:
-1. Extract `Authorization: Bearer <token>`
-2. Verify via Clerk `verifyToken`
-3. `ensureLocalUser` — creates user/profile/user_settings on first call
-4. Attach `ctx.var.userId` to Hono context
-5. Block `deactivated` / `suspended` accounts with 403
+1. Web client gets Clerk session/token.
+2. Feature API clients call `NEXT_PUBLIC_API_URL`.
+3. API protected routes use `requireAuth`.
+4. API verifies Clerk token, bootstraps missing local `users`, `profiles`, `user_settings`, and a private watchlist.
+5. API reads/writes Neon through Drizzle.
+6. API invalidates Redis caches and enqueues async jobs where needed.
+7. Worker consumes BullMQ jobs for media processing, notification publish, and suggestions.
 
-### 5.3 Error Contract
+---
+
+## 5. Current Database Schema
+
+Source of truth: `packages/db/src/schema/*`.
+
+### Core Identity
+
+`users`
+
+- UUID primary key.
+- Clerk user ID, email, age verification timestamp, account status.
+- Status enum: `active | deactivated | suspended`.
+
+`profiles`
+
+- One-to-one with `users`.
+- Username, display name, bio, avatar, cover, location, website, DOB.
+- Role/headline fields and onboarding completion state.
+- Favorite film IDs and genre IDs arrays.
+- Private account flag.
+- Denormalized `films_logged_count`.
+
+`user_settings`
+
+- Privacy preferences.
+- Notification preferences.
+- Theme, accent color, video autoplay.
+
+### Film Catalog
+
+`films`
+
+- `id`: text primary key, intended to be ULID.
+- Optional unique `tmdb_id`, optional unique `imdb_id`.
+- Title/original title/year/runtime/overview/poster/backdrop/genres/director/language/country.
+- Source enum: `35mm | tmdb_import | user_contributed`.
+- Optional contributor user ID.
+- Verification flag and timestamps.
+
+### Posts and Interactions
+
+`posts`
+
+- UUID primary key.
+- Author FK.
+- Type enum: `text | discussion | log | review | image`.
+- `headline`, `body`.
+- `film_id` FK to `films`, nullable.
+- `film_rating` smallint, nullable.
+- Visibility enum: `public | followers_only | private`.
+- `reply_to_id`, `is_repost`.
+- Denormalized `like_count`, `comment_count`, `repost_count`, `bookmark_count`.
+- `is_deleted`, `edited_at`.
+- JSONB `media`, text array `media_urls`, JSONB `link_preview`.
+- Timestamps.
+
+`post_likes`, `post_reposts`, `post_bookmarks`
+
+- Join tables with unique `(post_id, user_id)` indexes.
+- `post_bookmarks` is the current table name. Do not use `post_saves`.
+
+`post_polls`, `poll_options`, `poll_votes`
+
+- Ranking/image polls.
+- Results visibility: `after_vote | after_end`.
+- Vote totals and option vote counts are denormalized.
+
+### Social Graph and Moderation
+
+`follows`
+
+- Composite PK `(follower_id, following_id)`.
+- Status enum: `pending | accepted`.
+
+`user_blocks`, `user_mutes`
+
+- Composite primary keys.
+- Blocking removes follow relationships, inserts mute, and purges feed rows between users.
+
+### Comments
+
+`comments`
+
+- UUID primary key.
+- `post_id`, `user_id`, optional `parent_id`.
+- Body, denormalized `like_count`, soft delete, edit timestamp.
+- App layer enforces max nesting depth.
+
+`comment_likes`
+
+- Unique `(comment_id, user_id)`.
+
+### Notifications
+
+`notifications`
+
+- Recipient, optional actor, `actor_ids` bundle array.
+- Type enum: `like | comment | reply | follow | follow_request | mention | repost`.
+- Entity ID/type, read state, bundle count, created timestamp.
+
+### Feed Materialization
+
+`feed_items`
+
+- Feed owner user ID, post ID, optional score, created timestamp.
+- Used for follow backfill and target hybrid fanout architecture.
+
+`post_edits`
+
+- Historical post body/headline edits.
+
+### Lists and Watchlists
+
+`film_lists`
+
+- Text primary key, intended to be ULID.
+- Owner, type enum `custom | watchlist`.
+- Title, description, visibility, ranked flag, tags, share slug.
+- Denormalized like/comment/entry counts.
+- Soft delete and cloned-from reference.
+- Partial unique index enforces one active watchlist per user.
+
+`film_list_entries`
+
+- Text primary key, intended to be ULID.
+- List, film, position, note, added timestamp.
+- Unique `(list_id, film_id)`.
+
+`film_list_likes`
+
+- Unique `(list_id, user_id)`.
+
+### Suggestions
+
+`follow_suggestions`
+
+- Stores computed follow suggestions, currently friend-of-friend oriented.
+
+---
+
+## 6. API Architecture
+
+Entry point: `apps/api/src/index.ts`.
+
+Global behavior:
+
+- Loads env with `loadEnv`.
+- Initializes Drizzle with `initDb`.
+- Logs feed cache and queue availability.
+- Installs CORS, error handling, and route modules.
+- Error contract:
 
 ```json
-{ "code": "SNAKE_CASE_ERROR_CODE", "message": "Human-readable message" }
+{ "code": "ERROR_CODE", "message": "Human readable message" }
 ```
 
-### 5.4 Response Envelope (paginated)
+Paginated envelope:
 
 ```json
 {
   "items": [],
-  "nextCursor": "cursor_string_or_null",
+  "nextCursor": null,
   "hasMore": false
 }
 ```
 
-Cursor strategy: use ULID or `(created_at, id)` composite for stable ordering. **Never use OFFSET.**
+### Auth Pattern
+
+Protected routes use `requireAuth`:
+
+1. Read `Authorization: Bearer <token>`.
+2. Verify token with Clerk.
+3. Resolve or create local user/profile/settings.
+4. Ensure private watchlist exists when schema is available.
+5. Attach `c.var.user`.
+6. Reject suspended/deactivated users.
+
+Optional-auth routes call `getOptionalAuthUser`.
+
+### Mounted API Surfaces
+
+Health and utilities:
+
+- `GET /health`
+- `GET /poster-proxy`
+
+Auth and onboarding:
+
+- `GET /v1/usernames/:username/available`
+- `GET /v1/me`
+- `GET /v1/me/onboarding-status`
+- `POST /v1/onboarding/films/resolve`
+- `POST /v1/me/onboarding`
+- `GET /v1/onboarding/suggestions`
+- `POST /v1/webhooks/clerk`
+
+Profiles, follows, moderation:
+
+- `GET /v1/profiles/search`
+- `GET /v1/profiles/:username`
+- `PATCH /v1/profiles/me`
+- `GET /v1/profiles/:username/followers`
+- `GET /v1/profiles/:username/following`
+- `GET /v1/profiles/:username/follow-requests`
+- `POST /v1/follows/:userId`
+- `DELETE /v1/follows/:userId`
+- `POST /v1/follows/:userId/accept`
+- `DELETE /v1/follows/:userId/request`
+- `POST /v1/users/:userId/block`
+- `DELETE /v1/users/:userId/block`
+- `POST /v1/users/:userId/mute`
+- `DELETE /v1/users/:userId/mute`
+- `GET /v1/me/blocks`
+- `GET /v1/me/mutes`
+
+Feed, posts, comments, polls:
+
+- `GET /v1/feed`
+- `POST /v1/feed`
+- `GET /v1/feed/posts/:postId`
+- `GET /v1/feed/profiles/:username/posts`
+- `GET /v1/feed/bookmarks`
+- `PATCH /v1/feed/posts/:postId`
+- `DELETE /v1/feed/posts/:postId`
+- `POST /v1/feed/posts/:postId/likes`
+- `DELETE /v1/feed/posts/:postId/likes`
+- `POST /v1/feed/posts/:postId/reposts`
+- `DELETE /v1/feed/posts/:postId/reposts`
+- `POST /v1/feed/posts/:postId/bookmarks`
+- `DELETE /v1/feed/posts/:postId/bookmarks`
+- `POST /v1/feed/posts/:postId/poll/votes`
+- `GET /v1/feed/posts/:postId/comments`
+- `POST /v1/feed/posts/:postId/comments`
+- `PATCH /v1/feed/posts/:postId/comments/:commentId`
+- `DELETE /v1/feed/posts/:postId/comments/:commentId`
+- `POST /v1/feed/posts/:postId/comments/:commentId/likes`
+- `DELETE /v1/feed/posts/:postId/comments/:commentId/likes`
+
+Lists and watchlists:
+
+- `GET /v1/lists/profile/:username`
+- `GET /v1/lists/films/:filmId`
+- `GET /v1/lists/me/watchlist`
+- `POST /v1/lists/films/resolve`
+- `GET /v1/lists/:listId`
+- `POST /v1/lists`
+- `PATCH /v1/lists/:listId`
+- `DELETE /v1/lists/:listId`
+- `POST /v1/lists/:listId/entries`
+- `PATCH /v1/lists/:listId/entries/reorder`
+- `PATCH /v1/lists/:listId/entries/:entryId`
+- `DELETE /v1/lists/:listId/entries/:entryId`
+- `POST /v1/lists/:listId/like`
+- `DELETE /v1/lists/:listId/like`
+- `POST /v1/lists/:listId/clone`
+- `GET /v1/lists/watchlist/films/:filmId`
+- `POST /v1/lists/watchlist/films`
+- `DELETE /v1/lists/watchlist/films/:filmId`
+
+Notifications:
+
+- `GET /v1/me/notifications`
+- `PATCH /v1/me/notifications/:notificationId/read`
+- `PATCH /v1/me/notifications/:notificationId/unread`
+- `POST /v1/me/notifications/read-all`
+
+Settings:
+
+- `GET /v1/me/settings`
+- `PATCH /v1/me/settings/privacy`
+- `PATCH /v1/me/settings/notifications`
+- `PATCH /v1/me/settings/profile`
+- `PATCH /v1/me/settings/appearance`
+
+Media:
+
+- `POST /v1/media/presign`
+- `GET /v1/media/resolve-url`
+- `GET /v1/media/oembed`
+
+Suggestions:
+
+- `GET /v1/suggestions/users`
+
+Chat:
+
+- `GET /v1/chat/conversations`
+- `GET /v1/chat/conversations/:conversationId/messages`
+- `POST /v1/chat/conversations/:conversationId/messages`
+
+Chat routes are authenticated, but persistence is not wired. List/message reads return empty envelopes and send returns `501 NOT_IMPLEMENTED`.
 
 ---
 
-## 6. Feed Architecture (Scale-Critical)
+## 7. Frontend Architecture
 
-### 6.1 Hybrid Fan-out
+Root app:
 
-- **Write fan-out** (push model): for users with **< 10K followers**, push new posts into each follower's `feed_items` row via BullMQ job at post time. O(followers) writes.
-- **Read fan-out** (pull model): for users with **≥ 10K followers** (celebrities/verified accounts), skip push. At feed read time, merge their posts into the ranked feed via pull query.
-- Home feed query: `SELECT * FROM feed_items WHERE user_id = $1 ORDER BY created_at DESC` + merge pull results for followed celebrities.
+- `app/layout.tsx`: global metadata, Clerk provider, React Query providers, fonts, analytics, service worker, offline status.
+- `app/providers.tsx`: QueryClient, theme provider, accent color provider, notification realtime provider, title badge, sound player, toast host.
+- `middleware.ts`: public route definitions and Clerk protection.
+- `app/(shell)/layout.tsx`: authenticated shell, auth bootstrap, onboarding gate, scroll restoration, shared layout grid.
 
-### 6.2 Feed Read Path
+Route groups:
 
-```
-Request → Redis cache check (user feed, 60s TTL)
-        → Cache miss → Postgres feed_items query + celebrity pull merge
-        → Score/rank
-        → Cache write
-        → Return page
-```
+- `(auth)`: login, signup, forgot, reset, verify.
+- `(legal)`: about, privacy, terms, help, careers.
+- `(shell)`: authenticated product routes.
 
-### 6.3 Post Counter Denormalization
+Important app routes:
 
-All counters (`like_count`, `comment_count`, `repost_count`, `bookmark_count`) are denormalized columns on `posts`. They are updated asynchronously via BullMQ jobs — never via live COUNT() queries. This is critical at scale.
+- `/landing`: signed-out landing page.
+- `/`: authenticated home feed.
+- `/new`: post composer page.
+- `/:username`: profile.
+- `/:username/post/:postid`: post detail.
+- `/:username/diary`, `/:username/lists`, `/:username/stats`: profile tabs.
+- `/discover`: discovery.
+- `/notifications`: notifications.
+- `/bookmarks`: bookmarks.
+- `/settings`, `/settings/privacy`, `/settings/appearance`: settings.
+- `/list/:listId`: list detail.
+- `/suggestions/people`: follow suggestions.
+- `/title/:media/:id`: title detail.
+- `/short-films`, `/short-films/upload`, `/short-films/:id`: short film surfaces.
 
-Write path for a like:
-1. Insert into `post_likes`
-2. Return optimistic response immediately
-3. Enqueue `INCREMENT_POST_COUNTER` BullMQ job
-4. Worker increments `posts.like_count`
+Next app API routes:
 
----
+- `/api/tmdb/[...path]`: server-side TMDB proxy.
+- `/api/notifications`: legacy/mock notification data.
 
-## 7. Background Worker (`apps/worker`)
+Feature ownership:
 
-### 7.1 Job Types (BullMQ + Upstash Redis)
+- `features/feed`: composer, feed, post cards, comments, polls, mutations.
+- `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes.
+- `features/notifications`: notification list/dropdown, mark-read flows, realtime.
+- `features/lists`: film lists and watchlists.
+- `features/settings`: account, privacy, notifications, appearance.
+- `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
+- `features/discover`: TMDB-backed browsing and search.
+- `features/bookmarks`: bookmark page over feed bookmark API.
+- `features/chat`: rich frontend and mock/remote API abstraction; backend persistence incomplete.
+- `features/title`: title pages.
+- `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: future or mock-heavy product surfaces.
 
-| Job | Trigger | Action |
-|---|---|---|
-| `feed.fanout` | Post created | Push post to follower feed_items rows (< 10K followers) *(stub handler today)* |
-| `notification.dispatch` | Like, comment, follow, mention | Insert notification row, push Ably event |
-| `notification.digest` | Cron (daily) | Bundle unread notifications, send Resend email |
-| `counter.increment` | Like, repost, bookmark, comment | Increment denormalized counter on posts/comments *(stub handler today)* |
-| `counter.decrement` | Unlike, unrepost, unbookmark | Decrement counter |
-| `search.index` | Post/film/user created/updated | Index document in Meilisearch |
-| `media.process` | Upload complete | Generate R2 `thumb/feed/full` WebP variants + blurhash, update `posts.media` |
+State rules:
 
-### 7.2 Queue Config
-
-- Queue broker: Upstash Redis (`UPSTASH_REDIS_URL`, Redis protocol)
-- Processor: BullMQ workers in `apps/worker`
-- Retry: exponential backoff, max 3 attempts
-- Dead letter queue: for failed jobs after retries
-
----
-
-## 8. Realtime Architecture
-
-Ably is the realtime transport. Currently a noop stub — needs wiring.
-
-### 8.1 Channels
-
-| Channel | Events | Subscribers |
-|---|---|---|
-| `user:{userId}:notifications` | `notification.new` | User's browser/app |
-| `post:{postId}` | `like`, `comment`, `repost` | Anyone viewing the post |
-| `chat:{conversationId}` | `message.new`, `message.deleted`, `reaction` | Conversation participants |
-| `feed:{userId}` | `post.new` | User's feed (for "new posts" banner) |
-
-### 8.2 Integration Points
-
-- `ChatRealtimeProvider` → swap noop transport for Ably transport
-- Notification bell → subscribe to `user:{userId}:notifications`
-- Feed → subscribe to `feed:{userId}` for live "X new posts" indicator
+- React Query: all DB/server state.
+- Zustand: UI-only state, currently composer modal and mobile bottom chrome.
+- Local component state: dialogs, menus, active tabs, draft input, reply targets.
 
 ---
 
-## 9. State Management Strategy (Frontend)
+## 8. Feed and Post Architecture
 
-### 9.1 Principle: Server State vs Client State
+Business role: primary social timeline and post interaction surface.
 
-- **Server state** (remote data that lives in DB): managed entirely by **React Query**. This is the primary state layer. Never duplicate server state in Zustand.
-- **Client state** (local UI state with no server equivalent): managed by **Zustand**.
+Read path:
 
-### 9.2 React Query Conventions
+1. Web `useFeed` calls `/v1/feed` or `/v1/feed/profiles/:username/posts`.
+2. API applies optional auth, moderation filters, visibility rules, cursor filters, and cache lookup.
+3. API hydrates author, film, media variants, poll, viewer interaction flags, and counters.
+4. Response uses `{ items, nextCursor, hasMore }`.
+5. Web adapts payloads into feed component types.
 
-```ts
-// Query key factories — always use these, never ad-hoc strings
-export const feedKeys = {
-  all: ['feed'] as const,
-  home: () => [...feedKeys.all, 'home'] as const,
-  profile: (username: string) => [...feedKeys.all, 'profile', username] as const,
-  post: (id: string) => [...feedKeys.all, 'post', id] as const,
-}
+Write path:
 
-// Stale times at scale
-const FEED_STALE_TIME = 30_000       // 30s — feed doesn't need to be fresh every second
-const PROFILE_STALE_TIME = 60_000    // 60s
-const FILM_STALE_TIME = 300_000      // 5min — film metadata is slow-changing
-const SETTINGS_STALE_TIME = 300_000  // 5min
+1. Web composer validates and submits post payload.
+2. API validates with `createPostSchema`.
+3. API writes post, poll rows if needed, feed item rows as applicable, and edit/history metadata.
+4. API creates mention notifications and enqueues media processing if media exists.
+5. API invalidates feed caches.
 
-// Infinite feed
-useInfiniteQuery({
-  queryKey: feedKeys.home(),
-  queryFn: ({ pageParam }) => feedApi.getHomeFeed({ cursor: pageParam }),
-  getNextPageParam: (lastPage) => lastPage.nextCursor,
-  staleTime: FEED_STALE_TIME,
-})
-```
+Interactions:
 
-**Optimistic updates** for all mutations (likes, bookmarks, reposts, follows):
-```ts
-useMutation({
-  mutationFn: postsApi.likePost,
-  onMutate: async (postId) => {
-    await queryClient.cancelQueries({ queryKey: feedKeys.post(postId) })
-    const prev = queryClient.getQueryData(feedKeys.post(postId))
-    queryClient.setQueryData(feedKeys.post(postId), (old) => ({
-      ...old,
-      isLiked: true,
-      likeCount: old.likeCount + 1,
-    }))
-    return { prev }
-  },
-  onError: (_, postId, ctx) => {
-    queryClient.setQueryData(feedKeys.post(postId), ctx.prev)
-  },
-})
-```
+- Likes, reposts, bookmarks, poll votes, comment CRUD, and comment likes are real API paths.
+- Notifications are created for relevant social actions.
+- Rich text mentions are hydrated and can create mention notifications.
 
-### 9.3 Zustand Stores (client-only state)
+Scale target:
 
-| Store | State |
-|---|---|
-| `useComposerStore` | Post composer open/closed, draft content, active tab |
-| `useUIStore` | Mobile sidebar open, active modal, active sheet |
-| `useChatSidebarStore` | Chat sidebar open/closed, active conversation id |
-| `useOnboardingStore` | Onboarding step, selections |
-| `useSearchStore` | Search overlay open, recent searches |
+- Cursor pagination everywhere.
+- Denormalized counters on read payloads.
+- Hybrid fanout is the target model.
 
-**Rule:** Zustand stores must not mirror any server data. If you find yourself syncing Zustand with a React Query response, delete the Zustand store and use React Query directly.
+Current gap:
+
+- `feed.fanout` worker is a stub.
+- `counter.increment` worker path is a stub.
+- Some counters are updated synchronously in API handlers today.
+- Celebrity/read-fanout merge is not fully implemented.
 
 ---
 
-## 10. Frontend Performance Strategy
+## 9. Film Lists, Watchlists, and Catalog Resolution
 
-### 10.1 Rendering Strategy per Route
+Business role: user-curated film identity surfaces and private watchlist.
 
-| Route | Strategy | Reason |
-|---|---|---|
-| `/` (feed) | Client component + React Query | Personalized, can't be statically rendered |
-| `/[username]` (profile) | SSR with `fetch` + React Query hydration | SEO + initial load speed |
-| `/title/film/[id]` | ISR (revalidate: 3600) | Film data changes rarely |
-| `/landing` | Static | No auth needed |
-| `/discover` | Client component + React Query | Dynamic filters |
+Resolution inputs:
 
-### 10.2 Image Strategy
+- Existing 35mm `filmId`.
+- TMDB film metadata.
+- Catalog/user-contributed film metadata.
 
-- Upload path: client uploads original to private R2 via presigned `PUT`; presign response includes deterministic variant URLs (`thumb`, `feed`, `full`)
-- Read path: feed APIs return stable cacheable variant URLs from `posts.media[].variants` (`feed` for timeline, `full` for lightbox); no expiring presigned GET URLs in feed payloads
-- Variant targets:
-  - `thumb`: ~320w WebP (quick preview / low-bandwidth)
-  - `feed`: ~640w WebP (timeline/default)
-  - `full`: up to ~2048w WebP (viewer/post detail)
-- Metadata stored in `posts.media` JSON:
-  - `key`, `variants`, `blurhash`, `width`, `height`, `thumbnailUrl`
-- Variant format status:
-  - primary: WebP (`thumb/feed/full`)
-  - AVIF generation: deferred (tracked follow-up)
-- Processing model:
-  - `apps/worker` runs `media.process` job, generates variants + blurhash, updates `posts.media` and `posts.media_urls`
-  - `apps/worker/src/scripts/backfillMedia.ts` handles idempotent historical backfill in cursor batches
-  - Run:
-    - `pnpm --filter @35mm/worker backfill:media`
-    - `pnpm --filter @35mm/worker backfill:media -- --dry-run --limit 200`
+Resolution behavior:
 
-### 10.3 Feed Performance
+- Existing `filmId` must be valid ULID and exist.
+- TMDB payload dedupes by `tmdb_id` and inserts `source='tmdb_import'`.
+- Catalog payload dedupes by title/year under `source='35mm'`.
+- New film IDs are generated with `createUlid`.
 
-- `PostCard` is memoized (`React.memo`) with prop comparator to avoid scroll re-render storms
-- Feed image loading is viewport-aware:
-  - shared `LazyR2Image` gate via `IntersectionObserver` (`rootMargin: 200px`)
-  - carousel loads only active slide ±1 while near viewport
-  - on `saveData`, carousel auto-load is reduced to active slide only
-- Infinite sentinel prefetches upcoming page around 80% visibility (`queryClient.prefetchInfiniteQuery`), then hydrates main infinite cache
-- hover/focus on feed cards prefetches post detail query and first viewer image
-- `InfinitePostList` uses `@tanstack/react-virtual` when list size exceeds 50 cards to reduce DOM pressure
-- connection-aware variant selection:
-  - default: `feed` variant
-  - `slow-2g|2g|3g` or `saveData`: `thumb` variant in feed/profile/bookmarks
+List behavior:
 
-### 10.4 Bundle Strategy
+- Users can create custom lists.
+- Each user gets one private watchlist.
+- Entries have optional notes and positions.
+- Lists can be liked, cloned, reordered, soft-deleted.
 
-- Route-based code splitting via Next.js App Router (automatic)
-- Heavy components (emoji picker, GIF picker, film search) are dynamically imported
-- `framer-motion` is lazy — only import `motion` where used, not whole lib
+Current gap:
 
-### 10.5 Service Worker
-
-- `ServiceWorkerRegistration.tsx` registers `/sw.js` in app shell
-- Versioned caches:
-  - `35mm-nav-*` (offline shell + navigation fallback)
-  - `35mm-static-*` (Next static assets, scripts/styles/fonts/icons)
-  - `35mm-image-*` (immutable CDN images: `*.r2.dev`, `*.imagedelivery.net`, `/images/*`)
-- API cache branch removed (2026-05-26):
-  - Web app calls `NEXT_PUBLIC_API_URL` (cross-origin), so service worker cannot reliably intercept `/v1/*`
-  - Kept only nav/static/image caches to avoid false confidence
-  - If same-origin API proxy/rewrite is added later, reintroduce explicit API cache strategy
+- There is no general films API module or Meilisearch-backed film search yet.
 
 ---
 
-## 11. Backend Performance & Scalability
+## 10. Notifications and Realtime
 
-### 11.1 Database
+Business role: notify users about social actions without excessive duplicate noise.
 
-- **Connection pooling:** Neon serverless driver handles this, but set `max` connections per instance appropriately. If running as long-lived Node (not serverless), use `pg` + a pool explicitly.
-- **Indexes — every query path must have one.** Never scan without an index at scale.
-- **Soft deletes everywhere** — `is_deleted: boolean` column. Never hard delete user-generated content.
-- **VACUUM strategy:** Neon handles autovacuum but monitor dead tuple bloat on high-write tables (`posts`, `post_likes`, `feed_items`, `notifications`)
+Creation path:
 
-### 11.2 Caching Layers
+1. API calls `createNotification`.
+2. Preferences, mutes, blocks, and self-action rules can skip creation.
+3. Unread notifications for the same recipient/type/entity can bundle.
+4. API enqueues `notification.publish`.
+5. Worker reads notification and actor profiles.
+6. Worker publishes Ably `notification.new` to `user:{recipientId}:notifications`.
 
-```
-Request
-  → Upstash Redis (L1, 60s TTL for feed pages, 300s for film metadata)
-  → Neon Postgres (source of truth)
-```
+Client path:
 
-Cache invalidation:
-- On post creation: invalidate `feed:{userId}` cache for all followers (via BullMQ job)
-- On profile update: invalidate `profile:{username}` cache
-- On film update: invalidate `film:{filmId}` cache
+- Web notifications use React Query for list/read/unread state.
+- Global providers install realtime, title badge, and sound side effects.
+- Realtime provider can run with noop transport when Ably is not configured.
 
-Current implementation (2026-05-26):
-- Feed endpoints cache in Upstash Redis:
-  - `GET /v1/feed`
-  - `GET /v1/feed/profiles/:username/posts`
-- TTL: 60s, keyed by viewer + cursor + limit
-- Index sets track cache keys per viewer and per profile author for targeted invalidation
-- Response header `X-Feed-Cache: HIT|MISS` exposed for cache hit-rate measurement
-- Cache auto-disables when `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are missing
-- HTTP cache headers:
-  - personalized feed: `Cache-Control: private, no-store`
-  - guest profile-post feed: `Cache-Control: public, s-maxage=30, stale-while-revalidate=60`
+Current gap:
 
-### 11.3 Rate Limiting
-
-Current enforced rate limits (Redis-backed fixed window):
-- `GET /v1/feed`: 120 req/min per user (auth) or per IP (guest)
-- `POST /v1/feed`: 20 req/min per user
-- `POST /v1/media/presign`: 20 req/min per user
-- Returns `429` with `Retry-After`
-- Skips limiter when `NODE_ENV=test` or `RATE_LIMIT_DISABLED=true`
-
-### 11.4 API Response Targets
-
-| Endpoint | P99 target |
-|---|---|
-| GET /v1/feed | < 200ms |
-| GET /v1/profiles/:username | < 100ms |
-| POST /v1/feed (create post) | < 300ms |
-| GET /v1/films/:id | < 100ms (cache hit < 10ms) |
-| GET /v1/notifications | < 150ms |
+- `notification.digest` is a stub.
+- Email digest via Resend is not implemented.
 
 ---
 
-## 12. Search Architecture
+## 11. Media Pipeline
 
-Meilisearch handles all search. Three indexes:
+Upload path:
 
-| Index | Documents | Searchable fields |
-|---|---|---|
-| `films` | Film records | title, original_title, director, year |
-| `users` | User profiles | username, display_name |
-| `posts` | Post bodies (public only) | body, headline |
+1. Web requests `POST /v1/media/presign`.
+2. API validates content type, content length, media kind, and R2 env.
+3. API returns presigned R2 PUT URL plus deterministic public and variant URLs.
+4. Client uploads directly to R2.
+5. Post/profile update stores resulting public URL/object key.
 
-- Indexing happens async via BullMQ `search.index` job — never synchronously on mutation
-- Film search in composer uses Meilisearch (not TMDB API) once db is populated
-- TMDB API proxy is fallback during cold-start only
+Processing path:
+
+1. API enqueues `media.process` for post media.
+2. Worker downloads original from R2.
+3. Worker creates WebP variants:
+   - `thumb`: 320w
+   - `feed`: 640w
+   - `full`: 2048w
+4. Worker computes blurhash.
+5. Worker writes variants to R2 and updates `posts.media` / `posts.media_urls`.
+6. Optional Cloudflare Images integration can provide delivery URLs.
+
+Limits:
+
+- Images: 12 MB.
+- Videos: 120 MB.
+
+Current gap:
+
+- Cloudflare Stream is not wired.
+- AVIF generation is deferred.
 
 ---
 
-## 13. Current Gaps (Ordered by Priority)
+## 12. Caching, Rate Limiting, and Pagination
 
-1. **Films table** — create ULID-PKed `films` table, migrate `posts.film` JSONB to `film_id` FK
-2. **Rename post_saves → post_bookmarks**, update FeedPost type (`saveCount → bookmarkCount`, `isSaved → isBookmarked`)
-3. **Follows table** — needed before feed fanout and profile can show follower counts
-4. **Denormalized counters** — add `like_count`, `comment_count`, `repost_count`, `bookmark_count` to `posts`
-5. **Post visibility** — add `visibility` column to `posts`
-6. **Soft deletes** — add `is_deleted` to `posts`, `comments`
-7. **Complete queue job set** — `media.process` is live; implement real `feed.fanout` and `counter.increment` handlers
-8. **Comments table** — needed for core social functionality
-9. **Notifications table** — needed for real-time notification bell
-10. **Ably wiring** — swap noop transport in `ChatRealtimeProvider`, add notification channel
-11. **Feed items table** — needed for hybrid fan-out feed
-12. **Meilisearch indexing** — wire up film search
-13. **Chat auth** — current chat routes have no `requireAuth`; fix before any production use
+Feed cache:
+
+- Namespace: `feed-cache:v1`.
+- Home feed key includes viewer, cursor, and limit.
+- Profile feed key includes username, viewer, cursor, and limit.
+- Index sets track keys by viewer and author for targeted invalidation.
+- Cache disables automatically if Upstash REST env is missing.
+- TTL is 60 seconds for feed payloads.
+
+Rate limiting:
+
+- Redis fixed-window limiter.
+- Disabled in test env or when `RATE_LIMIT_DISABLED=true`.
+- Feed create: 20/min per user.
+- Media presign: 20/min per user.
+- Feed reads also have route-level rate limiting.
+
+Pagination:
+
+- API uses cursor pagination.
+- Shared helper encodes `{ createdAt, id }` as base64 JSON.
+- No OFFSET pagination should be added.
 
 ---
 
-## 14. Environment Variables (Full List)
+## 13. Worker Jobs
 
-### `apps/api/.env`
+Queue: `35mm-jobs`.
+
+Implemented:
+
+- `media.process`: image variants and blurhash.
+- `notification.publish`: Ably notification publish.
+- `compute-suggestions`: friend-of-friend follow suggestions.
+
+Stub or incomplete:
+
+- `feed.fanout`: logs readiness only.
+- `counter.increment`: recognized but returns stub response.
+- `notification.digest`: logs readiness only.
+- Search indexing jobs are not implemented.
+
+---
+
+## 14. Search and Discovery
+
+Current:
+
+- Discover and title surfaces still rely heavily on TMDB proxy and local/static data.
+- Post composer film search uses frontend TMDB-oriented lookup paths in places.
+- SearchBar has mock search behavior.
+
+Target:
+
+- Meilisearch indexes:
+  - `films`
+  - `users`
+  - `posts`
+- Indexing should happen asynchronously through worker jobs.
+- Composer film search should prefer 35mm film catalog search once populated.
+- TMDB should remain fallback/autocomplete only.
+
+---
+
+## 15. Chat
+
+Frontend:
+
+- Rich feature module exists under `apps/web/features/chat`.
+- Includes API client abstraction, mock store, remote client, hooks, components, realtime cache application, and documentation.
+
+API:
+
+- Authenticated Hono routes exist.
+- Conversation/message reads return empty envelopes.
+- Send message returns `501 NOT_IMPLEMENTED`.
+
+Current status:
+
+- Chat is not production-ready.
+- Persistence schema and backend implementation are missing.
+- Treat as post-V1 or gated.
+
+---
+
+## 16. Environment Variables
+
+API and worker:
+
 ```env
 DATABASE_URL=
 CLERK_SECRET_KEY=
@@ -667,131 +773,110 @@ R2_SECRET_ACCESS_KEY=
 R2_BUCKET=
 R2_PUBLIC_BASE_URL=
 R2_PRESIGN_TTL_SECONDS=
+UPSTASH_REDIS_URL=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+ABLY_API_KEY=
+RATE_LIMIT_DISABLED=
 CF_IMAGES_ACCOUNT_HASH=
 CF_IMAGES_ACCOUNT_ID=
 CF_IMAGES_API_TOKEN=
 CF_IMAGES_DELIVERY_BASE_URL=
-CF_IMAGES_DEFAULT_THUMB_VARIANT=thumb
-CF_IMAGES_DEFAULT_FEED_VARIANT=feed
-CF_IMAGES_DEFAULT_FULL_VARIANT=full
+CF_IMAGES_DEFAULT_THUMB_VARIANT=
+CF_IMAGES_DEFAULT_FEED_VARIANT=
+CF_IMAGES_DEFAULT_FULL_VARIANT=
 PORT=
-# To add:
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-ABLY_API_KEY=
+```
+
+Web:
+
+```env
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+TMDB_API_KEY=
+NEXT_PUBLIC_OMDB_API_KEY=
+NEXT_PUBLIC_IS_AUTHENTICATED=
+NEXT_PUBLIC_MEDIA_READS_PUBLIC=
+NEXT_PUBLIC_ABLY_API_KEY=
+NEXT_PUBLIC_CHAT_API_MODE=
+NEXT_PUBLIC_CHAT_API_URL=
+NEXT_PUBLIC_TENOR_API_KEY=
+```
+
+Future:
+
+```env
 MEILISEARCH_HOST=
 MEILISEARCH_API_KEY=
 RESEND_API_KEY=
 ```
 
-### `apps/web/.env.local`
-```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-NEXT_PUBLIC_API_URL=
-TMDB_API_KEY=
-NEXT_PUBLIC_OMDB_API_KEY=
-NEXT_PUBLIC_IS_AUTHENTICATED=
-NEXT_PUBLIC_MEDIA_READS_PUBLIC=true
-# To add:
-NEXT_PUBLIC_CHAT_API_MODE=             # 'mock' | 'remote'
-NEXT_PUBLIC_CHAT_API_URL=
-NEXT_PUBLIC_TENOR_API_KEY=
-NEXT_PUBLIC_ABLY_API_KEY=
+---
+
+## 17. Testing
+
+Current test coverage includes:
+
+- API media variants.
+- API rich text validators.
+- API feed rich mentions and mention notifications.
+- Web rich text renderer.
+- Web R2 media helpers.
+- Web post media helpers.
+- Web comment section.
+- Web search bar.
+- Web post composer.
+- Web settings schemas, hooks, and notifications panel.
+- Modal focus stack.
+
+Useful commands:
+
+```bash
+pnpm --filter @35mm/web test
+pnpm --filter @35mm/api test
+pnpm --filter @35mm/api typecheck
+pnpm --filter @35mm/worker typecheck
+pnpm typecheck
 ```
 
 ---
 
-## 15. Shared Types (`packages/types`) — Current + Required Changes
+## 18. Current Gaps and Priority Work
 
-### Current (keep):
-`UserId`, `PostId`, `ConversationId`, `MessageId`, `PublicUser`, `PublicProfile`, `PrivacySettings`, `NotificationSettings`, `UserSettingsResponse`, `FeedPage`, `ChatPreview`, `ChatMessage`, `HealthResponse`
+Highest priority architecture gaps:
 
-### Changes needed to FeedPost:
-```ts
-// RENAME:
-saveCount → bookmarkCount
-isSaved → isBookmarked
+1. Implement real `feed.fanout` worker job and hybrid fanout read path.
+2. Implement counter worker jobs or make the synchronous counter strategy explicit.
+3. Add general films API and catalog search.
+4. Wire Meilisearch for films/users/posts.
+5. Add DB-level checks for ULID-shaped text IDs where practical.
+6. Finish notification digest and Resend integration.
+7. Decide whether chat remains gated or gets real persistence.
+8. Wire Cloudflare Stream if production video is in scope.
+9. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
+10. Validate migrations against current Drizzle schema in real environments.
 
-// CHANGE film shape:
-film: {
-  id: string           // 35mm ULID — NEVER tmdbId
-  tmdbId?: number      // optional, for display only
-  title: string
-  year: number | null
-  posterUrl: string | null
-  genres: string[]
-  rating: number | null
-} | null
+Post-V1 or gated surfaces:
 
-// ADD to FeedPost:
-visibility: 'public' | 'followers_only' | 'private'
-isDeleted: boolean
-editedAt: string | null
-```
-
-### New types to add:
-`FilmRef`, `FilmLog`, `FilmList`, `FilmListItem`, `Notification`, `Follow`, `CommunityPreview`, `PaginatedPage<T>` (generic envelope)
+- Chat.
+- Short films.
+- Communities.
+- Festivals.
+- Push notifications.
 
 ---
 
-## 16. V1 Feature Scope
+## 19. Engineering Rules
 
-### In V1:
-- Auth + onboarding (role picker → favorite films → genres → follow suggestions)
-- Profiles (all fields, avatar/cover upload, diary tab with activity heatmap)
-- Home feed (algorithmic + following)
-- All post types: text, media (9 photos + 1 video + GIFs), discussion, log (film + rating + review + rewatch), poll (2–7 options), quote post, repost
-- Comments (max 3 levels)
-- Reactions (like on posts + comments)
-- Notifications (bundled, real-time via Ably)
-- Bookmarks
-- Film discovery / film pages / film logging / reviews / lists
-- People pages
-- Letterboxd import
-- User-contributed films
-- TMDB integration (cold-start + search)
-- Search (users, films, posts)
+- Do not use TMDB IDs as canonical film IDs.
+- Keep `FilmRef.id` as a 35mm ULID.
+- Do not add OFFSET pagination.
+- Do not use live `COUNT()` queries on hot read paths.
+- Keep user-generated content soft-deleted.
+- Keep DB/server state in React Query on the frontend.
+- Use Zustand only for local UI state.
+- Use feature query key factories.
+- Keep REST contracts stable and native-client friendly.
+- Keep schema, validators, shared types, API routes, frontend adapters, and worker side effects aligned in the same change.
 
-### Out of V1:
-- Short films
-- Communities (built but post-V1 launch)
-- Festivals
-- Push notifications (mobile)
-- Chat (built but gated — post-V1)
-
----
-
-## 17. Onboarding Flow
-
-1. **Role picker** — Cinephile / Creator / Critic / Film Student / Industry + 25-char free text
-2. **Favorite films** — pick 5, powered by TMDB search (or Meilisearch once populated)
-3. **Favorite genres** — multi-select chip grid
-4. **Follow suggestions** — curated list of accounts
-5. **Welcome title card** — animated entry
-
----
-
-## 18. Post Types Reference
-
-| Type | Fields |
-|---|---|
-| `text` | body |
-| `discussion` | headline + body + optional media |
-| `log` | film (required) + rating (optional) + review (optional) + rewatch flag |
-| `media` | body + up to 9 photos OR 1 video + GIFs (10 files max) |
-| `poll` | body + 2–7 options, no media |
-| `repost` | ref to original post |
-| `quote` | body + ref to quoted post |
-
----
-
-## 19. Profile Fields Reference
-
-- display name, username (changeable, old handle freed after 30 days)
-- avatar, cover photo
-- bio, headline (role from picker + 25-char context; Cinephiles show `filmsLoggedCount` instead of free text)
-- location, DOB (private), one URL
-- favorite films shelf (5 max)
-- favorite genres
-- Diary tab: GitHub-style activity heatmap + computed stats from logs
