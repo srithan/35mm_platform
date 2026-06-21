@@ -125,13 +125,10 @@ export function CommentCard({
     <div
       id={`comment-${comment.id}`}
       className={cn(
-        "CommentCard w-full px-4 py-4 animate-fade-up border-b border-border last:border-b-0",
+        "CommentCard w-full bg-bg px-4 py-4 animate-fade-up border-b border-border transition-colors duration-150 hover:bg-card-hover last:border-b-0",
         depth > 0 && "border-l-2 border-l-border"
       )}
-      style={{
-        backgroundColor: "var(--color-bg)",
-        ...containerStyle,
-      }}
+      style={containerStyle}
     >
       <div className="flex items-start min-w-0">
         <CommentCardHeader comment={comment} menu={moreMenu}>

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { parseStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { PostComposer } from "./index";
+import { postComposerWritePrompt } from "./writePrompt";
 
 const mocks = vi.hoisted(() => ({
   createPostMutateAsync: vi.fn(async () => ({})),
@@ -26,6 +27,8 @@ const mocks = vi.hoisted(() => ({
     },
   ]),
 }));
+
+const WRITE_PLACEHOLDER = postComposerWritePrompt("Test User");
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ getToken: vi.fn(async () => "test-token") }),
@@ -121,7 +124,7 @@ describe("PostComposer", () => {
   it("keeps pasted YouTube URL in text and submits it", async () => {
     const user = userEvent.setup();
     render(<PostComposer variant="inline" />);
-    const textarea = screen.getByPlaceholderText("What's on your mind about cinema?");
+    const textarea = screen.getByPlaceholderText(WRITE_PLACEHOLDER);
     const youtubeUrl = "https://www.youtube.com/watch?v=qU4bAFjBXUI";
 
     await user.click(textarea);
@@ -142,7 +145,7 @@ describe("PostComposer", () => {
 
   it("accepts pasted clipboard image files", async () => {
     render(<PostComposer variant="inline" />);
-    const textarea = screen.getByPlaceholderText("What's on your mind about cinema?");
+    const textarea = screen.getByPlaceholderText(WRITE_PLACEHOLDER);
     const file = new File(["image-bytes"], "pasted-image.png", { type: "image/png" });
 
     fireEvent.paste(textarea, {
@@ -167,7 +170,7 @@ describe("PostComposer", () => {
   it("opens mention autocomplete and inserts stable mention node", async () => {
     const user = userEvent.setup();
     render(<PostComposer variant="inline" />);
-    const editor = screen.getByRole("combobox", { name: "What's on your mind about cinema?" });
+    const editor = screen.getByRole("combobox", { name: WRITE_PLACEHOLDER });
 
     await user.click(editor);
     await user.type(editor, "@av");
@@ -197,7 +200,16 @@ describe("PostComposer", () => {
     const user = userEvent.setup();
     render(<PostComposer variant="inline" initialMode="log" />);
 
+    expect(
+      screen.getByRole("combobox", { name: "Select a film to add a note or review." })
+    ).toHaveAttribute("aria-disabled", "true");
+
     await user.click(screen.getByRole("button", { name: "Pick film" }));
+
+    expect(
+      screen.getByRole("combobox", { name: "Optional note. 200+ characters turns this into a review." })
+    ).toHaveAttribute("aria-disabled", "false");
+
     await user.click(screen.getByRole("checkbox", { name: /post to feed/i }));
     await user.click(screen.getByRole("button", { name: "Log" }));
 

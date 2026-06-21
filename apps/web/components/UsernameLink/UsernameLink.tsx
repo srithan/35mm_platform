@@ -12,10 +12,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
 import { ProfileRoleHeadlinePill } from "@/lib/utils/userRoleHeadline";
-import {
-  fetchPublicProfile,
-  type PublicProfile,
-} from "@/features/profile/api/profileApi";
+import { fetchPublicProfile } from "@/features/profile/api/profileApi";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
 import { useFollowToggle, usePublicProfile } from "@/features/profile/hooks/useProfile";

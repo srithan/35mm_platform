@@ -22,6 +22,8 @@
     --color-bg-sunken-2: #eeeeee;
     --color-bg-hover: #faf9f8;
     --color-bg-active: var(--neutral-50);
+    /* Feed post/comment card hover (on --color-bg) */
+    --color-card-hover: #f5f5f5;
 
     /* ── Semantic UI: Text ── */
     --color-text: var(--neutral-900);
@@ -138,6 +140,7 @@
     --color-bg-sunken-2: #111010;
     --color-bg-hover: #1b1d1c;
     --color-bg-active: #202221;
+    --color-card-hover: #1a1c1b;
 
     /* ── Semantic UI: Text ── */
     --color-text: var(--neutral-900);
@@ -208,6 +211,7 @@
     --color-bg-sunken-2: #051409;
     --color-bg-hover: #081a0e;
     --color-bg-active: #0c2915;
+    --color-card-hover: #0a1810;
 
     /* ── Semantic UI: Text (Neon Green Tints) ── */
     --color-text: #00ff41;
@@ -277,6 +281,7 @@
     --color-bg-sunken-2: #0f0f0f;
     --color-bg-hover: #171717;
     --color-bg-active: #1f1f1f;
+    --color-card-hover: #171717;
 
     --color-text: #f4f4f4;
     --color-text-secondary: #b0b0b0;
@@ -355,6 +360,7 @@
     --color-bg-sunken-2: #ffb5df;
     --color-bg-hover: #ffc4e8;
     --color-bg-active: #ffb8e2;
+    --color-card-hover: #ffe8f7;
 
     /* ── Semantic UI: Text ── */
     --color-text: #3d0a2e;

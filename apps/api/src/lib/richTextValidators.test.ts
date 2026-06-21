@@ -19,7 +19,11 @@ describe("rich text validation", function () {
         {
           type: "paragraph",
           content: [
-            { type: "text", text: "hi", marks: [{ type: "bold" }, { type: "spoiler" }] },
+            {
+              type: "text",
+              text: "hi",
+              marks: [{ type: "bold" }, { type: "strike" }, { type: "spoiler" }],
+            },
             {
               type: "mention",
               attrs: {

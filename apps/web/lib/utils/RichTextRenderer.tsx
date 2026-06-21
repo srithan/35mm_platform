@@ -24,6 +24,7 @@ function applyMarks(nodes: ReactNode[], marks: RichTextMark[] | undefined, keyBa
     if (mark.type === "bold") out = <strong key={`${keyBase}-b-${i}`}>{out}</strong>;
     else if (mark.type === "italic") out = <em key={`${keyBase}-i-${i}`}>{out}</em>;
     else if (mark.type === "underline") out = <u key={`${keyBase}-u-${i}`}>{out}</u>;
+    else if (mark.type === "strike") out = <s key={`${keyBase}-st-${i}`}>{out}</s>;
     else if (mark.type === "spoiler") out = <SpoilerReveal key={`${keyBase}-s-${i}`}>{out}</SpoilerReveal>;
   }
   return out;

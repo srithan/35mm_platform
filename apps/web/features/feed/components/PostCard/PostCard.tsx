@@ -161,7 +161,6 @@ function PostCardComponent(props: PostCardProps) {
 
   return (
     <article
-      style={{ backgroundColor: "var(--color-bg)" }}
       onClick={isPostDetailView ? undefined : handleCardClick}
       role={postId && !isPostDetailView ? "link" : undefined}
       tabIndex={postId && !isPostDetailView ? 0 : undefined}
@@ -178,9 +177,9 @@ function PostCardComponent(props: PostCardProps) {
       onMouseEnter={prefetchPostDetail}
       onFocus={prefetchPostDetail}
       className={cn(
-        "PostCard w-full rounded-lg border-b border-border px-4 py-4",
+        "PostCard w-full rounded-lg border-b border-border bg-bg px-4 py-4 transition-colors duration-150 hover:bg-card-hover",
         !disableAnimation && "animate-fade-up",
-        postId && !isPostDetailView && "cursor-pointer hover:bg-hover transition-colors",
+        postId && !isPostDetailView && "cursor-pointer",
         !disableAnimation && animationDelay && `[animation-delay:${animationDelay}ms]`
       )}
     >

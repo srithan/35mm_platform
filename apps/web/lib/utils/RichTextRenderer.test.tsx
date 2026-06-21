@@ -96,9 +96,30 @@ describe("RichTextRenderer", () => {
   });
 
   it("renders legacy markdown fallback without literal syntax", () => {
-    const { container } = render(<RichPostInline text="**bold** _ital_ ||secret||" />);
-    expect(container).toHaveTextContent("bold ital secret");
+    const { container } = render(<RichPostInline text="**bold** _ital_ ~~gone~~ ||secret||" />);
+    expect(container).toHaveTextContent("bold ital gone secret");
     expect(container).not.toHaveTextContent("**");
+    expect(container).not.toHaveTextContent("~~");
     expect(container).not.toHaveTextContent("||");
+  });
+
+  it("renders strikethrough rich text marks", () => {
+    const { container } = render(
+      <RichTextRenderer
+        stored={stored({
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "gone", marks: [{ type: "strike" }] },
+              ],
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(container.querySelector("s")).toHaveTextContent("gone");
   });
 });

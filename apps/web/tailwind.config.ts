@@ -55,6 +55,7 @@ const config: Config = {
           strong: "var(--color-skeleton-strong)",
         },
         hover: "var(--color-bg-hover)",
+        "card-hover": "var(--color-card-hover)",
         active: "var(--color-bg-active)",
         "text-secondary": "var(--color-text-secondary)",
         "text-tertiary": "var(--color-text-tertiary)",

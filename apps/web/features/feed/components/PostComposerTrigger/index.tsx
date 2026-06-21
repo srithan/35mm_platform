@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
+import { postComposerWritePrompt } from "@/features/feed/components/PostComposer/writePrompt";
 
 export interface PostComposerTriggerUser {
   name: string;
@@ -69,6 +71,10 @@ export function PostComposerTrigger({
   user,
   suppressDefaultAvatar = false,
 }: PostComposerTriggerProps) {
+  const prompt = useMemo(() => {
+    return postComposerWritePrompt(user.name);
+  }, [user.name]);
+
   return (
     <div className="PostComposerTrigger pb-4 rounded-lg">
       <button
@@ -92,7 +98,7 @@ export function PostComposerTrigger({
 
           <div className="flex-1 min-w-0 h-[46px] rounded-full bg-sunken px-5 flex items-center">
             <span className="block truncate text-left text-[15px] font-normal text-fg-muted select-none">
-            Drop your latest watch or hot take, {user.name}.
+              {prompt}
             </span>
           </div>
 

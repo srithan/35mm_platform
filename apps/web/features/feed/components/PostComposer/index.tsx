@@ -37,11 +37,13 @@ import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/prof
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
 import { hasVisibleRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
+import { postComposerWritePrompt } from "./writePrompt";
 
 const WRITE_MAX_CHARS = 500;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
 const POST_COMPOSER_EMOJI_STYLE = "native" as const;
+const VIDEO_PREVIEW_CLASS = "mx-auto max-h-[min(42vh,360px)] max-w-full rounded-md object-contain bg-black";
 
 const YOUTUBE_REGEX =
   /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/;
@@ -185,6 +187,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
   const currentAvatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
   const currentInitial = initialForName(currentDisplayName);
+  const writePlaceholder = useMemo(
+    function () {
+      return postComposerWritePrompt(currentDisplayName);
+    },
+    [currentDisplayName]
+  );
 
   // Track which input is active to show the correct char limit (for discussion mode)
   const [activeField, setActiveField] = useState<"headline" | "body" | null>(null);
@@ -431,6 +439,16 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const postInToolbar = postPrimaryPlacement === "toolbar";
   const fixedMobileToolbar =
     isFullPage && postPrimaryPlacement === "header";
+
+  useEffect(
+    function () {
+      if (fixedMobileToolbar) {
+        setShowEmojiPicker(false);
+      }
+    },
+    [fixedMobileToolbar]
+  );
+
   const hasComposerMedia =
     images.length > 0 ||
     existingImageUrls.length > 0 ||
@@ -800,9 +818,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     if (header && header.contains(relatedTarget)) return true;
     var discard = document.querySelector("[data-new-post-discard]");
     if (discard && discard.contains(relatedTarget)) return true;
-    if (relatedTarget instanceof Element) {
-      if (relatedTarget.closest("[data-emoji-panel], .EmojiPickerReact")) return true;
-    }
     if (composerRef.current && composerRef.current.contains(relatedTarget)) return true;
     return false;
   }
@@ -907,20 +922,17 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               >
                 <span className="text-[11px] font-bold">GIF</span>
               </button>
-              <button
-                ref={emojiBtnRef}
-                type="button"
-                onClick={() => setShowEmojiPicker((s) => !s)}
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full transition-colors active:scale-[0.97]",
-                  fixedMobileToolbar
-                    ? "text-accent hover:bg-accent/[0.12]"
-                    : "text-fg-muted hover:bg-hover hover:text-fg"
-                )}
-                title="Emoji"
-              >
-                <Icon name="smile" className="h-[20px] w-[20px]" strokeWidth={fixedMobileToolbar ? 1.85 : 2} />
-              </button>
+              {!fixedMobileToolbar && (
+                <button
+                  ref={emojiBtnRef}
+                  type="button"
+                  onClick={() => setShowEmojiPicker((s) => !s)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-hover hover:text-fg active:scale-[0.97]"
+                  title="Emoji"
+                >
+                  <Icon name="smile" className="h-[20px] w-[20px]" strokeWidth={2} />
+                </button>
+              )}
 
               {mode === "write" && (
                 <FormattingToolbar
@@ -929,7 +941,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   composeChrome={fixedMobileToolbar}
                 />
               )}
-              {mode === "discussion" && (
+              {mode === "discussion" && activeField !== "headline" && (
                 <FormattingToolbar
                   editor={discussionEditor}
                   showDivider={true}
@@ -945,13 +957,15 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             </span>
           )}
 
-          <EmojiPicker
-            isOpen={showEmojiPicker}
-            onClose={() => setShowEmojiPicker(false)}
-            onInsert={handleEmojiInsertFixed}
-            anchorRef={emojiBtnRef}
-            emojiStyle={POST_COMPOSER_EMOJI_STYLE}
-          />
+          {!fixedMobileToolbar && (
+            <EmojiPicker
+              isOpen={showEmojiPicker}
+              onClose={() => setShowEmojiPicker(false)}
+              onInsert={handleEmojiInsertFixed}
+              anchorRef={emojiBtnRef}
+              emojiStyle={POST_COMPOSER_EMOJI_STYLE}
+            />
+          )}
           <TenorGifPicker
             isOpen={showGifPicker}
             onClose={() => setShowGifPicker(false)}
@@ -1177,11 +1191,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   });
                 }}
                 autoFocus={fixedMobileToolbar && mode === "write"}
-                placeholder={
-                  fixedMobileToolbar
-                    ? "What's happening?"
-                    : "What's on your mind about cinema?"
-                }
+                placeholder={writePlaceholder}
                 className={cn(
                   isFullPage
                     ? fixedMobileToolbar
@@ -1189,11 +1199,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                       : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45]"
                     : isModal
                       ? compactComposeBody
-                        ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
-                        : "min-h-[170px] text-[19px] font-semibold leading-relaxed"
+                        ? "min-h-[3rem] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
+                        : "min-h-[170px] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
                       : compactComposeBody
-                        ? "min-h-[3rem] text-[19px] font-semibold leading-relaxed"
-                        : "min-h-[140px] text-[19px] font-semibold leading-relaxed"
+                        ? "min-h-[3rem] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
+                        : "min-h-[140px] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
                 )}
               />
               {fixedMobileToolbar && (
@@ -1233,22 +1243,26 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               ) : null}
               {videoFile ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video
-                    src={URL.createObjectURL(videoFile)}
-                    controls
-                    className="w-full rounded-md"
-                  />
-                  <button
-                    type="button"
-                    className="mt-2 text-xs text-fg-muted hover:text-fg"
-                    onClick={() => setVideoFile(null)}
-                  >
-                    Remove video
-                  </button>
+                  <div className="relative">
+                    <video
+                      src={URL.createObjectURL(videoFile)}
+                      controls
+                      className={VIDEO_PREVIEW_CLASS}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow-md backdrop-blur-sm transition-colors hover:bg-black/80"
+                      onClick={() => setVideoFile(null)}
+                      aria-label="Remove video"
+                      title="Remove video"
+                    >
+                      <Icon name="x" className="h-4 w-4" strokeWidth={2.25} />
+                    </button>
+                  </div>
                 </div>
               ) : images.length === 0 && gifUrl == null && existingVideoUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video src={existingVideoUrl} controls className="w-full rounded-md" />
+                  <video src={existingVideoUrl} controls className={VIDEO_PREVIEW_CLASS} />
                 </div>
               ) : null}
               {gifUrl ? (
@@ -1384,11 +1398,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               ) : null}
               {videoFile ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video src={URL.createObjectURL(videoFile)} controls className="w-full rounded-md" />
+                  <video src={URL.createObjectURL(videoFile)} controls className={VIDEO_PREVIEW_CLASS} />
                 </div>
               ) : images.length === 0 && gifUrl == null && existingVideoUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video src={existingVideoUrl} controls className="w-full rounded-md" />
+                  <video src={existingVideoUrl} controls className={VIDEO_PREVIEW_CLASS} />
                 </div>
               ) : null}
               {gifUrl ? (
@@ -1465,26 +1479,25 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               {selectedFilm && isResolvingFilm ? (
                 <p className="text-[12px] text-fg-muted">Resolving film…</p>
               ) : null}
-              {selectedFilm ? (
-                <LogNoteField
-                  value={logText}
-                  onChange={setLogText}
-                  editor={logEditor}
-                  onEditorReady={setLogEditor}
-                  isReview={isReview}
-                  showFormatBar={showLogFormatBar}
-                  onBlur={function (e) {
-                    if (!fixedMobileToolbar || mode !== "log") return;
-                    if (allowMobileComposeBlur(e.relatedTarget)) return;
-                    window.requestAnimationFrame(function () {
-                      logEditor?.commands.focus("end", { scrollIntoView: false });
-                    });
-                  }}
-                  onFocus={function () {
-                    setActiveField("body");
-                  }}
-                />
-              ) : null}
+              <LogNoteField
+                value={logText}
+                onChange={setLogText}
+                editor={logEditor}
+                onEditorReady={setLogEditor}
+                isReview={isReview}
+                showFormatBar={showLogFormatBar}
+                editable={selectedFilm !== null}
+                onBlur={function (e) {
+                  if (!fixedMobileToolbar || mode !== "log") return;
+                  if (allowMobileComposeBlur(e.relatedTarget)) return;
+                  window.requestAnimationFrame(function () {
+                    logEditor?.commands.focus("end", { scrollIntoView: false });
+                  });
+                }}
+                onFocus={function () {
+                  setActiveField("body");
+                }}
+              />
             </div>
           )}
         </div>

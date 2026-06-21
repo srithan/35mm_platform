@@ -168,6 +168,7 @@ function formattedPlainTextNodes(text: string, keyBase: string): ReactNode[] {
       { marker: "||", type: "spoiler" },
       { marker: "**", type: "bold" },
       { marker: "__", type: "underline" },
+      { marker: "~~", type: "strike" },
       { marker: "*", type: "italic" },
       { marker: "_", type: "italic" },
     ];
@@ -186,6 +187,7 @@ function formattedPlainTextNodes(text: string, keyBase: string): ReactNode[] {
       if (candidate.type === "bold") nodes.push(<strong key={key}>{inner}</strong>);
       else if (candidate.type === "italic") nodes.push(<em key={key}>{inner}</em>);
       else if (candidate.type === "underline") nodes.push(<u key={key}>{inner}</u>);
+      else if (candidate.type === "strike") nodes.push(<s key={key}>{inner}</s>);
       else {
         nodes.push(
           <SpoilerReveal key={key}>{inner}</SpoilerReveal>

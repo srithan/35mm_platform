@@ -6,7 +6,7 @@ var RICH_TEXT_PREFIX = "__35MM_RICH_TEXT_V1__";
 type RichTextNode = {
   type: string;
   text?: string;
-  marks?: Array<{ type: "bold" | "italic" | "underline" | "spoiler" }>;
+  marks?: Array<{ type: "bold" | "italic" | "underline" | "strike" | "spoiler" }>;
   attrs?: {
     id?: string;
     label?: string;
@@ -17,7 +17,7 @@ type RichTextNode = {
 };
 
 var richTextMarkSchema = z.object({
-  type: z.enum(["bold", "italic", "underline", "spoiler"]),
+  type: z.enum(["bold", "italic", "underline", "strike", "spoiler"]),
 });
 
 var richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(function () {

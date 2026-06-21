@@ -18,6 +18,7 @@ interface LogNoteFieldProps {
   showFormatBar: boolean;
   onBlur: (ev: FocusEvent) => void;
   onFocus: () => void;
+  editable?: boolean;
 }
 
 export function LogNoteField(props: LogNoteFieldProps) {
@@ -27,25 +28,39 @@ export function LogNoteField(props: LogNoteFieldProps) {
   var overLimit = plainText.length > LOG_MAX_CHARS;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-sunken transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-fg-muted/50 focus-within:bg-elevated focus-within:shadow-sm">
-      {props.showFormatBar ? (
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-sunken transition-[border-color,background-color,box-shadow] duration-150",
+        props.editable !== false
+          ? "focus-within:border-fg-muted/50 focus-within:bg-elevated focus-within:shadow-sm"
+          : "border-border/70 bg-sunken/70"
+      )}
+    >
+      {props.showFormatBar && props.editable !== false ? (
         <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
           <FormattingToolbar editor={props.editor} showDivider={false} />
         </div>
       ) : null}
 
       <RichTextEditor
+        key={props.editable === false ? "locked" : "editable"}
         value={props.value}
         onChange={(value) => props.onChange(value)}
         onEditorReady={props.onEditorReady}
         onBlur={props.onBlur}
         onFocus={props.onFocus}
+        editable={props.editable !== false}
         placeholder={
-          props.isReview
+          props.editable === false
+            ? "Select a film to add a note or review."
+            : props.isReview
             ? "What stood out? Performances, craft, themes - spoil carefully."
             : "Optional note. 200+ characters turns this into a review."
         }
-        className="min-h-[112px] px-3.5 py-3 text-[16px] font-normal leading-relaxed text-fg"
+        className={cn(
+          "min-h-[112px] px-3.5 py-3 text-[16px] font-normal leading-relaxed",
+          props.editable === false ? "cursor-not-allowed text-fg-muted" : "text-fg"
+        )}
       />
 
       <div className="flex items-center justify-between gap-3 border-t border-border/50 px-3.5 py-2">

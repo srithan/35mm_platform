@@ -4,10 +4,12 @@ import { Mark, mergeAttributes } from "@tiptap/core";
 import Mention from "@tiptap/extension-mention";
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils/cn";
+import { FloatingFormattingToolbar } from "./FormattingToolbar";
 import {
   docFromPlainText,
   isStoredRichText,
@@ -212,6 +214,26 @@ function editorContentFromValue(value: string): RichTextDoc {
   return parseStoredRichText(value) ?? docFromPlainText(value);
 }
 
+function selectedTextRect(editor: Editor): DOMRect | null {
+  if (typeof window === "undefined") return null;
+  const { from, to, empty } = editor.state.selection;
+  if (empty || from === to) return null;
+
+  try {
+    const start = editor.view.coordsAtPos(from);
+    const end = editor.view.coordsAtPos(to);
+    const sameLine = Math.abs(start.top - end.top) < Math.max(start.bottom - start.top, 18);
+    const left = sameLine ? Math.min(start.left, end.left) : start.left;
+    const right = sameLine ? Math.max(start.right, end.right) : start.right;
+    const top = start.top;
+    const bottom = start.bottom;
+
+    return new DOMRect(left, top, Math.max(right - left, 1), Math.max(bottom - top, 1));
+  } catch (_err) {
+    return null;
+  }
+}
+
 export interface RichTextEditorProps {
   value: string;
   onChange: (value: string, plainText: string, editor: Editor) => void;
@@ -223,6 +245,7 @@ export interface RichTextEditorProps {
   onFocus?: () => void;
   onBlur?: (event: FocusEvent) => void;
   onPaste?: (event: ClipboardEvent) => void;
+  editable?: boolean;
 }
 
 export function RichTextEditor(props: RichTextEditorProps) {
@@ -240,7 +263,10 @@ export function RichTextEditor(props: RichTextEditorProps) {
           horizontalRule: false,
         }),
         Spoiler,
-        Placeholder.configure({ placeholder: props.placeholder }),
+        Placeholder.configure({
+          placeholder: props.placeholder,
+          showOnlyWhenEditable: false,
+        }),
         UserMention.configure({
           HTMLAttributes: {
             class: "rounded-[4px] bg-social-accent-bg px-1 font-medium text-social-accent no-underline",
@@ -258,12 +284,14 @@ export function RichTextEditor(props: RichTextEditorProps) {
   const editor = useEditor({
     extensions,
     content: initialContent,
+    editable: props.editable ?? true,
     autofocus: props.autoFocus ? "end" : false,
     editorProps: {
       attributes: {
         role: "combobox",
         "aria-autocomplete": "list",
         "aria-label": props.placeholder,
+        "aria-disabled": props.editable === false ? "true" : "false",
         placeholder: props.placeholder,
         class: cn(
           "ProseMirror min-h-[inherit] w-full outline-none focus:outline-none focus-visible:outline-none",
@@ -299,6 +327,15 @@ export function RichTextEditor(props: RichTextEditorProps) {
   useEffect(
     function () {
       if (!editor) return;
+      editor.setEditable(props.editable ?? true);
+      editor.view.dom.setAttribute("aria-disabled", props.editable === false ? "true" : "false");
+    },
+    [editor, props.editable]
+  );
+
+  useEffect(
+    function () {
+      if (!editor) return;
       if (props.value === lastSerializedRef.current) return;
       var next = editorContentFromValue(props.value);
       editor.commands.setContent(next, { emitUpdate: false });
@@ -310,12 +347,49 @@ export function RichTextEditor(props: RichTextEditorProps) {
   );
 
   return (
-    <EditorContent
-      editor={editor}
-      className={cn(
-        "rich-text-editor [&_.ProseMirror]:whitespace-pre-wrap [&_.ProseMirror]:break-words [&_.ProseMirror]:outline-none [&_.ProseMirror:focus]:outline-none [&_.ProseMirror:focus-visible]:outline-none [&_[data-type=mention]]:no-underline [&_.ProseMirror_p.is-editor-empty:first-child:before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child:before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child:before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child:before]:text-fg-muted [&_.ProseMirror_p.is-editor-empty:first-child:before]:content-[attr(data-placeholder)]",
-        props.className
-      )}
-    />
+    <>
+      {editor ? (
+        <BubbleMenu
+          editor={editor}
+          updateDelay={0}
+          appendTo={function () {
+            return document.body;
+          }}
+          getReferencedVirtualElement={function () {
+            const rect = selectedTextRect(editor);
+            if (!rect) return null;
+            return {
+              getBoundingClientRect: function () {
+                return rect;
+              },
+              getClientRects: function () {
+                return [rect];
+              },
+            };
+          }}
+          options={{
+            strategy: "fixed",
+            placement: "bottom",
+            offset: 8,
+            flip: { fallbackPlacements: ["top"] },
+            shift: { padding: 12 },
+            inline: true,
+          }}
+          className="z-[calc(var(--z-composer)+20)]"
+          shouldShow={function ({ editor: activeEditor, state, from, to }) {
+            return activeEditor.isEditable && activeEditor.isFocused && from !== to && !state.selection.empty;
+          }}
+        >
+          <FloatingFormattingToolbar editor={editor} />
+        </BubbleMenu>
+      ) : null}
+      <EditorContent
+        editor={editor}
+        className={cn(
+          "rich-text-editor [&_.ProseMirror]:whitespace-pre-wrap [&_.ProseMirror]:break-words [&_.ProseMirror]:outline-none [&_.ProseMirror:focus]:outline-none [&_.ProseMirror:focus-visible]:outline-none [&_[data-type=mention]]:no-underline [&_.ProseMirror_p.is-editor-empty:first-child:before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child:before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child:before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child:before]:text-fg-muted [&_.ProseMirror_p.is-editor-empty:first-child:before]:content-[attr(data-placeholder)]",
+          props.className
+        )}
+      />
+    </>
   );
 }
