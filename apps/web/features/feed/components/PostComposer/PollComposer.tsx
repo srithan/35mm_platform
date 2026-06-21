@@ -21,6 +21,13 @@ interface PollComposerProps {
   onRemove: () => void;
 }
 
+var pollSelectClass =
+  "appearance-none rounded-xl border border-border bg-bg px-3 py-2 text-[14px] text-fg text-center shadow-sm outline-none " +
+  "transition-[border-color,box-shadow,background-color] duration-150 " +
+  "hover:border-accent/30 hover:bg-hover focus:border-accent focus:ring-2 focus:ring-accent/15 cursor-pointer";
+
+var pollSelectWideClass = pollSelectClass + " min-w-[148px] text-left pl-3 pr-8";
+
 export function PollComposer({ draft, isValid, onChange, onRemove }: PollComposerProps) {
   var previewUrlsRef = useRef<Map<number, string>>(new Map());
 
@@ -102,20 +109,23 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
 
   return (
     <div className="mt-3 rounded-2xl border border-border overflow-hidden">
-      {/* Options */}
       <div className="divide-y divide-border">
         {draft.options.map(function (option, index) {
           var previewUrl = getPreviewUrl(index, option);
           var hasImage = previewUrl !== null;
 
           return (
-            <div key={index} className="flex items-center gap-3 px-4 py-3">
-              {/* Image upload */}
-              <label className="relative shrink-0 cursor-pointer group">
+            <div
+              key={index}
+              className="group/row flex items-center gap-2.5 px-4 py-2.5 transition-colors duration-150 hover:bg-hover/60"
+            >
+              <label className="relative shrink-0 cursor-pointer group/image">
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors",
-                    hasImage ? "border-transparent" : "border-border hover:border-accent/50"
+                    "w-12 h-12 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors duration-150",
+                    hasImage
+                      ? "border-transparent"
+                      : "border-border group-hover/image:border-accent/40"
                   )}
                 >
                   {hasImage ? (
@@ -138,7 +148,6 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
                     e.target.value = "";
                   }}
                 />
-                {/* Remove image button */}
                 {hasImage ? (
                   <button
                     type="button"
@@ -147,7 +156,7 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
                       e.stopPropagation();
                       clearImage(index);
                     }}
-                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-fg text-bg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-fg text-bg flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity"
                   >
                     <Icon name="x" className="w-3 h-3" strokeWidth={2.5} />
                   </button>
@@ -170,8 +179,8 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
                   onClick={function () {
                     removeOption(index);
                   }}
-                  className="shrink-0 text-fg-muted hover:text-accent transition-colors"
-                  aria-label="Remove"
+                  className="shrink-0 text-fg-muted transition-colors hover:text-accent"
+                  aria-label="Remove choice"
                 >
                   <Icon name="x" className="w-4 h-4" strokeWidth={2} />
                 </button>
@@ -180,12 +189,11 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
           );
         })}
 
-        {/* Add option row */}
         {draft.options.length < POLL_MAX_OPTIONS ? (
           <button
             type="button"
             onClick={addOption}
-            className="flex w-full items-center px-4 py-3 text-[15px] text-accent hover:bg-accent/5 transition-colors"
+            className="flex w-full items-center px-4 py-2.5 text-[15px] text-accent transition-colors duration-150 hover:bg-accent/[0.05]"
           >
             <Icon name="plus" className="w-4 h-4 mr-2" strokeWidth={2} />
             Add another choice
@@ -193,7 +201,6 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
         ) : null}
       </div>
 
-      {/* Duration section */}
       <div className="border-t border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <span className="text-[14px] text-fg-muted">Poll length</span>
@@ -204,7 +211,8 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
                 onChange={function (e) {
                   onChange({ ...draft, durationDays: Number(e.target.value) });
                 }}
-                className="w-14 rounded-lg border border-border bg-bg px-2 py-1.5 text-[14px] text-fg text-center outline-none focus:border-accent cursor-pointer"
+                className={cn(pollSelectClass, "w-14 px-2 py-1.5")}
+                aria-label="Poll duration days"
               >
                 {DAYS_OPTIONS.map(function (d) {
                   return (
@@ -221,7 +229,8 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
                 onChange={function (e) {
                   onChange({ ...draft, durationHours: Number(e.target.value) });
                 }}
-                className="w-14 rounded-lg border border-border bg-bg px-2 py-1.5 text-[14px] text-fg text-center outline-none focus:border-accent cursor-pointer"
+                className={cn(pollSelectClass, "w-14 px-2 py-1.5")}
+                aria-label="Poll duration hours"
               >
                 {HOURS_OPTIONS.map(function (h) {
                   return (
@@ -238,7 +247,8 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
                 onChange={function (e) {
                   onChange({ ...draft, durationMinutes: Number(e.target.value) });
                 }}
-                className="w-14 rounded-lg border border-border bg-bg px-2 py-1.5 text-[14px] text-fg text-center outline-none focus:border-accent cursor-pointer"
+                className={cn(pollSelectClass, "w-14 px-2 py-1.5")}
+                aria-label="Poll duration minutes"
               >
                 {MINUTES_OPTIONS.map(function (m) {
                   return (
@@ -252,29 +262,35 @@ export function PollComposer({ draft, isValid, onChange, onRemove }: PollCompose
         </div>
       </div>
 
-      {/* Results visibility */}
       <div className="border-t border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <span className="text-[14px] text-fg-muted">Show results</span>
-          <select
-            value={draft.resultsVisibility}
-            onChange={function (e) {
-              onChange({ ...draft, resultsVisibility: e.target.value as "after_vote" | "after_end" });
-            }}
-            className="rounded-lg border border-border bg-bg px-3 py-1.5 text-[14px] text-fg outline-none focus:border-accent cursor-pointer"
-          >
-            <option value="after_vote">After voting</option>
-            <option value="after_end">When poll ends</option>
-          </select>
+          <div className="relative">
+            <select
+              value={draft.resultsVisibility}
+              onChange={function (e) {
+                onChange({ ...draft, resultsVisibility: e.target.value as "after_vote" | "after_end" });
+              }}
+              className={pollSelectWideClass}
+              aria-label="When to show poll results"
+            >
+              <option value="after_vote">After voting</option>
+              <option value="after_end">When poll ends</option>
+            </select>
+            <Icon
+              name="chevron-down"
+              className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted"
+              strokeWidth={2}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Remove poll */}
       <div className="border-t border-border">
         <button
           type="button"
           onClick={onRemove}
-          className="w-full px-4 py-2.5 text-[14px] text-film-red hover:bg-film-red/5 transition-colors"
+          className="w-full px-4 py-2.5 text-[14px] text-film-red transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--color-film-red)_14%,var(--color-bg-hover))] active:bg-[color-mix(in_srgb,var(--color-film-red)_22%,var(--color-bg-hover))]"
         >
           Remove poll
         </button>

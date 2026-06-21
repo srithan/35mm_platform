@@ -1,10 +1,14 @@
 "use client";
 
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { LazyR2Image } from "@/components/LazyR2Image";
 import { cn } from "@/lib/utils/cn";
 import { useVotePoll } from "../../hooks/usePostMutations";
-import { formatPollTimeRemaining, pollCountdownIntervalMs } from "../../utils/pollUtils";
+import {
+  applyOptimisticPollVote,
+  formatPollTimeRemaining,
+  pollCountdownIntervalMs,
+} from "../../utils/pollUtils";
 import type { PostCardPoll } from "./types";
 
 function isValidImageUrl(url: string | null | undefined): boolean {
@@ -20,49 +24,60 @@ interface PollAttachmentProps {
 
 function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
   var voteMutation = useVotePoll();
-  var [selectedId, setSelectedId] = useState<string | null>(
-    poll.selectedOptionIds[0] ?? null
-  );
+  var [optimisticOptionId, setOptimisticOptionId] = useState<string | null>(null);
   var [timeLabel, setTimeLabel] = useState(function () {
     return formatPollTimeRemaining(poll.endsAt, poll.isEnded);
   });
 
-  var hasVoted = poll.hasVoted;
-  var isEnded = poll.isEnded;
-  var showResults = poll.resultsVisible;
-  var isImagePoll = poll.type === "image";
+  var displayPoll = useMemo(function () {
+    if (poll.hasVoted || !optimisticOptionId) return poll;
+    return applyOptimisticPollVote(poll, [optimisticOptionId]);
+  }, [poll, optimisticOptionId]);
+
+  var selectedId = displayPoll.selectedOptionIds[0] ?? null;
+  var hasVoted = displayPoll.hasVoted;
+  var isEnded = displayPoll.isEnded;
+  var showResults = displayPoll.resultsVisible;
+  var isImagePoll = displayPoll.type === "image";
 
   useEffect(function () {
-    setSelectedId(poll.selectedOptionIds[0] ?? null);
-  }, [poll.selectedOptionIds]);
+    if (poll.hasVoted) {
+      setOptimisticOptionId(null);
+    }
+  }, [poll.hasVoted]);
 
   useEffect(function () {
-    setTimeLabel(formatPollTimeRemaining(poll.endsAt, poll.isEnded));
-    if (poll.isEnded) return;
+    if (!voteMutation.isError) return;
+    setOptimisticOptionId(null);
+  }, [voteMutation.isError]);
 
-    var intervalMs = pollCountdownIntervalMs(poll.endsAt);
+  useEffect(function () {
+    setTimeLabel(formatPollTimeRemaining(displayPoll.endsAt, displayPoll.isEnded));
+    if (displayPoll.isEnded) return;
+
+    var intervalMs = pollCountdownIntervalMs(displayPoll.endsAt);
     var timer = window.setInterval(function () {
-      setTimeLabel(formatPollTimeRemaining(poll.endsAt, poll.isEnded));
+      setTimeLabel(formatPollTimeRemaining(displayPoll.endsAt, displayPoll.isEnded));
     }, intervalMs);
 
     return function () {
       window.clearInterval(timer);
     };
-  }, [poll.endsAt, poll.isEnded]);
+  }, [displayPoll.endsAt, displayPoll.isEnded]);
 
   var handleVote = useCallback(
     function (optionId: string) {
-      if (hasVoted || isEnded || voteMutation.isPending) return;
-      setSelectedId(optionId);
+      if (hasVoted || isEnded || optimisticOptionId) return;
+      setOptimisticOptionId(optionId);
       if (postId) {
         voteMutation.mutate({ postId: postId, optionIds: [optionId] });
       }
     },
-    [hasVoted, isEnded, postId, voteMutation]
+    [hasVoted, isEnded, optimisticOptionId, postId, voteMutation]
   );
 
   var winningPercent = 0;
-  poll.options.forEach(function (opt) {
+  displayPoll.options.forEach(function (opt) {
     if (opt.percent != null && opt.percent > winningPercent) {
       winningPercent = opt.percent;
     }
@@ -95,14 +110,14 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
               <span className="text-[12px] font-medium text-accent">Pick one</span>
             ) : (
               <span className="text-[12px] font-medium text-fg-muted">
-                {poll.totalVotes.toLocaleString()} votes
+                {displayPoll.totalVotes.toLocaleString()} votes
               </span>
             )}
           </div>
 
           {/* Options grid */}
           <div className="grid grid-cols-2 gap-3">
-            {poll.options.map(function (option, index) {
+            {displayPoll.options.map(function (option, index) {
               var isSelected = option.id === selectedId;
               var percent = option.percent ?? 0;
               var isWinning = showResults && percent === winningPercent && percent > 0;
@@ -117,9 +132,14 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
                     handleVote(option.id);
                   }}
                   className={cn(
-                    "relative rounded-xl overflow-hidden transition-all",
-                    canVote && "cursor-pointer hover:ring-2 hover:ring-accent/50 active:scale-[0.98]",
-                    isSelected && canVote && "ring-2 ring-accent"
+                    "group relative rounded-xl overflow-hidden",
+                    "transition-[transform,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    canVote && [
+                      "cursor-pointer",
+                      "hover:ring-2 hover:ring-accent/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-0.5",
+                      "active:scale-[0.98] active:translate-y-0 active:shadow-none",
+                    ],
+                    isSelected && "ring-2 ring-accent"
                   )}
                 >
                   {/* Image */}
@@ -141,13 +161,13 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
 
                     {/* "VOTE" overlay before voting */}
                     {canVote && !isSelected ? (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                         <span className="text-white font-bold text-[14px] tracking-wide">VOTE</span>
                       </div>
                     ) : null}
 
                     {/* Selected indicator */}
-                    {isSelected && canVote ? (
+                    {isSelected && !showResults ? (
                       <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
                         <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shadow-lg">
                           <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
@@ -199,13 +219,9 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
 
           {/* Footer */}
           <div className="mt-3 pt-3 border-t border-accent/20 flex items-center justify-between text-[12px]">
-            <span className="text-fg-muted">
-              {timeLabel}
-            </span>
-            {voteMutation.isPending ? (
-              <span className="text-accent font-medium">Submitting vote...</span>
-            ) : canVote && selectedId ? (
-              <span className="text-accent font-medium">Tap again to confirm</span>
+            <span className="text-fg-muted">{timeLabel}</span>
+            {hasVoted ? (
+              <span className="font-medium text-accent">Your vote</span>
             ) : null}
           </div>
         </div>
@@ -222,7 +238,7 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
       }}
     >
       <div className="space-y-2">
-        {poll.options.map(function (option) {
+        {displayPoll.options.map(function (option) {
           var isSelected = option.id === selectedId;
           var percent = option.percent ?? 0;
           var isWinning = showResults && percent === winningPercent && percent > 0;
@@ -272,26 +288,35 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
             );
           }
 
+          var canInteract = !hasVoted && !isEnded;
+
           return (
             <button
               key={option.id}
               type="button"
-              disabled={hasVoted || isEnded}
+              disabled={!canInteract}
               onClick={function () {
                 handleVote(option.id);
               }}
               className={cn(
-                "w-full rounded-full border-2 px-4 py-2.5 text-left transition-all",
+                "group w-full rounded-full border-2 px-4 py-2.5 text-left",
+                "transition-[transform,background-color,border-color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
                 isSelected
-                  ? "border-accent bg-accent/5"
-                  : "border-[#cfd9de] dark:border-[#536471] hover:bg-accent/5",
-                !hasVoted && !isEnded && "cursor-pointer active:scale-[0.98]"
+                  ? "border-accent bg-accent/[0.08] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+                  : "border-border-strong bg-bg",
+                canInteract && [
+                  "cursor-pointer",
+                  "hover:border-accent/45 hover:bg-accent/[0.06] hover:shadow-[0_2px_10px_rgba(0,0,0,0.07)] hover:-translate-y-px",
+                  "active:scale-[0.985] active:translate-y-0 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]",
+                ]
               )}
             >
-              <span className={cn(
-                "text-[15px]",
-                isSelected ? "font-medium text-accent" : "text-fg"
-              )}>
+              <span
+                className={cn(
+                  "text-[15px] transition-colors duration-150",
+                  isSelected ? "font-medium text-accent" : "text-fg group-hover:text-fg"
+                )}
+              >
                 {label}
               </span>
             </button>
@@ -301,9 +326,9 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
 
       {/* Footer */}
       <div className="mt-3 text-[13px] text-fg-muted">
-        {poll.totalVotes.toLocaleString()} vote{poll.totalVotes === 1 ? "" : "s"}
+        {displayPoll.totalVotes.toLocaleString()} vote{displayPoll.totalVotes === 1 ? "" : "s"}
         {timeLabel ? " · " + timeLabel : ""}
-        {voteMutation.isPending ? " · Voting..." : ""}
+        {hasVoted ? " · Your vote" : ""}
       </div>
     </div>
   );

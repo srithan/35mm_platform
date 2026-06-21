@@ -19,6 +19,7 @@ import type { FeedPage, Post } from "../types/feed";
 import { feedKeys } from "./queryKeys";
 import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
 import { showGlobalFlashToast } from "@/components/FlashToast";
+import { applyOptimisticPollVote } from "../utils/pollUtils";
 
 type FeedCacheSnapshot = Array<[readonly unknown[], InfiniteData<FeedPage> | undefined]>;
 
@@ -254,15 +255,34 @@ export function useVotePoll() {
     mutationFn: async function (input: { postId: string; optionIds: string[] }) {
       return votePoll(input.postId, input.optionIds, await getToken());
     },
+    onMutate: async function (input) {
+      await queryClient.cancelQueries({ queryKey: feedKeys.all });
+      await queryClient.cancelQueries({ queryKey: feedKeys.post(input.postId) });
+
+      var snapshot = snapshotFeedCaches(queryClient);
+      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+
+      patchAllFeedCaches(queryClient, input.postId, function (post) {
+        if (!post.poll) return post;
+        return {
+          ...post,
+          poll: applyOptimisticPollVote(post.poll, input.optionIds),
+        };
+      });
+
+      return { snapshot, previousPost };
+    },
+    onError: function (_err, input, context) {
+      if (!context) return;
+      restoreFeedCaches(queryClient, context.snapshot);
+      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      showGlobalFlashToast("Could not submit vote", "error");
+    },
     onSuccess: function (updated) {
       patchAllFeedCaches(queryClient, updated.id, function () {
         return updated;
       });
       queryClient.setQueryData(feedKeys.post(updated.id), updated);
-      queryClient.invalidateQueries({ queryKey: feedKeys.all });
-    },
-    onError: function () {
-      showGlobalFlashToast("Could not submit vote", "error");
     },
   });
 }

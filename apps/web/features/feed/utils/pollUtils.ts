@@ -71,3 +71,51 @@ export function pollCountdownIntervalMs(endsAt: string): number {
 export var DAYS_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 export var HOURS_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
 export var MINUTES_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+type OptimisticPoll = {
+  hasVoted: boolean;
+  resultsVisibility: "after_vote" | "after_end";
+  resultsVisible: boolean;
+  totalVotes: number;
+  selectedOptionIds: string[];
+  options: Array<{
+    id: string;
+    voteCount: number | null;
+    percent: number | null;
+  }>;
+};
+
+export function applyOptimisticPollVote<T extends OptimisticPoll>(
+  poll: T,
+  optionIds: string[]
+): T {
+  if (poll.hasVoted || optionIds.length === 0) return poll;
+
+  var selected: Record<string, boolean> = {};
+  for (var i = 0; i < optionIds.length; i += 1) {
+    selected[optionIds[i]] = true;
+  }
+
+  var newTotalVotes = poll.totalVotes + 1;
+  var revealResults = poll.resultsVisibility === "after_vote";
+
+  return {
+    ...poll,
+    hasVoted: true,
+    selectedOptionIds: optionIds,
+    totalVotes: newTotalVotes,
+    resultsVisible: poll.resultsVisible || revealResults,
+    options: poll.options.map(function (opt) {
+      var voteCount = opt.voteCount ?? 0;
+      var newVoteCount = selected[opt.id] ? voteCount + 1 : voteCount;
+      return {
+        ...opt,
+        voteCount: newVoteCount,
+        percent:
+          revealResults && newTotalVotes > 0
+            ? (newVoteCount / newTotalVotes) * 100
+            : opt.percent,
+      };
+    }),
+  };
+}
