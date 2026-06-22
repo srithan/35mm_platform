@@ -6,6 +6,9 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { FlashToastHost } from "@/components/FlashToast";
+import { ChatInputFocusProvider } from "@/components/layout/ChatInputFocusContext";
+import { ChatSidebarProvider } from "@/features/chat/context/ChatSidebarContext";
+import { ChatRealtimeProvider } from "@/features/chat/realtime";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 import { AccentColorProvider } from "@/lib/theme/AccentColorProvider";
 import { NotificationSoundPlayer } from "@/features/notifications/components/NotificationSoundPlayer";
@@ -39,7 +42,11 @@ function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
       <NotificationTitleBadge />
       <NotificationSoundPlayer />
       <FlashToastHost />
-      {children}
+      <ChatRealtimeProvider>
+        <ChatSidebarProvider>
+          <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
+        </ChatSidebarProvider>
+      </ChatRealtimeProvider>
     </NotificationRealtimeProvider>
   );
 }

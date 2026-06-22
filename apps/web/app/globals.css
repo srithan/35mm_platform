@@ -540,6 +540,38 @@
         outline-offset: 3px;
     }
 
+    .profile-photo-trigger:focus,
+    .profile-photo-trigger:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    .edit-profile-field-group {
+        border-color: var(--border);
+        background: var(--sunken);
+    }
+
+    .edit-profile-field-group > :not([hidden]) ~ :not([hidden]) {
+        border-color: var(--border);
+    }
+
+    .edit-profile-form .edit-profile-input {
+        color: var(--fg);
+    }
+
+    .edit-profile-form .edit-profile-input::placeholder {
+        color: var(--fg-faint);
+    }
+
+    .edit-profile-form .edit-profile-input:-webkit-autofill,
+    .edit-profile-form .edit-profile-input:-webkit-autofill:hover,
+    .edit-profile-form .edit-profile-input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0 1000px var(--sunken) inset !important;
+        -webkit-text-fill-color: var(--fg) !important;
+        caret-color: var(--fg);
+        transition: background-color 9999s ease-out 0s;
+    }
+
     .rich-text-editor [contenteditable="true"]:focus,
     .rich-text-editor [contenteditable="true"]:focus-visible {
         outline: none;

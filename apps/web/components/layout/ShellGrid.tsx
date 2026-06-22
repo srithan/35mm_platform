@@ -20,6 +20,7 @@ function isProfileShellPath(pathname: string): boolean {
   if (!match) return false;
   switch (match[1]) {
     case "bookmarks":
+    case "chat":
     case "discover":
     case "drafts":
     case "for-you":
@@ -45,6 +46,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     Boolean(pathname?.startsWith("/short-films/"));
   const isSettingsSection =
     pathname === "/settings" || Boolean(pathname?.startsWith("/settings/"));
+  const isChatSection =
+    pathname === ROUTES.CHAT || Boolean(pathname?.startsWith("/chat/"));
+  const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isHomePage = pathname === "/";
   const isProfileUsernamePage =
     pathname != null ? isProfileShellPath(pathname) : false;
@@ -54,6 +58,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/discover" ||
     pathname === ROUTES.BOOKMARKS ||
     pathname === ROUTES.SUGGESTIONS_PEOPLE ||
+    isChatSection ||
     isShortFilmsSection ||
     isTitlePage;
 
@@ -97,10 +102,13 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
         }
       >
         <div className="md:hidden">
-          <MobileHeader
-            onProfileClick={() => setSidebarOpen(true)}
-            hideBottomBorder={hasStickyBarBelow}
-          />
+          {!isChatDetailPage ? (
+            <MobileHeader
+              onProfileClick={() => setSidebarOpen(true)}
+              title={isChatSection ? "Messages" : undefined}
+              hideBottomBorder={hasStickyBarBelow || isChatSection}
+            />
+          ) : null}
         </div>
 
         <MobileSidebar
@@ -116,13 +124,20 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
           id="main-content"
           className={cn(
             /* Horizontal clip lives on <html>; overflow-x on <main> breaks position:sticky for TopStickyBar. */
-            "w-full pb-[calc(5.25rem+max(0.625rem,env(safe-area-inset-bottom,0px)))] md:pb-0",
+            "w-full",
+            isChatSection
+              ? "box-border h-dvh pb-0 md:pb-0"
+              : "pb-[calc(5.25rem+max(0.625rem,env(safe-area-inset-bottom,0px)))] md:pb-0",
             useHomeRailLayout
               ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
               : useProfileRailLayout
                 ? "w-full max-w-none mx-0"
                 : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
-            hasStickyBarBelow
+            isChatSection
+              ? isChatDetailPage
+                ? "pt-0 md:pt-[var(--site-header-sticky-offset,4.5rem)]"
+                : "pt-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))] md:pt-[var(--site-header-sticky-offset,4.5rem)]"
+              : hasStickyBarBelow
               ? cn(
                   "pt-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))] md:pt-[var(--site-header-sticky-offset,4.5rem)]",
                   (useHomeRailLayout || useProfileRailLayout) &&
@@ -176,8 +191,12 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
         </main>
 
         <div className="md:hidden">
-          <MobileScrollChromeListener />
-          <MobileTabBar />
+          {!isChatSection ? (
+            <>
+              <MobileScrollChromeListener />
+              <MobileTabBar />
+            </>
+          ) : null}
         </div>
       </div>
     </ComposerModalProvider>

@@ -42,6 +42,7 @@ export function ProfileBody(props: {
     roleContext: props.roleContext,
     headline: props.headline,
     headlineContext: props.headlineContext,
+    filmsLoggedCount: props.filmsLoggedCount,
   };
 
   return (

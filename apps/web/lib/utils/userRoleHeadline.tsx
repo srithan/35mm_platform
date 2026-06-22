@@ -72,6 +72,33 @@ export function UserRoleHeadline(props: {
   );
 }
 
+export const profileHeadlinePillClassName =
+  "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-[color-mix(in_srgb,var(--accent)_7%,var(--sunken))] px-3.5 py-1.5";
+
+/** Accent pill — profile page + hover card; visually distinct from bio body text. */
+export function ProfileCustomHeadlinePill(props: {
+  headline: string;
+  headlineContext?: string | null;
+  className?: string;
+}) {
+  const headline = props.headline.trim();
+  if (!headline) return null;
+
+  const headlineContext = props.headlineContext?.trim() ?? "";
+
+  return (
+    <div className={cn(profileHeadlinePillClassName, props.className)}>
+      <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-accent" aria-hidden />
+      <span className="min-w-0 text-[12.5px] font-semibold leading-none text-accent">
+        {headline}
+        {headlineContext.length > 0 ? (
+          <span className="font-semibold"> · {headlineContext}</span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
 /** Accent pill — profile page + hover card; visually distinct from bio body text. */
 export function ProfileRoleHeadlinePill(props: {
   role: string;
@@ -89,12 +116,7 @@ export function ProfileRoleHeadlinePill(props: {
   });
 
   return (
-    <div
-      className={cn(
-        "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-[#fbf7f6] px-3 py-1",
-        props.className
-      )}
-    >
+    <div className={cn(profileHeadlinePillClassName, "px-3 py-1", props.className)}>
       <span
         className="h-[6px] w-[6px] shrink-0 rounded-full"
         style={{ backgroundColor: dotColor }}

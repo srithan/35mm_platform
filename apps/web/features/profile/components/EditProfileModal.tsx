@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Dialog } from "@/components/Dialog/Dialog";
@@ -12,6 +12,8 @@ import { Button } from "@/components/Button";
 import { Avatar } from "@/components/Avatar";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
+import { LocationAutocomplete } from "./LocationAutocomplete";
+import { DatePicker } from "@/components/DatePicker/DatePicker";
 import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/constants/routes";
 import { updateCurrentProfile } from "../api/profileApi";
@@ -106,7 +108,7 @@ function EditProfileField({
     <div
       className={cn(
         "px-4 py-3.5",
-        error && "bg-accent/[0.03]"
+        error && "bg-[color-mix(in_srgb,var(--color-film-red)_7%,var(--sunken))]"
       )}
     >
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
@@ -128,10 +130,13 @@ function EditProfileField({
 }
 
 const fieldGroupClassName =
-  "overflow-hidden rounded-2xl border border-border/70 bg-elevated shadow-[0_1px_2px_color-mix(in_srgb,var(--fg)_5%,transparent)] divide-y divide-border/50";
+  "edit-profile-field-group overflow-hidden rounded-2xl border border-border bg-sunken divide-y divide-border";
+
+const profileSummaryClassName =
+  "edit-profile-field-group flex items-center gap-4 rounded-2xl border border-border bg-sunken px-4 py-3.5";
 
 const inputClassName =
-  "w-full border-0 bg-transparent p-0 text-[15px] leading-snug text-fg shadow-none outline-none ring-0 placeholder:text-fg-faint focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60";
+  "edit-profile-input w-full border-0 bg-transparent p-0 text-[15px] leading-snug text-fg shadow-none outline-none ring-0 placeholder:text-fg-faint focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60";
 
 function inputStateClassName(hasError: boolean) {
   return cn(inputClassName, hasError && "placeholder:text-accent/40");
@@ -158,6 +163,7 @@ export function EditProfileModal({
     handleSubmit,
     reset,
     watch,
+    control,
     formState: { errors, isDirty, isSubmitting, isValid },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -238,14 +244,14 @@ export function EditProfileModal({
           onSubmit={handleSubmit(onSubmit)}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
-            <div className="flex items-center gap-4 rounded-2xl border border-border/70 bg-elevated px-4 py-3.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--fg)_5%,transparent)]">
+          <div className="edit-profile-form min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+            <div className={profileSummaryClassName}>
               <ProfilePictureUpload onUploadComplete={onAvatarChange}>
                 <Avatar
                   initial={(watch("displayName") || username)[0]}
                   src={avatarUrl}
                   size="lg"
-                  className="h-[4.5rem] w-[4.5rem] shrink-0 text-[24px] ring-2 ring-border/40"
+                  className="h-[4.5rem] w-[4.5rem] shrink-0 text-[24px]"
                 />
               </ProfilePictureUpload>
               <div className="min-w-0 flex-1">
@@ -308,16 +314,21 @@ export function EditProfileModal({
                 hint="Optional. Only visible to you."
                 error={errors.dateOfBirth?.message}
               >
-                <input
-                  {...register("dateOfBirth")}
-                  id="edit-profile-dob"
-                  type="date"
-                  disabled={isSubmitting}
-                  aria-invalid={Boolean(errors.dateOfBirth)}
-                  className={cn(
-                    inputStateClassName(Boolean(errors.dateOfBirth)),
-                    "[color-scheme:light] min-h-[1.375rem]"
-                  )}
+                <Controller
+                  name="dateOfBirth"
+                  control={control}
+                  render={function ({ field }) {
+                    return (
+                      <DatePicker
+                        id="edit-profile-dob"
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isSubmitting}
+                        placeholder="Select date"
+                        aria-invalid={Boolean(errors.dateOfBirth)}
+                      />
+                    );
+                  }}
                 />
               </EditProfileField>
               </div>
@@ -365,18 +376,24 @@ export function EditProfileModal({
               <EditProfileField
                 id="edit-profile-location"
                 label="Location"
-                hint="City, country, or wherever you watch from."
+                hint="City and state/region only — country helps pick the right place but isn’t saved."
                 error={errors.location?.message}
               >
-                <input
-                  {...register("location")}
-                  id="edit-profile-location"
-                  type="text"
-                  autoComplete="address-level2"
-                  placeholder="Los Angeles, CA"
-                  disabled={isSubmitting}
-                  aria-invalid={Boolean(errors.location)}
-                  className={inputStateClassName(Boolean(errors.location))}
+                <Controller
+                  name="location"
+                  control={control}
+                  render={function ({ field }) {
+                    return (
+                      <LocationAutocomplete
+                        id="edit-profile-location"
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isSubmitting}
+                        placeholder="Los Angeles, CA, United States"
+                        aria-invalid={Boolean(errors.location)}
+                      />
+                    );
+                  }}
                 />
               </EditProfileField>
 
@@ -403,7 +420,7 @@ export function EditProfileModal({
 
             {saveError ? (
               <p
-                className="rounded-2xl border border-accent/20 bg-accent/[0.04] px-4 py-3 text-[12.5px] leading-relaxed text-accent"
+                className="rounded-2xl border border-[color-mix(in_srgb,var(--color-film-red)_24%,var(--border))] bg-[color-mix(in_srgb,var(--color-film-red)_8%,var(--sunken))] px-4 py-3 text-[12.5px] leading-relaxed text-film-red"
                 role="alert"
               >
                 {saveError}

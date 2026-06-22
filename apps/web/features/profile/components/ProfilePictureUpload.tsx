@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, ChangeEvent, MouseEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { ImageCropper } from "./ImageCropper";
@@ -152,6 +152,10 @@ export function ProfilePictureUpload({
     fileInputRef.current?.click();
   };
 
+  const handleTriggerMouseDown = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
+
   const closeCropper = () => {
     setIsCropping(false);
     setImage(null);
@@ -161,9 +165,12 @@ export function ProfilePictureUpload({
 
   return (
     <div className={cn("relative group", className)}>
-      <div
+      <button
+        type="button"
+        onMouseDown={handleTriggerMouseDown}
         onClick={handleClick}
-        className="relative cursor-pointer outline-none [-webkit-tap-highlight-color:transparent]"
+        aria-label="Change profile photo"
+        className="profile-photo-trigger relative inline-flex shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0 outline-none [-webkit-tap-highlight-color:transparent] focus:outline-none focus-visible:outline-none"
       >
         {children}
         
@@ -217,7 +224,7 @@ export function ProfilePictureUpload({
             </div>
           </div>
         ) : null}
-      </div>
+      </button>
 
       <input
         type="file"

@@ -2,7 +2,10 @@
 
 import { MapPin, Link2, Calendar } from "lucide-react";
 import { PrivateAccountLock } from "@/components/PrivateAccountLock";
-import { formatRoleContextSegment, getRoleDotColor } from "@/lib/utils/userRoleHeadline";
+import {
+  ProfileCustomHeadlinePill,
+  ProfileRoleHeadlinePill,
+} from "@/lib/utils/userRoleHeadline";
 import { ProfileStats } from "./ProfileStats";
 
 function websiteHref(raw: string): string {
@@ -34,47 +37,34 @@ const metaLinkClass =
   metaRowClass +
   " no-underline transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
-const headlinePillClass =
-  "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-[#fbf7f6] px-3.5 py-1.5";
-
 function ProfileHeadline(props: {
   headline?: string | null;
   headlineContext?: string | null;
   role?: string | null;
   roleContext?: string | null;
+  filmsLoggedCount?: number;
 }) {
   const headline = props.headline?.trim() ?? "";
-  const headlineContext = props.headlineContext?.trim() ?? "";
   const role = props.role?.trim() ?? "";
 
   if (headline.length > 0) {
     return (
-      <div className={headlinePillClass + " mt-2.5"}>
-        <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-accent" aria-hidden />
-        <span className="min-w-0 text-[12.5px] font-semibold leading-none text-accent">
-          {headline}
-          {headlineContext.length > 0 ? <span className="font-semibold"> · {headlineContext}</span> : null}
-        </span>
-      </div>
+      <ProfileCustomHeadlinePill
+        headline={headline}
+        headlineContext={props.headlineContext}
+        className="mt-2.5"
+      />
     );
   }
 
   if (role.length > 0) {
-    const context = formatRoleContextSegment(role, { roleContext: props.roleContext }) ?? "";
-    const dotColor = getRoleDotColor(role);
-
     return (
-      <div className={headlinePillClass + " mt-2.5"}>
-        <span
-          className="h-[7px] w-[7px] shrink-0 rounded-full"
-          style={{ backgroundColor: dotColor }}
-          aria-hidden
-        />
-        <span className="min-w-0 text-[12.5px] font-semibold leading-none text-accent">
-          {role}
-          {context.length > 0 ? <span className="font-semibold"> · {context}</span> : null}
-        </span>
-      </div>
+      <ProfileRoleHeadlinePill
+        role={role}
+        roleContext={props.roleContext}
+        filmsLoggedCount={props.filmsLoggedCount}
+        className="mt-2.5"
+      />
     );
   }
 
@@ -94,9 +84,9 @@ export function ProfileDetails(props: {
   roleContext?: string | null;
   headline?: string | null;
   headlineContext?: string | null;
+  filmsLoggedCount?: number;
   followerCount?: number;
   followingCount?: number;
-  filmsLoggedCount?: number;
   showInlineStats?: boolean;
 }) {
   const bio = props.bio.trim();
@@ -143,6 +133,7 @@ export function ProfileDetails(props: {
         headlineContext={props.headlineContext}
         role={props.role}
         roleContext={props.roleContext}
+        filmsLoggedCount={props.filmsLoggedCount}
       />
 
       {bio.length > 0 ? (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon/Icon";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import styles from "../SiteHeader.module.css";
@@ -82,6 +83,22 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
             </svg>
           </span>
           <span className={styles.navItemText}>Short Films</span>
+        </Link>
+
+        <Link
+          href={ROUTES.CHAT}
+          className={cn(styles.navItem, isActive(ROUTES.CHAT) && styles.active)}
+          aria-current={isActive(ROUTES.CHAT) ? "page" : undefined}
+        >
+          <span className={styles.navItemIcon}>
+            <Icon
+              name="chat"
+              className="h-5 w-5"
+              strokeWidth={1.9}
+              filled={isActive(ROUTES.CHAT)}
+            />
+          </span>
+          <span className={styles.navItemText}>Messages</span>
         </Link>
 
         <Link
