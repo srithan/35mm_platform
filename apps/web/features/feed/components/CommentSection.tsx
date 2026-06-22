@@ -18,6 +18,8 @@ interface CommentSectionProps {
   isLoading?: boolean;
   postId: string;
   postUsername?: string;
+  postBookmarked?: boolean;
+  postBookmarkFolderId?: string | null;
   className?: string;
   hasMore?: boolean;
   isFetchingMore?: boolean;
@@ -61,6 +63,8 @@ export function CommentSection({
   isLoading = false,
   postId,
   postUsername,
+  postBookmarked = false,
+  postBookmarkFolderId = null,
   className,
   hasMore = false,
   isFetchingMore = false,
@@ -164,6 +168,8 @@ export function CommentSection({
               key={`${postId}-${comment.id}`}
               comment={comment}
               postId={postId}
+              postBookmarked={postBookmarked}
+              postBookmarkFolderId={postBookmarkFolderId}
               depth={0}
               onReplySubmit={handleNestedReplySubmit}
             />

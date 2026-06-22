@@ -6,6 +6,8 @@ erDiagram
   posts ||--o{ post_likes : receives
   posts ||--o{ post_reposts : receives
   posts ||--o{ post_bookmarks : receives
+  users ||--o{ bookmark_folders : owns
+  bookmark_folders ||--o{ post_bookmarks : groups
   posts ||--o{ post_polls : has
   post_polls ||--o{ poll_options : has
   post_polls ||--o{ poll_votes : receives

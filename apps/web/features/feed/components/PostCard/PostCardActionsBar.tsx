@@ -8,6 +8,8 @@ import {
   useRepostPost,
 } from "../../hooks/usePostMutations";
 import { ApiRequestError } from "../../api/http";
+import { useBookmarkFolders } from "@/features/bookmarks/hooks/useBookmarkFolders";
+import { useCreateBookmarkFolder } from "@/features/bookmarks/hooks/useBookmarkFolderMutations";
 
 interface PostCardActionsBarProps {
   postId?: string;
@@ -15,8 +17,29 @@ interface PostCardActionsBarProps {
   commentCount: number;
   initialLiked: boolean;
   initialBookmarked: boolean;
+  initialBookmarkFolderId?: string | null;
   initialReposted: boolean;
   onCommentClick?: () => void;
+}
+
+type BookmarkFolderSelectState = {
+  folderId: string | null;
+  revert: () => void;
+};
+
+type BookmarkToggleState = {
+  isBookmarked: boolean;
+  revert: () => void;
+};
+
+function folderLabel(
+  folderId: string | null,
+  folders: Array<{ id: string; name: string }>
+): string {
+  if (folderId == null) return "All bookmarks";
+  return folders.find(function (folder) {
+    return folder.id === folderId;
+  })?.name ?? "folder";
 }
 
 export function PostCardActionsBar({
@@ -25,13 +48,37 @@ export function PostCardActionsBar({
   commentCount,
   initialLiked,
   initialBookmarked,
+  initialBookmarkFolderId = null,
   initialReposted,
   onCommentClick,
 }: PostCardActionsBarProps) {
   const likeMutation = useLikePost();
   const repostMutation = useRepostPost();
   const bookmarkMutation = useBookmarkPost();
+  const createFolderMutation = useCreateBookmarkFolder();
+  const foldersQuery = useBookmarkFolders({ enabled: Boolean(postId) });
   const { show: showFlashToast } = useFlashToast();
+  const folders = foldersQuery.data?.folders ?? [];
+
+  async function saveToFolder(state: BookmarkFolderSelectState) {
+    if (!postId) {
+      state.revert();
+      return;
+    }
+    try {
+      await bookmarkMutation.mutateAsync({
+        postId,
+        isBookmarked: true,
+        folderId: state.folderId,
+      });
+      showFlashToast(`Saved to ${folderLabel(state.folderId, folders)}`);
+    } catch (error) {
+      state.revert();
+      const message = error instanceof ApiRequestError ? error.message : "Could not save to folder";
+      showFlashToast(message, "error");
+      throw error;
+    }
+  }
 
   return (
     <PostActions
@@ -41,8 +88,12 @@ export function PostCardActionsBar({
       useCompactVariant
       initialLiked={initialLiked}
       initialBookmarked={initialBookmarked}
+      initialBookmarkFolderId={initialBookmarkFolderId}
       initialReposted={initialReposted}
       onCommentClick={onCommentClick}
+      bookmarkFolders={folders}
+      bookmarkFoldersLoading={foldersQuery.isLoading}
+      creatingBookmarkFolder={createFolderMutation.isPending}
       onLikeToggle={({ isLiked }) => {
         if (!postId) return;
         likeMutation.mutate(
@@ -69,18 +120,42 @@ export function PostCardActionsBar({
           }
         );
       }}
-      onBookmarkToggle={({ isBookmarked }) => {
-        if (!postId) return;
+      onBookmarkToggle={(state: BookmarkToggleState) => {
+        if (!postId) {
+          state.revert();
+          return;
+        }
         bookmarkMutation.mutate(
-          { postId, isBookmarked },
+          { postId, isBookmarked: state.isBookmarked },
           {
+            onSuccess: () => {
+              showFlashToast(
+                state.isBookmarked ? "Saved to bookmarks" : "Removed from bookmarks"
+              );
+            },
             onError: (error) => {
+              state.revert();
               const message =
                 error instanceof ApiRequestError ? error.message : "Could not update bookmark";
               showFlashToast(message, "error");
             },
           }
         );
+      }}
+      onBookmarkFolderSelect={saveToFolder}
+      onCreateBookmarkFolder={async function (name) {
+        if (!postId) return undefined;
+        try {
+          const folder = await createFolderMutation.mutateAsync(name);
+          await bookmarkMutation.mutateAsync({ postId, isBookmarked: true, folderId: folder.id });
+          showFlashToast(`Saved to ${folder.name}`);
+          return folder;
+        } catch (error) {
+          const message =
+            error instanceof ApiRequestError ? error.message : "Could not save to folder";
+          showFlashToast(message, "error");
+          throw error;
+        }
       }}
     />
   );

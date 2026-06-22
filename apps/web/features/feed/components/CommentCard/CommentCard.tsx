@@ -21,6 +21,8 @@ import { CommentCardOverlays } from "./CommentCardOverlays";
 export function CommentCard({
   comment,
   postId,
+  postBookmarked = false,
+  postBookmarkFolderId = null,
   depth = 0,
   onReplySubmit,
 }: CommentCardProps) {
@@ -69,6 +71,8 @@ export function CommentCard({
       <CommentCardDeleted
         comment={comment}
         postId={postId}
+        postBookmarked={postBookmarked}
+        postBookmarkFolderId={postBookmarkFolderId}
         depth={depth}
         onReplySubmit={onReplySubmit}
       />
@@ -107,6 +111,9 @@ export function CommentCard({
 
   const moreMenu = (
     <CommentCardMoreMenu
+      postId={postId}
+      postBookmarked={postBookmarked}
+      postBookmarkFolderId={postBookmarkFolderId}
       isOwnComment={isOwnComment}
       canModerateAuthor={canModerateAuthor}
       authorHandle={authorHandle}
@@ -185,6 +192,8 @@ export function CommentCard({
             <CommentCardReplies
               replies={comment.replies!}
               postId={postId}
+              postBookmarked={postBookmarked}
+              postBookmarkFolderId={postBookmarkFolderId}
               depth={depth}
               expanded={repliesExpanded}
               onReplySubmit={onReplySubmit}

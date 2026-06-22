@@ -135,6 +135,7 @@ export interface FeedPost {
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
+  bookmarkFolderId?: string | null;
 }
 
 export interface FeedPage {

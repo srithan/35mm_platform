@@ -126,9 +126,9 @@ const VARIANT_PANEL: Record<ModalVariant, string> = {
 };
 
 const VARIANT_CONTAINER: Record<ModalVariant, string> = {
-  centered: "fixed inset-0 flex items-center justify-center p-4",
-  lightbox: "fixed inset-0 flex items-center justify-center p-6 sm:p-10",
-  bare: "fixed inset-0 flex items-center justify-center p-0",
+  centered: "fixed inset-0 flex items-center justify-center p-4 pointer-events-auto",
+  lightbox: "fixed inset-0 flex items-center justify-center p-6 sm:p-10 pointer-events-auto",
+  bare: "fixed inset-0 flex items-center justify-center p-0 pointer-events-auto",
 };
 
 const VARIANT_BACKDROP: Record<ModalVariant, string> = {
@@ -183,6 +183,9 @@ export function Modal({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const hasOutsidePanel = Boolean(outsidePanel);
   const onCloseRef = useRef(onClose);
+  const wasOpenRef = useRef(false);
+  const blockGhostClicksUntilRef = useRef(0);
+  const savedBodyPointerEventsRef = useRef("");
   onCloseRef.current = onClose;
 
   useEffect(function () {
@@ -205,6 +208,44 @@ export function Modal({
   );
 
   useScrollLock(open && lockScroll);
+
+  useEffect(
+    function () {
+      if (!open) return;
+      savedBodyPointerEventsRef.current = document.body.style.pointerEvents;
+      document.body.style.pointerEvents = "none";
+      return function () {
+        document.body.style.pointerEvents = savedBodyPointerEventsRef.current;
+      };
+    },
+    [open]
+  );
+
+  useEffect(
+    function () {
+      if (wasOpenRef.current && !open) {
+        blockGhostClicksUntilRef.current = Date.now() + 450;
+      }
+      wasOpenRef.current = open;
+    },
+    [open]
+  );
+
+  useEffect(function () {
+    function blockGhostClick(e: Event) {
+      if (Date.now() >= blockGhostClicksUntilRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
+
+    document.addEventListener("click", blockGhostClick, true);
+    document.addEventListener("pointerdown", blockGhostClick, true);
+    return function () {
+      document.removeEventListener("click", blockGhostClick, true);
+      document.removeEventListener("pointerdown", blockGhostClick, true);
+    };
+  }, []);
 
   useEffect(
     function () {
@@ -314,7 +355,7 @@ export function Modal({
             type="button"
             aria-hidden
             tabIndex={-1}
-            className={cn(VARIANT_BACKDROP[variant], backdropClassName)}
+            className={cn(VARIANT_BACKDROP[variant], backdropClassName, "z-0")}
             onClick={closeOnBackdrop ? onClose : undefined}
           />
           <div
@@ -322,7 +363,13 @@ export function Modal({
             aria-modal={hasOutsidePanel ? undefined : true}
             {...(hasOutsidePanel ? {} : dialogLabelProps)}
             ref={contentRef}
-            className={panelClassName}
+            className={cn(panelClassName, "relative z-10")}
+            onPointerDown={function (e) {
+              e.stopPropagation();
+            }}
+            onClick={function (e) {
+              e.stopPropagation();
+            }}
           >
             {children}
           </div>
@@ -352,7 +399,7 @@ export function Modal({
             type="button"
             aria-hidden
             tabIndex={-1}
-            className={cn(VARIANT_BACKDROP[variant], backdropClassName)}
+            className={cn(VARIANT_BACKDROP[variant], backdropClassName, "z-0")}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -369,7 +416,13 @@ export function Modal({
             animate={pm.animate}
             exit={pm.exit}
             transition={{ type: "spring", damping: 26, stiffness: 240, mass: 0.9 }}
-            className={panelClassName}
+            className={cn(panelClassName, "relative z-10")}
+            onPointerDown={function (e) {
+              e.stopPropagation();
+            }}
+            onClick={function (e) {
+              e.stopPropagation();
+            }}
           >
             {children}
           </motion.div>

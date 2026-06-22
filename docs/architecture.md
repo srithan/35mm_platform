@@ -246,6 +246,14 @@ Source of truth: `packages/db/src/schema/*`.
 
 - Join tables with unique `(post_id, user_id)` indexes.
 - `post_bookmarks` is the current table name. Do not use `post_saves`.
+- `post_bookmarks.folder_id` optionally points at `bookmark_folders`; deleting a folder sets saved posts back to unsorted bookmarks.
+
+`bookmark_folders`
+
+- Per-user bookmark folders.
+- UUID primary key.
+- `user_id` FK to `users`.
+- `name`, `created_at`, `updated_at`.
 
 `post_polls`, `poll_options`, `poll_votes`
 
@@ -409,6 +417,10 @@ Feed, posts, comments, polls:
 - `GET /v1/feed/posts/:postId`
 - `GET /v1/feed/profiles/:username/posts`
 - `GET /v1/feed/bookmarks`
+- `GET /v1/feed/bookmarks/folders`
+- `POST /v1/feed/bookmarks/folders`
+- `PATCH /v1/feed/bookmarks/folders/:folderId`
+- `DELETE /v1/feed/bookmarks/folders/:folderId`
 - `PATCH /v1/feed/posts/:postId`
 - `DELETE /v1/feed/posts/:postId`
 - `POST /v1/feed/posts/:postId/likes`
@@ -416,6 +428,7 @@ Feed, posts, comments, polls:
 - `POST /v1/feed/posts/:postId/reposts`
 - `DELETE /v1/feed/posts/:postId/reposts`
 - `POST /v1/feed/posts/:postId/bookmarks`
+- `PATCH /v1/feed/posts/:postId/bookmarks`
 - `DELETE /v1/feed/posts/:postId/bookmarks`
 - `POST /v1/feed/posts/:postId/poll/votes`
 - `GET /v1/feed/posts/:postId/comments`
@@ -506,7 +519,7 @@ Important app routes:
 - `/:username/diary`, `/:username/lists`, `/:username/stats`: profile tabs.
 - `/discover`: discovery.
 - `/notifications`: notifications.
-- `/bookmarks`: bookmarks.
+- `/bookmarks`: two-column bookmarks surface with folder navigation, create/rename/delete folder controls, folder-filtered saved posts, and loading skeletons.
 - `/settings`: redirects to `/settings/account`.
 - `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/data-security`: settings sections with URL-backed tab navigation.
 - `/list/:listId`: list detail.
@@ -529,7 +542,7 @@ Feature ownership:
   Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
 - `features/discover`: TMDB-backed browsing and search.
-- `features/bookmarks`: bookmark page over feed bookmark API.
+- `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
 - `features/chat`: rich frontend and mock/remote API abstraction; backend persistence incomplete.
 - `features/title`: title pages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: future or mock-heavy product surfaces.

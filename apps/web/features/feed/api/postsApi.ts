@@ -120,11 +120,19 @@ export async function unrepostPost(postId: string, token: string | null): Promis
   });
 }
 
-export async function bookmarkPost(postId: string, token: string | null): Promise<void> {
-  await apiRequest<{ ok: true }>(`/v1/feed/posts/${encodeURIComponent(postId)}/bookmarks`, {
-    method: "POST",
-    token,
-  });
+export async function bookmarkPost(
+  postId: string,
+  token: string | null,
+  folderId?: string | null
+): Promise<{ folderId: string | null }> {
+  return apiRequest<{ ok: true; folderId: string | null }>(
+    `/v1/feed/posts/${encodeURIComponent(postId)}/bookmarks`,
+    {
+      method: "POST",
+      token,
+      body: folderId === undefined ? {} : { folderId },
+    }
+  );
 }
 
 export async function unbookmarkPost(postId: string, token: string | null): Promise<void> {

@@ -53,6 +53,7 @@ function PostCardComponent(props: PostCardProps) {
     likeCount,
     liked: initialLiked = false,
     bookmarked: initialBookmarked = false,
+    bookmarkFolderId: initialBookmarkFolderId = null,
     reposted: initialReposted = false,
     commentCount,
     replyPreview,
@@ -198,6 +199,8 @@ function PostCardComponent(props: PostCardProps) {
               hasPoll={Boolean(poll)}
               postId={postId}
               userId={userId}
+              isBookmarked={initialBookmarked}
+              bookmarkFolderId={initialBookmarkFolderId}
               variant={variant}
               sourcePostType={sourcePostType}
               text={text}
@@ -263,6 +266,7 @@ function PostCardComponent(props: PostCardProps) {
                 commentCount={commentCount}
                 initialLiked={initialLiked}
                 initialBookmarked={initialBookmarked}
+                initialBookmarkFolderId={initialBookmarkFolderId}
                 initialReposted={initialReposted}
                 onCommentClick={postId ? navigateToPost : undefined}
               />
@@ -275,6 +279,7 @@ function PostCardComponent(props: PostCardProps) {
             commentCount={commentCount}
             initialLiked={initialLiked}
             initialBookmarked={initialBookmarked}
+            initialBookmarkFolderId={initialBookmarkFolderId}
             initialReposted={initialReposted}
             onCommentClick={postId ? navigateToPost : undefined}
           />

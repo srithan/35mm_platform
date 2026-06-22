@@ -267,6 +267,10 @@ export function adaptPostToFeedType(raw: unknown): Post {
     isLiked: Boolean(root.isLiked ?? root.liked),
     isReposted: Boolean(root.isReposted),
     isBookmarked: Boolean(root.isBookmarked),
+    bookmarkFolderId:
+      root.bookmarkFolderId === undefined || root.bookmarkFolderId === null
+        ? null
+        : asString(root.bookmarkFolderId),
     createdAt,
     updatedAt,
     __raw: {

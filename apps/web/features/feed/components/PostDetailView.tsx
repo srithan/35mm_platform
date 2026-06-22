@@ -146,6 +146,7 @@ export function PostDetailView({
         liked={legacy.liked ?? post.isLiked}
         reposted={post.isReposted}
         bookmarked={post.isBookmarked}
+        bookmarkFolderId={post.bookmarkFolderId}
         commentCount={post.commentCount}
         replyPreview={legacy.replyPreview}
         replyCount={legacy.replyCount}
@@ -161,6 +162,8 @@ export function PostDetailView({
         onLoadMore={() => void commentsQuery.fetchNextPage()}
         postId={postId}
         postUsername={username}
+        postBookmarked={post.isBookmarked}
+        postBookmarkFolderId={post.bookmarkFolderId}
       />
     </div>
   );

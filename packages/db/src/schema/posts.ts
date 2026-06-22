@@ -13,6 +13,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { bookmarkFolders } from "./bookmarks.js";
 import { users } from "./users.js";
 import { films } from "./films.js";
 
@@ -173,11 +174,15 @@ export var postBookmarks = pgTable(
       .references(function () {
         return users.id;
       }, { onDelete: "cascade" }),
+    folderId: uuid("folder_id").references(function () {
+      return bookmarkFolders.id;
+    }, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   function (table) {
     return {
       postUserIdx: uniqueIndex("post_bookmarks_post_user_idx").on(table.postId, table.userId),
+      folderIdx: index("post_bookmarks_folder_id_idx").on(table.folderId),
     };
   }
 );

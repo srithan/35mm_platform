@@ -98,6 +98,7 @@ export interface PostCardProps {
   likeCount: number;
   liked?: boolean;
   bookmarked?: boolean;
+  bookmarkFolderId?: string | null;
   reposted?: boolean;
   commentCount: number;
   replyPreview?: PostCardReplyPreview;

@@ -6,6 +6,8 @@ import { CommentCard } from "./CommentCard";
 interface CommentCardRepliesProps {
   replies: Comment[];
   postId: string;
+  postBookmarked?: boolean;
+  postBookmarkFolderId?: string | null;
   depth: number;
   expanded: boolean;
   onReplySubmit?: CommentCardProps["onReplySubmit"];
@@ -14,6 +16,8 @@ interface CommentCardRepliesProps {
 export function CommentCardReplies({
   replies,
   postId,
+  postBookmarked = false,
+  postBookmarkFolderId = null,
   depth,
   expanded,
   onReplySubmit,
@@ -27,6 +31,8 @@ export function CommentCardReplies({
           key={reply.id}
           comment={reply}
           postId={postId}
+          postBookmarked={postBookmarked}
+          postBookmarkFolderId={postBookmarkFolderId}
           depth={depth + 1}
           onReplySubmit={onReplySubmit}
         />

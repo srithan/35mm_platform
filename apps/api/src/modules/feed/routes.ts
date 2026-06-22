@@ -15,6 +15,9 @@ import {
 import {
   createPostSchema,
   cursorPaginationSchema,
+  bookmarkFolderNameSchema,
+  bookmarkFolderAssignSchema,
+  bookmarkPostSchema,
   richTextBodyToVisibleText,
   richTextMentionIds,
   validateRichTextBody,
@@ -24,6 +27,7 @@ import {
   postLikes,
   postReposts,
   postBookmarks,
+  bookmarkFolders,
   postPolls,
   pollOptions,
   pollVotes,
@@ -94,6 +98,14 @@ var createPostRateLimit = createRateLimitMiddleware({
 
 function isDbError(err: unknown): err is { code?: unknown; message?: unknown } {
   return err != null && typeof err === "object";
+}
+
+function isValidationError(err: unknown): err is { issues: Array<{ message?: unknown }> } {
+  return (
+    err != null &&
+    typeof err === "object" &&
+    Array.isArray((err as { issues?: unknown }).issues)
+  );
 }
 
 function normalizeActorIds(value: unknown): string[] {
@@ -281,10 +293,14 @@ async function hydrateRichMentions(value: string): Promise<string> {
 
 function toActionError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
+  if (isValidationError(err)) {
+    var validationMessage = err.issues[0]?.message;
+    return badRequest(typeof validationMessage === "string" ? validationMessage : "Invalid request body");
+  }
   if (isDbError(err)) {
     var code = typeof err.code === "string" ? err.code : "DB_ERROR";
-    var message = typeof err.message === "string" ? err.message : "Database error";
-    return new ApiError(400, code, message);
+    var dbMessage = typeof err.message === "string" ? err.message : "Database error";
+    return new ApiError(400, code, dbMessage);
   }
   return new ApiError(500, "INTERNAL_ERROR", "Something went wrong");
 }
@@ -867,6 +883,7 @@ async function toPostItem(row: {
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
+  bookmarkFolderId?: string | null;
 }, viewerUserId: string | null = null) {
   var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
   var mediaItems = normalizePostMediaList(row.media);
@@ -938,6 +955,7 @@ async function toPostItem(row: {
     isLiked: Boolean(row.isLiked),
     isReposted: Boolean(row.isReposted),
     isBookmarked: Boolean(row.isBookmarked),
+    bookmarkFolderId: row.bookmarkFolderId ?? null,
   };
 }
 
@@ -1491,7 +1509,7 @@ async function applyViewerInteractionFlags<T extends HomeFeedRow>(
       .from(postReposts)
       .where(and(eq(postReposts.userId, viewerUserId), inArray(postReposts.postId, postIds))),
     db
-      .select({ postId: postBookmarks.postId })
+      .select({ postId: postBookmarks.postId, folderId: postBookmarks.folderId })
       .from(postBookmarks)
       .where(and(eq(postBookmarks.userId, viewerUserId), inArray(postBookmarks.postId, postIds))),
   ]);
@@ -1499,6 +1517,11 @@ async function applyViewerInteractionFlags<T extends HomeFeedRow>(
   var liked = new Set(likedRows.map(function (row) { return row.postId; }));
   var reposted = new Set(repostedRows.map(function (row) { return row.postId; }));
   var bookmarked = new Set(bookmarkedRows.map(function (row) { return row.postId; }));
+  var bookmarkFoldersByPost = new Map<string, string | null>();
+  for (var i = 0; i < bookmarkedRows.length; i += 1) {
+    var bookmarkRow = bookmarkedRows[i];
+    bookmarkFoldersByPost.set(bookmarkRow.postId, bookmarkRow.folderId ?? null);
+  }
 
   return rows.map(function (row) {
     return {
@@ -1506,6 +1529,9 @@ async function applyViewerInteractionFlags<T extends HomeFeedRow>(
       isLiked: liked.has(row.id),
       isReposted: reposted.has(row.id),
       isBookmarked: bookmarked.has(row.id),
+      bookmarkFolderId: bookmarked.has(row.id)
+        ? (bookmarkFoldersByPost.get(row.id) ?? null)
+        : null,
     };
   });
 }
@@ -1579,6 +1605,15 @@ async function getPostById(postId: string, viewerUserId: string | null) {
       isBookmarked: viewerUserId
         ? sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewerUserId})`
         : sql<boolean>`false`,
+      bookmarkFolderId: viewerUserId
+        ? sql<string | null>`(
+            select ${postBookmarks.folderId}
+            from ${postBookmarks}
+            where ${postBookmarks.postId} = ${posts.id}
+              and ${postBookmarks.userId} = ${viewerUserId}
+            limit 1
+          )`
+        : sql<string | null>`null`,
     })
     .from(posts)
     .innerJoin(profiles, eq(profiles.userId, posts.userId))
@@ -2250,8 +2285,26 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
     cursor: c.req.query("cursor"),
     limit: c.req.query("limit"),
   });
+  var folderIdParam = c.req.query("folderId");
+  var folderId: string | null | undefined;
+  if (folderIdParam === "none") {
+    folderId = null;
+  } else if (folderIdParam) {
+    folderId = bookmarkFolderAssignSchema.parse({ folderId: folderIdParam }).folderId;
+  }
   var cursor = decodeCompositeCursor(parsed.cursor);
   var db = getDb();
+
+  if (folderId) {
+    var ownedFolder = await db
+      .select({ id: bookmarkFolders.id })
+      .from(bookmarkFolders)
+      .where(and(eq(bookmarkFolders.id, folderId), eq(bookmarkFolders.userId, user.userId)))
+      .limit(1);
+    if (ownedFolder.length === 0) {
+      throw notFound("Folder not found");
+    }
+  }
 
   var filters: any[] = [
     eq(postBookmarks.userId, user.userId),
@@ -2261,6 +2314,11 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
     ...blockFiltersForAuthor(user.userId, posts.userId),
     notMutedByViewerSql(user.userId, posts.userId),
   ];
+  if (folderId === null) {
+    filters.push(sql`${postBookmarks.folderId} is null`);
+  } else if (folderId) {
+    filters.push(eq(postBookmarks.folderId, folderId));
+  }
   var cursorFilter = compositeCursorSql(postBookmarks.createdAt, postBookmarks.postId, cursor);
   if (cursorFilter) filters.push(cursorFilter);
 
@@ -2303,6 +2361,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${user.userId})`,
       isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${user.userId})`,
       isBookmarked: sql<boolean>`true`,
+      bookmarkFolderId: postBookmarks.folderId,
     })
     .from(postBookmarks)
     .innerJoin(posts, eq(posts.id, postBookmarks.postId))
@@ -2878,6 +2937,147 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
   return c.json({ ok: true });
 });
 
+async function assertOwnedBookmarkFolder(userId: string, folderId: string) {
+  var db = getDb();
+  var rows = await db
+    .select({ id: bookmarkFolders.id })
+    .from(bookmarkFolders)
+    .where(and(eq(bookmarkFolders.id, folderId), eq(bookmarkFolders.userId, userId)))
+    .limit(1);
+  if (rows.length === 0) {
+    throw notFound("Folder not found");
+  }
+}
+
+feedRoutes.get("/bookmarks/folders", requireAuth, async function (c) {
+  var user = c.get("user");
+  var db = getDb();
+  var folderRows = await db
+    .select({
+      id: bookmarkFolders.id,
+      name: bookmarkFolders.name,
+      createdAt: bookmarkFolders.createdAt,
+      updatedAt: bookmarkFolders.updatedAt,
+    })
+    .from(bookmarkFolders)
+    .where(eq(bookmarkFolders.userId, user.userId))
+    .orderBy(desc(bookmarkFolders.updatedAt));
+
+  var countFilters: any[] = [
+    eq(postBookmarks.userId, user.userId),
+    eq(posts.isDeleted, false),
+    postVisibilitySql(user.userId),
+    profileAccessSql(user.userId),
+    ...blockFiltersForAuthor(user.userId, posts.userId),
+    notMutedByViewerSql(user.userId, posts.userId),
+  ];
+
+  var countRows = await db
+    .select({
+      folderId: postBookmarks.folderId,
+      itemCount: count(),
+    })
+    .from(postBookmarks)
+    .innerJoin(posts, eq(posts.id, postBookmarks.postId))
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .where(and(...countFilters))
+    .groupBy(postBookmarks.folderId);
+
+  var countsByFolder = new Map<string | null, number>();
+  for (var i = 0; i < countRows.length; i += 1) {
+    var countRow = countRows[i];
+    countsByFolder.set(countRow.folderId ?? null, Number(countRow.itemCount ?? 0));
+  }
+
+  return c.json({
+    folders: folderRows.map(function (folder) {
+      return {
+        id: folder.id,
+        name: folder.name,
+        createdAt: folder.createdAt.toISOString(),
+        updatedAt: folder.updatedAt.toISOString(),
+        itemCount: countsByFolder.get(folder.id) ?? 0,
+      };
+    }),
+    unsortedCount: countsByFolder.get(null) ?? 0,
+  });
+});
+
+feedRoutes.post("/bookmarks/folders", requireAuth, async function (c) {
+  var user = c.get("user");
+  var body = bookmarkFolderNameSchema.parse(await c.req.json());
+  var db = getDb();
+  var now = new Date();
+  var rows = await db
+    .insert(bookmarkFolders)
+    .values({
+      userId: user.userId,
+      name: body.name,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning({
+      id: bookmarkFolders.id,
+      name: bookmarkFolders.name,
+      createdAt: bookmarkFolders.createdAt,
+      updatedAt: bookmarkFolders.updatedAt,
+    });
+
+  var folder = rows[0];
+  return c.json({
+    folder: {
+      id: folder.id,
+      name: folder.name,
+      createdAt: folder.createdAt.toISOString(),
+      updatedAt: folder.updatedAt.toISOString(),
+      itemCount: 0,
+    },
+  });
+});
+
+feedRoutes.patch("/bookmarks/folders/:folderId", requireAuth, async function (c) {
+  var user = c.get("user");
+  var folderId = c.req.param("folderId");
+  var body = bookmarkFolderNameSchema.parse(await c.req.json());
+  await assertOwnedBookmarkFolder(user.userId, folderId);
+  var db = getDb();
+  var rows = await db
+    .update(bookmarkFolders)
+    .set({ name: body.name, updatedAt: new Date() })
+    .where(and(eq(bookmarkFolders.id, folderId), eq(bookmarkFolders.userId, user.userId)))
+    .returning({
+      id: bookmarkFolders.id,
+      name: bookmarkFolders.name,
+      createdAt: bookmarkFolders.createdAt,
+      updatedAt: bookmarkFolders.updatedAt,
+    });
+
+  if (rows.length === 0) {
+    throw notFound("Folder not found");
+  }
+
+  var folder = rows[0];
+  return c.json({
+    folder: {
+      id: folder.id,
+      name: folder.name,
+      createdAt: folder.createdAt.toISOString(),
+      updatedAt: folder.updatedAt.toISOString(),
+    },
+  });
+});
+
+feedRoutes.delete("/bookmarks/folders/:folderId", requireAuth, async function (c) {
+  var user = c.get("user");
+  var folderId = c.req.param("folderId");
+  await assertOwnedBookmarkFolder(user.userId, folderId);
+  var db = getDb();
+  await db
+    .delete(bookmarkFolders)
+    .where(and(eq(bookmarkFolders.id, folderId), eq(bookmarkFolders.userId, user.userId)));
+  return c.json({ ok: true });
+});
+
 feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
@@ -2893,27 +3093,84 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
       throw notFound("Post not found");
     }
 
-    var inserted = await db
-      .insert(postBookmarks)
-      .values({ postId: postId, userId: user.userId })
-      .onConflictDoNothing()
-      .returning({ postId: postBookmarks.postId });
-
-    if (inserted.length > 0) {
-      await enqueueCounterDelta({
-        targetTable: "posts",
-        targetId: postId,
-        counterName: "bookmarkCount",
-        delta: 1,
-      });
-      await invalidatePostInteractionCaches({
-        actorUserId: user.userId,
-        postOwnerId: postOwnerRows[0].userId,
-        isPostPublic: postOwnerRows[0].visibility === "public",
-      });
+    var rawBody = await c.req.json().catch(function () {
+      return {};
+    });
+    var folderId = bookmarkPostSchema.parse(rawBody).folderId;
+    if (folderId) {
+      await assertOwnedBookmarkFolder(user.userId, folderId);
     }
 
-    return c.json({ ok: true });
+    var existingRows = await db
+      .select({ postId: postBookmarks.postId, folderId: postBookmarks.folderId })
+      .from(postBookmarks)
+      .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
+      .limit(1);
+
+    if (existingRows.length === 0) {
+      var inserted = await db
+        .insert(postBookmarks)
+        .values({
+          postId: postId,
+          userId: user.userId,
+          folderId: folderId ?? null,
+        })
+        .returning({ postId: postBookmarks.postId, folderId: postBookmarks.folderId });
+
+      if (inserted.length > 0) {
+        await enqueueCounterDelta({
+          targetTable: "posts",
+          targetId: postId,
+          counterName: "bookmarkCount",
+          delta: 1,
+        });
+        await invalidatePostInteractionCaches({
+          actorUserId: user.userId,
+          postOwnerId: postOwnerRows[0].userId,
+          isPostPublic: postOwnerRows[0].visibility === "public",
+        });
+      }
+
+      return c.json({ ok: true, folderId: inserted[0]?.folderId ?? null });
+    }
+
+    if (folderId !== undefined) {
+      var updated = await db
+        .update(postBookmarks)
+        .set({ folderId: folderId })
+        .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
+        .returning({ folderId: postBookmarks.folderId });
+      return c.json({ ok: true, folderId: updated[0]?.folderId ?? null });
+    }
+
+    return c.json({ ok: true, folderId: existingRows[0]?.folderId ?? null });
+  } catch (err) {
+    throw toActionError(err);
+  }
+});
+
+feedRoutes.patch("/posts/:postId/bookmarks", requireAuth, async function (c) {
+  var user = c.get("user");
+  var postId = c.req.param("postId");
+  try {
+    await assertReadablePostForInteraction(postId, user.userId);
+    var body = bookmarkFolderAssignSchema.parse(await c.req.json());
+    if (body.folderId) {
+      await assertOwnedBookmarkFolder(user.userId, body.folderId);
+    }
+
+    var db = getDb();
+    var updated = await db
+      .update(postBookmarks)
+      .set({ folderId: body.folderId })
+      .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
+      .returning({ folderId: postBookmarks.folderId });
+
+    if (updated.length === 0) {
+      throw notFound("Bookmark not found");
+    }
+
+    return c.json({ ok: true, folderId: updated[0].folderId ?? null });
   } catch (err) {
     throw toActionError(err);
   }

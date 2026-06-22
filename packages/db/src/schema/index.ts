@@ -1,3 +1,4 @@
+export { bookmarkFolders } from "./bookmarks.js";
 export { users, accountStatusEnum } from "./users.js";
 export { followSuggestions } from "./follow_suggestions.js";
 export { profiles } from "./profiles.js";

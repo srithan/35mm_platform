@@ -843,9 +843,11 @@ body {
     transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.like-heart-icon {
+.like-action .like-heart-icon {
     position: absolute;
-    inset: 0;
+    inset: -1px;
+    width: 22px;
+    height: 22px;
     transition: opacity 0.15s ease, transform 0.15s ease;
 }
 

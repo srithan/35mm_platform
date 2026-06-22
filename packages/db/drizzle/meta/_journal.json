@@ -120,6 +120,13 @@
       "when": 1782600000006,
       "tag": "0016_follow_request_approved_notification",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782600000007,
+      "tag": "0017_bookmark_folders",
+      "breakpoints": true
     }
   ]
 }

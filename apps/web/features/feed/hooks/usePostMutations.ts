@@ -211,13 +211,17 @@ export function useBookmarkPost() {
   var { getToken } = useAuth();
 
   return useMutation({
-    mutationFn: async function (input: { postId: string; isBookmarked: boolean }) {
+    mutationFn: async function (input: {
+      postId: string;
+      isBookmarked: boolean;
+      folderId?: string | null;
+    }) {
       var token = await getToken();
       if (input.isBookmarked) {
-        await bookmarkPost(input.postId, token);
-      } else {
-        await unbookmarkPost(input.postId, token);
+        return bookmarkPost(input.postId, token, input.folderId);
       }
+      await unbookmarkPost(input.postId, token);
+      return { folderId: null as string | null };
     },
     onMutate: async function (input) {
       await queryClient.cancelQueries({ queryKey: feedKeys.all });
@@ -227,10 +231,17 @@ export function useBookmarkPost() {
       var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
 
       patchAllFeedCaches(queryClient, input.postId, function (post) {
+        var wasBookmarked = post.isBookmarked;
+        var nextBookmarked = input.isBookmarked;
+        var countDelta =
+          nextBookmarked && !wasBookmarked ? 1 : !nextBookmarked && wasBookmarked ? -1 : 0;
         return {
           ...post,
-          isBookmarked: input.isBookmarked,
-          bookmarkCount: Math.max(0, post.bookmarkCount + (input.isBookmarked ? 1 : -1)),
+          isBookmarked: nextBookmarked,
+          bookmarkFolderId: nextBookmarked
+            ? (input.folderId !== undefined ? input.folderId : post.bookmarkFolderId ?? null)
+            : null,
+          bookmarkCount: Math.max(0, post.bookmarkCount + countDelta),
         };
       });
 
@@ -241,8 +252,11 @@ export function useBookmarkPost() {
       restoreFeedCaches(queryClient, context.snapshot);
       queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
     },
-    onSuccess: function () {
-      queryClient.invalidateQueries({ queryKey: bookmarkKeys.list() });
+    onSuccess: function (_data, input) {
+      queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
+      if (input.isBookmarked && input.folderId) {
+        queryClient.invalidateQueries({ queryKey: bookmarkKeys.folders() });
+      }
     },
   });
 }
@@ -352,7 +366,7 @@ export function useDeletePost() {
       queryClient.removeQueries({ queryKey: feedKeys.post(input.postId) });
       queryClient.removeQueries({ queryKey: feedKeys.comments(input.postId) });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
-      queryClient.invalidateQueries({ queryKey: bookmarkKeys.list() });
+      queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
     },
   });
 }

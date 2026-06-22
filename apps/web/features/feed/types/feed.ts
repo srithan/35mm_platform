@@ -87,6 +87,7 @@ export interface Post {
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
+  bookmarkFolderId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

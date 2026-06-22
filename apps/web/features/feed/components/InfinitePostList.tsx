@@ -230,6 +230,7 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
         likeCount: post.likeCount,
         liked: post.isLiked,
         bookmarked: post.isBookmarked,
+        bookmarkFolderId: post.bookmarkFolderId,
         reposted: post.isReposted,
         commentCount: post.commentCount,
         role: post.author.role,

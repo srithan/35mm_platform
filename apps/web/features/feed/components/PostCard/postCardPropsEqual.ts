@@ -166,6 +166,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     prev.likeCount === next.likeCount &&
     prev.liked === next.liked &&
     prev.bookmarked === next.bookmarked &&
+    prev.bookmarkFolderId === next.bookmarkFolderId &&
     prev.reposted === next.reposted &&
     prev.commentCount === next.commentCount &&
     areReplyPreviewsEqual(prev.replyPreview, next.replyPreview) &&

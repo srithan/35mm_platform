@@ -8,6 +8,8 @@ import { CommentCardReplies } from "./CommentCardReplies";
 interface CommentCardDeletedProps {
   comment: Comment;
   postId: string;
+  postBookmarked?: boolean;
+  postBookmarkFolderId?: string | null;
   depth: number;
   onReplySubmit?: CommentCardProps["onReplySubmit"];
 }
@@ -15,6 +17,8 @@ interface CommentCardDeletedProps {
 export function CommentCardDeleted({
   comment,
   postId,
+  postBookmarked = false,
+  postBookmarkFolderId = null,
   depth,
   onReplySubmit,
 }: CommentCardDeletedProps) {
@@ -35,6 +39,8 @@ export function CommentCardDeleted({
         <CommentCardReplies
           replies={comment.replies!}
           postId={postId}
+          postBookmarked={postBookmarked}
+          postBookmarkFolderId={postBookmarkFolderId}
           depth={depth}
           expanded
           onReplySubmit={onReplySubmit}

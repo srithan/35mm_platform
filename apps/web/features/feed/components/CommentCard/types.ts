@@ -24,6 +24,8 @@ export interface Comment {
 export interface CommentCardProps {
   comment: Comment;
   postId: string;
+  postBookmarked?: boolean;
+  postBookmarkFolderId?: string | null;
   depth?: number;
   onReplySubmit?: (input: { parentId: string; body: string }) => Promise<void>;
 }

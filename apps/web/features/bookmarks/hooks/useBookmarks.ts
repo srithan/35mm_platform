@@ -5,14 +5,15 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchBookmarks } from "../api/bookmarksApi";
 import { bookmarkKeys } from "./queryKeys";
 
-export function useBookmarks() {
+export function useBookmarks(folderId?: string | null) {
   var { getToken, isLoaded, isSignedIn } = useAuth();
 
   return useInfiniteQuery({
-    queryKey: bookmarkKeys.list(),
+    queryKey: bookmarkKeys.list(folderId),
     queryFn: async function ({ pageParam }) {
       return fetchBookmarks({
         cursor: pageParam as string | undefined,
+        folderId,
         token: await getToken(),
       });
     },

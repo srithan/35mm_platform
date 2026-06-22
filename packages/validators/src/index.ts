@@ -261,6 +261,18 @@ export var notificationIdSchema = z.object({
   notificationId: z.string().uuid(),
 });
 
+export var bookmarkFolderNameSchema = z.object({
+  name: z.string().trim().min(1, "Folder name is required").max(80),
+});
+
+export var bookmarkFolderAssignSchema = z.object({
+  folderId: z.string().uuid().nullable(),
+});
+
+export var bookmarkPostSchema = z.object({
+  folderId: z.string().uuid().nullable().optional(),
+});
+
 export var sendMessageSchema = z.object({
   text: z.string().trim().max(5000),
   replyToId: z.string().min(1).optional(),
@@ -426,3 +438,6 @@ export type WatchlistFilmInput = z.infer<typeof watchlistFilmSchema>;
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type NotificationQueryInput = z.infer<typeof notificationQuerySchema>;
 export type NotificationIdInput = z.infer<typeof notificationIdSchema>;
+export type BookmarkFolderNameInput = z.infer<typeof bookmarkFolderNameSchema>;
+export type BookmarkFolderAssignInput = z.infer<typeof bookmarkFolderAssignSchema>;
+export type BookmarkPostInput = z.infer<typeof bookmarkPostSchema>;

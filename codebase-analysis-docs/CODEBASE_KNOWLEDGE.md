@@ -96,7 +96,7 @@ Feature folders:
 - `features/onboarding`: role/favorite films/genres/follow suggestions flow.
 - `features/discover`: TMDB-backed discovery and search views.
 - `features/settings`: account/privacy/notification/appearance/data-security settings with URL-backed section routes.
-- `features/bookmarks`: bookmark page backed by feed bookmarks endpoint.
+- `features/bookmarks`: two-column bookmark page, folder management, and post-to-folder flow backed by feed bookmark endpoints.
 - `features/chat`: rich chat frontend with mock/remote client split, but no current App Router chat pages in the inspected shell tree.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
 - `features/title`: title detail pages, largely TMDB/discover oriented.
@@ -170,6 +170,8 @@ erDiagram
   posts ||--o{ post_likes : receives
   posts ||--o{ post_reposts : receives
   posts ||--o{ post_bookmarks : receives
+  users ||--o{ bookmark_folders : owns
+  bookmark_folders ||--o{ post_bookmarks : groups
   posts ||--o{ post_polls : has
   post_polls ||--o{ poll_options : has
   post_polls ||--o{ poll_votes : receives
@@ -197,7 +199,8 @@ Current Drizzle schema highlights:
 - `profiles`: username, display name, bio/media, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count.
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
 - `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview.
-- `post_bookmarks`: current bookmark table. The older `post_saves` rename appears completed in code.
+- `bookmark_folders`: per-user bookmark folders.
+- `post_bookmarks`: current bookmark table. The older `post_saves` rename appears completed in code; `folder_id` optionally points at `bookmark_folders` and falls back to unsorted on folder delete.
 - `post_polls`, `poll_options`, `poll_votes`: ranking/image polls, results visibility, end time, votes.
 - `follows`: composite PK `(follower_id, following_id)`, status `pending | accepted`.
 - `comments`: post/user/parent, body, like count, soft delete, edit timestamp. App code enforces nesting rules.
@@ -315,9 +318,10 @@ API:
 - `POST /v1/feed`: create post, auth, rate limit, media process job, mention notifications.
 - `GET /v1/feed/posts/:postId`: detail.
 - `GET /v1/feed/profiles/:username/posts`: profile feed.
-- `GET /v1/feed/bookmarks`: viewer bookmarks.
+- `GET /v1/feed/bookmarks`: viewer bookmarks, optionally filtered by folder.
+- `GET/POST/PATCH/DELETE /v1/feed/bookmarks/folders`: folder list/create/rename/delete.
 - `PATCH/DELETE /v1/feed/posts/:postId`: edit/soft-delete.
-- Likes/reposts/bookmarks endpoints.
+- Likes/reposts/bookmarks endpoints, including `PATCH /v1/feed/posts/:postId/bookmarks` for moving an existing bookmark between folders.
 - Poll voting endpoint.
 - Comment CRUD and comment like endpoints.
 
