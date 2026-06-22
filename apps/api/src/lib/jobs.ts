@@ -13,7 +13,37 @@ type NotificationPublishJobPayload = {
   delayMs?: number;
 };
 
-type QueueName = "media.process" | "notification.publish";
+type FeedFanoutJobPayload = {
+  postId: string;
+  authorUserId: string;
+};
+
+export type CounterTargetTable =
+  | "posts"
+  | "comments"
+  | "post_polls"
+  | "poll_options"
+  | "film_lists"
+  | "profiles";
+
+export type CounterName =
+  | "likeCount"
+  | "commentCount"
+  | "repostCount"
+  | "bookmarkCount"
+  | "totalVotes"
+  | "voteCount"
+  | "entryCount"
+  | "filmsLoggedCount";
+
+export type CounterIncrementJobPayload = {
+  targetTable: CounterTargetTable;
+  targetId: string;
+  counterName: CounterName;
+  delta: number;
+};
+
+type QueueName = "media.process" | "notification.publish" | "counter.increment" | "feed.fanout";
 
 var queue: Queue | null | undefined;
 
@@ -21,6 +51,30 @@ function defaultJobOptions(name: QueueName): JobsOptions {
   if (name === "media.process") {
     return {
       attempts: 4,
+      backoff: {
+        type: "exponential",
+        delay: 2_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    };
+  }
+
+  if (name === "counter.increment") {
+    return {
+      attempts: 8,
+      backoff: {
+        type: "exponential",
+        delay: 1_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    };
+  }
+
+  if (name === "feed.fanout") {
+    return {
+      attempts: 8,
       backoff: {
         type: "exponential",
         delay: 2_000,
@@ -138,6 +192,50 @@ export async function enqueueMediaProcessJob(payload: MediaProcessJobPayload): P
     ...defaultJobOptions("media.process"),
     jobId: "media.process-" + payload.postId,
   });
+
+  return true;
+}
+
+export async function enqueueFeedFanoutJob(payload: FeedFanoutJobPayload): Promise<boolean> {
+  try {
+    var q = getQueue();
+    if (!q) {
+      console.warn("[feed.fanout] queue disabled", payload);
+      return false;
+    }
+
+    await q.add("feed.fanout", payload, {
+      ...defaultJobOptions("feed.fanout"),
+      jobId: "feed.fanout-" + payload.postId,
+    });
+  } catch (error) {
+    console.warn("[feed.fanout] enqueue failed", { payload, error });
+    return false;
+  }
+
+  return true;
+}
+
+export async function enqueueCounterIncrementJob(
+  payload: CounterIncrementJobPayload
+): Promise<boolean> {
+  if (!Number.isInteger(payload.delta) || payload.delta === 0) {
+    console.warn("[counter.increment] invalid delta", payload);
+    return false;
+  }
+
+  var q = getQueue();
+  if (!q) {
+    console.warn("[counter.increment] queue disabled", payload);
+    return false;
+  }
+
+  try {
+    await q.add("counter.increment", payload, defaultJobOptions("counter.increment"));
+  } catch (error) {
+    console.warn("[counter.increment] enqueue failed", { payload, error });
+    return false;
+  }
 
   return true;
 }

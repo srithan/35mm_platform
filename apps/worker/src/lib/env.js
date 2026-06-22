@@ -26,6 +26,10 @@ export function loadWorkerEnv() {
         UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
         MEDIA_JOB_BATCH_SIZE: Number(process.env.MEDIA_JOB_BATCH_SIZE ?? "20"),
         MEDIA_BACKFILL_BATCH_SIZE: Number(process.env.MEDIA_BACKFILL_BATCH_SIZE ?? "100"),
+        FEED_HIGH_FOLLOWER_THRESHOLD: Number(process.env.FEED_HIGH_FOLLOWER_THRESHOLD ?? "10000"),
+        FEED_FANOUT_BATCH_SIZE: Number(process.env.FEED_FANOUT_BATCH_SIZE ?? "500"),
+        FEED_RESCORE_MAX_AGE_HOURS: Number(process.env.FEED_RESCORE_MAX_AGE_HOURS ?? "72"),
+        FEED_RESCORE_BATCH_SIZE: Number(process.env.FEED_RESCORE_BATCH_SIZE ?? "500"),
         WORKER_CONCURRENCY: Number(process.env.WORKER_CONCURRENCY ?? "4"),
     };
 }

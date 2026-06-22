@@ -34,8 +34,7 @@ interface ProfileHeaderProps {
   followerCount: number;
   followingCount: number;
   filmsLoggedCount: number;
-  isFollowing: boolean;
-  isFollowRequested?: boolean;
+  followState: "none" | "requested" | "following" | "self";
   hasIncomingFollowRequest?: boolean;
   avatarUrl?: string | null;
   onAvatarUrlChange?: (imageUrl: string | null) => void;
@@ -51,12 +50,11 @@ export function ProfileHeader({
   location: initialLocation = "",
   website: initialWebsite = "",
   dateOfBirth: initialDateOfBirth = "",
-  followerCount,
-  followingCount,
-  filmsLoggedCount,
-  isFollowing: initialIsFollowing,
-  isFollowRequested: initialIsFollowRequested = false,
-  isPrivate = false,
+	  followerCount,
+	  followingCount,
+	  filmsLoggedCount,
+	  followState,
+	  isPrivate = false,
   hasIncomingFollowRequest = false,
   showFollowButton = true,
   avatarUrl: initialAvatarUrl = null,
@@ -65,9 +63,11 @@ export function ProfileHeader({
   const { getToken, isLoaded } = useAuth();
   const queryClient = useQueryClient();
   const [isMutedByViewer, setIsMutedByViewer] = useState(initialIsMutedByViewer);
-  const [confirmAction, setConfirmAction] = useState<
-    "block" | "report" | "mute" | "unmute" | "unfollow" | null
-  >(null);
+	  const [confirmAction, setConfirmAction] = useState<
+	    "block" | "report" | "mute" | "unmute" | null
+	  >(null);
+	  const [confirmCancelRequest, setConfirmCancelRequest] = useState(false);
+	  const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(initialAvatarUrl);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -112,12 +112,10 @@ export function ProfileHeader({
       await queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
     },
   });
-  const isFollowing = initialIsFollowing;
-  const isFollowRequested = Boolean(initialIsFollowRequested);
-  const hasIncomingFollowRequestAction = Boolean(hasIncomingFollowRequest);
-  const followAction = followToggleMutation.variables;
-  const isPendingUnfollow = followAction?.isFollowing === true;
-  const isCancelFollowRequest = followAction?.isFollowRequested === true;
+	  const hasIncomingFollowRequestAction = Boolean(hasIncomingFollowRequest);
+	  const followAction = followToggleMutation.variables;
+	  const isPendingUnfollow = followAction?.followState === "following";
+	  const isCancelFollowRequest = followAction?.followState === "requested";
   const isRespondingToIncomingFollowRequest =
     acceptFollowRequestMutation.isPending || declineFollowRequestMutation.isPending;
 
@@ -163,27 +161,34 @@ export function ProfileHeader({
       description: `Their posts will appear in your feed again.`,
       confirmLabel: `Unmute @${username}`,
     },
-    unfollow: {
-      title: `Unfollow @${username}?`,
-      description:
-        "You'll no longer see private posts from this account. This action can be undone by following again.",
-      confirmLabel: `Unfollow @${username}`,
-    },
-  };
+	  };
 
-  const followButtonLabel = followToggleMutation.isPending
-    ? isPendingUnfollow
-      ? "Unfollowing..."
-      : isCancelFollowRequest
-        ? "Canceling request..."
-        : isPrivate
-          ? "Requesting..."
-          : "Following..."
-    : isFollowing
-      ? "Following"
-      : isFollowRequested
-        ? "Requested"
-        : "Follow";
+	  const followButtonLabel = followToggleMutation.isPending
+	    ? isPendingUnfollow
+	      ? "Unfollowing..."
+	      : isCancelFollowRequest
+	        ? "Canceling request..."
+	        : isPrivate
+	          ? "Requesting..."
+	          : "Following..."
+	    : confirmCancelRequest
+	      ? "Cancel request?"
+	      : followState === "following"
+	        ? "Following"
+	        : followState === "requested"
+	          ? "Requested"
+	          : followState === "self"
+	            ? "Edit Profile"
+	            : isPrivate
+	              ? "Request"
+	              : "Follow";
+
+	  const followButtonVariant =
+	    confirmCancelRequest ? "danger" :
+	    followState === "following" ? "outline" :
+	    followState === "requested" ? "muted" :
+	    followState === "self" ? "secondary" :
+	    "primary";
 
   const avatarClassName =
     "h-[88px] w-[88px] border-[4px] border-bg text-[28px] ring-0 shadow-none sm:h-[112px] sm:w-[112px] sm:text-[36px] md:h-[200px] md:w-[200px] md:text-[56px]";
@@ -200,10 +205,13 @@ export function ProfileHeader({
   ) : (
     <>
       <Button variant="ghost" size="sm">Message</Button>
-      {hasIncomingFollowRequestAction ? (
-        <>
-          <Button
-            variant="ghost"
+	      {hasIncomingFollowRequestAction ? (
+	        <>
+	          <span className="inline-flex items-center text-[12px] font-medium text-fg-muted">
+	            Wants to follow you
+	          </span>
+	          <Button
+	            variant="ghost"
             size="sm"
             disabled={isRespondingToIncomingFollowRequest || !isLoaded}
             onClick={() => {
@@ -211,8 +219,8 @@ export function ProfileHeader({
               declineFollowRequestMutation.mutate();
             }}
           >
-            {declineFollowRequestMutation.isPending ? "Ignoring..." : "Ignore"}
-          </Button>
+	            {declineFollowRequestMutation.isPending ? "Declining..." : "Decline"}
+	          </Button>
           <Button
             variant="primary"
             size="sm"
@@ -225,23 +233,37 @@ export function ProfileHeader({
             {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
           </Button>
         </>
-      ) : showFollowButton ? (
-        <Button
-          variant={isFollowing ? "secondary" : "primary"}
-          size="sm"
-          disabled={followToggleMutation.isPending}
-          onClick={() => {
-            if (followToggleMutation.isPending) return;
-            if (isFollowing && isPrivate) {
-              setConfirmAction("unfollow");
-              return;
-            }
-            followToggleMutation.mutate({
-              userId,
-              isFollowing,
-              isFollowRequested,
-            });
-          }}
+	      ) : showFollowButton ? (
+	        <Button
+	          variant={followButtonVariant}
+	          size="sm"
+	          disabled={followToggleMutation.isPending}
+	          onBlur={() => setConfirmCancelRequest(false)}
+	          onKeyDown={(event) => {
+	            if (event.key === "Escape") {
+	              setConfirmCancelRequest(false);
+	            }
+	          }}
+	          onClick={() => {
+	            if (followToggleMutation.isPending) return;
+	            if (followState === "self") {
+	              setShowEditModal(true);
+	              return;
+	            }
+	            if (followState === "requested" && !confirmCancelRequest) {
+	              setConfirmCancelRequest(true);
+	              return;
+	            }
+	            if (followState === "following" && isPrivate) {
+	              setConfirmUnfollow(true);
+	              return;
+	            }
+	            setConfirmCancelRequest(false);
+	            followToggleMutation.mutate({
+	              userId,
+	              followState,
+	            });
+	          }}
         >
           {followButtonLabel}
         </Button>
@@ -369,13 +391,7 @@ export function ProfileHeader({
                   onSuccess: () => setIsMutedByViewer(true),
                 }
               );
-            } else if (confirmAction === "unfollow") {
-              followToggleMutation.mutate({
-                userId,
-                isFollowing,
-                isFollowRequested,
-              });
-            } else if (confirmAction === "unmute") {
+	            } else if (confirmAction === "unmute") {
               muteMutation.mutate(
                 { userId, muted: true },
                 {
@@ -392,6 +408,21 @@ export function ProfileHeader({
           variant={confirmAction === "block" || confirmAction === "report" ? "danger" : "default"}
         />
       )}
+      <ConfirmDialog
+        open={confirmUnfollow}
+        onClose={() => setConfirmUnfollow(false)}
+        onConfirm={() => {
+          followToggleMutation.mutate({
+            userId,
+            followState: "following",
+          });
+        }}
+        title={`Unfollow @${username}?`}
+        description="You'll lose access to their posts. They won't be notified that you unfollowed."
+        confirmLabel="Unfollow"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
       <ShareModal
         open={showShareModal}
         onClose={() => setShowShareModal(false)}

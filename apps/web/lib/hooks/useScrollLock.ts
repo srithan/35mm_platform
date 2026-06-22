@@ -6,7 +6,7 @@ const APP_SCROLLBAR_GUTTER_VAR = "--app-scrollbar-gutter";
 
 let lockCount = 0;
 let savedBodyPaddingRight = "";
-let savedHtmlOverflow = "";
+let savedBodyOverflow = "";
 let savedAppScrollbarGutter = "";
 
 function scrollbarWidth() {
@@ -23,7 +23,7 @@ function lock() {
   const sw = scrollbarWidth();
 
   savedBodyPaddingRight = body.style.paddingRight;
-  savedHtmlOverflow = root.style.overflow;
+  savedBodyOverflow = body.style.overflow;
   savedAppScrollbarGutter = root.style.getPropertyValue(APP_SCROLLBAR_GUTTER_VAR);
 
   /* Compensate on body so main content does not jump when the scrollbar is removed. */
@@ -38,7 +38,12 @@ function lock() {
    */
   root.style.setProperty(APP_SCROLLBAR_GUTTER_VAR, sw > 0 ? `${sw}px` : "0px");
 
-  root.style.overflow = "hidden";
+  /*
+   * Keep html overflow untouched so `scrollbar-gutter: stable` continues reserving
+   * the scrollbar lane. Toggling html overflow removes the lane in some browsers
+   * and causes centered layouts to shift when modals open.
+   */
+  body.style.overflow = "hidden";
 }
 
 function unlock() {
@@ -48,10 +53,10 @@ function unlock() {
   const root = document.documentElement;
   const body = document.body;
 
-  root.style.overflow = savedHtmlOverflow;
+  body.style.overflow = savedBodyOverflow;
   body.style.paddingRight = savedBodyPaddingRight;
   savedBodyPaddingRight = "";
-  savedHtmlOverflow = "";
+  savedBodyOverflow = "";
 
   if (savedAppScrollbarGutter.trim() === "") {
     root.style.removeProperty(APP_SCROLLBAR_GUTTER_VAR);

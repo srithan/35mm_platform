@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
-import { users, profiles, follows } from "@35mm/db/schema";
+import { and, desc, eq, lt, or, sql, type SQL } from "drizzle-orm";
+import { users, profiles, follows, notifications } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
@@ -15,6 +15,7 @@ import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "../media/url.js";
 
 export var profileRoutes = new Hono();
+type FollowState = "none" | "requested" | "following" | "self";
 
 function isR2Url(value: string): boolean {
   return isR2ConfiguredPublicUrl(value);
@@ -47,6 +48,13 @@ async function resolveTargetByUsername(username: string) {
   return rows[0].userId;
 }
 
+function followStateFromStatus(viewerUserId: string | null, profileUserId: string, status: "pending" | "accepted" | null): FollowState {
+  if (viewerUserId && viewerUserId === profileUserId) return "self";
+  if (status === "accepted") return "following";
+  if (status === "pending") return "requested";
+  return "none";
+}
+
 profileRoutes.get("/search", requireAuth, async function (c) {
   var user = c.get("user");
   var q = (c.req.query("q") ?? "").trim().toLowerCase();
@@ -68,6 +76,14 @@ profileRoutes.get("/search", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      isPrivate: profiles.isPrivate,
+      followStatus: sql<"pending" | "accepted" | null>`(
+        select ${follows.status}
+        from ${follows}
+        where ${follows.followerId} = ${user.userId}
+          and ${follows.followingId} = ${profiles.userId}
+        limit 1
+      )`,
       isFollowing: sql<boolean>`exists(
         select 1 from ${follows}
         where ${follows.followerId} = ${user.userId}
@@ -102,10 +118,12 @@ profileRoutes.get("/search", requireAuth, async function (c) {
           id: row.id,
           username: row.username,
           displayName: row.displayName,
-          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
-          isFollowing: Boolean(row.isFollowing),
-        };
-      })
+	          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+	          isPrivate: Boolean(row.isPrivate),
+	          followState: followStateFromStatus(user.userId, row.id, row.followStatus),
+	          isFollowing: Boolean(row.isFollowing),
+	        };
+	      })
     ),
   });
 });
@@ -209,9 +227,10 @@ profileRoutes.get("/:username", async function (c) {
   var followerCount = followerRows.length;
   var followingCount = followingRows.length;
   var followStatus = followRelationRows[0]?.status ?? null;
-  var isFollowing = followStatus === "accepted";
-  var isFollowRequested = followStatus === "pending";
+  var followState = followStateFromStatus(viewer?.userId ?? null, row.userId, followStatus);
+  var isFollowing = followState === "following";
   var hasIncomingFollowRequest = incomingFollowRequestRows.length > 0;
+  var hasPendingRequestToViewer = hasIncomingFollowRequest;
   var isOwner = viewer?.userId === row.userId;
 
   if (row.status === "deactivated") {
@@ -228,16 +247,16 @@ profileRoutes.get("/:username", async function (c) {
       roleContext: null,
       headline: null,
       headlineContext: null,
-      filmsLoggedCount: 0,
-      followerCount,
-      followingCount,
-      isFollowing,
-      isFollowRequested,
-      isPrivate: false,
-      hasIncomingFollowRequest,
-      isDeactivated: true,
-    });
-  }
+	      filmsLoggedCount: 0,
+	      followerCount,
+	      followingCount,
+	      followState,
+	      isPrivate: false,
+	      hasIncomingFollowRequest,
+	      hasPendingRequestToViewer,
+	      isDeactivated: true,
+	    });
+	  }
 
   var media = await resolveProfileMedia(row.avatarUrl, row.coverUrl);
 
@@ -256,17 +275,16 @@ profileRoutes.get("/:username", async function (c) {
       roleContext: row.roleContext,
       headline: row.headline,
       headlineContext: row.headlineContext,
-      filmsLoggedCount: row.filmsLoggedCount,
-      followerCount,
-      followingCount,
-      isFollowing: false,
-      isFollowRequested,
-      isPrivate: true,
-      hasIncomingFollowRequest,
-      posts: null,
-      isDeactivated: false,
-      isMutedByViewer,
-      createdAt: row.createdAt.toISOString(),
+	      filmsLoggedCount: row.filmsLoggedCount,
+	      followerCount,
+	      followingCount,
+	      followState,
+	      isPrivate: true,
+	      hasIncomingFollowRequest,
+	      hasPendingRequestToViewer,
+	      isDeactivated: false,
+	      isMutedByViewer,
+	      createdAt: row.createdAt.toISOString(),
     });
   }
 
@@ -284,16 +302,16 @@ profileRoutes.get("/:username", async function (c) {
     roleContext: row.roleContext,
     headline: row.headline,
     headlineContext: row.headlineContext,
-    filmsLoggedCount: row.filmsLoggedCount,
-    followerCount,
-    followingCount,
-    isFollowing,
-    isFollowRequested,
-    isPrivate: row.isPrivate,
-    hasIncomingFollowRequest,
-    isDeactivated: false,
-    isMutedByViewer,
-    createdAt: row.createdAt.toISOString(),
+	    filmsLoggedCount: row.filmsLoggedCount,
+	    followerCount,
+	    followingCount,
+	    followState,
+	    isPrivate: row.isPrivate,
+	    hasIncomingFollowRequest,
+	    hasPendingRequestToViewer,
+	    isDeactivated: false,
+	    isMutedByViewer,
+	    createdAt: row.createdAt.toISOString(),
   });
 });
 
@@ -311,6 +329,28 @@ function dedupeStrings(values: string[]): string[] {
 function normalizeRole(value: string | null | undefined): string {
   if (!value) return "";
   return value.trim().toLowerCase();
+}
+
+function profileUpdateSetChunks(updates: Record<string, any>): SQL[] {
+  var chunks: SQL[] = [];
+
+  if ("displayName" in updates) chunks.push(sql`"display_name" = ${updates.displayName}`);
+  if ("bio" in updates) chunks.push(sql`"bio" = ${updates.bio}`);
+  if ("location" in updates) chunks.push(sql`"location" = ${updates.location}`);
+  if ("website" in updates) chunks.push(sql`"website" = ${updates.website}`);
+  if ("dateOfBirth" in updates) chunks.push(sql`"date_of_birth" = ${updates.dateOfBirth}`);
+  if ("role" in updates) chunks.push(sql`"role" = ${updates.role}`);
+  if ("roleContext" in updates) chunks.push(sql`"role_context" = ${updates.roleContext}`);
+  if ("isPrivate" in updates) chunks.push(sql`"is_private" = ${updates.isPrivate}`);
+  if ("headline" in updates) chunks.push(sql`"headline" = ${updates.headline}`);
+  if ("headlineContext" in updates) chunks.push(sql`"headline_context" = ${updates.headlineContext}`);
+  if ("favoriteFilmIds" in updates) chunks.push(sql`"favorite_film_ids" = ${updates.favoriteFilmIds}`);
+  if ("favoriteGenreIds" in updates) chunks.push(sql`"favorite_genre_ids" = ${updates.favoriteGenreIds}`);
+  if ("avatarUrl" in updates) chunks.push(sql`"avatar_url" = ${updates.avatarUrl}`);
+  if ("coverUrl" in updates) chunks.push(sql`"cover_url" = ${updates.coverUrl}`);
+  if ("updatedAt" in updates) chunks.push(sql`"updated_at" = ${updates.updatedAt}`);
+
+  return chunks;
 }
 
 profileRoutes.patch("/me", requireAuth, async function (c) {
@@ -360,8 +400,9 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
     updates.roleContext = body.roleContext ? String(body.roleContext).slice(0, 200) : null;
   }
 
-  if (body.isPrivate !== undefined) {
-    updates.isPrivate = Boolean(body.isPrivate);
+  var requestedIsPrivate = body.isPrivate !== undefined ? Boolean(body.isPrivate) : undefined;
+  if (requestedIsPrivate !== undefined) {
+    updates.isPrivate = requestedIsPrivate;
   }
 
   if (body.headline !== undefined) {
@@ -474,10 +515,66 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
 
   updates.updatedAt = new Date();
 
-  await db
-    .update(profiles)
-    .set(updates)
-    .where(eq(profiles.userId, user.userId));
+  if (requestedIsPrivate === false) {
+    var currentRows = await db
+      .select({ isPrivate: profiles.isPrivate })
+      .from(profiles)
+      .where(eq(profiles.userId, user.userId))
+      .limit(1);
+    if (currentRows.length === 0) throw notFound("Profile not found");
+
+    if (currentRows[0].isPrivate) {
+      var setChunks = profileUpdateSetChunks(updates);
+      await db.execute(sql`
+        with updated_profile as (
+          update ${profiles}
+          set ${sql.join(setChunks, sql`, `)}
+          where ${profiles.userId} = ${user.userId}
+          returning ${profiles.userId} as user_id
+        ),
+        updated_follows as (
+          update ${follows}
+          set status = 'accepted'
+          where ${follows.followingId} = ${user.userId}
+            and ${follows.status} = 'pending'
+            and exists(select 1 from updated_profile)
+          returning ${follows.followerId} as follower_id
+        ),
+        inserted_notifications as (
+          insert into ${notifications} (
+            "recipient_id",
+            "actor_id",
+            "actor_ids",
+            "type",
+            "entity_type",
+            "entity_id",
+            "bundle_count"
+          )
+          select
+            follower_id,
+            ${user.userId},
+            array[${user.userId}]::text[],
+            'follow_request_approved'::notification_type,
+            'user',
+            ${user.userId},
+            1
+          from updated_follows
+          returning "id"
+        )
+        select count(*)::int as approved_count from updated_follows
+      `);
+    } else {
+      await db
+        .update(profiles)
+        .set(updates)
+        .where(eq(profiles.userId, user.userId));
+    }
+  } else {
+    await db
+      .update(profiles)
+      .set(updates)
+      .where(eq(profiles.userId, user.userId));
+  }
 
   var updated = await db
     .select({

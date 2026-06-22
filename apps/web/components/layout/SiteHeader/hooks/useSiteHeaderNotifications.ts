@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  fetchReceivedFollowRequests,
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -45,12 +46,28 @@ export function useSiteHeaderNotifications() {
     refetchInterval: 5_000,
     gcTime: 5 * 60_000,
   });
-  const unreadRows = unreadRowsQuery.data?.items ?? [];
+	  const unreadRows = unreadRowsQuery.data?.items ?? [];
 
-  const unreadBadgeCount =
-    unreadRowsQuery.data?.hasMore && unreadRowsQuery.data?.items.length
-      ? `${unreadRowsQuery.data.items.length}+`
-      : String(unreadRows.length);
+	  const followRequestsQuery = useQuery({
+	    queryKey: notificationsKeys.followRequestTotal(),
+	    queryFn: async function () {
+	      return fetchReceivedFollowRequests({
+	        token: await getToken(),
+	        limit: 1,
+	      });
+	    },
+	    enabled: isLoaded && Boolean(isSignedIn),
+	    staleTime: 20_000,
+	    refetchInterval: 10_000,
+	    gcTime: 5 * 60_000,
+	  });
+	  const followRequestTotal = followRequestsQuery.data?.total ?? 0;
+
+	  const badgeTotal = unreadRows.length + followRequestTotal;
+	  const unreadBadgeCount =
+	    unreadRowsQuery.data?.hasMore && unreadRowsQuery.data?.items.length
+	      ? `${badgeTotal}+`
+	      : String(badgeTotal);
 
   const markAllMutation = useMutation({
     mutationFn: async function () {
@@ -62,7 +79,9 @@ export function useSiteHeaderNotifications() {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: notificationsKeys.preview() }),
         queryClient.cancelQueries({ queryKey: notificationsKeys.unread() }),
-        queryClient.cancelQueries({ queryKey: notificationsKeys.content() }),
+	        queryClient.cancelQueries({ queryKey: notificationsKeys.content() }),
+	        queryClient.cancelQueries({ queryKey: notificationsKeys.followRequestTotal() }),
+	        queryClient.cancelQueries({ queryKey: notificationsKeys.followRequests() }),
       ]);
 
       const previousContent = queryClient.getQueryData<NotificationPage>(notificationsKeys.content());
@@ -113,9 +132,11 @@ export function useSiteHeaderNotifications() {
       }
     },
     onSuccess: function () {
-      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
-      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
-      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+	      void queryClient.invalidateQueries({ queryKey: notificationsKeys.content() });
+	      void queryClient.invalidateQueries({ queryKey: notificationsKeys.unread() });
+	      void queryClient.invalidateQueries({ queryKey: notificationsKeys.preview() });
+	      void queryClient.invalidateQueries({ queryKey: notificationsKeys.followRequestTotal() });
+	      void queryClient.invalidateQueries({ queryKey: notificationsKeys.followRequests() });
     },
   });
 
@@ -303,8 +324,9 @@ export function useSiteHeaderNotifications() {
   return {
     notifRowsQuery,
     notifRows,
-    unreadRowsQuery,
-    unreadBadgeCount,
+	    unreadRowsQuery,
+	    followRequestTotal,
+	    unreadBadgeCount,
     markAllMutation,
     markOneMutation,
     markUnreadMutation,

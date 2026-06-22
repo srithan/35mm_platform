@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PrivateAccountLock } from "@/components/PrivateAccountLock";
 import { type MouseEvent, type ReactNode } from "react";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
@@ -53,7 +54,8 @@ function renderNode(node: RichTextNode, key: string, stopLinkPropagation: boolea
           : "user";
     const username =
       typeof node.attrs?.username === "string" ? node.attrs.username.replace(/^@/, "") : label;
-    const deleted = node.attrs?.deleted === true || username.trim().length === 0;
+	    const deleted = node.attrs?.deleted === true || username.trim().length === 0;
+	    const isPrivate = node.attrs?.isPrivate === true;
     if (deleted) {
       return (
         <span key={key} className="text-fg-muted">
@@ -62,15 +64,16 @@ function renderNode(node: RichTextNode, key: string, stopLinkPropagation: boolea
       );
     }
     return (
-      <Link
-        key={key}
-        href={ROUTES.PROFILE(username)}
-        className={mentionInlineClassName}
+	      <Link
+	        key={key}
+	        href={ROUTES.PROFILE(username)}
+	        className={mentionInlineClassName + " inline-flex items-center"}
         onClick={stopLinkPropagation ? stopClick : undefined}
-      >
-        @{label}
-      </Link>
-    );
+	      >
+	        @{label}
+	        {isPrivate ? <PrivateAccountLock className="ml-1 text-[0.85em]" /> : null}
+	      </Link>
+	    );
   }
 
   if (node.type === "hardBreak") return <br key={key} />;

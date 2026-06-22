@@ -18,6 +18,10 @@ export declare function loadWorkerEnv(): {
     UPSTASH_REDIS_REST_TOKEN: string;
     MEDIA_JOB_BATCH_SIZE: number;
     MEDIA_BACKFILL_BATCH_SIZE: number;
+    FEED_HIGH_FOLLOWER_THRESHOLD: number;
+    FEED_FANOUT_BATCH_SIZE: number;
+    FEED_RESCORE_MAX_AGE_HOURS: number;
+    FEED_RESCORE_BATCH_SIZE: number;
     WORKER_CONCURRENCY: number;
 };
 export type WorkerEnv = ReturnType<typeof loadWorkerEnv>;

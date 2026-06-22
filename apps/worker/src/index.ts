@@ -1,6 +1,9 @@
-import { QueueEvents, Worker, type Job } from "bullmq";
+import { Queue, QueueEvents, Worker, type Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
+import { runCounterIncrementJob } from "./jobs/counterIncrement.js";
 import { runFeedFanoutJob } from "./jobs/feedFanout.js";
+import { runFeedPruneFeedItemsJob } from "./jobs/feedPruneFeedItems.js";
+import { runFeedRescoreJob } from "./jobs/feedRescore.js";
 import { runSuggestionComputeJob } from "./workers/suggestionWorker.js";
 import { processPostById } from "./jobs/mediaProcess.js";
 import { runNotificationDigestJob } from "./jobs/notificationDigest.js";
@@ -59,8 +62,15 @@ async function handleJob(job: Job): Promise<unknown> {
   }
 
   if (job.name === "feed.fanout") {
-    await runFeedFanoutJob();
-    return { ok: true, stub: true };
+    return runFeedFanoutJob(job.data);
+  }
+
+  if (job.name === "feed.rescore") {
+    return runFeedRescoreJob(job.data);
+  }
+
+  if (job.name === "feed.pruneFeedItems") {
+    return runFeedPruneFeedItemsJob(job.data);
   }
 
   if (job.name === "compute-suggestions") {
@@ -69,13 +79,13 @@ async function handleJob(job: Job): Promise<unknown> {
   }
 
   if (job.name === "counter.increment") {
-    return { ok: true, stub: true };
+    return runCounterIncrementJob(job.data);
   }
 
-      if (job.name === "notification.publish") {
-        await runNotificationPublishJob(job.data as { notificationId: string });
-        return { ok: true, stub: true };
-      }
+  if (job.name === "notification.publish") {
+    await runNotificationPublishJob(job.data as { notificationId: string });
+    return { ok: true, stub: true };
+  }
 
   if (job.name === "notification.digest") {
     await runNotificationDigestJob();
@@ -89,6 +99,9 @@ async function main() {
   var env = loadWorkerEnv();
   var redisUrl = requiredRedisUrl();
   var connection = connectionFromRedisUrl(redisUrl);
+  var schedulerQueue = new Queue(WORKER_QUEUE_NAME, {
+    connection,
+  });
 
   var worker = new Worker(WORKER_QUEUE_NAME, handleJob, {
     connection,
@@ -99,6 +112,23 @@ async function main() {
 
   var queueEvents = new QueueEvents(WORKER_QUEUE_NAME, {
     connection,
+  });
+
+  var pruneIntervalMinutes = Number.isFinite(env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES)
+    ? Math.max(5, env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES)
+    : 60;
+  await schedulerQueue.add("feed.pruneFeedItems", {}, {
+    jobId: "feed.pruneFeedItems",
+    repeat: {
+      every: pruneIntervalMinutes * 60 * 1000,
+    },
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 500,
   });
 
   queueEvents.on("completed", function (payload) {
@@ -130,7 +160,7 @@ async function main() {
 
   var shutdown = async function (signal: string) {
     console.log("[worker] shutdown", signal);
-    await Promise.allSettled([worker.close(), queueEvents.close()]);
+    await Promise.allSettled([worker.close(), queueEvents.close(), schedulerQueue.close()]);
     process.exit(0);
   };
 

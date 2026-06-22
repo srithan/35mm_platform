@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/Button";
 import { SettingsInput, SettingsSection } from "./SettingsFormPrimitives";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -23,6 +24,7 @@ export function SettingsAccountPanel({
 }: SettingsAccountPanelProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const {
     watch,
@@ -82,7 +84,7 @@ export function SettingsAccountPanel({
           {submitError ? (
             <p className="pt-3 text-[12px] text-accent">{submitError}</p>
           ) : null}
-          <div className="flex items-center gap-4 pt-6">
+          <div className="flex flex-wrap items-center gap-3 pt-6">
             <Button
               variant="primary"
               size="sm"
@@ -97,12 +99,20 @@ export function SettingsAccountPanel({
             >
               {isSubmitting ? "Saving…" : saved ? "Saved" : "Save changes"}
             </Button>
-            <Button variant="secondary" size="sm">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setChangePasswordOpen(true)}
+            >
               Change password
             </Button>
           </div>
         </div>
       </SettingsSection>
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </div>
   );
 }

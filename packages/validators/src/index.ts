@@ -238,6 +238,7 @@ export var notificationTypeSchema = z.enum([
   "reply",
   "follow",
   "follow_request",
+  "follow_request_approved",
   "mention",
   "repost",
 ]);

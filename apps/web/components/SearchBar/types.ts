@@ -9,6 +9,8 @@ export interface SearchResult {
   type?: "film" | "user" | "community" | "festival" | "hashtag" | "post";
   imageUrl?: string | null;
   initial?: string;
+  isPrivate?: boolean;
+  followState?: "none" | "requested" | "following" | "self";
   /** Optional navigation target when the item is selected. */
   href?: string;
 }

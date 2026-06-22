@@ -8,7 +8,14 @@ export type MediaProcessJobPayload = {
   postId: string;
 };
 
-type SupportedJobName = "media.process" | "feed.fanout" | "counter.increment";
+type SupportedJobName =
+  | "media.process"
+  | "feed.fanout"
+  | "feed.rescore"
+  | "counter.increment"
+  | "notification.publish"
+  | "notification.digest"
+  | "compute-suggestions";
 
 var queue: Queue | null = null;
 

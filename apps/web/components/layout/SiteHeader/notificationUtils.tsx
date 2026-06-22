@@ -40,6 +40,14 @@ export function formatNotificationText(row: HeaderNotifRow): ReactNode {
     );
   }
 
+  if (row.type === "follow_request_approved") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> approved your follow request
+      </>
+    );
+  }
+
   if (row.type === "mention") {
     return (
       <>

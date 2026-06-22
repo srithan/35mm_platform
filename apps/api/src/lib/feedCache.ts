@@ -11,6 +11,12 @@ export type FeedCachePayload = {
   hasMore: boolean;
 };
 
+export type HighFollowerAuthorFeedCachePayload = {
+  items: unknown[];
+  cachedAt: string;
+  rowLimit: number;
+};
+
 function normalizePart(value: string | number | null | undefined): string {
   if (value == null) return "none";
   var raw = String(value).trim();
@@ -28,6 +34,10 @@ function viewerIndexKey(viewerId: string | null): string {
 
 function authorIndexKey(authorUserId: string): string {
   return `${CACHE_NS}:idx:author:${normalizePart(authorUserId)}`;
+}
+
+function highFollowerAuthorFeedCacheKey(authorUserId: string): string {
+  return `${CACHE_NS}:home:high-author:${normalizePart(authorUserId)}`;
 }
 
 export function homeFeedCacheKey(input: {
@@ -103,6 +113,49 @@ export async function setFeedCache(
     }
   } catch (error) {
     console.error("[feed-cache] write-failed", {
+      key,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+export async function getHighFollowerAuthorFeedCache(
+  authorUserId: string
+): Promise<HighFollowerAuthorFeedCachePayload | null> {
+  var redis = getRedisClient();
+  if (!redis) return null;
+
+  var key = highFollowerAuthorFeedCacheKey(authorUserId);
+  try {
+    var cached = await redis.get<HighFollowerAuthorFeedCachePayload>(key);
+    if (!cached || typeof cached !== "object") return null;
+    if (!Array.isArray(cached.items)) return null;
+    if (typeof cached.cachedAt !== "string") return null;
+    if (typeof cached.rowLimit !== "number") return null;
+    return cached;
+  } catch (error) {
+    console.error("[feed-cache] high-author-read-failed", {
+      key,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+export async function setHighFollowerAuthorFeedCache(
+  authorUserId: string,
+  value: HighFollowerAuthorFeedCachePayload,
+  ttlSeconds: number
+): Promise<void> {
+  var redis = getRedisClient();
+  if (!redis) return;
+
+  var key = highFollowerAuthorFeedCacheKey(authorUserId);
+  try {
+    await redis.set(key, value);
+    await redis.expire(key, ttlSeconds);
+  } catch (error) {
+    console.error("[feed-cache] high-author-write-failed", {
       key,
       message: error instanceof Error ? error.message : String(error),
     });

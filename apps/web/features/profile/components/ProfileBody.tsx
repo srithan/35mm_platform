@@ -1,6 +1,8 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { EmptyState } from "@/components/EmptyState";
 import { ProfileTabs } from "./ProfileTabs";
 import { ProfileTabContent } from "./ProfileTabContent";
 import { ProfileDetails } from "./ProfileDetails";
@@ -15,6 +17,7 @@ export function ProfileBody(props: {
   dateOfBirth?: string | null;
   isOwnProfile?: boolean;
   isPrivate?: boolean;
+  isPrivateGate?: boolean;
   role?: string | null;
   roleContext?: string | null;
   headline?: string | null;
@@ -64,11 +67,24 @@ export function ProfileBody(props: {
         <div className="min-w-0">
           <div className="w-full max-w-[640px] xl:w-[640px] xl:max-w-[640px]">
             <ProfileTabs username={props.username} />
-            <ProfileTabContent
-              username={props.username}
-              displayName={props.displayName}
-              tab={tab}
-            />
+            {props.isPrivateGate ? (
+              <EmptyState
+                size="lg"
+                icon={
+                  <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-sunken text-fg-muted">
+                    <Lock className="h-6 w-6" strokeWidth={1.75} aria-hidden />
+                  </span>
+                }
+                headline="This account is private"
+                subline={`Follow ${props.displayName} to see their posts`}
+              />
+            ) : (
+              <ProfileTabContent
+                username={props.username}
+                displayName={props.displayName}
+                tab={tab}
+              />
+            )}
           </div>
         </div>
       </div>

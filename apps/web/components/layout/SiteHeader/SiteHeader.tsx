@@ -40,9 +40,10 @@ export function SiteHeader() {
 
   const {
     notifRowsQuery,
-    notifRows,
-    unreadRowsQuery,
-    unreadBadgeCount,
+	    notifRows,
+	    unreadRowsQuery,
+	    followRequestTotal,
+	    unreadBadgeCount,
     markAllMutation,
     markOneMutation,
     markUnreadMutation,
@@ -94,8 +95,9 @@ export function SiteHeader() {
               onClose={closeNotif}
               notifRowsQuery={notifRowsQuery}
               notifRows={notifRows}
-              unreadRowsQuery={unreadRowsQuery}
-              unreadBadgeCount={unreadBadgeCount}
+	              unreadRowsQuery={unreadRowsQuery}
+	              followRequestTotal={followRequestTotal}
+	              unreadBadgeCount={unreadBadgeCount}
               markAllMutation={markAllMutation}
               markOneMutation={markOneMutation}
               markUnreadMutation={markUnreadMutation}

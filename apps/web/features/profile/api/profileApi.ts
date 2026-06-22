@@ -1,6 +1,8 @@
 import { ApiRequestError, apiRequest } from "@/features/feed/api/http";
 import { resolveProfileMediaUrls } from "@/lib/utils/r2Media";
 
+export type FollowState = "none" | "requested" | "following" | "self";
+
 export interface PublicProfile {
   userId: string;
   username: string;
@@ -18,12 +20,11 @@ export interface PublicProfile {
   filmsLoggedCount: number;
   followerCount: number;
   followingCount: number;
-  isFollowing: boolean;
-  isFollowRequested?: boolean;
-  isPrivate?: boolean;
+  followState: FollowState;
+  isPrivate: boolean;
   hasIncomingFollowRequest?: boolean;
+  hasPendingRequestToViewer?: boolean;
   isMutedByViewer?: boolean;
-  posts?: null;
   isDeactivated: boolean;
   createdAt?: string;
 }

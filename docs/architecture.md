@@ -112,7 +112,7 @@ Design conventions:
 | Neon Postgres | Wired | Source-of-truth relational data |
 | Cloudflare R2 | Wired | Originals and processed media variants |
 | Upstash Redis | Wired | Feed cache, rate limits, BullMQ broker, suggestions cache |
-| BullMQ | Partially wired | Media processing, notifications, suggestions implemented; fanout/counters partial |
+| BullMQ | Partially wired | Media processing, notifications, suggestions, async counters, and feed fanout implemented; digest/search jobs partial |
 | Ably | Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions |
 | TMDB | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports |
 | Cloudflare Images | Optional | Delivery layer for processed images |
@@ -283,7 +283,7 @@ Source of truth: `packages/db/src/schema/*`.
 `notifications`
 
 - Recipient, optional actor, `actor_ids` bundle array.
-- Type enum: `like | comment | reply | follow | follow_request | mention | repost`.
+- Type enum: `like | comment | reply | follow | follow_request | follow_request_approved | mention | repost`.
 - Entity ID/type, read state, bundle count, created timestamp.
 
 ### Feed Materialization
@@ -394,6 +394,7 @@ Profiles, follows, moderation:
 - `DELETE /v1/follows/:userId`
 - `POST /v1/follows/:userId/accept`
 - `DELETE /v1/follows/:userId/request`
+- `GET /v1/follows/requests/received`
 - `POST /v1/users/:userId/block`
 - `DELETE /v1/users/:userId/block`
 - `POST /v1/users/:userId/mute`
@@ -506,7 +507,8 @@ Important app routes:
 - `/discover`: discovery.
 - `/notifications`: notifications.
 - `/bookmarks`: bookmarks.
-- `/settings`, `/settings/privacy`, `/settings/appearance`: settings.
+- `/settings`: redirects to `/settings/account`.
+- `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/data-security`: settings sections with URL-backed tab navigation.
 - `/list/:listId`: list detail.
 - `/suggestions/people`: follow suggestions.
 - `/title/:media/:id`: title detail.
@@ -523,7 +525,8 @@ Feature ownership:
 - `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime.
 - `features/lists`: film lists and watchlists.
-- `features/settings`: account, privacy, notifications, appearance.
+- `features/settings`: account, privacy, notifications, appearance, data/security settings.
+  Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
 - `features/discover`: TMDB-backed browsing and search.
 - `features/bookmarks`: bookmark page over feed bookmark API.
@@ -543,6 +546,8 @@ State rules:
 
 Business role: primary social timeline and post interaction surface.
 
+Detailed fanout/ranking implementation note: `docs/feed-fanout-ranking.md`.
+
 Read path:
 
 1. Web `useFeed` calls `/v1/feed` or `/v1/feed/profiles/:username/posts`.
@@ -555,9 +560,11 @@ Write path:
 
 1. Web composer validates and submits post payload.
 2. API validates with `createPostSchema`.
-3. API writes post, poll rows if needed, feed item rows as applicable, and edit/history metadata.
-4. API creates mention notifications and enqueues media processing if media exists.
-5. API invalidates feed caches.
+3. API writes post, poll rows if needed, the author's own feed item row, and edit/history metadata.
+4. API writes interaction fact rows synchronously and enqueues `counter.increment` for denormalized counters instead of updating hot counter rows inline.
+5. API enqueues `feed.fanout` for accepted followers when the post should enter home feeds.
+6. API creates mention notifications and enqueues media processing if media exists.
+7. API invalidates author/guest feed caches; the worker invalidates viewer caches as materialized rows are written.
 
 Interactions:
 
@@ -569,14 +576,26 @@ Scale target:
 
 - Cursor pagination everywhere.
 - Denormalized counters on read payloads.
-- Hybrid fanout is the target model.
+- Hybrid fanout is implemented for home feed: write fanout below the high-follower threshold and live read merge at/above it.
 
-Current gap:
+Current feed behavior:
 
-- `feed.fanout` worker is a stub.
-- `counter.increment` worker path is a stub.
-- Some counters are updated synchronously in API handlers today.
-- Celebrity/read-fanout merge is not fully implemented.
+- `feed.fanout` writes follower `feed_items` in cursor-paginated chunks and skips high-follower authors.
+- `FEED_HIGH_FOLLOWER_THRESHOLD` defaults to `10000`, matching the architecture target, and can be overridden per environment.
+- `FEED_FANOUT_BATCH_SIZE` defaults to `500` and is capped by the worker at `2000`.
+- Authenticated home feed reads materialized `feed_items` plus live recent posts from followed high-follower accounts, ordered by score + post ID.
+- Feed score formula is `1000 * exp(-ageHours / 36) + 120 * ln(1 + likes + comments*3 + reposts*4)`.
+- `feed_items.score` is computed at fanout/backfill/write time from denormalized post counters, and `feed.rescore` periodically refreshes recent rows after async counter deltas settle.
+- `feed_items` retention defaults to 30 days (`FEED_ITEMS_RETENTION_DAYS`). This keeps the hot materialized table bounded while covering the practical depth of normal social feed pagination; users who page beyond that switch to the cold path.
+- `feed.pruneFeedItems` runs as a repeatable worker job every 60 minutes by default, deleting old `feed_items` in indexed `(created_at, id)` chunks of 5,000 rows, up to 20 chunks per run. It logs pruned rows and distinct touched viewers; it relies on the 60-second feed cache TTL instead of issuing per-viewer Redis invalidations during prune.
+- Authenticated home feed cursors include score, post ID, ranking timestamp, and the materialized row creation time when a row came from `feed_items`. When that materialized cursor anchor reaches the retention boundary, the API bypasses feed cache and reads that page from `posts` for the viewer's own posts plus accepted followees.
+- Reposts are filtered at feed query time against the original author's profile privacy. A repost of a private author's post is visible only when the viewer also follows the original author.
+- Authenticated home feed cursor ranking timestamps keep score-formula rows stable across pages.
+- Authenticated home feeds that include high-follower live rows cache the final per-viewer merged page with the normal feed payload TTL and also cache the viewer-independent slice: recent rows for each high-follower author, keyed by author ID.
+- `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaults to 45 seconds. This intentionally allows high-follower author scores/counters/profile fields to be up to TTL seconds stale in exchange for sharing one cached author slice across many followers.
+- `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaults to 100 rows per author. Deep pagination beyond the cached slice falls back to a direct per-author DB query for that rare page.
+- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, and film list like/entry counters.
+- Counter jobs are batched in the worker for a short window before writing Postgres; the manual reconciliation path is `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`.
 
 ---
 
@@ -626,6 +645,7 @@ Creation path:
 Client path:
 
 - Web notifications use React Query for list/read/unread state.
+- Follow requests use a dedicated `/v1/follows/requests/received` data source and render in a separate tray above the regular activity notification feed.
 - Global providers install realtime, title badge, and sound side effects.
 - Realtime provider can run with noop transport when Ably is not configured.
 
@@ -680,6 +700,7 @@ Feed cache:
 - Index sets track keys by viewer and author for targeted invalidation.
 - Cache disables automatically if Upstash REST env is missing.
 - TTL is 60 seconds for feed payloads.
+- Authenticated home feeds with followed high-follower authors use Redis payload caching like other viewer feeds. On misses, high-follower author rows are cached separately by author ID with a short TTL, then merged with the viewer's materialized rows, block/mute state, and interaction flags per request.
 
 Rate limiting:
 
@@ -693,6 +714,7 @@ Pagination:
 
 - API uses cursor pagination.
 - Shared helper encodes `{ createdAt, id }` as base64 JSON.
+- Authenticated home feed ranking uses a score cursor `{ score, id, asOf, createdAt }`; guest/profile/bookmark/comment feeds keep chronological cursors.
 - No OFFSET pagination should be added.
 
 ---
@@ -706,11 +728,13 @@ Implemented:
 - `media.process`: image variants and blurhash.
 - `notification.publish`: Ably notification publish.
 - `compute-suggestions`: friend-of-friend follow suggestions.
+- `counter.increment`: batched denormalized counter deltas for hot social/list/poll counters.
+- `feed.fanout`: materializes new posts into accepted followers' `feed_items` below the high-follower threshold; skips high-follower authors for live read merge.
+- `feed.rescore`: recomputes scores for recent materialized `feed_items` from denormalized post counters and invalidates touched viewer caches.
+- `feed.pruneFeedItems`: deletes materialized feed rows older than the retention window in small indexed batches; `feed.rescore` uses the retention boundary as a lower cutoff so it does not refresh rows about to be pruned. Prune does not target-invalidate viewer caches because feed payload TTL is short and per-viewer invalidation can be more expensive than the old rows being removed.
 
 Stub or incomplete:
 
-- `feed.fanout`: logs readiness only.
-- `counter.increment`: recognized but returns stub response.
 - `notification.digest`: logs readiness only.
 - Search indexing jobs are not implemented.
 
@@ -785,6 +809,17 @@ CF_IMAGES_DELIVERY_BASE_URL=
 CF_IMAGES_DEFAULT_THUMB_VARIANT=
 CF_IMAGES_DEFAULT_FEED_VARIANT=
 CF_IMAGES_DEFAULT_FULL_VARIANT=
+COUNTER_BATCH_WINDOW_MS=
+FEED_HIGH_FOLLOWER_THRESHOLD=
+FEED_FANOUT_BATCH_SIZE=
+FEED_RESCORE_MAX_AGE_HOURS=
+FEED_RESCORE_BATCH_SIZE=
+FEED_ITEMS_RETENTION_DAYS=
+FEED_ITEMS_PRUNE_BATCH_SIZE=
+FEED_ITEMS_PRUNE_MAX_BATCHES=
+FEED_ITEMS_PRUNE_INTERVAL_MINUTES=
+FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS=
+FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT=
 PORT=
 ```
 
@@ -846,16 +881,14 @@ pnpm typecheck
 
 Highest priority architecture gaps:
 
-1. Implement real `feed.fanout` worker job and hybrid fanout read path.
-2. Implement counter worker jobs or make the synchronous counter strategy explicit.
-3. Add general films API and catalog search.
-4. Wire Meilisearch for films/users/posts.
-5. Add DB-level checks for ULID-shaped text IDs where practical.
-6. Finish notification digest and Resend integration.
-7. Decide whether chat remains gated or gets real persistence.
-8. Wire Cloudflare Stream if production video is in scope.
-9. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
-10. Validate migrations against current Drizzle schema in real environments.
+1. Add general films API and catalog search.
+2. Wire Meilisearch for films/users/posts.
+3. Add DB-level checks for ULID-shaped text IDs where practical.
+4. Finish notification digest and Resend integration.
+5. Decide whether chat remains gated or gets real persistence.
+6. Wire Cloudflare Stream if production video is in scope.
+7. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
+8. Validate migrations against current Drizzle schema in real environments.
 
 Post-V1 or gated surfaces:
 
@@ -879,4 +912,3 @@ Post-V1 or gated surfaces:
 - Use feature query key factories.
 - Keep REST contracts stable and native-client friendly.
 - Keep schema, validators, shared types, API routes, frontend adapters, and worker side effects aligned in the same change.
-

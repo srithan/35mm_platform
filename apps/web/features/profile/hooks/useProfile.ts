@@ -38,48 +38,48 @@ export function useFollowToggle(username: string) {
   var queryClient = useQueryClient();
   var { getToken } = useAuth();
 
-  return useMutation({
-    mutationFn: async function (input: {
-      userId: string;
-      isFollowing: boolean;
-      isFollowRequested?: boolean;
-    }) {
-      var token = await getToken();
-      if (input.isFollowing || input.isFollowRequested) {
-        await unfollowUser(input.userId, token);
-        return { mode: "unfollow" as const, isFollowing: false, isFollowRequested: false };
-      } else {
-        var result = await followUser(input.userId, token);
-        return {
-          mode:
-            result.status === "pending" ? "request" as const : "follow" as const,
-          isFollowing: result.isFollowing,
-          isFollowRequested: result.status === "pending",
-        };
-      }
-    },
+	  return useMutation({
+	    mutationFn: async function (input: {
+	      userId: string;
+	      followState: PublicProfile["followState"];
+	    }) {
+	      var token = await getToken();
+	      if (input.followState === "following" || input.followState === "requested") {
+	        await unfollowUser(input.userId, token);
+	        return { mode: "unfollow" as const, followState: "none" as const };
+	      } else {
+	        var result = await followUser(input.userId, token);
+	        return {
+	          mode:
+	            result.status === "pending" ? "request" as const : "follow" as const,
+	          followState: result.status === "pending" ? "requested" as const : "following" as const,
+	        };
+	      }
+	    },
     onMutate: async function (input) {
       await queryClient.cancelQueries({ queryKey: profileKeys.detail(username) });
 
       var previous = queryClient.getQueryData<PublicProfile | null>(
         profileKeys.detail(username)
-      );
+	      );
 
-      if (previous) {
-        var isToggleOff = input.isFollowing || input.isFollowRequested;
-        var optimisticIsFollowing = isToggleOff ? false : previous.isPrivate ? false : true;
-        var optimisticIsRequested = isToggleOff ? false : previous.isPrivate;
-        var followerCountDelta =
-          Number(optimisticIsFollowing) - Number(previous.isFollowing);
-        var nextFollowerCount = Math.max(0, previous.followerCount + followerCountDelta);
+	      if (previous) {
+	        var isToggleOff = input.followState === "following" || input.followState === "requested";
+	        var optimisticFollowState: PublicProfile["followState"] = isToggleOff
+	          ? "none"
+	          : previous.isPrivate
+	            ? "requested"
+	            : "following";
+	        var followerCountDelta =
+	          Number(optimisticFollowState === "following") - Number(previous.followState === "following");
+	        var nextFollowerCount = Math.max(0, previous.followerCount + followerCountDelta);
 
-        queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
-          ...previous,
-          isFollowing: optimisticIsFollowing,
-          isFollowRequested: optimisticIsRequested,
-          followerCount: nextFollowerCount,
-        });
-      }
+	        queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
+	          ...previous,
+	          followState: optimisticFollowState,
+	          followerCount: nextFollowerCount,
+	        });
+	      }
 
       return { previous };
     },
@@ -88,32 +88,27 @@ export function useFollowToggle(username: string) {
         profileKeys.detail(username)
       );
       if (!current) return;
-      if (!context?.previous) {
-        queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
-          ...current,
-          isFollowing: result.isFollowing,
-          isFollowRequested: result.isFollowRequested,
-        });
-        return;
-      }
-      var previous = context.previous;
-      var nextIsFollowing = result.isFollowing;
-      var nextIsFollowRequested = result.isFollowRequested;
+	      if (!context?.previous) {
+	        queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
+	          ...current,
+	          followState: result.followState,
+	        });
+	        return;
+	      }
+	      var previous = context.previous;
+	      var nextFollowState = result.followState;
 
-      if (result.mode === "request") {
-        nextIsFollowing = false;
-        nextIsFollowRequested = true;
-      } else if (result.mode === "unfollow") {
-        nextIsFollowing = false;
-        nextIsFollowRequested = false;
-      }
+	      if (result.mode === "request") {
+	        nextFollowState = "requested";
+	      } else if (result.mode === "unfollow") {
+	        nextFollowState = "none";
+	      }
 
-      queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
-        ...previous,
-        isFollowing: nextIsFollowing,
-        isFollowRequested: nextIsFollowRequested,
-      });
-    },
+	      queryClient.setQueryData<PublicProfile>(profileKeys.detail(username), {
+	        ...previous,
+	        followState: nextFollowState,
+	      });
+	    },
     onError: function (_err, _vars, context) {
       if (context?.previous) {
         queryClient.setQueryData(profileKeys.detail(username), context.previous);

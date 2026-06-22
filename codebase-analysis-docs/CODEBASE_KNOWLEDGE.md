@@ -95,7 +95,7 @@ Feature folders:
 - `features/lists`: film lists, watchlists, list detail/editor, list entry notes.
 - `features/onboarding`: role/favorite films/genres/follow suggestions flow.
 - `features/discover`: TMDB-backed discovery and search views.
-- `features/settings`: account/privacy/notification/appearance settings.
+- `features/settings`: account/privacy/notification/appearance/data-security settings with URL-backed section routes.
 - `features/bookmarks`: bookmark page backed by feed bookmarks endpoint.
 - `features/chat`: rich chat frontend with mock/remote client split, but no current App Router chat pages in the inspected shell tree.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
@@ -152,7 +152,8 @@ Important files:
 - `src/jobs/mediaProcess.ts`: pulls originals from R2, generates thumb/feed/full WebP variants, computes blurhash, optionally uploads to Cloudflare Images, updates `posts.media` and `posts.media_urls`.
 - `src/jobs/notificationPublish.ts`: reads notification details and publishes Ably `notification.new` to `user:{recipientId}:notifications`.
 - `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes `follow_suggestions` plus Redis cache.
-- `src/jobs/feedFanout.ts`: currently logs readiness only.
+- `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
+- `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
 - `src/scripts/backfillMedia.ts`: idempotent media backfill runner.
 
@@ -200,7 +201,7 @@ Current Drizzle schema highlights:
 - `post_polls`, `poll_options`, `poll_votes`: ranking/image polls, results visibility, end time, votes.
 - `follows`: composite PK `(follower_id, following_id)`, status `pending | accepted`.
 - `comments`: post/user/parent, body, like count, soft delete, edit timestamp. App code enforces nesting rules.
-- `notifications`: recipient, actor, actor ID bundle array, type, entity, read state, bundle count.
+- `notifications`: recipient, actor, actor ID bundle array, type, entity, read state, bundle count. Notification types include `follow_request_approved` for accepted private-account requests.
 - `feed_items`: materialized feed rows for fanout/backfill.
 - `post_edits`: post body/headline edit history.
 - `user_blocks`, `user_mutes`: moderation relationship tables.
@@ -214,7 +215,7 @@ Important data invariants:
 - `packages/validators` enforces ULID shape for post film IDs, list film IDs, and favorite film IDs in many write paths.
 - The database itself uses `text` for film/list IDs, so app-layer validation is currently the real guard.
 - Pagination is cursor-based using base64 encoded `(createdAt,id)` or route-specific cursor objects.
-- Denormalized counters exist on posts, comments, lists, and polls, but many API actions update counters inline today rather than only via queue jobs.
+- Denormalized counters exist on posts, comments, lists, and polls. Hot API action paths enqueue `counter.increment` after writing fact rows; the worker batches short-window deltas before updating counter columns.
 
 ## Shared Contracts and Validation
 
@@ -325,15 +326,22 @@ How it works:
 - Home/profile feed queries use cursor pagination and moderation filters.
 - Feed cache keys include viewer/cursor/limit; profile feed keys include username and viewer.
 - Writes invalidate viewer/profile/guest feed cache indexes.
+- Auth home feed reads materialized `feed_items` and merges live recent posts from followed high-follower accounts, ordered by score + post ID.
+- Feed score formula is `1000 * exp(-ageHours / 36) + 120 * ln(1 + likes + comments*3 + reposts*4)`, using denormalized post counters only.
+- Auth home feed cursors encode score, post ID, and ranking timestamp. Guest/profile/bookmark/comment feeds keep chronological cursors.
+- High-follower live-merge auth feeds bypass Redis payload cache; materialized-only auth feeds still use targeted cache invalidation.
 - Posts reference canonical `films.id` through `film_id`.
+- Repost feed rows are filtered at query time against the original author's privacy. Viewers must follow the original private author to see another user's repost of that private author's post.
 - API hydrates film, poll, viewer action flags, media variant URLs, author fields, and moderation state into feed payloads.
 - Like/repost/comment/bookmark actions create notifications where appropriate.
 
 Known gaps:
 
-- The architecture goal says counters should be async-only. Current code often updates counters directly in API paths.
-- `feed.fanout` worker is still a stub, but follow creation backfills recent posts into `feed_items`.
-- Hybrid celebrity read-fanout is not fully implemented.
+- Post like/comment/repost/bookmark counters, comment likes, poll vote counters, and film list like/entry counters are async via `counter.increment`.
+- `feed.fanout` worker materializes new posts into accepted followers' `feed_items` below `FEED_HIGH_FOLLOWER_THRESHOLD` (default `10000`) in cursor-paginated batches (`FEED_FANOUT_BATCH_SIZE`, default `500`).
+- High-follower authors skip write fanout; home feed pulls their recent posts live and interleaves by score + post ID.
+- Follow creation backfills recent posts into `feed_items` for normal public accounts, but skips high-follower accounts because live merge handles them.
+- `feed_items.score` is populated on feed row writes/backfills/fanout and refreshed later by `feed.rescore`.
 
 ### Comments
 
@@ -345,7 +353,7 @@ How it works:
 - API returns flat paginated rows; web builds a nested tree with `buildCommentTree`.
 - Comment body uses rich text validation.
 - Replies are limited in app logic, not by DB constraint.
-- Comment likes update comment counters and can create notifications.
+- Comment likes write `comment_likes`, enqueue async comment counter deltas, and can create notifications.
 - Deleted comments return `body: null` style UI and preserve thread context.
 
 ### Films, Film Refs, Lists, and Watchlist
@@ -385,16 +393,17 @@ Business purpose: user identity, social graph, privacy, and moderation.
 
 Profiles:
 
-- Public profile route includes display fields, media URLs, role/headline, private status, counts, follow relationship, incoming request state, and block/mute state.
+- Public profile route includes display fields, media URLs, role/headline, private status, counts, unified `followState`, incoming request state, and block/mute state.
 - Profile media URLs are resolved through R2/public URL helpers.
-- Profile edit APIs exist in both `/v1/profiles/me` and settings profile endpoints.
+- Profile edit APIs exist in both `/v1/profiles/me` and settings profile endpoints. Switching a profile from private to public bulk-approves pending requests and creates approval notifications in a single SQL statement because the Neon HTTP driver does not support interactive transactions.
 
 Follows:
 
 - `POST /v1/follows/:userId` creates `accepted` or `pending` follow depending on target privacy.
 - Public accounts trigger recent-post backfill into `feed_items`.
 - Follow/unfollow invalidates feed/profile caches and refreshes suggestions.
-- Accept/decline endpoints handle private account requests.
+- Accept/decline endpoints handle private account requests; accept writes `follow_request_approved` for the requester, while decline hard-deletes the pending row without notifying.
+- `GET /v1/follows/requests/received` returns the authenticated user's pending incoming requests with total count and mutual follower counts for the dedicated requests tray.
 - Follow notifications are created on new follow/request.
 
 Blocks/mutes:
@@ -421,10 +430,12 @@ API:
 - `PATCH /v1/me/notifications/:notificationId/read`
 - `PATCH /v1/me/notifications/:notificationId/unread`
 - `POST /v1/me/notifications/read-all`
+- `GET /v1/follows/requests/received` for the separate follow requests tray.
 
 Frontend:
 
 - Notification dropdown/content fetches paginated notifications.
+- `FollowRequestsTray` renders incoming private-account requests above the activity feed and contributes its total to the notification badge.
 - Realtime provider is dynamically imported and can use Ably or noop transport.
 - Title badge and sound player are installed globally.
 
@@ -492,7 +503,8 @@ How it works:
 Frontend:
 
 - Settings hooks use React Query with optimistic cache patching.
-- Settings UI includes data/security, privacy, notification, appearance, account panels.
+- Settings UI includes account, privacy, notification, appearance, and data/security panels. `/settings` redirects to `/settings/account`; tabs link to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, and `/settings/data-security`.
+- Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved.
 
 ### Discovery, Title Pages, Short Films, Festivals, Communities
 
@@ -584,14 +596,19 @@ Implemented or partially implemented:
 - `media.process`: implemented.
 - `notification.publish`: implemented when `ABLY_API_KEY` exists.
 - `compute-suggestions`: implemented.
+- `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries.
+- `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.
+- `feed.rescore`: implemented periodic pass for recent materialized feed rows; recomputes score from post denormalized counters and invalidates touched viewer caches.
 - `notification.digest`: stub.
-- `feed.fanout`: stub.
-- `counter.increment`: recognized by worker but returns stub response.
 
 Important operational detail:
 
 - API can derive Redis protocol URL from Upstash REST URL/token, but BullMQ works best with `UPSTASH_REDIS_URL`.
 - Worker reads env from `apps/api/.env` in dev by package script.
+- Feed fanout config: `FEED_HIGH_FOLLOWER_THRESHOLD` default `10000`; `FEED_FANOUT_BATCH_SIZE` default `500`, worker cap `2000`.
+- Feed rescore config: `FEED_RESCORE_MAX_AGE_HOURS` default `72`; `FEED_RESCORE_BATCH_SIZE` default `500`, worker cap `2000`. Run periodically, for example every few minutes, instead of recomputing scores on every read.
+- Counter reconciliation safety net: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<posts|comments|post_polls|poll_options|film_lists|all> --id=<optional-id>`.
+- `COUNTER_BATCH_WINDOW_MS` can tune worker counter coalescing; default is 50ms.
 
 ## Caching, Rate Limits, and Performance
 
@@ -671,8 +688,6 @@ Still true gaps:
 
 - No general films API/search module.
 - Meilisearch is not wired.
-- Full hybrid feed fanout is not implemented.
-- Counter queue jobs are not implemented.
 - Notification digest email is not implemented.
 - Cloudflare Stream is not wired.
 - Chat backend persistence is not implemented.

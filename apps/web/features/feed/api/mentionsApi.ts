@@ -6,6 +6,8 @@ export type MentionSuggestion = {
   displayName: string;
   avatarUrl: string | null;
   isFollowing?: boolean;
+  isPrivate?: boolean;
+  followState?: "none" | "requested" | "following" | "self";
 };
 
 export async function searchMentionSuggestions(

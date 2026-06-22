@@ -96,6 +96,8 @@ userRoutes.post("/users/:userId/mute", requireAuth, async function (c) {
     })
     .onConflictDoNothing();
 
+  await invalidateViewerFeedCaches([user.userId]);
+
   return c.json({ ok: true });
 });
 
@@ -109,6 +111,8 @@ userRoutes.delete("/users/:userId/mute", requireAuth, async function (c) {
   await db
     .delete(userMutes)
     .where(and(eq(userMutes.muterId, user.userId), eq(userMutes.mutedId, targetUserId)));
+
+  await invalidateViewerFeedCaches([user.userId]);
 
   return c.json({ ok: true });
 });

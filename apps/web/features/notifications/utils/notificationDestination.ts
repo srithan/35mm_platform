@@ -22,7 +22,7 @@ export function getNotificationDestination(item: NotificationDestinationInput): 
     }
   }
 
-  if ((item.type === "follow" || item.type === "follow_request") && item.actor?.username) {
+  if ((item.type === "follow" || item.type === "follow_request" || item.type === "follow_request_approved") && item.actor?.username) {
     return ROUTES.PROFILE(item.actor.username);
   }
 

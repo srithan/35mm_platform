@@ -7,6 +7,7 @@ import {
   Megaphone,
   MessageCircle,
   Repeat2,
+  UserCheck,
   UserPlus,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -30,6 +31,7 @@ const NOTIF_KIND_ICON = {
   like: Heart,
   follow: UserPlus,
   follow_request: UserPlus,
+  follow_request_approved: UserCheck,
   mention: MessageCircle,
   comment: MessageCircle,
   reply: MessageCircle,
@@ -46,6 +48,7 @@ type NotificationDropdownProps = {
   notifRowsQuery: UseQueryResult<{ items: HeaderNotifRow[] }>;
   notifRows: HeaderNotifRow[];
   unreadRowsQuery: UseQueryResult<{ items: unknown[]; hasMore?: boolean }>;
+  followRequestTotal: number;
   unreadBadgeCount: string;
   markAllMutation: UseMutationResult<unknown, Error, void, unknown>;
   markOneMutation: UseMutationResult<unknown, Error, string, unknown>;
@@ -62,6 +65,7 @@ export function NotificationDropdown({
   notifRowsQuery,
   notifRows,
   unreadRowsQuery,
+  followRequestTotal,
   unreadBadgeCount,
   markAllMutation,
   markOneMutation,
@@ -101,7 +105,7 @@ export function NotificationDropdown({
           />
           <line x1="12" y1="1" x2="12" y2="4" strokeLinecap="round" />
         </svg>
-        {Number(unreadRowsQuery.data?.items.length ?? 0) > 0 ? (
+	        {Number(unreadRowsQuery.data?.items.length ?? 0) + followRequestTotal > 0 ? (
           <span
             className={cn(styles.btnNotifBadge, "unread-notification-badge")}
             id="notif-badge"

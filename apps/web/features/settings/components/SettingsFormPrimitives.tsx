@@ -36,8 +36,8 @@ export function SettingsRow({
   onClick?: () => void;
 }) {
   const content = (
-    <div className="flex items-center justify-between py-3.5 border-b border-border last:border-b-0 group">
-      <div>
+    <div className="group flex items-start justify-between gap-4 border-b border-border py-4 last:border-b-0 sm:items-center">
+      <div className="min-w-0">
         <span className="text-[13px] text-fg-light block">{label}</span>
         {description && (
           <span className="text-[11.5px] text-fg-muted mt-0.5 block">
@@ -45,11 +45,12 @@ export function SettingsRow({
           </span>
         )}
       </div>
-      {action ?? (
-        href ? (
-          <ChevronRight className="w-4 h-4 text-fg-muted group-hover:text-fg flex-shrink-0" />
-        ) : null
-      )}
+      <div className="flex shrink-0 items-center pt-0.5 sm:pt-0">
+        {action ??
+          (href ? (
+            <ChevronRight className="h-4 w-4 text-fg-muted group-hover:text-fg" />
+          ) : null)}
+      </div>
     </div>
   );
 
@@ -93,8 +94,8 @@ export function SettingsToggle({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between py-3.5 border-b border-border last:border-b-0">
-      <div>
+    <div className="flex items-start justify-between gap-4 border-b border-border py-4 last:border-b-0 sm:items-center">
+      <div className="min-w-0">
         <span className="text-[12.5px] text-fg-light block">{label}</span>
         {description && (
           <span className="text-[11.5px] text-fg-muted mt-0.5 block">
@@ -102,7 +103,7 @@ export function SettingsToggle({
           </span>
         )}
       </div>
-      <label className={cn("relative w-[30px] h-[17px] flex-shrink-0", disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
+      <label className={cn("relative mt-0.5 h-[17px] w-[30px] flex-shrink-0 sm:mt-0", disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
         <input
           type="checkbox"
           checked={checked}
@@ -137,7 +138,7 @@ export function SettingsInput({
   disabled?: boolean;
 }) {
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="border-b border-border py-4 last:border-b-0">
       <label className="text-[11.5px] text-fg-muted block mb-1.5">
         {label}
       </label>
@@ -191,7 +192,7 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
     ];
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 gap-3 min-[420px]:grid-cols-3 lg:grid-cols-4">
       {options.map((opt) => (
         <button
           key={opt.id}
@@ -202,7 +203,7 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
           disabled={!opt.enabled}
           aria-disabled={!opt.enabled}
           className={cn(
-            "relative flex flex-col items-center gap-2.5 p-2 rounded-xl border-2 transition-all",
+            "relative flex min-h-[112px] flex-col items-center justify-center gap-2.5 rounded-lg border-2 p-2 transition-all",
             opt.enabled ? "cursor-pointer" : "cursor-not-allowed",
             value === opt.id && opt.enabled
               ? "border-accent bg-accent/5"
@@ -213,7 +214,7 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
           {/* Mini window preview */}
           <div
             className={cn(
-              "w-[72px] h-[48px] rounded-lg overflow-hidden shadow-md border border-black/10 flex",
+              "flex h-[48px] w-[72px] overflow-hidden rounded-md border border-black/10 shadow-md",
               opt.id === "auto" ? "flex-row" : "",
               opt.id === "oppenheimer-bw" ? "grayscale" : ""
             )}
@@ -342,7 +343,7 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
               </div>
             )}
           </div>
-          <span className="text-[12px] font-medium text-fg">{opt.label}</span>
+          <span className="text-center text-[12px] font-medium leading-tight text-fg">{opt.label}</span>
           {!opt.enabled && (
             <span className="inline-flex items-center rounded-full border border-border-strong bg-sunken px-1.5 py-0.5 text-[9px] leading-none font-medium text-fg-muted">
               Coming soon

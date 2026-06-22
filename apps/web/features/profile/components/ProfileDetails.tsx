@@ -1,6 +1,7 @@
 "use client";
 
-import { MapPin, Link2, Calendar, Lock } from "lucide-react";
+import { MapPin, Link2, Calendar } from "lucide-react";
+import { PrivateAccountLock } from "@/components/PrivateAccountLock";
 import { formatRoleContextSegment, getRoleDotColor } from "@/lib/utils/userRoleHeadline";
 import { ProfileStats } from "./ProfileStats";
 
@@ -109,17 +110,15 @@ export function ProfileDetails(props: {
   return (
     <div className="w-full min-w-0">
       <div className="min-w-0">
-        <h1 className="font-sans text-[1.375rem] font-semibold leading-[1.12] tracking-[-0.02em] text-fg md:text-[1.4375rem]">
-          {props.displayName}
-          {props.isPrivate ? (
-            <span className="ml-2 inline-flex align-middle text-fg-muted" aria-label="Private account">
-              <Lock className="h-[17px] w-[17px]" strokeWidth={1.8} />
-            </span>
-          ) : null}
-        </h1>
-        <p className="mt-1 font-sans text-[13px] font-normal leading-none text-fg-muted">
-          @{props.username}
-        </p>
+	        <h1 className="font-sans text-[1.375rem] font-semibold leading-[1.12] tracking-[-0.02em] text-fg md:text-[1.4375rem]">
+	          {props.displayName}
+	        </h1>
+	        <p className="mt-1 font-sans text-[13px] font-normal leading-none text-fg-muted">
+	          <span>@{props.username}</span>
+	          {props.isPrivate ? (
+	            <PrivateAccountLock className="ml-1.5 text-[12px]" />
+	          ) : null}
+	        </p>
       </div>
 
       {props.showInlineStats &&

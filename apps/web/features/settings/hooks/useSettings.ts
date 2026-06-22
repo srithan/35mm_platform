@@ -8,6 +8,9 @@ import {
   updateProfile,
 } from "../api/settingsApi";
 import { settingsKeys } from "./queryKeys";
+import { feedKeys } from "@/features/feed/hooks/queryKeys";
+import { profileKeys } from "@/features/profile/hooks/queryKeys";
+import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import type {
   UpdateAppearanceInput,
   UpdateNotificationsInput,
@@ -74,11 +77,13 @@ export function useUpdateProfileMutation() {
         queryClient.setQueryData(settingsKeys.detail(), context.previous);
       }
     },
-    onSuccess: (next) => {
-      queryClient.setQueryData(settingsKeys.detail(), next);
-    },
-  });
-}
+	    onSuccess: (next) => {
+	      queryClient.setQueryData(settingsKeys.detail(), next);
+	      void queryClient.invalidateQueries({ queryKey: profileKeys.all });
+	      void queryClient.invalidateQueries({ queryKey: feedKeys.all });
+	    },
+	  });
+	}
 
 export function useUpdatePrivacyMutation() {
   const queryClient = useQueryClient();
@@ -106,8 +111,13 @@ export function useUpdatePrivacyMutation() {
         queryClient.setQueryData(settingsKeys.detail(), context.previous);
       }
     },
-    onSuccess: (next) => {
+    onSuccess: function (next, input) {
       queryClient.setQueryData(settingsKeys.detail(), next);
+      if (input.privateAccount !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all });
+        void queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      }
     },
   });
 }

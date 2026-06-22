@@ -1,6 +1,7 @@
 import type { Ref } from "react";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 import {
@@ -51,8 +52,9 @@ export function ProfileMenu({
   const settingsQuery = useSettingsQuery();
   const updateAppearanceMutation = useUpdateAppearanceMutation();
   const updatePrivacyMutation = useUpdatePrivacyMutation();
-  const [profileMenuView, setProfileMenuView] = useState<ProfileMenuView>("main");
-  const [profileMenuDirection, setProfileMenuDirection] = useState<ProfileMenuDirection>("forward");
+	  const [profileMenuView, setProfileMenuView] = useState<ProfileMenuView>("main");
+	  const [profileMenuDirection, setProfileMenuDirection] = useState<ProfileMenuDirection>("forward");
+	  const [confirmMakePublicOpen, setConfirmMakePublicOpen] = useState(false);
 
   const appearanceSettings: AppearanceSettings = settingsQuery.data?.appearance
     ? {
@@ -133,11 +135,15 @@ export function ProfileMenu({
     });
   }
 
-  function toggleProfilePrivacySetting(key: keyof PrivacySettings, checked: boolean) {
-    updatePrivacyMutation.mutate({
-      ...privacySettings,
-      [key]: checked,
-    });
+	  function toggleProfilePrivacySetting(key: keyof PrivacySettings, checked: boolean) {
+	    if (key === "privateAccount" && privacySettings.privateAccount && !checked) {
+	      setConfirmMakePublicOpen(true);
+	      return;
+	    }
+	    updatePrivacyMutation.mutate({
+	      ...privacySettings,
+	      [key]: checked,
+	    });
   }
 
   function handleLogoutClick() {
@@ -146,7 +152,7 @@ export function ProfileMenu({
   }
 
   return (
-    <div className={cn(styles.notifWrap, styles.profileMenuWrap)} ref={wrapRef}>
+	    <div className={cn(styles.notifWrap, styles.profileMenuWrap)} ref={wrapRef}>
       <button
         type="button"
         className={styles.profileMenuTrigger}
@@ -227,6 +233,20 @@ export function ProfileMenu({
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
+	      <ConfirmDialog
+	        open={confirmMakePublicOpen}
+	        onClose={() => setConfirmMakePublicOpen(false)}
+	        onConfirm={() => {
+	          updatePrivacyMutation.mutate({
+	            ...privacySettings,
+	            privateAccount: false,
+	          });
+	        }}
+	        title="Make account public?"
+	        description="Your posts will become visible to everyone. Any pending follow requests will be approved automatically."
+	        cancelLabel="Cancel"
+	        confirmLabel="Make Public"
+	      />
+	    </div>
+	  );
+	}

@@ -53,6 +53,9 @@ const UserMention = Mention.extend({
       deleted: {
         default: false,
       },
+      isPrivate: {
+        default: false,
+      },
     };
   },
 });
@@ -121,9 +124,18 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
           }
           var textWrap = document.createElement("span");
           textWrap.className = "min-w-0";
-          var name = document.createElement("span");
-          name.className = "block truncate font-semibold";
-          name.textContent = item.displayName;
+	          var name = document.createElement("span");
+	          name.className = "flex min-w-0 items-center gap-1 font-semibold";
+	          var nameText = document.createElement("span");
+	          nameText.className = "truncate";
+	          nameText.textContent = item.displayName;
+	          name.appendChild(nameText);
+	          if (item.isPrivate) {
+	            var lock = document.createElement("span");
+	            lock.className = "h-2.5 w-2.5 shrink-0 rounded-sm border border-fg-muted";
+	            lock.setAttribute("aria-label", "Private account");
+	            name.appendChild(lock);
+	          }
           var handle = document.createElement("span");
           handle.className = "block truncate text-[12px] text-fg-muted";
           handle.textContent = "@" + item.username;
@@ -161,10 +173,11 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
           items = props.items ?? [];
           command = function (item: MentionItem) {
             props.command({
-              id: item.id,
-              label: item.username,
-              username: item.username,
-            });
+	              id: item.id,
+	              label: item.username,
+	              username: item.username,
+	              isPrivate: item.isPrivate,
+	            });
           };
           renderItems();
           position(props.clientRect);
@@ -175,10 +188,11 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
           selectedIndex = Math.min(selectedIndex, Math.max(items.length - 1, 0));
           command = function (item: MentionItem) {
             props.command({
-              id: item.id,
-              label: item.username,
-              username: item.username,
-            });
+	              id: item.id,
+	              label: item.username,
+	              username: item.username,
+	              isPrivate: item.isPrivate,
+	            });
           };
           renderItems();
           position(props.clientRect);

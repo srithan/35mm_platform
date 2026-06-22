@@ -31,8 +31,18 @@ import { badRequest, forbidden, notFound } from "../../lib/errors.js";
 import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
 import { createUlid, isValidUlid } from "../../lib/ulid.js";
 import { ensureWatchlistForUser, nextListPosition, resolveFilmId } from "../../lib/filmLists.js";
+import { enqueueCounterIncrementJob } from "../../lib/jobs.js";
 
 export var listRoutes = new Hono();
+
+async function enqueueCounterDelta(
+  payload: Parameters<typeof enqueueCounterIncrementJob>[0]
+): Promise<void> {
+  var queued = await enqueueCounterIncrementJob(payload);
+  if (!queued) {
+    console.warn("[counter.increment] dropped counter delta; reconciliation required", payload);
+  }
+}
 
 type ListRow = {
   id: string;
@@ -542,10 +552,12 @@ listRoutes.post("/:listId/entries", requireAuth, async function (c) {
     .returning({ id: filmListEntries.id });
 
   if (inserted.length > 0) {
-    await db
-      .update(filmLists)
-      .set({ entryCount: sql`${filmLists.entryCount} + 1`, updatedAt: new Date() })
-      .where(eq(filmLists.id, listId));
+    await enqueueCounterDelta({
+      targetTable: "film_lists",
+      targetId: listId,
+      counterName: "entryCount",
+      delta: 1,
+    });
   }
 
   return c.json({ ok: true, entryId: inserted[0]?.id ?? null, filmId, duplicate: inserted.length === 0 });
@@ -614,10 +626,12 @@ listRoutes.delete("/:listId/entries/:entryId", requireAuth, async function (c) {
     .where(and(eq(filmListEntries.listId, listId), eq(filmListEntries.id, entryId)))
     .returning({ id: filmListEntries.id });
   if (deleted.length > 0) {
-    await getDb()
-      .update(filmLists)
-      .set({ entryCount: sql`greatest(${filmLists.entryCount} - 1, 0)`, updatedAt: new Date() })
-      .where(eq(filmLists.id, listId));
+    await enqueueCounterDelta({
+      targetTable: "film_lists",
+      targetId: listId,
+      counterName: "entryCount",
+      delta: -1,
+    });
   }
 
   return c.json({ ok: true });
@@ -635,7 +649,12 @@ listRoutes.post("/:listId/like", requireAuth, async function (c) {
     .onConflictDoNothing()
     .returning({ userId: filmListLikes.userId });
   if (inserted.length > 0) {
-    await getDb().update(filmLists).set({ likeCount: sql`${filmLists.likeCount} + 1` }).where(eq(filmLists.id, listId));
+    await enqueueCounterDelta({
+      targetTable: "film_lists",
+      targetId: listId,
+      counterName: "likeCount",
+      delta: 1,
+    });
   }
 
   return c.json({ ok: true, isLiked: true });
@@ -650,7 +669,12 @@ listRoutes.delete("/:listId/like", requireAuth, async function (c) {
     .where(and(eq(filmListLikes.listId, listId), eq(filmListLikes.userId, user.userId)))
     .returning({ userId: filmListLikes.userId });
   if (deleted.length > 0) {
-    await getDb().update(filmLists).set({ likeCount: sql`greatest(${filmLists.likeCount} - 1, 0)` }).where(eq(filmLists.id, listId));
+    await enqueueCounterDelta({
+      targetTable: "film_lists",
+      targetId: listId,
+      counterName: "likeCount",
+      delta: -1,
+    });
   }
 
   return c.json({ ok: true, isLiked: false });
@@ -725,10 +749,12 @@ listRoutes.post("/watchlist/films", requireAuth, async function (c) {
     .returning({ id: filmListEntries.id });
 
   if (inserted.length > 0) {
-    await getDb()
-      .update(filmLists)
-      .set({ entryCount: sql`${filmLists.entryCount} + 1`, updatedAt: new Date() })
-      .where(eq(filmLists.id, watchlistId));
+    await enqueueCounterDelta({
+      targetTable: "film_lists",
+      targetId: watchlistId,
+      counterName: "entryCount",
+      delta: 1,
+    });
   }
 
   return c.json({
@@ -748,10 +774,12 @@ listRoutes.delete("/watchlist/films/:filmId", requireAuth, async function (c) {
     .where(and(eq(filmListEntries.listId, watchlistId), eq(filmListEntries.filmId, filmId)))
     .returning({ id: filmListEntries.id });
   if (deleted.length > 0) {
-    await getDb()
-      .update(filmLists)
-      .set({ entryCount: sql`greatest(${filmLists.entryCount} - 1, 0)`, updatedAt: new Date() })
-      .where(eq(filmLists.id, watchlistId));
+    await enqueueCounterDelta({
+      targetTable: "film_lists",
+      targetId: watchlistId,
+      counterName: "entryCount",
+      delta: -1,
+    });
   }
 
   return c.json({ ok: true, isInWatchlist: false });

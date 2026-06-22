@@ -99,6 +99,27 @@
       "when": 1782600000003,
       "tag": "0013_post_polls",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1782600000004,
+      "tag": "0014_feed_fanout_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1782600000005,
+      "tag": "0015_feed_items_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782600000006,
+      "tag": "0016_follow_request_approved_notification",
+      "breakpoints": true
     }
   ]
 }

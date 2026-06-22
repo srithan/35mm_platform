@@ -16,7 +16,7 @@ type NotificationEntityKind = "post" | "comment" | "user" | null;
 type NotificationInput = {
   recipientId: string;
   actorId: string | null;
-  type: "like" | "comment" | "reply" | "follow" | "follow_request" | "mention" | "repost";
+  type: "like" | "comment" | "reply" | "follow" | "follow_request" | "follow_request_approved" | "mention" | "repost";
   entityType: NotificationEntityKind;
   entityId: string | null;
 };
@@ -104,7 +104,7 @@ function normalizeActorIds(value: unknown): string[] {
 }
 
 function canPreferenceNotify(type: NotificationInput["type"], settings: NotificationSettings): boolean {
-  if (type === "follow" || type === "follow_request") return settings.notifyNewFollowers;
+  if (type === "follow" || type === "follow_request" || type === "follow_request_approved") return settings.notifyNewFollowers;
   if (type === "like" || type === "repost") return settings.notifyLikesOnPosts;
   if (type === "comment" || type === "reply") return settings.notifyCommentsAndReplies;
   if (type === "mention") return settings.notifyMentions;
@@ -184,7 +184,8 @@ function shouldBundle(type: NotificationInput["type"]): boolean {
     type === "reply" ||
     type === "repost" ||
     type === "follow" ||
-    type === "follow_request"
+    type === "follow_request" ||
+    type === "follow_request_approved"
   );
 }
 

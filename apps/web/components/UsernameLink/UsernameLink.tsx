@@ -7,11 +7,13 @@ import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
+import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { Button } from "@/components/Button";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
 import { ProfileRoleHeadlinePill } from "@/lib/utils/userRoleHeadline";
+import { PrivateAccountLock } from "@/components/PrivateAccountLock";
 import { fetchPublicProfile } from "@/features/profile/api/profileApi";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
@@ -122,6 +124,7 @@ function ProfilePopover(props: {
   const profile = profileQuery.data;
   const currentUserQuery = useCurrentUserProfile();
   const followToggle = useFollowToggle(props.username);
+  const [confirmUnfollow, setConfirmUnfollow] = useState(false);
 
   const isOwnProfile =
     Boolean(currentUserQuery.data?.username) &&
@@ -146,21 +149,25 @@ function ProfilePopover(props: {
   const followersCount = profile?.followerCount ?? props.fallback.followersCount;
   const followingCount = profile?.followingCount ?? props.fallback.followingCount;
   const filmsLoggedCount = profile?.filmsLoggedCount ?? props.fallback.filmsLoggedCount;
-  const coverUrl = profile?.coverUrl ?? null;
+	  const coverUrl = profile?.coverUrl ?? null;
+	  const followState = profile?.followState ?? "none";
 
-  const isLoading = profileQuery.isLoading && !profile;
-  const showFollowButton = !isOwnProfile;
-  const followLabel = followToggle.isPending
-    ? "..."
-    : profile?.isFollowing
-      ? "Following"
-      : profile?.isFollowRequested
-        ? "Requested"
-        : "Follow";
-  const followVariant =
-    profile?.isFollowing || profile?.isFollowRequested ? "secondary" : "primary";
+	  const isLoading = profileQuery.isLoading && !profile;
+	  const showFollowButton = !isOwnProfile;
+	  const followLabel = followToggle.isPending
+	    ? "..."
+	    : followState === "following"
+	      ? "Following"
+	      : followState === "requested"
+	        ? "Requested"
+	        : profile?.isPrivate
+	          ? "Request"
+	          : "Follow";
+	  const followVariant =
+	    followState === "following" ? "outline" : followState === "requested" ? "muted" : "primary";
 
   return (
+    <>
     <div
       ref={props.containerRef}
       className="fixed z-[200] w-[min(320px,calc(100vw-24px))] overflow-hidden rounded-xl border border-border bg-bg text-fg shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.05)] animate-[fadeUp_0.15s_ease-out_both]"
@@ -197,9 +204,10 @@ function ProfilePopover(props: {
             </div>
           ) : (
             <>
-              <div className="truncate text-[15px] font-bold leading-tight text-fg">
-                {label}
-              </div>
+	              <div className="truncate text-[15px] font-bold leading-tight text-fg">
+	                <span>{label}</span>
+	                {profile?.isPrivate ? <PrivateAccountLock className="ml-1.5 text-[13px]" /> : null}
+	              </div>
               <div className="mt-0.5 truncate text-[13px] text-fg-muted">
                 @{props.username}
               </div>
@@ -233,11 +241,14 @@ function ProfilePopover(props: {
               disabled={followToggle.isPending || isLoading || !profile?.userId}
               onClick={function () {
                 if (followToggle.isPending || !profile?.userId) return;
-                followToggle.mutate({
-                  userId: profile.userId,
-                  isFollowing: Boolean(profile.isFollowing),
-                  isFollowRequested: Boolean(profile.isFollowRequested),
-                });
+                if (followState === "following" && profile.isPrivate) {
+                  setConfirmUnfollow(true);
+                  return;
+                }
+	                followToggle.mutate({
+	                  userId: profile.userId,
+	                  followState,
+	                });
               }}
               className="h-8 min-w-0 flex-1 px-3 text-[12px] font-bold"
             >
@@ -256,6 +267,25 @@ function ProfilePopover(props: {
         </div>
       </div>
     </div>
+    <ConfirmDialog
+      open={confirmUnfollow}
+      onClose={function () {
+        setConfirmUnfollow(false);
+      }}
+      onConfirm={function () {
+        if (!profile?.userId) return;
+        followToggle.mutate({
+          userId: profile.userId,
+          followState: "following",
+        });
+      }}
+      title={`Unfollow @${props.username}?`}
+      description="You'll lose access to their posts. They won't be notified that you unfollowed."
+      confirmLabel="Unfollow"
+      cancelLabel="Cancel"
+      variant="danger"
+    />
+    </>
   );
 }
 

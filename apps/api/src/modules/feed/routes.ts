@@ -1,6 +1,17 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, ne, notInArray, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import {
+  computeFeedScore,
+  feedItemsRetentionBoundary,
+  FEED_SCORE_COMMENT_WEIGHT,
+  FEED_SCORE_ENGAGEMENT_WEIGHT,
+  FEED_SCORE_RECENCY_HALF_LIFE_HOURS,
+  FEED_SCORE_RECENCY_WEIGHT,
+  FEED_SCORE_REPOST_WEIGHT,
+  parseFeedItemsRetentionDays,
+} from "@35mm/types";
 import {
   createPostSchema,
   cursorPaginationSchema,
@@ -46,16 +57,28 @@ import {
 } from "../media/variants.js";
 import {
   getFeedCache,
+  getHighFollowerAuthorFeedCache,
   homeFeedCacheKey,
   invalidateAuthorProfileFeedCaches,
   invalidateFeedCacheForGuest,
   invalidateViewerFeedCaches,
   profileFeedCacheKey,
   setFeedCache,
+  setHighFollowerAuthorFeedCache,
 } from "../../lib/feedCache.js";
-import { enqueueMediaProcessJob, removeNotificationPublishJob } from "../../lib/jobs.js";
+import {
+  enqueueCounterIncrementJob,
+  enqueueFeedFanoutJob,
+  enqueueMediaProcessJob,
+  removeNotificationPublishJob,
+} from "../../lib/jobs.js";
 import { createNotification } from "../../lib/notifications.js";
 import { applyRateLimit, createRateLimitMiddleware, identifyByIp } from "../../lib/rateLimit.js";
+import {
+  feedHighFollowerCachePostLimit,
+  feedHighFollowerCacheTtlSeconds,
+  feedHighFollowerThreshold,
+} from "./fanoutConfig.js";
 
 export var feedRoutes = new Hono();
 
@@ -107,6 +130,15 @@ function normalizeActorIds(value: unknown): string[] {
   }
 
   return [];
+}
+
+async function enqueueCounterDelta(
+  payload: Parameters<typeof enqueueCounterIncrementJob>[0]
+): Promise<void> {
+  var queued = await enqueueCounterIncrementJob(payload);
+  if (!queued) {
+    console.warn("[counter.increment] dropped counter delta; reconciliation required", payload);
+  }
 }
 
 function isMissingActorIdsColumnError(err: unknown): boolean {
@@ -217,11 +249,12 @@ async function hydrateRichMentions(value: string): Promise<string> {
 
   var db = getDb();
   var rows = await db
-    .select({
-      id: profiles.userId,
-      username: profiles.username,
-      status: users.status,
-    })
+	    .select({
+	      id: profiles.userId,
+	      username: profiles.username,
+	      isPrivate: profiles.isPrivate,
+	      status: users.status,
+	    })
     .from(profiles)
     .innerJoin(users, eq(users.id, profiles.userId))
     .where(inArray(profiles.userId, ids));
@@ -236,9 +269,9 @@ async function hydrateRichMentions(value: string): Promise<string> {
       var row = byId.get(node.attrs.id);
       if (!row || row.status !== "active") {
         node.attrs = { ...node.attrs, deleted: true };
-      } else {
-        node.attrs = { ...node.attrs, username: row.username, label: row.username, deleted: false };
-      }
+	      } else {
+	        node.attrs = { ...node.attrs, username: row.username, label: row.username, isPrivate: row.isPrivate, deleted: false };
+	      }
     }
     for (var child of node.content ?? []) walk(child);
   }
@@ -513,23 +546,60 @@ function parseUpdateCommentInput(raw: unknown): { body: string } {
 }
 
 function postVisibilitySql(viewerUserId: string | null) {
+  var repostSourceAccess = viewerUserId
+    ? sql<boolean>`(
+        ${posts.isRepost} = false
+        or ${posts.replyToId} is null
+        or exists (
+          select 1
+          from ${posts} source_posts
+          inner join ${profiles} source_profiles on source_profiles.user_id = source_posts.user_id
+          where source_posts.id = ${posts.replyToId}
+            and (
+              source_profiles.is_private = false
+              or source_posts.user_id = ${viewerUserId}
+              or exists (
+                select 1
+                from ${follows} source_follows
+                where source_follows.follower_id = ${viewerUserId}
+                  and source_follows.following_id = source_posts.user_id
+                  and source_follows.status = 'accepted'
+              )
+            )
+        )
+      )`
+    : sql<boolean>`(
+        ${posts.isRepost} = false
+        or ${posts.replyToId} is null
+        or exists (
+          select 1
+          from ${posts} source_posts
+          inner join ${profiles} source_profiles on source_profiles.user_id = source_posts.user_id
+          where source_posts.id = ${posts.replyToId}
+            and source_profiles.is_private = false
+        )
+      )`;
+
   if (!viewerUserId) {
-    return eq(posts.visibility, "public");
+    return and(eq(posts.visibility, "public"), repostSourceAccess);
   }
 
   return sql<boolean>`(
-    ${posts.visibility} = 'public'
-    or ${posts.userId} = ${viewerUserId}
-    or (
-      ${posts.visibility} = 'followers_only'
-      and exists (
-        select 1
-        from ${follows}
-        where ${follows.followerId} = ${viewerUserId}
-          and ${follows.followingId} = ${posts.userId}
-          and ${follows.status} = 'accepted'
+    (
+      ${posts.visibility} = 'public'
+      or ${posts.userId} = ${viewerUserId}
+      or (
+        ${posts.visibility} = 'followers_only'
+        and exists (
+          select 1
+          from ${follows}
+          where ${follows.followerId} = ${viewerUserId}
+            and ${follows.followingId} = ${posts.userId}
+            and ${follows.status} = 'accepted'
+        )
       )
     )
+    and ${repostSourceAccess}
   )`;
 }
 
@@ -871,6 +941,599 @@ async function toPostItem(row: {
   };
 }
 
+type HomeFeedRow = Parameters<typeof toPostItem>[0] & {
+  cursorScore: number;
+  cursorId: string;
+  cursorCreatedAt: Date;
+  cursorRetentionCreatedAt: Date | null;
+};
+
+type FeedScoreCursor = {
+  score: number;
+  id: string;
+  asOf: Date;
+  retentionCreatedAt: Date | null;
+  legacy: boolean;
+};
+
+export type CachedHighFollowerAuthorRow = {
+  id: string;
+  type: "text" | "discussion" | "log" | "review" | "image";
+  headline: string | null;
+  body: string;
+  visibility: "public" | "followers_only" | "private";
+  filmId: string | null;
+  filmTmdbId: number | null;
+  filmTitle: string | null;
+  filmYear: number | null;
+  filmPosterUrl: string | null;
+  filmGenres: string[] | null;
+  filmRating: number | null;
+  media: PostMediaItem[];
+  mediaUrls: string[] | null;
+  linkPreview: {
+    url: string;
+    title: string;
+    description: string | null;
+    image: string | null;
+    domain: string;
+    provider: "youtube" | "vimeo" | "link";
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+  editedAt: string | null;
+  authorId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: string | null;
+  roleContext: string | null;
+  profileHeadline: string | null;
+  profileHeadlineContext: string | null;
+  filmsLoggedCount: number;
+  likeCount: number;
+  commentCount: number;
+  repostCount: number;
+  bookmarkCount: number;
+  isDeleted: boolean;
+};
+
+function compareHomeFeedRows(a: Pick<HomeFeedRow, "cursorScore" | "cursorId">, b: Pick<HomeFeedRow, "cursorScore" | "cursorId">): number {
+  var scoreDelta = b.cursorScore - a.cursorScore;
+  if (scoreDelta !== 0) return scoreDelta;
+  return b.cursorId.localeCompare(a.cursorId);
+}
+
+export function mergeHomeFeedRows<T extends { id: string; cursorScore: number; cursorId: string }>(
+  materializedRows: T[],
+  liveRows: T[],
+  limit: number
+): { rows: T[]; hasMore: boolean } {
+  var byPostId = new Map<string, T>();
+  for (var row of materializedRows.concat(liveRows)) {
+    var existing = byPostId.get(row.id);
+    if (!existing || compareHomeFeedRows(row, existing) < 0) {
+      byPostId.set(row.id, row);
+    }
+  }
+
+  var rows = Array.from(byPostId.values()).sort(compareHomeFeedRows);
+  return {
+    rows: rows.slice(0, limit),
+    hasMore: rows.length > limit,
+  };
+}
+
+function encodeFeedScoreCursor(input: FeedScoreCursor): string {
+  var payload = JSON.stringify({
+    s: input.score,
+    i: input.id,
+    a: input.asOf.toISOString(),
+    r: input.retentionCreatedAt ? input.retentionCreatedAt.toISOString() : null,
+  });
+  return Buffer.from(payload, "utf8").toString("base64");
+}
+
+function decodeFeedScoreCursor(cursorValue: string | undefined): FeedScoreCursor | null {
+  if (!cursorValue) return null;
+
+  try {
+    var decoded = Buffer.from(cursorValue, "base64").toString("utf8");
+    var parsed = JSON.parse(decoded) as { s?: unknown; i?: unknown; a?: unknown };
+    var retentionCreatedAtRaw = (parsed as { r?: unknown }).r;
+    var scoreRaw = parsed.s;
+    var idRaw = parsed.i;
+    var asOfRaw = parsed.a;
+    if (typeof scoreRaw !== "number" || !Number.isFinite(scoreRaw)) {
+      throw new Error("invalid-score");
+    }
+    if (typeof idRaw !== "string" || idRaw.length === 0) {
+      throw new Error("invalid-id");
+    }
+    var asOf = typeof asOfRaw === "string" ? new Date(asOfRaw) : new Date();
+    if (Number.isNaN(asOf.getTime())) {
+      throw new Error("invalid-as-of");
+    }
+    var retentionCreatedAt = typeof retentionCreatedAtRaw === "string"
+      ? new Date(retentionCreatedAtRaw)
+      : null;
+    if (retentionCreatedAt && Number.isNaN(retentionCreatedAt.getTime())) {
+      throw new Error("invalid-retention-created-at");
+    }
+
+    return {
+      score: scoreRaw,
+      id: idRaw,
+      asOf,
+      retentionCreatedAt,
+      legacy: !Object.prototype.hasOwnProperty.call(parsed, "r"),
+    };
+  } catch (_error) {
+    throw badRequest("Invalid cursor");
+  }
+}
+
+export function shouldUseColdFeedFallback(input: {
+  cursor: FeedScoreCursor | null;
+  retentionBoundary: Date;
+  rankingAsOf: Date;
+}): boolean {
+  if (!input.cursor) return false;
+
+  if (!input.cursor.legacy) {
+    return input.cursor.retentionCreatedAt != null
+      && input.cursor.retentionCreatedAt.getTime() <= input.retentionBoundary.getTime();
+  }
+
+  var boundaryScore = computeFeedScore({
+    createdAt: input.retentionBoundary,
+    likeCount: 0,
+    commentCount: 0,
+    repostCount: 0,
+    now: input.rankingAsOf,
+  });
+  return input.cursor.score <= boundaryScore;
+}
+
+function feedItemsRetentionDays(): number {
+  return parseFeedItemsRetentionDays(process.env.FEED_ITEMS_RETENTION_DAYS);
+}
+
+function feedScoreSql(asOf: Date) {
+  return sql<number>`(
+    ${FEED_SCORE_RECENCY_WEIGHT} * exp(
+      -greatest(extract(epoch from (${asOf}::timestamptz - ${posts.createdAt})) / 3600, 0)
+      / ${FEED_SCORE_RECENCY_HALF_LIFE_HOURS}
+    )
+    + ${FEED_SCORE_ENGAGEMENT_WEIGHT} * ln(
+      1
+      + greatest(${posts.likeCount}, 0)
+      + greatest(${posts.commentCount}, 0) * ${FEED_SCORE_COMMENT_WEIGHT}
+      + greatest(${posts.repostCount}, 0) * ${FEED_SCORE_REPOST_WEIGHT}
+    )
+  )`;
+}
+
+function feedScoreCursorSql(scoreColumn: unknown, idColumn: unknown, cursor: FeedScoreCursor | null) {
+  if (!cursor) return undefined;
+
+  return or(
+    lt(scoreColumn as any, cursor.score),
+    and(eq(scoreColumn as any, cursor.score), lt(idColumn as any, cursor.id))
+  );
+}
+
+function passesFeedScoreCursor(row: Pick<HomeFeedRow, "cursorScore" | "cursorId">, cursor: FeedScoreCursor | null): boolean {
+  if (!cursor) return true;
+  return row.cursorScore < cursor.score || (row.cursorScore === cursor.score && row.cursorId < cursor.id);
+}
+
+function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFollowerAuthorRow {
+  return {
+    id: row.id,
+    type: row.type,
+    headline: row.headline,
+    body: row.body,
+    visibility: row.visibility,
+    filmId: row.filmId,
+    filmTmdbId: row.filmTmdbId,
+    filmTitle: row.filmTitle,
+    filmYear: row.filmYear,
+    filmPosterUrl: row.filmPosterUrl,
+    filmGenres: row.filmGenres,
+    filmRating: row.filmRating,
+    media: row.media,
+    mediaUrls: row.mediaUrls,
+    linkPreview: row.linkPreview,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    editedAt: row.editedAt ? row.editedAt.toISOString() : null,
+    authorId: row.authorId,
+    username: row.username,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    role: row.role,
+    roleContext: row.roleContext,
+    profileHeadline: row.profileHeadline,
+    profileHeadlineContext: row.profileHeadlineContext,
+    filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
+    likeCount: Number(row.likeCount ?? 0),
+    commentCount: Number(row.commentCount ?? 0),
+    repostCount: Number(row.repostCount ?? 0),
+    bookmarkCount: Number(row.bookmarkCount ?? 0),
+    isDeleted: row.isDeleted,
+  };
+}
+
+function homeRowFromCachedHighFollowerAuthorRow(
+  row: CachedHighFollowerAuthorRow,
+  rankingAsOf: Date
+): HomeFeedRow {
+  var createdAt = new Date(row.createdAt);
+  return {
+    ...row,
+    createdAt,
+    updatedAt: new Date(row.updatedAt),
+    editedAt: row.editedAt ? new Date(row.editedAt) : null,
+    cursorScore: computeFeedScore({
+      createdAt,
+      likeCount: Number(row.likeCount ?? 0),
+      commentCount: Number(row.commentCount ?? 0),
+      repostCount: Number(row.repostCount ?? 0),
+      now: rankingAsOf,
+    }),
+    cursorId: row.id,
+    cursorCreatedAt: createdAt,
+    cursorRetentionCreatedAt: null,
+    isLiked: false,
+    isReposted: false,
+    isBookmarked: false,
+  };
+}
+
+function isCachedHighFollowerAuthorRow(value: unknown): value is CachedHighFollowerAuthorRow {
+  if (!value || typeof value !== "object") return false;
+  var row = value as Partial<CachedHighFollowerAuthorRow>;
+  return (
+    typeof row.id === "string" &&
+    typeof row.authorId === "string" &&
+    typeof row.createdAt === "string" &&
+    typeof row.updatedAt === "string" &&
+    typeof row.type === "string" &&
+    typeof row.body === "string" &&
+    typeof row.username === "string" &&
+    typeof row.displayName === "string"
+  );
+}
+
+export function rankHighFollowerAuthorCacheRows(input: {
+  rows: CachedHighFollowerAuthorRow[];
+  rankingAsOf: Date;
+  scoreCursor: FeedScoreCursor | null;
+  limit: number;
+}): HomeFeedRow[] {
+  return input.rows
+    .map(function (row) {
+      return homeRowFromCachedHighFollowerAuthorRow(row, input.rankingAsOf);
+    })
+    .filter(function (row) {
+      return passesFeedScoreCursor(row, input.scoreCursor);
+    })
+    .sort(compareHomeFeedRows)
+    .slice(0, input.limit);
+}
+
+async function selectLiveHomeFeedRows(input: {
+  viewerUserId: string;
+  authorIds: string[] | null;
+  scoreCursor: FeedScoreCursor | null;
+  rankingAsOf: Date;
+  limit: number;
+}): Promise<HomeFeedRow[]> {
+  if (input.authorIds && input.authorIds.length === 0) return [];
+
+  var db = getDb();
+  var liveScore = feedScoreSql(input.rankingAsOf);
+  var authorFilter = input.authorIds
+    ? inArray(posts.userId, input.authorIds)
+    : sql<boolean>`(
+        ${posts.userId} = ${input.viewerUserId}
+        or exists (
+          select 1
+          from ${follows}
+          where ${follows.followerId} = ${input.viewerUserId}
+            and ${follows.followingId} = ${posts.userId}
+            and ${follows.status} = 'accepted'
+        )
+      )`;
+  var liveFilters: any[] = [
+    authorFilter,
+    eq(posts.isDeleted, false),
+    postVisibilitySql(input.viewerUserId),
+    profileAccessSql(input.viewerUserId),
+    ...blockFiltersForAuthor(input.viewerUserId, posts.userId),
+    notMutedByViewerSql(input.viewerUserId, posts.userId),
+  ];
+  var liveCursorFilter = feedScoreCursorSql(liveScore, posts.id, input.scoreCursor);
+  if (liveCursorFilter) liveFilters.push(liveCursorFilter);
+
+  return db
+    .select({
+      cursorScore: liveScore,
+      cursorId: posts.id,
+      cursorCreatedAt: posts.createdAt,
+      cursorRetentionCreatedAt: sql<Date | null>`null`,
+      id: posts.id,
+      type: posts.type,
+      headline: posts.headline,
+      body: posts.body,
+      visibility: posts.visibility,
+      filmId: posts.filmId,
+      filmTmdbId: films.tmdbId,
+      filmTitle: films.title,
+      filmYear: films.year,
+      filmPosterUrl: films.posterUrl,
+      filmGenres: films.genres,
+      filmRating: posts.filmRating,
+      media: posts.media,
+      mediaUrls: posts.mediaUrls,
+      linkPreview: posts.linkPreview,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      editedAt: posts.editedAt,
+      authorId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+      isDeleted: posts.isDeleted,
+      isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${input.viewerUserId})`,
+      isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${input.viewerUserId})`,
+      isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${input.viewerUserId})`,
+    })
+    .from(posts)
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .leftJoin(films, eq(films.id, posts.filmId))
+    .where(and(...liveFilters))
+    .orderBy(desc(liveScore), desc(posts.id))
+    .limit(input.limit);
+}
+
+async function visibleHighFollowerAuthorIds(viewerUserId: string, authorIds: string[]): Promise<string[]> {
+  if (authorIds.length === 0) return [];
+  var db = getDb();
+  var rows = await db
+    .select({ userId: profiles.userId })
+    .from(profiles)
+    .where(
+      and(
+        inArray(profiles.userId, authorIds),
+        profileAccessSql(viewerUserId),
+        ...blockFiltersForAuthor(viewerUserId, profiles.userId),
+        notMutedByViewerSql(viewerUserId, profiles.userId)
+      )
+    );
+
+  return rows.map(function (row) {
+    return row.userId;
+  });
+}
+
+async function selectHighFollowerAuthorRowsFromDb(input: {
+  authorUserId: string;
+  rankingAsOf: Date;
+  scoreCursor: FeedScoreCursor | null;
+  limit: number;
+}): Promise<HomeFeedRow[]> {
+  var db = getDb();
+  var liveScore = feedScoreSql(input.rankingAsOf);
+  var filters: any[] = [
+    eq(posts.userId, input.authorUserId),
+    eq(posts.isDeleted, false),
+    ne(posts.visibility, "private"),
+  ];
+  var cursorFilter = feedScoreCursorSql(liveScore, posts.id, input.scoreCursor);
+  if (cursorFilter) filters.push(cursorFilter);
+
+  return db
+    .select({
+      cursorScore: liveScore,
+      cursorId: posts.id,
+      cursorCreatedAt: posts.createdAt,
+      cursorRetentionCreatedAt: sql<Date | null>`null`,
+      id: posts.id,
+      type: posts.type,
+      headline: posts.headline,
+      body: posts.body,
+      visibility: posts.visibility,
+      filmId: posts.filmId,
+      filmTmdbId: films.tmdbId,
+      filmTitle: films.title,
+      filmYear: films.year,
+      filmPosterUrl: films.posterUrl,
+      filmGenres: films.genres,
+      filmRating: posts.filmRating,
+      media: posts.media,
+      mediaUrls: posts.mediaUrls,
+      linkPreview: posts.linkPreview,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      editedAt: posts.editedAt,
+      authorId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+      isDeleted: posts.isDeleted,
+      isLiked: sql<boolean>`false`,
+      isReposted: sql<boolean>`false`,
+      isBookmarked: sql<boolean>`false`,
+    })
+    .from(posts)
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .leftJoin(films, eq(films.id, posts.filmId))
+    .where(and(...filters))
+    .orderBy(desc(liveScore), desc(posts.id))
+    .limit(input.limit);
+}
+
+async function highFollowerAuthorRowsFromCache(input: {
+  authorUserId: string;
+  rankingAsOf: Date;
+  scoreCursor: FeedScoreCursor | null;
+  requestLimit: number;
+  cachePostLimit: number;
+  ttlSeconds: number;
+}): Promise<HomeFeedRow[]> {
+  var cached = await getHighFollowerAuthorFeedCache(input.authorUserId);
+  var cachedRows = cached?.items.filter(isCachedHighFollowerAuthorRow) ?? null;
+
+  if (!cachedRows) {
+    var dbRows = await selectHighFollowerAuthorRowsFromDb({
+      authorUserId: input.authorUserId,
+      rankingAsOf: input.rankingAsOf,
+      scoreCursor: null,
+      limit: input.cachePostLimit,
+    });
+    cachedRows = dbRows.map(cachedHighFollowerAuthorRowFromHomeRow);
+    await setHighFollowerAuthorFeedCache(
+      input.authorUserId,
+      {
+        items: cachedRows,
+        cachedAt: new Date().toISOString(),
+        rowLimit: input.cachePostLimit,
+      },
+      input.ttlSeconds
+    );
+  }
+
+  var rankedRows = rankHighFollowerAuthorCacheRows({
+    rows: cachedRows,
+    rankingAsOf: input.rankingAsOf,
+    scoreCursor: input.scoreCursor,
+    limit: input.requestLimit,
+  });
+
+  if (
+    input.scoreCursor &&
+    rankedRows.length < input.requestLimit &&
+    cachedRows.length >= input.cachePostLimit
+  ) {
+    return selectHighFollowerAuthorRowsFromDb({
+      authorUserId: input.authorUserId,
+      rankingAsOf: input.rankingAsOf,
+      scoreCursor: input.scoreCursor,
+      limit: input.requestLimit,
+    });
+  }
+
+  return rankedRows;
+}
+
+async function highFollowerLiveRowsFromAuthorCache(input: {
+  viewerUserId: string;
+  authorIds: string[];
+  scoreCursor: FeedScoreCursor | null;
+  rankingAsOf: Date;
+  limit: number;
+}): Promise<HomeFeedRow[]> {
+  var visibleAuthorIds = await visibleHighFollowerAuthorIds(input.viewerUserId, input.authorIds);
+  var cachePostLimit = feedHighFollowerCachePostLimit();
+  var ttlSeconds = feedHighFollowerCacheTtlSeconds();
+  var pages = await Promise.all(
+    visibleAuthorIds.map(function (authorUserId) {
+      return highFollowerAuthorRowsFromCache({
+        authorUserId,
+        rankingAsOf: input.rankingAsOf,
+        scoreCursor: input.scoreCursor,
+        requestLimit: input.limit,
+        cachePostLimit,
+        ttlSeconds,
+      });
+    })
+  );
+
+  return pages.flat().sort(compareHomeFeedRows).slice(0, input.limit);
+}
+
+async function applyViewerInteractionFlags<T extends HomeFeedRow>(
+  rows: T[],
+  viewerUserId: string
+): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  var db = getDb();
+  var postIds = Array.from(new Set(rows.map(function (row) {
+    return row.id;
+  })));
+  var [likedRows, repostedRows, bookmarkedRows] = await Promise.all([
+    db
+      .select({ postId: postLikes.postId })
+      .from(postLikes)
+      .where(and(eq(postLikes.userId, viewerUserId), inArray(postLikes.postId, postIds))),
+    db
+      .select({ postId: postReposts.postId })
+      .from(postReposts)
+      .where(and(eq(postReposts.userId, viewerUserId), inArray(postReposts.postId, postIds))),
+    db
+      .select({ postId: postBookmarks.postId })
+      .from(postBookmarks)
+      .where(and(eq(postBookmarks.userId, viewerUserId), inArray(postBookmarks.postId, postIds))),
+  ]);
+
+  var liked = new Set(likedRows.map(function (row) { return row.postId; }));
+  var reposted = new Set(repostedRows.map(function (row) { return row.postId; }));
+  var bookmarked = new Set(bookmarkedRows.map(function (row) { return row.postId; }));
+
+  return rows.map(function (row) {
+    return {
+      ...row,
+      isLiked: liked.has(row.id),
+      isReposted: reposted.has(row.id),
+      isBookmarked: bookmarked.has(row.id),
+    };
+  });
+}
+
+async function highFollowerFolloweeIds(viewerUserId: string, threshold: number): Promise<string[]> {
+  var db = getDb();
+  var viewerFollows = alias(follows, "viewer_follows");
+  var authorFollowers = alias(follows, "author_followers");
+
+  var rows = await db
+    .select({ followingId: viewerFollows.followingId })
+    .from(viewerFollows)
+    .innerJoin(
+      authorFollowers,
+      and(
+        eq(authorFollowers.followingId, viewerFollows.followingId),
+        eq(authorFollowers.status, "accepted")
+      )
+    )
+    .where(and(eq(viewerFollows.followerId, viewerUserId), eq(viewerFollows.status, "accepted")))
+    .groupBy(viewerFollows.followingId)
+    .having(sql<boolean>`count(${authorFollowers.followerId}) >= ${threshold}`);
+
+  return rows.map(function (row) {
+    return row.followingId;
+  });
+}
+
 async function getPostById(postId: string, viewerUserId: string | null) {
   var db = getDb();
   var rows = await db
@@ -995,7 +1658,6 @@ feedRoutes.get("/", async function (c) {
     limit: c.req.query("limit"),
   });
 
-  var cursor = decodeCompositeCursor(parsed.cursor);
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var rateLimitResponse = await applyRateLimit(c, {
@@ -1008,21 +1670,39 @@ feedRoutes.get("/", async function (c) {
   var requestCursor = parsed.cursor ?? null;
 
   if (viewer) {
+    var scoreCursor = decodeFeedScoreCursor(parsed.cursor);
+    var rankingAsOf = scoreCursor?.asOf ?? new Date();
+    var retentionBoundary = feedItemsRetentionBoundary(new Date(), feedItemsRetentionDays());
+    var useColdFeedFallback = shouldUseColdFeedFallback({
+      cursor: scoreCursor,
+      retentionBoundary,
+      rankingAsOf,
+    });
     c.header("Cache-Control", "private, no-store");
+    var highFollowerAuthorIds = await highFollowerFolloweeIds(
+      viewer.userId,
+      feedHighFollowerThreshold()
+    );
+    var useHomeFeedCache = !useColdFeedFallback;
     var cacheKey = homeFeedCacheKey({
       viewerId: viewer.userId,
       cursor: requestCursor,
       limit: parsed.limit,
     });
-    var cached = await getFeedCache(cacheKey);
-    if (cached) {
-      c.header("X-Feed-Cache", "HIT");
-      return c.json(cached);
+    if (useHomeFeedCache) {
+      var cached = await getFeedCache(cacheKey);
+      if (cached) {
+        c.header("X-Feed-Cache", "HIT");
+        return c.json(cached);
+      }
+      c.header("X-Feed-Cache", "MISS");
+    } else {
+      c.header("X-Feed-Cache", "BYPASS retention-cold-path");
     }
-    c.header("X-Feed-Cache", "MISS");
 
     var filters: any[] = [
       eq(feedItems.userId, viewer.userId),
+      gte(feedItems.createdAt, retentionBoundary),
       eq(posts.isDeleted, false),
       postVisibilitySql(viewer.userId),
       profileAccessSql(viewer.userId),
@@ -1030,73 +1710,116 @@ feedRoutes.get("/", async function (c) {
       notMutedByViewerSql(viewer.userId, posts.userId),
     ];
 
-    var cursorFilter = compositeCursorSql(feedItems.createdAt, feedItems.id, cursor);
+    if (highFollowerAuthorIds.length > 0) {
+      filters.push(notInArray(posts.userId, highFollowerAuthorIds));
+    }
+
+    var materializedScore = sql<number>`coalesce(${feedItems.score}, ${feedScoreSql(rankingAsOf)})`;
+    var cursorFilter = feedScoreCursorSql(materializedScore, posts.id, scoreCursor);
     if (cursorFilter) filters.push(cursorFilter);
 
-    var rows = await db
-      .select({
-        cursorCreatedAt: feedItems.createdAt,
-        cursorId: feedItems.id,
-        id: posts.id,
-        type: posts.type,
-        headline: posts.headline,
-        body: posts.body,
-        visibility: posts.visibility,
-        filmId: posts.filmId,
-        filmTmdbId: films.tmdbId,
-        filmTitle: films.title,
-        filmYear: films.year,
-        filmPosterUrl: films.posterUrl,
-        filmGenres: films.genres,
-        filmRating: posts.filmRating,
-        media: posts.media,
-        mediaUrls: posts.mediaUrls,
-        linkPreview: posts.linkPreview,
-        createdAt: posts.createdAt,
-        updatedAt: posts.updatedAt,
-        editedAt: posts.editedAt,
-        authorId: profiles.userId,
-        username: profiles.username,
-        displayName: profiles.displayName,
-        avatarUrl: profiles.avatarUrl,
-        role: profiles.role,
-        roleContext: profiles.roleContext,
-        profileHeadline: profiles.headline,
-        profileHeadlineContext: profiles.headlineContext,
-        filmsLoggedCount: profiles.filmsLoggedCount,
-        likeCount: posts.likeCount,
-        commentCount: posts.commentCount,
-        repostCount: posts.repostCount,
-        bookmarkCount: posts.bookmarkCount,
-        isDeleted: posts.isDeleted,
-        isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewer.userId})`,
-        isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewer.userId})`,
-        isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewer.userId})`,
-      })
-      .from(feedItems)
-      .innerJoin(posts, eq(posts.id, feedItems.postId))
-      .innerJoin(profiles, eq(profiles.userId, posts.userId))
-      .leftJoin(films, eq(films.id, posts.filmId))
-      .where(and(...filters))
-      .orderBy(desc(feedItems.createdAt), desc(feedItems.id))
-      .limit(parsed.limit + 1);
+    var materializedRows = useColdFeedFallback
+      ? []
+      : await db
+        .select({
+          cursorScore: materializedScore,
+          cursorId: posts.id,
+          cursorCreatedAt: posts.createdAt,
+          cursorRetentionCreatedAt: feedItems.createdAt,
+          id: posts.id,
+          type: posts.type,
+          headline: posts.headline,
+          body: posts.body,
+          visibility: posts.visibility,
+          filmId: posts.filmId,
+          filmTmdbId: films.tmdbId,
+          filmTitle: films.title,
+          filmYear: films.year,
+          filmPosterUrl: films.posterUrl,
+          filmGenres: films.genres,
+          filmRating: posts.filmRating,
+          media: posts.media,
+          mediaUrls: posts.mediaUrls,
+          linkPreview: posts.linkPreview,
+          createdAt: posts.createdAt,
+          updatedAt: posts.updatedAt,
+          editedAt: posts.editedAt,
+          authorId: profiles.userId,
+          username: profiles.username,
+          displayName: profiles.displayName,
+          avatarUrl: profiles.avatarUrl,
+          role: profiles.role,
+          roleContext: profiles.roleContext,
+          profileHeadline: profiles.headline,
+          profileHeadlineContext: profiles.headlineContext,
+          filmsLoggedCount: profiles.filmsLoggedCount,
+          likeCount: posts.likeCount,
+          commentCount: posts.commentCount,
+          repostCount: posts.repostCount,
+          bookmarkCount: posts.bookmarkCount,
+          isDeleted: posts.isDeleted,
+          isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewer.userId})`,
+          isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewer.userId})`,
+          isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewer.userId})`,
+        })
+        .from(feedItems)
+        .innerJoin(posts, eq(posts.id, feedItems.postId))
+        .innerJoin(profiles, eq(profiles.userId, posts.userId))
+        .leftJoin(films, eq(films.id, posts.filmId))
+        .where(and(...filters))
+        .orderBy(desc(materializedScore), desc(posts.id))
+        .limit(parsed.limit + 1);
 
-    var visibleRows = rows.slice(0, parsed.limit);
-    var items = await Promise.all(visibleRows.map(function (row) {
+    var liveRows: HomeFeedRow[] = [];
+    if (useColdFeedFallback) {
+      liveRows = await selectLiveHomeFeedRows({
+        viewerUserId: viewer.userId,
+        authorIds: null,
+        scoreCursor,
+        rankingAsOf,
+        limit: parsed.limit + 1,
+      });
+    } else if (highFollowerAuthorIds.length > 0) {
+      liveRows = await highFollowerLiveRowsFromAuthorCache({
+        viewerUserId: viewer.userId,
+        authorIds: highFollowerAuthorIds,
+        scoreCursor,
+        rankingAsOf,
+        limit: parsed.limit + 1,
+      });
+    }
+
+    var merged = mergeHomeFeedRows(
+      materializedRows as HomeFeedRow[],
+      liveRows,
+      parsed.limit + 1
+    );
+    var visibleRows = merged.rows.slice(0, parsed.limit);
+    var visibleRowsWithInteractions = await applyViewerInteractionFlags(visibleRows, viewer.userId);
+    var items = await Promise.all(visibleRowsWithInteractions.map(function (row) {
       return toPostItem(row, viewer?.userId ?? null);
     }));
 
-    var hasMore = rows.length > parsed.limit;
+    var hasMore = merged.rows.length > parsed.limit || merged.hasMore;
     var tail = visibleRows[visibleRows.length - 1];
     var nextCursor = hasMore && tail
-      ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
+      ? encodeFeedScoreCursor({
+          score: tail.cursorScore,
+          id: tail.cursorId,
+          asOf: rankingAsOf,
+          retentionCreatedAt: tail.cursorRetentionCreatedAt,
+          legacy: false,
+        })
       : null;
     var payload = { items, nextCursor, hasMore };
-    await setFeedCache(cacheKey, payload, { viewerId: viewer.userId });
+    if (useHomeFeedCache) {
+      await setFeedCache(cacheKey, payload, { viewerId: viewer.userId });
+    }
     return c.json(payload);
   }
 
   c.header("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+  var guestCursor = decodeCompositeCursor(parsed.cursor);
   var guestCacheKey = homeFeedCacheKey({
     viewerId: null,
     cursor: requestCursor,
@@ -1117,7 +1840,7 @@ feedRoutes.get("/", async function (c) {
     eq(posts.visibility, "public"),
     eq(profiles.isPrivate, false),
   ];
-  var guestCursorFilter = compositeCursorSql(posts.createdAt, posts.id, cursor);
+  var guestCursorFilter = compositeCursorSql(posts.createdAt, posts.id, guestCursor);
   if (guestCursorFilter) guestFilters.push(guestCursorFilter);
 
   var guestRows = await db
@@ -1246,12 +1969,13 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
       mediaUrls: normalizedMediaUrls,
       linkPreview: input.linkPreview,
     })
-    .returning({ id: posts.id });
+    .returning({ id: posts.id, createdAt: posts.createdAt });
 
   var postId = insertedRows[0]?.id;
   if (!postId) {
     throw badRequest("Unable to create post");
   }
+  var postCreatedAt = insertedRows[0].createdAt;
 
   if (input.poll) {
     var endsAt = new Date(Date.now() + input.poll.durationMinutes * 60 * 1000);
@@ -1288,33 +2012,34 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     entityId: postId,
   });
 
-  // Worker fanout not wired yet; synchronous insert into feed_items.
   var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
-  var followerRows = !shouldFanoutToFeed
-    ? []
-    : await db
-        .select({ followerId: follows.followerId })
-        .from(follows)
-        .where(and(eq(follows.followingId, user.userId), eq(follows.status, "accepted")));
-
-  var targetUserIds = new Set<string>();
   if (shouldFanoutToFeed) {
-    targetUserIds.add(user.userId);
-    for (var follower of followerRows) {
-      targetUserIds.add(follower.followerId);
-    }
-  }
-
-  if (targetUserIds.size > 0) {
-    await db.insert(feedItems).values(
-      Array.from(targetUserIds).map(function (targetUserId) {
-        return {
-          userId: targetUserId,
-          postId,
-          score: null,
-        };
+    await db
+      .insert(feedItems)
+      .values({
+        userId: user.userId,
+        postId,
+        score: computeFeedScore({
+          createdAt: postCreatedAt,
+          likeCount: 0,
+          commentCount: 0,
+          repostCount: 0,
+        }),
       })
-    );
+      .onConflictDoNothing({
+        target: [feedItems.userId, feedItems.postId],
+      });
+
+    void enqueueFeedFanoutJob({
+      postId,
+      authorUserId: user.userId,
+    }).catch(function (error) {
+      console.warn("[feed.fanout] enqueue failed", {
+        postId,
+        authorUserId: user.userId,
+        error,
+      });
+    });
   }
 
   var hasImageMedia = normalizedMedia.some(function (item) {
@@ -1334,7 +2059,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
   if (shouldFanoutToFeed) {
     await invalidateFeedAfterAuthorMutation({
       authorUserId: user.userId,
-      includeFollowers: true,
+      includeFollowers: false,
       includeGuest: input.visibility === "public",
     });
   } else {
@@ -1763,31 +2488,30 @@ feedRoutes.post("/posts/:postId/poll/votes", requireAuth, async function (c) {
   }
 
   if (poll.type === "image") {
-    await db
-      .update(pollOptions)
-      .set({
-        voteCount: sql`${pollOptions.voteCount} + 1`,
-      })
-      .where(eq(pollOptions.id, uniqueOptionIds[0]));
+    await enqueueCounterDelta({
+      targetTable: "poll_options",
+      targetId: uniqueOptionIds[0],
+      counterName: "voteCount",
+      delta: 1,
+    });
   } else {
     for (var index = 0; index < uniqueOptionIds.length; index += 1) {
       var score = uniqueOptionIds.length - index;
-      await db
-        .update(pollOptions)
-        .set({
-          voteCount: sql`${pollOptions.voteCount} + ${score}`,
-        })
-        .where(eq(pollOptions.id, uniqueOptionIds[index]));
+      await enqueueCounterDelta({
+        targetTable: "poll_options",
+        targetId: uniqueOptionIds[index],
+        counterName: "voteCount",
+        delta: score,
+      });
     }
   }
 
-  await db
-    .update(postPolls)
-    .set({
-      totalVotes: sql`${postPolls.totalVotes} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(eq(postPolls.id, poll.id));
+  await enqueueCounterDelta({
+    targetTable: "post_polls",
+    targetId: poll.id,
+    counterName: "totalVotes",
+    delta: 1,
+  });
 
   await invalidatePostInteractionCaches({
     actorUserId: user.userId,
@@ -1824,13 +2548,12 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
       .returning({ postId: postLikes.postId });
 
     if (inserted.length > 0) {
-      await db
-        .update(posts)
-        .set({
-          likeCount: sql`${posts.likeCount} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(posts.id, postId));
+      await enqueueCounterDelta({
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "likeCount",
+        delta: 1,
+      });
 
       await createNotification(
         {
@@ -1856,7 +2579,9 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
       isPostPublic: postOwnerRows[0].visibility === "public",
     });
 
-    return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
+    return c.json({
+      likeCount: Number(countRows[0]?.likeCount ?? 0) + (inserted.length > 0 ? 1 : 0),
+    });
   } catch (err) {
     throw toActionError(err);
   }
@@ -1883,13 +2608,12 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
     .returning({ postId: postLikes.postId });
 
   if (deleted.length > 0) {
-    await db
-      .update(posts)
-      .set({
-        likeCount: sql`greatest(${posts.likeCount} - 1, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
+    await enqueueCounterDelta({
+      targetTable: "posts",
+      targetId: postId,
+      counterName: "likeCount",
+      delta: -1,
+    });
 
     var existingNotificationRows: Array<{
       id: string;
@@ -1985,7 +2709,9 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
     isPostPublic: postOwnerRows[0].visibility === "public",
   });
 
-  return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
+  return c.json({
+    likeCount: Math.max(Number(countRows[0]?.likeCount ?? 0) - (deleted.length > 0 ? 1 : 0), 0),
+  });
 });
 
 feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
@@ -1997,9 +2723,11 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
   var sourceRows = await db
     .select({
       id: posts.id,
+      userId: posts.userId,
       type: posts.type,
       headline: posts.headline,
       body: posts.body,
+      visibility: posts.visibility,
       filmId: posts.filmId,
       filmRating: posts.filmRating,
       media: posts.media,
@@ -2021,13 +2749,12 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
     .returning({ postId: postReposts.postId });
 
   if (inserted.length > 0) {
-    await db
-      .update(posts)
-      .set({
-        repostCount: sql`${posts.repostCount} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
+    await enqueueCounterDelta({
+      targetTable: "posts",
+      targetId: postId,
+      counterName: "repostCount",
+      delta: 1,
+    });
 
     var sourcePost = sourceRows[0];
     var repostInsertRows = await db
@@ -2046,38 +2773,48 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
         isRepost: true,
         replyToId: postId,
       })
-      .returning({ id: posts.id });
+      .returning({ id: posts.id, createdAt: posts.createdAt });
 
     var repostPostId = repostInsertRows[0]?.id;
     if (repostPostId) {
-      var followerRows = await db
-        .select({ followerId: follows.followerId })
-        .from(follows)
-        .where(and(eq(follows.followingId, user.userId), eq(follows.status, "accepted")));
+      var repostCreatedAt = repostInsertRows[0].createdAt;
+      await db
+        .insert(feedItems)
+        .values({
+          userId: user.userId,
+          postId: repostPostId,
+          score: computeFeedScore({
+            createdAt: repostCreatedAt,
+            likeCount: 0,
+            commentCount: 0,
+            repostCount: 0,
+          }),
+        })
+        .onConflictDoNothing({
+          target: [feedItems.userId, feedItems.postId],
+        });
 
-      var targetUserIds = new Set<string>();
-      targetUserIds.add(user.userId);
-      for (var follower of followerRows) {
-        targetUserIds.add(follower.followerId);
-      }
-
-      if (targetUserIds.size > 0) {
-        await db.insert(feedItems).values(
-          Array.from(targetUserIds).map(function (targetUserId) {
-            return {
-              userId: targetUserId,
-              postId: repostPostId,
-              score: null,
-            };
-          })
-        );
-      }
+      void enqueueFeedFanoutJob({
+        postId: repostPostId,
+        authorUserId: user.userId,
+      }).catch(function (error) {
+        console.warn("[feed.fanout] enqueue failed", {
+          postId: repostPostId,
+          authorUserId: user.userId,
+          error,
+        });
+      });
     }
 
     await invalidateFeedAfterAuthorMutation({
       authorUserId: user.userId,
-      includeFollowers: true,
+      includeFollowers: false,
       includeGuest: true,
+    });
+    await invalidatePostInteractionCaches({
+      actorUserId: user.userId,
+      postOwnerId: sourcePost.userId,
+      isPostPublic: sourcePost.visibility === "public",
     });
   }
 
@@ -2089,6 +2826,14 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
   var db = getDb();
+  var postOwnerRows = await db
+    .select({ userId: posts.userId, visibility: posts.visibility })
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+    .limit(1);
+  if (postOwnerRows.length === 0) {
+    throw notFound("Post not found");
+  }
 
   var deleted = await db
     .delete(postReposts)
@@ -2096,13 +2841,12 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
     .returning({ postId: postReposts.postId });
 
   if (deleted.length > 0) {
-    await db
-      .update(posts)
-      .set({
-        repostCount: sql`greatest(${posts.repostCount} - 1, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
+    await enqueueCounterDelta({
+      targetTable: "posts",
+      targetId: postId,
+      counterName: "repostCount",
+      delta: -1,
+    });
 
     await db
       .update(posts)
@@ -2124,6 +2868,11 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
       includeFollowers: true,
       includeGuest: true,
     });
+    await invalidatePostInteractionCaches({
+      actorUserId: user.userId,
+      postOwnerId: postOwnerRows[0].userId,
+      isPostPublic: postOwnerRows[0].visibility === "public",
+    });
   }
 
   return c.json({ ok: true });
@@ -2135,6 +2884,14 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
   try {
     await assertReadablePostForInteraction(postId, user.userId);
     var db = getDb();
+    var postOwnerRows = await db
+      .select({ userId: posts.userId, visibility: posts.visibility })
+      .from(posts)
+      .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+      .limit(1);
+    if (postOwnerRows.length === 0) {
+      throw notFound("Post not found");
+    }
 
     var inserted = await db
       .insert(postBookmarks)
@@ -2143,13 +2900,17 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
       .returning({ postId: postBookmarks.postId });
 
     if (inserted.length > 0) {
-      await db
-        .update(posts)
-        .set({
-          bookmarkCount: sql`${posts.bookmarkCount} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(posts.id, postId));
+      await enqueueCounterDelta({
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "bookmarkCount",
+        delta: 1,
+      });
+      await invalidatePostInteractionCaches({
+        actorUserId: user.userId,
+        postOwnerId: postOwnerRows[0].userId,
+        isPostPublic: postOwnerRows[0].visibility === "public",
+      });
     }
 
     return c.json({ ok: true });
@@ -2163,6 +2924,14 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
   var db = getDb();
+  var postOwnerRows = await db
+    .select({ userId: posts.userId, visibility: posts.visibility })
+    .from(posts)
+    .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
+    .limit(1);
+  if (postOwnerRows.length === 0) {
+    throw notFound("Post not found");
+  }
 
   var deleted = await db
     .delete(postBookmarks)
@@ -2170,13 +2939,17 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
     .returning({ postId: postBookmarks.postId });
 
   if (deleted.length > 0) {
-    await db
-      .update(posts)
-      .set({
-        bookmarkCount: sql`greatest(${posts.bookmarkCount} - 1, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
+    await enqueueCounterDelta({
+      targetTable: "posts",
+      targetId: postId,
+      counterName: "bookmarkCount",
+      delta: -1,
+    });
+    await invalidatePostInteractionCaches({
+      actorUserId: user.userId,
+      postOwnerId: postOwnerRows[0].userId,
+      isPostPublic: postOwnerRows[0].visibility === "public",
+    });
   }
 
   return c.json({ ok: true });
@@ -2208,13 +2981,12 @@ feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, async f
       .returning({ commentId: commentLikes.commentId });
 
     if (inserted.length > 0) {
-      await db
-        .update(comments)
-        .set({
-          likeCount: sql`${comments.likeCount} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(comments.id, commentId));
+      await enqueueCounterDelta({
+        targetTable: "comments",
+        targetId: commentId,
+        counterName: "likeCount",
+        delta: 1,
+      });
 
       await createNotification({
         recipientId: commentRows[0].userId,
@@ -2231,7 +3003,9 @@ feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, async f
       .where(eq(comments.id, commentId))
       .limit(1);
 
-    return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
+    return c.json({
+      likeCount: Number(countRows[0]?.likeCount ?? 0) + (inserted.length > 0 ? 1 : 0),
+    });
   } catch (err) {
     throw toActionError(err);
   }
@@ -2261,13 +3035,12 @@ feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, async
     .returning({ commentId: commentLikes.commentId });
 
   if (deleted.length > 0) {
-    await db
-      .update(comments)
-      .set({
-        likeCount: sql`greatest(${comments.likeCount} - 1, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(comments.id, commentId));
+    await enqueueCounterDelta({
+      targetTable: "comments",
+      targetId: commentId,
+      counterName: "likeCount",
+      delta: -1,
+    });
 
     var existingNotificationRows: Array<{
       id: string;
@@ -2358,7 +3131,9 @@ feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, async
     .where(eq(comments.id, commentId))
     .limit(1);
 
-  return c.json({ likeCount: Number(countRows[0]?.likeCount ?? 0) });
+  return c.json({
+    likeCount: Math.max(Number(countRows[0]?.likeCount ?? 0) - (deleted.length > 0 ? 1 : 0), 0),
+  });
 });
 
 // Comments are returned as a flat list with parentId for client-side tree construction.
@@ -2540,13 +3315,12 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
     throw badRequest("Unable to create comment");
   }
 
-  await db
-    .update(posts)
-    .set({
-      commentCount: sql`${posts.commentCount} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(eq(posts.id, postId));
+  await enqueueCounterDelta({
+    targetTable: "posts",
+    targetId: postId,
+    counterName: "commentCount",
+    delta: 1,
+  });
 
   await createMentionNotifications({
     body: inserted.body,
@@ -2738,13 +3512,12 @@ feedRoutes.delete("/posts/:postId/comments/:commentId", requireAuth, async funct
       })
       .where(eq(comments.id, commentId));
 
-    await db
-      .update(posts)
-      .set({
-        commentCount: sql`greatest(${posts.commentCount} - 1, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, postId));
+    await enqueueCounterDelta({
+      targetTable: "posts",
+      targetId: postId,
+      counterName: "commentCount",
+      delta: -1,
+    });
   }
 
   return c.json({ ok: true });

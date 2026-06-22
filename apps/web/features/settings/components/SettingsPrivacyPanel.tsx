@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
+import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { SettingsSection, SettingsToggle } from "./SettingsFormPrimitives";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,8 +34,9 @@ export function SettingsPrivacyPanel({
   initialValues,
   onSave,
 }: SettingsPrivacyPanelProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+	  const [submitError, setSubmitError] = useState<string | null>(null);
+	  const [saved, setSaved] = useState(false);
+	  const [confirmMakePublicOpen, setConfirmMakePublicOpen] = useState(false);
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
@@ -55,13 +57,38 @@ export function SettingsPrivacyPanel({
     setSaved(false);
   }, [initialValues, reset]);
 
-  const submit = handleSubmit(async (values) => {
+	  const submit = handleSubmit(async (values) => {
     setSubmitError(null);
     await onSave(values);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     reset(values);
-  });
+	  });
+
+	  async function savePrivacyValues(values: PrivacySettingsFormValues) {
+	    setSubmitError(null);
+	    await onSave(values);
+	    setSaved(true);
+	    setTimeout(() => setSaved(false), 2000);
+	    reset(values);
+	  }
+
+	  function handlePrivateAccountToggle(checked: boolean) {
+	    var current = watch("privateAccount");
+	    if (current && !checked) {
+	      setConfirmMakePublicOpen(true);
+	      return;
+	    }
+	    var next = {
+	      ...watch(),
+	      privateAccount: checked,
+	    };
+	    setValue("privateAccount", checked, { shouldDirty: false });
+	    void savePrivacyValues(next).catch(function (error: unknown) {
+	      setSubmitError(toFormErrorMessage(error, "Could not save privacy settings."));
+	      reset(initialValues);
+	    });
+	  }
 
   const blocksQuery = useQuery({
     queryKey: privacyKeys.blocks(),
@@ -99,12 +126,12 @@ export function SettingsPrivacyPanel({
       <SettingsSection title="Privacy">
         <div className="space-y-0">
           <SettingsToggle
-            label="Private account"
-            description="Only approved followers can see your posts"
-            checked={watch("privateAccount")}
-            onChange={(checked) => setValue("privateAccount", checked, { shouldDirty: true })}
-            disabled={isSubmitting}
-          />
+	            label="Private account"
+	            description="Only approved followers can see your posts"
+	            checked={watch("privateAccount")}
+	            onChange={handlePrivateAccountToggle}
+	            disabled={isSubmitting}
+	          />
           <SettingsToggle
             label="Allow messages from anyone"
             description="Otherwise only people you follow can message you"
@@ -139,8 +166,27 @@ export function SettingsPrivacyPanel({
             </Button>
           </div>
         </div>
-      </SettingsSection>
-      <SettingsSection title="Blocked accounts">
+	      </SettingsSection>
+	      <ConfirmDialog
+	        open={confirmMakePublicOpen}
+	        onClose={() => setConfirmMakePublicOpen(false)}
+	        onConfirm={() => {
+	          var next = {
+	            ...watch(),
+	            privateAccount: false,
+	          };
+	          setValue("privateAccount", false, { shouldDirty: false });
+	          void savePrivacyValues(next).catch(function (error: unknown) {
+	            setSubmitError(toFormErrorMessage(error, "Could not save privacy settings."));
+	            reset(initialValues);
+	          });
+	        }}
+	        title="Make account public?"
+	        description="Your posts will become visible to everyone. Any pending follow requests will be approved automatically."
+	        cancelLabel="Cancel"
+	        confirmLabel="Make Public"
+	      />
+	      <SettingsSection title="Blocked accounts">
         <p className="mb-3 text-[13px] text-fg-muted">
           Blocked accounts cannot see your profile, posts, or message you.
         </p>
@@ -164,6 +210,7 @@ export function SettingsPrivacyPanel({
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="shrink-0"
                   onClick={() => unblockMutation.mutate(item.userId)}
                   disabled={unblockMutation.isPending}
                 >
@@ -198,6 +245,7 @@ export function SettingsPrivacyPanel({
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="shrink-0"
                   onClick={() => unmuteMutation.mutate(item.userId)}
                   disabled={unmuteMutation.isPending}
                 >

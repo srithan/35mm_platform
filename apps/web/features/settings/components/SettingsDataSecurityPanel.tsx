@@ -30,8 +30,8 @@ export function SettingsDataSecurityPanel() {
 
       <SettingsSection title="Danger zone">
         <div className="space-y-0 pt-2">
-          <div className="flex items-center justify-between py-3.5 border-b border-border">
-            <div>
+          <div className="flex items-start justify-between gap-4 border-b border-border py-4 sm:items-center">
+            <div className="min-w-0">
               <span className="text-[13px] text-fg-light block">
                 Deactivate account temporarily
               </span>
@@ -42,14 +42,14 @@ export function SettingsDataSecurityPanel() {
             <Button
               variant="secondary"
               size="sm"
-              className="border-fg-muted/50 text-fg-muted hover:border-fg-muted hover:text-fg"
+              className="shrink-0 border-fg-muted/50 text-fg-muted hover:border-fg-muted hover:text-fg"
               onClick={() => setDeactivateOpen(true)}
             >
               Deactivate
             </Button>
           </div>
-          <div className="flex items-center justify-between py-3.5">
-            <div>
+          <div className="flex items-start justify-between gap-4 py-4 sm:items-center">
+            <div className="min-w-0">
               <span className="text-[13px] text-fg-light block">
                 Delete account
               </span>
@@ -60,7 +60,7 @@ export function SettingsDataSecurityPanel() {
             <Button
               variant="secondary"
               size="sm"
-              className="border-accent/50 text-accent hover:border-accent hover:bg-accent/5"
+              className="shrink-0 border-accent/50 text-accent hover:border-accent hover:bg-accent/5"
               onClick={() => setDeleteOpen(true)}
             >
               Delete

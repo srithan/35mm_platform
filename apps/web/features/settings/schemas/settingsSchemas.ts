@@ -46,12 +46,34 @@ export const appearanceSettingsSchema = z.object({
   videoAutoplay: z.boolean(),
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password."),
+    newPassword: z.string().min(8, "New password must be at least 8 characters."),
+    confirmNewPassword: z.string().min(1, "Confirm your new password."),
+  })
+  .refine((values) => values.newPassword === values.confirmNewPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmNewPassword"],
+  })
+  .refine((values) => values.currentPassword !== values.newPassword, {
+    message: "New password must be different from current password.",
+    path: ["newPassword"],
+  });
+
 export type ProfileSettingsFormValues = z.infer<typeof profileSettingsSchema>;
 export type PrivacySettingsFormValues = z.infer<typeof privacySettingsSchema>;
 export type NotificationSettingsFormValues = z.infer<typeof notificationSettingsSchema>;
 export type AppearanceSettingsFormValues = z.infer<typeof appearanceSettingsSchema>;
+export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export function toFormErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object" && "errors" in error) {
+    const errors = (error as { errors?: Array<{ longMessage?: string; message?: string }> }).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return errors[0]?.longMessage || errors[0]?.message || fallback;
+    }
+  }
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }

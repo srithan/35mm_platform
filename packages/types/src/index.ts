@@ -1,4 +1,19 @@
 export type UserId = string;
+export {
+  computeFeedScore,
+  FEED_SCORE_COMMENT_WEIGHT,
+  FEED_SCORE_ENGAGEMENT_WEIGHT,
+  FEED_SCORE_RECENCY_HALF_LIFE_HOURS,
+  FEED_SCORE_RECENCY_WEIGHT,
+  FEED_SCORE_REPOST_WEIGHT,
+  type FeedScoreInput,
+} from "./feedScoring.js";
+export {
+  DEFAULT_FEED_ITEMS_RETENTION_DAYS,
+  feedItemsRetentionBoundary,
+  parseFeedItemsRetentionDays,
+} from "./feedRetention.js";
+
 export type PostId = string;
 export type ConversationId = string;
 export type MessageId = string;
@@ -214,6 +229,7 @@ export type NotificationType =
   | "reply"
   | "follow"
   | "follow_request"
+  | "follow_request_approved"
   | "mention"
   | "repost";
 

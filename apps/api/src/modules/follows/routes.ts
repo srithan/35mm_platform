@@ -1,19 +1,32 @@
 import { Hono } from "hono";
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
-import { feedItems, follows, posts, profiles, users } from "@35mm/db/schema";
+import { and, count, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { computeFeedScore } from "@35mm/types";
+import { feedItems, follows, notifications, posts, profiles, users } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { createNotification } from "../../lib/notifications.js";
 import { assertNoBlockBetween } from "../../lib/moderation.js";
 import { enqueueSuggestionRefresh } from "../../lib/queues/suggestionQueue.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
+import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import {
   invalidateAuthorProfileFeedCaches,
   invalidateViewerFeedCaches,
 } from "../../lib/feedCache.js";
+import { feedHighFollowerThreshold } from "../feed/fanoutConfig.js";
 
 export var followRoutes = new Hono();
 const FOLLOW_BACKFILL_LIMIT = 200;
+
+async function isHighFollowerAccount(userId: string): Promise<boolean> {
+  var db = getDb();
+  var rows = await db
+    .select({ value: count() })
+    .from(follows)
+    .where(and(eq(follows.followingId, userId), eq(follows.status, "accepted")));
+  return Number(rows[0]?.value ?? 0) >= feedHighFollowerThreshold();
+}
 
 async function assertTargetExists(userId: string) {
   var db = getDb();
@@ -68,10 +81,17 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
 
   // Backfill recent visible posts into the follower's materialized feed so
   // newly-followed accounts appear immediately without waiting for next post.
-  var recentPosts = targetIsPrivate
+  var targetIsHighFollower = !targetIsPrivate && await isHighFollowerAccount(followingId);
+  var recentPosts = targetIsPrivate || targetIsHighFollower
     ? []
     : await db
-    .select({ postId: posts.id })
+    .select({
+      postId: posts.id,
+      createdAt: posts.createdAt,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+    })
     .from(posts)
     .where(
       and(
@@ -87,6 +107,11 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
     var postIds = recentPosts.map(function (row) {
       return row.postId;
     });
+    var byPostId = new Map(
+      recentPosts.map(function (row) {
+        return [row.postId, row];
+      })
+    );
 
     var existingFeedRows = await db
       .select({ postId: feedItems.postId })
@@ -104,15 +129,28 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
         return !existingPostIdSet.has(postId);
       })
       .map(function (postId) {
+        var post = byPostId.get(postId);
         return {
           userId: user.userId,
           postId: postId,
-          score: null,
+          score: post
+            ? computeFeedScore({
+                createdAt: post.createdAt,
+                likeCount: Number(post.likeCount ?? 0),
+                commentCount: Number(post.commentCount ?? 0),
+                repostCount: Number(post.repostCount ?? 0),
+              })
+            : null,
         };
       });
 
     if (missingFeedRows.length > 0) {
-      await db.insert(feedItems).values(missingFeedRows);
+      await db
+        .insert(feedItems)
+        .values(missingFeedRows)
+        .onConflictDoNothing({
+          target: [feedItems.userId, feedItems.postId],
+        });
     }
   }
 
@@ -196,17 +234,39 @@ followRoutes.post("/:userId/accept", requireAuth, async function (c) {
   await assertTargetExists(followerId);
 
   var db = getDb();
-  var updated = await db
-    .update(follows)
-    .set({ status: "accepted" })
-    .where(
-      and(
-        eq(follows.followerId, followerId),
-        eq(follows.followingId, user.userId),
-        eq(follows.status, "pending")
+  var result = await db.execute(sql`
+    with updated_follow as (
+      update ${follows}
+      set status = 'accepted'
+      where ${follows.followerId} = ${followerId}
+        and ${follows.followingId} = ${user.userId}
+        and ${follows.status} = 'pending'
+      returning ${follows.followerId} as follower_id
+    ),
+    inserted_notification as (
+      insert into ${notifications} (
+        "recipient_id",
+        "actor_id",
+        "actor_ids",
+        "type",
+        "entity_type",
+        "entity_id",
+        "bundle_count"
       )
+      select
+        follower_id,
+        ${user.userId},
+        array[${user.userId}]::text[],
+        'follow_request_approved'::notification_type,
+        'user',
+        ${user.userId},
+        1
+      from updated_follow
+      returning "id"
     )
-    .returning({ followerId: follows.followerId });
+    select follower_id from updated_follow
+  `) as { rows: Array<{ follower_id: string }> };
+  var updated = result.rows;
 
   if (updated.length > 0) {
     await invalidateViewerFeedCaches([followerId]);
@@ -214,6 +274,85 @@ followRoutes.post("/:userId/accept", requireAuth, async function (c) {
   }
 
   return c.json({ ok: true, accepted: updated.length > 0 });
+});
+
+followRoutes.get("/requests/received", requireAuth, async function (c) {
+  var user = c.get("user");
+  var limitRaw = Number(c.req.query("limit") ?? 20);
+  var limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 50) : 20;
+  var cursor = decodeCompositeCursor(c.req.query("cursor"));
+  var db = getDb();
+  var requesterFollower = alias(follows, "requester_follower");
+  var viewerFollower = alias(follows, "viewer_follower");
+
+  var cursorFilter = cursor
+    ? or(
+        lt(follows.createdAt, cursor.createdAt),
+        and(eq(follows.createdAt, cursor.createdAt), lt(follows.followerId, cursor.id))
+      )
+    : undefined;
+
+  var totalRows = await db
+    .select({ value: count() })
+    .from(follows)
+    .where(and(eq(follows.followingId, user.userId), eq(follows.status, "pending")));
+
+  var rows = await db
+    .select({
+      requesterId: follows.followerId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      requestedAt: follows.createdAt,
+      mutualFollowerCount: sql<number>`count(distinct ${viewerFollower.followerId})`,
+    })
+    .from(follows)
+    .innerJoin(profiles, eq(profiles.userId, follows.followerId))
+    .leftJoin(
+      requesterFollower,
+      and(
+        eq(requesterFollower.followingId, follows.followerId),
+        eq(requesterFollower.status, "accepted")
+      )
+    )
+    .leftJoin(
+      viewerFollower,
+      and(
+        eq(viewerFollower.followingId, user.userId),
+        eq(viewerFollower.status, "accepted"),
+        eq(viewerFollower.followerId, requesterFollower.followerId)
+      )
+    )
+    .where(
+      and(
+        eq(follows.followingId, user.userId),
+        eq(follows.status, "pending"),
+        cursorFilter
+      )
+    )
+    .groupBy(follows.followerId, profiles.username, profiles.displayName, profiles.avatarUrl, follows.createdAt)
+    .orderBy(desc(follows.createdAt), desc(follows.followerId))
+    .limit(limit + 1);
+
+  var visibleRows = rows.slice(0, limit);
+  var tail = visibleRows[visibleRows.length - 1];
+
+  return c.json({
+    requests: visibleRows.map(function (row) {
+      return {
+        requesterId: row.requesterId,
+        username: row.username,
+        displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
+        mutualFollowerCount: Number(row.mutualFollowerCount ?? 0),
+        requestedAt: row.requestedAt.toISOString(),
+      };
+    }),
+    total: Number(totalRows[0]?.value ?? 0),
+    nextCursor: rows.length > limit && tail
+      ? encodeCompositeCursor({ createdAt: tail.requestedAt, id: tail.requesterId })
+      : null,
+  });
 });
 
 followRoutes.delete("/:userId/request", requireAuth, async function (c) {

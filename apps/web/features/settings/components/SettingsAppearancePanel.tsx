@@ -54,7 +54,7 @@ export function SettingsAppearancePanel({
     <div className="space-y-10">
       <SettingsSection title="Appearance">
         <div className="space-y-8">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <h3 className="text-[13px] text-fg-light font-medium shrink-0">
               Theme
             </h3>
@@ -83,7 +83,7 @@ export function SettingsAppearancePanel({
               })()}
             />
           </div>
-          <div className="border-t border-border pt-6 mt-6">
+          <div className="mt-6 border-t border-border pt-6">
             <div className="space-y-4">
               <div>
                 <h3 className="text-[13px] text-fg-light font-medium">Accent color</h3>
@@ -120,7 +120,7 @@ export function SettingsAppearancePanel({
               />
             </div>
           </div>
-          <div className="border-t border-border pt-6 mt-6">
+          <div className="mt-6 border-t border-border pt-6">
             <SettingsRow
               label="Video autoplay"
               description="Auto-play videos in feed"

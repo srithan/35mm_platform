@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appearanceSettingsSchema,
+  changePasswordSchema,
   notificationSettingsSchema,
   privacySettingsSchema,
   profileSettingsSchema,
@@ -55,5 +56,23 @@ describe("settings schemas", () => {
         videoAutoplay: true,
       }).success
     ).toBe(true);
+  });
+
+  it("validates change password payloads", () => {
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "old-password",
+        newPassword: "new-password",
+        confirmNewPassword: "new-password",
+      }).success
+    ).toBe(true);
+
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "same-password",
+        newPassword: "same-password",
+        confirmNewPassword: "different-password",
+      }).success
+    ).toBe(false);
   });
 });

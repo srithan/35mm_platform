@@ -63,7 +63,7 @@ export function AccentColorPicker({
   }
 
   return (
-    <div className="grid grid-cols-4 gap-3 sm:grid-cols-4" role="group" aria-label="Accent color">
+    <div className="grid grid-cols-2 gap-3 min-[420px]:grid-cols-4" role="group" aria-label="Accent color">
       {ACCENT_COLOR_OPTIONS.map(function (option) {
         var selected = value === option.id;
         return (
@@ -71,7 +71,7 @@ export function AccentColorPicker({
             key={option.id}
             type="button"
             className={cn(
-              "relative flex flex-col items-center gap-2 rounded-xl border-2 p-2 transition-all",
+              "relative flex min-h-[86px] flex-col items-center justify-center gap-2 rounded-lg border-2 p-2 transition-all",
               selected ? "border-accent bg-accent/5" : "border-border bg-elevated",
               disabled ? "cursor-not-allowed opacity-65" : "cursor-pointer hover:border-fg-muted"
             )}

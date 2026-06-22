@@ -74,3 +74,26 @@ export async function declineFollowRequest(params: {
     token: params.token,
   });
 }
+
+export interface ReceivedFollowRequest {
+  requesterId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  mutualFollowerCount: number;
+  requestedAt: string;
+}
+
+export async function fetchReceivedFollowRequests(params: {
+  token?: string | null;
+  limit?: number;
+  cursor?: string | null;
+}): Promise<{ requests: ReceivedFollowRequest[]; total: number; nextCursor: string | null }> {
+  var query = new URLSearchParams({
+    limit: String(params.limit ?? 20),
+  });
+  if (params.cursor) query.set("cursor", params.cursor);
+  return apiRequest(`/v1/follows/requests/received?${query.toString()}`, {
+    token: params.token,
+  });
+}

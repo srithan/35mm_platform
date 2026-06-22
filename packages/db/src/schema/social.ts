@@ -28,6 +28,7 @@ export var notificationTypeEnum = pgEnum("notification_type", [
   "reply",
   "follow",
   "follow_request",
+  "follow_request_approved",
   "mention",
   "repost",
 ]);
@@ -51,6 +52,12 @@ export var follows = pgTable(
   function (table) {
     return {
       pk: primaryKey({ columns: [table.followerId, table.followingId], name: "follows_follower_following_pk" }),
+      followingStatusCursorIdx: index("follows_following_status_created_follower_idx").on(
+        table.followingId,
+        table.status,
+        table.createdAt,
+        table.followerId
+      ),
     };
   }
 );
@@ -160,7 +167,10 @@ export var feedItems = pgTable(
   },
   function (table) {
     return {
+      createdAtIdIdx: index("feed_items_created_at_id_idx").on(table.createdAt, table.id),
       userCreatedAtIdx: index("feed_items_user_id_created_at_idx").on(table.userId, table.createdAt),
+      userScorePostIdx: index("feed_items_user_score_post_idx").on(table.userId, table.score, table.postId),
+      userPostIdx: uniqueIndex("feed_items_user_post_idx").on(table.userId, table.postId),
     };
   }
 );

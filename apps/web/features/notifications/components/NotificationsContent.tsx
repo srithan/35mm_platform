@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/Button/Button";
 import { NotificationGroup } from "@/features/notifications/components/NotificationGroup";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
+import { FollowRequestsTray } from "@/features/notifications/components/FollowRequestsTray";
 import {
   type AvatarItem,
   type NotificationTextPart,
@@ -121,6 +122,8 @@ function activityText(item: ApiNotificationItem): NotificationTextPart[] {
     textParts.push({ type: "text", value: " started following you" });
   } else if (item.type === "follow_request") {
     textParts.push({ type: "text", value: " requested to follow you" });
+  } else if (item.type === "follow_request_approved") {
+    textParts.push({ type: "text", value: " approved your follow request" });
   } else if (item.type === "like") {
     if (item.entity?.type === "comment") {
       if (item.entity?.title) {
@@ -411,7 +414,11 @@ export function NotificationsContent() {
       return [] as NotificationGroupRecord[];
     }
 
-    const items = data.items.map((item) => notificationToRecord(item));
+	    const items = data.items
+	      .filter(function (item) {
+	        return item.type !== "follow_request";
+	      })
+	      .map((item) => notificationToRecord(item));
     const grouped = groupNotificationsByDate(items);
 
     return grouped;
@@ -480,8 +487,9 @@ export function NotificationsContent() {
         rootClassName="pt-0 pb-0"
         tabClassName="min-w-max flex-shrink-0 flex justify-center items-center text-[14px] py-3 md:flex-none"
       />
-      <div className="pt-6">
-        {noNotificationRows ? (
+	      <div className="pt-6">
+	        <FollowRequestsTray />
+	        {noNotificationRows ? (
           <div className="px-4 text-[12px] text-fg-muted">Loading notifications…</div>
         ) : !hasItems ? (
           <EmptyState

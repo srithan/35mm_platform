@@ -43,6 +43,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const isShortFilmsSection =
     pathname === ROUTES.SHORT_FILMS ||
     Boolean(pathname?.startsWith("/short-films/"));
+  const isSettingsSection =
+    pathname === "/settings" || Boolean(pathname?.startsWith("/settings/"));
   const isHomePage = pathname === "/";
   const isProfileUsernamePage =
     pathname != null ? isProfileShellPath(pathname) : false;
@@ -78,7 +80,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     (isProfileUsernamePage && isDesktopLg !== true) ||
     isShortFilmsSection ||
     pathname === "/notifications" ||
-    pathname === "/settings";
+    isSettingsSection;
 
   const useHomeRailLayout = isHomePage;
   /** Profile spans main except the widgets column (`xl:`). */

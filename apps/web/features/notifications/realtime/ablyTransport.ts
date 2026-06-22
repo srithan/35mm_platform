@@ -17,6 +17,7 @@ const ALLOWED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   "reply",
   "follow",
   "follow_request",
+  "follow_request_approved",
   "mention",
   "repost",
 ] as const;

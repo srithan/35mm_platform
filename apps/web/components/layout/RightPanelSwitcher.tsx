@@ -14,7 +14,9 @@ export function RightPanelSwitcher() {
   if (pathname && isUsernameProfilePath(pathname)) return <ProfileRightPanel />;
   if (pathname === "/discover") return <DiscoverRightPanel />;
   if (pathname === "/notifications") return <NotificationsRightPanel />;
-  if (pathname === "/settings") return <SettingsRightPanel />;
+  if (pathname === "/settings" || pathname?.startsWith("/settings/")) {
+    return <SettingsRightPanel />;
+  }
 
   return <FeedRightPanel />;
 }

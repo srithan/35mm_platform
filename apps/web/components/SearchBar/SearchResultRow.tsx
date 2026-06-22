@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { PrivateAccountLock } from "@/components/PrivateAccountLock";
 import type { SearchResult } from "./types";
 
 export interface SearchResultRowProps {
@@ -62,7 +63,10 @@ export function SearchResultRow({
 
       <div className="flex min-w-0 flex-1 flex-col justify-center">
         <div className="truncate text-[13px] font-medium leading-snug text-fg">
-          {item.label}
+          <span>{item.label}</span>
+          {item.type === "user" && item.isPrivate ? (
+            <PrivateAccountLock className="ml-1.5 text-[12px]" />
+          ) : null}
         </div>
         {item.sublabel ? (
           <div className="mt-0.5 truncate text-[11px] text-fg-muted">
