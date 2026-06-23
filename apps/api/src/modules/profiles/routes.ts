@@ -10,9 +10,17 @@ import {
   invalidateFeedCacheForGuest,
   invalidateViewerFeedCaches,
 } from "../../lib/feedCache.js";
+import { enqueueMediaProcessJob } from "../../lib/jobs.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
-import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "../media/url.js";
+import {
+  getR2ObjectKeyFromUrl,
+  isR2ConfiguredPublicUrl,
+  resolveProfileAvatarUrl,
+  resolveProfileCoverUrl,
+  type AvatarVariants,
+  type CoverVariants,
+} from "../media/url.js";
 
 export var profileRoutes = new Hono();
 type FollowState = "none" | "requested" | "following" | "self";
@@ -21,16 +29,51 @@ function isR2Url(value: string): boolean {
   return isR2ConfiguredPublicUrl(value);
 }
 
-async function resolveProfileMedia(avatarUrl: string | null, coverUrl: string | null) {
-  var [resolvedAvatarUrl, resolvedCoverUrl] = await Promise.all([
-    resolvePublicMediaUrl(avatarUrl),
-    resolvePublicMediaUrl(coverUrl),
+async function resolveProfileMedia(
+  userId: string,
+  avatarUrl: string | null,
+  coverUrl: string | null,
+  avatarVariants?: AvatarVariants | null,
+  coverVariants?: CoverVariants | null
+) {
+  var [resolvedAvatarUrl, resolvedAvatarUrlLg, resolvedCoverUrl] = await Promise.all([
+    resolveProfileAvatarUrl(avatarUrl, userId, avatarVariants, "sm"),
+    resolveProfileAvatarUrl(avatarUrl, userId, avatarVariants, "lg"),
+    resolveProfileCoverUrl(coverUrl, userId, coverVariants),
   ]);
 
   return {
     avatarUrl: resolvedAvatarUrl,
+    avatarUrlLg: resolvedAvatarUrlLg,
     coverUrl: resolvedCoverUrl,
   };
+}
+
+async function enqueueProfileMediaProcess(
+  userId: string,
+  kind: "avatar" | "cover",
+  mediaUrl: string | null | undefined
+) {
+  if (!mediaUrl) return;
+  var objectKey = getR2ObjectKeyFromUrl(mediaUrl);
+  if (!objectKey) return;
+  try {
+    var queued = await enqueueMediaProcessJob({ kind, userId, objectKey });
+    if (!queued) {
+      console.warn("[media-process] queue disabled for profile media", {
+        userId,
+        kind,
+        objectKey,
+      });
+    }
+  } catch (error) {
+    console.error("[media-process] failed to enqueue profile media", {
+      userId,
+      kind,
+      objectKey,
+      error,
+    });
+  }
 }
 
 async function resolveTargetByUsername(username: string) {
@@ -76,6 +119,7 @@ profileRoutes.get("/search", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       isPrivate: profiles.isPrivate,
       followStatus: sql<"pending" | "accepted" | null>`(
         select ${follows.status}
@@ -118,7 +162,8 @@ profileRoutes.get("/search", requireAuth, async function (c) {
           id: row.id,
           username: row.username,
           displayName: row.displayName,
-	          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+	          avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.id, row.avatarVariants, "sm"),
+	          avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.id, row.avatarVariants, "lg"),
 	          isPrivate: Boolean(row.isPrivate),
 	          followState: followStateFromStatus(user.userId, row.id, row.followStatus),
 	          isFollowing: Boolean(row.isFollowing),
@@ -147,7 +192,9 @@ profileRoutes.get("/:username", async function (c) {
       displayName: profiles.displayName,
       bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       coverUrl: profiles.coverUrl,
+      coverVariants: profiles.coverVariants,
       location: profiles.location,
       website: profiles.website,
       dateOfBirth: profiles.dateOfBirth,
@@ -239,6 +286,7 @@ profileRoutes.get("/:username", async function (c) {
       displayName: "Deactivated Account",
       bio: null,
       avatarUrl: null,
+      avatarUrlLg: null,
       coverUrl: null,
       location: null,
       website: null,
@@ -258,7 +306,13 @@ profileRoutes.get("/:username", async function (c) {
 	    });
 	  }
 
-  var media = await resolveProfileMedia(row.avatarUrl, row.coverUrl);
+  var media = await resolveProfileMedia(
+    row.userId,
+    row.avatarUrl,
+    row.coverUrl,
+    row.avatarVariants,
+    row.coverVariants
+  );
 
   if (row.isPrivate && !isOwner && !isFollowing) {
     return c.json({
@@ -267,6 +321,7 @@ profileRoutes.get("/:username", async function (c) {
       displayName: row.displayName,
       bio: row.bio,
       avatarUrl: media.avatarUrl,
+      avatarUrlLg: media.avatarUrlLg,
       coverUrl: media.coverUrl,
       location: row.location,
       website: row.website,
@@ -294,6 +349,7 @@ profileRoutes.get("/:username", async function (c) {
     displayName: row.displayName,
     bio: row.bio,
     avatarUrl: media.avatarUrl,
+    avatarUrlLg: media.avatarUrlLg,
     coverUrl: media.coverUrl,
     location: row.location,
     website: row.website,
@@ -347,7 +403,9 @@ function profileUpdateSetChunks(updates: Record<string, any>): SQL[] {
   if ("favoriteFilmIds" in updates) chunks.push(sql`"favorite_film_ids" = ${updates.favoriteFilmIds}`);
   if ("favoriteGenreIds" in updates) chunks.push(sql`"favorite_genre_ids" = ${updates.favoriteGenreIds}`);
   if ("avatarUrl" in updates) chunks.push(sql`"avatar_url" = ${updates.avatarUrl}`);
+  if ("avatarVariants" in updates) chunks.push(sql`"avatar_variants" = ${updates.avatarVariants}`);
   if ("coverUrl" in updates) chunks.push(sql`"cover_url" = ${updates.coverUrl}`);
+  if ("coverVariants" in updates) chunks.push(sql`"cover_variants" = ${updates.coverVariants}`);
   if ("updatedAt" in updates) chunks.push(sql`"updated_at" = ${updates.updatedAt}`);
 
   return chunks;
@@ -454,8 +512,10 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
   if (body.avatarUrl !== undefined) {
     if (body.avatarUrl === null || body.avatarUrl === "") {
       updates.avatarUrl = null;
+      updates.avatarVariants = null;
     } else if (typeof body.avatarUrl === "string" && isR2Url(body.avatarUrl)) {
       updates.avatarUrl = body.avatarUrl;
+      updates.avatarVariants = null;
     } else {
       return c.json({ code: "BAD_MEDIA_URL", message: "Invalid avatar URL" }, 400);
     }
@@ -464,8 +524,10 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
   if (body.coverUrl !== undefined) {
     if (body.coverUrl === null || body.coverUrl === "") {
       updates.coverUrl = null;
+      updates.coverVariants = null;
     } else if (typeof body.coverUrl === "string" && isR2Url(body.coverUrl)) {
       updates.coverUrl = body.coverUrl;
+      updates.coverVariants = null;
     } else {
       return c.json({ code: "BAD_MEDIA_URL", message: "Invalid cover URL" }, 400);
     }
@@ -479,7 +541,9 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
         displayName: profiles.displayName,
         bio: profiles.bio,
         avatarUrl: profiles.avatarUrl,
+        avatarVariants: profiles.avatarVariants,
         coverUrl: profiles.coverUrl,
+        coverVariants: profiles.coverVariants,
         location: profiles.location,
         website: profiles.website,
         dateOfBirth: profiles.dateOfBirth,
@@ -498,8 +562,11 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
     if (existingRows.length === 0) throw notFound("Profile not found");
 
     var media = await resolveProfileMedia(
+      existingRows[0].userId,
       existingRows[0].avatarUrl,
-      existingRows[0].coverUrl
+      existingRows[0].coverUrl,
+      existingRows[0].avatarVariants,
+      existingRows[0].coverVariants
     );
 
     return c.json({
@@ -508,6 +575,7 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
       profile: {
         ...existingRows[0],
         avatarUrl: media.avatarUrl,
+        avatarUrlLg: media.avatarUrlLg,
         coverUrl: media.coverUrl,
       },
     });
@@ -583,7 +651,9 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
       displayName: profiles.displayName,
       bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       coverUrl: profiles.coverUrl,
+      coverVariants: profiles.coverVariants,
       location: profiles.location,
       website: profiles.website,
       dateOfBirth: profiles.dateOfBirth,
@@ -603,7 +673,22 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
     throw notFound("Profile not found");
   }
 
-  var media = await resolveProfileMedia(updated[0].avatarUrl, updated[0].coverUrl);
+  var media = await resolveProfileMedia(
+    updated[0].userId,
+    updated[0].avatarUrl,
+    updated[0].coverUrl,
+    updated[0].avatarVariants,
+    updated[0].coverVariants
+  );
+
+  await Promise.all([
+    typeof body.avatarUrl === "string" && body.avatarUrl.trim().length > 0
+      ? enqueueProfileMediaProcess(user.userId, "avatar", body.avatarUrl)
+      : Promise.resolve(),
+    typeof body.coverUrl === "string" && body.coverUrl.trim().length > 0
+      ? enqueueProfileMediaProcess(user.userId, "cover", body.coverUrl)
+      : Promise.resolve(),
+  ]);
 
   if (body.isPrivate !== undefined) {
     var followerRows = await db
@@ -626,6 +711,7 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
     profile: {
       ...updated[0],
       avatarUrl: media.avatarUrl,
+      avatarUrlLg: media.avatarUrlLg,
       coverUrl: media.coverUrl,
     },
   });
@@ -655,6 +741,7 @@ profileRoutes.get("/:username/followers", async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       createdAt: follows.createdAt,
       cursorId: follows.followerId,
     })
@@ -678,7 +765,8 @@ profileRoutes.get("/:username/followers", async function (c) {
         userId: row.userId,
         username: row.username,
         displayName: row.displayName,
-        avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+        avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         followedAt: row.createdAt.toISOString(),
       };
     })
@@ -717,6 +805,7 @@ profileRoutes.get("/:username/following", async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       createdAt: follows.createdAt,
       cursorId: follows.followingId,
     })
@@ -740,7 +829,8 @@ profileRoutes.get("/:username/following", async function (c) {
         userId: row.userId,
         username: row.username,
         displayName: row.displayName,
-        avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+        avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         followedAt: row.createdAt.toISOString(),
       };
     })
@@ -782,6 +872,7 @@ profileRoutes.get("/:username/follow-requests", requireAuth, async function (c) 
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       createdAt: follows.createdAt,
       cursorId: follows.followerId,
     })
@@ -804,7 +895,8 @@ profileRoutes.get("/:username/follow-requests", requireAuth, async function (c) 
         userId: row.userId,
         username: row.username,
         displayName: row.displayName,
-        avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+        avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         followedAt: row.createdAt.toISOString(),
       };
     })

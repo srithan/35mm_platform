@@ -256,7 +256,7 @@ export function NotificationsContent() {
       });
     },
     enabled: isLoaded && Boolean(isSignedIn),
-    staleTime: 30_000,
+    staleTime: 15_000,
     refetchInterval: 5_000,
   });
 

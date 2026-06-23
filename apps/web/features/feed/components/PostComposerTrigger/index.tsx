@@ -93,6 +93,7 @@ export function PostComposerTrigger({
             initial={user.initial}
             src={user.avatarUrl}
             allowDefaultFallback={!suppressDefaultAvatar}
+            loading="eager"
             className="w-9 h-9"
           />
 

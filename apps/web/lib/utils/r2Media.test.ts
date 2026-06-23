@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolvePublicMediaUrl, shouldResolvePublicR2Url } from "./r2Media";
+import { normalizeMediaUrl, resolvePublicMediaUrl, shouldResolvePublicR2Url } from "./r2Media";
 
 describe("r2Media", function () {
   afterEach(function () {
@@ -30,6 +30,15 @@ describe("r2Media", function () {
     expect(shouldResolvePublicR2Url("https://pub-123.r2.dev/users/a.jpg")).toBe(false);
   });
 
+  it("normalizes legacy signed media URLs to stable URLs", function () {
+    expect(
+      normalizeMediaUrl(
+        "https://pub-123.r2.dev/users/u/avatar/a.jpg?X-Amz-Date=20260622T000000Z&X-Amz-Signature=signed"
+      )
+    ).toBe("https://pub-123.r2.dev/users/u/avatar/a.jpg");
+    expect(normalizeMediaUrl("https://example.com/image.jpg?v=1")).toBe("https://example.com/image.jpg?v=1");
+  });
+
   it("cache key uses pathname, not query string", async function () {
     process.env.NEXT_PUBLIC_MEDIA_READS_PUBLIC = "false";
     const fetchMock = vi.fn(async function () {
@@ -45,8 +54,8 @@ describe("r2Media", function () {
     const first = await resolvePublicMediaUrl("https://pub-123.r2.dev/users/a.jpg");
     const second = await resolvePublicMediaUrl("https://pub-123.r2.dev/users/a.jpg?v=2");
 
-    expect(first).toBe("https://pub-123.r2.dev/users/a.jpg?X-Amz-Signature=signed");
-    expect(second).toBe("https://pub-123.r2.dev/users/a.jpg?X-Amz-Signature=signed");
+    expect(first).toBe("https://pub-123.r2.dev/users/a.jpg");
+    expect(second).toBe("https://pub-123.r2.dev/users/a.jpg");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -75,8 +84,8 @@ describe("r2Media", function () {
     const first = await resolvePublicMediaUrl("https://pub-123.r2.dev/users/force.jpg");
     const second = await resolvePublicMediaUrl("https://pub-123.r2.dev/users/force.jpg", { force: true });
 
-    expect(first).toBe("https://pub-123.r2.dev/users/force.jpg?X-Amz-Signature=first");
-    expect(second).toBe("https://pub-123.r2.dev/users/force.jpg?X-Amz-Signature=second");
+    expect(first).toBe("https://pub-123.r2.dev/users/force.jpg");
+    expect(second).toBe("https://pub-123.r2.dev/users/force.jpg");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

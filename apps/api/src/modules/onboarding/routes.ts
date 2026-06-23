@@ -11,7 +11,7 @@ import { blockFiltersForAuthor, notMutedByViewerSql } from "../../lib/moderation
 import { badRequest, notFound } from "../../lib/errors.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { createUlid, isValidUlid } from "../../lib/ulid.js";
-import { resolvePublicMediaUrl } from "../media/url.js";
+import { resolveProfileAvatarUrl, resolveProfileCoverUrl } from "../media/url.js";
 
 export var onboardingRoutes = new Hono();
 
@@ -63,7 +63,9 @@ async function getPublicProfile(userId: string): Promise<PublicProfile> {
       displayName: profiles.displayName,
       bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       coverUrl: profiles.coverUrl,
+      coverVariants: profiles.coverVariants,
       location: profiles.location,
       website: profiles.website,
       dateOfBirth: profiles.dateOfBirth,
@@ -89,8 +91,11 @@ async function getPublicProfile(userId: string): Promise<PublicProfile> {
   }
 
   var row = rows[0];
-  var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
-  var coverUrl = await resolvePublicMediaUrl(row.coverUrl);
+  var [avatarUrl, avatarUrlLg, coverUrl] = await Promise.all([
+    resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+    resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
+    resolveProfileCoverUrl(row.coverUrl, row.userId, row.coverVariants),
+  ]);
 
   return {
     userId: row.userId,
@@ -98,6 +103,7 @@ async function getPublicProfile(userId: string): Promise<PublicProfile> {
     displayName: row.displayName,
     bio: row.bio,
     avatarUrl,
+    avatarUrlLg,
     coverUrl,
     location: row.location,
     website: row.website,
@@ -298,6 +304,7 @@ onboardingRoutes.get("/onboarding/suggestions", requireAuth, async function (c) 
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: sql<string | null>`coalesce(${profiles.headline}, ${profiles.role})`,
       roleContext: sql<string | null>`coalesce(${profiles.headlineContext}, ${profiles.roleContext})`,
       filmsLoggedCount: profiles.filmsLoggedCount,
@@ -337,7 +344,8 @@ onboardingRoutes.get("/onboarding/suggestions", requireAuth, async function (c) 
         id: row.id,
         username: row.username,
         displayName: row.displayName,
-        avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+        avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.id, row.avatarVariants, "sm"),
+        avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.id, row.avatarVariants, "lg"),
         role: row.role,
         roleContext: row.roleContext,
         filmsLoggedCount: row.filmsLoggedCount ?? 0,

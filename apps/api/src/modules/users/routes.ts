@@ -11,7 +11,7 @@ import {
 } from "../../lib/feedCache.js";
 import { cursorPaginationSchema } from "@35mm/validators";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
-import { resolvePublicMediaUrl } from "../media/url.js";
+import { resolveProfileAvatarUrl } from "../media/url.js";
 
 export var userRoutes = new Hono();
 
@@ -141,6 +141,7 @@ userRoutes.get("/me/blocks", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
     })
     .from(userBlocks)
     .innerJoin(profiles, eq(profiles.userId, userBlocks.blockedId))
@@ -163,7 +164,8 @@ userRoutes.get("/me/blocks", requireAuth, async function (c) {
           userId: row.userId,
           username: row.username,
           displayName: row.displayName,
-          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+          avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+          avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         };
       })
     ),
@@ -199,6 +201,7 @@ userRoutes.get("/me/mutes", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
     })
     .from(userMutes)
     .innerJoin(profiles, eq(profiles.userId, userMutes.mutedId))
@@ -221,7 +224,8 @@ userRoutes.get("/me/mutes", requireAuth, async function (c) {
           userId: row.userId,
           username: row.username,
           displayName: row.displayName,
-          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+          avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+          avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         };
       })
     ),

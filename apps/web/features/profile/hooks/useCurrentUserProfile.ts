@@ -12,7 +12,8 @@ export function useCurrentUserProfile() {
     queryKey: authKeys.me(),
     queryFn: async () => fetchCurrentUserProfile(await getToken()),
     enabled: isLoaded && Boolean(isSignedIn),
-    staleTime: 60_000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnMount: true,
     retry: 1,
   });

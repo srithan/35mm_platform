@@ -9,6 +9,7 @@ export interface PublicProfile {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   coverUrl: string | null;
   location: string | null;
   website: string | null;
@@ -34,6 +35,7 @@ export interface CurrentUserProfile {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   role: string | null;
   roleContext: string | null;
   filmsLoggedCount: number;
@@ -45,6 +47,7 @@ export interface CurrentProfilePatch {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   coverUrl: string | null;
   location: string | null;
   website: string | null;
@@ -139,6 +142,7 @@ export interface ModeratedUser {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
 }
 
 export interface ProfileConnectionUser {
@@ -146,6 +150,7 @@ export interface ProfileConnectionUser {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   followedAt: string;
 }
 
@@ -154,6 +159,7 @@ export interface ProfileFollowRequest {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   followedAt: string;
 }
 
@@ -249,6 +255,7 @@ export async function updateCurrentProfile(
     website: string | null;
     dateOfBirth: string | null;
     avatarUrl: string | null;
+    avatarUrlLg?: string | null;
     coverUrl: string | null;
     role: string | null;
     roleContext: string | null;

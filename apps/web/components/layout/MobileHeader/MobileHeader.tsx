@@ -83,6 +83,7 @@ export function MobileHeader({
           src={avatarUrl}
           size="md"
           variant="ring"
+          loading="eager"
           allowDefaultFallback={!suppressDefaultAvatar}
         />
       </button>

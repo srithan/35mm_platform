@@ -18,6 +18,7 @@ import {
   markNotificationRead,
   markNotificationUnread,
 } from "../../lib/notifications.js";
+import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
 export var notificationsRoutes = new Hono();
 
@@ -32,6 +33,7 @@ interface RawNotificationRow {
   actorUsername: string | null;
   actorDisplayName: string | null;
   actorAvatarUrl: string | null;
+  actorAvatarVariants: AvatarVariants | null;
   entityId: string | null;
   entityType: NonNullable<NotificationItem["entity"]>["type"] | null;
 }
@@ -41,6 +43,7 @@ interface ActorProfile {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  avatarVariants?: AvatarVariants | null;
 }
 
 function isMissingActorIdsColumnError(err: unknown): boolean {
@@ -129,6 +132,7 @@ interface EntityUserRow {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  avatarVariants?: AvatarVariants | null;
 }
 
 type NotificationEntityMap = {
@@ -141,21 +145,22 @@ function toCursor(createdAt: Date, id: string): string {
   return encodeCompositeCursor({ createdAt, id });
 }
 
-function resolveActor(row: RawNotificationRow) {
+async function resolveActor(row: RawNotificationRow) {
   if (!row.actorId) return null;
 
   return {
     id: row.actorId,
     username: row.actorUsername ?? "",
     displayName: row.actorDisplayName ?? row.actorUsername ?? "",
-    avatarUrl: row.actorAvatarUrl,
+    avatarUrl: await resolveProfileAvatarUrl(row.actorAvatarUrl, row.actorId, row.actorAvatarVariants, "sm"),
+    avatarUrlLg: await resolveProfileAvatarUrl(row.actorAvatarUrl, row.actorId, row.actorAvatarVariants, "lg"),
   };
 }
 
-function resolveEntity(
+async function resolveEntity(
   row: RawNotificationRow,
   maps: NotificationEntityMap
-): NotificationItem["entity"] {
+): Promise<NotificationItem["entity"]> {
   if (!row.entityType || !row.entityId) return null;
 
   if (row.entityType === "post") {
@@ -195,30 +200,40 @@ function resolveEntity(
     type: "user",
     id: rowUser.id,
     title: rowUser.displayName?.trim() || rowUser.username,
-    thumbnailUrl: rowUser.avatarUrl,
+    thumbnailUrl: await resolveProfileAvatarUrl(rowUser.avatarUrl, rowUser.id, rowUser.avatarVariants, "sm"),
   };
 }
 
-function asNotificationItem(
+async function asNotificationItem(
   row: RawNotificationRow,
   maps: NotificationEntityMap,
   actorProfileMap: Map<string, ActorProfile>
-): NotificationItem {
+): Promise<NotificationItem> {
   var actorIds = normalizeActorIds(row.actorIds);
-  return {
-    id: row.id,
-    type: row.type,
-    actor: resolveActor(row),
-    entity: resolveEntity(row, maps),
-    isRead: row.isRead,
-    actorIds,
-    actorProfiles: actorIds
+  var actorProfiles = await Promise.all(
+    actorIds
       .map(function (actorId) {
         return actorProfileMap.get(actorId);
       })
       .filter(function (profile): profile is ActorProfile {
         return Boolean(profile);
-      }),
+      })
+      .map(async function (profile) {
+        return {
+          ...profile,
+          avatarUrl: await resolveProfileAvatarUrl(profile.avatarUrl, profile.userId, profile.avatarVariants, "sm"),
+          avatarUrlLg: await resolveProfileAvatarUrl(profile.avatarUrl, profile.userId, profile.avatarVariants, "lg"),
+        };
+      })
+  );
+  return {
+    id: row.id,
+    type: row.type,
+    actor: await resolveActor(row),
+    entity: await resolveEntity(row, maps),
+    isRead: row.isRead,
+    actorIds,
+    actorProfiles,
     bundleCount: row.bundleCount,
     createdAt: row.createdAt.toISOString(),
   };
@@ -261,6 +276,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
     actorUsername: string | null;
     actorDisplayName: string | null;
     actorAvatarUrl: string | null;
+    actorAvatarVariants: AvatarVariants | null;
     entityId: string | null;
     entityType: string | null;
   }>;
@@ -278,6 +294,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
         actorUsername: profiles.username,
         actorDisplayName: profiles.displayName,
         actorAvatarUrl: profiles.avatarUrl,
+        actorAvatarVariants: profiles.avatarVariants,
         entityId: notifications.entityId,
         entityType: notifications.entityType,
       })
@@ -303,6 +320,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
         actorUsername: profiles.username,
         actorDisplayName: profiles.displayName,
         actorAvatarUrl: profiles.avatarUrl,
+        actorAvatarVariants: profiles.avatarVariants,
         entityId: notifications.entityId,
         entityType: notifications.entityType,
       })
@@ -344,6 +362,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
           username: profiles.username,
           displayName: profiles.displayName,
           avatarUrl: profiles.avatarUrl,
+          avatarVariants: profiles.avatarVariants,
         })
         .from(profiles)
         .where(inArray(profiles.userId, Array.from(actorIdSet)))
@@ -366,6 +385,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
       username: visibleRow.actorUsername ?? "",
       displayName: visibleRow.actorDisplayName ?? visibleRow.actorUsername ?? null,
       avatarUrl: visibleRow.actorAvatarUrl ?? null,
+      avatarVariants: visibleRow.actorAvatarVariants ?? null,
     });
   }
 
@@ -428,6 +448,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
             username: profiles.username,
             displayName: profiles.displayName,
             avatarUrl: profiles.avatarUrl,
+            avatarVariants: profiles.avatarVariants,
           })
           .from(profiles)
           .where(inArray(profiles.userId, Array.from(userIds)))
@@ -458,9 +479,9 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
     users: userMap,
   };
 
-  var items = visible.map(function (row) {
+  var items = await Promise.all(visible.map(function (row) {
     return asNotificationItem(row, map, actorProfileMap);
-  });
+  }));
 
   var page: NotificationPage = {
     items,

@@ -52,3 +52,26 @@ Notes:
 - Cursor-based scan (`created_at desc, id desc`)
 - Idempotent: already-processed media rows skipped
 - `--dry-run` scans and reports candidates without writing changes
+
+## Profile media backfill
+
+Run idempotent backfill over historical avatar and cover uploads:
+
+```bash
+pnpm --filter @35mm/worker backfill:avatars
+```
+
+Optional flags:
+
+```bash
+pnpm --filter @35mm/worker backfill:avatars -- --dry-run
+pnpm --filter @35mm/worker backfill:avatars -- --kind avatar
+pnpm --filter @35mm/worker backfill:avatars -- --kind cover
+pnpm --filter @35mm/worker backfill:avatars -- --limit 200
+```
+
+Notes:
+
+- Cursor-based scan (`created_at desc, id desc`)
+- Idempotent: rows with existing variant JSON are skipped
+- Writes WebP variants to R2 and stores stable public URLs on `profiles`

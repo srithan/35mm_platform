@@ -32,6 +32,7 @@ import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
 import { createUlid, isValidUlid } from "../../lib/ulid.js";
 import { ensureWatchlistForUser, nextListPosition, resolveFilmId } from "../../lib/filmLists.js";
 import { enqueueCounterIncrementJob } from "../../lib/jobs.js";
+import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
 export var listRoutes = new Hono();
 
@@ -64,6 +65,7 @@ type ListRow = {
   ownerUsername: string;
   ownerDisplayName: string;
   ownerAvatarUrl: string | null;
+  ownerAvatarVariants?: AvatarVariants | null;
   ownerRole: string | null;
   ownerRoleContext: string | null;
   ownerFilmsLoggedCount: number;
@@ -118,12 +120,13 @@ function canViewList(row: { visibility: "public" | "private"; userId: string; is
   return viewerId === row.userId;
 }
 
-function ownerFromRow(row: ListRow): PublicUser {
+async function ownerFromRow(row: ListRow): Promise<PublicUser> {
   return {
     id: row.userId,
     username: row.ownerUsername,
     displayName: row.ownerDisplayName,
-    avatarUrl: row.ownerAvatarUrl,
+    avatarUrl: await resolveProfileAvatarUrl(row.ownerAvatarUrl, row.userId, row.ownerAvatarVariants, "sm"),
+    avatarUrlLg: await resolveProfileAvatarUrl(row.ownerAvatarUrl, row.userId, row.ownerAvatarVariants, "lg"),
     role: row.ownerRole,
     roleContext: row.ownerRoleContext,
     filmsLoggedCount: row.ownerFilmsLoggedCount,
@@ -163,7 +166,7 @@ async function toSummary(row: ListRow, viewerId: string | null): Promise<FilmLis
     isOwner: viewerId === row.userId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    owner: ownerFromRow(row),
+    owner: await ownerFromRow(row),
     posterUrls: await posterUrlsForList(row.id),
   };
 }
@@ -191,6 +194,7 @@ async function selectListById(listId: string, viewerId: string | null): Promise<
       ownerUsername: profiles.username,
       ownerDisplayName: profiles.displayName,
       ownerAvatarUrl: profiles.avatarUrl,
+      ownerAvatarVariants: profiles.avatarVariants,
       ownerRole: profiles.role,
       ownerRoleContext: profiles.roleContext,
       ownerFilmsLoggedCount: profiles.filmsLoggedCount,
@@ -321,6 +325,7 @@ listRoutes.get("/profile/:username", async function (c) {
       ownerUsername: profiles.username,
       ownerDisplayName: profiles.displayName,
       ownerAvatarUrl: profiles.avatarUrl,
+      ownerAvatarVariants: profiles.avatarVariants,
       ownerRole: profiles.role,
       ownerRoleContext: profiles.roleContext,
       ownerFilmsLoggedCount: profiles.filmsLoggedCount,
@@ -397,6 +402,7 @@ listRoutes.get("/films/:filmId", async function (c) {
       ownerUsername: profiles.username,
       ownerDisplayName: profiles.displayName,
       ownerAvatarUrl: profiles.avatarUrl,
+      ownerAvatarVariants: profiles.avatarVariants,
       ownerRole: profiles.role,
       ownerRoleContext: profiles.roleContext,
       ownerFilmsLoggedCount: profiles.filmsLoggedCount,

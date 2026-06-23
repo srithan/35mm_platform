@@ -45,8 +45,7 @@ export function useSettingsQuery() {
       return getSettings(await getToken());
     },
     enabled: isLoaded && isSignedIn,
-    staleTime: 300_000,
-    gcTime: 10 * 60_000,
+    staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 }

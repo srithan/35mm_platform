@@ -3,6 +3,7 @@ export interface Author {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   isFollowing: boolean;
   /** Badge label e.g. "Director", "Cinephile". When absent, role headline is hidden. */
   role?: string | null;

@@ -4,9 +4,15 @@ import { loadEnv } from "./env.js";
 
 export const API_QUEUE_NAME = "35mm-jobs";
 
-type MediaProcessJobPayload = {
-  postId: string;
-};
+type MediaProcessJobPayload =
+  | {
+      postId: string;
+    }
+  | {
+      kind: "avatar" | "cover";
+      userId: string;
+      objectKey: string;
+    };
 
 type NotificationPublishJobPayload = {
   notificationId: string;
@@ -187,10 +193,13 @@ export function isQueueEnabled(): boolean {
 export async function enqueueMediaProcessJob(payload: MediaProcessJobPayload): Promise<boolean> {
   var q = getQueue();
   if (!q) return false;
+  var jobId = "postId" in payload
+    ? "media.process-" + payload.postId
+    : "media.process-" + payload.kind + "-" + payload.userId + "-" + payload.objectKey;
 
   await q.add("media.process", payload, {
     ...defaultJobOptions("media.process"),
-    jobId: "media.process-" + payload.postId,
+    jobId,
   });
 
   return true;

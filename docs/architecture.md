@@ -1,7 +1,7 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-06-21
+> Last updated: 2026-06-23
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
 
@@ -203,6 +203,9 @@ Source of truth: `packages/db/src/schema/*`.
 
 - One-to-one with `users`.
 - Username, display name, bio, avatar, cover, location, website, DOB.
+- Profile media stores original `avatar_url` / `cover_url` plus nullable JSONB variant maps:
+  - `avatar_variants`: `{ sm?: string; lg?: string }`
+  - `cover_variants`: `{ default?: string }`
 - Role/headline fields and onboarding completion state.
 - Favorite film IDs and genre IDs arrays.
 - Private account flag.
@@ -678,18 +681,29 @@ Upload path:
 3. API returns presigned R2 PUT URL plus deterministic public and variant URLs.
 4. Client uploads directly to R2.
 5. Post/profile update stores resulting public URL/object key.
+6. Profile avatar/cover updates enqueue `media.process` so the worker can generate profile media variants.
 
 Processing path:
 
-1. API enqueues `media.process` for post media.
+1. API enqueues `media.process` for post media and profile avatar/cover uploads.
 2. Worker downloads original from R2.
 3. Worker creates WebP variants:
-   - `thumb`: 320w
-   - `feed`: 640w
-   - `full`: 2048w
-4. Worker computes blurhash.
-5. Worker writes variants to R2 and updates `posts.media` / `posts.media_urls`.
-6. Optional Cloudflare Images integration can provide delivery URLs.
+   - Post media: `thumb` 320w, `feed` 640w, `full` 2048w.
+   - Avatar media: `sm` 64x64 square crop, `lg` 320x320 square crop.
+   - Cover media: `default` 1200x400 cover crop.
+4. Worker computes blurhash for post media.
+5. Worker writes variants to R2 with immutable cache headers.
+6. Worker updates `posts.media` / `posts.media_urls` for post media, or `profiles.avatar_variants` / `profiles.cover_variants` for profile media.
+7. Optional Cloudflare Images integration can provide delivery URLs for post media.
+
+Profile media delivery:
+
+- Avatar and cover images are public profile media and should resolve to stable `R2_PUBLIC_BASE_URL` URLs, not signed URLs.
+- API responses expose `avatarUrl` as the small avatar URL and `avatarUrlLg` as the large profile-header URL.
+- Profile cover responses prefer `cover_variants.default`.
+- Existing profile media can be backfilled with `pnpm --filter @35mm/worker backfill:avatars`.
+- R2 bucket CORS must allow `GET`/`HEAD` from the app origin for browser image loads.
+- Browser/service-worker caching treats R2 profile media as long-lived immutable assets.
 
 Limits:
 
@@ -738,7 +752,7 @@ Queue: `35mm-jobs`.
 
 Implemented:
 
-- `media.process`: image variants and blurhash.
+- `media.process`: post image variants/blurhash and profile avatar/cover variants.
 - `notification.publish`: Ably notification publish.
 - `compute-suggestions`: friend-of-friend follow suggestions.
 - `counter.increment`: batched denormalized counter deltas for hot social/list/poll counters.

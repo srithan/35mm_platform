@@ -166,6 +166,7 @@ export function ProfileMenu({
           initial={currentInitial}
           src={currentAvatarUrl}
           allowDefaultFallback={!suppressDefaultAvatar}
+          loading="eager"
           size="sm"
           className={styles.navAvatar}
         />

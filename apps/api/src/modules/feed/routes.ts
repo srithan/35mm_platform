@@ -52,7 +52,7 @@ import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { isValidUlid } from "../../lib/ulid.js";
-import { resolvePublicMediaUrl } from "../media/url.js";
+import { resolveProfileAvatarUrl, resolvePublicMediaUrl, type AvatarVariants } from "../media/url.js";
 import {
   feedMediaUrl,
   fullMediaUrl,
@@ -870,6 +870,7 @@ async function toPostItem(row: {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarVariants?: AvatarVariants | null;
   role: string | null;
   roleContext: string | null;
   profileHeadline: string | null;
@@ -885,7 +886,10 @@ async function toPostItem(row: {
   isBookmarked: boolean;
   bookmarkFolderId?: string | null;
 }, viewerUserId: string | null = null) {
-  var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
+  var [avatarUrl, avatarUrlLg] = await Promise.all([
+    resolveProfileAvatarUrl(row.avatarUrl, row.authorId, row.avatarVariants, "sm"),
+    resolveProfileAvatarUrl(row.avatarUrl, row.authorId, row.avatarVariants, "lg"),
+  ]);
   var mediaItems = normalizePostMediaList(row.media);
   var responseMedia = mediaItems.map(function (item) {
     return {
@@ -944,6 +948,7 @@ async function toPostItem(row: {
       username: row.username,
       displayName: row.displayName,
       avatarUrl,
+      avatarUrlLg,
       role: row.role ?? row.profileHeadline,
       roleContext: row.roleContext ?? row.profileHeadlineContext,
       filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
@@ -1004,6 +1009,7 @@ export type CachedHighFollowerAuthorRow = {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarVariants?: AvatarVariants | null;
   role: string | null;
   roleContext: string | null;
   profileHeadline: string | null;
@@ -1170,6 +1176,7 @@ function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFol
     username: row.username,
     displayName: row.displayName,
     avatarUrl: row.avatarUrl,
+    avatarVariants: row.avatarVariants,
     role: row.role,
     roleContext: row.roleContext,
     profileHeadline: row.profileHeadline,
@@ -1303,6 +1310,7 @@ async function selectLiveHomeFeedRows(input: {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       profileHeadline: profiles.headline,
@@ -1389,6 +1397,7 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       profileHeadline: profiles.headline,
@@ -1586,6 +1595,7 @@ async function getPostById(postId: string, viewerUserId: string | null) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       profileHeadline: profiles.headline,
@@ -1783,6 +1793,7 @@ feedRoutes.get("/", async function (c) {
           username: profiles.username,
           displayName: profiles.displayName,
           avatarUrl: profiles.avatarUrl,
+          avatarVariants: profiles.avatarVariants,
           role: profiles.role,
           roleContext: profiles.roleContext,
           profileHeadline: profiles.headline,
@@ -1904,6 +1915,7 @@ feedRoutes.get("/", async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       profileHeadline: profiles.headline,
@@ -2228,6 +2240,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       profileHeadline: profiles.headline,
@@ -2348,6 +2361,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       profileHeadline: profiles.headline,
@@ -3435,6 +3449,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
     })
     .from(comments)
     .innerJoin(profiles, eq(profiles.userId, comments.userId))
@@ -3460,7 +3475,8 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
           id: row.userId,
           username: row.username,
           displayName: row.displayName,
-          avatarUrl: await resolvePublicMediaUrl(row.avatarUrl),
+          avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+          avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         },
       };
     })
@@ -3611,6 +3627,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.userId))
@@ -3635,7 +3652,8 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
         id: inserted.userId,
         username: profileRows[0].username,
         displayName: profileRows[0].displayName,
-        avatarUrl: await resolvePublicMediaUrl(profileRows[0].avatarUrl),
+        avatarUrl: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, inserted.userId, profileRows[0].avatarVariants, "sm"),
+        avatarUrlLg: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, inserted.userId, profileRows[0].avatarVariants, "lg"),
       },
     },
     201
@@ -3705,6 +3723,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, async functi
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.userId))
@@ -3728,7 +3747,8 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, async functi
       id: updated.userId,
       username: profileRows[0].username,
       displayName: profileRows[0].displayName,
-      avatarUrl: await resolvePublicMediaUrl(profileRows[0].avatarUrl),
+      avatarUrl: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, updated.userId, profileRows[0].avatarVariants, "sm"),
+      avatarUrlLg: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, updated.userId, profileRows[0].avatarVariants, "lg"),
     },
   });
 });

@@ -4,6 +4,7 @@ export type FollowSuggestion = {
     username: string;
     displayName: string;
     avatarUrl: string | null;
+    avatarUrlLg?: string | null;
     bio: string | null;
   };
   score: number;

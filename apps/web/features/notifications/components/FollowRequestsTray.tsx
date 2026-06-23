@@ -106,7 +106,7 @@ export function FollowRequestsTray() {
       return fetchReceivedFollowRequests({ token: await getToken(), limit: 20 });
     },
     enabled: isLoaded && Boolean(isSignedIn),
-    staleTime: 20_000,
+    staleTime: 15_000,
     refetchInterval: 10_000,
   });
 

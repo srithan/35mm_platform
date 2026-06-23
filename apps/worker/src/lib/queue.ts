@@ -4,9 +4,15 @@ import { loadWorkerEnv } from "./env.js";
 
 export const WORKER_QUEUE_NAME = "35mm-jobs";
 
-export type MediaProcessJobPayload = {
-  postId: string;
-};
+export type MediaProcessJobPayload =
+  | {
+      postId: string;
+    }
+  | {
+      kind: "avatar" | "cover";
+      userId: string;
+      objectKey: string;
+    };
 
 type SupportedJobName =
   | "media.process"
@@ -83,7 +89,9 @@ function defaultJobOptions(name: SupportedJobName): JobsOptions {
 }
 
 export async function enqueueMediaProcessJob(payload: MediaProcessJobPayload): Promise<void> {
-  var jobId = "media.process-" + payload.postId;
+  var jobId = "postId" in payload
+    ? "media.process-" + payload.postId
+    : "media.process-" + payload.kind + "-" + payload.userId + "-" + payload.objectKey;
   await getQueue().add("media.process", payload, {
     ...defaultJobOptions("media.process"),
     jobId,

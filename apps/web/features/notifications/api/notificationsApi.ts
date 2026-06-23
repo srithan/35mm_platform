@@ -80,6 +80,7 @@ export interface ReceivedFollowRequest {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   mutualFollowerCount: number;
   requestedAt: string;
 }

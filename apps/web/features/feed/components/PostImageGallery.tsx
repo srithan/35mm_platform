@@ -8,7 +8,7 @@ import {
   carouselDotStyle,
   carouselNavButtonOnDarkClass,
 } from "@/lib/utils/carouselDots";
-import { LazyR2Image } from "@/components/LazyR2Image";
+import { BlurImage } from "@/components/ui/BlurImage";
 
 const SINGLE_IMAGE_MAX_HEIGHT = 510;
 
@@ -48,6 +48,7 @@ function PostGalleryImage({
   className,
   shouldLoad = true,
   forceLoad = false,
+  priority = false,
 }: {
   url: string;
   alt: string;
@@ -55,18 +56,17 @@ function PostGalleryImage({
   className?: string;
   shouldLoad?: boolean;
   forceLoad?: boolean;
+  priority?: boolean;
 }) {
   return (
-    <LazyR2Image
-      src={url}
+    <BlurImage
+      src={shouldLoad || forceLoad ? url : null}
       alt={alt}
       blurhash={blurhash}
       className={className}
       containerClassName="absolute inset-0"
-      rootMargin="800px"
-      shouldLoad={shouldLoad}
-      forceLoad={forceLoad}
-      loading={forceLoad ? "eager" : "lazy"}
+      loading={priority || forceLoad ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
       draggable={false}
     />
   );
@@ -76,11 +76,13 @@ function SinglePostImageCell({
   url,
   blurhash,
   imageCaption,
+  priority = false,
   onImageClick,
 }: {
   url: string;
   blurhash?: string | null;
   imageCaption?: string;
+  priority?: boolean;
   onImageClick?: () => void;
 }) {
   const [layout, setLayout] = useState<SingleImageLayout>(null);
@@ -110,7 +112,7 @@ function SinglePostImageCell({
         onImageClick?.();
       }}
     >
-      <LazyR2Image
+      <BlurImage
         src={url}
         alt={imageCaption || "Post image"}
         blurhash={blurhash}
@@ -123,11 +125,12 @@ function SinglePostImageCell({
         )}
         containerClassName={cn(
           "relative leading-none",
-          isCapped ? "block w-fit max-w-full" : "block w-full"
+          isCapped ? "block w-fit max-w-full" : "block w-full",
+          !isLoaded && "h-full"
         )}
         placeholderClassName="rounded-xl"
-        rootMargin="800px"
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         draggable={false}
       />
     </button>
@@ -140,12 +143,14 @@ function PostImageCarousel({
   imageCaption,
   onImageClick,
   saveData = false,
+  priority = false,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
   imageCaption?: string;
   onImageClick?: (index: number) => void;
   saveData?: boolean;
+  priority?: boolean;
 }) {
   var trackRef = useRef<HTMLDivElement>(null);
   var carouselRef = useRef<HTMLDivElement>(null);
@@ -219,9 +224,10 @@ function PostImageCarousel({
         aria-label="Post images"
       >
         {urls.map(function (url, idx) {
-          var shouldLoadImage = isNearViewport && Math.abs(idx - activeIndex) <= 1;
+          var isPriorityImage = priority && idx === 0;
+          var shouldLoadImage = isPriorityImage || (isNearViewport && Math.abs(idx - activeIndex) <= 1);
           if (saveData) {
-            shouldLoadImage = isNearViewport && idx === activeIndex;
+            shouldLoadImage = isPriorityImage || (isNearViewport && idx === activeIndex);
           }
           return (
             <button
@@ -240,7 +246,8 @@ function PostImageCarousel({
                 blurhash={blurhashes?.[idx] ?? null}
                 className="absolute inset-0 h-full w-full object-cover"
                 shouldLoad={shouldLoadImage}
-                forceLoad={shouldLoadImage}
+                forceLoad={isPriorityImage}
+                priority={isPriorityImage}
               />
             </button>
           );
@@ -311,11 +318,13 @@ function PostImageGrid({
   urls,
   blurhashes,
   imageCaption,
+  priority = false,
   onImageClick,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
   imageCaption?: string;
+  priority?: boolean;
   onImageClick?: (index: number) => void;
 }) {
   var count = urls.length;
@@ -327,6 +336,7 @@ function PostImageGrid({
           url={urls[0]}
           blurhash={blurhashes?.[0] ?? null}
           imageCaption={imageCaption}
+          priority={priority}
           onImageClick={function () {
             onImageClick?.(0);
           }}
@@ -359,6 +369,7 @@ function PostImageGrid({
                 "absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-90",
                 count === 4 && "object-top"
               )}
+              priority={priority && idx === 0}
             />
           </button>
         );
@@ -373,12 +384,14 @@ export function PostImageGallery({
   imageCaption,
   onImageClick,
   saveData = false,
+  priority = false,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
   imageCaption?: string;
   onImageClick?: (index: number) => void;
   saveData?: boolean;
+  priority?: boolean;
 }) {
   if (urls.length === 0) return null;
 
@@ -391,6 +404,7 @@ export function PostImageGallery({
           imageCaption={imageCaption}
           onImageClick={onImageClick}
           saveData={saveData}
+          priority={priority}
         />
       ) : (
         <PostImageGrid
@@ -398,6 +412,7 @@ export function PostImageGallery({
           blurhashes={blurhashes}
           imageCaption={imageCaption}
           onImageClick={onImageClick}
+          priority={priority}
         />
       )}
       {imageCaption ? (

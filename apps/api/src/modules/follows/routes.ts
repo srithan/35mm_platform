@@ -15,6 +15,7 @@ import {
   invalidateViewerFeedCaches,
 } from "../../lib/feedCache.js";
 import { feedHighFollowerThreshold } from "../feed/fanoutConfig.js";
+import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
 export var followRoutes = new Hono();
 const FOLLOW_BACKFILL_LIMIT = 200;
@@ -303,6 +304,7 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       requestedAt: follows.createdAt,
       mutualFollowerCount: sql<number>`count(distinct ${viewerFollower.followerId})`,
     })
@@ -330,7 +332,7 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
         cursorFilter
       )
     )
-    .groupBy(follows.followerId, profiles.username, profiles.displayName, profiles.avatarUrl, follows.createdAt)
+    .groupBy(follows.followerId, profiles.username, profiles.displayName, profiles.avatarUrl, profiles.avatarVariants, follows.createdAt)
     .orderBy(desc(follows.createdAt), desc(follows.followerId))
     .limit(limit + 1);
 
@@ -338,16 +340,17 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
   var tail = visibleRows[visibleRows.length - 1];
 
   return c.json({
-    requests: visibleRows.map(function (row) {
+    requests: await Promise.all(visibleRows.map(async function (row) {
       return {
         requesterId: row.requesterId,
         username: row.username,
         displayName: row.displayName,
-        avatarUrl: row.avatarUrl,
+        avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.requesterId, row.avatarVariants as AvatarVariants | null, "sm"),
+        avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.requesterId, row.avatarVariants as AvatarVariants | null, "lg"),
         mutualFollowerCount: Number(row.mutualFollowerCount ?? 0),
         requestedAt: row.requestedAt.toISOString(),
       };
-    }),
+    })),
     total: Number(totalRows[0]?.value ?? 0),
     nextCursor: rows.length > limit && tail
       ? encodeCompositeCursor({ createdAt: tail.requestedAt, id: tail.requesterId })

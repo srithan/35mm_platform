@@ -48,6 +48,7 @@ export function ProfileMenuMainView({
           initial={currentInitial}
           src={currentAvatarUrl}
           allowDefaultFallback={!suppressDefaultAvatar}
+          loading="eager"
           size="md"
           className={styles.profileMenuIdentityAvatar}
         />

@@ -17,6 +17,7 @@ type CommentItem = {
     username: string;
     displayName: string;
     avatarUrl: string | null;
+    avatarUrlLg?: string | null;
     role?: string | null;
     roleContext?: string | null;
     filmsLoggedCount?: number | null;

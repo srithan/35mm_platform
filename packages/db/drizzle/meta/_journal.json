@@ -127,6 +127,13 @@
       "when": 1782600000007,
       "tag": "0017_bookmark_folders",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782177469255,
+      "tag": "0018_profile_media_variants",
+      "breakpoints": true
     }
   ]
 }

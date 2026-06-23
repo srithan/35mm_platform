@@ -5,15 +5,11 @@ import { runFeedFanoutJob } from "./jobs/feedFanout.js";
 import { runFeedPruneFeedItemsJob } from "./jobs/feedPruneFeedItems.js";
 import { runFeedRescoreJob } from "./jobs/feedRescore.js";
 import { runSuggestionComputeJob } from "./workers/suggestionWorker.js";
-import { processPostById } from "./jobs/mediaProcess.js";
+import { processPostById, processProfileMediaByPayload, type MediaProcessJobPayload } from "./jobs/mediaProcess.js";
 import { runNotificationDigestJob } from "./jobs/notificationDigest.js";
 import { runNotificationPublishJob } from "./jobs/notificationPublish.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
-
-type MediaProcessJobPayload = {
-  postId: string;
-};
 
 function requiredRedisUrl(): string {
   var env = loadWorkerEnv();
@@ -48,16 +44,42 @@ function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
 async function handleJob(job: Job): Promise<unknown> {
   if (job.name === "media.process") {
     var payload = job.data as MediaProcessJobPayload;
-    if (!payload || typeof payload.postId !== "string" || payload.postId.trim().length === 0) {
-      throw new Error("Invalid media.process payload: postId is required");
+    if (!payload || typeof payload !== "object") {
+      throw new Error("Invalid media.process payload");
     }
 
-    var result = await processPostById(payload.postId);
+    if ("postId" in payload) {
+      if (typeof payload.postId !== "string" || payload.postId.trim().length === 0) {
+        throw new Error("Invalid media.process payload: postId is required");
+      }
+
+      var postResult = await processPostById(payload.postId);
+      return {
+        postId: payload.postId,
+        found: postResult.found,
+        changed: postResult.changed,
+        skipped: postResult.skipped,
+      };
+    }
+
+    if (
+      (payload.kind !== "avatar" && payload.kind !== "cover") ||
+      typeof payload.userId !== "string" ||
+      payload.userId.trim().length === 0 ||
+      typeof payload.objectKey !== "string" ||
+      payload.objectKey.trim().length === 0
+    ) {
+      throw new Error("Invalid media.process payload: profile media fields are required");
+    }
+
+    var profileResult = await processProfileMediaByPayload(payload);
     return {
-      postId: payload.postId,
-      found: result.found,
-      changed: result.changed,
-      skipped: result.skipped,
+      kind: payload.kind,
+      userId: payload.userId,
+      objectKey: payload.objectKey,
+      changed: profileResult.changed,
+      skipped: profileResult.skipped,
+      variants: profileResult.variants,
     };
   }
 

@@ -39,6 +39,7 @@ export function ProfileShellClient(props: { username: string }) {
 	    !Boolean(isOwnProfile);
 
   var effectiveAvatarUrl = avatarUrlOverride ?? profile?.avatarUrl ?? null;
+  var effectiveAvatarUrlLg = avatarUrlOverride ?? profile?.avatarUrlLg ?? profile?.avatarUrl ?? null;
   var effectiveCoverUrl = coverUrlOverride ?? profile?.coverUrl ?? null;
 
   var stableTagline = useMemo(function () {
@@ -122,7 +123,7 @@ export function ProfileShellClient(props: { username: string }) {
           displayName={resolvedProfile.displayName}
           bio={resolvedProfile.bio ?? ""}
           isOwnProfile={isOwnProfile}
-          avatarUrl={effectiveAvatarUrl}
+          avatarUrl={effectiveAvatarUrlLg}
           onAvatarUrlChange={setAvatarUrlOverride}
           location={resolvedProfile.location ?? ""}
           website={resolvedProfile.website ?? ""}

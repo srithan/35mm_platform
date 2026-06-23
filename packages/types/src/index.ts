@@ -29,6 +29,7 @@ export interface PublicUser {
   username: string;
   displayName: string;
   avatarUrl?: string | null;
+  avatarUrlLg?: string | null;
   role?: string | null;
   roleContext?: string | null;
   filmsLoggedCount?: number | null;
@@ -40,6 +41,7 @@ export interface PublicProfile {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   coverUrl: string | null;
   location: string | null;
   website: string | null;
@@ -239,6 +241,7 @@ export interface NotificationActor {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
 }
 
 export interface NotificationEntity {
@@ -264,6 +267,7 @@ export interface NotificationItem {
     username: string;
     displayName: string | null;
     avatarUrl: string | null;
+    avatarUrlLg?: string | null;
   }[];
   bundleCount: number;
   createdAt: string;

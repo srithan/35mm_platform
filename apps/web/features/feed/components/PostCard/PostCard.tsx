@@ -47,6 +47,7 @@ function PostCardComponent(props: PostCardProps) {
     media,
     mediaUrls,
     viewerMediaUrls,
+    prioritizeMedia = false,
     poll,
     saveData = false,
     linkPreview,
@@ -243,6 +244,7 @@ function PostCardComponent(props: PostCardProps) {
             videoUrls={resolvedMedia.videoUrls}
             imageUrls={resolvedMedia.imageUrls}
             imageBlurhashes={resolvedMedia.imageBlurhashes}
+            prioritizeImages={prioritizeMedia}
             imageCaption={imageCaption}
             poll={poll}
             postId={postId}

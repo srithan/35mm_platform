@@ -6,6 +6,7 @@ import {
   date,
   boolean,
   integer,
+  jsonb,
   uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
@@ -26,7 +27,9 @@ export var profiles = pgTable(
   displayName: text("display_name").notNull(),
   bio: text("bio"),
     avatarUrl: text("avatar_url"),
+    avatarVariants: jsonb("avatar_variants").$type<{ sm?: string; lg?: string }>(),
     coverUrl: text("cover_url"),
+    coverVariants: jsonb("cover_variants").$type<{ default?: string }>(),
     location: text("location"),
     website: text("website"),
     dateOfBirth: date("date_of_birth", { mode: "string" }),

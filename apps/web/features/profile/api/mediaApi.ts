@@ -11,11 +11,15 @@ export interface MediaPresignResponse {
   publicUrl: string;
   objectKey: string;
   contentType: string;
+  cacheControl?: string;
   expiresInSeconds: number;
   variants: {
-    thumb: string;
-    feed: string;
-    full: string;
+    thumb?: string;
+    feed?: string;
+    full?: string;
+    sm?: string;
+    lg?: string;
+    default?: string;
   };
 }
 
@@ -59,6 +63,7 @@ export async function uploadToPresignedUrl(params: {
     method: "PUT",
     headers: {
       "Content-Type": params.contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
     },
     body: params.blob,
   });

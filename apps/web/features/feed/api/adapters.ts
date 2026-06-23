@@ -227,6 +227,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
       username,
       displayName,
       avatarUrl: asNullableString(authorRaw.avatarUrl) ?? asNullableString(root.avatarUrl),
+      avatarUrlLg: asNullableString(authorRaw.avatarUrlLg) ?? asNullableString(root.avatarUrlLg),
       isFollowing: Boolean(authorRaw.isFollowing),
       role: asNullableString(authorRaw.role) ?? asNullableString(root.role),
       roleContext:
@@ -308,6 +309,7 @@ type CommentDto = {
     username: string;
     displayName: string;
     avatarUrl: string | null;
+    avatarUrlLg?: string | null;
     role?: string | null;
     roleContext?: string | null;
     filmsLoggedCount?: number | null;
@@ -337,6 +339,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
         username: raw.author.username,
         displayName: raw.author.displayName,
         avatarUrl: raw.author.avatarUrl,
+        avatarUrlLg: raw.author.avatarUrlLg,
         isFollowing: false,
         role: raw.author.role,
         roleContext: raw.author.roleContext,

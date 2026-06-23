@@ -1286,7 +1286,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         >
         {/* Avatar */}
         <div className="pl-0 pr-3 flex-shrink-0 self-start">
-          <Avatar initial={currentInitial} src={currentAvatarUrl} className="w-9 h-9" />
+          <Avatar initial={currentInitial} src={currentAvatarUrl} loading="eager" className="w-9 h-9" />
         </div>
 
         {/* Content */}

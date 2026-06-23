@@ -164,6 +164,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
               src={avatarUrl}
               size="lg"
               variant="ring"
+              loading="eager"
             />
           </div>
           <div className="mt-3">

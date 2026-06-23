@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-21.
+Generated from a direct repository inspection on 2026-06-23.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -60,7 +60,7 @@ Runtime flow:
 - Hono verifies Clerk bearer tokens with `requireAuth`, bootstraps missing local users/profiles/settings/watchlists, and attaches `c.var.user`.
 - Drizzle talks to Neon through `@neondatabase/serverless` HTTP.
 - Upstash Redis is used for feed cache, rate limits, BullMQ broker URLs, and suggestion cache.
-- R2 presigned upload endpoints return deterministic future variant URLs; the worker later creates WebP variants and blurhash.
+- R2 presigned upload endpoints return deterministic future variant URLs; the worker later creates WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
 - Notification creation writes DB rows and enqueues `notification.publish`; the worker publishes Ably `notification.new` events when `ABLY_API_KEY` exists.
 
 ## Repository Map
@@ -149,13 +149,14 @@ Long-running BullMQ consumer.
 Important files:
 
 - `src/index.ts`: resolves Redis URL, creates BullMQ `Worker` and `QueueEvents`, dispatches jobs by name.
-- `src/jobs/mediaProcess.ts`: pulls originals from R2, generates thumb/feed/full WebP variants, computes blurhash, optionally uploads to Cloudflare Images, updates `posts.media` and `posts.media_urls`.
+- `src/jobs/mediaProcess.ts`: pulls originals from R2; generates post thumb/feed/full WebP variants and blurhash; generates avatar sm/lg and cover default variants; optionally uploads post media to Cloudflare Images; updates `posts.media` / `posts.media_urls` or profile variant JSONB fields.
 - `src/jobs/notificationPublish.ts`: reads notification details and publishes Ably `notification.new` to `user:{recipientId}:notifications`.
 - `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes `follow_suggestions` plus Redis cache.
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
 - `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
-- `src/scripts/backfillMedia.ts`: idempotent media backfill runner.
+- `src/scripts/backfillMedia.ts`: idempotent post media backfill runner.
+- `src/scripts/backfillProfileMedia.ts`: idempotent avatar/cover variant backfill runner exposed as `pnpm --filter @35mm/worker backfill:avatars`.
 
 ## Data Model
 
@@ -196,7 +197,7 @@ erDiagram
 Current Drizzle schema highlights:
 
 - `users`: UUID primary key, Clerk ID, email, age verification, account status.
-- `profiles`: username, display name, bio/media, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count.
+- `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count.
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
 - `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview.
 - `bookmark_folders`: per-user bookmark folders.
@@ -458,10 +459,19 @@ How it works:
 - API `POST /v1/media/presign` validates kind/content type/size and returns a presigned R2 PUT URL.
 - Supported kinds: `avatar`, `cover`, `post_media`.
 - Size limits: 12 MB image, 120 MB video.
-- Returned response includes `publicUrl`, `objectKey`, content type, TTL, and deterministic `thumb/feed/full` variant URLs.
+- Returned response includes `publicUrl`, `objectKey`, content type, TTL, and deterministic variant URLs:
+  - Post media: `thumb`, `feed`, `full`.
+  - Avatar media: `sm`, `lg`.
+  - Cover media: `default`.
 - API `GET /v1/media/resolve-url` resolves public media URLs.
 - API `GET /v1/media/oembed` returns link preview/oEmbed data.
-- Worker `media.process` fetches originals, creates WebP variants at 320/640/2048 widths, computes blurhash, writes variants to R2, optionally uses Cloudflare Images, and updates post media JSON.
+- Worker `media.process` fetches originals, creates WebP variants, writes immutable R2 objects, and updates the owning DB row:
+  - Post media: 320/640/2048 width variants, blurhash, `posts.media`, and `posts.media_urls`.
+  - Avatar media: 64x64 `sm` and 320x320 `lg`, stored in `profiles.avatar_variants`.
+  - Cover media: 1200x400 `default`, stored in `profiles.cover_variants`.
+- Profile media URL resolvers prefer variants when present. API responses expose `avatarUrl` for small surfaces and `avatarUrlLg` for profile-header surfaces, falling back to the original stable R2 public URL when variants are missing.
+- Existing profile media variants can be generated with `pnpm --filter @35mm/worker backfill:avatars`.
+- R2 public profile media requires bucket CORS allowing `GET`/`HEAD` from the app origin.
 
 Known gaps:
 
@@ -597,7 +607,7 @@ Queue name:
 
 Implemented or partially implemented:
 
-- `media.process`: implemented.
+- `media.process`: implemented for post media and profile avatar/cover variants.
 - `notification.publish`: implemented when `ABLY_API_KEY` exists.
 - `compute-suggestions`: implemented.
 - `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries.
@@ -637,8 +647,8 @@ Frontend performance:
 - `PostCard` is memoized.
 - Feed uses infinite queries and virtualization for larger lists.
 - Heavy UI such as emoji picker, GIF picker, and film search are dynamically imported in relevant code.
-- R2 image helpers choose connection-aware variants.
-- Service worker caches navigation/static/image assets, not cross-origin API responses.
+- R2 image helpers choose connection-aware variants for post media and normalize profile media URLs.
+- Service worker caches navigation/static/image assets and R2 media assets, not cross-origin API responses.
 
 ## Testing
 

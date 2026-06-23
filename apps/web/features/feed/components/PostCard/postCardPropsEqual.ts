@@ -157,6 +157,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     areAttachedFilmsEqual(prev.attachedFilm, next.attachedFilm) &&
     prev.imageSrc === next.imageSrc &&
     prev.imageCaption === next.imageCaption &&
+    prev.prioritizeMedia === next.prioritizeMedia &&
     areMediaItemsEqual(prev.media, next.media) &&
     areStringArraysEqual(prev.mediaUrls, next.mediaUrls) &&
     areStringArraysEqual(prev.viewerMediaUrls, next.viewerMediaUrls) &&

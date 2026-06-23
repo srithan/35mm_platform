@@ -1,5 +1,6 @@
 export interface ResolveMediaProfile {
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
   coverUrl?: string | null;
 }
 
@@ -12,6 +13,27 @@ function mediaReadsPublic(): boolean {
 const mediaUrlCache = new Map<string, { value: string; expiresAt: number }>();
 
 const MEDIA_URL_CACHE_TTL_MS = 7 * 60 * 1000;
+
+export function normalizeMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    // Signed R2 URLs contain X-Amz-Signature. Strip query params so legacy
+    // cached profile media URLs collapse to one stable browser-cache key.
+    if (parsed.searchParams.has("X-Amz-Signature") || parsed.searchParams.has("x-amz-signature")) {
+      parsed.search = "";
+      return parsed.toString();
+    }
+  } catch {
+    return trimmed;
+  }
+
+  return trimmed;
+}
 
 function mediaCacheKey(value: string): string {
   try {
@@ -64,8 +86,7 @@ export async function resolvePublicMediaUrl(
   value: string | null | undefined,
   options?: { force?: boolean }
 ): Promise<string | null> {
-  if (!value) return null;
-  const trimmed = value.trim();
+  const trimmed = normalizeMediaUrl(value);
   if (!trimmed) return null;
   if (!shouldResolvePublicR2Url(trimmed)) return trimmed;
 
@@ -95,11 +116,13 @@ export async function resolvePublicMediaUrl(
   try {
     const payload = (await response.json()) as { url?: unknown };
     if (typeof payload.url === "string" && payload.url.trim().length > 0) {
+      const normalizedUrl = normalizeMediaUrl(payload.url);
+      if (!normalizedUrl) return null;
       mediaUrlCache.set(cacheKey, {
-        value: payload.url,
+        value: normalizedUrl,
         expiresAt: Date.now() + MEDIA_URL_CACHE_TTL_MS,
       });
-      return payload.url;
+      return normalizedUrl;
     }
   } catch {
     return null;
@@ -110,6 +133,9 @@ export async function resolvePublicMediaUrl(
 
 export async function resolveProfileMediaUrls<T extends ResolveMediaProfile>(profile: T): Promise<T> {
   const avatarUrl = await resolvePublicMediaUrl(profile.avatarUrl);
+  const avatarUrlLg = Object.prototype.hasOwnProperty.call(profile, "avatarUrlLg")
+    ? await resolvePublicMediaUrl((profile as { avatarUrlLg?: string | null | undefined }).avatarUrlLg)
+    : undefined;
   const coverUrl = Object.prototype.hasOwnProperty.call(profile, "coverUrl")
     ? await resolvePublicMediaUrl((profile as { coverUrl?: string | null | undefined }).coverUrl)
     : undefined;
@@ -117,6 +143,11 @@ export async function resolveProfileMediaUrls<T extends ResolveMediaProfile>(pro
   return {
     ...(profile as T),
     avatarUrl,
+    ...(Object.prototype.hasOwnProperty.call(profile, "avatarUrlLg")
+      ? {
+          avatarUrlLg: avatarUrlLg ?? avatarUrl,
+        }
+      : {}),
     ...(Object.prototype.hasOwnProperty.call(profile, "coverUrl")
       ? {
           coverUrl: coverUrl ?? null,

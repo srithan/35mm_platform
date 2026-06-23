@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { DEFAULT_PROFILE_AVATAR_URL } from "@/lib/constants/profileMedia";
-import { LazyR2Image } from "@/components/LazyR2Image";
+import { isAvatarImageLoaded, markAvatarImageLoaded } from "./avatarImageCache";
 
 interface AvatarProps {
   initial?: string;
@@ -12,9 +12,12 @@ interface AvatarProps {
   allowDefaultFallback?: boolean;
   size?: "sm" | "md" | "lg" | "profile-lg";
   className?: string;
+  loading?: "eager" | "lazy";
   /** Extra border emphasis used in header/sidebar placements. */
   variant?: "default" | "ring";
 }
+
+type AvatarLoadStatus = "loading" | "loaded" | "error";
 
 const sizeMap: Record<NonNullable<AvatarProps["size"]>, string> = {
   sm: "w-8 h-8 text-xs",
@@ -44,6 +47,7 @@ export function Avatar({
   allowDefaultFallback = true,
   size = "md",
   className,
+  loading = "lazy",
   variant = "default",
 }: AvatarProps) {
   const sizeClass = sizeMap[size];
@@ -53,8 +57,9 @@ export function Avatar({
       : "bg-border text-fg-light";
   const initialDisplaySrc = resolveDisplayAvatar(src, allowDefaultFallback);
   const [displaySrc, setDisplaySrc] = useState<string | null>(initialDisplaySrc);
-  const [showInitialFallback, setShowInitialFallback] = useState(function () {
-    return initialDisplaySrc == null;
+  const [status, setStatus] = useState<AvatarLoadStatus>(function () {
+    if (isAvatarImageLoaded(initialDisplaySrc)) return "loaded";
+    return initialDisplaySrc || allowDefaultFallback === false ? "loading" : "error";
   });
   const fallbackAttemptedRef = useRef(false);
   const lastDisplaySrcRef = useRef(initialDisplaySrc);
@@ -65,13 +70,15 @@ export function Avatar({
       if (lastDisplaySrcRef.current === nextSrc) return;
       lastDisplaySrcRef.current = nextSrc;
       setDisplaySrc(nextSrc);
-      setShowInitialFallback(!nextSrc);
+      if (isAvatarImageLoaded(nextSrc)) {
+        setStatus("loaded");
+      } else {
+        setStatus(nextSrc || allowDefaultFallback === false ? "loading" : "error");
+      }
       fallbackAttemptedRef.current = false;
     },
     [src, allowDefaultFallback]
   );
-
-  const showSkeleton = !showInitialFallback && !displaySrc;
 
   return (
     <div
@@ -82,29 +89,46 @@ export function Avatar({
         className
       )}
     >
-      {displaySrc && !showInitialFallback ? (
-        <LazyR2Image
-          src={displaySrc}
-          alt=""
-          forceLoad
-          className="h-full w-full rounded-full object-cover"
-          containerClassName="absolute inset-0"
-          placeholderClassName="rounded-full bg-sunken-2"
-          onError={() => {
-            if (displaySrc !== DEFAULT_PROFILE_AVATAR_URL && !fallbackAttemptedRef.current) {
-              fallbackAttemptedRef.current = true;
-              setDisplaySrc(DEFAULT_PROFILE_AVATAR_URL);
-              return;
-            }
-            setShowInitialFallback(true);
-          }}
+      {status === "loading" ? (
+        <div
+          className="absolute inset-0 rounded-full bg-sunken-2 ring-1 ring-border/60"
+          aria-hidden
         />
       ) : null}
-      {showSkeleton ? (
-        <div className="absolute inset-0 animate-pulse bg-sunken-2" aria-hidden />
-      ) : null}
-      {showInitialFallback ? (
+      {status === "error" ? (
         <span className="text-fg-muted">{initial || "?"}</span>
+      ) : null}
+      {displaySrc ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={displaySrc}
+          alt=""
+          aria-hidden
+          loading={loading}
+          decoding="async"
+          onLoad={() => {
+            markAvatarImageLoaded(displaySrc);
+            setStatus("loaded");
+          }}
+          onError={() => {
+            if (
+              allowDefaultFallback &&
+              displaySrc !== DEFAULT_PROFILE_AVATAR_URL &&
+              !fallbackAttemptedRef.current
+            ) {
+              fallbackAttemptedRef.current = true;
+              lastDisplaySrcRef.current = DEFAULT_PROFILE_AVATAR_URL;
+              setDisplaySrc(DEFAULT_PROFILE_AVATAR_URL);
+              setStatus("loading");
+              return;
+            }
+            setStatus("error");
+          }}
+          className={cn(
+            "absolute inset-0 h-full w-full rounded-full object-cover",
+            status === "error" ? "opacity-0" : "opacity-100"
+          )}
+        />
       ) : null}
     </div>
   );

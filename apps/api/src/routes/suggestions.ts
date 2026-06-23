@@ -6,6 +6,7 @@ import { getDb } from "../lib/db.js";
 import { getRedisClient } from "../lib/redis.js";
 import { requireAuth } from "../lib/middleware.js";
 import { enqueueSuggestionRefresh } from "../lib/queues/suggestionQueue.js";
+import { resolveProfileAvatarUrl, type AvatarVariants } from "../modules/media/url.js";
 
 var suggestionsRoutes = new Hono();
 
@@ -79,22 +80,30 @@ async function readSuggestionRows(userId: string, candidateIds: string[]) {
     );
 }
 
-function asFollowSuggestion(
-  row: { userId: string; username: string; displayName: string; avatarUrl: string | null; bio: string | null },
+async function asFollowSuggestion(
+  row: {
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    avatarVariants?: AvatarVariants | null;
+    bio: string | null;
+  },
   score: number,
   signalType:
     | "fof"
     | "content_affinity"
     | "letterboxd_import_match"
     | "onboarding_seed"
-): FollowSuggestion {
+): Promise<FollowSuggestion> {
   var people = score === 1 ? "person" : "people";
   return {
     user: {
       id: row.userId,
       username: row.username,
       displayName: row.displayName,
-      avatarUrl: row.avatarUrl,
+      avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
+      avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
       bio: row.bio,
     },
     score,
@@ -227,6 +236,7 @@ suggestionsRoutes.get("/suggestions/users", requireAuth, async function (c) {
         username: profiles.username,
         displayName: profiles.displayName,
         avatarUrl: profiles.avatarUrl,
+        avatarVariants: profiles.avatarVariants,
         bio: profiles.bio,
       })
       .from(users)
@@ -244,6 +254,7 @@ suggestionsRoutes.get("/suggestions/users", requireAuth, async function (c) {
       username: string;
       displayName: string;
       avatarUrl: string | null;
+      avatarVariants?: AvatarVariants | null;
       bio: string | null;
     }>();
     for (i = 0; i < userRows.length; i += 1) {
@@ -253,20 +264,21 @@ suggestionsRoutes.get("/suggestions/users", requireAuth, async function (c) {
         username: userRow.username,
         displayName: userRow.displayName,
         avatarUrl: userRow.avatarUrl,
+        avatarVariants: userRow.avatarVariants,
         bio: userRow.bio,
       });
     }
 
     var orderedIds = filteredIds.slice(startIndex, startIndex + limit);
-    var suggestions = orderedIds
-      .map(function (id) {
+    var suggestions = (await Promise.all(orderedIds
+      .map(async function (id) {
         var userProfile = userMap.get(id);
         var signal = suggestionMap.get(id);
         if (!userProfile || !signal) {
           return null;
         }
         return asFollowSuggestion(userProfile, signal.score, signal.signalType);
-      })
+      })))
       .filter(function (value): value is FollowSuggestion {
         return value !== null;
       });

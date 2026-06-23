@@ -34,16 +34,26 @@ interface PresignResponse {
   publicUrl: string;
   objectKey: string;
   contentType: string;
+  cacheControl: string;
   expiresInSeconds: number;
-  variants: {
-    thumb: string;
-    feed: string;
-    full: string;
-  };
+  variants:
+    | {
+        thumb: string;
+        feed: string;
+        full: string;
+      }
+    | {
+        sm: string;
+        lg: string;
+      }
+    | {
+        default: string;
+      };
 }
 
 var MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 var MAX_VIDEO_BYTES = 120 * 1024 * 1024;
+var IMMUTABLE_MEDIA_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 function isAuthorizedR2Configured(): string | null {
   var env = loadEnv();
@@ -149,6 +159,25 @@ function variantObjectKeys(objectKey: string): { thumb: string; feed: string; fu
   };
 }
 
+function profileMediaVariantObjectKeys(
+  objectKey: string,
+  kind: "avatar" | "cover"
+): { sm: string; lg: string } | { default: string } {
+  var parts = splitObjectKey(objectKey);
+  var filename = parts.base.split("/").pop() ?? parts.base;
+  var dir = parts.base.slice(0, Math.max(0, parts.base.length - filename.length)).replace(/\/+$/, "");
+  var prefix = dir.length > 0 ? dir + "/" : "";
+  if (kind === "avatar") {
+    return {
+      sm: prefix + "sm_" + filename + ".webp",
+      lg: prefix + "lg_" + filename + ".webp",
+    };
+  }
+  return {
+    default: prefix + "default_" + filename + ".webp",
+  };
+}
+
 function joinPublicUrl(baseUrl: string, key: string): string {
   return baseUrl + "/" + key.replace(/^\/+/, "");
 }
@@ -183,6 +212,25 @@ function mediaVariantsForKey(
     thumb: joinPublicUrl(baseUrl, variantObjectKeys(key).thumb),
     feed: joinPublicUrl(baseUrl, variantObjectKeys(key).feed),
     full: joinPublicUrl(baseUrl, variantObjectKeys(key).full),
+  };
+}
+
+function profileMediaVariantsForKey(
+  key: string,
+  kind: "avatar" | "cover"
+): { sm: string; lg: string } | { default: string } {
+  var baseUrl = getPublicBaseUrl();
+  var variants = profileMediaVariantObjectKeys(key, kind);
+  if (kind === "avatar") {
+    var avatarVariants = variants as { sm: string; lg: string };
+    return {
+      sm: joinPublicUrl(baseUrl, avatarVariants.sm),
+      lg: joinPublicUrl(baseUrl, avatarVariants.lg),
+    };
+  }
+  var coverVariants = variants as { default: string };
+  return {
+    default: joinPublicUrl(baseUrl, coverVariants.default),
   };
 }
 
@@ -239,6 +287,7 @@ mediaRoutes.post("/presign", requireAuth, presignRateLimit, async function (c) {
     Key: key,
     ContentType: contentType,
     ContentLength: contentLength,
+    CacheControl: IMMUTABLE_MEDIA_CACHE_CONTROL,
     Metadata: {
       owner: user.userId,
       kind,
@@ -254,8 +303,12 @@ mediaRoutes.post("/presign", requireAuth, presignRateLimit, async function (c) {
     publicUrl: getPublicBaseUrl() + "/" + key,
     objectKey: key,
     contentType,
+    cacheControl: IMMUTABLE_MEDIA_CACHE_CONTROL,
     expiresInSeconds: getPresignTtl(),
-    variants: mediaVariantsForKey(key, contentType),
+    variants:
+      kind === "avatar" || kind === "cover"
+        ? profileMediaVariantsForKey(key, kind)
+        : mediaVariantsForKey(key, contentType),
   };
 
   return c.json(response);
@@ -273,6 +326,11 @@ mediaRoutes.get("/resolve-url", async function (c) {
   }
 
   var resolvedUrl = await resolvePublicMediaUrl(trimmed);
+  c.header("Cache-Control", IMMUTABLE_MEDIA_CACHE_CONTROL);
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET, HEAD");
+  c.header("Access-Control-Allow-Headers", "*");
+  c.header("Access-Control-Max-Age", "86400");
   return c.json({ url: resolvedUrl ?? trimmed });
 });
 

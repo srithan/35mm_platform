@@ -92,6 +92,7 @@ export interface PostCardProps {
   media?: PostCardMediaItem[];
   mediaUrls?: string[];
   viewerMediaUrls?: string[];
+  prioritizeMedia?: boolean;
   poll?: PostCardPoll | null;
   saveData?: boolean;
   linkPreview?: PostCardLinkPreview | null;

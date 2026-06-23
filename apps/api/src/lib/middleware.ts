@@ -5,6 +5,7 @@ import { users, profiles, userSettings } from "@35mm/db/schema";
 import { getDb } from "./db.js";
 import { ApiError, unauthorized } from "./errors.js";
 import { tryEnsureWatchlistForUser } from "./filmLists.js";
+import { resolveProfileAvatarUrl } from "../modules/media/url.js";
 
 export type AuthUser = {
   clerkUserId: string;
@@ -12,6 +13,7 @@ export type AuthUser = {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarUrlLg?: string | null;
 };
 
 type AuthEnv = {
@@ -58,6 +60,7 @@ async function ensureLocalUser(clerkUserId: string) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       status: users.status,
     })
     .from(users)
@@ -67,7 +70,11 @@ async function ensureLocalUser(clerkUserId: string) {
 
   if (existing.length > 0) {
     await tryEnsureWatchlistForUser(existing[0].userId);
-    return existing[0];
+    return {
+      ...existing[0],
+      avatarUrl: await resolveProfileAvatarUrl(existing[0].avatarUrl, existing[0].userId, existing[0].avatarVariants, "sm"),
+      avatarUrlLg: await resolveProfileAvatarUrl(existing[0].avatarUrl, existing[0].userId, existing[0].avatarVariants, "lg"),
+    };
   }
 
   var clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
@@ -126,6 +133,7 @@ async function ensureLocalUser(clerkUserId: string) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       status: users.status,
     })
     .from(users)
@@ -139,7 +147,11 @@ async function ensureLocalUser(clerkUserId: string) {
 
   await tryEnsureWatchlistForUser(created[0].userId);
 
-  return created[0];
+  return {
+    ...created[0],
+    avatarUrl: await resolveProfileAvatarUrl(created[0].avatarUrl, created[0].userId, created[0].avatarVariants, "sm"),
+    avatarUrlLg: await resolveProfileAvatarUrl(created[0].avatarUrl, created[0].userId, created[0].avatarVariants, "lg"),
+  };
 }
 
 async function verifyAndResolveUser(token: string): Promise<AuthUser | null> {
@@ -166,6 +178,7 @@ async function verifyAndResolveUser(token: string): Promise<AuthUser | null> {
     username: row.username,
     displayName: row.displayName,
     avatarUrl: row.avatarUrl,
+    avatarUrlLg: row.avatarUrlLg,
   };
 }
 

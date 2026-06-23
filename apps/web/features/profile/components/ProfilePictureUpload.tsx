@@ -130,7 +130,7 @@ export function ProfilePictureUpload({
 
       setUploadProgress(95);
 
-      onUploadComplete?.(profile.avatarUrl);
+      onUploadComplete?.(profile.avatarUrlLg ?? profile.avatarUrl);
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
       queryClient.invalidateQueries({ queryKey: profileKeys.all });
       setIsUploading(false);

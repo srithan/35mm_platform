@@ -4,7 +4,7 @@ import { profiles } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest } from "../../lib/errors.js";
-import { resolvePublicMediaUrl } from "../media/url.js";
+import { resolveProfileAvatarUrl } from "../media/url.js";
 
 export var authRoutes = new Hono();
 
@@ -52,6 +52,7 @@ authRoutes.get("/me", requireAuth, async function (c) {
       username: profiles.username,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
       role: profiles.role,
       roleContext: profiles.roleContext,
       filmsLoggedCount: profiles.filmsLoggedCount,
@@ -65,13 +66,17 @@ authRoutes.get("/me", requireAuth, async function (c) {
   }
 
   var row = rows[0];
-  var avatarUrl = await resolvePublicMediaUrl(row.avatarUrl);
+  var [avatarUrl, avatarUrlLg] = await Promise.all([
+    resolveProfileAvatarUrl(row.avatarUrl, user.userId, row.avatarVariants, "sm"),
+    resolveProfileAvatarUrl(row.avatarUrl, user.userId, row.avatarVariants, "lg"),
+  ]);
 
   return c.json({
     userId: user.userId,
     username: row.username,
     displayName: row.displayName,
     avatarUrl,
+    avatarUrlLg,
     role: row.role,
     roleContext: row.roleContext,
     filmsLoggedCount: row.filmsLoggedCount,

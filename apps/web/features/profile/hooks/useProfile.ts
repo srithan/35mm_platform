@@ -28,8 +28,7 @@ export function usePublicProfile(username: string) {
     queryKey: profileKeys.detail(username),
     queryFn: async () => fetchPublicProfile(username, await getToken()),
     enabled: isLoaded && username.trim().length > 0,
-    staleTime: 60_000,
-    gcTime: 10 * 60_000,
+    staleTime: 2 * 60 * 1000,
     retry: 1,
   });
 }

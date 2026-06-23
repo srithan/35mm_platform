@@ -1,6 +1,6 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createDb } from "@35mm/db";
-import { posts, type PostMedia } from "@35mm/db/schema";
+import { posts, profiles, type PostMedia } from "@35mm/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { encode as encodeBlurhash } from "blurhash";
@@ -11,6 +11,16 @@ type PostRow = {
   media: PostMedia[];
   mediaUrls: string[] | null;
 };
+
+export type MediaProcessJobPayload =
+  | {
+      postId: string;
+    }
+  | {
+      kind: "avatar" | "cover";
+      userId: string;
+      objectKey: string;
+    };
 
 var s3Client: S3Client | null = null;
 
@@ -81,6 +91,25 @@ function variantObjectKeys(sourceKey: string): { thumb: string; feed: string; fu
     thumb: parts.base + "__thumb.webp",
     feed: parts.base + "__feed.webp",
     full: parts.base + "__full.webp",
+  };
+}
+
+function profileMediaVariantObjectKeys(
+  sourceKey: string,
+  kind: "avatar" | "cover"
+): { sm: string; lg: string } | { default: string } {
+  var parts = splitObjectKey(sourceKey);
+  var filename = parts.base.split("/").pop() ?? parts.base;
+  var dir = parts.base.slice(0, Math.max(0, parts.base.length - filename.length)).replace(/\/+$/, "");
+  var prefix = dir.length > 0 ? dir + "/" : "";
+  if (kind === "avatar") {
+    return {
+      sm: prefix + "sm_" + filename + ".webp",
+      lg: prefix + "lg_" + filename + ".webp",
+    };
+  }
+  return {
+    default: prefix + "default_" + filename + ".webp",
   };
 }
 
@@ -262,6 +291,73 @@ async function processImageMediaItem(env: WorkerEnv, item: PostMedia): Promise<P
   };
 }
 
+async function processProfileMedia(
+  env: WorkerEnv,
+  payload: Extract<MediaProcessJobPayload, { kind: "avatar" | "cover" }>
+): Promise<{ changed: boolean; variants: Record<string, string> }> {
+  var objectBytes = await getObjectBytes(env, payload.objectKey);
+  var variantKeys = profileMediaVariantObjectKeys(payload.objectKey, payload.kind);
+
+  // To backfill variants for existing avatars and covers, run:
+  // pnpm --filter @35mm/worker backfill:avatars
+  if (payload.kind === "avatar") {
+    var avatarKeys = variantKeys as { sm: string; lg: string };
+    var smBuffer = await sharp(objectBytes)
+      .rotate()
+      .resize(64, 64, { fit: "cover", position: "centre" })
+      .webp({ quality: 85 })
+      .toBuffer();
+    var lgBuffer = await sharp(objectBytes)
+      .rotate()
+      .resize(320, 320, { fit: "cover", position: "centre" })
+      .webp({ quality: 85 })
+      .toBuffer();
+
+    await Promise.all([
+      putWebpVariant(env, avatarKeys.sm, smBuffer),
+      putWebpVariant(env, avatarKeys.lg, lgBuffer),
+    ]);
+
+    var avatarVariants = {
+      sm: publicUrlForKey(env.R2_PUBLIC_BASE_URL, avatarKeys.sm),
+      lg: publicUrlForKey(env.R2_PUBLIC_BASE_URL, avatarKeys.lg),
+    };
+
+    await getDb()
+      .update(profiles)
+      .set({
+        avatarVariants,
+        updatedAt: new Date(),
+      })
+      .where(eq(profiles.userId, payload.userId));
+
+    return { changed: true, variants: avatarVariants };
+  }
+
+  var coverKeys = variantKeys as { default: string };
+  var defaultBuffer = await sharp(objectBytes)
+    .rotate()
+    .resize(1200, 400, { fit: "cover", position: "centre" })
+    .webp({ quality: 85 })
+    .toBuffer();
+
+  await putWebpVariant(env, coverKeys.default, defaultBuffer);
+
+  var coverVariants = {
+    default: publicUrlForKey(env.R2_PUBLIC_BASE_URL, coverKeys.default),
+  };
+
+  await getDb()
+    .update(profiles)
+    .set({
+      coverVariants,
+      updatedAt: new Date(),
+    })
+    .where(eq(profiles.userId, payload.userId));
+
+  return { changed: true, variants: coverVariants };
+}
+
 async function processPostRow(env: WorkerEnv, row: PostRow): Promise<boolean> {
   var media = Array.isArray(row.media) ? row.media : [];
   var updatedMedia: PostMedia[] = [];
@@ -386,4 +482,16 @@ export async function processPostById(postId: string): Promise<{
   var env = loadWorkerEnv();
   var changed = await processPostRow(env, row);
   return { found: true, changed, skipped: !changed };
+}
+
+export async function processProfileMediaByPayload(
+  payload: Extract<MediaProcessJobPayload, { kind: "avatar" | "cover" }>
+): Promise<{ changed: boolean; skipped: boolean; variants: Record<string, string> }> {
+  var env = loadWorkerEnv();
+  var result = await processProfileMedia(env, payload);
+  return {
+    changed: result.changed,
+    skipped: !result.changed,
+    variants: result.variants,
+  };
 }
