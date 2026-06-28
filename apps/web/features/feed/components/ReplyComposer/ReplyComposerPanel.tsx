@@ -142,27 +142,28 @@ export function ReplyComposerTrigger(props: {
   className?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      aria-label={props.placeholder ?? "Post your reply…"}
-      className={cn(
-        "group mx-4 my-3 flex w-[calc(100%-2rem)] items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-sunken/60 px-4 py-3.5 text-left transition-all duration-150",
-        "hover:border-fg-muted/35 hover:bg-hover/50 active:scale-[0.995]",
-        props.className
-      )}
-    >
-      <Avatar
-        initial={props.avatarInitial}
-        src={props.avatarUrl}
-        className="h-10 w-10 shrink-0"
-      />
-      <span className="flex-1 text-[15px] font-medium text-fg-muted transition-colors group-hover:text-fg">
-        {props.placeholder ?? "Post your reply…"}
-      </span>
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hover text-fg-muted transition-colors group-hover:bg-fg group-hover:text-bg">
-        <Icon name="reply" className="h-4 w-4" strokeWidth={2.2} />
-      </span>
-    </button>
+    <div className={cn("px-4 py-3", props.className)}>
+      <button
+        type="button"
+        onClick={props.onClick}
+        aria-label={props.placeholder ?? "Post your reply…"}
+        className={cn(
+          "group flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-sunken/60 py-3.5 pr-4 text-left transition-all duration-150",
+          "hover:border-fg-muted/35 hover:bg-hover/50 active:scale-[0.995]"
+        )}
+      >
+        <Avatar
+          initial={props.avatarInitial}
+          src={props.avatarUrl}
+          className="h-10 w-10 shrink-0"
+        />
+        <span className="flex-1 text-[15px] font-medium text-fg-muted transition-colors group-hover:text-fg">
+          {props.placeholder ?? "Post your reply…"}
+        </span>
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hover text-fg-muted transition-colors group-hover:bg-fg group-hover:text-bg">
+          <Icon name="reply" className="h-4 w-4" strokeWidth={2.2} />
+        </span>
+      </button>
+    </div>
   );
 }
