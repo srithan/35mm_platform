@@ -1,6 +1,7 @@
 export {
   FlashToast,
   FlashToastHost,
+  flashToastSurfaceClass,
   queueFlashToast,
   showGlobalFlashToast,
   useFlashToast,

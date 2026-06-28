@@ -51,20 +51,30 @@ function readQueuedFlashToast(): FlashToastPayload | null {
   return null;
 }
 
+/** Compact glass-like pill — no backdrop-filter (too expensive on a fixed overlay). */
+export function flashToastSurfaceClass(tone: FlashToastTone = "success") {
+  return cn(
+    "relative isolate w-max max-w-full overflow-hidden",
+    "rounded-full border px-4 py-2.5 text-xs font-medium text-fg",
+    "border-[color-mix(in_srgb,var(--fg)_12%,transparent)]",
+    "bg-[linear-gradient(165deg,var(--elevated)_0%,color-mix(in_srgb,var(--fg)_7%,var(--sunken))_100%)]",
+    "shadow-[0_10px_28px_-10px_color-mix(in_srgb,var(--bg)_50%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--fg)_18%,transparent)]",
+    "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:content-[''] before:bg-[linear-gradient(180deg,color-mix(in_srgb,var(--fg)_10%,transparent),transparent_42%)]",
+    tone === "error" && "border-[color-mix(in_srgb,var(--fg)_18%,transparent)]"
+  );
+}
+
+const flashToastAnchorClass =
+  "pointer-events-none fixed inset-x-0 z-[9999] flex justify-center px-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6";
+
 export function FlashToast(props: { message: string; tone?: FlashToastTone }) {
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div
-      className={cn(
-        "pointer-events-none fixed left-1/2 z-[9999] -translate-x-1/2 rounded-full px-4 py-2.5 text-xs font-medium shadow-lg",
-        "bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6",
-        props.tone === "error" ? "bg-accent text-white" : "bg-fg text-bg"
-      )}
-      role="status"
-      aria-live="polite"
-    >
-      {props.message}
+    <div className={flashToastAnchorClass} role="status" aria-live="polite">
+      <div className={cn("animate-fade-up", flashToastSurfaceClass(props.tone))}>
+        <span className="relative z-[1]">{props.message}</span>
+      </div>
     </div>,
     document.body
   );
