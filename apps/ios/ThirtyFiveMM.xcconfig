@@ -1,0 +1,2 @@
+API_BASE_URL = http:/$()/127.0.0.1:4000
+CLERK_PUBLISHABLE_KEY = pk_test_cG9saXRlLXdlcmV3b2xmLTU1LmNsZXJrLmFjY291bnRzLmRldiQ
