@@ -288,7 +288,7 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
                       <svg
                         className={cn(
                           "w-[18px] h-[18px] shrink-0",
-                          isWinning ? "text-[#0f0f0f]" : "text-[var(--color-poll-winner)]"
+                          isWinning ? "poll-winner-on-gradient" : "text-[var(--color-poll-winner)]"
                         )}
                         viewBox="0 0 24 24"
                         fill="currentColor"
@@ -296,17 +296,26 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                       </svg>
                     ) : null}
-                    <span className={cn(
-                      "text-[15px] truncate text-fg",
-                      isWinning && "font-semibold"
-                    )}>
+                    <span
+                      className={cn(
+                        "text-[15px] truncate",
+                        isWinning ? "font-semibold poll-winner-on-gradient" : "text-fg"
+                      )}
+                    >
                       {label}
                     </span>
                   </div>
-                  <span className={cn(
-                    "text-[15px] tabular-nums shrink-0 ml-3",
-                    isWinning ? "font-semibold text-fg" : "text-fg-muted"
-                  )}>
+                  <span
+                    className={cn(
+                      "text-[15px] tabular-nums shrink-0 ml-3",
+                      isWinning
+                        ? cn(
+                            "font-semibold",
+                            percent >= 88 ? "poll-winner-on-gradient" : "text-fg"
+                          )
+                        : "text-fg-muted"
+                    )}
+                  >
                     {percent.toFixed(0)}%
                   </span>
                 </div>

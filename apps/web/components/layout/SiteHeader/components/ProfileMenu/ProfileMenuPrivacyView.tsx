@@ -1,5 +1,6 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
+import { Switch } from "@/components/Switch";
 import type { PrivacySettings } from "@/features/settings/types/settings";
 import styles from "../../SiteHeader.module.css";
 
@@ -30,60 +31,48 @@ export function ProfileMenuPrivacyView({
         <h2 className={styles.profileSubmenuTitle}>Privacy</h2>
       </div>
       <div className={styles.profileSwitchStack}>
-        <label className={styles.profileSwitchRow}>
+        <div className={styles.profileSwitchRow}>
           <span className={styles.profileSwitchCopy}>
             <span className={styles.profileSwitchLabel}>Private account</span>
             <span className={styles.profileSwitchHint}>Only approved followers can see your posts</span>
           </span>
-          <span className={styles.profileSwitch}>
-            <input
-              type="checkbox"
-              checked={privacySettings.privateAccount}
-              disabled={updatePrivacyMutation.isPending}
-              onChange={function (event) {
-                onToggleSetting("privateAccount", event.target.checked);
-              }}
-            />
-            <span className={styles.profileSwitchTrack} aria-hidden />
-            <span className={styles.profileSwitchThumb} aria-hidden />
-          </span>
-        </label>
-        <label className={styles.profileSwitchRow}>
+          <Switch
+            checked={privacySettings.privateAccount}
+            disabled={updatePrivacyMutation.isPending}
+            onChange={function (checked) {
+              onToggleSetting("privateAccount", checked);
+            }}
+            aria-label="Private account"
+          />
+        </div>
+        <div className={styles.profileSwitchRow}>
           <span className={styles.profileSwitchCopy}>
             <span className={styles.profileSwitchLabel}>Allow messages from anyone</span>
             <span className={styles.profileSwitchHint}>Otherwise only people you follow can message you</span>
           </span>
-          <span className={styles.profileSwitch}>
-            <input
-              type="checkbox"
-              checked={privacySettings.allowMessagesFromAnyone}
-              disabled={updatePrivacyMutation.isPending}
-              onChange={function (event) {
-                onToggleSetting("allowMessagesFromAnyone", event.target.checked);
-              }}
-            />
-            <span className={styles.profileSwitchTrack} aria-hidden />
-            <span className={styles.profileSwitchThumb} aria-hidden />
-          </span>
-        </label>
-        <label className={styles.profileSwitchRow}>
+          <Switch
+            checked={privacySettings.allowMessagesFromAnyone}
+            disabled={updatePrivacyMutation.isPending}
+            onChange={function (checked) {
+              onToggleSetting("allowMessagesFromAnyone", checked);
+            }}
+            aria-label="Allow messages from anyone"
+          />
+        </div>
+        <div className={styles.profileSwitchRow}>
           <span className={styles.profileSwitchCopy}>
             <span className={styles.profileSwitchLabel}>Show activity status</span>
             <span className={styles.profileSwitchHint}>Let others see when you are active</span>
           </span>
-          <span className={styles.profileSwitch}>
-            <input
-              type="checkbox"
-              checked={privacySettings.showActivityStatus}
-              disabled={updatePrivacyMutation.isPending}
-              onChange={function (event) {
-                onToggleSetting("showActivityStatus", event.target.checked);
-              }}
-            />
-            <span className={styles.profileSwitchTrack} aria-hidden />
-            <span className={styles.profileSwitchThumb} aria-hidden />
-          </span>
-        </label>
+          <Switch
+            checked={privacySettings.showActivityStatus}
+            disabled={updatePrivacyMutation.isPending}
+            onChange={function (checked) {
+              onToggleSetting("showActivityStatus", checked);
+            }}
+            aria-label="Show activity status"
+          />
+        </div>
       </div>
       {updatePrivacyMutation.isError ? (
         <p className={styles.profileInlineError}>Could not update privacy.</p>

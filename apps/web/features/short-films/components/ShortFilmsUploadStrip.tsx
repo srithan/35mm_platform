@@ -58,8 +58,8 @@ export function ShortFilmsUploadStrip() {
               href={ROUTES.SHORT_FILMS_UPLOAD}
               className={cn(
                 "inline-flex h-10 w-full items-center justify-center gap-2 rounded-full px-5 sm:w-auto",
-                "bg-accent text-[13px] font-semibold tracking-[0.01em] text-white no-underline",
-                "shadow-[0_6px_20px_-8px_rgba(194,71,58,0.65)]",
+                "bg-fg text-[13px] font-semibold tracking-[0.01em] text-bg no-underline",
+                "shadow-[0_6px_20px_-8px_color-mix(in_srgb,var(--fg)_35%,transparent)]",
                 "transition-[transform,filter] duration-150 ease-out",
                 "hover:brightness-[1.04] active:scale-[0.97]"
               )}

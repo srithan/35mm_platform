@@ -83,7 +83,7 @@ export function ReplyComposerPanel({
           <div
             className={cn(
               "overflow-hidden rounded-xl border border-border bg-elevated shadow-sm transition-[border-color,box-shadow] duration-150",
-              "focus-within:border-fg-muted/40 focus-within:shadow-md"
+              "focus-within:border-[color-mix(in_srgb,var(--fg)_16%,transparent)] focus-within:shadow-md"
             )}
           >
             <RichTextEditor
@@ -98,7 +98,7 @@ export function ReplyComposerPanel({
               )}
             />
 
-            <div className="flex items-center justify-between gap-2 border-t border-border/70 bg-sunken/40 px-2.5 py-2">
+            <div className="flex items-center justify-between gap-2 border-t border-[color-mix(in_srgb,var(--fg)_8%,transparent)] bg-[color-mix(in_srgb,var(--fg)_4%,var(--elevated))] px-2.5 py-2">
               <FormattingToolbar editor={editor} showDivider={false} />
               <div className="flex shrink-0 items-center gap-1.5">
                 {onCancel ? (

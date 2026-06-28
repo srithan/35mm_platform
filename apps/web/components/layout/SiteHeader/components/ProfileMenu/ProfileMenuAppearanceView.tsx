@@ -1,5 +1,5 @@
-import type { UseMutationResult } from "@tanstack/react-query";
 import { Check, ChevronLeft } from "lucide-react";
+import { Switch } from "@/components/Switch";
 import { cn } from "@/lib/utils/cn";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 import type { AccentColorOption } from "@/lib/theme/accentColors";
@@ -11,7 +11,10 @@ import styles from "../../SiteHeader.module.css";
 
 type ProfileMenuAppearanceViewProps = {
   appearanceSettings: AppearanceSettings;
-  updateAppearanceMutation: UseMutationResult<unknown, Error, AppearanceSettings, unknown>;
+  updateAppearanceMutation: {
+    isPending: boolean;
+    isError: boolean;
+  };
   onBack: () => void;
   onSelectTheme: (theme: ThemeOption) => void;
   onSelectAccentColor: (accentColor: AccentColorOption) => void;
@@ -86,24 +89,18 @@ export function ProfileMenuAppearanceView({
           })?.label ?? "Theme default"}
         </p>
       </div>
-      <label className={styles.profileSwitchRow}>
+      <div className={styles.profileSwitchRow}>
         <span className={styles.profileSwitchCopy}>
           <span className={styles.profileSwitchLabel}>Video autoplay</span>
           <span className={styles.profileSwitchHint}>Auto-play videos in feed</span>
         </span>
-        <span className={styles.profileSwitch}>
-          <input
-            type="checkbox"
-            checked={appearanceSettings.videoAutoplay}
-            disabled={updateAppearanceMutation.isPending}
-            onChange={function (event) {
-              onToggleVideoAutoplay(event.target.checked);
-            }}
-          />
-          <span className={styles.profileSwitchTrack} aria-hidden />
-          <span className={styles.profileSwitchThumb} aria-hidden />
-        </span>
-      </label>
+        <Switch
+          checked={appearanceSettings.videoAutoplay}
+          disabled={updateAppearanceMutation.isPending}
+          onChange={onToggleVideoAutoplay}
+          aria-label="Video autoplay"
+        />
+      </div>
       {updateAppearanceMutation.isError ? (
         <p className={styles.profileInlineError}>Could not update appearance.</p>
       ) : null}

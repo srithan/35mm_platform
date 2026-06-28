@@ -36,7 +36,7 @@ export function UploadSidebar({
                     done
                       ? "bg-success text-white"
                       : active
-                        ? "bg-accent text-white ring-4 ring-accent/10"
+                        ? "bg-fg text-bg ring-4 ring-fg/10"
                         : "bg-sunken text-fg-faint"
                   )}
                 >
@@ -74,19 +74,19 @@ export function UploadSidebar({
         </ul>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.08] to-accent/[0.03] p-5">
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-[color-mix(in_srgb,var(--fg)_4%,var(--elevated))] p-5">
         <div
-          className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-accent/10"
+          className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-[color-mix(in_srgb,var(--fg)_6%,transparent)]"
           aria-hidden
         />
-        <p className="relative text-[14px] font-bold text-accent">Need help?</p>
+        <p className="relative text-[14px] font-bold text-fg">Need help?</p>
         <p className="relative mt-1.5 text-[12.5px] leading-relaxed text-fg-muted">
           Our creator support team typically responds within a few hours. Full upload
           guides and walkthroughs are coming soon.
         </p>
         <button
           type="button"
-          className="relative mt-3.5 inline-flex items-center gap-1.5 rounded-lg border border-accent/25 bg-elevated/80 px-3.5 py-2 text-[13px] font-semibold text-accent transition hover:bg-elevated hover:shadow-sm"
+          className="relative mt-3.5 inline-flex items-center gap-1.5 rounded-lg border border-border bg-sunken px-3.5 py-2 text-[13px] font-semibold text-fg transition hover:bg-hover hover:shadow-sm"
         >
           <CircleHelp className="h-3.5 w-3.5" aria-hidden />
           Creator help center

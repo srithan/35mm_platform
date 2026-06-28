@@ -117,20 +117,13 @@ export function VideoDropZone({ upload }: { upload: ShortFilmUploadFormApi }) {
         />
         <div
           className={cn(
-            "relative mx-auto mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-elevated shadow-md transition-all duration-300",
+            "relative mx-auto mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-elevated text-accent shadow-md transition-all duration-300",
             dragOver
-              ? "bg-accent text-white shadow-lg shadow-accent/25"
-              : "group-hover:bg-accent group-hover:text-white group-hover:shadow-lg group-hover:shadow-accent/25"
+              ? "bg-fg text-bg shadow-lg shadow-[color-mix(in_srgb,var(--fg)_25%,transparent)]"
+              : "group-hover:bg-fg group-hover:text-bg group-hover:shadow-lg group-hover:shadow-[color-mix(in_srgb,var(--fg)_25%,transparent)]"
           )}
         >
-          <Upload
-            className={cn(
-              "h-[30px] w-[30px] transition-colors",
-              dragOver ? "text-white" : "text-accent group-hover:text-white"
-            )}
-            strokeWidth={1.6}
-            aria-hidden
-          />
+          <Upload className="h-[30px] w-[30px] transition-colors" strokeWidth={1.6} aria-hidden />
         </div>
         <p className="relative text-[18px] font-bold text-fg">Drop your film here</p>
         <p className="relative mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-fg-muted">
@@ -146,7 +139,7 @@ export function VideoDropZone({ upload }: { upload: ShortFilmUploadFormApi }) {
             e.stopPropagation();
             inputRef.current?.click();
           }}
-          className="relative mt-5 inline-flex items-center gap-2 rounded-xl bg-fg px-5 py-3 text-[14px] font-semibold text-bg shadow-md transition hover:bg-accent hover:shadow-lg hover:shadow-accent/25 hover:-translate-y-px"
+          className="relative mt-5 inline-flex items-center gap-2 rounded-xl bg-fg px-5 py-3 text-[14px] font-semibold text-bg shadow-md transition hover:opacity-90 hover:-translate-y-px"
         >
           <Upload className="h-4 w-4" strokeWidth={2.2} aria-hidden />
           Choose file

@@ -40,7 +40,7 @@ export function UploadStepIndicator({
                 isDone
                   ? "bg-success text-white"
                   : isActive
-                    ? "bg-accent text-white ring-[3px] ring-accent/15"
+                    ? "bg-fg text-bg ring-[3px] ring-fg/15"
                     : "bg-sunken text-fg-faint"
               )}
             >

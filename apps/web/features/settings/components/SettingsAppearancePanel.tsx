@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Switch } from "@/components/Switch";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 import { applyAccentColor } from "@/lib/theme/applyAccentColor";
 import {
@@ -125,12 +126,10 @@ export function SettingsAppearancePanel({
               label="Video autoplay"
               description="Auto-play videos in feed"
               action={
-                <label className="relative w-[30px] h-[17px] flex-shrink-0 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={watch("videoAutoplay")}
-                    onChange={(e) => void (async () => {
-                      const nextVideoAutoplay = e.target.checked;
+                <Switch
+                  checked={watch("videoAutoplay")}
+                  onChange={function (nextVideoAutoplay) {
+                    void (async function () {
                       setValue("videoAutoplay", nextVideoAutoplay, { shouldDirty: true });
                       setSubmitError(null);
                       setIsSavingVideoAutoplay(true);
@@ -148,13 +147,11 @@ export function SettingsAppearancePanel({
                       } finally {
                         setIsSavingVideoAutoplay(false);
                       }
-                    })()}
-                    disabled={isSubmitting || isSavingVideoAutoplay}
-                    className="sr-only peer"
-                  />
-                  <div className="absolute inset-0 rounded-[17px] border border-border-strong bg-sunken-2 peer-checked:border-accent peer-checked:bg-accent transition-colors" />
-                  <div className="absolute top-[2.5px] left-[2.5px] w-3 h-3 rounded-full bg-bg border border-border shadow-sm transition-transform peer-checked:translate-x-[13px] peer-checked:border-transparent" />
-                </label>
+                    })();
+                  }}
+                  disabled={isSubmitting || isSavingVideoAutoplay}
+                  aria-label="Video autoplay"
+                />
               }
             />
           </div>

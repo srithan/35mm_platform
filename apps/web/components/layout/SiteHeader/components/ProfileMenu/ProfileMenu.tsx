@@ -105,7 +105,7 @@ export function ProfileMenu({
     const previousTheme = theme;
     setTheme(nextTheme);
     updateAppearanceMutation.mutate(
-      { ...appearanceSettings, theme: nextTheme },
+      { theme: nextTheme },
       {
         onError: function () {
           setTheme(previousTheme);
@@ -119,7 +119,7 @@ export function ProfileMenu({
     const previousAccentColor = appearanceSettings.accentColor;
     applyAccentColor(nextAccentColor);
     updateAppearanceMutation.mutate(
-      { ...appearanceSettings, accentColor: nextAccentColor },
+      { accentColor: nextAccentColor },
       {
         onError: function () {
           applyAccentColor(previousAccentColor);
@@ -130,7 +130,6 @@ export function ProfileMenu({
 
   function toggleProfileVideoAutoplay(checked: boolean) {
     updateAppearanceMutation.mutate({
-      ...appearanceSettings,
       videoAutoplay: checked,
     });
   }

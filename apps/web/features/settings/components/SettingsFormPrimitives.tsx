@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { Switch } from "@/components/Switch";
 import { cn } from "@/lib/utils/cn";
+import { settingsPickerCardClass, SettingsPickerCheck } from "./settingsPickerStyles";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 
 export function SettingsSection({
@@ -103,17 +105,13 @@ export function SettingsToggle({
           </span>
         )}
       </div>
-      <label className={cn("relative mt-0.5 h-[17px] w-[30px] flex-shrink-0 sm:mt-0", disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          disabled={disabled}
-          className="sr-only peer"
-        />
-        <div className="absolute inset-0 rounded-[17px] border border-border-strong bg-sunken-2 peer-checked:border-accent peer-checked:bg-accent transition-colors" />
-        <div className="absolute top-[2.5px] left-[2.5px] w-3 h-3 rounded-full bg-bg border border-border shadow-sm transition-transform peer-checked:translate-x-[13px] peer-checked:border-transparent" />
-      </label>
+      <Switch
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="mt-0.5 sm:mt-0"
+        aria-label={label}
+      />
     </div>
   );
 }
@@ -203,14 +201,12 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
           disabled={!opt.enabled}
           aria-disabled={!opt.enabled}
           className={cn(
-            "relative flex min-h-[112px] flex-col items-center justify-center gap-2.5 rounded-lg border-2 p-2 transition-all",
-            opt.enabled ? "cursor-pointer" : "cursor-not-allowed",
-            value === opt.id && opt.enabled
-              ? "border-accent bg-accent/5"
-              : "border-border bg-elevated",
-            opt.enabled ? "hover:border-fg-muted" : "opacity-80"
+            "relative flex min-h-[112px] flex-col items-center justify-center gap-2.5 rounded-lg p-2",
+            opt.enabled ? "cursor-pointer" : "cursor-not-allowed opacity-80",
+            settingsPickerCardClass({ selected: value === opt.id, enabled: opt.enabled })
           )}
         >
+          {value === opt.id && opt.enabled ? <SettingsPickerCheck /> : null}
           {/* Mini window preview */}
           <div
             className={cn(

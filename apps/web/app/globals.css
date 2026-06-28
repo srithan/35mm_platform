@@ -60,6 +60,7 @@
     --color-lt-green: #abff84;
     --color-poll-winner: var(--color-shockingly-green);
     --color-poll-winner-muted: color-mix(in srgb, var(--color-shockingly-green) 16%, transparent);
+    --color-poll-winner-fg: #0f0f0f;
     --color-poll-track: color-mix(in srgb, var(--color-text) 6%, transparent);
     --color-core-button-gradient: linear-gradient(114.41deg, #0ae448 20.74%, #abff84 65.5%);
     --gradient-poll-winner: var(--gradient-macha);
@@ -119,6 +120,14 @@
     --sunken-2: var(--color-bg-sunken-2);
     --film-red: var(--color-film-red);
     --film-gold: var(--color-film-gold);
+
+    /* Switch controls — derived from fg/bg so every theme stays legible */
+    --switch-track-off: color-mix(in srgb, var(--fg) 16%, var(--bg));
+    --switch-track-off-border: color-mix(in srgb, var(--fg) 24%, var(--bg));
+    --switch-thumb-off: color-mix(in srgb, var(--fg) 38%, var(--elevated));
+    --switch-thumb-off-border: color-mix(in srgb, var(--fg) 14%, transparent);
+    --switch-thumb-on: var(--bg);
+    --switch-track-on: var(--accent);
 
     /* Fallback until SiteHeader measures real height (see ResizeObserver in SiteHeader.tsx) */
     --site-header-sticky-offset: 4.5rem;
@@ -1953,5 +1962,5 @@ body {
 }
 
 .poll-winner-on-gradient {
-    color: #0f0f0f;
+    color: var(--color-poll-winner-fg);
 }

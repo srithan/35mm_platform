@@ -92,7 +92,7 @@ export function BookmarkFolderPicker({
           : "Organize saved posts into folders, or save without one."
       }
       className="max-w-[420px]"
-      contentClassName="p-0"
+      contentClassName="p-0 sm:p-0"
     >
       <div className="px-5 pb-2 sm:px-6">
         <button
@@ -216,17 +216,17 @@ export function BookmarkFolderPicker({
               placeholder="Folder name"
               maxLength={80}
               className={cn(
-                "min-w-0 flex-1 rounded-xl border border-border bg-elevated px-3.5 py-2.5",
-                "text-sm text-fg placeholder:text-fg-muted outline-none",
-                "focus:border-accent focus:ring-2 focus:ring-accent/15"
+                "min-w-0 flex-1 rounded-xl border border-border bg-bg px-3.5 py-2.5",
+                "text-sm text-fg placeholder:text-fg-muted outline-none transition-colors",
+                "focus:border-accent focus:ring-2 focus:ring-fg/10"
               )}
             />
             <button
               type="submit"
               disabled={!newFolderName.trim() || createPending}
               className={cn(
-                "shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white",
-                "transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+                "shrink-0 rounded-xl bg-fg px-4 py-2.5 text-sm font-semibold text-bg",
+                "transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               )}
             >
               {createPending ? "Saving…" : "Create"}
