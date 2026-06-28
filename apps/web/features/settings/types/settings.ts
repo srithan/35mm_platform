@@ -21,6 +21,19 @@ export interface NotificationSettings {
   festivalUpdates: boolean;
   watchlistStreaming: boolean;
   emailDigest: boolean;
+  emailPreferences: NotificationEmailPreferences;
+}
+
+export interface NotificationEmailPreferences {
+  likesOnPosts: boolean;
+  repostsOnPosts: boolean;
+  newFollowers: boolean;
+  followRequests: boolean;
+  followRequestApproved: boolean;
+  comments: boolean;
+  replies: boolean;
+  mentions: boolean;
+  filmLogged: boolean;
 }
 
 export interface AppearanceSettings {
@@ -39,4 +52,4 @@ export interface UserSettings {
 export type UpdateProfileInput = ProfileSettings;
 export type UpdatePrivacyInput = PrivacySettings;
 export type UpdateNotificationsInput = NotificationSettings;
-export type UpdateAppearanceInput = AppearanceSettings;
+export type UpdateAppearanceInput = Partial<AppearanceSettings>;

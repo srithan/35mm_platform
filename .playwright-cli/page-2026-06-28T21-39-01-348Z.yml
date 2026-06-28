@@ -1,0 +1,81 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - link "35mm.in Home" [ref=e5] [cursor=pointer]:
+        - /url: /landing
+        - img [ref=e6]
+        - generic [ref=e9]: 35mm
+      - region "Introduction" [ref=e10]:
+        - generic [ref=e11]:
+          - generic [ref=e12]:
+            - heading "The social network for film." [level=1] [ref=e13]
+            - paragraph [ref=e14]: 35mm is where directors, critics, programmers, and obsessive viewers log what they watch, rate films, and talk about cinema with people they follow.
+            - paragraph [ref=e15]: Post a review with the film attached. Follow a DP whose work you steal from. Build a profile from your diary and favourites. Your feed is assembled from those relationships — not an algorithm guessing what you want to see.
+          - complementary [ref=e16]:
+            - generic [ref=e17]:
+              - generic [ref=e18]:
+                - button "Sign up" [ref=e19] [cursor=pointer]
+                - button "Log in" [ref=e20] [cursor=pointer]
+              - generic [ref=e22]:
+                - textbox "Full name" [ref=e24]
+                - generic [ref=e26]:
+                  - generic [ref=e27]: 35mm/
+                  - textbox "username" [ref=e28]
+                - textbox "Email" [ref=e30]
+                - generic [ref=e32]:
+                  - textbox "Password" [ref=e33]
+                  - button "Show password" [ref=e34] [cursor=pointer]:
+                    - img [ref=e35]
+                - button "Create account" [ref=e38] [cursor=pointer]:
+                  - text: Create account
+                  - img [ref=e39]
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - heading "Films in conversation" [level=2] [ref=e43]
+          - paragraph [ref=e44]: A rotating look at what people in the community are logging and arguing about right now — new releases, repertory screenings, deep cuts, and everything in between.
+          - generic [ref=e47]:
+            - img "12 Angry Men" [ref=e48]
+            - img "Life Is Beautiful" [ref=e49]
+            - img "Schindler's List" [ref=e50]
+            - img "The Godfather Part II" [ref=e51]
+            - img "From Dusk Till Dawn" [ref=e52]
+            - img "The Sixth Sense" [ref=e53]
+            - img "Inception" [ref=e54]
+            - img "Interstellar" [ref=e55]
+            - 'img "Avengers: Infinity War" [ref=e56]'
+            - 'img "The Lord of the Rings: The Fellowship of the Ring" [ref=e57]'
+            - img "Fight Club" [ref=e58]
+            - img "Forrest Gump" [ref=e59]
+            - img "Broken" [ref=e60]
+            - img "The Girl with All the Gifts" [ref=e61]
+            - img "Jurassic World Dominion" [ref=e62]
+            - img "12 Years a Slave" [ref=e63]
+            - img "The Florida Project" [ref=e64]
+            - img "Spirited Away" [ref=e65]
+            - img "Parasite" [ref=e66]
+            - img "Amélie" [ref=e67]
+            - img "Saving Private Ryan" [ref=e68]
+        - generic [ref=e69]:
+          - heading "Log what you watch" [level=2] [ref=e70]
+          - paragraph [ref=e71]: Every post can carry a film — a first watch, a rewatch, a half-star rating, a long review, a hot take at 2am. Logs land in your diary. Reviews stay on your profile. Threads can run for days.
+          - paragraph [ref=e72]: This is not a spreadsheet you update in private. It is a public record of taste that other people can follow, reply to, and argue with.
+        - generic [ref=e73]:
+          - heading "Profiles built from taste" [level=2] [ref=e74]
+          - paragraph [ref=e75]: Your 35mm profile is the films you have seen, the ones you would defend, and the ones you would never sit through again. Favourites on display. Ratings in your diary. A history of what cinema means to you — not a résumé with a poster pasted on.
+          - paragraph [ref=e76]: When someone visits your page, they should understand how you watch movies before they read a single word of your bio.
+        - generic [ref=e77]:
+          - heading "A feed you choose" [level=2] [ref=e78]
+          - paragraph [ref=e79]: Follow filmmakers whose work you study. Follow critics who hate the same franchises you do. Follow friends from film school, programmers you met at a festival, the person who posted a perfect thread about Jeanne Dielman.
+          - paragraph [ref=e80]: Your home timeline is built from those follows — film logs, festival dispatches, shorts, recommendations, and arguments that go long after midnight. No trending tab. No engagement bait. Just people you decided to hear from.
+        - generic [ref=e81]:
+          - heading "Who 35mm is for" [level=2] [ref=e82]
+          - paragraph [ref=e83]: Directors and DPs sharing work and influences. Critics and programmers writing in public. Students building a canon. Casual viewers who care enough to log and rate. Anyone who would rather talk about a film than scroll past it.
+          - paragraph [ref=e84]: Free to join. Claim a username, follow a few people, and your feed starts there.
+        - paragraph [ref=e86]: © 35mm.in
+  - generic [ref=e87]:
+    - img [ref=e89]
+    - button "Open Tanstack query devtools" [ref=e137] [cursor=pointer]:
+      - img [ref=e138]
+  - button "Open Next.js Dev Tools" [ref=e191] [cursor=pointer]:
+    - img [ref=e192]
+  - alert [ref=e195]

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
-import { users, profiles, userSettings } from "@35mm/db/schema";
+import { users, profiles, userSettings, type NotificationEmailPreferences } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
@@ -19,6 +19,7 @@ interface SettingsRecord {
   notifyFestivalUpdates: boolean;
   notifyWatchlistStreaming: boolean;
   notifyEmailDigest: boolean;
+  notificationEmailPreferences: NotificationEmailPreferences;
   theme: string | null;
   accentColor: string | null;
   videoAutoplay: boolean;
@@ -42,6 +43,99 @@ var VALID_ACCENT_COLORS = [
   "rose",
 ];
 
+type PublicNotificationEmailPreferences = {
+  likesOnPosts: boolean;
+  repostsOnPosts: boolean;
+  newFollowers: boolean;
+  followRequests: boolean;
+  followRequestApproved: boolean;
+  comments: boolean;
+  replies: boolean;
+  mentions: boolean;
+  filmLogged: boolean;
+};
+
+var DEFAULT_EMAIL_PREFERENCES: PublicNotificationEmailPreferences = {
+  likesOnPosts: false,
+  repostsOnPosts: false,
+  newFollowers: true,
+  followRequests: true,
+  followRequestApproved: true,
+  comments: true,
+  replies: true,
+  mentions: true,
+  filmLogged: false,
+};
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readEmailPreference(
+  preferences: NotificationEmailPreferences | null | undefined,
+  key: keyof NotificationEmailPreferences,
+  fallback: boolean
+): boolean {
+  if (!isObjectRecord(preferences)) return fallback;
+  var value = preferences[key];
+  if (!isObjectRecord(value)) return fallback;
+  return typeof value.enabled === "boolean" ? value.enabled : fallback;
+}
+
+function publicEmailPreferences(
+  preferences: NotificationEmailPreferences | null | undefined
+): PublicNotificationEmailPreferences {
+  return {
+    likesOnPosts: readEmailPreference(preferences, "like", DEFAULT_EMAIL_PREFERENCES.likesOnPosts),
+    repostsOnPosts: readEmailPreference(preferences, "repost", DEFAULT_EMAIL_PREFERENCES.repostsOnPosts),
+    newFollowers: readEmailPreference(preferences, "follow", DEFAULT_EMAIL_PREFERENCES.newFollowers),
+    followRequests: readEmailPreference(preferences, "follow_request", DEFAULT_EMAIL_PREFERENCES.followRequests),
+    followRequestApproved: readEmailPreference(
+      preferences,
+      "follow_request_approved",
+      DEFAULT_EMAIL_PREFERENCES.followRequestApproved
+    ),
+    comments: readEmailPreference(preferences, "comment", DEFAULT_EMAIL_PREFERENCES.comments),
+    replies: readEmailPreference(preferences, "reply", DEFAULT_EMAIL_PREFERENCES.replies),
+    mentions: readEmailPreference(preferences, "mention", DEFAULT_EMAIL_PREFERENCES.mentions),
+    filmLogged: readEmailPreference(preferences, "film_logged", DEFAULT_EMAIL_PREFERENCES.filmLogged),
+  };
+}
+
+function mergeEmailPreferenceUpdates(
+  current: NotificationEmailPreferences | null | undefined,
+  input: unknown
+): NotificationEmailPreferences | null {
+  if (!isObjectRecord(input)) return null;
+  var source = input;
+
+  var next: NotificationEmailPreferences = isObjectRecord(current)
+    ? JSON.parse(JSON.stringify(current)) as NotificationEmailPreferences
+    : {};
+
+  function setEnabled(field: string, key: keyof NotificationEmailPreferences) {
+    var value = source[field];
+    if (typeof value !== "boolean") return;
+    var existing = isObjectRecord(next[key]) ? next[key] : {};
+    next[key] = {
+      ...existing,
+      enabled: value,
+    };
+  }
+
+  setEnabled("likesOnPosts", "like");
+  setEnabled("repostsOnPosts", "repost");
+  setEnabled("newFollowers", "follow");
+  setEnabled("followRequests", "follow_request");
+  setEnabled("followRequestApproved", "follow_request_approved");
+  setEnabled("comments", "comment");
+  setEnabled("replies", "reply");
+  setEnabled("mentions", "mention");
+  setEnabled("filmLogged", "film_logged");
+
+  return next;
+}
+
 function isValidAccentColor(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
   return VALID_ACCENT_COLORS.includes(value);
@@ -59,7 +153,12 @@ function isLegacySettingsSchemaError(err: unknown): boolean {
   var message = String(root.message ?? "") + " " + String(root.cause?.message ?? "");
   if (code !== "42703") return false;
 
-  return message.includes("theme") || message.includes("video_autoplay") || message.includes("accent_color");
+  return (
+    message.includes("theme") ||
+    message.includes("video_autoplay") ||
+    message.includes("accent_color") ||
+    message.includes("notification_email_preferences")
+  );
 }
 
 async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
@@ -84,6 +183,7 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
         notifyFestivalUpdates: userSettings.notifyFestivalUpdates,
         notifyWatchlistStreaming: userSettings.notifyWatchlistStreaming,
         notifyEmailDigest: userSettings.notifyEmailDigest,
+        notificationEmailPreferences: users.notificationEmailPreferences,
         theme: userSettings.theme,
         accentColor: userSettings.accentColor,
         videoAutoplay: userSettings.videoAutoplay,
@@ -132,6 +232,7 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
 
     return {
       ...legacyRows[0],
+      notificationEmailPreferences: {},
       theme: "auto",
       accentColor: "theme",
       videoAutoplay: true,
@@ -159,6 +260,7 @@ function formatSettings(record: SettingsRecord) {
       festivalUpdates: record.notifyFestivalUpdates,
       watchlistStreaming: record.notifyWatchlistStreaming,
       emailDigest: record.notifyEmailDigest,
+      emailPreferences: publicEmailPreferences(record.notificationEmailPreferences),
     },
     appearance: {
       theme: isValidTheme(record.theme) ? record.theme : "auto",
@@ -227,6 +329,7 @@ settingsRoutes.patch("/notifications", requireAuth, async function (c) {
 
   var db = getDb();
   var updates: Record<string, any> = {};
+  var userUpdates: Record<string, any> = {};
 
   var newFollowers = ensureBooleanish(body.newFollowers);
   if (newFollowers !== null) {
@@ -263,6 +366,16 @@ settingsRoutes.patch("/notifications", requireAuth, async function (c) {
     updates.notifyEmailDigest = emailDigest;
   }
 
+  var currentRecord = await fetchSettingsForUser(user.userId);
+  var emailPreferences = mergeEmailPreferenceUpdates(
+    currentRecord.notificationEmailPreferences,
+    body.emailPreferences
+  );
+  if (emailPreferences !== null) {
+    userUpdates.notificationEmailPreferences = emailPreferences;
+    userUpdates.updatedAt = new Date();
+  }
+
   if (Object.keys(updates).length > 0) {
     updates.updatedAt = new Date();
     try {
@@ -275,6 +388,10 @@ settingsRoutes.patch("/notifications", requireAuth, async function (c) {
         throw err;
       }
     }
+  }
+
+  if (Object.keys(userUpdates).length > 0) {
+    await db.update(users).set(userUpdates).where(eq(users.id, user.userId));
   }
 
   var record = await fetchSettingsForUser(user.userId);

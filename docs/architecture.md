@@ -118,7 +118,7 @@ Design conventions:
 | Cloudflare Images | Optional | Delivery layer for processed images |
 | Cloudflare Stream | Not wired | Future video streaming |
 | Meilisearch | Not wired | Future search |
-| Resend | Not wired | Future email digest |
+| Resend | Partially wired | Transactional notification emails from the worker; digest remains future work |
 
 ---
 
@@ -669,6 +669,7 @@ Current gap:
 
 - `notification.digest` is a stub.
 - Email digest via Resend is not implemented.
+- Transactional notification email is wired as a fire-and-forget side effect of `notification.publish`, with per-type preferences and one-click unsubscribe.
 
 ---
 
@@ -847,6 +848,12 @@ FEED_ITEMS_PRUNE_MAX_BATCHES=
 FEED_ITEMS_PRUNE_INTERVAL_MINUTES=
 FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS=
 FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT=
+RESEND_API_KEY=
+EMAIL_FROM=
+EMAIL_UNSUBSCRIBE_SECRET=
+APP_BASE_URL=
+API_PUBLIC_BASE_URL=
+NOTIFICATION_EMAIL_COOLDOWN_MINUTES=
 PORT=
 ```
 
@@ -871,7 +878,6 @@ Future:
 ```env
 MEILISEARCH_HOST=
 MEILISEARCH_API_KEY=
-RESEND_API_KEY=
 ```
 
 ---

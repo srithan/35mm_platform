@@ -88,6 +88,14 @@ export function formatNotificationText(row: HeaderNotifRow): ReactNode {
     );
   }
 
+  if (row.type === "film_logged") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> logged {row.entity?.title ? <em>{row.entity.title}</em> : "a film"}
+      </>
+    );
+  }
+
   return (
     <>
       <strong>{actorLabel}</strong> reposted your {row.entity?.title ? <em>{row.entity.title}</em> : "post"}

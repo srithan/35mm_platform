@@ -149,6 +149,9 @@ function activityText(item: ApiNotificationItem): NotificationTextPart[] {
   } else if (item.type === "repost") {
     textParts.push({ type: "text", value: " reposted your " });
     textParts.push({ type: item.entity?.title ? "film" : "strong", value: item.entity?.title ?? "post" });
+  } else if (item.type === "film_logged") {
+    textParts.push({ type: "text", value: " logged " });
+    textParts.push({ type: item.entity?.title ? "film" : "strong", value: item.entity?.title ?? "a film you logged" });
   } else {
     textParts.push({ type: "text", value: " interacted with you" });
   }

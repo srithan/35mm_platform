@@ -2620,6 +2620,13 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
       .onConflictDoNothing()
       .returning({ postId: postLikes.postId });
 
+    var countRows = await db
+      .select({ likeCount: posts.likeCount })
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .limit(1);
+    var nextLikeCount = Number(countRows[0]?.likeCount ?? 0) + (inserted.length > 0 ? 1 : 0);
+
     if (inserted.length > 0) {
       await enqueueCounterDelta({
         targetTable: "posts",
@@ -2628,32 +2635,42 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
         delta: 1,
       });
 
-      await createNotification(
-        {
-          recipientId: postOwnerRows[0].userId,
-          actorId: user.userId,
-          type: "like",
-          entityType: "post",
-          entityId: postId,
-        },
-        { delayMs: 10_000 }
-      );
+      try {
+        await createNotification(
+          {
+            recipientId: postOwnerRows[0].userId,
+            actorId: user.userId,
+            type: "like",
+            entityType: "post",
+            entityId: postId,
+          },
+          { delayMs: 10_000 }
+        );
+      } catch (error) {
+        console.warn("[notifications] post like notification failed", {
+          postId,
+          actorUserId: user.userId,
+          error,
+        });
+      }
     }
 
-    var countRows = await db
-      .select({ likeCount: posts.likeCount })
-      .from(posts)
-      .where(eq(posts.id, postId))
-      .limit(1);
-
-    await invalidatePostInteractionCaches({
-      actorUserId: user.userId,
-      postOwnerId: postOwnerRows[0].userId,
-      isPostPublic: postOwnerRows[0].visibility === "public",
-    });
+    try {
+      await invalidatePostInteractionCaches({
+        actorUserId: user.userId,
+        postOwnerId: postOwnerRows[0].userId,
+        isPostPublic: postOwnerRows[0].visibility === "public",
+      });
+    } catch (error) {
+      console.warn("[feed-cache] post like cache invalidation failed", {
+        postId,
+        actorUserId: user.userId,
+        error,
+      });
+    }
 
     return c.json({
-      likeCount: Number(countRows[0]?.likeCount ?? 0) + (inserted.length > 0 ? 1 : 0),
+      likeCount: nextLikeCount,
     });
   } catch (err) {
     throw toActionError(err);
@@ -2680,6 +2697,16 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
     .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, user.userId)))
     .returning({ postId: postLikes.postId });
 
+  var countRows = await db
+    .select({ likeCount: posts.likeCount })
+    .from(posts)
+    .where(eq(posts.id, postId))
+    .limit(1);
+  var nextLikeCount = Math.max(
+    Number(countRows[0]?.likeCount ?? 0) - (deleted.length > 0 ? 1 : 0),
+    0
+  );
+
   if (deleted.length > 0) {
     await enqueueCounterDelta({
       targetTable: "posts",
@@ -2688,102 +2715,113 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
       delta: -1,
     });
 
-    var existingNotificationRows: Array<{
-      id: string;
-      actorId: string | null;
-      bundleCount: number;
-      actorIds?: string[] | null;
-    }> = [];
-
     try {
-      existingNotificationRows = await db
-        .select({
-          id: notifications.id,
-          actorId: notifications.actorId,
-          bundleCount: notifications.bundleCount,
-          actorIds: notifications.actorIds,
-        })
-        .from(notifications)
-        .where(
-          and(
-            eq(notifications.recipientId, postOwnerRows[0].userId),
-            eq(notifications.actorId, user.userId),
-            eq(notifications.type, "like"),
-            eq(notifications.entityType, "post"),
-            eq(notifications.entityId, postId),
-            eq(notifications.isRead, false)
+      var existingNotificationRows: Array<{
+        id: string;
+        actorId: string | null;
+        bundleCount: number;
+        actorIds?: string[] | null;
+      }> = [];
+
+      try {
+        existingNotificationRows = await db
+          .select({
+            id: notifications.id,
+            actorId: notifications.actorId,
+            bundleCount: notifications.bundleCount,
+            actorIds: notifications.actorIds,
+          })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.recipientId, postOwnerRows[0].userId),
+              eq(notifications.actorId, user.userId),
+              eq(notifications.type, "like"),
+              eq(notifications.entityType, "post"),
+              eq(notifications.entityId, postId),
+              eq(notifications.isRead, false)
+            )
           )
-        )
-        .limit(1);
-    } catch (error) {
-      if (!isMissingActorIdsColumnError(error)) {
-        throw error;
-      }
-
-      existingNotificationRows = await db
-        .select({
-          id: notifications.id,
-          actorId: notifications.actorId,
-          bundleCount: notifications.bundleCount,
-        })
-        .from(notifications)
-        .where(
-          and(
-            eq(notifications.recipientId, postOwnerRows[0].userId),
-            eq(notifications.actorId, user.userId),
-            eq(notifications.type, "like"),
-            eq(notifications.entityType, "post"),
-            eq(notifications.entityId, postId),
-            eq(notifications.isRead, false)
-          )
-        )
-        .limit(1);
-    }
-
-    if (existingNotificationRows.length > 0) {
-      var existingNotification = existingNotificationRows[0];
-      var nextActorIds = normalizeActorIds(existingNotification.actorIds).filter(function (id) {
-        return id !== user.userId;
-      });
-
-      if ((existingNotification.bundleCount ?? 0) <= 1) {
-        await removeNotificationPublishJob(existingNotification.id);
-        await db.delete(notifications).where(eq(notifications.id, existingNotification.id));
-      } else {
-        var updateValues: {
-          bundleCount: number;
-          actorId: string | null;
-          actorIds?: string[];
-        } = {
-          bundleCount: existingNotification.bundleCount - 1,
-          actorId: nextActorIds[0] ?? existingNotification.actorId,
-        };
-
-        if (existingNotification.actorIds !== undefined) {
-          updateValues.actorIds = nextActorIds;
+          .limit(1);
+      } catch (error) {
+        if (!isMissingActorIdsColumnError(error)) {
+          throw error;
         }
 
-        await db
-          .update(notifications)
-          .set(updateValues)
-          .where(eq(notifications.id, existingNotification.id));
+        existingNotificationRows = await db
+          .select({
+            id: notifications.id,
+            actorId: notifications.actorId,
+            bundleCount: notifications.bundleCount,
+          })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.recipientId, postOwnerRows[0].userId),
+              eq(notifications.actorId, user.userId),
+              eq(notifications.type, "like"),
+              eq(notifications.entityType, "post"),
+              eq(notifications.entityId, postId),
+              eq(notifications.isRead, false)
+            )
+          )
+          .limit(1);
       }
+
+      if (existingNotificationRows.length > 0) {
+        var existingNotification = existingNotificationRows[0];
+        var nextActorIds = normalizeActorIds(existingNotification.actorIds).filter(function (id) {
+          return id !== user.userId;
+        });
+
+        if ((existingNotification.bundleCount ?? 0) <= 1) {
+          await removeNotificationPublishJob(existingNotification.id);
+          await db.delete(notifications).where(eq(notifications.id, existingNotification.id));
+        } else {
+          var updateValues: {
+            bundleCount: number;
+            actorId: string | null;
+            actorIds?: string[];
+          } = {
+            bundleCount: existingNotification.bundleCount - 1,
+            actorId: nextActorIds[0] ?? existingNotification.actorId,
+          };
+
+          if (existingNotification.actorIds !== undefined) {
+            updateValues.actorIds = nextActorIds;
+          }
+
+          await db
+            .update(notifications)
+            .set(updateValues)
+            .where(eq(notifications.id, existingNotification.id));
+        }
+      }
+    } catch (error) {
+      console.warn("[notifications] post unlike notification cleanup failed", {
+        postId,
+        actorUserId: user.userId,
+        error,
+      });
     }
   }
 
-  var countRows = await db
-    .select({ likeCount: posts.likeCount })
-    .from(posts)
-    .where(eq(posts.id, postId))
-    .limit(1);
-  await invalidatePostInteractionCaches({
-    actorUserId: user.userId,
-    postOwnerId: postOwnerRows[0].userId,
-    isPostPublic: postOwnerRows[0].visibility === "public",
-  });
+  try {
+    await invalidatePostInteractionCaches({
+      actorUserId: user.userId,
+      postOwnerId: postOwnerRows[0].userId,
+      isPostPublic: postOwnerRows[0].visibility === "public",
+    });
+  } catch (error) {
+    console.warn("[feed-cache] post unlike cache invalidation failed", {
+      postId,
+      actorUserId: user.userId,
+      error,
+    });
+  }
 
   return c.json({
-    likeCount: Math.max(Number(countRows[0]?.likeCount ?? 0) - (deleted.length > 0 ? 1 : 0), 0),
+    likeCount: nextLikeCount,
   });
 });
 
@@ -3138,11 +3176,19 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
           counterName: "bookmarkCount",
           delta: 1,
         });
-        await invalidatePostInteractionCaches({
-          actorUserId: user.userId,
-          postOwnerId: postOwnerRows[0].userId,
-          isPostPublic: postOwnerRows[0].visibility === "public",
-        });
+        try {
+          await invalidatePostInteractionCaches({
+            actorUserId: user.userId,
+            postOwnerId: postOwnerRows[0].userId,
+            isPostPublic: postOwnerRows[0].visibility === "public",
+          });
+        } catch (error) {
+          console.warn("[feed-cache] post bookmark cache invalidation failed", {
+            postId,
+            actorUserId: user.userId,
+            error,
+          });
+        }
       }
 
       return c.json({ ok: true, folderId: inserted[0]?.folderId ?? null });
@@ -3216,11 +3262,19 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
       counterName: "bookmarkCount",
       delta: -1,
     });
-    await invalidatePostInteractionCaches({
-      actorUserId: user.userId,
-      postOwnerId: postOwnerRows[0].userId,
-      isPostPublic: postOwnerRows[0].visibility === "public",
-    });
+    try {
+      await invalidatePostInteractionCaches({
+        actorUserId: user.userId,
+        postOwnerId: postOwnerRows[0].userId,
+        isPostPublic: postOwnerRows[0].visibility === "public",
+      });
+    } catch (error) {
+      console.warn("[feed-cache] post unbookmark cache invalidation failed", {
+        postId,
+        actorUserId: user.userId,
+        error,
+      });
+    }
   }
 
   return c.json({ ok: true });

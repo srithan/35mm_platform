@@ -26,6 +26,10 @@ export function getNotificationDestination(item: NotificationDestinationInput): 
     return ROUTES.PROFILE(item.actor.username);
   }
 
+  if (item.type === "film_logged") {
+    return ROUTES.NOTIFICATIONS;
+  }
+
   if ((item.type === "mention" || item.type === "comment" || item.type === "reply") && item.actor?.username) {
     return ROUTES.PROFILE(item.actor.username);
   }

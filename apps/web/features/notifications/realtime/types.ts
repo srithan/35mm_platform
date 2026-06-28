@@ -1,6 +1,6 @@
 import type { NotificationType } from "@35mm/types";
 
-type NotificationEntityType = "post" | "comment" | "user" | null;
+type NotificationEntityType = "post" | "comment" | "user" | "film" | null;
 
 export type NotificationRealtimeEvent =
   | {

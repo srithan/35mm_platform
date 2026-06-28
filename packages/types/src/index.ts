@@ -73,6 +73,19 @@ export interface NotificationSettings {
   festivalUpdates: boolean;
   watchlistStreaming: boolean;
   emailDigest: boolean;
+  emailPreferences: NotificationEmailPreferences;
+}
+
+export interface NotificationEmailPreferences {
+  likesOnPosts: boolean;
+  repostsOnPosts: boolean;
+  newFollowers: boolean;
+  followRequests: boolean;
+  followRequestApproved: boolean;
+  comments: boolean;
+  replies: boolean;
+  mentions: boolean;
+  filmLogged: boolean;
 }
 
 export interface UserSettingsResponse {
@@ -234,7 +247,8 @@ export type NotificationType =
   | "follow_request"
   | "follow_request_approved"
   | "mention"
-  | "repost";
+  | "repost"
+  | "film_logged";
 
 export interface NotificationActor {
   id: string;
@@ -245,7 +259,7 @@ export interface NotificationActor {
 }
 
 export interface NotificationEntity {
-  type: "post" | "comment" | "user" | null;
+  type: "post" | "comment" | "user" | "film" | null;
   id: string | null;
   title: string | null;
   thumbnailUrl: string | null;

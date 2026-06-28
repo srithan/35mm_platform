@@ -143,7 +143,7 @@ export function PostDetailView({
         imageCaption={legacy.imageCaption ?? image?.altText}
         media={post.media}
         likeCount={post.likeCount}
-        liked={legacy.liked ?? post.isLiked}
+        liked={post.isLiked}
         reposted={post.isReposted}
         bookmarked={post.isBookmarked}
         bookmarkFolderId={post.bookmarkFolderId}

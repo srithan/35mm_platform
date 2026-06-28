@@ -4,7 +4,11 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as settingsApi from "../api/settingsApi";
 import { settingsKeys } from "./queryKeys";
-import { useUpdateNotificationsMutation, useUpdateProfileMutation } from "./useSettings";
+import {
+  useUpdateAppearanceMutation,
+  useUpdateNotificationsMutation,
+  useUpdateProfileMutation,
+} from "./useSettings";
 
 const fixture = {
   profile: {
@@ -25,6 +29,17 @@ const fixture = {
     festivalUpdates: true,
     watchlistStreaming: true,
     emailDigest: false,
+    emailPreferences: {
+      likesOnPosts: false,
+      repostsOnPosts: false,
+      newFollowers: true,
+      followRequests: true,
+      followRequestApproved: true,
+      comments: true,
+      replies: true,
+      mentions: true,
+      filmLogged: false,
+    },
   },
   appearance: {
     theme: "auto" as const,
@@ -70,8 +85,14 @@ vi.mock("../api/settingsApi", () => {
       mockSettings = next;
       return next;
     },
-    updateAppearance: async () => {
-      return cloneSettings();
+    updateAppearance: async (input: Partial<SettingsState["appearance"]>) => {
+      const next = cloneSettings();
+      next.appearance = {
+        ...next.appearance,
+        ...input,
+      };
+      mockSettings = next;
+      return next;
     },
   };
 });
@@ -148,5 +169,95 @@ describe("useSettings mutations", () => {
     const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
     expect(cached?.profile.displayName).toBe("Jane Updated");
     expect(cached?.profile.username).toBe(profileBefore.username);
+  });
+
+  it("merges partial appearance mutations without clobbering other fields", async () => {
+    const queryClient = new QueryClient();
+    const initial = await settingsApi.getSettings("test-token");
+    queryClient.setQueryData(settingsKeys.detail(), initial);
+    const wrapper = createWrapper(queryClient);
+    const { result } = renderHook(() => useUpdateAppearanceMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        theme: "dark",
+      });
+    });
+
+    const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
+    expect(cached?.appearance).toEqual({
+      ...initial.appearance,
+      theme: "dark",
+    });
+  });
+
+  it("keeps requested appearance fields when the server response is stale", async () => {
+    const queryClient = new QueryClient();
+    const initial = await settingsApi.getSettings("test-token");
+    queryClient.setQueryData(settingsKeys.detail(), initial);
+    const wrapper = createWrapper(queryClient);
+    const { result } = renderHook(() => useUpdateAppearanceMutation(), { wrapper });
+
+    vi.spyOn(settingsApi, "updateAppearance").mockResolvedValueOnce(initial);
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        theme: "dark",
+      });
+    });
+
+    const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
+    expect(cached?.appearance.theme).toBe("dark");
+    expect(cached?.appearance.accentColor).toBe(initial.appearance.accentColor);
+    expect(cached?.appearance.videoAutoplay).toBe(initial.appearance.videoAutoplay);
+  });
+
+  it("keeps requested accent color when the server response is stale", async () => {
+    const queryClient = new QueryClient();
+    const initial = await settingsApi.getSettings("test-token");
+    queryClient.setQueryData(settingsKeys.detail(), initial);
+    const wrapper = createWrapper(queryClient);
+    const { result } = renderHook(() => useUpdateAppearanceMutation(), { wrapper });
+
+    vi.spyOn(settingsApi, "updateAppearance").mockResolvedValueOnce(initial);
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        accentColor: "ocean",
+      });
+    });
+
+    const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
+    expect(cached?.appearance.accentColor).toBe("ocean");
+    expect(cached?.appearance.theme).toBe(initial.appearance.theme);
+    expect(cached?.appearance.videoAutoplay).toBe(initial.appearance.videoAutoplay);
+  });
+
+  it("keeps current accent color when a theme update returns a stale default accent", async () => {
+    const queryClient = new QueryClient();
+    const initial = await settingsApi.getSettings("test-token");
+    const currentSettings = {
+      ...initial,
+      appearance: {
+        ...initial.appearance,
+        accentColor: "ocean" as const,
+      },
+    };
+    queryClient.setQueryData(settingsKeys.detail(), currentSettings);
+    const wrapper = createWrapper(queryClient);
+    const { result } = renderHook(() => useUpdateAppearanceMutation(), { wrapper });
+
+    vi.spyOn(settingsApi, "updateAppearance").mockResolvedValueOnce(initial);
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        theme: "dark",
+      });
+    });
+
+    const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
+    expect(cached?.appearance.theme).toBe("dark");
+    expect(cached?.appearance.accentColor).toBe("ocean");
+    expect(cached?.appearance.videoAutoplay).toBe(initial.appearance.videoAutoplay);
   });
 });

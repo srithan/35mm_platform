@@ -2,6 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { Rest } from "ably";
 import { createDb, notifications, profiles } from "@35mm/db";
 import { loadWorkerEnv } from "../lib/env.js";
+import { sendNotificationEmail } from "./notificationEmail.js";
 
 type NotificationPublishJobPayload = {
   notificationId: string;
@@ -101,9 +102,6 @@ function getAblyChannel(recipientId: string, apiKey: string) {
 export async function runNotificationPublishJob(payload: NotificationPublishJobPayload): Promise<boolean> {
   var env = loadWorkerEnv();
   var apiKey = env.ABLY_API_KEY.trim();
-  if (!apiKey) {
-    return false;
-  }
 
   var notificationId = payload.notificationId?.trim();
   if (!notificationId) {
@@ -196,16 +194,38 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
       return Boolean(profile);
     });
 
-  var channel = getAblyChannel(rows[0].recipientId, apiKey);
-  await channel.publish("notification.new", {
+  var published = false;
+  if (apiKey) {
+    var channel = getAblyChannel(rows[0].recipientId, apiKey);
+    await channel.publish("notification.new", {
+      notificationId,
+      actorIds,
+      actorProfiles,
+      bundleCount: row.bundleCount,
+      type: row.type,
+      entityId: row.entityId,
+      entityType: row.entityType,
+    });
+    published = true;
+  }
+
+  void sendNotificationEmail({
     notificationId,
-    actorIds,
-    actorProfiles,
-    bundleCount: row.bundleCount,
+    recipientId: row.recipientId,
     type: row.type,
     entityId: row.entityId,
     entityType: row.entityType,
+    bundleCount: row.bundleCount,
+    actorProfiles,
+    db: dbClient,
+  }).catch(function (error) {
+    console.error("[notification-email] side effect failed", {
+      notificationId,
+      recipientId: row.recipientId,
+      type: row.type,
+      error,
+    });
   });
 
-  return true;
+  return published;
 }

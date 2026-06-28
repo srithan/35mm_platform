@@ -46,6 +46,17 @@ describe("settings schemas", () => {
         festivalUpdates: true,
         watchlistStreaming: false,
         emailDigest: false,
+        emailPreferences: {
+          likesOnPosts: false,
+          repostsOnPosts: false,
+          newFollowers: true,
+          followRequests: true,
+          followRequestApproved: true,
+          comments: true,
+          replies: true,
+          mentions: true,
+          filmLogged: false,
+        },
       }).success
     ).toBe(true);
 

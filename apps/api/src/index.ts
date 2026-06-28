@@ -19,6 +19,7 @@ import { onboardingRoutes } from "./modules/onboarding/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
 import { notificationsRoutes } from "./modules/notifications/routes.js";
 import { listRoutes } from "./modules/lists/routes.js";
+import { emailRoutes } from "./modules/email/routes.js";
 import { isRedisEnabled } from "./lib/redis.js";
 import { isQueueEnabled } from "./lib/jobs.js";
 import posterProxy from "./routes/poster-proxy.js";
@@ -84,6 +85,7 @@ app.route("/v1", notificationsRoutes);
 app.route("/v1/lists", listRoutes);
 app.route("/v1/me/settings", settingsRoutes);
 app.route("/v1/media", mediaRoutes);
+app.route("/v1/email", emailRoutes);
 app.route("/v1", userRoutes);
 
 app.route("/v1/feed", feedRoutes);

@@ -82,6 +82,17 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
       festivalUpdates: true,
       watchlistStreaming: true,
       emailDigest: false,
+      emailPreferences: {
+        likesOnPosts: false,
+        repostsOnPosts: false,
+        newFollowers: true,
+        followRequests: true,
+        followRequestApproved: true,
+        comments: true,
+        replies: true,
+        mentions: true,
+        filmLogged: false,
+      },
     },
     appearance: {
       theme,

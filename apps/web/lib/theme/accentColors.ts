@@ -2,7 +2,7 @@ export const ACCENT_COLOR_OPTIONS = [
   {
     id: "theme",
     label: "Theme default",
-    swatch: "linear-gradient(135deg, #0f0f0f 0 50%, #f5f3f0 50% 100%)",
+    swatch: "transparent",
   },
   {
     id: "warm-red",

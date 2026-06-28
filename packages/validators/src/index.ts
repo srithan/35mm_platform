@@ -241,6 +241,7 @@ export var notificationTypeSchema = z.enum([
   "follow_request_approved",
   "mention",
   "repost",
+  "film_logged",
 ]);
 
 export var notificationQuerySchema = z.object({
@@ -324,6 +325,19 @@ export var updateNotificationsSchema = z.object({
   festivalUpdates: z.boolean().optional(),
   watchlistStreaming: z.boolean().optional(),
   emailDigest: z.boolean().optional(),
+  emailPreferences: z
+    .object({
+      likesOnPosts: z.boolean().optional(),
+      repostsOnPosts: z.boolean().optional(),
+      newFollowers: z.boolean().optional(),
+      followRequests: z.boolean().optional(),
+      followRequestApproved: z.boolean().optional(),
+      comments: z.boolean().optional(),
+      replies: z.boolean().optional(),
+      mentions: z.boolean().optional(),
+      filmLogged: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export var onboardingRoleSchema = z.enum([

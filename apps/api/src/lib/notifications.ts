@@ -11,12 +11,21 @@ type NotificationSettings = {
   notifyMentions: boolean;
 };
 
-type NotificationEntityKind = "post" | "comment" | "user" | null;
+type NotificationEntityKind = "post" | "comment" | "user" | "film" | null;
 
 type NotificationInput = {
   recipientId: string;
   actorId: string | null;
-  type: "like" | "comment" | "reply" | "follow" | "follow_request" | "follow_request_approved" | "mention" | "repost";
+  type:
+    | "like"
+    | "comment"
+    | "reply"
+    | "follow"
+    | "follow_request"
+    | "follow_request_approved"
+    | "mention"
+    | "repost"
+    | "film_logged";
   entityType: NotificationEntityKind;
   entityId: string | null;
 };
@@ -108,6 +117,7 @@ function canPreferenceNotify(type: NotificationInput["type"], settings: Notifica
   if (type === "like" || type === "repost") return settings.notifyLikesOnPosts;
   if (type === "comment" || type === "reply") return settings.notifyCommentsAndReplies;
   if (type === "mention") return settings.notifyMentions;
+  if (type === "film_logged") return false;
   return false;
 }
 

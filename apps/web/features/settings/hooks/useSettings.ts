@@ -168,7 +168,10 @@ export function useUpdateAppearanceMutation() {
       if (previous) {
         queryClient.setQueryData<UserSettings>(settingsKeys.detail(), {
           ...previous,
-          appearance: input,
+          appearance: {
+            ...previous.appearance,
+            ...input,
+          },
         });
       }
 
@@ -179,8 +182,17 @@ export function useUpdateAppearanceMutation() {
         queryClient.setQueryData(settingsKeys.detail(), context.previous);
       }
     },
-    onSuccess: (next) => {
-      queryClient.setQueryData(settingsKeys.detail(), next);
+    onSuccess: (next, input) => {
+      const current = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
+
+      queryClient.setQueryData<UserSettings>(settingsKeys.detail(), {
+        ...next,
+        appearance: {
+          ...next.appearance,
+          ...current?.appearance,
+          ...input,
+        },
+      });
     },
   });
 }

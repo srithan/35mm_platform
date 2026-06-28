@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ChevronRight,
   Heart,
-  Megaphone,
+  Film,
   MessageCircle,
   Repeat2,
   UserCheck,
@@ -35,8 +35,8 @@ const NOTIF_KIND_ICON = {
   mention: MessageCircle,
   comment: MessageCircle,
   reply: MessageCircle,
-  broadcast: Megaphone,
   repost: Repeat2,
+  film_logged: Film,
 } as const;
 
 type NotificationDropdownProps = {

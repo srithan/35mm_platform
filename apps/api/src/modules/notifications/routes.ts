@@ -135,10 +135,17 @@ interface EntityUserRow {
   avatarVariants?: AvatarVariants | null;
 }
 
+interface EntityFilmRow {
+  id: string;
+  title: string;
+  posterUrl: string | null;
+}
+
 type NotificationEntityMap = {
   posts: Map<string, EntityPostRow>;
   comments: Map<string, EntityCommentRow>;
   users: Map<string, EntityUserRow>;
+  films: Map<string, EntityFilmRow>;
 };
 
 function toCursor(createdAt: Date, id: string): string {
@@ -183,6 +190,16 @@ async function resolveEntity(
       thumbnailUrl: rowComment ? rowComment.postFilmPoster : null,
       username: rowComment ? rowComment.postUsername : null,
       postId: rowComment ? rowComment.postId : null,
+    };
+  }
+
+  if (row.entityType === "film") {
+    var rowFilm = maps.films.get(row.entityId);
+    return {
+      type: "film",
+      id: row.entityId,
+      title: rowFilm ? rowFilm.title : null,
+      thumbnailUrl: rowFilm ? rowFilm.posterUrl : null,
     };
   }
 
@@ -392,6 +409,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
   var postIds = new Set<string>();
   var commentIds = new Set<string>();
   var userIds = new Set<string>();
+  var filmIds = new Set<string>();
 
   for (var i = 0; i < visible.length; i += 1) {
     var notificationRow = visible[i];
@@ -405,6 +423,10 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
 
     if (notificationRow.entityType === "user" && notificationRow.entityId) {
       userIds.add(notificationRow.entityId);
+    }
+
+    if (notificationRow.entityType === "film" && notificationRow.entityId) {
+      filmIds.add(notificationRow.entityId);
     }
   }
 
@@ -454,9 +476,22 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
           .where(inArray(profiles.userId, Array.from(userIds)))
       : [];
 
+  var filmRows: EntityFilmRow[] =
+    filmIds.size > 0
+      ? await db
+          .select({
+            id: films.id,
+            title: films.title,
+            posterUrl: films.posterUrl,
+          })
+          .from(films)
+          .where(inArray(films.id, Array.from(filmIds)))
+      : [];
+
   var postMap = new Map<string, EntityPostRow>();
   var commentMap = new Map<string, EntityCommentRow>();
   var userMap = new Map<string, EntityUserRow>();
+  var filmMap = new Map<string, EntityFilmRow>();
 
   for (var j = 0; j < postRows.length; j += 1) {
     var postRow = postRows[j];
@@ -468,6 +503,11 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
     commentMap.set(commentRow.id, commentRow);
   }
 
+  for (var l = 0; l < filmRows.length; l += 1) {
+    var filmRow = filmRows[l];
+    filmMap.set(filmRow.id, filmRow);
+  }
+
   for (var m = 0; m < userRows.length; m += 1) {
     var userRow = userRows[m];
     userMap.set(userRow.id, userRow);
@@ -477,6 +517,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
     posts: postMap,
     comments: commentMap,
     users: userMap,
+    films: filmMap,
   };
 
   var items = await Promise.all(visible.map(function (row) {

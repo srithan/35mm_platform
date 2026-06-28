@@ -13,6 +13,7 @@ interface BookmarkButtonProps {
   folderId?: string | null;
   hideLabel?: boolean;
   className?: string;
+  disabled?: boolean;
   enableFolderPicker?: boolean;
   folders?: BookmarkFolderWithCount[];
   foldersLoading?: boolean;
@@ -27,6 +28,7 @@ export function BookmarkButton({
   folderId = null,
   hideLabel = false,
   className,
+  disabled = false,
   enableFolderPicker = false,
   folders = [],
   foldersLoading = false,
@@ -53,6 +55,7 @@ export function BookmarkButton({
   }, [enableFolderPicker, onFolderSelect, onCreateFolder]);
 
   const toggleSave = useCallback(function () {
+    if (disabled) return;
     onToggle();
     if (bookmarked) {
       setPickerOpen(false);
@@ -67,10 +70,11 @@ export function BookmarkButton({
     btn.addEventListener("animationend", function () {
       saveBtnRef.current?.classList.remove("save-pop");
     }, { once: true });
-  }, [onToggle, bookmarked]);
+  }, [disabled, onToggle, bookmarked]);
 
   const handlePointerDown = useCallback(
     function (e: React.PointerEvent<HTMLButtonElement>) {
+      if (disabled) return;
       if (!enableFolderPicker || e.button !== 0) return;
       longPressTriggeredRef.current = false;
       clearLongPressTimer();
@@ -79,7 +83,7 @@ export function BookmarkButton({
         openPicker();
       }, LONG_PRESS_MS);
     },
-    [clearLongPressTimer, enableFolderPicker, openPicker]
+    [clearLongPressTimer, disabled, enableFolderPicker, openPicker]
   );
 
   const handlePointerEnd = useCallback(function () {
@@ -93,18 +97,20 @@ export function BookmarkButton({
         e.preventDefault();
         return;
       }
+      if (disabled) return;
       toggleSave();
     },
-    [toggleSave]
+    [disabled, toggleSave]
   );
 
   const handleContextMenu = useCallback(
     function (e: React.MouseEvent<HTMLButtonElement>) {
+      if (disabled) return;
       if (!enableFolderPicker) return;
       e.preventDefault();
       openPicker();
     },
-    [enableFolderPicker, openPicker]
+    [disabled, enableFolderPicker, openPicker]
   );
 
   return (
@@ -113,6 +119,7 @@ export function BookmarkButton({
         ref={saveBtnRef}
         type="button"
         onClick={handleClick}
+        disabled={disabled}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerEnd}
         onPointerLeave={handlePointerEnd}

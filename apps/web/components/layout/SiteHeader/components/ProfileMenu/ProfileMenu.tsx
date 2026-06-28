@@ -9,7 +9,7 @@ import {
   resolveAccentColor,
   type AccentColorOption,
 } from "@/lib/theme/accentColors";
-import { applyAccentColor } from "@/lib/theme/applyAccentColor";
+import { applyAccentColor, readStoredAccentColor } from "@/lib/theme/applyAccentColor";
 import type { AppearanceSettings, PrivacySettings } from "@/features/settings/types/settings";
 import {
   useSettingsQuery,
@@ -55,16 +55,18 @@ export function ProfileMenu({
 	  const [profileMenuView, setProfileMenuView] = useState<ProfileMenuView>("main");
 	  const [profileMenuDirection, setProfileMenuDirection] = useState<ProfileMenuDirection>("forward");
 	  const [confirmMakePublicOpen, setConfirmMakePublicOpen] = useState(false);
+  const [profileAccentColor, setProfileAccentColor] =
+    useState<AccentColorOption>(DEFAULT_ACCENT_COLOR);
 
   const appearanceSettings: AppearanceSettings = settingsQuery.data?.appearance
     ? {
         ...settingsQuery.data.appearance,
-        theme: settingsQuery.data.appearance.theme ?? theme,
-        accentColor: resolveAccentColor(settingsQuery.data.appearance.accentColor),
+        theme,
+        accentColor: profileAccentColor,
       }
     : {
         theme,
-        accentColor: DEFAULT_ACCENT_COLOR,
+        accentColor: profileAccentColor,
         videoAutoplay: true,
       };
   const privacySettings: PrivacySettings = settingsQuery.data?.privacy ?? {
@@ -72,6 +74,22 @@ export function ProfileMenu({
     allowMessagesFromAnyone: true,
     showActivityStatus: true,
   };
+
+  useEffect(
+    function () {
+      if (updateAppearanceMutation.isPending) return;
+
+      const nextAccentColor = settingsQuery.data?.appearance
+        ? resolveAccentColor(settingsQuery.data.appearance.accentColor)
+        : resolveAccentColor(readStoredAccentColor());
+
+      setProfileAccentColor(nextAccentColor);
+    },
+    [
+      settingsQuery.data?.appearance,
+      updateAppearanceMutation.isPending,
+    ]
+  );
 
   useEffect(
     function () {
@@ -115,13 +133,15 @@ export function ProfileMenu({
   }
 
   function selectProfileAccentColor(nextAccentColor: AccentColorOption) {
-    if (nextAccentColor === appearanceSettings.accentColor) return;
-    const previousAccentColor = appearanceSettings.accentColor;
+    if (nextAccentColor === profileAccentColor) return;
+    const previousAccentColor = profileAccentColor;
+    setProfileAccentColor(nextAccentColor);
     applyAccentColor(nextAccentColor);
     updateAppearanceMutation.mutate(
       { accentColor: nextAccentColor },
       {
         onError: function () {
+          setProfileAccentColor(previousAccentColor);
           applyAccentColor(previousAccentColor);
         },
       }

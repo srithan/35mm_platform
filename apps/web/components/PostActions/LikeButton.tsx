@@ -8,6 +8,7 @@ interface LikeButtonProps {
   liked: boolean;
   likeCount: number;
   hideCount?: boolean;
+  disabled?: boolean;
   onToggle: () => void;
   className?: string;
 }
@@ -16,6 +17,7 @@ export function LikeButton({
   liked,
   likeCount,
   hideCount = false,
+  disabled = false,
   onToggle,
   className,
 }: LikeButtonProps) {
@@ -23,17 +25,10 @@ export function LikeButton({
   const animatingRef = useRef(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const [visualLiked, setVisualLiked] = useState(liked);
   const [burst, setBurst] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [settling, setSettling] = useState(false);
   const [settled, setSettled] = useState(false);
-
-  useEffect(() => {
-    if (!animatingRef.current) {
-      setVisualLiked(liked);
-    }
-  }, [liked]);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -48,6 +43,7 @@ export function LikeButton({
   }, []);
 
   const handleClick = useCallback(() => {
+    if (disabled) return;
     if (animatingRef.current) return;
     animatingRef.current = true;
 
@@ -60,7 +56,6 @@ export function LikeButton({
 
       schedule(() => {
         setAnimating(false);
-        setVisualLiked(true);
         setSettling(true);
 
         schedule(() => {
@@ -75,7 +70,6 @@ export function LikeButton({
         }, 150);
       }, 580);
     } else {
-      setVisualLiked(false);
       setBurst(true);
 
       schedule(() => {
@@ -83,20 +77,21 @@ export function LikeButton({
         animatingRef.current = false;
       }, 450);
     }
-  }, [liked, onToggle, schedule]);
+  }, [disabled, liked, onToggle, schedule]);
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      className={cn("action-btn like-action", className, visualLiked && "liked")}
+      disabled={disabled}
+      className={cn("action-btn like-action", className, liked && "liked")}
       aria-pressed={liked}
       aria-label={liked ? "Unlike this post" : "Like this post"}
     >
       <span
         className={cn(
           "like-btn",
-          visualLiked && "liked",
+          liked && "liked",
           burst && "burst",
           animating && "animating",
           settling && "settling",

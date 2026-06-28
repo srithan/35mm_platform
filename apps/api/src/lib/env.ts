@@ -40,6 +40,7 @@ export function loadEnv() {
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? "",
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
     RATE_LIMIT_DISABLED: (process.env.RATE_LIMIT_DISABLED ?? "").toLowerCase() === "true",
+    EMAIL_UNSUBSCRIBE_SECRET: process.env.EMAIL_UNSUBSCRIBE_SECRET ?? "",
     NODE_ENV: process.env.NODE_ENV ?? "development",
     CORS_ORIGIN: corsOrigin,
     CORS_ORIGINS: parseCorsOrigins(corsOrigin),

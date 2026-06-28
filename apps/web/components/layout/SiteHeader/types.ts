@@ -1,9 +1,7 @@
 import type { NotificationItem as ApiNotificationItem } from "@35mm/types";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 
-export type HeaderNotifRow = Omit<ApiNotificationItem, "type"> & {
-  type: "like" | "comment" | "reply" | "follow" | "follow_request" | "follow_request_approved" | "mention" | "repost";
-};
+export type HeaderNotifRow = ApiNotificationItem;
 
 export type ProfileMenuView = "main" | "appearance" | "privacy";
 export type ProfileMenuDirection = "forward" | "back";

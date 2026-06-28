@@ -1,3 +1,5 @@
+import { Switch } from "@/components/Switch";
+
 export function NotificationsRightPanel() {
   return (
     <>
@@ -49,11 +51,7 @@ export function NotificationsRightPanel() {
             className="flex items-center justify-between py-2.5 border-b border-border last:border-b-0"
           >
             <span className="text-[12.5px] text-fg-light">{label}</span>
-            <label className="relative w-[30px] h-[17px] flex-shrink-0 cursor-pointer">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="absolute inset-0 rounded-[17px] border border-border-strong bg-sunken-2 peer-checked:border-accent peer-checked:bg-accent transition-colors" />
-              <div className="absolute top-[2.5px] left-[2.5px] w-3 h-3 rounded-full bg-bg border border-border shadow-sm transition-transform peer-checked:translate-x-[13px] peer-checked:border-transparent" />
-            </label>
+            <Switch checked={true} aria-label={label} />
           </div>
         ))}
       </div>

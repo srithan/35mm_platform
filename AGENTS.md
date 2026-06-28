@@ -1,22 +1,40 @@
-# 35mm — Agent Context
+# 35mm - Agent Context
 
-Social film platform (Letterboxd × Twitter). Target scale: 35M+ users.
-Full architecture doc: `docs/architecture.md`
+Social film platform: Letterboxd x Twitter for cinema.
+Target scale: 35M+ users.
+Master architecture reference: `docs/architecture.md`
+Last agent-context refresh: 2026-06-28.
 
 ---
 
-## Monorepo (Turborepo + pnpm)
+## Monorepo
 
+Turborepo + pnpm workspace.
+
+```txt
+apps/web      -> Next.js 15 App Router web app (Vercel)
+apps/api      -> Hono REST API (Vercel or Node host)
+apps/worker   -> BullMQ background worker (long-running Node)
+packages/db   -> Drizzle schema + Neon client source of truth
+packages/types       -> Shared TypeScript contracts
+packages/validators  -> Shared Zod schemas
+packages/ui          -> Shared React primitives
+packages/config      -> Shared TS config
 ```
-apps/web      → Next.js 15 App Router (Vercel)
-apps/api      → Hono REST API (Vercel / Node)
-apps/worker   → BullMQ background jobs (long-running Node)
-packages/db   → Drizzle schema + Neon client (source of truth)
-packages/types       → Shared TypeScript contracts
-packages/validators  → Shared Zod schemas
-packages/ui          → Shared React primitives
-packages/config      → Shared TS config
+
+Root commands:
+
+```bash
+pnpm dev
+pnpm dev:web
+pnpm dev:api
+pnpm dev:worker
+pnpm build
+pnpm typecheck
+pnpm lint
 ```
+
+Node engine: `>=22.0.0`.
 
 ---
 
@@ -24,93 +42,188 @@ packages/config      → Shared TS config
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js 15, React 18, Tailwind, React Query v5, Zustand v5, Clerk, Framer Motion |
-| API | Hono (not tRPC — native Swift/Kotlin support required) |
-| DB | Neon (Postgres) + Drizzle ORM |
-| Auth | Clerk (native SDKs, `verifyToken` on API) |
-| Queue | BullMQ + Upstash Redis |
-| Cache | Upstash Redis |
-| Realtime | Ably |
-| Media | Cloudflare R2 (storage) + Stream (video) + Images (optimization) |
-| Search | Meilisearch |
-| Email | Resend |
-| Deploy | Vercel (web + api), long-running Node (worker) |
+| Frontend | Next.js 15, React 18, Tailwind, React Query v5, Zustand v5, Clerk, Framer Motion, TipTap, nuqs |
+| API | Hono v4 REST API (not tRPC; native Swift/Kotlin clients are a requirement) |
+| DB | Neon Postgres + Drizzle ORM |
+| Auth | Clerk, with API bearer verification and Svix webhooks |
+| Queue | BullMQ over Upstash Redis protocol URL |
+| Cache | Upstash Redis REST |
+| Realtime | Ably for notification publish/subscribe, with noop fallback on web |
+| Media | Cloudflare R2 primary storage and variants; Cloudflare Images optional delivery layer |
+| Search | Meilisearch planned, not wired |
+| Email | Resend planned, not wired |
+| Deploy | Vercel for web/API, long-running Node for worker |
 
 ---
 
-## Film DB Rules — Never Violate
+## Non-Negotiable Architecture Rules
 
-- 35mm DB is always primary. TMDB is cold-start fallback only.
-- Film PKs = **ULIDs**. `imdb_id` and `tmdb_id` are unique indexes, never PKs.
-- Film URLs use the 35mm ULID — never TMDB ID.
-- Single `films` table with `source`: `35mm | tmdb_import | user_contributed`
-- `FilmRef.id` in all types and API responses = 35mm ULID. **Never `tmdbId`.**
-- TMDB API proxy (`/api/tmdb/*`) is for search autocomplete only, not film identity.
-
----
-
-## Architecture Decisions
-
-- **Pagination:** cursor-based everywhere. No OFFSET, ever.
-- **Counters:** denormalized on `posts` (`like_count`, `comment_count`, etc.). Updated async via BullMQ. Never COUNT() at read time.
-- **Feed:** hybrid fan-out. Write fan-out for users with < 10K followers (push to `feed_items`). Read fan-out for ≥ 10K (pull at query time).
-- **Soft deletes:** `is_deleted` boolean on all user-generated content. Never hard delete.
-- **Ratings:** stored as `smallint` 1–10 in DB. Half-stars rendered in UI only.
-- **Comments:** max 3 levels deep, enforced in app layer.
-- **Notifications:** bundled, real-time via Ably.
-- **Username changes:** allowed. Old handle freed after 30 days.
-- **Post visibility:** `public | followers_only | private` from day one.
-- **Posts:** editable with edit history stored in `post_edits`.
+- 35mm DB is primary. TMDB is fallback/autocomplete/import metadata only.
+- Film identity is `films.id`, a 35mm ULID-shaped string. `tmdb_id` and `imdb_id` are unique metadata indexes, never primary keys.
+- App URLs and API contracts must use 35mm film IDs, never TMDB IDs.
+- `FilmRef.id` in shared API types is the 35mm ID. `tmdbId` may appear only as optional metadata or in TMDB-specific UI flows.
+- Do not reintroduce inline film JSON as post identity. `posts.film_id` references `films.id`.
+- Pagination is cursor-based everywhere. Do not add OFFSET pagination.
+- Hot read paths use denormalized counters and async updates. Do not add live `COUNT()` queries to read payloads.
+- User-generated content is soft-deleted with `is_deleted`; do not hard delete posts/comments/lists.
+- Ratings are stored as `smallint` 1-10 in DB. Half-stars are a UI rendering concern.
+- Comments are max 3 levels deep, enforced in the app/API layer.
+- Post visibility exists from day one: `public | followers_only | private`.
+- Posts are editable; edit history belongs in `post_edits`.
 
 ---
 
-## State Management
+## Current Implementation Reality
 
-- **Server state** (anything from the DB) → React Query only. Never duplicate in Zustand.
-- **Client/UI state** (composer open, modals, sidebar) → Zustand only.
-- Optimistic updates on all mutations (likes, bookmarks, reposts, follows).
-- Query key factories in `features/*/hooks/queryKeys.ts` — never ad-hoc strings.
+| Area | Current state |
+|---|---|
+| Auth | Clerk is wired in web, API middleware, and webhooks. |
+| Profiles/settings | CRUD and onboarding are wired. |
+| Films table | Exists in `packages/db/src/schema/films.ts`; IDs are text intended as ULIDs, enforced mostly at app/validator layer. |
+| Posts/feed/interactions | Posts, likes, reposts, bookmarks, bookmark folders, polls, comments, and comment likes are API-backed. |
+| Follows/moderation | Follows, follow requests, blocks, and mutes are wired. |
+| Notifications | DB notifications, bundling, read/unread API, and worker Ably publish exist. Digest/email is still a stub. |
+| Lists/watchlists | Film lists, private watchlists, entries, likes, clones, reorder, and TMDB/catalog resolution are wired. |
+| Media | R2 presign and worker image variants are wired. Cloudflare Images is optional; Cloudflare Stream is not wired. |
+| Feed worker jobs | `feed.fanout`, `feed.rescore`, `feed.pruneFeedItems`, and `counter.increment` are implemented. |
+| Search | Meilisearch is not wired; discover/title/composer still rely heavily on TMDB-backed paths. |
+| Chat | Frontend module exists; authenticated API routes exist, but persistence is not wired and send returns `501`. |
+| Future/mock-heavy surfaces | Short films, communities, festivals, video discovery, and push/email flows are gated or incomplete. |
+
+---
+
+## Feed, Cache, and Worker Rules
+
+Detailed docs:
+
+- `docs/feed-fanout-ranking.md`
+- `docs/feed-retention-and-high-follower-cache.md`
+
+Important current behavior:
+
+- Hybrid home feed is implemented.
+- Authors below `FEED_HIGH_FOLLOWER_THRESHOLD` (default `10000`) get write fanout into `feed_items`.
+- High-follower authors skip write fanout and are merged live at read time.
+- Feed score formula lives in `packages/types/src/feedScoring.ts` and is mirrored in SQL in `apps/api/src/modules/feed/routes.ts`.
+- `feed_items.score` is computed on write/backfill/fanout and refreshed by `feed.rescore`.
+- `feed_items` retention defaults to 30 days via `FEED_ITEMS_RETENTION_DAYS`.
+- `feed.pruneFeedItems` deletes old materialized rows in indexed chunks and relies on short feed cache TTL instead of per-viewer prune invalidation.
+- Authenticated home feed cursor shape includes score, post ID, ranking timestamp, and materialized retention anchor when relevant.
+- High-follower author slices are cached separately with `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaulting to 45 seconds and `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaulting to 100.
+- Counter jobs cover post like/comment/repost/bookmark counters, comment likes, poll totals/options, and film list like/entry counters.
+- Manual counter reconciliation path:
+
+```bash
+pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>
+```
 
 ---
 
 ## Frontend Conventions
 
-- **Always light mode** unless user has explicitly set a theme preference.
-- Fonts: DM Serif Display (headings), DM Sans (body), DM Mono (counters/code).
-- Accent: `#c2473a` (warm red).
-- Feed max-width: 640px centered.
-- `PostCard` must be memoized (`React.memo`) — renders N times per feed.
-- Heavy components (emoji picker, GIF picker, film search) → dynamic import.
+- Default experience is light mode. Additional themes exist through `data-theme`; do not assume dark-first design.
+- Fonts: DM Serif Display for headings, DM Sans for body, DM Mono for counters/code.
+- Accent: warm red `#c2473a`.
+- Main feed max width: 640px centered.
+- Shell layout: left navigation, center content, right rail.
+- Server/DB state belongs in React Query. Do not mirror it in Zustand.
+- Zustand is for UI-only state such as composer modal and mobile bottom chrome.
+- Use feature query key factories in `features/*/hooks/queryKeys.ts`. Do not invent ad hoc query strings.
+- Optimistic updates are expected for likes, bookmarks, reposts, follows, and similar interactions.
+- `PostCard` is memoized and performance-sensitive.
+- Heavy UI such as emoji/GIF pickers and film search should be dynamically imported.
+- Keep `apps/web/features/feed/types/feed.ts` aligned with shared API contracts. Local TMDB metadata is allowed for UI fallback only, not identity.
+
+Important frontend modules:
+
+- `features/feed`: composer, feed, post cards, comments, polls, mutations.
+- `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes.
+- `features/notifications`: notification list/dropdown, mark-read flows, realtime.
+- `features/lists`: film lists and watchlists.
+- `features/settings`: account, privacy, notifications, appearance, data/security.
+- `features/bookmarks`: bookmark page, folder management, post-to-folder flow.
+- `features/onboarding`: role, favorite films/genres, follow suggestions.
+- `features/discover` and `features/title`: still TMDB-heavy; audit for canonical 35mm film IDs before making contract changes.
+- `features/chat`: rich UI and remote/mock abstraction; backend persistence incomplete.
 
 ---
 
-## Pending — Do Before Writing API Contract
+## API Conventions and Hotspots
 
-- [ ] Rename `post_saves` table → `post_bookmarks`
-- [ ] Rename `FeedPost.saveCount` → `bookmarkCount`, `isSaved` → `isBookmarked`
-- [ ] `FilmRef.id` must be 35mm ULID everywhere in `packages/types` (currently uses `tmdbId`)
-- [ ] Migrate `posts.film` JSONB column → `film_id` FK after `films` table exists
+Entry point: `apps/api/src/index.ts`.
+
+Global patterns:
+
+- Load env through `loadEnv()`.
+- Initialize DB through `initDb()` / `getDb()`.
+- Protected routes use `requireAuth`.
+- Optional-auth routes use `getOptionalAuthUser`.
+- Error response shape: `{ "code": "ERROR_CODE", "message": "Human readable message" }`.
+- Pagination envelope: `{ "items": [], "nextCursor": null, "hasMore": false }`.
+- Validators come from `packages/validators`; shared response contracts come from `packages/types`.
+
+Graph output from `apps/api` (`graphify-out-api/GRAPH_REPORT.md`) highlights these central nodes:
+
+- `getDb()` - main cross-community bridge; avoid duplicating DB access patterns.
+- `loadEnv()` - central env/config bridge used by API and jobs.
+- `badRequest()` / `notFound()` - common error helpers; keep error contract consistent.
+- `resolveProfileAvatarUrl()` / `resolvePublicMediaUrl()` / `getR2ObjectKeyFromUrl()` - media URL hotspots.
+- `createNotification()` and `getUnreadNotificationCount()` - notification DB hotspots.
+- `invalidateViewerFeedCaches()` - feed cache invalidation hotspot.
+
+API graph caveat: the generated API graph is AST-only, but dense enough to be useful: 396 nodes, 977 retained edges, 14 communities. It reported 198 dangling raw endpoints, so verify source before relying on any absent edge.
 
 ---
 
-## What's Real vs Stub
+## Graphify Output Notes
 
-| Thing | Status |
-|---|---|
-| Auth (Clerk) | ✅ Wired |
-| Profiles CRUD | ✅ Wired |
-| Media presign (R2) | ✅ Wired |
-| Feed + posts + likes | ✅ Wired |
-| Settings | ✅ Wired |
-| Clerk webhooks | ✅ Wired |
-| Films table | ⬜ Does not exist yet |
-| Follows | ⬜ Does not exist yet |
-| Comments | ⬜ Does not exist yet |
-| Notifications | ⬜ Mock only |
-| BullMQ / Redis | ⚠️ Wired for `media.process`; `feed.fanout` / `counter.increment` still stubs |
-| Worker daemon | ✅ Long-running BullMQ consumer (`35mm-jobs`) |
-| Ably realtime | ⬜ Noop transport stub |
-| Meilisearch | ⬜ Not wired |
-| Chat (backend) | ⚠️ 3 of ~10 routes, no auth |
-| Cloudflare Images | ⚠️ Optional delivery layer; R2 WebP variants are primary path |
-| Cloudflare Stream | ⬜ Not wired |
+Local graph artifacts may exist:
+
+- `graphify-out-api/` for `apps/api`
+- `graphify-out/` for `apps/web`
+
+The `apps/web` graph is currently sparse and AST-only: 754 nodes but only 21 retained edges, with many dangling endpoints. Use it for rough node discovery only; inspect source directly for frontend dependency or architecture claims.
+
+The `apps/api` graph is more useful. It shows no import cycles and identifies weakly cohesive route communities around `getDb()`, feed cache, jobs, notifications, media/R2, settings, and cursor/error helpers. If a future task asks "how does this API path work?", start with the relevant graph report/query, then verify in source.
+
+Do not commit generated graph outputs unless the user explicitly asks. They are local analysis artifacts.
+
+---
+
+## Current Gaps and Priority Work
+
+Highest priority:
+
+1. Add a general films API and catalog search.
+2. Wire Meilisearch for films/users/posts.
+3. Add DB-level checks for ULID-shaped text IDs where practical.
+4. Audit TMDB-backed title/discover/composer paths for canonical 35mm ID compliance.
+5. Finish notification digest and Resend email integration.
+6. Decide whether chat remains gated or gets real persistence.
+7. Wire Cloudflare Stream if production video is in scope.
+8. Validate migrations against current Drizzle schema in real environments.
+
+Known contract/status notes:
+
+- `post_bookmarks`, `bookmarkCount`, and `isBookmarked` are current. Do not use the old save/saveCount naming.
+- `packages/types` uses canonical film IDs in `FeedPost.film.id`; optional `tmdbId` still appears in TMDB/catalog input flows and some frontend-local types.
+- `films` exists, but no broad film search/API module exists yet.
+- `notification.digest`, search indexing, email, Cloudflare Stream, and chat persistence remain incomplete.
+
+---
+
+## Testing Guidance
+
+Useful commands:
+
+```bash
+pnpm --filter @35mm/web test
+pnpm --filter @35mm/api test
+pnpm --filter @35mm/api typecheck
+pnpm --filter @35mm/worker typecheck
+pnpm typecheck
+```
+
+Coverage exists for API media variants, rich text validators, feed rich mentions, mention notifications, home feed merge behavior, web rich text rendering, R2 media helpers, post media helpers, comment section, search bar, post composer, settings schemas/hooks, notifications panel, and modal focus stack.
+
+For cross-layer changes, keep schema, validators, shared types, API routes, frontend adapters/hooks, and worker side effects aligned in the same change.

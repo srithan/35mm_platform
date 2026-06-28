@@ -29,6 +29,17 @@ export const notificationSettingsSchema = z.object({
   festivalUpdates: z.boolean(),
   watchlistStreaming: z.boolean(),
   emailDigest: z.boolean(),
+  emailPreferences: z.object({
+    likesOnPosts: z.boolean(),
+    repostsOnPosts: z.boolean(),
+    newFollowers: z.boolean(),
+    followRequests: z.boolean(),
+    followRequestApproved: z.boolean(),
+    comments: z.boolean(),
+    replies: z.boolean(),
+    mentions: z.boolean(),
+    filmLogged: z.boolean(),
+  }),
 });
 
 export const appearanceSettingsSchema = z.object({

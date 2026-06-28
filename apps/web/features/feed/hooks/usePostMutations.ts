@@ -28,7 +28,11 @@ function isInfiniteFeedData(
 ): value is InfiniteData<FeedPage> | undefined {
   if (value === undefined) return true;
   if (!value || typeof value !== "object") return false;
-  return Array.isArray((value as { pages?: unknown }).pages);
+  var pages = (value as { pages?: unknown }).pages;
+  if (!Array.isArray(pages)) return false;
+  return pages.every(function (page) {
+    return Boolean(page) && typeof page === "object" && Array.isArray((page as { posts?: unknown }).posts);
+  });
 }
 
 function updatePostInInfinite(
@@ -98,6 +102,7 @@ function patchAllFeedCaches(
   postId: string,
   updater: (post: Post) => Post
 ) {
+  var updatedPostFromFeed: Post | undefined;
   var entries = queryClient.getQueriesData<unknown>({
     queryKey: feedKeys.all,
   });
@@ -105,11 +110,18 @@ function patchAllFeedCaches(
   for (var i = 0; i < entries.length; i += 1) {
     var [key, data] = entries[i];
     if (!isInfiniteFeedData(data)) continue;
-    queryClient.setQueryData(key, updatePostInInfinite(data, postId, updater));
+    queryClient.setQueryData(
+      key,
+      updatePostInInfinite(data, postId, function (post) {
+        var updated = updater(post);
+        updatedPostFromFeed = updated;
+        return updated;
+      })
+    );
   }
 
   queryClient.setQueryData<Post | undefined>(feedKeys.post(postId), function (existing) {
-    return existing ? updater(existing) : existing;
+    return existing ? updater(existing) : updatedPostFromFeed ?? existing;
   });
 }
 
@@ -128,11 +140,12 @@ function removePostFromAllFeedCaches(
   }
 }
 
-export function useLikePost() {
+export function useLikePost(postId?: string) {
   var queryClient = useQueryClient();
   var { getToken } = useAuth();
 
   return useMutation({
+    mutationKey: feedKeys.postLike(postId ?? "unknown"),
     mutationFn: async function (input: { postId: string; isLiked: boolean }) {
       var token = await getToken();
       if (input.isLiked) {
@@ -148,10 +161,11 @@ export function useLikePost() {
       var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
 
       patchAllFeedCaches(queryClient, input.postId, function (post) {
+        var countDelta = post.isLiked === input.isLiked ? 0 : input.isLiked ? 1 : -1;
         return {
           ...post,
           isLiked: input.isLiked,
-          likeCount: Math.max(0, post.likeCount + (input.isLiked ? 1 : -1)),
+          likeCount: Math.max(0, post.likeCount + countDelta),
         };
       });
 
@@ -164,6 +178,15 @@ export function useLikePost() {
       if (!context) return;
       restoreFeedCaches(queryClient, context.snapshot);
       queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+    },
+    onSuccess: function (data, input) {
+      patchAllFeedCaches(queryClient, input.postId, function (post) {
+        return {
+          ...post,
+          isLiked: input.isLiked,
+          likeCount: Math.max(0, Number(data.likeCount ?? post.likeCount)),
+        };
+      });
     },
   });
 }
@@ -206,11 +229,12 @@ export function useRepostPost() {
   });
 }
 
-export function useBookmarkPost() {
+export function useBookmarkPost(postId?: string) {
   var queryClient = useQueryClient();
   var { getToken } = useAuth();
 
   return useMutation({
+    mutationKey: feedKeys.postBookmark(postId ?? "unknown"),
     mutationFn: async function (input: {
       postId: string;
       isBookmarked: boolean;
@@ -252,7 +276,14 @@ export function useBookmarkPost() {
       restoreFeedCaches(queryClient, context.snapshot);
       queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
     },
-    onSuccess: function (_data, input) {
+    onSuccess: function (data, input) {
+      patchAllFeedCaches(queryClient, input.postId, function (post) {
+        return {
+          ...post,
+          isBookmarked: input.isBookmarked,
+          bookmarkFolderId: input.isBookmarked ? data.folderId : null,
+        };
+      });
       queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
       if (input.isBookmarked && input.folderId) {
         queryClient.invalidateQueries({ queryKey: bookmarkKeys.folders() });

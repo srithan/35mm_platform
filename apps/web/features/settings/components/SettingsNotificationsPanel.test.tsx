@@ -19,6 +19,17 @@ describe("SettingsNotificationsPanel", () => {
           festivalUpdates: true,
           watchlistStreaming: true,
           emailDigest: false,
+          emailPreferences: {
+            likesOnPosts: false,
+            repostsOnPosts: false,
+            newFollowers: true,
+            followRequests: true,
+            followRequestApproved: true,
+            comments: true,
+            replies: true,
+            mentions: true,
+            filmLogged: false,
+          },
         }}
         onSave={onSave}
       />
@@ -39,6 +50,17 @@ describe("SettingsNotificationsPanel", () => {
       festivalUpdates: true,
       watchlistStreaming: true,
       emailDigest: true,
+      emailPreferences: {
+        likesOnPosts: false,
+        repostsOnPosts: false,
+        newFollowers: true,
+        followRequests: true,
+        followRequestApproved: true,
+        comments: true,
+        replies: true,
+        mentions: true,
+        filmLogged: false,
+      },
     });
   });
 });

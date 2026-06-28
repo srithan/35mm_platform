@@ -1,5 +1,11 @@
 export { bookmarkFolders } from "./bookmarks.js";
-export { users, accountStatusEnum } from "./users.js";
+export {
+  users,
+  accountStatusEnum,
+  type NotificationEmailPreferenceKey,
+  type NotificationEmailPreferenceValue,
+  type NotificationEmailPreferences,
+} from "./users.js";
 export { followSuggestions } from "./follow_suggestions.js";
 export { profiles } from "./profiles.js";
 export { userSettings } from "./user_settings.js";

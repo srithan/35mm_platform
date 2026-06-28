@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsMutating } from "@tanstack/react-query";
 import { PostActions } from "@/components/PostActions/PostActions";
 import { useFlashToast } from "@/components/FlashToast";
 import {
@@ -10,6 +11,7 @@ import {
 import { ApiRequestError } from "../../api/http";
 import { useBookmarkFolders } from "@/features/bookmarks/hooks/useBookmarkFolders";
 import { useCreateBookmarkFolder } from "@/features/bookmarks/hooks/useBookmarkFolderMutations";
+import { feedKeys } from "../../hooks/queryKeys";
 
 interface PostCardActionsBarProps {
   postId?: string;
@@ -29,6 +31,11 @@ type BookmarkFolderSelectState = {
 
 type BookmarkToggleState = {
   isBookmarked: boolean;
+  revert: () => void;
+};
+
+type LikeToggleState = {
+  isLiked: boolean;
   revert: () => void;
 };
 
@@ -52,16 +59,24 @@ export function PostCardActionsBar({
   initialReposted,
   onCommentClick,
 }: PostCardActionsBarProps) {
-  const likeMutation = useLikePost();
+  const likeMutation = useLikePost(postId);
   const repostMutation = useRepostPost();
-  const bookmarkMutation = useBookmarkPost();
+  const bookmarkMutation = useBookmarkPost(postId);
   const createFolderMutation = useCreateBookmarkFolder();
   const foldersQuery = useBookmarkFolders({ enabled: Boolean(postId) });
   const { show: showFlashToast } = useFlashToast();
   const folders = foldersQuery.data?.folders ?? [];
+  const likePendingCount = useIsMutating({
+    mutationKey: feedKeys.postLike(postId ?? "unknown"),
+  });
+  const likeDisabled = likePendingCount > 0;
+  const bookmarkPendingCount = useIsMutating({
+    mutationKey: feedKeys.postBookmark(postId ?? "unknown"),
+  });
+  const bookmarkDisabled = bookmarkPendingCount > 0;
 
   async function saveToFolder(state: BookmarkFolderSelectState) {
-    if (!postId) {
+    if (!postId || bookmarkDisabled) {
       state.revert();
       return;
     }
@@ -94,12 +109,18 @@ export function PostCardActionsBar({
       bookmarkFolders={folders}
       bookmarkFoldersLoading={foldersQuery.isLoading}
       creatingBookmarkFolder={createFolderMutation.isPending}
-      onLikeToggle={({ isLiked }) => {
-        if (!postId) return;
+      likeDisabled={likeDisabled}
+      bookmarkDisabled={bookmarkDisabled}
+      onLikeToggle={(state: LikeToggleState) => {
+        if (!postId || likeDisabled) {
+          state.revert();
+          return;
+        }
         likeMutation.mutate(
-          { postId, isLiked },
+          { postId, isLiked: state.isLiked },
           {
             onError: (error) => {
+              state.revert();
               const message =
                 error instanceof ApiRequestError ? error.message : "Could not update like";
               showFlashToast(message, "error");
@@ -121,7 +142,7 @@ export function PostCardActionsBar({
         );
       }}
       onBookmarkToggle={(state: BookmarkToggleState) => {
-        if (!postId) {
+        if (!postId || bookmarkDisabled) {
           state.revert();
           return;
         }
@@ -144,7 +165,7 @@ export function PostCardActionsBar({
       }}
       onBookmarkFolderSelect={saveToFolder}
       onCreateBookmarkFolder={async function (name) {
-        if (!postId) return undefined;
+        if (!postId || bookmarkDisabled) return undefined;
         try {
           const folder = await createFolderMutation.mutateAsync(name);
           await bookmarkMutation.mutateAsync({ postId, isBookmarked: true, folderId: folder.id });

@@ -12,6 +12,21 @@ export class ApiRequestError extends Error {
   }
 }
 
+function toNetworkError(error: unknown): ApiRequestError {
+  if (error instanceof ApiRequestError) return error;
+
+  var message =
+    error instanceof Error && error.message.trim().length > 0
+      ? error.message
+      : "Could not reach the API. Check your connection and try again.";
+
+  if (message === "Failed to fetch" || message === "fetch failed") {
+    message = "Could not reach the API. Check your connection and try again.";
+  }
+
+  return new ApiRequestError(message, 0, "NETWORK_ERROR");
+}
+
 export async function apiRequest<T>(
   path: string,
   options: {
@@ -24,11 +39,16 @@ export async function apiRequest<T>(
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.token) headers.Authorization = "Bearer " + options.token;
 
-  const res = await fetch(API_URL + path, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(API_URL + path, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  } catch (error) {
+    throw toNetworkError(error);
+  }
 
   if (!res.ok) {
     let message = "Request failed";

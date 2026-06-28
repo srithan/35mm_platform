@@ -22,6 +22,14 @@ interface BookmarkFolderSelectState {
   revert: () => void;
 }
 
+interface LikeToggleState {
+  isLiked: boolean;
+  likeCount: number;
+  previousIsLiked: boolean;
+  previousLikeCount: number;
+  revert: () => void;
+}
+
 interface PostActionsProps {
   likes: number;
   comments: number;
@@ -31,13 +39,15 @@ interface PostActionsProps {
   initialReposted?: boolean;
   onCommentClick?: () => void;
   onReplyClick?: () => void;
-  onLikeToggle?: (state: { isLiked: boolean; likeCount: number }) => void;
+  onLikeToggle?: (state: LikeToggleState) => void;
   onBookmarkToggle?: (state: BookmarkToggleState) => void;
   onBookmarkFolderSelect?: (state: BookmarkFolderSelectState) => Promise<void> | void;
   onCreateBookmarkFolder?: (name: string) => Promise<BookmarkFolderWithCount | void>;
   bookmarkFolders?: BookmarkFolderWithCount[];
   bookmarkFoldersLoading?: boolean;
   creatingBookmarkFolder?: boolean;
+  likeDisabled?: boolean;
+  bookmarkDisabled?: boolean;
   onRepostToggle?: (state: { isReposted: boolean }) => void;
   hideRepostSaveLabels?: boolean;
   showReplyOption?: boolean;
@@ -63,102 +73,78 @@ export function PostActions({
   bookmarkFolders = [],
   bookmarkFoldersLoading = false,
   creatingBookmarkFolder = false,
+  likeDisabled = false,
+  bookmarkDisabled = false,
   onRepostToggle,
   hideRepostSaveLabels = false,
   showReplyOption = false,
   hideZeroCounts = false,
   useCompactVariant = false,
 }: PostActionsProps) {
-  const [liked, setLiked] = useState(initialLiked);
-  const [likeCount, setLikeCount] = useState(likes);
-  const [bookmarked, setBookmarked] = useState(initialBookmarked);
-  const [bookmarkFolderId, setBookmarkFolderId] = useState<string | null>(
-    initialBookmarkFolderId ?? null
-  );
   const [reposted, setReposted] = useState(initialReposted);
   const repostBtnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setLiked(initialLiked);
-  }, [initialLiked]);
-
-  useEffect(() => {
-    setLikeCount(likes);
-  }, [likes]);
-
-  useEffect(() => {
-    setBookmarked(initialBookmarked);
-  }, [initialBookmarked]);
-
-  useEffect(() => {
-    setBookmarkFolderId(initialBookmarkFolderId ?? null);
-  }, [initialBookmarkFolderId]);
+  const liked = initialLiked;
+  const likeCount = likes;
+  const bookmarked = initialBookmarked;
+  const bookmarkFolderId = initialBookmarkFolderId ?? null;
 
   useEffect(() => {
     setReposted(initialReposted);
   }, [initialReposted]);
 
   const toggleLike = useCallback(() => {
+    if (likeDisabled) return;
+    const previousIsLiked = liked;
+    const previousLikeCount = likeCount;
     const isLiked = !liked;
     const nextLikeCount = isLiked ? likeCount + 1 : likeCount - 1;
-    setLiked(isLiked);
-    setLikeCount(nextLikeCount);
-    onLikeToggle?.({ isLiked, likeCount: nextLikeCount });
-  }, [likeCount, liked, onLikeToggle]);
+    onLikeToggle?.({
+      isLiked,
+      likeCount: nextLikeCount,
+      previousIsLiked,
+      previousLikeCount,
+      revert: () => undefined,
+    });
+  }, [likeCount, likeDisabled, liked, onLikeToggle]);
 
   const toggleSave = useCallback(() => {
+    if (bookmarkDisabled) return;
     const previousIsBookmarked = bookmarked;
     const previousBookmarkFolderId = bookmarkFolderId;
     const nextBookmarked = !bookmarked;
     const nextBookmarkFolderId = nextBookmarked ? bookmarkFolderId : null;
-    setBookmarked(nextBookmarked);
-    if (!nextBookmarked) {
-      setBookmarkFolderId(null);
-    }
     onBookmarkToggle?.({
       isBookmarked: nextBookmarked,
       previousIsBookmarked,
       bookmarkFolderId: nextBookmarkFolderId,
       previousBookmarkFolderId,
-      revert: () => {
-        setBookmarked(previousIsBookmarked);
-        setBookmarkFolderId(previousBookmarkFolderId);
-      },
+      revert: () => undefined,
     });
-  }, [bookmarkFolderId, bookmarked, onBookmarkToggle]);
+  }, [bookmarkDisabled, bookmarkFolderId, bookmarked, onBookmarkToggle]);
 
   const handleFolderSelect = useCallback(
     async (folderId: string | null) => {
+      if (bookmarkDisabled) return;
       if (!onBookmarkFolderSelect) return;
       const previousIsBookmarked = bookmarked;
       const previousBookmarkFolderId = bookmarkFolderId;
-      setBookmarkFolderId(folderId);
-      if (!bookmarked) {
-        setBookmarked(true);
-      }
-      const revert = () => {
-        setBookmarked(previousIsBookmarked);
-        setBookmarkFolderId(previousBookmarkFolderId);
-      };
       await onBookmarkFolderSelect({
         folderId,
         previousIsBookmarked,
         previousBookmarkFolderId,
-        revert,
+        revert: () => undefined,
       });
     },
-    [bookmarkFolderId, bookmarked, onBookmarkFolderSelect]
+    [bookmarkDisabled, bookmarkFolderId, bookmarked, onBookmarkFolderSelect]
   );
 
   const handleCreateFolder = useCallback(
     async (name: string) => {
+      if (bookmarkDisabled) return;
       if (!onCreateBookmarkFolder) return;
-      const folder = await onCreateBookmarkFolder(name);
-      if (!folder?.id) return;
-      setBookmarked(true);
-      setBookmarkFolderId(folder.id);
+      await onCreateBookmarkFolder(name);
     },
-    [onCreateBookmarkFolder]
+    [bookmarkDisabled, onCreateBookmarkFolder]
   );
 
   const toggleRepost = useCallback(() => {
@@ -197,6 +183,7 @@ export function PostActions({
         liked={liked}
         likeCount={likeCount}
         hideCount={hideZeroCounts && likeCount === 0}
+        disabled={likeDisabled}
         onToggle={toggleLike}
         className={groupedActionClass}
       />
@@ -230,6 +217,7 @@ export function PostActions({
           folderId={bookmarkFolderId}
           hideLabel={hideRepostSaveText}
           className={groupedActionClass}
+          disabled={bookmarkDisabled}
           enableFolderPicker={Boolean(onBookmarkFolderSelect && onCreateBookmarkFolder)}
           folders={bookmarkFolders}
           foldersLoading={bookmarkFoldersLoading}
