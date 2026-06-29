@@ -180,7 +180,7 @@ async function shouldEmitNotification(input: NotificationInput): Promise<boolean
   if (!input.actorId) return true;
 
   var moderation = await getModerationStatus(input.actorId, input.recipientId);
-  if (moderation.blockedByViewer || moderation.blockedByTarget || moderation.isMutedByViewer) {
+  if (moderation.blockedByViewer || moderation.blockedByTarget) {
     return false;
   }
 

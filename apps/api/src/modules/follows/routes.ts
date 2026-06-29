@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { and, count, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { computeFeedScore } from "@35mm/types";
-import { feedItems, follows, notifications, posts, profiles, users } from "@35mm/db/schema";
+import { feedItems, follows, posts, profiles, users } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
 import { createNotification } from "../../lib/notifications.js";
 import { assertNoBlockBetween } from "../../lib/moderation.js";
@@ -243,33 +243,19 @@ followRoutes.post("/:userId/accept", requireAuth, async function (c) {
         and ${follows.followingId} = ${user.userId}
         and ${follows.status} = 'pending'
       returning ${follows.followerId} as follower_id
-    ),
-    inserted_notification as (
-      insert into ${notifications} (
-        "recipient_id",
-        "actor_id",
-        "actor_ids",
-        "type",
-        "entity_type",
-        "entity_id",
-        "bundle_count"
-      )
-      select
-        follower_id,
-        ${user.userId},
-        array[${user.userId}]::text[],
-        'follow_request_approved'::notification_type,
-        'user',
-        ${user.userId},
-        1
-      from updated_follow
-      returning "id"
     )
     select follower_id from updated_follow
   `) as { rows: Array<{ follower_id: string }> };
   var updated = result.rows;
 
   if (updated.length > 0) {
+    await createNotification({
+      recipientId: followerId,
+      actorId: user.userId,
+      type: "follow_request_approved",
+      entityType: "user",
+      entityId: user.userId,
+    });
     await invalidateViewerFeedCaches([followerId]);
     await invalidateAuthorProfileFeedCaches([user.userId]);
   }

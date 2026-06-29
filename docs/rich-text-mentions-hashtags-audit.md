@@ -82,5 +82,5 @@ Date: 2026-06-20
 
 ### Open Items Carried Forward
 
-- Posts have no DB-level `body` cap. Comments do: comment body DB/API raw cap was raised to `100000` chars after measuring a worst-case rich JSON expansion of `55264` chars for a 1,000-visible-character comment with alternating marks and mention atoms, leaving `44736` chars margin.
+- Posts have no DB-level `body` cap. Comments do: comment body DB/API raw cap is `100000` chars, and the API visible-text cap now matches that raw storage cap instead of the earlier 1,000-character comment limit.
 - Legacy markdown-content volume was never counted. Blocked by missing `DATABASE_URL`, same as notification DB/API verification.

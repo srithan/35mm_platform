@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { and, desc, eq, lt, or, sql, type SQL } from "drizzle-orm";
-import { users, profiles, follows, notifications } from "@35mm/db/schema";
+import { users, profiles, follows } from "@35mm/db/schema";
 import { getDb } from "../../lib/db.js";
+import { createNotification } from "../../lib/notifications.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
 import { notFound, badRequest, forbidden } from "../../lib/errors.js";
@@ -593,7 +594,7 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
 
     if (currentRows[0].isPrivate) {
       var setChunks = profileUpdateSetChunks(updates);
-      await db.execute(sql`
+      var approvedResult = await db.execute(sql`
         with updated_profile as (
           update ${profiles}
           set ${sql.join(setChunks, sql`, `)}
@@ -607,30 +608,22 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
             and ${follows.status} = 'pending'
             and exists(select 1 from updated_profile)
           returning ${follows.followerId} as follower_id
-        ),
-        inserted_notifications as (
-          insert into ${notifications} (
-            "recipient_id",
-            "actor_id",
-            "actor_ids",
-            "type",
-            "entity_type",
-            "entity_id",
-            "bundle_count"
-          )
-          select
-            follower_id,
-            ${user.userId},
-            array[${user.userId}]::text[],
-            'follow_request_approved'::notification_type,
-            'user',
-            ${user.userId},
-            1
-          from updated_follows
-          returning "id"
         )
-        select count(*)::int as approved_count from updated_follows
-      `);
+        select follower_id from updated_follows
+      `) as { rows: Array<{ follower_id: string }> };
+
+      for (var index = 0; index < approvedResult.rows.length; index += 1) {
+        var approvedFollowerId = approvedResult.rows[index]?.follower_id;
+        if (!approvedFollowerId) continue;
+
+        await createNotification({
+          recipientId: approvedFollowerId,
+          actorId: user.userId,
+          type: "follow_request_approved",
+          entityType: "user",
+          entityId: user.userId,
+        });
+      }
     } else {
       await db
         .update(profiles)

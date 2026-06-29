@@ -194,21 +194,6 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
       return Boolean(profile);
     });
 
-  var published = false;
-  if (apiKey) {
-    var channel = getAblyChannel(rows[0].recipientId, apiKey);
-    await channel.publish("notification.new", {
-      notificationId,
-      actorIds,
-      actorProfiles,
-      bundleCount: row.bundleCount,
-      type: row.type,
-      entityId: row.entityId,
-      entityType: row.entityType,
-    });
-    published = true;
-  }
-
   void sendNotificationEmail({
     notificationId,
     recipientId: row.recipientId,
@@ -226,6 +211,30 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
       error,
     });
   });
+
+  var published = false;
+  if (apiKey) {
+    var channel = getAblyChannel(rows[0].recipientId, apiKey);
+    try {
+      await channel.publish("notification.new", {
+        notificationId,
+        actorIds,
+        actorProfiles,
+        bundleCount: row.bundleCount,
+        type: row.type,
+        entityId: row.entityId,
+        entityType: row.entityType,
+      });
+      published = true;
+    } catch (error) {
+      console.error("[notification-publish] realtime publish failed", {
+        notificationId,
+        recipientId: row.recipientId,
+        type: row.type,
+        error,
+      });
+    }
+  }
 
   return published;
 }

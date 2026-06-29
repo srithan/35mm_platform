@@ -84,6 +84,9 @@ import {
   feedHighFollowerThreshold,
 } from "./fanoutConfig.js";
 
+const COMMENT_BODY_MAX_CHARS = 100000;
+const COMMENT_BODY_LENGTH_ERROR = `Comment body must be 1-${COMMENT_BODY_MAX_CHARS} characters`;
+
 export var feedRoutes = new Hono();
 
 var createPostRateLimit = createRateLimitMiddleware({
@@ -515,13 +518,18 @@ function parseCreateCommentInput(raw: unknown): { body: string; parentId: string
   }
   var body: string;
   try {
-    body = validateRichTextBody(source.body.trim(), 1000);
+    body = validateRichTextBody(source.body.trim(), COMMENT_BODY_MAX_CHARS);
   } catch (_error) {
-    throw badRequest("Comment body must be 1-1000 characters");
+    throw badRequest(COMMENT_BODY_LENGTH_ERROR);
   }
   var visibleBody = richTextBodyToVisibleText(body).trim();
-  if (body.length < 1 || body.length > 100000 || visibleBody.length < 1 || visibleBody.length > 1000) {
-    throw badRequest("Comment body must be 1-1000 characters");
+  if (
+    body.length < 1 ||
+    body.length > COMMENT_BODY_MAX_CHARS ||
+    visibleBody.length < 1 ||
+    visibleBody.length > COMMENT_BODY_MAX_CHARS
+  ) {
+    throw badRequest(COMMENT_BODY_LENGTH_ERROR);
   }
 
   if (
@@ -549,13 +557,18 @@ function parseUpdateCommentInput(raw: unknown): { body: string } {
   }
   var body: string;
   try {
-    body = validateRichTextBody(source.body.trim(), 1000);
+    body = validateRichTextBody(source.body.trim(), COMMENT_BODY_MAX_CHARS);
   } catch (_error) {
-    throw badRequest("Comment body must be 1-1000 characters");
+    throw badRequest(COMMENT_BODY_LENGTH_ERROR);
   }
   var visibleBody = richTextBodyToVisibleText(body).trim();
-  if (body.length < 1 || body.length > 100000 || visibleBody.length < 1 || visibleBody.length > 1000) {
-    throw badRequest("Comment body must be 1-1000 characters");
+  if (
+    body.length < 1 ||
+    body.length > COMMENT_BODY_MAX_CHARS ||
+    visibleBody.length < 1 ||
+    visibleBody.length > COMMENT_BODY_MAX_CHARS
+  ) {
+    throw badRequest(COMMENT_BODY_LENGTH_ERROR);
   }
 
   return { body };
