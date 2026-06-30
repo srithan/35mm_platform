@@ -9,6 +9,7 @@ We will get a minimum of 1 million daily active users. Make sure you are not wri
 
 ---
 
+
 ## Monorepo
 
 Turborepo + pnpm workspace.
@@ -230,6 +231,64 @@ pnpm typecheck
 Coverage exists for API media variants, rich text validators, feed rich mentions, mention notifications, home feed merge behavior, web rich text rendering, R2 media helpers, post media helpers, comment section, search bar, post composer, settings schemas/hooks, notifications panel, and modal focus stack.
 
 For cross-layer changes, keep schema, validators, shared types, API routes, frontend adapters/hooks, and worker side effects aligned in the same change.
+
+## Engineering Standard: Production-Grade Only
+
+This codebase targets 1M+ active users in production. There is no "dev mode" or
+"good enough for now" tier of code. Every PR is held to the same bar regardless
+of whether the feature is shipping today or in six months.
+
+### Hard rules — non-negotiable
+
+- **No placeholder/stub logic.** Never write `// TODO: handle this properly later`,
+  fake data, hardcoded test values, or `console.log`-driven debugging left in
+  the final diff. If a dependency isn't ready, say so — don't stub it silently.
+- **No unbounded queries.** Every list endpoint uses cursor-based pagination.
+  `OFFSET` pagination is forbidden at this scale.
+- **No synchronous heavy writes.** Counters (likes, follows, view counts, etc.)
+  are denormalized and updated async via BullMQ — never computed with `COUNT(*)`
+  on read, never incremented inline in the request path.
+- **No hard deletes** on user-generated content. Soft delete with `deletedAt`
+  and tombstone behavior where applicable.
+- **All mutations must be idempotent.** Assume retries, duplicate webhook
+  deliveries, and double-clicks. Use idempotency keys where the client can't
+  guarantee single-submission.
+- **Rate limiting is mandatory on every public mutation endpoint**, not
+  added later — use the existing Upstash rate limiter.
+- **No N+1 queries.** If a loop hits the DB, it's wrong. Batch, join, or
+  use dataloader-style patterns.
+- **No silent failure paths.** Errors must be caught, logged with context, and
+  surfaced — never swallowed with an empty catch block.
+- **No client-trusted authorization.** All access control is enforced
+  server-side, even if the UI already hides the action.
+- **Cache invalidation must be explicit.** If you add a Redis cache, you
+  document and implement its invalidation path in the same PR — no
+  "I'll add invalidation later."
+
+### Required for every new feature
+
+1. State which of the documented architecture patterns it follows (hybrid
+   fan-out, social-proof caching, BullMQ async jobs, etc.) — if none apply,
+   say why.
+2. State the read/write volume assumption at 1M+ DAU and confirm the design
+   holds up at that scale (e.g., "this is a per-user query, scales linearly,
+   fine" vs "this needs to be cached/precomputed").
+3. Call out any new index required and confirm it's added to the Drizzle schema.
+4. No feature ships without rate limiting, soft-delete semantics (if it
+   touches UGC), and pagination (if it returns a list) already wired in —
+   not flagged as follow-up work.
+
+### Explicitly forbidden phrases/patterns in generated code or PR descriptions
+
+"for now", "quick fix", "we can optimize this later", "good enough for an MVP",
+"temporary", "hacky but works" — if any of these would honestly describe the
+code, the code is wrong, not the description. Fix it before submitting.
+
+### When scope must be cut
+
+If a fully production-grade implementation is genuinely out of scope for the
+current task, stop and flag it explicitly to the user with the specific
+tradeoff being made — never silently downgrade quality to fit a deadline.
 
 ## Notes:
 

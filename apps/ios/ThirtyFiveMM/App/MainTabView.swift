@@ -29,15 +29,18 @@ struct MainTabView: View {
       .tag(AppTab.home)
 
       NavigationStack {
-        Text("Discover - coming soon")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        if case .authenticated(let userId) = env.authManager.authState {
+          ChatInboxView(apiClient: env.apiClient, currentUserId: userId)
+        } else {
+          ProgressView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
       }
       .tabItem {
-        Image(systemName: AppTab.discover.systemImage)
-        Text(AppTab.discover.accessibilityLabel)
+        Image(systemName: AppTab.messages.systemImage)
+        Text(AppTab.messages.accessibilityLabel)
       }
-      .badge("1")
-      .tag(AppTab.discover)
+      .tag(AppTab.messages)
 
       Color.clear
         .tabItem {
@@ -112,7 +115,7 @@ struct MainTabView: View {
 
 private enum AppTab: Hashable, CaseIterable {
   case home
-  case discover
+  case messages
   case create
   case activity
   case profile
@@ -120,15 +123,15 @@ private enum AppTab: Hashable, CaseIterable {
   var systemImage: String {
     switch self {
     case .home:
-      return "house.fill"
-    case .discover:
-      return "paperplane"
+      return "film"
+    case .messages:
+      return "bubble.left.and.bubble.right"
     case .create:
-      return "plus"
+      return "plus.circle"
     case .activity:
-      return "heart"
+      return "bell"
     case .profile:
-      return "person"
+      return "person.crop.circle"
     }
   }
 
@@ -136,8 +139,8 @@ private enum AppTab: Hashable, CaseIterable {
     switch self {
     case .home:
       return "Home"
-    case .discover:
-      return "Discover"
+    case .messages:
+      return "Messages"
     case .create:
       return "Create"
     case .activity:
@@ -213,15 +216,15 @@ private struct PostComposerView: View {
       .background(Color.white)
       .clipShape(
         UnevenRoundedRectangle(
-          topLeadingRadius: 36,
+          topLeadingRadius: 24,
           bottomLeadingRadius: 0,
           bottomTrailingRadius: 0,
-          topTrailingRadius: 36,
+          topTrailingRadius: 24,
           style: .continuous
         )
       )
       .ignoresSafeArea(edges: .bottom)
-      .padding(.top, 18)
+      .padding(.top, 8)
     }
     .safeAreaInset(edge: .bottom) {
       composerFooter
@@ -237,17 +240,17 @@ private struct PostComposerView: View {
   private var header: some View {
     ZStack {
       Text("New thread")
-        .font(.system(size: 21, weight: .black, design: .rounded))
+        .font(.system(size: 17, weight: .bold, design: .rounded))
         .foregroundStyle(.black)
         .lineLimit(1)
         .minimumScaleFactor(0.82)
 
-      HStack(spacing: 14) {
+      HStack(spacing: 12) {
         Button {
           dismiss()
         } label: {
           Text("Cancel")
-            .font(.system(size: 20, weight: .bold, design: .rounded))
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
             .foregroundStyle(.black)
             .lineLimit(1)
         }
@@ -255,12 +258,12 @@ private struct PostComposerView: View {
 
         Spacer()
 
-        HStack(spacing: 15) {
+        HStack(spacing: 12) {
           Button {
             selectedOption = .review
           } label: {
             Image(systemName: "doc.text")
-              .font(.system(size: 24, weight: .semibold))
+              .font(.system(size: 19, weight: .semibold))
               .foregroundStyle(.black)
           }
           .buttonStyle(.plain)
@@ -270,7 +273,7 @@ private struct PostComposerView: View {
             selectedOption = .post
           } label: {
             Image(systemName: "ellipsis.circle")
-              .font(.system(size: 26, weight: .semibold))
+              .font(.system(size: 20, weight: .semibold))
               .foregroundStyle(.black)
           }
           .buttonStyle(.plain)
@@ -278,37 +281,37 @@ private struct PostComposerView: View {
         }
       }
     }
-    .frame(height: 78)
-    .padding(.horizontal, 22)
+    .frame(height: 56)
+    .padding(.horizontal, 18)
   }
 
   private var composerBody: some View {
     VStack(alignment: .leading, spacing: 0) {
-      HStack(alignment: .top, spacing: 12) {
-        VStack(spacing: 10) {
-          ComposerAvatar(url: avatarUrl, size: 54)
+      HStack(alignment: .top, spacing: 10) {
+        VStack(spacing: 8) {
+          ComposerAvatar(url: avatarUrl, size: 42)
 
           Rectangle()
             .fill(Color(.systemGray5))
-            .frame(width: 3, height: 92)
+            .frame(width: 2, height: 64)
 
           Image(systemName: "person.circle.fill")
-            .font(.system(size: 22))
+            .font(.system(size: 18))
             .foregroundStyle(Color(.systemGray5))
         }
 
-        VStack(alignment: .leading, spacing: 7) {
-          HStack(spacing: 7) {
+        VStack(alignment: .leading, spacing: 5) {
+          HStack(spacing: 6) {
             Text(username)
-              .font(.system(size: 18, weight: .black, design: .rounded))
+              .font(.system(size: 16, weight: .bold, design: .rounded))
               .foregroundStyle(.black)
 
             Image(systemName: "chevron.right")
-              .font(.system(size: 14, weight: .black))
+              .font(.system(size: 12, weight: .bold))
               .foregroundStyle(Color(.systemGray2))
 
             TextField("Add a topic", text: $topic)
-              .font(.system(size: 18, weight: .bold, design: .rounded))
+              .font(.system(size: 16, weight: .semibold, design: .rounded))
               .foregroundStyle(.black)
               .textInputAutocapitalization(.words)
           }
@@ -316,17 +319,17 @@ private struct PostComposerView: View {
           ZStack(alignment: .topLeading) {
             if bodyText.isEmpty {
               Text("What's new?")
-                .font(.system(size: 20, weight: .regular, design: .rounded))
+                .font(.system(size: 17, weight: .regular, design: .rounded))
                 .foregroundStyle(Color(.systemGray2))
-                .padding(.top, 8)
+                .padding(.top, 7)
                 .padding(.leading, 4)
             }
 
             TextEditor(text: $bodyText)
-              .font(.system(size: 20, weight: .regular, design: .rounded))
+              .font(.system(size: 17, weight: .regular, design: .rounded))
               .foregroundStyle(.black)
               .scrollContentBackground(.hidden)
-              .frame(minHeight: 80, maxHeight: 170)
+              .frame(minHeight: 64, maxHeight: 130)
               .focused($isBodyFocused)
               .textInputAutocapitalization(.sentences)
           }
@@ -335,25 +338,25 @@ private struct PostComposerView: View {
 
           HStack(spacing: 12) {
             Image(systemName: "person.circle.fill")
-              .font(.system(size: 20))
+              .font(.system(size: 17))
               .foregroundStyle(Color(.systemGray5))
 
             Text("Add to thread")
-              .font(.system(size: 19, weight: .bold, design: .rounded))
+              .font(.system(size: 16, weight: .semibold, design: .rounded))
               .foregroundStyle(Color(.systemGray4))
           }
-          .padding(.top, 4)
+          .padding(.top, 2)
         }
       }
-      .padding(.horizontal, 20)
-      .padding(.top, 24)
+      .padding(.horizontal, 18)
+      .padding(.top, 16)
 
       Spacer(minLength: 0)
     }
   }
 
   private var composerTools: some View {
-    HStack(spacing: 28) {
+    HStack(spacing: 22) {
       composerTool("photo")
       composerTool("gift")
       composerTool("music.note")
@@ -367,7 +370,7 @@ private struct PostComposerView: View {
       composerTool("ellipsis.circle")
     }
     .foregroundStyle(Color(.systemGray2))
-    .padding(.top, 6)
+    .padding(.top, 4)
   }
 
   private func composerTool(_ systemImage: String) -> some View {
@@ -375,8 +378,8 @@ private struct PostComposerView: View {
       // TODO: Wire composer attachment action.
     } label: {
       Image(systemName: systemImage)
-        .font(.system(size: 25, weight: .semibold))
-        .frame(width: 28, height: 34)
+        .font(.system(size: 20, weight: .semibold))
+        .frame(width: 24, height: 30)
     }
     .buttonStyle(.plain)
   }
@@ -385,9 +388,9 @@ private struct PostComposerView: View {
     HStack(spacing: 10) {
       HStack(spacing: 6) {
         Image(systemName: "slider.horizontal.3")
-          .font(.system(size: 18, weight: .bold))
+          .font(.system(size: 15, weight: .bold))
         Text("Post Options")
-          .font(.system(size: 14, weight: .black, design: .rounded))
+          .font(.system(size: 12, weight: .bold, design: .rounded))
           .lineLimit(1)
           .fixedSize(horizontal: true, vertical: false)
       }
@@ -403,17 +406,17 @@ private struct PostComposerView: View {
         dismiss()
       } label: {
         Text(selectedOption.title)
-          .font(.system(size: 16, weight: .black, design: .rounded))
+          .font(.system(size: 14, weight: .bold, design: .rounded))
           .foregroundStyle(.white)
-          .frame(width: 74, height: 46)
+          .frame(width: 64, height: 38)
           .background(canPost ? Color.black : Color(.systemGray3), in: Capsule())
       }
       .buttonStyle(.plain)
       .disabled(!canPost)
     }
-    .padding(.horizontal, 14)
-    .padding(.top, 10)
-    .padding(.bottom, 10)
+    .padding(.horizontal, 12)
+    .padding(.top, 8)
+    .padding(.bottom, 8)
   }
 
   private func loadProfile() async {

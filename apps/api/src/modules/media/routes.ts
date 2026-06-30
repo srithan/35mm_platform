@@ -80,7 +80,14 @@ function normalizeContentType(value: string | undefined, fallback = "image/jpeg"
     candidate === "image/heic" ||
     candidate === "image/heif" ||
     candidate === "video/mp4" ||
-    candidate === "video/webm"
+    candidate === "video/webm" ||
+    candidate === "application/pdf" ||
+    candidate === "application/json" ||
+    candidate === "application/zip" ||
+    candidate === "application/octet-stream" ||
+    candidate === "text/plain" ||
+    candidate === "text/markdown" ||
+    candidate === "text/csv"
   ) {
     return candidate;
   }
@@ -96,6 +103,13 @@ function extensionForContentType(contentType: string): string {
   if (contentType === "image/heif") return ".heif";
   if (contentType === "video/mp4") return ".mp4";
   if (contentType === "video/webm") return ".webm";
+  if (contentType === "application/pdf") return ".pdf";
+  if (contentType === "application/json") return ".json";
+  if (contentType === "application/zip") return ".zip";
+  if (contentType === "text/markdown") return ".md";
+  if (contentType === "text/csv") return ".csv";
+  if (contentType === "text/plain") return ".txt";
+  if (contentType === "application/octet-stream") return ".bin";
   return ".jpg";
 }
 

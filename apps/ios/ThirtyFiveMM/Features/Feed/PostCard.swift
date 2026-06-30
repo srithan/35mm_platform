@@ -69,21 +69,21 @@ struct PostCard: View {
             },
           ]),
           BottomActionSheetSection(actions: [
-            BottomActionSheetAction("Mute", systemImage: "person.crop.circle.badge.xmark") {
+            BottomActionSheetAction("Mute", systemImage: "bell.slash") {
               // TODO: Wire mute author API when available.
             },
-            BottomActionSheetAction("Restrict", systemImage: "speaker.slash") {
+            BottomActionSheetAction("Restrict", systemImage: "person.crop.circle.badge.exclamationmark") {
               // TODO: Wire restrict author API when available.
             },
-            BottomActionSheetAction("Community Notes", systemImage: "chevron.right") {
+            BottomActionSheetAction("Community Notes", systemImage: "note.text") {
               // TODO: Add notes flow when available.
             },
-            BottomActionSheetAction("Block", systemImage: "nosign", role: .destructive) {
+            BottomActionSheetAction("Block", systemImage: "person.fill.xmark", role: .destructive) {
               // TODO: Wire block author API when available.
             },
             BottomActionSheetAction(
               "Report",
-              systemImage: "exclamationmark.bubble",
+              systemImage: "exclamationmark.triangle",
               role: .destructive
             ) {
               // TODO: Open report flow when moderation API exists.
@@ -261,12 +261,12 @@ struct PostCard: View {
         Task { await interactor.toggleLike(postId: post.id) }
       }
 
-      ActionButton(systemImage: "bubble.right", count: post.commentCount, isActive: false) {
+      ActionButton(systemImage: "bubble.left", count: post.commentCount, isActive: false) {
         // TODO: Open post detail/comments in Stage 3.
       }
 
       ActionButton(
-        systemImage: "arrow.2.squarepath",
+        systemImage: "arrow.triangle.2.circlepath",
         count: post.repostCount,
         isActive: post.isReposted
       ) {
@@ -332,8 +332,9 @@ private struct ActionButton: View {
     Button(action: action) {
       HStack(spacing: 5) {
         Image(systemName: systemImage)
-          .font(.subheadline)
-          .frame(width: 18)
+          .font(.system(size: 16, weight: .semibold))
+          .symbolRenderingMode(.hierarchical)
+          .frame(width: 20)
 
         Text(count.compactFormatted)
           .font(.caption)

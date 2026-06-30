@@ -24,6 +24,8 @@
   <string>$(CURRENT_PROJECT_VERSION)</string>
   <key>ClerkPublishableKey</key>
   <string>$(CLERK_PUBLISHABLE_KEY)</string>
+  <key>AblyAPIKey</key>
+  <string>$(ABLY_API_KEY)</string>
   <key>LSRequiresIPhoneOS</key>
   <true/>
   <key>NSAppTransportSecurity</key>

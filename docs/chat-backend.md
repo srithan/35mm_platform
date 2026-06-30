@@ -1160,7 +1160,7 @@ Persistence does not depend on Ably.
 3. Consider separate reaction table if reaction concurrency becomes important.
 4. Add older-than-12-month message pagination strategy.
 5. Add group membership management routes.
-6. Add attachment upload policy specific to chat, or wire chat media to the existing media pipeline.
+6. Add native GIF search/send once an iOS Tenor key is configured.
 7. Add moderation/reporting flows for messages.
 8. Add key rotation runbook for AWS IAM chat user.
 9. Decide whether chat messages need retention/TTL policy beyond current `default_time_to_live = 0`.

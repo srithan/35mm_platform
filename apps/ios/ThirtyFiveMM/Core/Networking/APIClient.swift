@@ -22,11 +22,24 @@ final class APIClient {
     decoder.dateDecodingStrategy = .custom(Self.decodeISO8601Date)
 
     encoder = JSONEncoder()
-    encoder.keyEncodingStrategy = .convertToSnakeCase
     encoder.dateEncodingStrategy = .iso8601
   }
 
   func request<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T {
+    let data = try await perform(endpoint)
+
+    do {
+      return try decoder.decode(T.self, from: data)
+    } catch {
+      throw APIError.decodingError(error)
+    }
+  }
+
+  func requestVoid(_ endpoint: APIEndpoint) async throws {
+    _ = try await perform(endpoint)
+  }
+
+  private func perform(_ endpoint: APIEndpoint) async throws -> Data {
     var request = try makeURLRequest(for: endpoint)
 
     if let token = try await tokenProvider?.getToken() {
@@ -43,11 +56,7 @@ final class APIClient {
         throw mapErrorResponse(data: data, statusCode: httpResponse.statusCode)
       }
 
-      do {
-        return try decoder.decode(T.self, from: data)
-      } catch {
-        throw APIError.decodingError(error)
-      }
+      return data
     } catch let apiError as APIError {
       throw apiError
     } catch {
@@ -93,6 +102,10 @@ final class APIClient {
     }
 
     if let response = try? decoder.decode(APIErrorResponse.self, from: data) {
+      if statusCode == 503 && response.code == "KEYSPACES_UNAVAILABLE" {
+        return .keyspacesUnavailable(message: response.message)
+      }
+
       return .httpError(
         statusCode: statusCode,
         code: response.code,

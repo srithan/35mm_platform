@@ -6,6 +6,7 @@ enum AuthState: Equatable {
   case signedOut
   case onboarding
   case authenticated(userId: String)
+  case sessionUnavailable(message: String)
 }
 
 @MainActor
@@ -63,6 +64,11 @@ final class AuthManager: ObservableObject, TokenProvider {
   }
 
   func signIn(email: String, password: String) async throws {
+    if clerk.session != nil {
+      try await completeAuthenticatedFlow()
+      return
+    }
+
     var signIn = try await clerk.auth.signInWithPassword(
       identifier: email,
       password: password
@@ -183,6 +189,11 @@ final class AuthManager: ObservableObject, TokenProvider {
     await refreshSession()
   }
 
+  func retryAuthenticatedFlow() async {
+    setAuthState(.loading)
+    await refreshSession()
+  }
+
   private func handle(event: AuthEvent) async {
     switch event {
     case .signedOut, .accountDeleted:
@@ -203,7 +214,7 @@ final class AuthManager: ObservableObject, TokenProvider {
     do {
       try await completeAuthenticatedFlow()
     } catch {
-      setAuthState(.signedOut)
+      await handleAuthenticatedFlowFailure(error)
     }
   }
 
@@ -249,6 +260,31 @@ final class AuthManager: ObservableObject, TokenProvider {
     }
 
     try await clerk.auth.setActive(sessionId: sessionId)
+  }
+
+  private func handleAuthenticatedFlowFailure(_ error: Error) async {
+    if error is CancellationError {
+      return
+    }
+
+    if case APIError.unauthorized = error {
+      try? await clerk.auth.signOut()
+      setAuthState(.signedOut)
+      return
+    }
+
+    #if DEBUG
+      print("Authenticated session bootstrap failed: \(error.localizedDescription)")
+    #endif
+
+    let message =
+      if let apiError = error as? APIError {
+        apiError.errorDescription ?? "We could not finish restoring your session."
+      } else {
+        error.localizedDescription
+      }
+
+    setAuthState(.sessionUnavailable(message: message))
   }
 
   private func prepareSecondFactor(for signIn: SignIn) async throws -> SignIn {

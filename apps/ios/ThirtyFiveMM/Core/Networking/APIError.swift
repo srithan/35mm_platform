@@ -7,6 +7,7 @@ struct APIErrorResponse: Codable {
 
 enum APIError: Error, LocalizedError {
   case httpError(statusCode: Int, code: String, message: String)
+  case keyspacesUnavailable(message: String)
   case decodingError(Error)
   case networkError(Error)
   case unauthorized
@@ -16,6 +17,8 @@ enum APIError: Error, LocalizedError {
   var errorDescription: String? {
     switch self {
     case .httpError(_, _, let message):
+      return message
+    case .keyspacesUnavailable(let message):
       return message
     case .decodingError(let error):
       return "Decoding error: \(error.localizedDescription)"

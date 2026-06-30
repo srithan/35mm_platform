@@ -1,7 +1,7 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-06-23
+> Last updated: 2026-06-30
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
 
@@ -16,7 +16,8 @@ Target scale: 35M+ users. Architecture decisions should preserve cursor paginati
 ├── apps/
 │   ├── web/       Next.js 15 App Router web app
 │   ├── api/       Hono REST API
-│   └── worker/    BullMQ background worker
+│   ├── worker/    BullMQ background worker
+│   └── ios/       SwiftUI iOS app
 ├── packages/
 │   ├── db/          Drizzle schema and Neon client
 │   ├── types/       Shared TypeScript contracts
@@ -106,6 +107,19 @@ Design conventions:
 | Realtime publish | Ably REST for notifications |
 
 Local dev note: BullMQ workers emit continuous blocking Redis commands while idle. Use `pnpm dev:worker` only when testing queued jobs, or set `WORKER_ENABLED=false` to exit before Redis connections are opened.
+
+### iOS: `apps/ios`
+
+| Concern | Choice |
+|---|---|
+| App | SwiftUI app target `ThirtyFiveMM` |
+| Auth | ClerkKit |
+| Networking | Shared `APIClient` over REST with Clerk bearer auth |
+| Realtime | Ably Swift SDK, optional/noop when `ABLY_API_KEY` is absent |
+| Image loading | Kingfisher |
+| Tests | `ThirtyFiveMMTests` XCTest target |
+
+Native auth keeps Clerk session state separate from API bootstrap state. If Clerk has an active session but `/v1/me` or onboarding bootstrap fails, the app shows a retry/sign-out recovery screen instead of routing back to signed-out auth screens.
 
 ### External Services
 
@@ -821,9 +835,22 @@ Frontend:
 - The desktop site header Messages nav item shows unread chat count from inbox/request preview caches, which are refreshed by chat realtime inbox invalidation.
 - Active chat threads render live typing bubbles from `typing.update` and seen indicators from `message.read`; composer input posts typing state through `/v1/chat/threads/:threadId/typing`. The web UI avoids production polling for ephemeral typing state; realtime is the scale path.
 
+iOS:
+
+- `apps/ios/ThirtyFiveMM/Core/Models/Chat.swift` mirrors the shared chat contracts: `ChatInboxPage`, `ChatThreadPreview`, `ChatMessagesPage`, `ChatMessage`, `ChatMember`, `MessageReaction`, `MessageReplySnapshot`, typing snapshots, and read receipts.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatAPIClient.swift` covers every `/v1/chat` endpoint using the existing Clerk-backed `APIClient`; chat message IDs stay opaque `String` TIMEUUID values and message pagination uses `before`, not offsets.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatRealtimeClient.swift` adds optional Ably subscriptions for `user:{userId}:inbox` and `thread:{threadId}` events with explicit inbox/thread subscribe and unsubscribe lifecycle methods. Without `ABLY_API_KEY`, chat remains fetch-capable through the noop client.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatInboxViewModel.swift` and `ChatInboxView.swift` implement the native Messages tab inbox: cursor paging, archived/default views, pull refresh, native archive/mute/delete swipe actions, batched visible-row presence, visible-thread typing indicators, profile search backed DM creation, and in-place `thread.updated` realtime row updates.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatThreadViewModel.swift` and `ChatThreadView.swift` implement the native thread read side: reverse-display message history with `before` pagination, Ably thread event patching, grouped bubbles, deleted/edited/reply rendering, media/link/file content, reaction pills with endpoint-backed toggles, read receipt summaries, typing bubbles, reconnect reconciliation, and non-disruptive new-message affordance while scrolled up.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatBlurhash.swift` provides native blurhash placeholder decoding for chat media thumbnails before Kingfisher image fade-in.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatMediaUploadClient.swift` and `ChatComposerModels.swift` support the native thread write side: growing composer, optimistic sends with retryable failure state, typed upload via the existing `/v1/media/presign` + direct R2 PUT flow, image/file staged previews, 4000-character enforcement, reply/edit context, sender-only edit/delete UI, throttled typing dispatch, and foreground-only read dispatch.
+- `apps/ios/ThirtyFiveMMTests/ChatDecodingTests.swift` decodes fixture JSON for core chat message and inbox shapes.
+- Native GIF sending, jump-to-unloaded-reply pagination, per-member group read receipt UI, and richer group creation remain staged after the core thread experience.
+
 API:
 
 - Authenticated Hono routes now cover inbox, thread creation, messages, reactions, read state, archive/mute/delete, typing, and presence.
+- Media presign supports images/video plus common document MIME types for chat file attachments; all use the same rate-limited `/v1/media/presign` flow and direct R2 PUT.
 - Postgres stores thread/member metadata; AWS Keyspaces stores message bodies and edit history.
 - Missing Keyspaces config returns a safe empty page for message reads in development and `503 KEYSPACES_UNAVAILABLE` for writes.
 
@@ -898,6 +925,14 @@ NEXT_PUBLIC_ABLY_API_KEY=
 NEXT_PUBLIC_CHAT_API_MODE=
 NEXT_PUBLIC_CHAT_API_URL=
 NEXT_PUBLIC_TENOR_API_KEY=
+```
+
+iOS xcconfig:
+
+```env
+API_BASE_URL=
+CLERK_PUBLISHABLE_KEY=
+ABLY_API_KEY=
 ```
 
 Future:

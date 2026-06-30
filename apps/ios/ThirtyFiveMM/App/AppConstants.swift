@@ -4,6 +4,7 @@ enum AppConstants {
   static let appName = "35mm"
   static let bundleIdentifier = "com.35mm.app"
   static let apiBaseURL = bundleString(for: "APIBaseURL") ?? "https://api.35mm.app"
+  static let ablyAPIKey = bundleString(for: "AblyAPIKey") ?? ""
   static let clerkPublishableKey = bundleString(for: "ClerkPublishableKey") ?? ""
 
   static var apiBaseURLValue: URL {

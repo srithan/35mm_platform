@@ -22,6 +22,65 @@ private struct RootContentView: View {
       OnboardingCoordinator()
     case .authenticated:
       MainTabView()
+    case .sessionUnavailable(let message):
+      SessionUnavailableView(authManager: authManager, message: message)
     }
+  }
+}
+
+private struct SessionUnavailableView: View {
+  @ObservedObject var authManager: AuthManager
+  let message: String
+
+  var body: some View {
+    VStack(spacing: 22) {
+      Image(systemName: "wifi.exclamationmark")
+        .font(.system(size: 42, weight: .bold))
+        .foregroundStyle(AuthPalette.error)
+
+      VStack(spacing: 8) {
+        Text("Session paused")
+          .font(.system(size: 32, weight: .black, design: .serif))
+          .foregroundStyle(AuthPalette.ink)
+
+        Text(message)
+          .font(.system(size: 15, weight: .medium, design: .rounded))
+          .foregroundStyle(AuthPalette.ink.opacity(0.64))
+          .multilineTextAlignment(.center)
+          .lineSpacing(4)
+      }
+
+      VStack(spacing: 12) {
+        Button {
+          Task {
+            await authManager.retryAuthenticatedFlow()
+          }
+        } label: {
+          Label("Retry", systemImage: "arrow.clockwise")
+            .font(.system(size: 16, weight: .black, design: .rounded))
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(AuthPalette.ink, in: Capsule())
+
+        Button {
+          Task {
+            try? await authManager.signOut()
+          }
+        } label: {
+          Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+            .font(.system(size: 15, weight: .bold, design: .rounded))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(AuthPalette.ink.opacity(0.68))
+      }
+      .padding(.top, 10)
+    }
+    .padding(.horizontal, 28)
+    .frame(maxWidth: 430)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(AuthScreenBackground())
   }
 }
