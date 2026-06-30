@@ -274,9 +274,64 @@ export var bookmarkPostSchema = z.object({
   folderId: z.string().uuid().nullable().optional(),
 });
 
-export var sendMessageSchema = z.object({
-  text: z.string().trim().max(5000),
-  replyToId: z.string().min(1).optional(),
+export var createChatThreadSchema = z.object({
+  type: z.enum(["dm", "group"]),
+  memberIds: z.array(z.string().uuid()).min(1).max(49),
+  name: z.string().min(1).max(100).optional(),
+});
+
+export var sendMessageSchema = z
+  .object({
+    contentType: z.enum(["text", "image", "gif", "file", "link"]),
+    body: z.string().min(1).max(4000).optional(),
+    mediaUrl: z.string().url().optional(),
+    mediaMetadata: z
+      .object({
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
+        size: z.number().int().positive().optional(),
+        mimeType: z.string().optional(),
+        blurhash: z.string().optional(),
+      })
+      .optional(),
+    linkPreview: z
+      .object({
+        url: z.string().url(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        imageUrl: z.string().url().optional(),
+        siteName: z.string().optional(),
+      })
+      .optional(),
+    replyToId: z.string().optional(),
+  })
+  .refine(
+    function (data) {
+      return Boolean(data.body || data.mediaUrl);
+    },
+    { message: "Message must have body or media" }
+  );
+
+export var editMessageSchema = z.object({
+  body: z.string().min(1).max(4000),
+});
+
+export var messageReactionSchema = z.object({
+  emoji: z.string().min(1).max(8),
+});
+
+export var typingIndicatorSchema = z.object({
+  isTyping: z.boolean(),
+});
+
+export var messageCursorSchema = z.object({
+  before: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export var inboxCursorSchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
 export var usernameSchema = z
@@ -434,6 +489,12 @@ export var watchlistFilmSchema = z.object({
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+export type CreateChatThreadInput = z.infer<typeof createChatThreadSchema>;
+export type EditMessageInput = z.infer<typeof editMessageSchema>;
+export type MessageReactionInput = z.infer<typeof messageReactionSchema>;
+export type TypingIndicatorInput = z.infer<typeof typingIndicatorSchema>;
+export type MessageCursorInput = z.infer<typeof messageCursorSchema>;
+export type InboxCursorInput = z.infer<typeof inboxCursorSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePrivacyInput = z.infer<typeof updatePrivacySchema>;
 export type UpdateNotificationsInput = z.infer<typeof updateNotificationsSchema>;

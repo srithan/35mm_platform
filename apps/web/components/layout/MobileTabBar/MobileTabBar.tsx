@@ -28,7 +28,6 @@ function useNotificationBellCount() {
     },
     enabled: isLoaded && Boolean(isSignedIn),
     staleTime: 15_000,
-    refetchInterval: 5_000,
     gcTime: 5 * 60_000,
   });
 

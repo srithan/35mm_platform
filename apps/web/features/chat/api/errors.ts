@@ -27,7 +27,34 @@ export class ChatApiError extends Error {
 }
 
 export function isChatApiError(e: unknown): e is ChatApiError {
-  return e instanceof ChatApiError;
+  if (e instanceof ChatApiError) {
+    return true;
+  }
+  return (
+    e != null &&
+    typeof e === "object" &&
+    (e as ChatApiError).name === "ChatApiError" &&
+    typeof (e as ChatApiError).code === "string" &&
+    typeof (e as ChatApiError).status === "number"
+  );
+}
+
+export function getChatErrorMessage(
+  e: unknown,
+  fallback = "Could not send message. Try again."
+): string {
+  if (isChatApiError(e)) {
+    if (e.code === "KEYSPACES_UNAVAILABLE") {
+      return "Messaging storage is unavailable right now.";
+    }
+    if (e.message) {
+      return e.message;
+    }
+  }
+  if (e instanceof Error && e.message.trim().length > 0) {
+    return e.message;
+  }
+  return fallback;
 }
 
 /** Safe to retry with backoff (network blips, 429, 502–504). */

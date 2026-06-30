@@ -5,24 +5,59 @@
  */
 
 import type { QueryClient } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import type { ChatRealtimeEvent } from "./types";
 import { chatQueryKeys } from "../lib/queryKeys";
 import type { ChatMessage } from "../types";
+import { upsertChatMessageSorted } from "../lib/sortChatMessages";
+import type { PaginatedMessages } from "../api/types";
 
-function upsertMessageSorted(list: ChatMessage[], msg: ChatMessage): ChatMessage[] {
-  const idx = list.findIndex(function (m) {
-    return m.id === msg.id;
-  });
-  if (idx !== -1) {
-    const next = list.slice();
-    next[idx] = msg;
-    return next;
+function emptyMessagesPage(): PaginatedMessages {
+  return { items: [], nextCursor: null, hasMore: false };
+}
+
+function patchMessagesPage(
+  prev: PaginatedMessages | undefined,
+  patchItems: (items: ChatMessage[]) => ChatMessage[]
+): PaginatedMessages {
+  var base = prev ?? emptyMessagesPage();
+  return {
+    ...base,
+    items: patchItems(base.items),
+  };
+}
+
+function patchNewestInfinitePage(
+  prev: InfiniteData<PaginatedMessages> | undefined,
+  patchItems: (items: ChatMessage[]) => ChatMessage[]
+): InfiniteData<PaginatedMessages> | undefined {
+  if (!prev || prev.pages.length === 0) {
+    return prev;
   }
-  const next = list.concat([msg]);
-  next.sort(function (a, b) {
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
-  return next;
+  return {
+    ...prev,
+    pages: prev.pages.map(function (page, index) {
+      if (index !== 0) {
+        return page;
+      }
+      return patchMessagesPage(page, patchItems);
+    }),
+  };
+}
+
+function patchAllInfinitePages(
+  prev: InfiniteData<PaginatedMessages> | undefined,
+  patchItems: (items: ChatMessage[]) => ChatMessage[]
+): InfiniteData<PaginatedMessages> | undefined {
+  if (!prev || prev.pages.length === 0) {
+    return prev;
+  }
+  return {
+    ...prev,
+    pages: prev.pages.map(function (page) {
+      return patchMessagesPage(page, patchItems);
+    }),
+  };
 }
 
 export function applyChatRealtimeEvent(
@@ -30,11 +65,20 @@ export function applyChatRealtimeEvent(
   event: ChatRealtimeEvent
 ): void {
   if (event.type === "message.created" || event.type === "message.updated") {
-    queryClient.setQueryData<ChatMessage[]>(
+    queryClient.setQueryData<PaginatedMessages>(
       chatQueryKeys.messages(event.chatId),
       function (prev) {
-        const base = prev ?? [];
-        return upsertMessageSorted(base, event.message);
+        return patchMessagesPage(prev, function (items) {
+          return upsertChatMessageSorted(items, event.message);
+        });
+      }
+    );
+    queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+      chatQueryKeys.messagesInfinite(event.chatId),
+      function (prev) {
+        return patchNewestInfinitePage(prev, function (items) {
+          return upsertChatMessageSorted(items, event.message);
+        });
       }
     );
     queryClient.invalidateQueries({
@@ -49,14 +93,26 @@ export function applyChatRealtimeEvent(
     return;
   }
   if (event.type === "message.deleted") {
-    queryClient.setQueryData<ChatMessage[]>(
+    queryClient.setQueryData<PaginatedMessages>(
       chatQueryKeys.messages(event.chatId),
       function (prev) {
         if (!prev) {
           return prev;
         }
-        return prev.filter(function (m) {
-          return m.id !== event.messageId;
+        return patchMessagesPage(prev, function (items) {
+          return items.filter(function (m) {
+            return m.id !== event.messageId;
+          });
+        });
+      }
+    );
+    queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+      chatQueryKeys.messagesInfinite(event.chatId),
+      function (prev) {
+        return patchAllInfinitePages(prev, function (items) {
+          return items.filter(function (m) {
+            return m.id !== event.messageId;
+          });
         });
       }
     );
@@ -64,6 +120,10 @@ export function applyChatRealtimeEvent(
     return;
   }
   if (event.type === "conversation.updated") {
+    queryClient.invalidateQueries({ queryKey: chatQueryKeys.root });
+    return;
+  }
+  if (event.type === "conversation.invalidated") {
     queryClient.invalidateQueries({ queryKey: chatQueryKeys.root });
     return;
   }

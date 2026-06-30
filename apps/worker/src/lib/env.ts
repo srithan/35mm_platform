@@ -42,6 +42,7 @@ export function loadWorkerEnv() {
     FEED_ITEMS_PRUNE_MAX_BATCHES: Number(process.env.FEED_ITEMS_PRUNE_MAX_BATCHES ?? "20"),
     FEED_ITEMS_PRUNE_INTERVAL_MINUTES: Number(process.env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES ?? "60"),
     WORKER_CONCURRENCY: Number(process.env.WORKER_CONCURRENCY ?? "4"),
+    WORKER_ENABLED: (process.env.WORKER_ENABLED ?? "true").toLowerCase() !== "false",
   };
 }
 

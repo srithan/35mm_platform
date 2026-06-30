@@ -22,6 +22,7 @@ import { listRoutes } from "./modules/lists/routes.js";
 import { emailRoutes } from "./modules/email/routes.js";
 import { isRedisEnabled } from "./lib/redis.js";
 import { isQueueEnabled } from "./lib/jobs.js";
+import { warmKeyspacesClient } from "./lib/keyspaces.js";
 import posterProxy from "./routes/poster-proxy.js";
 
 var env = loadEnv();
@@ -40,6 +41,13 @@ console.log(
     ? "[jobs-queue] enabled"
     : "[jobs-queue] disabled (missing UPSTASH_REDIS_URL)"
 );
+void warmKeyspacesClient()
+  .then(function (keyspacesClient) {
+    console.log(keyspacesClient ? "[keyspaces] warmed" : "[keyspaces] disabled");
+  })
+  .catch(function (error) {
+    console.warn("[keyspaces] warm failed", error);
+  });
 
 app.onError(function (err, c) {
   if (
@@ -66,7 +74,7 @@ app.onError(function (err, c) {
 app.use("*", cors({
   origin: env.CORS_ORIGINS,
   credentials: true,
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
   allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
 }));
 

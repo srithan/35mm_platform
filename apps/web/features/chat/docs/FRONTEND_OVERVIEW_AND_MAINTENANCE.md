@@ -111,11 +111,13 @@ The chat module provides:
 | ---- | ------- |
 | **`useConversations({ folder })`** | One folder: `inbox` \| `archived` \| `requests`. Returns **items** via `select`. |
 | **`useConversationsByUiFilter(filter)`** | Maps UI `active` \| `archived` \| `requests` → folder. |
-| **`useConversationRow(chatId)`** | Finds one **ChatPreview** across three folder queries (temporary; expensive). |
+| **`useConversationRow(chatId)`** | Finds one **ChatPreview** across cached and fetched folder queries until a single-row endpoint exists. |
+| **`useChatUnreadBadgeCount()`** | Sums unread counts from inbox + request previews for the desktop site header Messages badge. |
 | **`useChatMessages(chatId)`** | Initial message window (`direction: before`, no cursor). |
 | **`useChatMessagesInfinite(chatId)`** | Infinite query for older pages (UI can adopt later). |
 | **`useSendMessage`** | Idempotency key on send; invalidates messages + all conversation folders. |
-| **`useToggleReaction`**, **`useDeleteMessage`** | Message-level mutations. |
+| **`useEditMessage`** | Calls the backend edit route, patches message caches, and invalidates conversation folders. |
+| **`useToggleReaction`**, **`useDeleteMessage`** | Message-level mutations; deletes remove messages from local caches immediately. |
 | **`useMarkConversationRead`** | Clears unread (mock); invalidates lists. |
 | **`useSetConversationArchived`** | Archive/unarchive. |
 | **`useDeleteConversation`** | Removes thread + cache; used by confirm dialogs. |
@@ -140,14 +142,14 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 
 | Component | Responsibility |
 | --------- | -------------- |
-| **`ChatContent`** | Grid: **`ChatList`** + **`ChatConversation`**. Derives names from **`getChatById(selectedId)`**. |
-| **`ChatList`** | Folders (desktop), search, collapse, links to **`ROUTES.CHAT_WITH(id)`**. Data from **`useConversationsByUiFilter`**. |
+| **`ChatContent`** | Grid: **`ChatList`** + **`ChatConversation`**. Resolves selected thread metadata through **`useConversationRow(selectedId)`**. |
+| **`ChatList`** | Folders (desktop), search, collapse, links to **`ROUTES.CHAT_WITH(id)`**, avatar URLs, loading skeleton rows. Data from **`useConversationsByUiFilter`**. |
 | **`ChatPageMobile`** | Top search, tabs, embeds **`ChatList`** with `showHeader={false}` and `conversationFilter` from tab. |
-| **`ChatConversation`** | Thread header (desktop), scroll region, **`ChatMessageList`**, **`ChatComposer`**, mutations, delete/archive dialogs. |
-| **`ChatMessageList`** | Bubbles, reactions toolbar, more menu (portaled), day separators, jump highlight. |
-| **`ChatComposer`** | Textarea, attachments, Tenor, emoji panel, reply strip. |
+| **`ChatConversation`** | Thread header (desktop), header skeleton, scroll region, **`ChatMessageList`**, **`ChatComposer`**, mutations, delete/archive dialogs. |
+| **`ChatMessageList`** | Text bubbles, standalone attachment media/cards, avatars, reactions toolbar, anchored inline more menu, copy feedback, image lightbox, day separators, jump highlight. |
+| **`ChatComposer`** | Textarea, attachments, Tenor, emoji panel, reply strip, composer-based edit mode. |
 | **`ChatHeaderMoreMenu`** | Thread-level menu (portaled, fixed position). |
-| **`ChatMobileHeader`** | Back, profile link, search-in-thread, menu, delete confirm. |
+| **`ChatMobileHeader`** | Back, profile link, avatar URL, skeleton state, search-in-thread, menu, delete confirm. |
 | **`ChatDetailPage`** | Composes desktop **`ChatContent`** + mobile shell. |
 | **`ChatSearchInput`** | Shared styled search field (`select-text` where parent is `select-none`). |
 
@@ -178,8 +180,9 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 ## 9. Realtime layer
 
 - **`ChatRealtimeProvider`** wraps the app (inside **`QueryClientProvider`**).
-- Default transport is **noop**; subscribe does nothing.
-- When you add Pusher/Ably/WS, pass **`transport`** and emit **`ChatRealtimeEvent`** shapes — **`applyChatRealtimeEvent`** updates caches.
+- When **`NEXT_PUBLIC_ABLY_API_KEY`** and a signed-in user are available, the provider subscribes to Ably **`user:{userId}:inbox`** and the active **`thread:{threadId}`** route channel.
+- If Ably is not configured in the web app, the provider falls back to **noop**.
+- Worker events are translated into **`ChatRealtimeEvent`** shapes — **`applyChatRealtimeEvent`** patches message caches and invalidates conversation lists. The desktop site header Messages badge reads those same conversation caches, so inbox updates can surface while users are elsewhere in the app.
 
 **Dev-only:** **`useChatRealtime().emitDevEvent`** (if exposed in dev) can simulate events.
 
@@ -238,11 +241,12 @@ Run project ESLint on touched files before merge.
 ## 12. Known limitations and follow-ups
 
 1. **`useConversationRow`** issues **three** list queries per open thread — replace with **`GET /conversations/:id`** when backend exists.
-2. **Realtime cache:** align **`applyChatRealtimeEvent`** with the **actual** cached shape for **`chatQueryKeys.messages`** (pagination vs `ChatMessage[]`) before relying on WS in production.
-3. **`useChatMessagesInfinite`** is ready but **not** wired in **`ChatMessageList`** — add “load older” when UX requires it.
-4. **Uploads:** mock uses data URLs / metadata; production should use **presigned uploads** and attachment ids in **`ChatSendPayload`**.
-5. **`getChatById`** for **`ChatContent`** is static — can desync from API archive/request flags until server-driven preview is used.
-6. **`respondToConversationRequest`** — UI button not required yet; hook exists for API readiness.
+2. **Global unread total:** the site header badge sums the fetched inbox/request preview page. Add a dedicated aggregate unread endpoint if product needs exact totals beyond the first paginated page.
+3. **Typing/read receipt UI:** realtime events are parsed, but visible typing indicators and seen-state rendering still need component-level state.
+4. **`useChatMessagesInfinite`** is ready but **not** wired in **`ChatMessageList`** — add “load older” when UX requires it.
+5. **Uploads:** mock uses data URLs / metadata; production should use **presigned uploads** and attachment ids in **`ChatSendPayload`**.
+6. **`getChatById`** for **`ChatContent`** is static — can desync from API archive/request flags until server-driven preview is used.
+7. **`respondToConversationRequest`** — UI button not required yet; hook exists for API readiness.
 
 ---
 

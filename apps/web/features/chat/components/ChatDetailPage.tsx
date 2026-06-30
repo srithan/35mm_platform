@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/cn";
-import type { ChatPreview } from "../data/mockChats";
+import type { ChatPreview } from "../types";
 import { useConversationRow } from "../hooks/useChatQueries";
 import { ChatContent } from "./ChatContent";
 import { ChatConversation } from "./ChatConversation";
@@ -10,14 +10,29 @@ import { ChatMobileHeader } from "./ChatMobileHeader";
 import { useIsDesktopMd } from "@/lib/hooks/useIsDesktopMd";
 
 interface ChatDetailPageProps {
-  chat: ChatPreview;
+  chatId: string;
 }
 
-export function ChatDetailPage({ chat }: ChatDetailPageProps) {
+function fallbackChat(chatId: string): ChatPreview {
+  return {
+    id: chatId,
+    name: "Conversation",
+    username: "",
+    lastMessage: "",
+    lastMessageAt: "",
+    unread: 0,
+    avatarUrl: null,
+    avatarBg: "#2a1e30",
+    avatarColor: "#9a7ab0",
+  };
+}
+
+export function ChatDetailPage({ chatId }: ChatDetailPageProps) {
   const isDesktop = useIsDesktopMd();
   const [threadSearch, setThreadSearch] = useState("");
   const [threadSearchPanelOpen, setThreadSearchPanelOpen] = useState(false);
-  const { row: conversationRow } = useConversationRow(chat.id);
+  const { row: conversationRow, isLoading: conversationLoading } = useConversationRow(chatId);
+  const chat = conversationRow ?? fallbackChat(chatId);
 
   const conversationArchived = Boolean(conversationRow?.archived);
 
@@ -26,7 +41,7 @@ export function ChatDetailPage({ chat }: ChatDetailPageProps) {
       setThreadSearch("");
       setThreadSearchPanelOpen(false);
     },
-    [chat.id]
+    [chatId]
   );
 
   if (isDesktop === null) {
@@ -57,6 +72,7 @@ export function ChatDetailPage({ chat }: ChatDetailPageProps) {
     >
       <ChatMobileHeader
         chat={chat}
+        isLoading={conversationLoading && !conversationRow}
         conversationArchived={conversationArchived}
         threadSearchQuery={threadSearch}
         onThreadSearchQueryChange={setThreadSearch}
@@ -67,8 +83,10 @@ export function ChatDetailPage({ chat }: ChatDetailPageProps) {
           chatId={chat.id}
           chatName={chat.name}
           chatUsername={chat.username}
+          chatAvatarUrl={chat.avatarUrl}
           avatarBg={chat.avatarBg}
           avatarColor={chat.avatarColor}
+          conversationLoading={conversationLoading}
           hideHeader
           fixedInputOnMobile
           threadSearchQuery={threadSearch}

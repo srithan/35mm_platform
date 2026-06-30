@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for chat frontend cache/route alignment on 2026-06-30.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -19,7 +19,7 @@ The repository is a pnpm/Turborepo monorepo:
 - `packages/ui`: small shared UI primitive package.
 - `packages/config`: shared TypeScript config.
 
-Current implementation is beyond parts of the architecture doc. The code now has canonical `films`, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, and polls in the Drizzle schema. Chat, short films, festivals, communities, Meilisearch, Resend, and some queue jobs remain partial or mock-heavy.
+Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Short films, festivals, communities, Meilisearch, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
 
 ## High-Level Architecture
 
@@ -33,6 +33,7 @@ flowchart LR
   Clerk["Clerk auth"]
   Neon["Neon Postgres\nDrizzle schema"]
   Redis["Upstash Redis\ncache + BullMQ broker"]
+  Keyspaces["AWS Keyspaces\nchat messages + edits"]
   Worker["BullMQ worker\napps/worker"]
   R2["Cloudflare R2\nmedia originals + variants"]
   Ably["Ably\nnotifications channel"]
@@ -44,10 +45,12 @@ flowchart LR
   Hono --> Clerk
   Hono --> Neon
   Hono --> Redis
+  Hono --> Keyspaces
   Hono -->|presigned PUT metadata| R2
   Hono -->|enqueue jobs| Redis
   Worker -->|consume jobs| Redis
   Worker --> Neon
+  Worker --> Keyspaces
   Worker --> R2
   Worker --> Ably
   Browser -->|optional realtime subscribe| Ably
@@ -59,15 +62,17 @@ Runtime flow:
 - The web app calls `NEXT_PUBLIC_API_URL` through feature API clients under `apps/web/features/*/api`.
 - Hono verifies Clerk bearer tokens with `requireAuth`, bootstraps missing local users/profiles/settings/watchlists, and attaches `c.var.user`.
 - Drizzle talks to Neon through `@neondatabase/serverless` HTTP.
-- Upstash Redis is used for feed cache, rate limits, BullMQ broker URLs, and suggestion cache.
+- Upstash Redis is used for feed cache, rate limits, BullMQ broker URLs, suggestion cache, chat unread counters, chat typing TTLs, and chat presence TTLs.
+- AWS Keyspaces stores chat message rows and message edit history in `thirtyFiveMM.messages` and `thirtyFiveMM.message_edits`.
 - R2 presigned upload endpoints return deterministic future variant URLs; the worker later creates WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
 - Notification creation writes DB rows and enqueues `notification.publish`; the worker publishes Ably `notification.new` events when `ABLY_API_KEY` exists.
+- Chat write/update/read-state/typing routes enqueue BullMQ jobs; the worker publishes Ably events to thread and inbox channels when `ABLY_API_KEY` exists.
 
 ## Repository Map
 
 ### Root
 
-- `package.json`: root scripts. `pnpm dev` runs web, API, and worker in parallel. Node engine is `>=22.0.0`.
+- `package.json`: root scripts. `pnpm dev` runs web + API only to avoid idle BullMQ polling against shared Upstash Redis; `pnpm dev:all` adds the worker. Node engine is `>=22.0.0`.
 - `pnpm-workspace.yaml`: workspace boundary.
 - `AGENTS.md`: project-critical rules. Film IDs must be 35mm ULIDs, not TMDB IDs.
 - `README.md`: setup and runtime overview.
@@ -80,7 +85,7 @@ Primary user-facing Next.js app.
 Important files:
 
 - `app/layout.tsx`: global metadata, Clerk provider, Query provider, fonts, analytics, service worker, offline status.
-- `app/providers.tsx`: React Query client, theme/accent providers, notification realtime provider, notification title/sound side effects, toast host.
+- `app/providers.tsx`: React Query client and persisted query cache, theme/accent providers, notification realtime provider, chat auth/current-user wiring, notification title/sound side effects, toast host.
 - `middleware.ts`: Clerk route protection. `/landing` is signed-out entry; `/` redirects signed-out users to `/landing`.
 - `app/(shell)/layout.tsx`: authenticated app shell with scroll restore, auth bootstrap, onboarding gate, and `ShellGrid`.
 - `app/(shell)/page.tsx`: home feed, renders `PostComposer` and `InfinitePostList`.
@@ -91,13 +96,13 @@ Feature folders:
 
 - `features/feed`: core post composer, feed list, post cards, comments, post mutations, poll UI, rich text, media handling.
 - `features/profile`: public profile, follow state, edit profile, avatar/cover upload, connections, blocks/mutes.
-- `features/notifications`: notification list/dropdown, mark-read flows, realtime provider.
+- `features/notifications`: notification list/dropdown, mark-read flows, realtime provider. Freshness comes from realtime plus a 30-second no-Ably fallback invalidator; badge/title/sound components do not each self-poll every 5 seconds.
 - `features/lists`: film lists, watchlists, list detail/editor, list entry notes.
 - `features/onboarding`: role/favorite films/genres/follow suggestions flow.
 - `features/discover`: TMDB-backed discovery and search views.
 - `features/settings`: account/privacy/notification/appearance/data-security settings with URL-backed section routes.
 - `features/bookmarks`: two-column bookmark page, folder management, and post-to-folder flow backed by feed bookmark endpoints.
-- `features/chat`: rich chat frontend with mock/remote client split, but no current App Router chat pages in the inspected shell tree.
+- `features/chat`: rich chat frontend with App Router chat pages, remote client backed by `/v1/chat`, optional mock mode for demos/tests, realtime cache application, and bounded persisted cache for inbox/recent messages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
 - `features/title`: title detail pages, largely TMDB/discover oriented.
 - `features/letterboxd-import`: local import parsing/storage UI.
@@ -114,11 +119,15 @@ Important files:
 - `src/lib/cursor.ts`: base64 JSON `(createdAt,id)` cursor encoding.
 - `src/lib/ulid.ts`: local ULID generator and validator.
 - `src/lib/feedCache.ts`: Upstash-backed feed page cache and index-based invalidation.
-- `src/lib/rateLimit.ts`: Redis fixed-window rate limiting.
+- `src/lib/rateLimit.ts`: Redis fixed-window rate limiting; allowed requests avoid per-request `TTL` reads and only fetch TTL for blocked responses.
 - `src/lib/moderation.ts`: block/mute filters and feed item purge helpers.
 - `src/lib/notifications.ts`: preference-aware, moderation-aware notification creation and bundling.
 - `src/lib/filmLists.ts`: watchlist bootstrap and film ID resolution from existing ULID, TMDB metadata, or catalog metadata.
-- `src/lib/jobs.ts`: BullMQ producer for `media.process` and `notification.publish`.
+- `src/lib/jobs.ts`: BullMQ producer for media, notification, counter, feed, and chat jobs.
+- `src/lib/keyspaces.ts`: Cassandra driver client for AWS Keyspaces using SigV4 IAM auth, warmed connection pools, prepared statements by default, and `chat-read`/`chat-write` execution profiles.
+- `src/modules/chat/routes.ts`: authenticated chat inbox, thread creation, message read/write/edit/delete, reactions, read receipts, archive/mute/delete, typing, and presence routes.
+- `src/modules/chat/chatRedis.ts`: unread counters, sorted-set typing indicators, and presence over Upstash Redis REST. Inbox unread and presence batch endpoints use Redis `MGET`.
+- `src/modules/chat/chatUtils.ts`: chat message bucket and preview helpers.
 
 Mounted routes:
 
@@ -148,13 +157,18 @@ Long-running BullMQ consumer.
 
 Important files:
 
-- `src/index.ts`: resolves Redis URL, creates BullMQ `Worker` and `QueueEvents`, dispatches jobs by name.
+- `src/index.ts`: exits early when `WORKER_ENABLED=false`; otherwise resolves Redis URL, creates BullMQ `Worker` and `QueueEvents`, and dispatches jobs by name.
 - `src/jobs/mediaProcess.ts`: pulls originals from R2; generates post thumb/feed/full WebP variants and blurhash; generates avatar sm/lg and cover default variants; optionally uploads post media to Cloudflare Images; updates `posts.media` / `posts.media_urls` or profile variant JSONB fields.
 - `src/jobs/notificationPublish.ts`: reads notification details and publishes Ably `notification.new` to `user:{recipientId}:notifications`.
 - `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes `follow_suggestions` plus Redis cache.
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
 - `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
+- `src/jobs/chatDeliver.ts`: fetches Keyspaces message rows and publishes new-message + inbox update events.
+- `src/jobs/chatMessageUpdated.ts`: publishes edit/delete/reaction updates from Keyspaces message rows.
+- `src/jobs/chatReadReceipt.ts`: publishes thread read receipts.
+- `src/jobs/chatTyping.ts`: publishes typing state.
+- `src/lib/keyspaces.ts`: worker-side AWS Keyspaces client using SigV4 IAM auth, warmed connection pools, prepared statements by default, and `chat-read`/`chat-write` execution profiles.
 - `src/scripts/backfillMedia.ts`: idempotent post media backfill runner.
 - `src/scripts/backfillProfileMedia.ts`: idempotent avatar/cover variant backfill runner exposed as `pnpm --filter @35mm/worker backfill:avatars`.
 
@@ -192,6 +206,12 @@ erDiagram
   film_lists ||--o{ film_list_likes : receives
   users ||--o{ user_blocks : blocker
   users ||--o{ user_mutes : muter
+  users ||--o{ chat_threads : creates
+  chat_threads ||--o{ chat_participants : has
+  users ||--o{ chat_participants : joins
+  chat_threads ||--o{ chat_member_state : has
+  users ||--o{ chat_member_state : configures
+  chat_threads ||--|| chat_thread_meta : summarizes
 ```
 
 Current Drizzle schema highlights:
@@ -212,6 +232,10 @@ Current Drizzle schema highlights:
 - `film_lists`, `film_list_entries`, `film_list_likes`: custom lists and one private watchlist per user.
 - `follow_suggestions`: suggestion table populated by worker.
 - `user_settings`: privacy, notification, theme/accent/autoplay settings.
+- `chat_threads`, `chat_participants`, `chat_member_state`, `chat_thread_meta`: Postgres chat metadata, membership, per-user read/archive/mute/delete state, and last-message summaries.
+- AWS Keyspaces `thirtyFiveMM.messages`: message body/media/reply/reaction rows, partitioned by `(thread_id, bucket)` and clustered by descending `message_id` TIMEUUID.
+- AWS Keyspaces `thirtyFiveMM.message_edits`: edit history partitioned by `(thread_id, message_id)` and clustered by descending `edit_id` TIMEUUID.
+- AWS Keyspaces `thirtyFiveMM.message_reactions`: sharded reaction fact table partitioned by `(thread_id, bucket, message_id, emoji, shard)` to avoid hot collection updates on viral messages.
 
 Important data invariants:
 
@@ -232,7 +256,7 @@ Key exports:
 - `FeedPost`, `FeedPage`.
 - Film list/watchlist contracts.
 - Notification contracts.
-- Chat preview/message contracts.
+- Chat inbox/thread/member/message/reaction contracts.
 - Health response.
 
 Current `FeedPost` already uses `bookmarkCount` and `isBookmarked`; the old `saveCount/isSaved` naming has been removed from shared types.
@@ -249,6 +273,7 @@ Key schemas/utilities:
 - Settings update schemas.
 - Onboarding schemas.
 - Film list/watchlist schemas.
+- Chat thread, inbox cursor, message cursor, send/edit message, reaction, and typing schemas.
 
 Rich text bodies use a sentinel prefix `__35MM_RICH_TEXT_V1__` followed by TipTap-like JSON. Mentions carry user IDs and are used to create mention notifications.
 
@@ -534,19 +559,40 @@ Current state:
 
 ### Chat
 
-Business purpose: future messaging feature.
+Business purpose: authenticated direct/group messaging.
+
+Detailed backend reference: `docs/chat-backend.md`
 
 Current state:
 
 - The frontend chat feature is substantial: conversation list, conversation UI, composer, replies, reactions, GIFs, archive/delete flows, realtime cache event handling, mock store, and remote client abstraction.
-- The API is authenticated now and exposes:
-  - `GET /v1/chat/conversations`
-  - `GET /v1/chat/conversations/:conversationId/messages`
-  - `POST /v1/chat/conversations/:conversationId/messages`
-- Persistence is not wired:
-  - list/message endpoints return empty envelopes.
-  - send returns `501 NOT_IMPLEMENTED`.
-- The inspected `app/(shell)` route tree does not currently contain chat pages, even though feature docs describe them.
+- The web route tree contains `/chat` and `/chat/[chatId]`. Chat URLs render lowercase thread IDs, while route params are normalized back to canonical uppercase IDs before API/cache use.
+- The remote chat client is aligned to the current backend routes and is the default; mock mode requires `NEXT_PUBLIC_CHAT_API_MODE=mock`.
+- Chat uses React Query for server state. Conversation lists and the latest bounded message page are persisted in `localStorage` for faster reload/offline read access. Infinite/older-history message pages are not persisted, and persisted query cache is cleared on sign-out or user switch.
+- Chat UI maps backend profile avatar URLs into chat list/header/message avatars, renders skeleton headers while thread metadata resolves, supports own-message edits through the chat edit route, and opens image/GIF message media with the shared `ImageViewer`.
+- The desktop site header Messages nav item shows an unread badge based on inbox/request preview unread counts and refreshes through chat realtime conversation invalidation.
+- The API is authenticated and exposes:
+  - `GET /v1/chat/inbox`
+  - `POST /v1/chat/threads`
+  - `GET /v1/chat/threads/:threadId/messages`
+  - `POST /v1/chat/threads/:threadId/messages`
+  - `PATCH /v1/chat/messages/:messageId?threadId=:threadId`
+  - `DELETE /v1/chat/messages/:messageId?threadId=:threadId`
+  - `POST /v1/chat/messages/:messageId/reactions?threadId=:threadId`
+  - `DELETE /v1/chat/messages/:messageId/reactions/:emoji?threadId=:threadId`
+  - `PATCH /v1/chat/threads/:threadId/read`
+  - `PATCH /v1/chat/threads/:threadId/archive`
+  - `PATCH /v1/chat/threads/:threadId/mute`
+  - `DELETE /v1/chat/threads/:threadId`
+  - `POST /v1/chat/threads/:threadId/typing`
+  - `GET /v1/chat/threads/:threadId/typing`
+  - `POST /v1/chat/presence/ping`
+  - `POST /v1/chat/presence/batch`
+- Persistence is wired with Postgres metadata tables plus AWS Keyspaces message/edit tables.
+- Redis stores unread counts, typing state, and presence state. Chat unread/presence reads batch via `MGET`; typing membership uses a short-lived sorted set instead of scanning `chat:typing:*` keys.
+- Worker jobs publish chat delivery/update/read/typing events through Ably.
+- The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patching current messages and invalidating conversation lists.
+- Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.
 
 ## Backend API Surface
 
@@ -584,7 +630,7 @@ Authenticated:
 - media presign.
 - user block/mute list and mutations.
 - feed create/edit/delete/action/comment/poll endpoints.
-- chat endpoints.
+- chat inbox/thread/message/read/archive/mute/delete/typing/presence endpoints.
 
 Error contract:
 
@@ -613,12 +659,18 @@ Implemented or partially implemented:
 - `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries.
 - `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.
 - `feed.rescore`: implemented periodic pass for recent materialized feed rows; recomputes score from post denormalized counters and invalidates touched viewer caches.
+- `chat.deliver`: implemented for new-message and inbox realtime publish.
+- `chat.messageUpdated`: implemented for message edit/delete/reaction realtime publish.
+- `chat.readReceipt`: implemented for read receipt realtime publish.
+- `chat.typing`: implemented for typing realtime publish.
 - `notification.digest`: stub.
 
 Important operational detail:
 
 - API can derive Redis protocol URL from Upstash REST URL/token, but BullMQ works best with `UPSTASH_REDIS_URL`.
-- Worker reads env from `apps/api/.env` in dev by package script.
+- Worker reads env from `apps/api/.env` in dev by package script. Root `pnpm dev` does not start the worker; use `pnpm dev:worker` or `pnpm dev:all` only when queue jobs are needed.
+- `WORKER_ENABLED=false` exits the worker before opening Redis connections, useful for quota-sensitive local Upstash sessions.
+- Chat Keyspaces needs `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `KEYSPACES_ENDPOINT`; AWS Keyspaces Cassandra driver traffic uses SigV4 auth on port 9142. Pool/timeout knobs: `KEYSPACES_CORE_CONNECTIONS`, `KEYSPACES_MAX_REQUESTS_PER_CONNECTION`, `KEYSPACES_CONNECT_TIMEOUT_MS`, `KEYSPACES_DEFAULT_TIMEOUT_MS`, `KEYSPACES_READ_TIMEOUT_MS`, `KEYSPACES_WRITE_TIMEOUT_MS`, `KEYSPACES_HEARTBEAT_MS`.
 - Feed fanout config: `FEED_HIGH_FOLLOWER_THRESHOLD` default `10000`; `FEED_FANOUT_BATCH_SIZE` default `500`, worker cap `2000`.
 - Feed rescore config: `FEED_RESCORE_MAX_AGE_HOURS` default `72`; `FEED_RESCORE_BATCH_SIZE` default `500`, worker cap `2000`. Run periodically, for example every few minutes, instead of recomputing scores on every read.
 - Counter reconciliation safety net: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<posts|comments|post_polls|poll_options|film_lists|all> --id=<optional-id>`.
@@ -637,6 +689,7 @@ Caching:
 Rate limits:
 
 - Redis fixed-window limiter.
+- Allowed requests avoid per-request `TTL`; `TTL` is fetched only for blocked responses that need `Retry-After`.
 - Feed create: 20/min per user.
 - Feed read: route-level rate limit exists in feed routes.
 - Media presign: 20/min per user.
@@ -658,7 +711,8 @@ Test files found:
   - media variants.
   - rich text validators.
   - feed rich mentions.
-  - mention notifications e2e.
+- mention notifications e2e.
+- chat bucket/preview utilities.
 - Web:
   - modal focus stack.
   - rich text renderer.
@@ -696,7 +750,7 @@ Stale or superseded items in `docs/architecture.md` / older agent notes:
 - Notifications table exists.
 - Feed items table exists.
 - Post visibility, denormalized post counters, soft delete, and edit history exist.
-- Chat routes now use `requireAuth`, but persistence is still not implemented.
+- Chat backend persistence, worker realtime jobs, and frontend remote route alignment are implemented.
 
 Still true gaps:
 
@@ -704,7 +758,7 @@ Still true gaps:
 - Meilisearch is not wired.
 - Notification digest email is not implemented.
 - Cloudflare Stream is not wired.
-- Chat backend persistence is not implemented.
+- Chat production rollout depends on keeping AWS Keyspaces and Postgres migrations applied in each environment.
 - Communities/festivals/short films are not production backend features.
 - DB-level ULID checks are missing for text IDs.
 
@@ -745,7 +799,7 @@ Feature ownership quick map:
 - Settings: API settings module, web settings feature.
 - Onboarding: API onboarding module, web onboarding feature.
 - Discovery/title: web discovery/title features and Next TMDB proxy.
-- Chat: web chat feature, API chat route, but persistence needs design/build.
+- Chat: web chat feature plus API/worker persistence, remote backend alignment, and bounded persisted inbox/recent-message cache.
 
 ## State Block
 

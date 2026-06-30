@@ -18,6 +18,8 @@
     "@35mm/db": "workspace:*",
     "@35mm/types": "workspace:*",
     "@35mm/validators": "workspace:*",
+    "aws-sigv4-auth-cassandra-plugin": "^1.0.1",
+    "cassandra-driver": "^4.8.0",
     "@clerk/backend": "^3.4.13",
     "@aws-sdk/client-s3": "^3.774.0",
     "@aws-sdk/s3-request-presigner": "^3.774.0",

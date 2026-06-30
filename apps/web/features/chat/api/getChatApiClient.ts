@@ -20,9 +20,14 @@ let singleton: ChatApiClient | null = null;
 export type ChatAuthGetToken = () => string | null | Promise<string | null>;
 
 let authResolver: ChatAuthGetToken | null = null;
+let currentUserIdResolver: (() => string | null) | null = null;
 
 export function setChatAuthGetToken(fn: ChatAuthGetToken | null): void {
   authResolver = fn;
+}
+
+export function setChatCurrentUserIdGetter(fn: (() => string | null) | null): void {
+  currentUserIdResolver = fn;
 }
 
 export function getChatApiClient(): ChatApiClient {
@@ -40,6 +45,9 @@ export function getChatApiClient(): ChatApiClient {
       baseUrl: CHAT_API_BASE_URL,
       getAccessToken: function () {
         return authResolver ? authResolver() : null;
+      },
+      getCurrentUserId: function () {
+        return currentUserIdResolver ? currentUserIdResolver() : null;
       },
     });
   } else {

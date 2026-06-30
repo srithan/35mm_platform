@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { useChatInputFocus } from "@/components/layout/ChatInputFocusContext";
 import { Icon } from "@/components/Icon/Icon";
+import { Avatar } from "@/components/Avatar";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   useChatMessages,
@@ -14,6 +15,7 @@ import {
   useMarkConversationRead,
   useSetConversationArchived,
   useToggleReaction,
+  useEditMessage,
   useDeleteMessage,
   useDeleteConversation,
 } from "../hooks/useChatQueries";
@@ -27,13 +29,17 @@ import {
 import { ChatSearchInput } from "./ChatSearchInput";
 import { ChatJumpToLatestFab } from "./ChatJumpToLatestFab";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
+import { useNewChat } from "../context/NewChatContext";
+import { getChatErrorMessage } from "../api/errors";
 
 interface ChatConversationProps {
   chatId: string | null;
   chatName: string | null;
   chatUsername?: string | null;
+  chatAvatarUrl?: string | null;
   avatarBg?: string;
   avatarColor?: string;
+  conversationLoading?: boolean;
   hideHeader?: boolean;
   fixedInputOnMobile?: boolean;
   /** In-thread message search (e.g. from mobile header). Omit to use internal state on desktop. */
@@ -45,8 +51,10 @@ export function ChatConversation({
   chatId,
   chatName,
   chatUsername,
+  chatAvatarUrl,
   avatarBg = "#2a1e30",
   avatarColor = "#9a7ab0",
+  conversationLoading = false,
   hideHeader = false,
   fixedInputOnMobile = false,
   threadSearchQuery: threadSearchQueryProp,
@@ -59,14 +67,17 @@ export function ChatConversation({
   const { row: conversationRow } = useConversationRow(chatId);
   const sendMutation = useSendMessage();
   const toggleReactionMutation = useToggleReaction();
+  const editMutation = useEditMessage();
   const deleteMutation = useDeleteMessage();
   const setArchivedMutation = useSetConversationArchived();
   const deleteConversationMutation = useDeleteConversation();
   const { mutate: markConversationRead } = useMarkConversationRead();
+  const { openNewChat } = useNewChat();
 
   const conversationArchived = Boolean(conversationRow?.archived);
 
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
   const [headerToast, setHeaderToast] = useState<string | null>(null);
   const [internalThreadSearch, setInternalThreadSearch] = useState("");
   const [threadSearchOpen, setThreadSearchOpen] = useState(false);
@@ -230,7 +241,7 @@ export function ChatConversation({
           {
             onSuccess: function () {
               flashHeaderToast("Chat archived.");
-              if (pathname === ROUTES.CHAT_WITH(chatId)) {
+              if (pathname.toLowerCase() === ROUTES.CHAT_WITH(chatId).toLowerCase()) {
                 router.push(ROUTES.CHAT);
               }
             },
@@ -275,17 +286,22 @@ export function ChatConversation({
 
   useEffect(
     function () {
-      if (!chatId) {
+      if (!chatId || messages.length === 0) {
         return;
       }
-      markConversationRead(chatId);
+      const lastMessage = messages[messages.length - 1];
+      markConversationRead({
+        chatId: chatId,
+        lastReadMessageId: lastMessage.id,
+      });
     },
-    [chatId, markConversationRead]
+    [chatId, markConversationRead, messages]
   );
 
   useEffect(
     function () {
       setReplyingTo(null);
+      setEditingMessage(null);
     },
     [chatId]
   );
@@ -301,7 +317,13 @@ export function ChatConversation({
   );
 
   const handleReply = useCallback(function (msg: ChatMessage) {
+    setEditingMessage(null);
     setReplyingTo(msg);
+  }, []);
+
+  const handleEditMessage = useCallback(function (msg: ChatMessage) {
+    setReplyingTo(null);
+    setEditingMessage(msg);
   }, []);
 
   const handleToggleReaction = useCallback(
@@ -323,9 +345,25 @@ export function ChatConversation({
       if (!chatId) {
         return;
       }
-      deleteMutation.mutate({ chatId: chatId, messageId: messageId });
+      deleteMutation.mutate(
+        { chatId: chatId, messageId: messageId },
+        {
+          onSuccess: function () {
+            if (editingMessage?.id === messageId) {
+              setEditingMessage(null);
+            }
+            if (replyingTo?.id === messageId) {
+              setReplyingTo(null);
+            }
+            flashHeaderToast("Message deleted.");
+          },
+          onError: function (error) {
+            flashHeaderToast(getChatErrorMessage(error));
+          },
+        }
+      );
     },
-    [chatId, deleteMutation]
+    [chatId, deleteMutation, editingMessage?.id, flashHeaderToast, replyingTo?.id]
   );
 
   const handleReportMessage = useCallback(
@@ -335,7 +373,7 @@ export function ChatConversation({
     [flashHeaderToast]
   );
 
-  if (!chatId || !chatName) {
+  if (!chatId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full text-center px-8 bg-bg">
         <div className="w-[72px] h-[72px] rounded-full bg-elevated flex items-center justify-center mb-5 shadow-sm border border-border">
@@ -345,17 +383,28 @@ export function ChatConversation({
           Messages
         </p>
         <p className="text-[13px] text-fg-muted mt-1.5 max-w-[240px] leading-relaxed">
-          Select a conversation to reply with photos, links, and more.
+          Select a conversation or start a new message with someone you follow.
         </p>
+        <div className="mt-5">
+          <button
+            type="button"
+            onClick={openNewChat}
+            className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90"
+          >
+            New message
+          </button>
+        </div>
       </div>
     );
   }
 
+  const displayName = chatName || "Conversation";
   const handle = chatUsername ? "@" + chatUsername.replace(/^@/, "") : null;
   const otherAvatar = {
     bg: avatarBg,
     color: avatarColor,
-    initial: chatName.charAt(0),
+    initial: displayName.charAt(0),
+    src: chatAvatarUrl ?? conversationRow?.avatarUrl ?? null,
   };
 
   const replyBanner =
@@ -384,36 +433,51 @@ export function ChatConversation({
     <div className="flex flex-col h-full min-h-0 bg-bg">
       {!hideHeader ? (
         <header className="shrink-0 border-b border-black/[0.06] dark:border-white/[0.08] bg-bg/95 backdrop-blur-md select-none">
+          {conversationLoading && !conversationRow ? (
+            <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2.5 animate-pulse" aria-hidden>
+              <div className="flex items-center gap-3 px-2 py-1.5">
+                <div className="h-10 w-10 rounded-full bg-border/80" />
+                <div className="space-y-2">
+                  <div className="h-3.5 w-32 rounded bg-border/80" />
+                  <div className="h-3 w-20 rounded bg-border/60" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-xl bg-border/60" />
+                <div className="h-9 w-9 rounded-xl bg-border/60" />
+              </div>
+            </div>
+          ) : (
           <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2.5">
             {chatUsername ? (
               <Link
                 href={ROUTES.PROFILE(chatUsername.replace(/^@/, ""))}
                 className="flex w-fit min-w-0 max-w-[min(18rem,calc(100%-3.5rem))] items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-black/[0.045] dark:hover:bg-white/[0.06] active:scale-[0.99] transition-[transform,background-color] duration-150"
               >
-                <div
-                  className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-                  style={{ background: avatarBg, color: avatarColor }}
-                >
-                  {chatName.charAt(0)}
-                </div>
+                <Avatar
+                  initial={displayName.charAt(0)}
+                  src={otherAvatar.src}
+                  className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                  loading="eager"
+                />
                 <div className="min-w-0 text-left">
                   <h2 className="font-semibold text-[15px] text-fg truncate tracking-[-0.01em]">
-                    {chatName}
+                    {displayName}
                   </h2>
                   <p className="text-[12px] text-fg-muted truncate">{handle}</p>
                 </div>
               </Link>
             ) : (
               <div className="flex w-fit min-w-0 max-w-[min(18rem,calc(100%-3.5rem))] items-center gap-3 rounded-xl px-2 py-1.5">
-                <div
-                  className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-                  style={{ background: avatarBg, color: avatarColor }}
-                >
-                  {chatName.charAt(0)}
-                </div>
+                <Avatar
+                  initial={displayName.charAt(0)}
+                  src={otherAvatar.src}
+                  className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                  loading="eager"
+                />
                 <div className="min-w-0 text-left">
                   <h2 className="font-semibold text-[15px] text-fg truncate tracking-[-0.01em]">
-                    {chatName}
+                    {displayName}
                   </h2>
                 </div>
               </div>
@@ -444,6 +508,7 @@ export function ChatConversation({
               />
             </div>
           </div>
+          )}
           {!hideHeader &&
           threadSearchOpen &&
           !threadSearchControlled ? (
@@ -522,6 +587,7 @@ export function ChatConversation({
               otherAvatar={otherAvatar}
               onReply={handleReply}
               onToggleReaction={handleToggleReaction}
+              onEditMessage={handleEditMessage}
               onDeleteMessage={handleDelete}
               onReportMessage={handleReportMessage}
               stickToBottomRef={stickToBottomRef}
@@ -558,11 +624,37 @@ export function ChatConversation({
         }
       >
         <ChatComposer
+          editingMessage={
+            editingMessage
+              ? { id: editingMessage.id, text: editingMessage.text }
+              : null
+          }
+          onCancelEdit={function () {
+            setEditingMessage(null);
+          }}
+          onSaveEdit={function (messageId, body) {
+            if (!chatId) {
+              return;
+            }
+            editMutation.mutate(
+              { chatId: chatId, messageId: messageId, body: body },
+              {
+                onSuccess: function () {
+                  setEditingMessage(null);
+                  flashHeaderToast("Message updated.");
+                },
+                onError: function (error) {
+                  flashHeaderToast(getChatErrorMessage(error));
+                },
+              }
+            );
+          }}
           replyingTo={replyBanner || null}
           onCancelReply={function () {
             setReplyingTo(null);
           }}
           onSend={function (payload) {
+            stickToBottomRef.current = true;
             sendMutation.mutate(
               {
                 chatId: chatId as string,
@@ -576,11 +668,14 @@ export function ChatConversation({
                 onSuccess: function () {
                   setReplyingTo(null);
                 },
+                onError: function (error) {
+                  flashHeaderToast(getChatErrorMessage(error));
+                },
               }
             );
           }}
           disabled={isLoading || isError}
-          isSending={sendMutation.isPending}
+          isSending={sendMutation.isPending || editMutation.isPending}
           onFocusChange={function (focused) {
             if (fixedInputOnMobile) {
               setChatInputFocused(focused);
@@ -602,15 +697,15 @@ export function ChatConversation({
             onSuccess: function () {
               setDeleteConvoDialogOpen(false);
               flashHeaderToast("Conversation deleted.");
-              if (pathname === ROUTES.CHAT_WITH(chatId)) {
+              if (pathname.toLowerCase() === ROUTES.CHAT_WITH(chatId).toLowerCase()) {
                 router.push(ROUTES.CHAT);
               }
             },
           });
         }}
         title={
-          chatName
-            ? "Delete chat with " + chatName + "?"
+          displayName
+            ? "Delete chat with " + displayName + "?"
             : "Delete this conversation?"
         }
         description={

@@ -6,6 +6,7 @@ export interface ChatPreview {
   /** Short relative label for list row (e.g. 2m, 1h) */
   lastMessageAt: string;
   unread?: number;
+  avatarUrl?: string | null;
   avatarBg: string;
   avatarColor: string;
   /** When true, chat appears under Archived instead of Inbox. */
@@ -47,6 +48,8 @@ export interface ChatMessage {
   createdAt: string;
   /** Simulated delivery state for sent bubbles */
   status?: "sending" | "sent" | "delivered" | "read";
+  senderAvatarUrl?: string | null;
+  editedAt?: string | null;
   replyTo?: ChatMessageReplyRef;
   reactions?: ChatMessageReaction[];
   media?: ChatMessageMedia;

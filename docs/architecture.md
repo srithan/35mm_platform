@@ -37,7 +37,8 @@ Deploy targets:
 Root commands:
 
 ```bash
-pnpm dev
+pnpm dev        # web + API only; avoids idle BullMQ polling against shared Upstash Redis
+pnpm dev:all    # web + API + worker
 pnpm dev:web
 pnpm dev:api
 pnpm dev:worker
@@ -104,6 +105,8 @@ Design conventions:
 | Storage | Cloudflare R2 |
 | Realtime publish | Ably REST for notifications |
 
+Local dev note: BullMQ workers emit continuous blocking Redis commands while idle. Use `pnpm dev:worker` only when testing queued jobs, or set `WORKER_ENABLED=false` to exit before Redis connections are opened.
+
 ### External Services
 
 | Service | Status | Usage |
@@ -111,7 +114,7 @@ Design conventions:
 | Clerk | Wired | Web auth, API bearer verification, webhooks |
 | Neon Postgres | Wired | Source-of-truth relational data |
 | Cloudflare R2 | Wired | Originals and processed media variants |
-| Upstash Redis | Wired | Feed cache, rate limits, BullMQ broker, suggestions cache |
+| Upstash Redis | Wired | Feed cache, rate limits, BullMQ broker, suggestions cache, chat unread/typing/presence |
 | BullMQ | Partially wired | Media processing, notifications, suggestions, async counters, and feed fanout implemented; digest/search jobs partial |
 | Ably | Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions |
 | TMDB | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports |
@@ -489,11 +492,24 @@ Suggestions:
 
 Chat:
 
-- `GET /v1/chat/conversations`
-- `GET /v1/chat/conversations/:conversationId/messages`
-- `POST /v1/chat/conversations/:conversationId/messages`
+- `GET /v1/chat/inbox`
+- `POST /v1/chat/threads`
+- `GET /v1/chat/threads/:threadId/messages`
+- `POST /v1/chat/threads/:threadId/messages`
+- `PATCH /v1/chat/messages/:messageId?threadId=:threadId`
+- `DELETE /v1/chat/messages/:messageId?threadId=:threadId`
+- `POST /v1/chat/messages/:messageId/reactions?threadId=:threadId`
+- `DELETE /v1/chat/messages/:messageId/reactions/:emoji?threadId=:threadId`
+- `PATCH /v1/chat/threads/:threadId/read`
+- `PATCH /v1/chat/threads/:threadId/archive`
+- `PATCH /v1/chat/threads/:threadId/mute`
+- `DELETE /v1/chat/threads/:threadId`
+- `POST /v1/chat/threads/:threadId/typing`
+- `GET /v1/chat/threads/:threadId/typing`
+- `POST /v1/chat/presence/ping`
+- `POST /v1/chat/presence/batch`
 
-Chat routes are authenticated, but persistence is not wired. List/message reads return empty envelopes and send returns `501 NOT_IMPLEMENTED`.
+Chat uses hybrid storage. Postgres stores `chat_threads`, `chat_participants`, `chat_member_state`, and `chat_thread_meta`; AWS Keyspaces stores `thirtyFiveMM.messages`, `thirtyFiveMM.message_edits`, and high-scale `thirtyFiveMM.message_reactions`. Redis stores unread counters, typing indicators in a short-lived sorted set, and presence with 65 second TTL. Inbox/presence reads use batched Redis `MGET` instead of per-thread/per-user loops. BullMQ jobs `chat.deliver`, `chat.messageUpdated`, `chat.readReceipt`, and `chat.typing` publish to Ably channels `thread:{threadId}` and `user:{userId}:inbox`. The web `ChatRealtimeProvider` subscribes to those channels when `NEXT_PUBLIC_ABLY_API_KEY` is configured, patching active-thread messages and invalidating inbox queries. A future ScyllaDB Cloud migration can swap the Cassandra contact point while preserving schema and query shapes.
 
 ---
 
@@ -539,14 +555,14 @@ Feature ownership:
 
 - `features/feed`: composer, feed, post cards, comments, polls, mutations.
 - `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes.
-- `features/notifications`: notification list/dropdown, mark-read flows, realtime.
+- `features/notifications`: notification list/dropdown, mark-read flows, realtime. Realtime handles normal freshness; no-Ably fallback invalidates notification queries every 30 seconds without duplicate 5-second component polling.
 - `features/lists`: film lists and watchlists.
 - `features/settings`: account, privacy, notifications, appearance, data/security settings.
   Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
 - `features/discover`: TMDB-backed browsing and search.
 - `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
-- `features/chat`: rich frontend and mock/remote API abstraction; backend persistence incomplete.
+- `features/chat`: rich frontend, remote backend client, optional mock mode, chat route pages, realtime cache application, and bounded persisted React Query cache for inbox/recent messages.
 - `features/title`: title pages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: future or mock-heavy product surfaces.
 
@@ -733,6 +749,7 @@ Feed cache:
 Rate limiting:
 
 - Redis fixed-window limiter.
+- Allowed requests avoid per-request `TTL`; `TTL` is fetched only for blocked responses that need `Retry-After`.
 - Disabled in test env or when `RATE_LIMIT_DISABLED=true`.
 - Feed create: 20/min per user.
 - Media presign: 20/min per user.
@@ -790,22 +807,30 @@ Target:
 
 ## 15. Chat
 
+Detailed backend reference: `docs/chat-backend.md`
+
 Frontend:
 
 - Rich feature module exists under `apps/web/features/chat`.
 - Includes API client abstraction, mock store, remote client, hooks, components, realtime cache application, and documentation.
+- App Router pages exist at `/chat` and `/chat/:chatId`; URLs render lowercase chat IDs while the frontend normalizes route params back to canonical uppercase thread IDs before API/cache use.
+- Remote chat is the default client mode. `NEXT_PUBLIC_CHAT_API_MODE=mock` is only for demos/tests.
+- React Query persists chat conversation lists and the latest bounded message page in `localStorage` for faster reload/offline read access. Infinite/older-history pages are not persisted, and persisted query cache is cleared on sign-out or user switch.
+- Chat list/header/message avatars use backend profile avatar URLs when present, thread headers render skeletons while metadata resolves, own messages can be edited through the chat edit route, and image/GIF message media opens in the shared `ImageViewer`.
+- The desktop site header Messages nav item shows unread chat count from inbox/request preview caches, which are refreshed by chat realtime inbox invalidation.
 
 API:
 
-- Authenticated Hono routes exist.
-- Conversation/message reads return empty envelopes.
-- Send message returns `501 NOT_IMPLEMENTED`.
+- Authenticated Hono routes now cover inbox, thread creation, messages, reactions, read state, archive/mute/delete, typing, and presence.
+- Postgres stores thread/member metadata; AWS Keyspaces stores message bodies and edit history.
+- Missing Keyspaces config returns a safe empty page for message reads in development and `503 KEYSPACES_UNAVAILABLE` for writes.
 
 Current status:
 
-- Chat is not production-ready.
-- Persistence schema and backend implementation are missing.
-- Treat as post-V1 or gated.
+- Backend persistence and worker realtime jobs are wired.
+- Frontend remote client is aligned to `/v1/chat/inbox`, `/v1/chat/threads`, and `/v1/chat/messages` backend routes.
+- Production rollout requires keeping both Postgres and Keyspaces schemas applied in every environment.
+- AWS Keyspaces schema expects keyspace `thirtyFiveMM` with `messages`, `message_edits`, and sharded `message_reactions` tables using on-demand capacity; apply `packages/db/src/keyspaces/schema.cql` in every environment. Node `cassandra-driver` clients warm pools at API/worker boot, use execution profiles for `chat-read`/`chat-write`, enable prepared statements by default, and pin load balancing to the local AWS region.
 
 ---
 
@@ -918,14 +943,12 @@ Highest priority architecture gaps:
 2. Wire Meilisearch for films/users/posts.
 3. Add DB-level checks for ULID-shaped text IDs where practical.
 4. Finish notification digest and Resend integration.
-5. Decide whether chat remains gated or gets real persistence.
-6. Wire Cloudflare Stream if production video is in scope.
-7. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
-8. Validate migrations against current Drizzle schema in real environments.
+5. Wire Cloudflare Stream if production video is in scope.
+6. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
+7. Validate migrations against current Drizzle schema in real environments.
 
 Post-V1 or gated surfaces:
 
-- Chat.
 - Short films.
 - Communities.
 - Festivals.

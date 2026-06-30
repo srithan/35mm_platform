@@ -6,9 +6,12 @@ import {
   useMutation,
   useQueryClient,
   useInfiniteQuery,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import type { ChatMessage, ChatPreview } from "../types";
 import type { ChatSendPayload } from "../types";
+import type { CreateThreadParams, PaginatedMessages } from "../api/types";
+import type { PaginatedConversations } from "../api/types";
 import { getChatApiClient } from "../api/getChatApiClient";
 import { folderFromUiFilter } from "../api/ChatApiClient";
 import type { ChatFolder } from "../api/types";
@@ -17,9 +20,59 @@ import {
   CHAT_QUERY_POLICY,
 } from "../config/runtimeConfig";
 import { chatQueryKeys } from "../lib/queryKeys";
+import { sortChatMessages, upsertChatMessageSorted } from "../lib/sortChatMessages";
+import {
+  buildOptimisticChatMessage,
+  createOptimisticMessageId,
+} from "../lib/buildOptimisticChatMessage";
 
 function client() {
   return getChatApiClient();
+}
+
+function emptyMessagesPage(): PaginatedMessages {
+  return { items: [], nextCursor: null, hasMore: false };
+}
+
+function patchMessagesPage(
+  prev: PaginatedMessages | undefined,
+  patchItems: (items: ChatMessage[]) => ChatMessage[]
+): PaginatedMessages {
+  var base = prev ?? emptyMessagesPage();
+  return {
+    ...base,
+    items: patchItems(base.items),
+  };
+}
+
+function patchNewestInfinitePage(
+  prev: InfiniteData<PaginatedMessages> | undefined,
+  patchItems: (items: ChatMessage[]) => ChatMessage[]
+): InfiniteData<PaginatedMessages> | undefined {
+  if (!prev || prev.pages.length === 0) {
+    return prev;
+  }
+  return {
+    ...prev,
+    pages: prev.pages.map(function (page, index) {
+      if (index !== 0) {
+        return page;
+      }
+      return patchMessagesPage(page, patchItems);
+    }),
+  };
+}
+
+function findConversationInPage(
+  page: PaginatedConversations | undefined,
+  chatId: string | null
+): ChatPreview | undefined {
+  if (!chatId || !page) {
+    return undefined;
+  }
+  return page.items.find(function (item) {
+    return item.id === chatId;
+  });
 }
 
 export function useConversations(opts: {
@@ -63,22 +116,66 @@ export function useConversationRow(chatId: string | null): {
   row: ChatPreview | undefined;
   isLoading: boolean;
 } {
+  const queryClient = useQueryClient();
+  const cachedRow = useMemo(
+    function () {
+      if (!chatId) {
+        return undefined;
+      }
+      for (var folder of ["inbox", "archived", "requests"] as ChatFolder[]) {
+        var page = queryClient.getQueryData<PaginatedConversations>(
+          chatQueryKeys.conversations(folder)
+        );
+        var row = findConversationInPage(page, chatId);
+        if (row) {
+          return row;
+        }
+      }
+      return undefined;
+    },
+    [chatId, queryClient]
+  );
   const inbox = useConversations({
     folder: "inbox",
     enabled: Boolean(chatId),
   });
+  const inboxRow = useMemo(
+    function () {
+      return inbox.data?.find(function (item) {
+        return item.id === chatId;
+      });
+    },
+    [chatId, inbox.data]
+  );
   const archived = useConversations({
     folder: "archived",
-    enabled: Boolean(chatId),
+    enabled: Boolean(chatId) && !cachedRow && !inboxRow && !inbox.isLoading,
   });
+  const archivedRow = useMemo(
+    function () {
+      return archived.data?.find(function (item) {
+        return item.id === chatId;
+      });
+    },
+    [archived.data, chatId]
+  );
   const requests = useConversations({
     folder: "requests",
-    enabled: Boolean(chatId),
+    enabled:
+      Boolean(chatId) &&
+      !cachedRow &&
+      !inboxRow &&
+      !archivedRow &&
+      !inbox.isLoading &&
+      !archived.isLoading,
   });
   const row = useMemo(
     function () {
       if (!chatId) {
         return undefined;
+      }
+      if (cachedRow) {
+        return cachedRow;
       }
       const pools = [inbox.data, archived.data, requests.data];
       for (let i = 0; i < pools.length; i++) {
@@ -94,10 +191,11 @@ export function useConversationRow(chatId: string | null): {
       }
       return undefined;
     },
-    [chatId, inbox.data, archived.data, requests.data]
+    [chatId, cachedRow, inbox.data, archived.data, requests.data]
   );
   const isLoading =
     Boolean(chatId) &&
+    !row &&
     (inbox.isLoading || archived.isLoading || requests.isLoading);
   return { row: row, isLoading: isLoading };
 }
@@ -114,7 +212,7 @@ export function useChatMessages(chatId: string | null) {
       });
     },
     select: function (data) {
-      return data.items;
+      return sortChatMessages(data.items);
     },
     enabled: Boolean(chatId),
     staleTime: CHAT_QUERY_POLICY.messagesStaleTimeMs,
@@ -149,7 +247,7 @@ export function useChatMessagesInfinite(chatId: string | null) {
       for (let i = data.pages.length - 1; i >= 0; i--) {
         acc = acc.concat(data.pages[i].items);
       }
-      return acc;
+      return sortChatMessages(acc);
     },
     enabled: Boolean(chatId),
     staleTime: CHAT_QUERY_POLICY.messagesStaleTimeMs,
@@ -162,6 +260,18 @@ function invalidateAllConversationLists(queryClient: ReturnType<typeof useQueryC
     queryClient.invalidateQueries({
       queryKey: chatQueryKeys.conversations(folder),
     });
+  });
+}
+
+export function useCreateConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: function (params: CreateThreadParams) {
+      return client().createThread(params);
+    },
+    onSuccess: function () {
+      invalidateAllConversationLists(queryClient);
+    },
   });
 }
 
@@ -183,13 +293,69 @@ export function useSendMessage() {
           : "idemp-" + String(Date.now());
       return client().sendMessage(chatId, payload, { idempotencyKey: key });
     },
-    onSuccess: function (_data, args) {
-      queryClient.invalidateQueries({
+    onMutate: async function (args) {
+      await queryClient.cancelQueries({
         queryKey: chatQueryKeys.messages(args.chatId),
       });
-      queryClient.invalidateQueries({
-        queryKey: chatQueryKeys.messagesInfinite(args.chatId),
-      });
+      const previous = queryClient.getQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId)
+      );
+      const optimisticId = createOptimisticMessageId();
+      const optimistic = buildOptimisticChatMessage(args, optimisticId);
+      queryClient.setQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId),
+        function (prev) {
+          return patchMessagesPage(prev, function (items) {
+            return upsertChatMessageSorted(items, optimistic);
+          });
+        }
+      );
+      return { previous: previous, optimisticId: optimisticId };
+    },
+    onError: function (_error, args, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          chatQueryKeys.messages(args.chatId),
+          context.previous
+        );
+        return;
+      }
+      if (context?.optimisticId) {
+        queryClient.setQueryData<PaginatedMessages>(
+          chatQueryKeys.messages(args.chatId),
+          function (prev) {
+            return patchMessagesPage(prev, function (items) {
+              return items.filter(function (m) {
+                return m.id !== context.optimisticId;
+              });
+            });
+          }
+        );
+      }
+    },
+    onSuccess: function (result, args, context) {
+      queryClient.setQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId),
+        function (prev) {
+          return patchMessagesPage(prev, function (items) {
+            var withoutPending = items.filter(function (m) {
+              return m.id !== context?.optimisticId;
+            });
+            return upsertChatMessageSorted(withoutPending, result.message);
+          });
+        }
+      );
+      queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+        chatQueryKeys.messagesInfinite(args.chatId),
+        function (prev) {
+          return patchNewestInfinitePage(prev, function (items) {
+            var withoutPending = items.filter(function (m) {
+              return m.id !== context?.optimisticId;
+            });
+            return upsertChatMessageSorted(withoutPending, result.message);
+          });
+        }
+      );
       invalidateAllConversationLists(queryClient);
     },
   });
@@ -203,12 +369,60 @@ export function useToggleReaction() {
       messageId: string;
       emoji: string;
     }) {
-      return client().toggleReaction(args.chatId, args.messageId, args.emoji);
+      const messagesPage = queryClient.getQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId)
+      );
+      const message = messagesPage?.items.find(function (item) {
+        return item.id === args.messageId;
+      });
+      const shouldRemove = Boolean(
+        message?.reactions?.some(function (reaction) {
+          return reaction.emoji === args.emoji && reaction.includesMe;
+        })
+      );
+      return client().toggleReaction(
+        args.chatId,
+        args.messageId,
+        args.emoji,
+        shouldRemove
+      );
     },
     onSuccess: function (_data, args) {
       queryClient.invalidateQueries({
         queryKey: chatQueryKeys.messages(args.chatId),
       });
+    },
+  });
+}
+
+export function useEditMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: function (args: {
+      chatId: string;
+      messageId: string;
+      body: string;
+    }) {
+      return client().editMessage(args.chatId, args.messageId, args.body);
+    },
+    onSuccess: function (message, args) {
+      queryClient.setQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId),
+        function (prev) {
+          return patchMessagesPage(prev, function (items) {
+            return upsertChatMessageSorted(items, message);
+          });
+        }
+      );
+      queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+        chatQueryKeys.messagesInfinite(args.chatId),
+        function (prev) {
+          return patchNewestInfinitePage(prev, function (items) {
+            return upsertChatMessageSorted(items, message);
+          });
+        }
+      );
+      invalidateAllConversationLists(queryClient);
     },
   });
 }
@@ -220,6 +434,26 @@ export function useDeleteMessage() {
       return client().deleteMessage(args.chatId, args.messageId);
     },
     onSuccess: function (_data, args) {
+      queryClient.setQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId),
+        function (prev) {
+          return patchMessagesPage(prev, function (items) {
+            return items.filter(function (item) {
+              return item.id !== args.messageId;
+            });
+          });
+        }
+      );
+      queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+        chatQueryKeys.messagesInfinite(args.chatId),
+        function (prev) {
+          return patchNewestInfinitePage(prev, function (items) {
+            return items.filter(function (item) {
+              return item.id !== args.messageId;
+            });
+          });
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: chatQueryKeys.messages(args.chatId),
       });
@@ -231,8 +465,8 @@ export function useDeleteMessage() {
 export function useMarkConversationRead() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: function (chatId: string) {
-      return client().markConversationRead(chatId);
+    mutationFn: function (args: { chatId: string; lastReadMessageId: string }) {
+      return client().markConversationRead(args.chatId, args.lastReadMessageId);
     },
     onSuccess: function () {
       invalidateAllConversationLists(queryClient);

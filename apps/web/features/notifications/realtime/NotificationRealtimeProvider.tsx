@@ -20,7 +20,7 @@ interface NotificationRealtimeProviderProps {
   userId: string | null;
 }
 
-const FALLBACK_REFETCH_INTERVAL_MS = 5_000;
+const FALLBACK_REFETCH_INTERVAL_MS = 30_000;
 
 function hasAblyConfig(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_ABLY_API_KEY?.trim());

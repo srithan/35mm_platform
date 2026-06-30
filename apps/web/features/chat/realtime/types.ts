@@ -25,6 +25,9 @@ export type ChatRealtimeEvent =
       conversation: ChatPreview;
     }
   | {
+      type: "conversation.invalidated";
+    }
+  | {
       type: "conversation.deleted";
       chatId: string;
     }

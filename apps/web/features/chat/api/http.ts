@@ -113,12 +113,17 @@ export async function chatHttpJson<T>(opts: {
         status: 0,
       });
     }
-    throw new ChatApiError(
-      e instanceof Error ? e.message : "Network error",
-      {
-        code: "network",
-        status: 0,
-      }
-    );
+    var networkMessage =
+      e instanceof Error && e.message.trim().length > 0
+        ? e.message
+        : "Network error";
+    if (networkMessage === "Failed to fetch" || networkMessage === "fetch failed") {
+      networkMessage =
+        "Could not reach the chat API. Check that the API is running and CORS is configured.";
+    }
+    throw new ChatApiError(networkMessage, {
+      code: "network",
+      status: 0,
+    });
   }
 }

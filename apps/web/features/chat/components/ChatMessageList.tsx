@@ -10,7 +10,8 @@ import {
 } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Icon } from "@/components/Icon/Icon";
-import { BodyPortal } from "@/components/BodyPortal/BodyPortal";
+import { Avatar } from "@/components/Avatar";
+import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
 import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 import type { ChatMessage } from "../types";
 import {
@@ -18,20 +19,19 @@ import {
   formatMessageTime,
   shouldShowDaySeparator,
 } from "../lib/formatChatTime";
+import { sortChatMessages } from "../lib/sortChatMessages";
 import { ChatEmojiPanel } from "./ChatEmojiPanel";
 
 const TOP_5_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"];
-
-const BUBBLE_MORE_MENU_MIN_WIDTH_PX = 148;
-const BUBBLE_MORE_MENU_Z = 280;
 
 type ReactionPhase = "closed" | "bar" | "picker";
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
-  otherAvatar: { bg: string; color: string; initial: string };
+  otherAvatar: { bg: string; color: string; initial: string; src?: string | null };
   onReply: (msg: ChatMessage) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  onEditMessage?: (msg: ChatMessage) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReportMessage?: (messageId: string) => void;
   /** When false, new messages do not auto-scroll (user is reading history). */
@@ -52,8 +52,10 @@ export function ChatMessagesSkeleton() {
               className={cn(
                 "h-11 rounded-[18px]",
                 i % 3 === 0
-                  ? "bg-[#007AFF]/35"
-                  : "bg-sunken"
+                  ? "w-[min(62%,22rem)] bg-[#007AFF]/35"
+                  : i % 3 === 1
+                    ? "w-[min(74%,26rem)] bg-sunken"
+                    : "w-[min(48%,18rem)] bg-sunken"
               )}
             />
           </div>
@@ -69,6 +71,7 @@ function MessageActions({
   onReply,
   onToggleReaction,
   onCopy,
+  onEdit,
   onDelete,
   onReport,
 }: {
@@ -76,41 +79,18 @@ function MessageActions({
   isOwn: boolean;
   onReply: () => void;
   onToggleReaction: (emoji: string) => void;
-  onCopy: () => void;
+  onCopy: () => boolean | Promise<boolean>;
+  onEdit?: () => void;
   onDelete?: () => void;
   onReport?: () => void;
 }) {
   const [reactionPhase, setReactionPhase] = useState<ReactionPhase>("closed");
   const [showMore, setShowMore] = useState(false);
-  const [moreMenuPos, setMoreMenuPos] = useState({ top: 0, left: 0 });
+  const [copyLabel, setCopyLabel] = useState<"Copy" | "Copied">("Copy");
   const ref = useRef<HTMLDivElement>(null);
   const reactionClusterRef = useRef<HTMLDivElement>(null);
   const plusRef = useRef<HTMLButtonElement>(null);
-  const moreBtnRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-
-  const updateMoreMenuPosition = useCallback(function (): void {
-    const btn = moreBtnRef.current;
-    const menu = moreMenuRef.current;
-    if (!btn || !menu) {
-      return;
-    }
-    const br = btn.getBoundingClientRect();
-    const mr = menu.getBoundingClientRect();
-    const mw = Math.max(BUBBLE_MORE_MENU_MIN_WIDTH_PX, mr.width);
-    const mh = mr.height;
-    const gap = 4;
-    const margin = 8;
-    let top = br.top - mh - gap;
-    if (top < margin) {
-      top = br.bottom + gap;
-    }
-    let left =
-      align === "right" ? br.right - mw : br.left;
-    const maxLeft = window.innerWidth - mw - margin;
-    left = Math.max(margin, Math.min(left, maxLeft));
-    setMoreMenuPos({ top: top, left: left });
-  }, [align]);
 
   const closeOverlays = useCallback(function (): void {
     setReactionPhase("closed");
@@ -126,14 +106,24 @@ function MessageActions({
       moreMenuRef.current?.contains(t) || ref.current?.contains(t)
     );
   }, []);
+  const noopReposition = useCallback(function (): void {}, []);
 
   usePopoverLayer({
     open: reactionPhase !== "closed" || showMore,
-    reposition: updateMoreMenuPosition,
+    reposition: noopReposition,
     isInside: isInsideMessageActions,
     onPointerOutsideDismiss: closeOverlays,
     onEscape: showMore ? dismissMoreMenuOnly : undefined,
   });
+
+  useEffect(
+    function () {
+      if (!showMore) {
+        setCopyLabel("Copy");
+      }
+    },
+    [showMore]
+  );
 
   function closeReactions(): void {
     setReactionPhase("closed");
@@ -150,7 +140,8 @@ function MessageActions({
     <div
       ref={ref}
       className={cn(
-        "flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity",
+        "hidden md:flex items-center gap-0.5 shrink-0 transition-opacity",
+        showMore || showReactionBar ? "opacity-100" : "opacity-0 group-hover:opacity-100",
         align === "left" && "order-first"
       )}
     >
@@ -248,7 +239,6 @@ function MessageActions({
       </button>
       <div className="relative">
         <button
-          ref={moreBtnRef}
           type="button"
           onClick={function () {
             setShowMore(function (s) {
@@ -264,58 +254,70 @@ function MessageActions({
           <Icon name="more-horizontal" className="w-4 h-4" strokeWidth={2} />
         </button>
         {showMore ? (
-          <BodyPortal>
-            <div
-              ref={moreMenuRef}
-              role="menu"
-              className="fixed min-w-[148px] py-1 rounded-xl border border-border bg-elevated text-fg shadow-xl"
-              style={{
-                top: moreMenuPos.top,
-                left: moreMenuPos.left,
-                zIndex: BUBBLE_MORE_MENU_Z,
-                boxShadow:
-                  "0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.08)",
+          <div
+            ref={moreMenuRef}
+            role="menu"
+            className={cn(
+              "absolute top-1/2 z-[85] min-w-[150px] -translate-y-1/2 rounded-xl border border-border bg-elevated py-1 text-fg shadow-[0_12px_40px_rgba(0,0,0,0.14),0_4px_12px_rgba(0,0,0,0.08)]",
+              align === "left" ? "right-full mr-2" : "left-full ml-2"
+            )}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full px-3 py-2 text-left text-[12px] text-fg hover:bg-hover"
+              onClick={async function () {
+                const ok = await onCopy();
+                if (ok) {
+                  setCopyLabel("Copied");
+                  window.setTimeout(function () {
+                    setShowMore(false);
+                  }, 650);
+                }
               }}
             >
+              {copyLabel}
+            </button>
+            {isOwn && onEdit ? (
               <button
                 type="button"
                 role="menuitem"
                 className="w-full px-3 py-2 text-left text-[12px] text-fg hover:bg-hover"
                 onClick={function () {
-                  onCopy();
+                  onEdit();
                   setShowMore(false);
                 }}
               >
-                Copy
+                Edit message
               </button>
-              {!isOwn && onReport ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="w-full px-3 py-2 text-left text-[12px] text-fg hover:bg-hover"
-                  onClick={function () {
-                    onReport();
-                    setShowMore(false);
-                  }}
-                >
-                  Report
-                </button>
-              ) : null}
-              {isOwn && onDelete ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="w-full px-3 py-2 text-left text-[12px] text-red-600 dark:text-red-400 hover:bg-red-500/10"
-                  onClick={function () {
-                    onDelete();
-                    setShowMore(false);
-                  }}
-                >
-                  Delete
-                </button>
-              ) : null}
-            </div>
-          </BodyPortal>
+            ) : null}
+            {!isOwn && onReport ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full px-3 py-2 text-left text-[12px] text-fg hover:bg-hover"
+                onClick={function () {
+                  onReport();
+                  setShowMore(false);
+                }}
+              >
+                Report
+              </button>
+            ) : null}
+            {isOwn && onDelete ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full px-3 py-2 text-left text-[12px] text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                onClick={function () {
+                  onDelete();
+                  setShowMore(false);
+                }}
+              >
+                Delete
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>
@@ -382,12 +384,14 @@ function BubbleRow({
   isJumpHighlighted,
   onReply,
   onToggleReaction,
+  onEditMessage,
   onDeleteMessage,
   onReportMessage,
   onJumpToMessage,
+  onOpenImage,
 }: {
   msg: ChatMessage;
-  otherAvatar: { bg: string; color: string; initial: string };
+  otherAvatar: { bg: string; color: string; initial: string; src?: string | null };
   showAvatar: boolean;
   isFirstInRun: boolean;
   isLastInRun: boolean;
@@ -395,11 +399,14 @@ function BubbleRow({
   isJumpHighlighted: boolean;
   onReply: (msg: ChatMessage) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  onEditMessage?: (msg: ChatMessage) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReportMessage?: (messageId: string) => void;
   onJumpToMessage: (messageId: string) => void;
+  onOpenImage: (url: string) => void;
 }) {
   const time = formatMessageTime(msg.createdAt);
+  const hasAttachment = Boolean(msg.media || msg.file);
 
   const bubbleRadius = msg.isOwn
     ? cn(
@@ -417,15 +424,21 @@ function BubbleRow({
         !isFirstInRun && !isLastInRun && "rounded-[5px]"
       );
 
-  function copyText(): void {
+  async function copyText(): Promise<boolean> {
     const parts: string[] = [];
     if (msg.text) {
       parts.push(msg.text);
     }
     const t = parts.join("\n").trim();
     if (t && typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(t).catch(function () {});
+      try {
+        await navigator.clipboard.writeText(t);
+        return true;
+      } catch (_err) {
+        return false;
+      }
     }
+    return false;
   }
 
   return (
@@ -437,9 +450,8 @@ function BubbleRow({
     >
       <div
         className={cn(
-          "flex min-w-0 max-w-full group items-end gap-2 w-fit",
-          msg.isOwn ? "justify-end" : "justify-start",
-          !msg.isOwn && !showAvatar && "pl-10"
+          "relative flex min-w-0 max-w-full group items-end gap-2 w-fit",
+          msg.isOwn ? "justify-end" : "justify-start"
         )}
       >
         {msg.isOwn ? (
@@ -453,6 +465,13 @@ function BubbleRow({
               onToggleReaction(msg.id, emoji);
             }}
             onCopy={copyText}
+            onEdit={
+              onEditMessage && msg.text.trim()
+                ? function () {
+                    onEditMessage(msg);
+                  }
+                : undefined
+            }
             onDelete={
               onDeleteMessage
                 ? function () {
@@ -464,34 +483,40 @@ function BubbleRow({
           />
         ) : null}
         {!msg.isOwn && showAvatar ? (
-          <div
-            className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[11px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-            style={{ background: otherAvatar.bg, color: otherAvatar.color }}
-          >
-            {otherAvatar.initial}
-          </div>
+          <Avatar
+            initial={otherAvatar.initial}
+            src={msg.senderAvatarUrl ?? otherAvatar.src}
+            className="w-7 h-7 text-[11px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+            loading="lazy"
+          />
         ) : null}
         {!msg.isOwn && !showAvatar ? (
           <div className="w-7 flex-shrink-0" aria-hidden />
         ) : null}
         <div
           className={cn(
-            "max-w-[min(100%,520px)] min-w-0 overflow-hidden transition-shadow duration-300",
-            bubbleRadius,
-            "shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
-            msg.isOwn
-              ? "bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
-              : "bg-sunken text-fg border border-border",
+            "min-w-0 transition-shadow duration-300",
+            hasAttachment
+              ? "max-w-[min(100%,340px)] overflow-visible"
+              : cn(
+                  "max-w-[min(100%,520px)] overflow-hidden",
+                  bubbleRadius,
+                  "shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
+                  msg.isOwn
+                    ? "bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
+                    : "bg-sunken text-fg border border-border"
+                ),
             isJumpHighlighted &&
-              (msg.isOwn
-                ? "ring-2 ring-white/70 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_4px_20px_rgba(10,132,255,0.35)]"
-                : "ring-2 ring-[#007AFF]/55 shadow-[0_0_0_1px_rgba(10,132,255,0.2),0_4px_18px_rgba(10,132,255,0.12)]")
+              (hasAttachment
+                ? "rounded-[16px] ring-2 ring-[#007AFF]/50"
+                : msg.isOwn
+                  ? "ring-2 ring-white/70 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_4px_20px_rgba(10,132,255,0.35)]"
+                  : "ring-2 ring-[#007AFF]/55 shadow-[0_0_0_1px_rgba(10,132,255,0.2),0_4px_18px_rgba(10,132,255,0.12)]")
           )}
         >
           <div
             className={cn(
-              "px-3.5 py-2",
-              msg.media || msg.file ? "pb-2" : ""
+              hasAttachment ? "p-0" : "px-3.5 py-2"
             )}
           >
             {msg.replyTo ? (
@@ -504,7 +529,9 @@ function BubbleRow({
                 }}
                 className={cn(
                   "mb-2 block w-full text-left pl-2.5 border-l-[3px] rounded-lg py-1.5 -mx-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#007AFF]/45",
-                  msg.isOwn
+                  hasAttachment
+                    ? "border-[#007AFF]/50 bg-elevated text-fg hover:bg-hover"
+                    : msg.isOwn
                     ? "border-white/45 bg-white/10 hover:bg-white/[0.14]"
                     : "border-[#007AFF]/50 bg-border/25 hover:bg-border/40"
                 )}
@@ -513,7 +540,7 @@ function BubbleRow({
                 <p
                   className={cn(
                     "text-[11px] font-semibold uppercase tracking-wide",
-                    msg.isOwn ? "text-white/75" : "text-[#007AFF]"
+                    hasAttachment || !msg.isOwn ? "text-[#007AFF]" : "text-white/75"
                   )}
                 >
                   {msg.replyTo.isOwn ? "You" : "Them"}
@@ -521,7 +548,7 @@ function BubbleRow({
                 <p
                   className={cn(
                     "text-[12px] leading-snug line-clamp-2 mt-0.5",
-                    msg.isOwn ? "text-white/85" : "text-fg-muted"
+                    hasAttachment || !msg.isOwn ? "text-fg-muted" : "text-white/85"
                   )}
                 >
                   {msg.replyTo.snippet}
@@ -529,47 +556,40 @@ function BubbleRow({
               </button>
             ) : null}
             {msg.media ? (
-              <div className="mb-1.5 rounded-[14px] overflow-hidden ring-1 ring-black/10 dark:ring-white/10">
+              <button
+                type="button"
+                onClick={function () {
+                  onOpenImage(msg.media!.url);
+                }}
+                className="block w-fit overflow-hidden rounded-[14px] bg-black/[0.03] ring-1 ring-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60 dark:bg-white/[0.04] dark:ring-white/10"
+                aria-label="View image"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={msg.media.url}
                   alt=""
-                  className="max-w-[min(100%,280px)] max-h-[220px] w-full object-cover bg-black/10"
+                  className="block h-auto max-h-[320px] max-w-[min(70vw,320px)] object-contain"
                   loading="lazy"
                 />
-              </div>
+              </button>
             ) : null}
             {msg.file && !msg.media ? (
               <div
-                className={cn(
-                  "flex items-center gap-2 mb-1.5 rounded-xl px-2.5 py-2",
-                  msg.isOwn ? "bg-white/15" : "bg-border/35"
-                )}
+                className="flex max-w-[min(70vw,320px)] items-center gap-2 rounded-[14px] border border-border bg-elevated px-3 py-2.5 text-fg shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
               >
                 <Icon
                   name="paperclip"
-                  className={cn(
-                    "w-4 h-4 shrink-0",
-                    msg.isOwn ? "text-white/90" : "text-fg-muted"
-                  )}
+                  className="w-4 h-4 shrink-0 text-fg-muted"
                   strokeWidth={2}
                 />
                 <div className="min-w-0">
                   <p
-                    className={cn(
-                      "text-[13px] font-medium truncate",
-                      msg.isOwn ? "text-white" : "text-fg"
-                    )}
+                    className="truncate text-[13px] font-medium text-fg"
                   >
                     {msg.file.name}
                   </p>
                   {msg.file.sizeLabel ? (
-                    <p
-                      className={cn(
-                        "text-[11px]",
-                        msg.isOwn ? "text-white/65" : "text-fg-muted"
-                      )}
-                    >
+                    <p className="text-[11px] text-fg-muted">
                       {msg.file.sizeLabel}
                     </p>
                   ) : null}
@@ -579,23 +599,34 @@ function BubbleRow({
             {msg.text ? (
               <p
                 className={cn(
-                  "text-[16px] md:text-[15px] leading-[1.42] tracking-[0.01em] whitespace-pre-wrap break-words",
-                  msg.isOwn ? "text-white" : "text-fg"
+                  "whitespace-pre-wrap break-words text-[16px] leading-[1.42] tracking-[0.01em] md:text-[15px]",
+                  hasAttachment
+                    ? "mt-1.5 px-0.5 text-fg"
+                    : msg.isOwn
+                      ? "text-white"
+                      : "text-fg"
                 )}
               >
                 {msg.text}
+                {msg.editedAt ? (
+                  <span
+                    className={cn(
+                      "ml-1 text-[11px]",
+                      hasAttachment || !msg.isOwn ? "text-fg-muted" : "text-white/55"
+                    )}
+                  >
+                    edited
+                  </span>
+                ) : null}
               </p>
             ) : null}
             <div
               className={cn(
                 "flex items-center justify-end gap-1.5 mt-1",
-                msg.isOwn ? "text-white/55" : "text-fg-muted/90"
+                hasAttachment || !msg.isOwn ? "text-fg-muted/90" : "text-white/55"
               )}
             >
               <span className="text-[10px] tabular-nums">{time}</span>
-              {msg.isOwn && msg.status === "sending" ? (
-                <span className="text-[10px]">Sending…</span>
-              ) : null}
             </div>
           </div>
         </div>
@@ -610,6 +641,7 @@ function BubbleRow({
               onToggleReaction(msg.id, emoji);
             }}
             onCopy={copyText}
+            onEdit={undefined}
             onDelete={undefined}
             onReport={
               onReportMessage
@@ -624,7 +656,7 @@ function BubbleRow({
       <div
         className={cn(
           "max-w-[min(100%,520px)]",
-          msg.isOwn ? "self-end" : "self-start pl-10"
+          msg.isOwn ? "self-end" : "self-start"
         )}
       >
         <ReactionChips
@@ -639,6 +671,10 @@ function BubbleRow({
             {receiptLabel === "read" ? "Read" : "Delivered"}
           </span>
         </div>
+      ) : msg.isOwn && msg.status === "sending" ? (
+        <div className="flex justify-end pr-1">
+          <span className="text-[10px] text-fg-muted/70">Sending…</span>
+        </div>
       ) : null}
     </div>
   );
@@ -649,27 +685,36 @@ export function ChatMessageList({
   otherAvatar,
   onReply,
   onToggleReaction,
+  onEditMessage,
   onDeleteMessage,
   onReportMessage,
   stickToBottomRef,
   scrollRootRef,
 }: ChatMessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(
     null
   );
   const highlightClearRef = useRef<number | null>(null);
 
+  const sortedMessages = useMemo(
+    function () {
+      return sortChatMessages(messages);
+    },
+    [messages]
+  );
+
   const lastOwnId = useMemo(
     function () {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].isOwn) {
-          return messages[i].id;
+      for (let i = sortedMessages.length - 1; i >= 0; i--) {
+        if (sortedMessages[i].isOwn) {
+          return sortedMessages[i].id;
         }
       }
       return null;
     },
-    [messages]
+    [sortedMessages]
   );
 
   const scrollAnchorRef = useRef<{
@@ -679,9 +724,9 @@ export function ChatMessageList({
 
   useEffect(
     function () {
-      const count = messages.length;
+      const count = sortedMessages.length;
       const lastMessageId =
-        count > 0 ? messages[count - 1].id : null;
+        count > 0 ? sortedMessages[count - 1].id : null;
       const prev = scrollAnchorRef.current;
       scrollAnchorRef.current = {
         lastMessageId: lastMessageId,
@@ -697,7 +742,7 @@ export function ChatMessageList({
         endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
       }
     },
-    [messages, stickToBottomRef]
+    [sortedMessages, stickToBottomRef]
   );
 
   useEffect(
@@ -763,9 +808,9 @@ export function ChatMessageList({
 
   return (
     <div className="space-y-2 px-3 md:px-4 py-4 md:py-5">
-      {messages.map(function (msg, index) {
-        const prev = messages[index - 1];
-        const next = messages[index + 1];
+      {sortedMessages.map(function (msg, index) {
+        const prev = sortedMessages[index - 1];
+        const next = sortedMessages[index + 1];
         const dayBreakAfterPrev =
           prev != null &&
           shouldShowDaySeparator(prev.createdAt, msg.createdAt);
@@ -815,15 +860,25 @@ export function ChatMessageList({
                 isJumpHighlighted={highlightedMessageId === msg.id}
                 onReply={onReply}
                 onToggleReaction={onToggleReaction}
+                onEditMessage={onEditMessage}
                 onDeleteMessage={onDeleteMessage}
                 onReportMessage={onReportMessage}
                 onJumpToMessage={jumpToMessage}
+                onOpenImage={setViewerSrc}
               />
             </div>
           </div>
         );
       })}
       <div ref={endRef} className="h-px shrink-0" aria-hidden />
+      <ImageViewer
+        open={viewerSrc != null}
+        onClose={function () {
+          setViewerSrc(null);
+        }}
+        src={viewerSrc ?? undefined}
+        alt="Chat image"
+      />
     </div>
   );
 }

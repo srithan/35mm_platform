@@ -27,14 +27,14 @@ Environment variables (also listed in repo root `.env.example`):
 
 | Variable | Purpose |
 |----------|---------|
-| `NEXT_PUBLIC_CHAT_API_MODE` | Omit or `mock` = in-memory store. Set to **`remote`** to use HTTP. |
-| `NEXT_PUBLIC_CHAT_API_URL` | **Required** when `remote`. API origin **without** trailing slash, e.g. `https://api.35mm.in`. |
+| `NEXT_PUBLIC_CHAT_API_MODE` | Omit = HTTP backend. Set to **`mock`** only for local demos/tests. |
+| `NEXT_PUBLIC_CHAT_API_URL` | Optional API origin override without trailing slash, e.g. `https://api.35mm.in`. Falls back to `NEXT_PUBLIC_API_URL`. |
 
 The browser calls:
 
 `{NEXT_PUBLIC_CHAT_API_URL}` + `/v1/chat` + *resource path* (see `features/chat/config/runtimeConfig.ts` → `CHAT_HTTP.restPrefix`).
 
-If `remote` is set without `NEXT_PUBLIC_CHAT_API_URL`, the app throws **`ChatApiError`** at first client resolution (`getChatApiClient()`).
+If no chat-specific API URL is set, the client uses `NEXT_PUBLIC_API_URL`.
 
 ---
 
@@ -208,6 +208,7 @@ Domain types live in **`features/chat/types.ts`**. The backend should return JSO
 | `lastMessage` | string | yes | Preview snippet |
 | `lastMessageAt` | string | yes | Short relative label (e.g. `2m`, `1h`) — server may send ISO and let client format later |
 | `unread` | number | no | Badge |
+| `avatarUrl` | string \| null | no | Small profile avatar URL for list/header rendering |
 | `avatarBg` | string | yes | CSS color / hex for avatar circle |
 | `avatarColor` | string | yes | Text color on avatar |
 | `archived` | boolean | no | `true` → archived folder only |
@@ -223,6 +224,8 @@ Domain types live in **`features/chat/types.ts`**. The backend should return JSO
 | `isOwn` | boolean | **Server must set** relative to authenticated user |
 | `createdAt` | string | ISO 8601 |
 | `status` | enum? | `sending` \| `sent` \| `delivered` \| `read` — mainly for own messages |
+| `senderAvatarUrl` | string \| null | optional sender avatar URL for incoming message runs |
+| `editedAt` | string \| null | set after successful message edits |
 | `replyTo` | object? | `id`, `snippet`, `isOwn` |
 | `reactions` | array? | `emoji`, `count`, `includesMe` |
 | `media` | object? | `type`: `gif` \| `image`, `url` |
@@ -296,7 +299,14 @@ Optional headers for support: **`X-Request-Id`**, **`CF-Ray`**, etc. (read for l
 
 ## 10. Realtime (WebSocket / SSE)
 
-The UI mounts **`ChatRealtimeProvider`** (`app/providers.tsx`) with a **noop** transport until you inject one.
+The UI mounts **`ChatRealtimeProvider`** (`app/providers.tsx`) and automatically builds an Ably transport when **`NEXT_PUBLIC_ABLY_API_KEY`** and a signed-in **`userId`** are available. API and worker **`ABLY_API_KEY`** values only publish backend events; the web app also needs **`NEXT_PUBLIC_ABLY_API_KEY`** so the browser can subscribe.
+
+The provider subscribes to:
+
+- **`user:{userId}:inbox`** for `thread.updated`, which invalidates chat conversation queries.
+- **`thread:{threadId}`** for the active `/chat/[chatId]` route and maps `message.new`, `message.edited`, `message.deleted`, `message.reaction`, `message.read`, and `typing.update`.
+
+If the web Ably key is missing, the provider falls back to a **noop** transport. Tests or alternate realtime implementations can still pass **`transport`** into **`<ChatRealtimeProvider transport={...}>`**.
 
 ### Event contract
 
@@ -320,12 +330,7 @@ See **`features/chat/realtime/types.ts`** — union **`ChatRealtimeEvent`**:
 }
 ```
 
-Pass your transport into **`<ChatRealtimeProvider transport={...}>`** (wrap or replace in `providers.tsx`).
-
-**Important:** The simple message cache updater assumes the **stored query data** for `chatQueryKeys.messages(chatId)` matches what **`setQueryData`** expects. Today **`useChatMessages`** caches **`PaginatedMessages`** from the server but **`select`** exposes **`items` only** to components. If you enable realtime before aligning cache shape, either:
-
-- Store **`ChatMessage[]`** in the cache and move pagination to a separate key, or
-- Update **`applyChatRealtimeEvent`** to read/write **`PaginatedMessages`** consistently.
+The cache updater writes **`PaginatedMessages`** for **`chatQueryKeys.messages(chatId)`** and also maintains the first loaded page for **`chatQueryKeys.messagesInfinite(chatId)`**.
 
 ---
 

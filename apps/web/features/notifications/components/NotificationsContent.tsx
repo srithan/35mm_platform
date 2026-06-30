@@ -260,7 +260,6 @@ export function NotificationsContent() {
     },
     enabled: isLoaded && Boolean(isSignedIn),
     staleTime: 15_000,
-    refetchInterval: 5_000,
   });
 
   const data = notificationsQuery.data as NotificationPage | undefined;

@@ -25,7 +25,8 @@ packages/config      -> Shared TS config
 Root commands:
 
 ```bash
-pnpm dev
+pnpm dev        # web + API only; avoids idle BullMQ polling against shared Upstash Redis
+pnpm dev:all    # web + API + worker
 pnpm dev:web
 pnpm dev:api
 pnpm dev:worker
@@ -227,3 +228,19 @@ pnpm typecheck
 Coverage exists for API media variants, rich text validators, feed rich mentions, mention notifications, home feed merge behavior, web rich text rendering, R2 media helpers, post media helpers, comment section, search bar, post composer, settings schemas/hooks, notifications panel, and modal focus stack.
 
 For cross-layer changes, keep schema, validators, shared types, API routes, frontend adapters/hooks, and worker side effects aligned in the same change.
+
+## Notes:
+
+Whenever you make code changes in this repo, also update the architecture/codebase docs if the change affects app structure, API routes, DB schema, shared types, validators, worker jobs, feature wiring, env vars, or known gaps.
+
+Docs to keep current:
+- docs/architecture.md
+- codebase-analysis-docs/CODEBASE_KNOWLEDGE.md
+- codebase-analysis-docs/chat-backend.md
+- codebase-analysis-docs/assets/*.mmd if diagrams change
+
+Before finishing:
+1. Check whether the change impacts those docs.
+2. Update the relevant sections.
+3. Run the appropriate build/typecheck/test.
+4. Mention in the final response whether docs were updated or why no doc update was needed.

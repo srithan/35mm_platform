@@ -92,14 +92,14 @@ export async function applyRateLimit(
     await redis.expire(key, input.windowSeconds);
   }
 
-  var ttl = await redis.ttl(key);
-  var retryAfter = ttl > 0 ? ttl : input.windowSeconds;
   var remaining = Math.max(input.limit - current, 0);
 
   c.header("X-RateLimit-Limit", String(input.limit));
   c.header("X-RateLimit-Remaining", String(remaining));
 
   if (current > input.limit) {
+    var ttl = await redis.ttl(key);
+    var retryAfter = ttl > 0 ? ttl : input.windowSeconds;
     c.header("Retry-After", String(retryAfter));
     return c.json(
       {

@@ -27,3 +27,9 @@ erDiagram
   film_lists ||--o{ film_list_likes : receives
   users ||--o{ user_blocks : blocker
   users ||--o{ user_mutes : muter
+  users ||--o{ chat_threads : creates
+  chat_threads ||--o{ chat_participants : has
+  users ||--o{ chat_participants : joins
+  chat_threads ||--o{ chat_member_state : has
+  users ||--o{ chat_member_state : configures
+  chat_threads ||--|| chat_thread_meta : summarizes

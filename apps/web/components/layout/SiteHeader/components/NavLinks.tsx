@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon/Icon";
+import {
+  formatChatUnreadBadgeCount,
+  useChatUnreadBadgeCount,
+} from "@/features/chat/hooks/useChatUnreadBadgeCount";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import styles from "../SiteHeader.module.css";
@@ -10,6 +14,10 @@ type NavLinksProps = {
 };
 
 export function NavLinks({ isActive, profileHref }: NavLinksProps) {
+  const chatUnreadCount = useChatUnreadBadgeCount();
+  const chatUnreadLabel = formatChatUnreadBadgeCount(chatUnreadCount);
+  const hasChatUnread = chatUnreadCount > 0;
+
   return (
     <div className={styles.navCenter}>
       <div className={styles.navItems}>
@@ -89,14 +97,27 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
           href={ROUTES.CHAT}
           className={cn(styles.navItem, isActive(ROUTES.CHAT) && styles.active)}
           aria-current={isActive(ROUTES.CHAT) ? "page" : undefined}
+          aria-label={
+            hasChatUnread
+              ? "Messages (" + chatUnreadLabel + " unread)"
+              : "Messages"
+          }
         >
-          <span className={styles.navItemIcon}>
+          <span className={cn(styles.navItemIcon, styles.navItemIconWithBadge)}>
             <Icon
               name="chat"
               className="h-5 w-5"
               strokeWidth={1.9}
               filled={isActive(ROUTES.CHAT)}
             />
+            {hasChatUnread ? (
+              <span
+                className={cn(styles.navItemBadge, "unread-notification-badge")}
+                aria-hidden="true"
+              >
+                {chatUnreadLabel}
+              </span>
+            ) : null}
           </span>
           <span className={styles.navItemText}>Messages</span>
         </Link>

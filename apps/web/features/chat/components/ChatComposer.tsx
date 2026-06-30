@@ -19,8 +19,16 @@ export interface ChatComposerReplyTarget {
   isOwn: boolean;
 }
 
+export interface ChatComposerEditTarget {
+  id: string;
+  text: string;
+}
+
 interface ChatComposerProps {
   onSend: (payload: ChatSendPayload) => void;
+  editingMessage?: ChatComposerEditTarget | null;
+  onSaveEdit?: (messageId: string, body: string) => void;
+  onCancelEdit?: () => void;
   disabled?: boolean;
   isSending?: boolean;
   onFocusChange?: (focused: boolean) => void;
@@ -45,6 +53,9 @@ type PendingMedia =
 
 export function ChatComposer({
   onSend,
+  editingMessage = null,
+  onSaveEdit,
+  onCancelEdit,
   disabled = false,
   isSending = false,
   onFocusChange,
@@ -65,6 +76,33 @@ export function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const desktopPhotoInputRef = useRef<HTMLInputElement>(null);
   const desktopFileInputRef = useRef<HTMLInputElement>(null);
+  const previousEditingIdRef = useRef<string | null>(null);
+
+  useEffect(
+    function syncEditTargetIntoInput() {
+      const previousId = previousEditingIdRef.current;
+      const nextId = editingMessage?.id ?? null;
+      if (previousId === nextId) {
+        return;
+      }
+      previousEditingIdRef.current = nextId;
+      if (editingMessage) {
+        setValue(editingMessage.text);
+        setPending(null);
+        setShowEmoji(false);
+        setShowGif(false);
+        setAttachOpen(false);
+        requestAnimationFrame(function () {
+          taRef.current?.focus();
+          const len = editingMessage.text.length;
+          taRef.current?.setSelectionRange(len, len);
+        });
+      } else if (previousId) {
+        setValue("");
+      }
+    },
+    [editingMessage]
+  );
 
   useEffect(
     function () {
@@ -128,6 +166,18 @@ export function ChatComposer({
   }
 
   function submit(): void {
+    if (editingMessage) {
+      const next = value.trim();
+      if (!next || disabled || isSending) {
+        return;
+      }
+      if (next === editingMessage.text.trim()) {
+        onCancelEdit?.();
+        return;
+      }
+      onSaveEdit?.(editingMessage.id, next);
+      return;
+    }
     const payload = buildPayload();
     if (!payload || disabled || isSending) {
       return;
@@ -142,6 +192,11 @@ export function ChatComposer({
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (e.key === "Escape" && editingMessage) {
+      e.preventDefault();
+      onCancelEdit?.();
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
@@ -203,7 +258,10 @@ export function ChatComposer({
 
   const payloadPreview = buildPayload();
   const canSend =
-    Boolean(payloadPreview) && !disabled && !isSending;
+    editingMessage
+      ? Boolean(value.trim()) && !disabled && !isSending
+      : Boolean(payloadPreview) && !disabled && !isSending;
+  const isEditing = editingMessage != null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -238,7 +296,26 @@ export function ChatComposer({
         onChange={onAnyFileChange}
       />
 
-      {replyingTo ? (
+      {isEditing ? (
+        <div className="flex items-start gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.08] px-3 py-2">
+          <div className="flex-1 min-w-0 border-l-2 border-[#007AFF] pl-2.5">
+            <p className="text-[11px] font-semibold text-[#007AFF] uppercase tracking-wide">
+              Editing message
+            </p>
+            <p className="text-[13px] text-fg-muted line-clamp-1 mt-0.5">
+              Press Enter to save, Escape to cancel
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="p-1 rounded-full text-fg-muted hover:bg-hover"
+            aria-label="Cancel edit"
+          >
+            <X className="w-4 h-4" strokeWidth={2} />
+          </button>
+        </div>
+      ) : replyingTo ? (
         <div className="flex items-start gap-2 rounded-xl border border-border bg-sunken px-3 py-2">
           <div className="flex-1 min-w-0 border-l-2 border-[#007AFF] pl-2.5">
             <p className="text-[11px] font-semibold text-[#007AFF] uppercase tracking-wide">
@@ -308,7 +385,7 @@ export function ChatComposer({
               }}
               className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
               aria-label="Photos and videos"
-              disabled={disabled || isSending}
+              disabled={disabled || isSending || isEditing}
             >
               <ImagePlus className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
@@ -319,7 +396,7 @@ export function ChatComposer({
               }}
               className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
               aria-label="Files"
-              disabled={disabled || isSending}
+              disabled={disabled || isSending || isEditing}
             >
               <FolderOpen className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
@@ -337,7 +414,7 @@ export function ChatComposer({
               className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
               aria-label="Attach"
               aria-expanded={attachOpen}
-              disabled={disabled || isSending}
+              disabled={disabled || isSending || isEditing}
             >
               <Paperclip className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
@@ -417,7 +494,7 @@ export function ChatComposer({
               }}
               className="px-2 py-2 text-[12px] font-bold text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors tracking-tight"
               aria-label="GIF"
-              disabled={disabled || isSending}
+              disabled={disabled || isSending || isEditing}
             >
               GIF
             </button>
@@ -449,10 +526,10 @@ export function ChatComposer({
           onBlur={function () {
             onFocusChange?.(false);
           }}
-          placeholder="Message"
+          placeholder={isEditing ? "Edit message" : "Message"}
           disabled={disabled || isSending}
           className="flex-1 min-w-0 max-h-[120px] py-2.5 px-0.5 text-[16px] md:text-[15px] leading-[1.35] bg-transparent text-fg placeholder:text-fg-muted/70 resize-none focus:outline-none disabled:opacity-50"
-          aria-label="Message"
+          aria-label={isEditing ? "Edit message" : "Message"}
         />
         <button
           type="button"
@@ -464,7 +541,7 @@ export function ChatComposer({
               ? "bg-[#007AFF] text-white shadow-sm scale-100 hover:bg-[#0066d6] active:scale-95"
               : "bg-sunken-2 text-fg-muted scale-95 opacity-80"
           )}
-          aria-label="Send message"
+          aria-label={isEditing ? "Save edit" : "Send message"}
         >
           <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
         </button>

@@ -7,7 +7,7 @@ export const ROUTES = {
   AUTH_VERIFY: "/verify",
   NEW_POST: "/new",
   CHAT: "/chat",
-  CHAT_WITH: (chatId: string) => `/chat/${chatId}`,
+  CHAT_WITH: (chatId: string) => `/chat/${encodeURIComponent(chatId.toLowerCase())}`,
   DISCOVER: "/discover",
   COMMUNITIES: "/communities",
   COMMUNITY: (slug: string) => `/communities/${slug}`,

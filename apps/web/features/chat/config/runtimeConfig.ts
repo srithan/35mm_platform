@@ -1,21 +1,21 @@
 /**
  * Chat frontend runtime — tuned for production React Query + API usage.
- * Backend switches via NEXT_PUBLIC_CHAT_API_MODE / NEXT_PUBLIC_CHAT_API_URL.
+ * Remote backend is default. Use NEXT_PUBLIC_CHAT_API_MODE=mock only for demos/tests.
  */
 
 export type ChatApiMode = "mock" | "remote";
 
 export const CHAT_API_MODE: ChatApiMode =
   typeof process !== "undefined" &&
-  process.env.NEXT_PUBLIC_CHAT_API_MODE === "remote"
-    ? "remote"
-    : "mock";
+  process.env.NEXT_PUBLIC_CHAT_API_MODE === "mock"
+    ? "mock"
+    : "remote";
 
 /** Base URL without trailing slash, e.g. https://api.35mm.in */
 export const CHAT_API_BASE_URL: string =
   (typeof process !== "undefined" &&
-    process.env.NEXT_PUBLIC_CHAT_API_URL?.replace(/\/$/, "")) ||
-  "";
+    (process.env.NEXT_PUBLIC_CHAT_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "")) ||
+  "http://localhost:4000";
 
 export const CHAT_PAGE_LIMITS = {
   /** Conversation list page size (cursor pagination). */

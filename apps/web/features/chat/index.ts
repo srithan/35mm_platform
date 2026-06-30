@@ -10,6 +10,7 @@ export { ChatIndexRoute } from "./components/ChatIndexRoute";
 export {
   getChatApiClient,
   setChatAuthGetToken,
+  setChatCurrentUserIdGetter,
   createRemoteChatClient,
   ChatApiError,
   folderFromUiFilter,
@@ -25,13 +26,12 @@ export {
   useChatMessages,
   useChatMessagesInfinite,
   useSendMessage,
+  useEditMessage,
+  useCreateConversation,
   useDeleteConversation,
   useRespondToConversationRequest,
 } from "./hooks/useChatQueries";
 export {
-  ChatRealtimeProvider,
-  useChatRealtime,
-  applyChatRealtimeEvent,
-  createNoopChatRealtimeTransport,
-} from "./realtime";
-export type { ChatRealtimeEvent, ChatRealtimeTransport } from "./realtime";
+  formatChatUnreadBadgeCount,
+  useChatUnreadBadgeCount,
+} from "./hooks/useChatUnreadBadgeCount";

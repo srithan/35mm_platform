@@ -173,6 +173,60 @@ function syncConversationPreviewsFromThreads(): void {
 seedMessages();
 syncConversationPreviewsFromThreads();
 
+function avatarStyleForSeed(seed: string): { bg: string; color: string } {
+  var palettes = [
+    ["#2a1e30", "#d8b4fe"],
+    ["#1f2937", "#93c5fd"],
+    ["#2b2118", "#f4b56a"],
+    ["#172a24", "#6ee7b7"],
+    ["#301818", "#f0a3a3"],
+    ["#1f2433", "#f9d05c"],
+  ];
+  var hash = 0;
+  for (var i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  var pair = palettes[hash % palettes.length];
+  return { bg: pair[0], color: pair[1] };
+}
+
+export async function mockCreateThread(input: {
+  memberIds: string[];
+  member?: { username: string; displayName: string };
+}): Promise<ChatPreview> {
+  await delay(120);
+  if (input.member?.username) {
+    for (var i = 0; i < conversations.length; i++) {
+      if (conversations[i].username === input.member.username) {
+        return clone(conversations[i]);
+      }
+    }
+    var fromSeed = MOCK_CHATS.find(function (c) {
+      return c.username === input.member?.username;
+    });
+    if (fromSeed) {
+      return clone(fromSeed);
+    }
+  }
+  var displayName = input.member?.displayName || "New chat";
+  var username = input.member?.username || "";
+  var avatar = avatarStyleForSeed(username || displayName);
+  var id = "new-" + String(Date.now());
+  var preview: ChatPreview = {
+    id: id,
+    name: displayName,
+    username: username,
+    lastMessage: "No messages yet.",
+    lastMessageAt: "",
+    unread: 0,
+    avatarBg: avatar.bg,
+    avatarColor: avatar.color,
+  };
+  conversations.unshift(preview);
+  messagesByChat[id] = [];
+  return clone(preview);
+}
+
 export async function mockFetchConversations(): Promise<ChatPreview[]> {
   await delay(140 + Math.floor(Math.random() * 100));
   return clone(conversations);
@@ -354,4 +408,44 @@ export async function mockDeleteMessage(
       break;
     }
   }
+}
+
+export async function mockEditMessage(
+  chatId: string,
+  messageId: string,
+  body: string
+): Promise<ChatMessage> {
+  await delay(90);
+  const list = messagesByChat[chatId];
+  if (!list) {
+    throw new Error("Message not found");
+  }
+  const idx = list.findIndex(function (m) {
+    return m.id === messageId;
+  });
+  if (idx === -1 || !list[idx].isOwn) {
+    throw new Error("Message not found");
+  }
+  const nextText = body.trim();
+  if (!nextText) {
+    throw new Error("Message cannot be empty");
+  }
+  list[idx] = {
+    ...list[idx],
+    text: nextText,
+    editedAt: new Date().toISOString(),
+  };
+  const last = list[list.length - 1];
+  if (last && last.id === messageId) {
+    for (let j = 0; j < conversations.length; j++) {
+      if (conversations[j].id === chatId) {
+        conversations[j].lastMessage = previewForList(list[idx]);
+        conversations[j].lastMessageAt = formatRelativeShort(
+          new Date(list[idx].createdAt)
+        );
+        break;
+      }
+    }
+  }
+  return clone(list[idx]);
 }

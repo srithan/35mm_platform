@@ -1,24 +1,28 @@
 "use client";
 
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { useAuth } from "@clerk/nextjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FlashToastHost } from "@/components/FlashToast";
 import { ChatInputFocusProvider } from "@/components/layout/ChatInputFocusContext";
 import { ChatSidebarProvider } from "@/features/chat/context/ChatSidebarContext";
-import { ChatRealtimeProvider } from "@/features/chat/realtime";
+import {
+  setChatAuthGetToken,
+  setChatCurrentUserIdGetter,
+} from "@/features/chat/api";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 import { AccentColorProvider } from "@/lib/theme/AccentColorProvider";
 import { NotificationSoundPlayer } from "@/features/notifications/components/NotificationSoundPlayer";
 import { NotificationTitleBadge } from "@/features/notifications/components/NotificationTitleBadge";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
-import { queryPersister } from "@/lib/queryPersister";
+import { queryPersister, removePersistedQueryCache } from "@/lib/queryPersister";
 
 const QUERY_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
 const PERSISTED_QUERY_ROOTS = new Set([
+  "35mm",
   "feed",
   "profiles",
   "notifications",
@@ -29,6 +33,14 @@ const PERSISTED_QUERY_ROOTS = new Set([
   "bookmarks",
   "onboarding",
 ]);
+
+function shouldPersistQueryKey(queryKey: readonly unknown[]): boolean {
+  const keyRoot = queryKey[0];
+  if (keyRoot === "35mm") {
+    return queryKey[1] === "chat" && queryKey[2] !== "messagesInfinite";
+  }
+  return typeof keyRoot === "string" && PERSISTED_QUERY_ROOTS.has(keyRoot);
+}
 
 const NotificationRealtimeProvider = dynamic(
   function () {
@@ -43,11 +55,85 @@ const NotificationRealtimeProvider = dynamic(
   }
 );
 
+const ChatRealtimeProvider = dynamic(
+  function () {
+    return import("@/features/chat/realtime").then(function (module) {
+      return {
+        default: module.ChatRealtimeProvider,
+      };
+    });
+  },
+  {
+    ssr: false,
+  }
+);
+
 function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
-  const { isLoaded: isUserLoaded, isSignedIn } = useAuth();
+  const queryClient = useQueryClient();
+  const { getToken, isLoaded: isUserLoaded, isSignedIn } = useAuth();
   const currentUserQuery = useCurrentUserProfile();
   const notificationUserId = currentUserQuery.data?.userId ?? null;
   const isNotificationRealtimeReady = isUserLoaded && Boolean(isSignedIn) && Boolean(notificationUserId);
+  const chatRealtimeUserId = currentUserQuery.data?.userId ?? null;
+  const isChatRealtimeReady =
+    isUserLoaded && Boolean(isSignedIn) && Boolean(chatRealtimeUserId);
+
+  useEffect(
+    function () {
+      setChatAuthGetToken(function () {
+        return getToken();
+      });
+      return function () {
+        setChatAuthGetToken(null);
+      };
+    },
+    [getToken]
+  );
+
+  useEffect(
+    function () {
+      setChatCurrentUserIdGetter(function () {
+        return currentUserQuery.data?.userId ?? null;
+      });
+      return function () {
+        setChatCurrentUserIdGetter(null);
+      };
+    },
+    [currentUserQuery.data?.userId]
+  );
+
+  useEffect(
+    function () {
+      if (!isUserLoaded) {
+        return;
+      }
+      const currentUserId = currentUserQuery.data?.userId ?? null;
+      const storageKey = "35mm.chat.cacheUserId";
+      const previousUserId =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem(storageKey)
+          : null;
+      if (!isSignedIn) {
+        queryClient.clear();
+        removePersistedQueryCache();
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(storageKey);
+        }
+        return;
+      }
+      if (!currentUserId) {
+        return;
+      }
+      if (previousUserId && previousUserId !== currentUserId) {
+        queryClient.clear();
+        removePersistedQueryCache();
+      }
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(storageKey, currentUserId);
+      }
+    },
+    [currentUserQuery.data?.userId, isSignedIn, isUserLoaded, queryClient]
+  );
 
   return (
     <NotificationRealtimeProvider
@@ -57,7 +143,10 @@ function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
       <NotificationTitleBadge />
       <NotificationSoundPlayer />
       <FlashToastHost />
-      <ChatRealtimeProvider>
+      <ChatRealtimeProvider
+        enabled={isChatRealtimeReady}
+        userId={isUserLoaded ? chatRealtimeUserId : null}
+      >
         <ChatSidebarProvider>
           <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
         </ChatSidebarProvider>
@@ -92,12 +181,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           buster: process.env.NEXT_PUBLIC_APP_VERSION ?? "",
           dehydrateOptions: {
             shouldDehydrateQuery: function (query) {
-              const keyRoot = query.queryKey[0];
-
               return (
                 query.state.status === "success" &&
-                typeof keyRoot === "string" &&
-                PERSISTED_QUERY_ROOTS.has(keyRoot)
+                shouldPersistQueryKey(query.queryKey)
               );
             },
           },

@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 allowBuilds:
   '@clerk/shared': true
+  aws-sdk: true
   esbuild: true
   msgpackr-extract: true
   sharp: true

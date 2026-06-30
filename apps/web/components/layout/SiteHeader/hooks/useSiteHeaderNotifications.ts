@@ -27,7 +27,6 @@ export function useSiteHeaderNotifications() {
     },
     enabled: isLoaded && Boolean(isSignedIn),
     staleTime: 15_000,
-    refetchInterval: 5_000,
     gcTime: 5 * 60_000,
   });
   const notifRows = (notifRowsQuery.data?.items ?? []) as HeaderNotifRow[];
@@ -43,7 +42,6 @@ export function useSiteHeaderNotifications() {
     },
     enabled: isLoaded && Boolean(isSignedIn),
     staleTime: 15_000,
-    refetchInterval: 5_000,
     gcTime: 5 * 60_000,
   });
 	  const unreadRows = unreadRowsQuery.data?.items ?? [];
@@ -57,8 +55,7 @@ export function useSiteHeaderNotifications() {
 	      });
 	    },
 	    enabled: isLoaded && Boolean(isSignedIn),
-	    staleTime: 15_000,
-	    refetchInterval: 10_000,
+	    staleTime: 60_000,
 	    gcTime: 5 * 60_000,
 	  });
 	  const followRequestTotal = followRequestsQuery.data?.total ?? 0;

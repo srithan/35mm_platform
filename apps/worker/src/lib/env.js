@@ -31,5 +31,6 @@ export function loadWorkerEnv() {
         FEED_RESCORE_MAX_AGE_HOURS: Number(process.env.FEED_RESCORE_MAX_AGE_HOURS ?? "72"),
         FEED_RESCORE_BATCH_SIZE: Number(process.env.FEED_RESCORE_BATCH_SIZE ?? "500"),
         WORKER_CONCURRENCY: Number(process.env.WORKER_CONCURRENCY ?? "4"),
+        WORKER_ENABLED: (process.env.WORKER_ENABLED ?? "true").toLowerCase() !== "false",
     };
 }

@@ -8,7 +8,18 @@ Long-running BullMQ worker for async jobs.
 pnpm --filter @35mm/worker dev
 ```
 
-Required env (loaded from `apps/api/.env` by default):
+Root `pnpm dev` intentionally runs only web + API so local sessions do not idle-poll shared Upstash Redis. Use `pnpm dev:all` or `pnpm dev:worker` only when you need BullMQ jobs locally.
+
+To hard-disable the daemon before it opens Redis connections:
+
+```env
+WORKER_ENABLED=false
+```
+
+Required env:
+
+- Local `pnpm --filter @35mm/worker ...` scripts currently load `apps/api/.env` by default.
+- `apps/worker/.env.example` lists the worker-specific variables if you run the worker with a worker-local env file or deploy it separately.
 
 - `DATABASE_URL`
 - `R2_ACCOUNT_ID`
@@ -16,6 +27,8 @@ Required env (loaded from `apps/api/.env` by default):
 - `R2_SECRET_ACCESS_KEY`
 - `R2_PUBLIC_BASE_URL`
 - `UPSTASH_REDIS_URL`
+- `WORKER_ENABLED` (optional; default `true`; set `false` to avoid BullMQ polling in local quota-sensitive runs)
+- `ABLY_API_KEY` (required for realtime notification/chat publish)
 - `FEED_HIGH_FOLLOWER_THRESHOLD` (optional; default `10000`)
 - `FEED_FANOUT_BATCH_SIZE` (optional; default `500`, max `2000`)
 - `FEED_RESCORE_MAX_AGE_HOURS` (optional; default `72`)
@@ -29,7 +42,22 @@ Current job handlers:
 - `feed.fanout` (real): chunked accepted-follower `feed_items` writes below high-follower threshold
 - `feed.rescore` (real): periodic recent `feed_items.score` refresh from denormalized post counters
 - `counter.increment` (real): batched denormalized counter deltas
+- `chat.deliver` (real): publish new chat messages and inbox badge updates
+- `chat.messageUpdated` (real): publish chat edit/delete/reaction events
+- `chat.readReceipt` (real): publish read receipts
+- `chat.typing` (real): publish ephemeral typing state
 - `notification.digest` (stub)
+
+### Chat Channels (Ably)
+
+- `thread:{threadId}`: per-thread events `message.new`, `message.edited`, `message.deleted`, `message.reaction`, `message.read`, `typing.update`.
+- `user:{userId}:inbox`: per-user inbox badge event `thread.updated`.
+
+### Keyspaces (AWS)
+
+- Worker connects to AWS Keyspaces for chat message reads in deliver/update jobs.
+- Uses the same `cassandra-driver` singleton pattern as the API.
+- If `KEYSPACES_ENDPOINT` / `AWS_REGION` are absent, jobs log a warning and skip the Keyspaces read. Ably publish is skipped because no message payload can be delivered.
 
 ## Media backfill
 

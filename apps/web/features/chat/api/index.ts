@@ -9,10 +9,16 @@ export type {
   SendMessageResult,
   MessagePageDirection,
 } from "./types";
-export { ChatApiError, isChatApiError, isRetryableChatError } from "./errors";
+export {
+  ChatApiError,
+  isChatApiError,
+  isRetryableChatError,
+  getChatErrorMessage,
+} from "./errors";
 export {
   getChatApiClient,
   setChatAuthGetToken,
+  setChatCurrentUserIdGetter,
   __resetChatApiClientForTests,
   __setChatApiClientForTests,
 } from "./getChatApiClient";

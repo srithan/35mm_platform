@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { Icon } from "@/components/Icon/Icon";
+import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
-import type { ChatPreview } from "../data/mockChats";
+import type { ChatPreview } from "../types";
 import {
   ChatHeaderMoreMenu,
   type ChatHeaderMenuAction,
@@ -21,6 +22,7 @@ import {
 
 interface ChatMobileHeaderProps {
   chat: ChatPreview;
+  isLoading?: boolean;
   conversationArchived?: boolean;
   threadSearchQuery: string;
   onThreadSearchQueryChange: (query: string) => void;
@@ -29,6 +31,7 @@ interface ChatMobileHeaderProps {
 
 export function ChatMobileHeader({
   chat,
+  isLoading = false,
   conversationArchived = false,
   threadSearchQuery,
   onThreadSearchQueryChange,
@@ -87,7 +90,27 @@ export function ChatMobileHeader({
   );
 
   const profileSlug = chat.username.replace(/^@/, "");
-  const handle = "@" + profileSlug;
+  const handle = profileSlug ? "@" + profileSlug : null;
+  const headerIdentity = (
+    <>
+      <Avatar
+        initial={chat.name.charAt(0)}
+        src={chat.avatarUrl}
+        className="w-8 h-8 text-[12px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+        loading="eager"
+      />
+      <div className="min-w-0 text-left">
+        <p className="font-semibold text-[15px] text-fg truncate leading-tight tracking-[-0.02em]">
+          {chat.name}
+        </p>
+        {handle ? (
+          <p className="text-[11px] text-fg-muted truncate leading-tight">
+            {handle}
+          </p>
+        ) : null}
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -96,6 +119,23 @@ export function ChatMobileHeader({
       role="banner"
     >
       <div className="flex items-center justify-between gap-2 px-2 h-12 min-h-[3rem]">
+        {isLoading ? (
+          <div className="flex w-full items-center justify-between gap-2 animate-pulse" aria-hidden>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="h-9 w-9 rounded-full bg-border/60" />
+              <div className="h-8 w-8 rounded-full bg-border/80" />
+              <div className="space-y-1.5">
+                <div className="h-3.5 w-28 rounded bg-border/80" />
+                <div className="h-2.5 w-16 rounded bg-border/60" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <div className="h-9 w-9 rounded-xl bg-border/60" />
+              <div className="h-9 w-9 rounded-xl bg-border/60" />
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="flex min-w-0 items-center gap-1">
           <Link
             href={ROUTES.CHAT}
@@ -104,25 +144,18 @@ export function ChatMobileHeader({
           >
             <ChevronLeft className="w-6 h-6" strokeWidth={2} />
           </Link>
-          <Link
-            href={ROUTES.PROFILE(profileSlug)}
-            className="flex w-fit min-w-0 max-w-[min(17rem,calc(100vw-10.5rem))] items-center gap-2.5 rounded-xl px-2 py-1 hover:bg-black/[0.045] dark:hover:bg-white/[0.06] active:scale-[0.99] transition-[transform,background-color] duration-150"
-          >
-            <div
-              className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-[12px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-              style={{ background: chat.avatarBg, color: chat.avatarColor }}
+          {profileSlug ? (
+            <Link
+              href={ROUTES.PROFILE(profileSlug)}
+              className="flex w-fit min-w-0 max-w-[min(17rem,calc(100vw-10.5rem))] items-center gap-2.5 rounded-xl px-2 py-1 hover:bg-black/[0.045] dark:hover:bg-white/[0.06] active:scale-[0.99] transition-[transform,background-color] duration-150"
             >
-              {chat.name.charAt(0)}
+              {headerIdentity}
+            </Link>
+          ) : (
+            <div className="flex w-fit min-w-0 max-w-[min(17rem,calc(100vw-10.5rem))] items-center gap-2.5 rounded-xl px-2 py-1">
+              {headerIdentity}
             </div>
-            <div className="min-w-0 text-left">
-              <p className="font-semibold text-[15px] text-fg truncate leading-tight tracking-[-0.02em]">
-                {chat.name}
-              </p>
-              <p className="text-[11px] text-fg-muted truncate leading-tight">
-                {handle}
-              </p>
-            </div>
-          </Link>
+          )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <button
@@ -151,6 +184,8 @@ export function ChatMobileHeader({
             conversationArchived={conversationArchived}
           />
         </div>
+        </>
+        )}
       </div>
       {threadSearchOpen ? (
         <div className="px-2 pb-2">

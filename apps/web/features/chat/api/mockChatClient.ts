@@ -7,6 +7,7 @@ import { CHAT_PAGE_LIMITS } from "../config/runtimeConfig";
 import type { ChatApiClient } from "./ChatApiClient";
 import type {
   ChatFolder,
+  CreateThreadParams,
   ListConversationsParams,
   ListMessagesParams,
   PaginatedConversations,
@@ -20,7 +21,9 @@ import {
   mockSetConversationArchived,
   mockToggleReaction,
   mockDeleteMessage,
+  mockEditMessage,
   mockDeleteConversation,
+  mockCreateThread,
 } from "../mock/chatStore";
 
 function filterByFolder(list: Awaited<ReturnType<typeof mockFetchConversations>>, folder: ChatFolder) {
@@ -47,6 +50,13 @@ export function createMockChatClient(): ChatApiClient {
         nextCursor: null,
         hasMore: false,
       };
+    },
+
+    createThread: async function (params: CreateThreadParams) {
+      return mockCreateThread({
+        memberIds: params.memberIds,
+        member: params.member,
+      });
     },
 
     listMessages: async function (params: ListMessagesParams) {
@@ -99,6 +109,10 @@ export function createMockChatClient(): ChatApiClient {
 
     toggleReaction: function (chatId, messageId, emoji) {
       return mockToggleReaction(chatId, messageId, emoji);
+    },
+
+    editMessage: function (chatId, messageId, body) {
+      return mockEditMessage(chatId, messageId, body);
     },
 
     deleteMessage: function (chatId, messageId) {

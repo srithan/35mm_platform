@@ -24,6 +24,32 @@ type FeedFanoutJobPayload = {
   authorUserId: string;
 };
 
+type ChatDeliverJobPayload = {
+  messageId: string;
+  threadId: string;
+  senderId: string;
+  bucket: number;
+};
+
+type ChatMessageUpdatedJobPayload = {
+  messageId: string;
+  threadId: string;
+  bucket: number;
+  type: "edit" | "delete" | "reaction";
+};
+
+type ChatReadReceiptJobPayload = {
+  threadId: string;
+  userId: string;
+  lastReadMessageId: string;
+};
+
+type ChatTypingJobPayload = {
+  threadId: string;
+  userId: string;
+  isTyping: boolean;
+};
+
 export type CounterTargetTable =
   | "posts"
   | "comments"
@@ -49,9 +75,34 @@ export type CounterIncrementJobPayload = {
   delta: number;
 };
 
-type QueueName = "media.process" | "notification.publish" | "counter.increment" | "feed.fanout";
+type QueueName =
+  | "media.process"
+  | "notification.publish"
+  | "counter.increment"
+  | "feed.fanout"
+  | "chat.deliver"
+  | "chat.messageUpdated"
+  | "chat.readReceipt"
+  | "chat.typing";
 
-var queue: Queue | null | undefined;
+export type ChatJobName =
+  | "chat.deliver"
+  | "chat.messageUpdated"
+  | "chat.readReceipt"
+  | "chat.typing";
+
+export type ChatJobPayloadByName = {
+  "chat.deliver": ChatDeliverJobPayload;
+  "chat.messageUpdated": ChatMessageUpdatedJobPayload;
+  "chat.readReceipt": ChatReadReceiptJobPayload;
+  "chat.typing": ChatTypingJobPayload;
+};
+
+var globalForQueue = globalThis as typeof globalThis & {
+  __thirtyFiveMmApiQueue?: Queue | null;
+};
+
+var queue: Queue | null | undefined = globalForQueue.__thirtyFiveMmApiQueue;
 
 function defaultJobOptions(name: QueueName): JobsOptions {
   if (name === "media.process") {
@@ -90,6 +141,14 @@ function defaultJobOptions(name: QueueName): JobsOptions {
     };
   }
 
+  if (name === "chat.typing") {
+    return {
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    };
+  }
+
   return {
     attempts: 3,
     backoff: {
@@ -97,6 +156,26 @@ function defaultJobOptions(name: QueueName): JobsOptions {
       delay: 1_000,
     },
   };
+}
+
+export async function enqueueChatJob<Name extends ChatJobName>(
+  name: Name,
+  payload: ChatJobPayloadByName[Name]
+): Promise<boolean> {
+  var q = getQueue();
+  if (!q) {
+    console.warn("[" + name + "] queue disabled", payload);
+    return false;
+  }
+
+  try {
+    await q.add(name, payload, defaultJobOptions(name));
+  } catch (error) {
+    console.warn("[" + name + "] enqueue failed", { payload, error });
+    return false;
+  }
+
+  return true;
 }
 
 export async function enqueueNotificationPublishJob(
@@ -183,6 +262,7 @@ function buildQueue(): Queue | null {
 function getQueue(): Queue | null {
   if (queue !== undefined) return queue;
   queue = buildQueue();
+  globalForQueue.__thirtyFiveMmApiQueue = queue;
   return queue;
 }
 
@@ -252,4 +332,5 @@ export async function enqueueCounterIncrementJob(
 export async function closeApiQueue(): Promise<void> {
   await queue?.close();
   queue = undefined;
+  globalForQueue.__thirtyFiveMmApiQueue = undefined;
 }

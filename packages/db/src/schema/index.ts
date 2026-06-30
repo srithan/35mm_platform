@@ -1,5 +1,11 @@
 export { bookmarkFolders } from "./bookmarks.js";
 export {
+  chatThreads,
+  chatParticipants,
+  chatMemberState,
+  chatThreadMeta,
+} from "./chat.js";
+export {
   users,
   accountStatusEnum,
   type NotificationEmailPreferenceKey,

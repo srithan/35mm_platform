@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils/cn";
 import { useChatSidebar } from "../context/ChatSidebarContext";
 import { ChatList } from "./ChatList";
 import { ChatConversation } from "./ChatConversation";
-import { getChatById } from "../data/mockChats";
+import { useConversationRow } from "../hooks/useChatQueries";
 
 interface ChatContentProps {
   /** Chat ID from URL (e.g. from /chat/[chatId]) */
@@ -14,7 +14,7 @@ interface ChatContentProps {
 export function ChatContent({ selectedId: initialSelectedId = null }: ChatContentProps = {}) {
   const { collapsed: sidebarCollapsed, toggleCollapse } = useChatSidebar();
   const selectedId = initialSelectedId;
-  const chat = selectedId ? getChatById(selectedId) : null;
+  const { row: chat, isLoading: chatLoading } = useConversationRow(selectedId);
   const avatar = chat ? { bg: chat.avatarBg, color: chat.avatarColor } : undefined;
   const chatName = chat?.name ?? null;
   const chatUsername = chat?.username ?? null;
@@ -38,8 +38,10 @@ export function ChatContent({ selectedId: initialSelectedId = null }: ChatConten
           chatId={selectedId}
           chatName={chatName}
           chatUsername={chatUsername}
+          chatAvatarUrl={chat?.avatarUrl}
           avatarBg={avatar?.bg}
           avatarColor={avatar?.color}
+          conversationLoading={chatLoading}
         />
       </div>
     </div>

@@ -3,9 +3,10 @@
  * both satisfy this contract so hooks stay identical when backend ships.
  */
 
-import type { ChatMessage, ChatSendPayload } from "../types";
+import type { ChatMessage, ChatPreview, ChatSendPayload } from "../types";
 import type {
   ChatFolder,
+  CreateThreadParams,
   ListConversationsParams,
   ListMessagesParams,
   PaginatedConversations,
@@ -20,6 +21,8 @@ export interface ChatApiClient {
 
   listMessages(params: ListMessagesParams): Promise<PaginatedMessages>;
 
+  createThread(params: CreateThreadParams): Promise<ChatPreview>;
+
   sendMessage(
     chatId: string,
     payload: ChatSendPayload,
@@ -29,12 +32,15 @@ export interface ChatApiClient {
   toggleReaction(
     chatId: string,
     messageId: string,
-    emoji: string
+    emoji: string,
+    shouldRemove?: boolean
   ): Promise<void>;
+
+  editMessage(chatId: string, messageId: string, body: string): Promise<ChatMessage>;
 
   deleteMessage(chatId: string, messageId: string): Promise<void>;
 
-  markConversationRead(chatId: string): Promise<void>;
+  markConversationRead(chatId: string, lastReadMessageId: string): Promise<void>;
 
   setConversationArchived(chatId: string, archived: boolean): Promise<void>;
 

@@ -38,3 +38,13 @@ export interface PaginatedMessages {
 export interface SendMessageResult {
   message: ChatMessage;
 }
+
+export interface CreateThreadParams {
+  type: "dm";
+  memberIds: string[];
+  /** Used by the mock client to build a preview when profiles are not loaded. */
+  member?: {
+    username: string;
+    displayName: string;
+  };
+}

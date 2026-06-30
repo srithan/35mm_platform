@@ -1,41 +1,941 @@
 import { Hono } from "hono";
-import { cursorPaginationSchema, sendMessageSchema } from "@35mm/validators";
-import { requireAuth } from "../../lib/middleware.js";
+import type { Context } from "hono";
+import cassandra from "cassandra-driver";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import {
+  chatMemberState,
+  chatParticipants,
+  chatThreadMeta,
+  chatThreads,
+  profiles,
+  userBlocks,
+  users,
+} from "@35mm/db/schema";
+import type {
+  ChatInboxPage,
+  ChatMessagesPage,
+  ChatMember,
+  ChatMessage,
+  ChatMessageContentType,
+  ChatThreadPreview,
+  MessageReaction,
+  MessageReplySnapshot,
+} from "@35mm/types";
+import {
+  createChatThreadSchema,
+  editMessageSchema,
+  inboxCursorSchema,
+  messageCursorSchema,
+  messageReactionSchema,
+  sendMessageSchema,
+  typingIndicatorSchema,
+} from "@35mm/validators";
+import { getDb } from "../../lib/db.js";
+import { ApiError, badRequest, forbidden } from "../../lib/errors.js";
+import { requireAuth, type AuthUser } from "../../lib/middleware.js";
+import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
+import { createRateLimitMiddleware } from "../../lib/rateLimit.js";
+import { createUlid } from "../../lib/ulid.js";
+import { tryGetKeyspacesClient } from "../../lib/keyspaces.js";
+import { enqueueChatJob } from "../../lib/jobs.js";
+import {
+  clearTyping,
+  getPresence,
+  getTypingUsers,
+  getUnreadCounts,
+  incrementUnread,
+  resetUnread,
+  setPresence,
+  setTyping,
+} from "./chatRedis.js";
+import { bucketsNewestFirst, getMessageBucket, truncatePreview } from "./chatUtils.js";
 
-export const chatRoutes = new Hono();
+type ProfileRow = {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  avatarVariants: Record<string, string> | null;
+};
+
+type MessageRow = {
+  thread_id: string;
+  bucket: number;
+  message_id: { toString(): string; getDate?: () => Date };
+  sender_id: string;
+  content_type: ChatMessageContentType;
+  body: string | null;
+  media_url: string | null;
+  media_meta: string | null;
+  link_preview: string | null;
+  reply_to_id: { toString(): string } | null;
+  reply_snapshot: string | null;
+  reactions: unknown;
+  is_deleted: boolean | null;
+  deleted_at: Date | null;
+  edited_at: Date | null;
+  created_at: Date | null;
+};
+
+export var chatRoutes = new Hono();
 chatRoutes.use("*", requireAuth);
 
-function notImplemented() {
-  return {
-    code: "NOT_IMPLEMENTED",
-    message: "Chat persistence is not wired yet",
-  } as const;
+function userRateLimit(keyPrefix: string, limit: number, windowSeconds: number) {
+  return createRateLimitMiddleware({
+    keyPrefix,
+    limit,
+    windowSeconds,
+    identify: function (c) {
+      var user = c.get("user") as AuthUser | undefined;
+      return user?.userId ?? null;
+    },
+  });
 }
 
-chatRoutes.get("/conversations", function (c) {
-  cursorPaginationSchema.parse({
+var inboxRateLimit = userRateLimit("chat:inbox", 60, 60);
+var createThreadRateLimit = userRateLimit("chat:create-thread", 10, 60);
+var readMessagesRateLimit = userRateLimit("chat:read-messages", 120, 60);
+var sendMessageRateLimit = userRateLimit("chat:send-message", 30, 60);
+var messageWriteRateLimit = userRateLimit("chat:message-write", 30, 60);
+var reactionRateLimit = userRateLimit("chat:reaction", 60, 60);
+var readStateRateLimit = userRateLimit("chat:read-state", 120, 60);
+var typingRateLimit = userRateLimit("chat:typing", 30, 60);
+var presenceRateLimit = userRateLimit("chat:presence", 4, 60);
+
+function parseJson<T>(schema: { parse(value: unknown): T }, value: unknown): T {
+  try {
+    return schema.parse(value);
+  } catch (error) {
+    var message =
+      error &&
+      typeof error === "object" &&
+      Array.isArray((error as { issues?: unknown }).issues)
+        ? ((error as { issues: Array<{ message?: string }> }).issues[0]?.message ?? "Invalid request")
+        : "Invalid request";
+    throw badRequest(message);
+  }
+}
+
+function authUser(c: Context): AuthUser {
+  return c.get("user") as AuthUser;
+}
+
+function apiError(status: number, code: string, message: string): ApiError {
+  return new ApiError(status, code, message);
+}
+
+function asRecord(value: unknown): Record<string, string> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  var out: Record<string, string> = {};
+  for (var [key, raw] of Object.entries(value)) {
+    if (typeof raw === "string") out[key] = raw;
+  }
+  return out;
+}
+
+function parseJsonObject<T>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    var parsed = JSON.parse(value) as T;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function timeUuidFromString(value: string): cassandra.types.TimeUuid {
+  try {
+    return cassandra.types.TimeUuid.fromString(value);
+  } catch {
+    throw badRequest("Invalid message id");
+  }
+}
+
+function bucketFromMessageId(messageId: string): number {
+  return getMessageBucket(timeUuidFromString(messageId).getDate());
+}
+
+function reactionEntries(value: unknown): Array<[string, string[]]> {
+  if (!value) return [];
+  if (value instanceof Map) {
+    return Array.from(value.entries()).map(function ([emoji, raw]) {
+      var userIds = raw instanceof Set ? Array.from(raw) : Array.isArray(raw) ? raw : [];
+      return [String(emoji), userIds.map(String)];
+    });
+  }
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).map(function ([emoji, raw]) {
+      var userIds = raw instanceof Set ? Array.from(raw) : Array.isArray(raw) ? raw : [];
+      return [emoji, userIds.map(String)];
+    });
+  }
+  return [];
+}
+
+function hydrateReactions(value: unknown, viewerId: string): MessageReaction[] {
+  return reactionEntries(value).map(function ([emoji, userIds]) {
+    return {
+      emoji,
+      count: userIds.length,
+      userIds: userIds.slice(0, 10),
+      viewerReacted: userIds.includes(viewerId),
+    };
+  });
+}
+
+function reactionUserSet(value: unknown, emoji: string): Set<string> {
+  var entry = reactionEntries(value).find(function ([candidate]) {
+    return candidate === emoji;
+  });
+  return new Set(entry?.[1] ?? []);
+}
+
+function setReactionEntry(value: unknown, emoji: string, userIds: Set<string>): Map<string, Set<string>> {
+  var map = new Map<string, Set<string>>();
+  for (var [candidate, existing] of reactionEntries(value)) {
+    if (candidate !== emoji) map.set(candidate, new Set(existing));
+  }
+  if (userIds.size > 0) map.set(emoji, userIds);
+  return map;
+}
+
+function messageDate(row: MessageRow): Date {
+  if (row.created_at) return row.created_at;
+  var fromId = row.message_id.getDate?.();
+  return fromId ?? new Date();
+}
+
+function hydrateMessage(
+  row: MessageRow,
+  profileMap: Map<string, ProfileRow>,
+  viewerId: string
+): ChatMessage {
+  var profile = profileMap.get(row.sender_id);
+  var isDeleted = Boolean(row.is_deleted);
+  return {
+    id: row.message_id.toString(),
+    threadId: row.thread_id,
+    bucket: row.bucket,
+    senderId: row.sender_id,
+    senderUsername: profile?.username ?? "unknown",
+    senderDisplayName: profile?.displayName ?? "Unknown User",
+    senderAvatarUrl: profile?.avatarUrl ?? null,
+    senderAvatarVariants: profile?.avatarVariants ?? null,
+    contentType: row.content_type,
+    body: isDeleted ? null : row.body,
+    mediaUrl: isDeleted ? null : row.media_url,
+    mediaMetadata: isDeleted
+      ? null
+      : parseJsonObject<ChatMessage["mediaMetadata"]>(row.media_meta),
+    linkPreview: isDeleted
+      ? null
+      : parseJsonObject<ChatMessage["linkPreview"]>(row.link_preview),
+    replyToId: row.reply_to_id?.toString() ?? null,
+    replySnapshot: parseJsonObject<MessageReplySnapshot>(row.reply_snapshot),
+    reactions: hydrateReactions(row.reactions, viewerId),
+    isDeleted,
+    editedAt: row.edited_at?.toISOString() ?? null,
+    createdAt: messageDate(row).toISOString(),
+  };
+}
+
+function rowFromKeyspaces(input: unknown): MessageRow {
+  var row = input as { get?: (name: string) => unknown } & Record<string, unknown>;
+  function value(name: string): unknown {
+    return typeof row.get === "function" ? row.get(name) : row[name];
+  }
+  return {
+    thread_id: String(value("thread_id")),
+    bucket: Number(value("bucket")),
+    message_id: value("message_id") as MessageRow["message_id"],
+    sender_id: String(value("sender_id")),
+    content_type: String(value("content_type")) as ChatMessageContentType,
+    body: (value("body") as string | null) ?? null,
+    media_url: (value("media_url") as string | null) ?? null,
+    media_meta: (value("media_meta") as string | null) ?? null,
+    link_preview: (value("link_preview") as string | null) ?? null,
+    reply_to_id: (value("reply_to_id") as MessageRow["reply_to_id"]) ?? null,
+    reply_snapshot: (value("reply_snapshot") as string | null) ?? null,
+    reactions: value("reactions"),
+    is_deleted: (value("is_deleted") as boolean | null) ?? false,
+    deleted_at: (value("deleted_at") as Date | null) ?? null,
+    edited_at: (value("edited_at") as Date | null) ?? null,
+    created_at: (value("created_at") as Date | null) ?? null,
+  };
+}
+
+async function fetchProfiles(userIds: string[]): Promise<Map<string, ProfileRow>> {
+  var unique = Array.from(new Set(userIds.filter(Boolean)));
+  if (unique.length === 0) return new Map();
+  var rows = await getDb()
+    .select({
+      userId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
+    })
+    .from(profiles)
+    .where(inArray(profiles.userId, unique));
+  var map = new Map<string, ProfileRow>();
+  for (var row of rows) {
+    map.set(row.userId, {
+      ...row,
+      avatarVariants: asRecord(row.avatarVariants),
+    });
+  }
+  return map;
+}
+
+async function fetchThreadMembers(threadIds: string[]): Promise<Map<string, ChatMember[]>> {
+  if (threadIds.length === 0) return new Map();
+  var rows = await getDb()
+    .select({
+      threadId: chatParticipants.threadId,
+      userId: chatParticipants.userId,
+      role: chatParticipants.role,
+      joinedAt: chatParticipants.joinedAt,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
+    })
+    .from(chatParticipants)
+    .innerJoin(profiles, eq(profiles.userId, chatParticipants.userId))
+    .where(and(inArray(chatParticipants.threadId, threadIds), isNull(chatParticipants.leftAt)));
+  var out = new Map<string, ChatMember[]>();
+  for (var row of rows) {
+    var list = out.get(row.threadId) ?? [];
+    list.push({
+      userId: row.userId,
+      username: row.username,
+      displayName: row.displayName,
+      avatarUrl: row.avatarUrl,
+      avatarVariants: asRecord(row.avatarVariants),
+      role: row.role === "admin" ? "admin" : "member",
+      joinedAt: row.joinedAt.toISOString(),
+    });
+    out.set(row.threadId, list);
+  }
+  return out;
+}
+
+async function assertActiveMember(threadId: string, userId: string) {
+  var rows = await getDb()
+    .select({
+      threadId: chatParticipants.threadId,
+      deletedAt: chatMemberState.deletedAt,
+    })
+    .from(chatParticipants)
+    .leftJoin(
+      chatMemberState,
+      and(
+        eq(chatMemberState.threadId, chatParticipants.threadId),
+        eq(chatMemberState.userId, chatParticipants.userId)
+      )
+    )
+    .where(
+      and(
+        eq(chatParticipants.threadId, threadId),
+        eq(chatParticipants.userId, userId),
+        isNull(chatParticipants.leftAt)
+      )
+    )
+    .limit(1);
+  if (rows.length === 0) throw apiError(403, "NOT_MEMBER", "Not a member of this thread");
+  return rows[0];
+}
+
+async function getThreadPreview(threadId: string, viewerId: string): Promise<ChatThreadPreview> {
+  var rows = await getDb()
+    .select({
+      id: chatThreads.id,
+      type: chatThreads.type,
+      lastMessageAt: chatThreadMeta.lastMessageAt,
+      lastMessagePreview: chatThreadMeta.lastMessagePreview,
+      lastSenderId: chatThreadMeta.lastSenderId,
+      archivedAt: chatMemberState.archivedAt,
+      deletedAt: chatMemberState.deletedAt,
+      mutedUntil: chatMemberState.mutedUntil,
+    })
+    .from(chatThreads)
+    .leftJoin(chatThreadMeta, eq(chatThreadMeta.threadId, chatThreads.id))
+    .leftJoin(
+      chatMemberState,
+      and(eq(chatMemberState.threadId, chatThreads.id), eq(chatMemberState.userId, viewerId))
+    )
+    .where(eq(chatThreads.id, threadId))
+    .limit(1);
+  if (rows.length === 0) throw apiError(404, "THREAD_NOT_FOUND", "Thread not found");
+  var memberMap = await fetchThreadMembers([threadId]);
+  var members = memberMap.get(threadId) ?? [];
+  if (rows[0].type === "dm") {
+    members = members.filter(function (member) {
+      return member.userId !== viewerId;
+    });
+  }
+  var unread = await getUnreadCounts(viewerId, [threadId]);
+  return {
+    id: rows[0].id,
+    type: rows[0].type === "group" ? "group" : "dm",
+    members,
+    lastMessageAt: rows[0].lastMessageAt?.toISOString() ?? null,
+    lastMessagePreview: rows[0].lastMessagePreview,
+    lastSenderId: rows[0].lastSenderId,
+    unreadCount: unread[threadId] ?? 0,
+    isArchived: rows[0].archivedAt != null,
+    isMuted: rows[0].mutedUntil != null && rows[0].mutedUntil > new Date(),
+    deletedAt: rows[0].deletedAt?.toISOString() ?? null,
+  };
+}
+
+async function fetchMessage(threadId: string, bucket: number, messageId: string): Promise<MessageRow | null> {
+  var client = tryGetKeyspacesClient();
+  if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
+  var result = await client.execute(
+    "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+    [threadId, bucket, timeUuidFromString(messageId)],
+    { executionProfile: "chat-read" }
+  );
+  if (result.rows.length === 0) return null;
+  return rowFromKeyspaces(result.rows[0]);
+}
+
+chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var query = parseJson(inboxCursorSchema, {
     cursor: c.req.query("cursor"),
     limit: c.req.query("limit"),
   });
+  var cursor = decodeCompositeCursor(query.cursor);
+  var limitPlus = query.limit + 1;
+  var rows = await getDb()
+    .select({
+      id: chatThreads.id,
+      type: chatThreads.type,
+      lastMessageAt: chatThreadMeta.lastMessageAt,
+      lastMessagePreview: chatThreadMeta.lastMessagePreview,
+      lastSenderId: chatThreadMeta.lastSenderId,
+      archivedAt: chatMemberState.archivedAt,
+      deletedAt: chatMemberState.deletedAt,
+      mutedUntil: chatMemberState.mutedUntil,
+    })
+    .from(chatParticipants)
+    .innerJoin(chatThreads, eq(chatThreads.id, chatParticipants.threadId))
+    .leftJoin(chatThreadMeta, eq(chatThreadMeta.threadId, chatThreads.id))
+    .leftJoin(
+      chatMemberState,
+      and(
+        eq(chatMemberState.threadId, chatThreads.id),
+        eq(chatMemberState.userId, viewer.userId)
+      )
+    )
+    .where(
+      and(
+        eq(chatParticipants.userId, viewer.userId),
+        isNull(chatParticipants.leftAt),
+        isNull(chatMemberState.deletedAt),
+        cursor
+          ? or(
+              lt(chatThreadMeta.lastMessageAt, cursor.createdAt),
+              and(eq(chatThreadMeta.lastMessageAt, cursor.createdAt), lt(chatThreads.id, cursor.id))
+            )
+          : sql`true`
+      )
+    )
+    .orderBy(desc(chatThreadMeta.lastMessageAt), desc(chatThreads.id))
+    .limit(limitPlus);
 
-  // Chat pagination not yet implemented. Returns empty envelope to prevent client crashes.
-  return c.json({ items: [], nextCursor: null, hasMore: false }, 200);
+  var pageRows = rows.slice(0, query.limit);
+  var memberMap = await fetchThreadMembers(pageRows.map(function (row) {
+    return row.id;
+  }));
+  var unread = await getUnreadCounts(viewer.userId, pageRows.map(function (row) {
+    return row.id;
+  }));
+  var items: ChatThreadPreview[] = pageRows.map(function (row) {
+    var members = memberMap.get(row.id) ?? [];
+    if (row.type === "dm") {
+      members = members.filter(function (member) {
+        return member.userId !== viewer.userId;
+      });
+    }
+    return {
+      id: row.id,
+      type: row.type === "group" ? "group" : "dm",
+      members,
+      lastMessageAt: row.lastMessageAt?.toISOString() ?? null,
+      lastMessagePreview: row.lastMessagePreview,
+      lastSenderId: row.lastSenderId,
+      unreadCount: unread[row.id] ?? 0,
+      isArchived: row.archivedAt != null,
+      isMuted: row.mutedUntil != null && row.mutedUntil > new Date(),
+      deletedAt: row.deletedAt?.toISOString() ?? null,
+    };
+  });
+  var last = pageRows[pageRows.length - 1];
+  var response: ChatInboxPage = {
+    items,
+    hasMore: rows.length > query.limit,
+    nextCursor: rows.length > query.limit && last?.lastMessageAt
+      ? encodeCompositeCursor({ createdAt: last.lastMessageAt, id: last.id })
+      : null,
+  };
+  return c.json(response);
 });
 
-chatRoutes.get("/conversations/:conversationId/messages", function (c) {
-  c.req.param("conversationId");
-  cursorPaginationSchema.parse({
-    cursor: c.req.query("cursor"),
+chatRoutes.post("/threads", createThreadRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var body = parseJson(createChatThreadSchema, await c.req.json());
+  var memberIds = Array.from(new Set(body.memberIds.filter(function (id) {
+    return id !== viewer.userId;
+  })));
+  if (body.type === "dm" && memberIds.length !== 1) {
+    throw badRequest("DM threads require exactly one other member");
+  }
+  var allMemberIds = [viewer.userId, ...memberIds];
+  var existingUsers = await getDb()
+    .select({ id: users.id })
+    .from(users)
+    .where(inArray(users.id, allMemberIds));
+  if (existingUsers.length !== allMemberIds.length) {
+    throw badRequest("One or more members do not exist");
+  }
+  var blockRows = memberIds.length > 0
+    ? await getDb()
+        .select({ blockerId: userBlocks.blockerId })
+        .from(userBlocks)
+        .where(
+          or(
+            and(eq(userBlocks.blockerId, viewer.userId), inArray(userBlocks.blockedId, memberIds)),
+            and(inArray(userBlocks.blockerId, memberIds), eq(userBlocks.blockedId, viewer.userId))
+          )
+        )
+        .limit(1)
+    : [];
+  if (blockRows.length > 0) throw apiError(403, "BLOCKED_USER", "Blocked user");
+
+  if (body.type === "dm") {
+    var viewerDmRows = await getDb()
+      .select({ threadId: chatParticipants.threadId })
+      .from(chatParticipants)
+      .innerJoin(chatThreads, eq(chatThreads.id, chatParticipants.threadId))
+      .where(
+        and(
+          eq(chatParticipants.userId, viewer.userId),
+          isNull(chatParticipants.leftAt),
+          eq(chatThreads.type, "dm")
+        )
+      );
+    var threadIds = viewerDmRows.map(function (row) {
+      return row.threadId;
+    });
+    if (threadIds.length > 0) {
+      var participantRows = await getDb()
+        .select({ threadId: chatParticipants.threadId, userId: chatParticipants.userId })
+        .from(chatParticipants)
+        .where(and(inArray(chatParticipants.threadId, threadIds), isNull(chatParticipants.leftAt)));
+      for (var threadId of threadIds) {
+        var ids = participantRows
+          .filter(function (row) {
+            return row.threadId === threadId;
+          })
+          .map(function (row) {
+            return row.userId;
+          })
+          .sort();
+        if (ids.length === 2 && ids.join(":") === allMemberIds.slice().sort().join(":")) {
+          return c.json(await getThreadPreview(threadId, viewer.userId), 200);
+        }
+      }
+    }
+  }
+
+  var now = new Date();
+  var threadId = createUlid();
+  await getDb().insert(chatThreads).values({
+    id: threadId,
+    type: body.type,
+    createdBy: viewer.userId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await getDb().insert(chatParticipants).values(
+    allMemberIds.map(function (userId) {
+      return {
+        threadId,
+        userId,
+        joinedAt: now,
+        role: body.type === "group" && userId === viewer.userId ? "admin" : "member",
+      };
+    })
+  );
+  await getDb().insert(chatMemberState).values(
+    allMemberIds.map(function (userId) {
+      return { threadId, userId };
+    })
+  );
+  await getDb().insert(chatThreadMeta).values({ threadId, messageCount: 0 });
+  return c.json(await getThreadPreview(threadId, viewer.userId), 201);
+});
+
+chatRoutes.get("/threads/:threadId/messages", readMessagesRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var threadId = c.req.param("threadId");
+  var query = parseJson(messageCursorSchema, {
+    before: c.req.query("before"),
     limit: c.req.query("limit"),
   });
-
-  // Chat pagination not yet implemented. Returns empty envelope to prevent client crashes.
-  return c.json({ items: [], nextCursor: null, hasMore: false }, 200);
+  await assertActiveMember(threadId, viewer.userId);
+  var client = tryGetKeyspacesClient();
+  if (!client) {
+    console.warn("[chat] Keyspaces unavailable; returning empty messages page", { threadId });
+    return c.json({ items: [], nextCursor: null, hasMore: false } satisfies ChatMessagesPage);
+  }
+  var before = query.before ? timeUuidFromString(query.before) : null;
+  var rows: MessageRow[] = [];
+  for (var bucket of bucketsNewestFirst(new Date())) {
+    var cql = before
+      ? "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? AND message_id < ? ORDER BY message_id DESC LIMIT ?"
+      : "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? ORDER BY message_id DESC LIMIT ?";
+    var params = before
+      ? [threadId, bucket, before, query.limit + 1]
+      : [threadId, bucket, query.limit + 1];
+    var result = await client.execute(cql, params, { executionProfile: "chat-read" });
+    rows.push(...result.rows.map(rowFromKeyspaces));
+    rows.sort(function (a, b) {
+      return b.message_id.toString().localeCompare(a.message_id.toString());
+    });
+    rows = rows.slice(0, query.limit + 1);
+  }
+  var pageRows = rows.slice(0, query.limit);
+  var profileMap = await fetchProfiles(pageRows.map(function (row) {
+    return row.sender_id;
+  }));
+  var items = pageRows.map(function (row) {
+    return hydrateMessage(row, profileMap, viewer.userId);
+  });
+  return c.json({
+    items,
+    hasMore: rows.length > query.limit,
+    nextCursor: rows.length > query.limit ? items[items.length - 1]?.id ?? null : null,
+  });
 });
 
-chatRoutes.post("/conversations/:conversationId/messages", async function (c) {
-  c.req.param("conversationId");
-  sendMessageSchema.parse(await c.req.json());
+chatRoutes.post("/threads/:threadId/messages", sendMessageRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var threadId = c.req.param("threadId");
+  var body = parseJson(sendMessageSchema, await c.req.json());
+  var membership = await assertActiveMember(threadId, viewer.userId);
+  if (membership.deletedAt) throw forbidden("Thread deleted for this member");
+  var client = tryGetKeyspacesClient();
+  if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
+  var replySnapshot: MessageReplySnapshot | null = null;
+  var replyToUuid: cassandra.types.TimeUuid | null = null;
+  if (body.replyToId) {
+    replyToUuid = timeUuidFromString(body.replyToId);
+    var replyRow = await fetchMessage(threadId, getMessageBucket(replyToUuid.getDate()), body.replyToId);
+    if (!replyRow) throw apiError(404, "MESSAGE_NOT_FOUND", "Message not found");
+    var profileMap = await fetchProfiles([replyRow.sender_id]);
+    replySnapshot = {
+      senderId: replyRow.sender_id,
+      senderUsername: profileMap.get(replyRow.sender_id)?.username ?? "unknown",
+      body: replyRow.body ? replyRow.body.slice(0, 300) : null,
+      contentType: replyRow.content_type,
+    };
+  }
+  var now = new Date();
+  var messageId = cassandra.types.TimeUuid.now();
+  var bucket = getMessageBucket(now);
+  await client.execute(
+    `INSERT INTO messages
+      (thread_id, bucket, message_id, sender_id, content_type, body, media_url, media_meta,
+       link_preview, reply_to_id, reply_snapshot, reactions, is_deleted, deleted_at, edited_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      threadId,
+      bucket,
+      messageId,
+      viewer.userId,
+      body.contentType,
+      body.body ?? null,
+      body.mediaUrl ?? null,
+      body.mediaMetadata ? JSON.stringify(body.mediaMetadata) : null,
+      body.linkPreview ? JSON.stringify(body.linkPreview) : null,
+      replyToUuid,
+      replySnapshot ? JSON.stringify(replySnapshot) : null,
+      {},
+      false,
+      null,
+      null,
+      now,
+    ],
+    { executionProfile: "chat-write" }
+  );
+  await getDb()
+    .insert(chatThreadMeta)
+    .values({
+      threadId,
+      lastMessageAt: now,
+      lastMessagePreview: truncatePreview(body.body ?? null, body.contentType),
+      lastSenderId: viewer.userId,
+      messageCount: 1,
+    })
+    .onConflictDoUpdate({
+      target: chatThreadMeta.threadId,
+      set: {
+        lastMessageAt: now,
+        lastMessagePreview: truncatePreview(body.body ?? null, body.contentType),
+        lastSenderId: viewer.userId,
+        messageCount: sql`${chatThreadMeta.messageCount} + 1`,
+      },
+    });
+  var members = await fetchThreadMembers([threadId]);
+  for (var member of members.get(threadId) ?? []) {
+    if (member.userId !== viewer.userId) await incrementUnread(member.userId, threadId);
+  }
+  await clearTyping(threadId, viewer.userId);
+  await enqueueChatJob("chat.deliver", {
+    messageId: messageId.toString(),
+    threadId,
+    senderId: viewer.userId,
+    bucket,
+  });
+  var profileMap = await fetchProfiles([viewer.userId]);
+  return c.json(
+    hydrateMessage(
+      rowFromKeyspaces({
+        thread_id: threadId,
+        bucket,
+        message_id: messageId,
+        sender_id: viewer.userId,
+        content_type: body.contentType,
+        body: body.body ?? null,
+        media_url: body.mediaUrl ?? null,
+        media_meta: body.mediaMetadata ? JSON.stringify(body.mediaMetadata) : null,
+        link_preview: body.linkPreview ? JSON.stringify(body.linkPreview) : null,
+        reply_to_id: replyToUuid,
+        reply_snapshot: replySnapshot ? JSON.stringify(replySnapshot) : null,
+        reactions: {},
+        is_deleted: false,
+        created_at: now,
+      }),
+      profileMap,
+      viewer.userId
+    ),
+    201
+  );
+});
 
-  return c.json(notImplemented(), 501);
+chatRoutes.patch("/messages/:messageId", messageWriteRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var messageId = c.req.param("messageId");
+  var threadId = c.req.query("threadId");
+  if (!threadId) throw badRequest("threadId is required");
+  var body = parseJson(editMessageSchema, await c.req.json());
+  var bucket = bucketFromMessageId(messageId);
+  var row = await fetchMessage(threadId, bucket, messageId);
+  if (!row) throw apiError(404, "MESSAGE_NOT_FOUND", "Message not found");
+  if (row.sender_id !== viewer.userId) throw forbidden("Only sender can edit this message");
+  if (row.is_deleted) throw apiError(410, "MESSAGE_DELETED", "Message deleted");
+  await assertActiveMember(threadId, viewer.userId);
+  var client = tryGetKeyspacesClient();
+  if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
+  var now = new Date();
+  await client.execute(
+    "INSERT INTO message_edits (thread_id, message_id, edit_id, previous_body, edited_at) VALUES (?, ?, ?, ?, ?)",
+    [threadId, timeUuidFromString(messageId), cassandra.types.TimeUuid.now(), row.body, now],
+    { executionProfile: "chat-write" }
+  );
+  await client.execute(
+    "UPDATE messages SET body = ?, edited_at = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+    [body.body, now, threadId, bucket, timeUuidFromString(messageId)],
+    { executionProfile: "chat-write" }
+  );
+  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "edit" });
+  row.body = body.body;
+  row.edited_at = now;
+  var profileMap = await fetchProfiles([row.sender_id]);
+  return c.json(hydrateMessage(row, profileMap, viewer.userId));
+});
+
+chatRoutes.delete("/messages/:messageId", messageWriteRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var messageId = c.req.param("messageId");
+  var threadId = c.req.query("threadId");
+  if (!threadId) throw badRequest("threadId is required");
+  var bucket = bucketFromMessageId(messageId);
+  var row = await fetchMessage(threadId, bucket, messageId);
+  if (!row) throw apiError(404, "MESSAGE_NOT_FOUND", "Message not found");
+  if (row.sender_id !== viewer.userId) throw forbidden("Only sender can delete this message");
+  var client = tryGetKeyspacesClient();
+  if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
+  await client.execute(
+    "UPDATE messages SET is_deleted = true, deleted_at = ?, body = null, media_url = null WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+    [new Date(), threadId, bucket, timeUuidFromString(messageId)],
+    { executionProfile: "chat-write" }
+  );
+  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "delete" });
+  return c.body(null, 204);
+});
+
+chatRoutes.post("/messages/:messageId/reactions", reactionRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var messageId = c.req.param("messageId");
+  var threadId = c.req.query("threadId");
+  if (!threadId) throw badRequest("threadId is required");
+  var body = parseJson(messageReactionSchema, await c.req.json());
+  var bucket = bucketFromMessageId(messageId);
+  var row = await fetchMessage(threadId, bucket, messageId);
+  if (!row) throw apiError(404, "MESSAGE_NOT_FOUND", "Message not found");
+  if (row.is_deleted) throw apiError(410, "MESSAGE_DELETED", "Message deleted");
+  await assertActiveMember(threadId, viewer.userId);
+  var client = tryGetKeyspacesClient();
+  if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
+  var userIds = reactionUserSet(row.reactions, body.emoji);
+  userIds.add(viewer.userId);
+  await client.execute(
+    "UPDATE messages SET reactions[?] = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+    [body.emoji, userIds, threadId, bucket, timeUuidFromString(messageId)],
+    { executionProfile: "chat-write" }
+  );
+  row.reactions = setReactionEntry(row.reactions, body.emoji, userIds);
+  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
+  return c.json(hydrateMessage(row, await fetchProfiles([row.sender_id]), viewer.userId));
+});
+
+chatRoutes.delete("/messages/:messageId/reactions/:emoji", reactionRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var messageId = c.req.param("messageId");
+  var threadId = c.req.query("threadId");
+  if (!threadId) throw badRequest("threadId is required");
+  var emoji = decodeURIComponent(c.req.param("emoji"));
+  var bucket = bucketFromMessageId(messageId);
+  var row = await fetchMessage(threadId, bucket, messageId);
+  if (!row) throw apiError(404, "MESSAGE_NOT_FOUND", "Message not found");
+  await assertActiveMember(threadId, viewer.userId);
+  var client = tryGetKeyspacesClient();
+  if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
+  var userIds = reactionUserSet(row.reactions, emoji);
+  userIds.delete(viewer.userId);
+  if (userIds.size === 0) {
+    await client.execute(
+      "DELETE reactions[?] FROM messages WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+      [emoji, threadId, bucket, timeUuidFromString(messageId)],
+      { executionProfile: "chat-write" }
+    );
+  } else {
+    await client.execute(
+      "UPDATE messages SET reactions[?] = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+      [emoji, userIds, threadId, bucket, timeUuidFromString(messageId)],
+      { executionProfile: "chat-write" }
+    );
+  }
+  row.reactions = setReactionEntry(row.reactions, emoji, userIds);
+  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
+  return c.json(hydrateMessage(row, await fetchProfiles([row.sender_id]), viewer.userId));
+});
+
+chatRoutes.patch("/threads/:threadId/read", readStateRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var threadId = c.req.param("threadId");
+  var body = parseJson({ parse: (v: unknown) => {
+    if (!v || typeof v !== "object" || typeof (v as { lastReadMessageId?: unknown }).lastReadMessageId !== "string") {
+      throw badRequest("lastReadMessageId is required");
+    }
+    return v as { lastReadMessageId: string };
+  } }, await c.req.json());
+  await assertActiveMember(threadId, viewer.userId);
+  await getDb()
+    .insert(chatMemberState)
+    .values({ threadId, userId: viewer.userId, lastReadMessageId: body.lastReadMessageId })
+    .onConflictDoUpdate({
+      target: [chatMemberState.threadId, chatMemberState.userId],
+      set: { lastReadMessageId: body.lastReadMessageId },
+    });
+  await resetUnread(viewer.userId, threadId);
+  await enqueueChatJob("chat.readReceipt", {
+    threadId,
+    userId: viewer.userId,
+    lastReadMessageId: body.lastReadMessageId,
+  });
+  return c.body(null, 204);
+});
+
+async function updateMemberStateDate(
+  threadId: string,
+  userId: string,
+  field: "archivedAt" | "mutedUntil" | "deletedAt",
+  value: Date | null
+) {
+  await assertActiveMember(threadId, userId);
+  await getDb()
+    .insert(chatMemberState)
+    .values({ threadId, userId, [field]: value })
+    .onConflictDoUpdate({
+      target: [chatMemberState.threadId, chatMemberState.userId],
+      set: { [field]: value },
+    });
+}
+
+chatRoutes.patch("/threads/:threadId/archive", async function (c) {
+  var viewer = authUser(c);
+  var body = await c.req.json() as { archived?: unknown };
+  await updateMemberStateDate(
+    c.req.param("threadId"),
+    viewer.userId,
+    "archivedAt",
+    body.archived === true ? new Date() : null
+  );
+  return c.body(null, 204);
+});
+
+chatRoutes.patch("/threads/:threadId/mute", async function (c) {
+  var viewer = authUser(c);
+  var body = await c.req.json() as { mutedUntil?: unknown };
+  var mutedUntil = typeof body.mutedUntil === "string" ? new Date(body.mutedUntil) : null;
+  if (mutedUntil && Number.isNaN(mutedUntil.getTime())) throw badRequest("Invalid mutedUntil");
+  await updateMemberStateDate(c.req.param("threadId"), viewer.userId, "mutedUntil", mutedUntil);
+  return c.body(null, 204);
+});
+
+chatRoutes.delete("/threads/:threadId", async function (c) {
+  var viewer = authUser(c);
+  await updateMemberStateDate(c.req.param("threadId"), viewer.userId, "deletedAt", new Date());
+  return c.body(null, 204);
+});
+
+chatRoutes.post("/threads/:threadId/typing", typingRateLimit, async function (c) {
+  var viewer = authUser(c);
+  var threadId = c.req.param("threadId");
+  var body = parseJson(typingIndicatorSchema, await c.req.json());
+  await assertActiveMember(threadId, viewer.userId);
+  if (body.isTyping) await setTyping(threadId, viewer.userId);
+  else await clearTyping(threadId, viewer.userId);
+  await enqueueChatJob("chat.typing", { threadId, userId: viewer.userId, isTyping: body.isTyping });
+  return c.body(null, 204);
+});
+
+chatRoutes.get("/threads/:threadId/typing", async function (c) {
+  var viewer = authUser(c);
+  var threadId = c.req.param("threadId");
+  await assertActiveMember(threadId, viewer.userId);
+  return c.json({ typingUserIds: await getTypingUsers(threadId) });
+});
+
+chatRoutes.post("/presence/ping", presenceRateLimit, async function (c) {
+  var viewer = authUser(c);
+  await setPresence(viewer.userId);
+  return c.body(null, 204);
+});
+
+chatRoutes.post("/presence/batch", async function (c) {
+  var body = await c.req.json() as { userIds?: unknown };
+  if (!Array.isArray(body.userIds) || body.userIds.length > 50) {
+    throw badRequest("userIds must be an array with at most 50 IDs");
+  }
+  var userIds = body.userIds.filter(function (value): value is string {
+    return typeof value === "string";
+  });
+  return c.json({ presence: await getPresence(userIds) });
 });

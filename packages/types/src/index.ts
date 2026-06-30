@@ -15,7 +15,6 @@ export {
 } from "./feedRetention.js";
 
 export type PostId = string;
-export type ConversationId = string;
 export type MessageId = string;
 export type OnboardingRole =
   | "cinephile"
@@ -214,21 +213,90 @@ export interface WatchlistStatus {
   entryId: string | null;
 }
 
-export interface ChatPreview {
-  id: ConversationId;
-  name: string;
+export type ChatThreadType = "dm" | "group";
+export type ChatMessageContentType = "text" | "image" | "gif" | "file" | "link";
+
+export interface ChatMember {
+  userId: string;
   username: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  unread: number;
+  displayName: string;
+  avatarUrl: string | null;
+  avatarVariants: Record<string, string> | null;
+  role: "member" | "admin";
+  joinedAt: string;
+}
+
+export interface MessageReplySnapshot {
+  senderId: string;
+  senderUsername: string;
+  body: string | null;
+  contentType: ChatMessageContentType;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  viewerReacted: boolean;
 }
 
 export interface ChatMessage {
   id: MessageId;
-  conversationId: ConversationId;
-  sender: PublicUser;
-  text: string;
+  threadId: string;
+  bucket: number;
+  senderId: string;
+  senderUsername: string;
+  senderDisplayName: string;
+  senderAvatarUrl: string | null;
+  senderAvatarVariants: Record<string, string> | null;
+  contentType: ChatMessageContentType;
+  body: string | null;
+  mediaUrl: string | null;
+  mediaMetadata: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mimeType?: string;
+    blurhash?: string;
+  } | null;
+  linkPreview: {
+    url: string;
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+    siteName?: string;
+  } | null;
+  replyToId: string | null;
+  replySnapshot: MessageReplySnapshot | null;
+  reactions: MessageReaction[];
+  isDeleted: boolean;
+  editedAt: string | null;
   createdAt: string;
+}
+
+export interface ChatThreadPreview {
+  id: string;
+  type: ChatThreadType;
+  members: ChatMember[];
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  lastSenderId: string | null;
+  unreadCount: number;
+  isArchived: boolean;
+  isMuted: boolean;
+  deletedAt: string | null;
+}
+
+export interface ChatMessagesPage {
+  items: ChatMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface ChatInboxPage {
+  items: ChatThreadPreview[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface HealthResponse {

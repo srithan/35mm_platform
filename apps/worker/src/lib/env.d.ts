@@ -23,5 +23,6 @@ export declare function loadWorkerEnv(): {
     FEED_RESCORE_MAX_AGE_HOURS: number;
     FEED_RESCORE_BATCH_SIZE: number;
     WORKER_CONCURRENCY: number;
+    WORKER_ENABLED: boolean;
 };
 export type WorkerEnv = ReturnType<typeof loadWorkerEnv>;

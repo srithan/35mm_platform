@@ -8,8 +8,13 @@ import { runSuggestionComputeJob } from "./workers/suggestionWorker.js";
 import { processPostById, processProfileMediaByPayload, type MediaProcessJobPayload } from "./jobs/mediaProcess.js";
 import { runNotificationDigestJob } from "./jobs/notificationDigest.js";
 import { runNotificationPublishJob } from "./jobs/notificationPublish.js";
+import { runChatDeliverJob } from "./jobs/chatDeliver.js";
+import { runChatMessageUpdatedJob } from "./jobs/chatMessageUpdated.js";
+import { runChatReadReceiptJob } from "./jobs/chatReadReceipt.js";
+import { runChatTypingJob } from "./jobs/chatTyping.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
+import { warmKeyspacesClient } from "./lib/keyspaces.js";
 
 function requiredRedisUrl(): string {
   var env = loadWorkerEnv();
@@ -114,10 +119,31 @@ async function handleJob(job: Job): Promise<unknown> {
     return { ok: true, stub: true };
   }
 
+  if (job.name === "chat.deliver") {
+    return runChatDeliverJob(job.data);
+  }
+
+  if (job.name === "chat.messageUpdated") {
+    return runChatMessageUpdatedJob(job.data);
+  }
+
+  if (job.name === "chat.readReceipt") {
+    return runChatReadReceiptJob(job.data);
+  }
+
+  if (job.name === "chat.typing") {
+    return runChatTypingJob(job.data);
+  }
+
   throw new Error("Unknown job: " + job.name);
 }
 
 async function main() {
+  if ((process.env.WORKER_ENABLED ?? "true").toLowerCase() === "false") {
+    console.log("[worker] disabled by WORKER_ENABLED=false");
+    return;
+  }
+
   var env = loadWorkerEnv();
   var redisUrl = requiredRedisUrl();
   var connection = connectionFromRedisUrl(redisUrl);
@@ -135,6 +161,13 @@ async function main() {
   var queueEvents = new QueueEvents(WORKER_QUEUE_NAME, {
     connection,
   });
+  void warmKeyspacesClient()
+    .then(function (keyspacesClient) {
+      console.log(keyspacesClient ? "[worker] keyspaces warmed" : "[worker] keyspaces disabled");
+    })
+    .catch(function (error) {
+      console.warn("[worker] keyspaces warm failed", error);
+    });
 
   var pruneIntervalMinutes = Number.isFinite(env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES)
     ? Math.max(5, env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES)

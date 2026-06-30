@@ -9,7 +9,11 @@ export type SuggestionRefreshPayload = {
   userId: string;
 };
 
-var suggestionQueue: Queue | null = null;
+var globalForSuggestionQueue = globalThis as typeof globalThis & {
+  __thirtyFiveMmSuggestionQueue?: Queue | null;
+};
+
+var suggestionQueue: Queue | null = globalForSuggestionQueue.__thirtyFiveMmSuggestionQueue ?? null;
 
 function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
   var parsed = new URL(redisUrl);
@@ -61,6 +65,7 @@ function getQueue() {
   suggestionQueue = new Queue(WORKER_QUEUE_NAME, {
     connection: connectionFromRedisUrl(redisUrl),
   });
+  globalForSuggestionQueue.__thirtyFiveMmSuggestionQueue = suggestionQueue;
   return suggestionQueue;
 }
 
@@ -73,4 +78,3 @@ export async function enqueueSuggestionRefresh(userId: string): Promise<void> {
     jobId: "compute-suggestions-" + trimmedUserId,
   });
 }
-
