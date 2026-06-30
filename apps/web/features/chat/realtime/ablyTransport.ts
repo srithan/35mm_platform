@@ -15,13 +15,24 @@ type AblyChatTransportInput = {
 };
 
 type ReadReceiptPayload = {
+  userId?: unknown;
+  username?: unknown;
   lastReadMessageId?: unknown;
   readAt?: unknown;
 };
 
 type TypingPayload = {
   userId?: unknown;
+  username?: unknown;
+  avatarUrl?: unknown;
   isTyping?: unknown;
+};
+
+type ThreadUpdatedPayload = {
+  threadId?: unknown;
+  lastMessageAt?: unknown;
+  lastMessagePreview?: unknown;
+  unreadCount?: unknown;
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -30,6 +41,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function isContentType(value: unknown): value is ChatMessageContentType {
@@ -163,12 +178,16 @@ function messageEventFromAbly(
 function readReceiptEvent(threadId: string, data: unknown): ChatRealtimeEvent | null {
   if (!isObject(data)) return null;
   const payload = data as ReadReceiptPayload;
+  const userId = asString(payload.userId);
+  const username = asString(payload.username);
   const messageId = asString(payload.lastReadMessageId);
   const readAt = asString(payload.readAt);
   if (!messageId || !readAt) return null;
   return {
     type: "read_receipt",
     chatId: threadId,
+    userId,
+    username,
     messageId,
     readAt,
   };
@@ -183,7 +202,27 @@ function typingEvent(threadId: string, data: unknown): ChatRealtimeEvent | null 
     type: "typing",
     chatId: threadId,
     userId,
+    username: asString(payload.username),
+    avatarUrl: asString(payload.avatarUrl),
     isTyping: payload.isTyping,
+  };
+}
+
+function threadUpdatedEvent(data: unknown): ChatRealtimeEvent {
+  if (!isObject(data)) {
+    return { type: "conversation.invalidated" };
+  }
+  const payload = data as ThreadUpdatedPayload;
+  const threadId = asString(payload.threadId);
+  if (!threadId) {
+    return { type: "conversation.invalidated" };
+  }
+  return {
+    type: "conversation.patch",
+    chatId: threadId,
+    lastMessage: asString(payload.lastMessagePreview),
+    lastMessageAt: asString(payload.lastMessageAt),
+    unread: asNumber(payload.unreadCount),
   };
 }
 
@@ -201,6 +240,13 @@ export function createAblyChatRealtimeTransport(
         clientId: input.userId,
         echoMessages: false,
       });
+      if (process.env.NODE_ENV === "development") {
+        realtime.connection.on(function (stateChange) {
+          if (stateChange.current === "failed" || stateChange.current === "suspended") {
+            console.warn("[chat-realtime] Ably connection " + stateChange.current, stateChange.reason);
+          }
+        });
+      }
     }
 
     if (!inboxChannel) {
@@ -250,8 +296,8 @@ export function createAblyChatRealtimeTransport(
         const event = typingEvent(input.threadId, message.data);
         if (event) handler(event);
       };
-      const onThreadUpdated = function (): void {
-        handler({ type: "conversation.invalidated" });
+      const onThreadUpdated = function (message: Ably.Message): void {
+        handler(threadUpdatedEvent(message.data));
       };
 
       threadChannel?.subscribe("message.new", onNew);

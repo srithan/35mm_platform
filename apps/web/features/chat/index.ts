@@ -25,11 +25,14 @@ export {
   useConversationRow,
   useChatMessages,
   useChatMessagesInfinite,
+  useChatReadReceiptsSnapshot,
+  useChatTypingSnapshot,
   useSendMessage,
   useEditMessage,
   useCreateConversation,
   useDeleteConversation,
   useRespondToConversationRequest,
+  useSetTyping,
 } from "./hooks/useChatQueries";
 export {
   formatChatUnreadBadgeCount,

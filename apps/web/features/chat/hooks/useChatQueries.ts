@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import type { ChatMessage, ChatPreview } from "../types";
 import type { ChatSendPayload } from "../types";
+import type { ChatReadReceiptState, ChatTypingUser } from "../realtime/state";
 import type { CreateThreadParams, PaginatedMessages } from "../api/types";
 import type { PaginatedConversations } from "../api/types";
 import { getChatApiClient } from "../api/getChatApiClient";
@@ -471,6 +472,66 @@ export function useMarkConversationRead() {
     onSuccess: function () {
       invalidateAllConversationLists(queryClient);
     },
+  });
+}
+
+export function useChatReadReceiptsSnapshot(
+  chatId: string | null,
+  opts?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: [...chatQueryKeys.conversation(chatId ?? ""), "readReceipts"],
+    queryFn: function () {
+      return client().listReadReceipts(chatId as string);
+    },
+    select: function (data): ChatReadReceiptState | null {
+      var first = data.items[0];
+      if (!first) {
+        return null;
+      }
+      return {
+        userId: first.userId,
+        username: first.username,
+        messageId: first.lastReadMessageId,
+        readAt: "",
+      };
+    },
+    enabled: Boolean(chatId) && opts?.enabled !== false,
+    staleTime: 30_000,
+    gcTime: CHAT_QUERY_POLICY.messagesGcTimeMs,
+  });
+}
+
+export function useSetTyping() {
+  return useMutation({
+    mutationFn: function (args: { chatId: string; isTyping: boolean }) {
+      return client().setTyping(args.chatId, args.isTyping);
+    },
+    retry: false,
+  });
+}
+
+export function useChatTypingSnapshot(
+  chatId: string | null,
+  opts?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: [...chatQueryKeys.conversation(chatId ?? ""), "typing"],
+    queryFn: function () {
+      return client().listTypingUsers(chatId as string);
+    },
+    select: function (data): ChatTypingUser[] {
+      return data.items.map(function (item) {
+        return {
+          userId: item.userId,
+          username: item.username,
+          avatarUrl: item.avatarUrl,
+        };
+      });
+    },
+    enabled: Boolean(chatId) && opts?.enabled === true,
+    staleTime: 5_000,
+    gcTime: 30_000,
   });
 }
 

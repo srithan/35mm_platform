@@ -8,7 +8,9 @@ import type {
   ChatInboxPage,
   ChatMessage as ApiChatMessage,
   ChatMessagesPage,
+  ChatReadReceiptsResponse,
   ChatThreadPreview,
+  ChatTypingSnapshot,
 } from "@35mm/types";
 import type { ChatMessage, ChatPreview, ChatSendPayload } from "../types";
 import { formatRelativeShort } from "../lib/formatChatTime";
@@ -362,6 +364,32 @@ export function createRemoteChatClient(opts: {
         path: "/threads/" + encodeURIComponent(chatId) + "/read",
         method: "PATCH",
         body: { lastReadMessageId: lastReadMessageId },
+        getAccessToken: getAccessToken,
+      });
+    },
+
+    listReadReceipts: function (chatId) {
+      return chatHttpJson<ChatReadReceiptsResponse>({
+        baseUrl: baseUrl,
+        path: "/threads/" + encodeURIComponent(chatId) + "/read-receipts",
+        getAccessToken: getAccessToken,
+      });
+    },
+
+    setTyping: function (chatId, isTyping) {
+      return chatHttpJson<void>({
+        baseUrl: baseUrl,
+        path: "/threads/" + encodeURIComponent(chatId) + "/typing",
+        method: "POST",
+        body: { isTyping: isTyping },
+        getAccessToken: getAccessToken,
+      });
+    },
+
+    listTypingUsers: function (chatId) {
+      return chatHttpJson<ChatTypingSnapshot>({
+        baseUrl: baseUrl,
+        path: "/threads/" + encodeURIComponent(chatId) + "/typing",
         getAccessToken: getAccessToken,
       });
     },

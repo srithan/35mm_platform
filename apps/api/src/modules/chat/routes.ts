@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import cassandra from "cassandra-driver";
-import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import {
   chatMemberState,
   chatParticipants,
@@ -17,7 +17,9 @@ import type {
   ChatMember,
   ChatMessage,
   ChatMessageContentType,
+  ChatReadReceiptsResponse,
   ChatThreadPreview,
+  ChatTypingSnapshot,
   MessageReaction,
   MessageReplySnapshot,
 } from "@35mm/types";
@@ -43,12 +45,18 @@ import {
   getPresence,
   getTypingUsers,
   getUnreadCounts,
+  getUnreadCountsForPairs,
   incrementUnread,
   resetUnread,
   setPresence,
   setTyping,
 } from "./chatRedis.js";
 import { bucketsNewestFirst, getMessageBucket, truncatePreview } from "./chatUtils.js";
+import {
+  publishChatMessageCreated,
+  publishChatReadReceipt,
+  publishChatTyping,
+} from "./realtime.js";
 
 type ProfileRow = {
   userId: string;
@@ -691,40 +699,57 @@ chatRoutes.post("/threads/:threadId/messages", sendMessageRateLimit, async funct
       },
     });
   var members = await fetchThreadMembers([threadId]);
-  for (var member of members.get(threadId) ?? []) {
+  var activeMembers = members.get(threadId) ?? [];
+  for (var member of activeMembers) {
     if (member.userId !== viewer.userId) await incrementUnread(member.userId, threadId);
   }
   await clearTyping(threadId, viewer.userId);
-  await enqueueChatJob("chat.deliver", {
-    messageId: messageId.toString(),
+  var profileMap = await fetchProfiles([viewer.userId]);
+  var message = hydrateMessage(
+    rowFromKeyspaces({
+      thread_id: threadId,
+      bucket,
+      message_id: messageId,
+      sender_id: viewer.userId,
+      content_type: body.contentType,
+      body: body.body ?? null,
+      media_url: body.mediaUrl ?? null,
+      media_meta: body.mediaMetadata ? JSON.stringify(body.mediaMetadata) : null,
+      link_preview: body.linkPreview ? JSON.stringify(body.linkPreview) : null,
+      reply_to_id: replyToUuid,
+      reply_snapshot: replySnapshot ? JSON.stringify(replySnapshot) : null,
+      reactions: {},
+      is_deleted: false,
+      created_at: now,
+    }),
+    profileMap,
+    viewer.userId
+  );
+  var unreadCounts = await getUnreadCountsForPairs(
+    activeMembers
+      .filter(function (member) {
+        return member.userId !== viewer.userId;
+      })
+      .map(function (member) {
+        return { userId: member.userId, threadId };
+      })
+  );
+  var realtime = await publishChatMessageCreated({
     threadId,
     senderId: viewer.userId,
-    bucket,
+    message,
+    members: activeMembers,
+    unreadCounts,
   });
-  var profileMap = await fetchProfiles([viewer.userId]);
-  return c.json(
-    hydrateMessage(
-      rowFromKeyspaces({
-        thread_id: threadId,
-        bucket,
-        message_id: messageId,
-        sender_id: viewer.userId,
-        content_type: body.contentType,
-        body: body.body ?? null,
-        media_url: body.mediaUrl ?? null,
-        media_meta: body.mediaMetadata ? JSON.stringify(body.mediaMetadata) : null,
-        link_preview: body.linkPreview ? JSON.stringify(body.linkPreview) : null,
-        reply_to_id: replyToUuid,
-        reply_snapshot: replySnapshot ? JSON.stringify(replySnapshot) : null,
-        reactions: {},
-        is_deleted: false,
-        created_at: now,
-      }),
-      profileMap,
-      viewer.userId
-    ),
-    201
-  );
+  if (!realtime.ok) {
+    await enqueueChatJob("chat.deliver", {
+      messageId: messageId.toString(),
+      threadId,
+      senderId: viewer.userId,
+      bucket,
+    });
+  }
+  return c.json(message, 201);
 });
 
 chatRoutes.patch("/messages/:messageId", messageWriteRateLimit, async function (c) {
@@ -854,12 +879,58 @@ chatRoutes.patch("/threads/:threadId/read", readStateRateLimit, async function (
       set: { lastReadMessageId: body.lastReadMessageId },
     });
   await resetUnread(viewer.userId, threadId);
-  await enqueueChatJob("chat.readReceipt", {
+  var published = await publishChatReadReceipt({
     threadId,
-    userId: viewer.userId,
+    user: viewer,
     lastReadMessageId: body.lastReadMessageId,
   });
+  if (!published) {
+    await enqueueChatJob("chat.readReceipt", {
+      threadId,
+      userId: viewer.userId,
+      lastReadMessageId: body.lastReadMessageId,
+    });
+  }
   return c.body(null, 204);
+});
+
+chatRoutes.get("/threads/:threadId/read-receipts", async function (c) {
+  var viewer = authUser(c);
+  var threadId = c.req.param("threadId");
+  await assertActiveMember(threadId, viewer.userId);
+  var rows = await getDb()
+    .select({
+      userId: chatMemberState.userId,
+      username: profiles.username,
+      lastReadMessageId: chatMemberState.lastReadMessageId,
+    })
+    .from(chatParticipants)
+    .innerJoin(
+      chatMemberState,
+      and(
+        eq(chatMemberState.threadId, chatParticipants.threadId),
+        eq(chatMemberState.userId, chatParticipants.userId)
+      )
+    )
+    .innerJoin(profiles, eq(profiles.userId, chatParticipants.userId))
+    .where(
+      and(
+        eq(chatParticipants.threadId, threadId),
+        ne(chatParticipants.userId, viewer.userId),
+        isNull(chatParticipants.leftAt),
+        isNotNull(chatMemberState.lastReadMessageId)
+      )
+    );
+  var response: ChatReadReceiptsResponse = {
+    items: rows.map(function (row) {
+      return {
+        userId: row.userId,
+        username: row.username,
+        lastReadMessageId: row.lastReadMessageId as string,
+      };
+    }),
+  };
+  return c.json(response);
 });
 
 async function updateMemberStateDate(
@@ -912,7 +983,14 @@ chatRoutes.post("/threads/:threadId/typing", typingRateLimit, async function (c)
   await assertActiveMember(threadId, viewer.userId);
   if (body.isTyping) await setTyping(threadId, viewer.userId);
   else await clearTyping(threadId, viewer.userId);
-  await enqueueChatJob("chat.typing", { threadId, userId: viewer.userId, isTyping: body.isTyping });
+  var published = await publishChatTyping({
+    threadId,
+    user: viewer,
+    isTyping: body.isTyping,
+  });
+  if (!published) {
+    await enqueueChatJob("chat.typing", { threadId, userId: viewer.userId, isTyping: body.isTyping });
+  }
   return c.body(null, 204);
 });
 
@@ -920,7 +998,22 @@ chatRoutes.get("/threads/:threadId/typing", async function (c) {
   var viewer = authUser(c);
   var threadId = c.req.param("threadId");
   await assertActiveMember(threadId, viewer.userId);
-  return c.json({ typingUserIds: await getTypingUsers(threadId) });
+  var typingUserIds = (await getTypingUsers(threadId)).filter(function (userId) {
+    return userId !== viewer.userId;
+  });
+  var profileMap = await fetchProfiles(typingUserIds);
+  var response: ChatTypingSnapshot = {
+    typingUserIds,
+    items: typingUserIds.map(function (userId) {
+      var profile = profileMap.get(userId);
+      return {
+        userId,
+        username: profile?.username ?? "unknown",
+        avatarUrl: profile?.avatarUrl ?? null,
+      };
+    }),
+  };
+  return c.json(response);
 });
 
 chatRoutes.post("/presence/ping", presenceRateLimit, async function (c) {

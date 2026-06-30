@@ -14,6 +14,10 @@ import { Avatar } from "@/components/Avatar";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
 import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 import type { ChatMessage } from "../types";
+import type {
+  ChatReadReceiptState,
+  ChatTypingUser,
+} from "../realtime/state";
 import {
   formatDaySeparator,
   formatMessageTime,
@@ -34,6 +38,8 @@ interface ChatMessageListProps {
   onEditMessage?: (msg: ChatMessage) => void;
   onDeleteMessage?: (messageId: string) => void;
   onReportMessage?: (messageId: string) => void;
+  typingUsers?: ChatTypingUser[];
+  readReceipt?: ChatReadReceiptState | null;
   /** When false, new messages do not auto-scroll (user is reading history). */
   stickToBottomRef: MutableRefObject<boolean>;
   scrollRootRef: MutableRefObject<HTMLDivElement | null>;
@@ -374,6 +380,55 @@ function ReactionChips({
   );
 }
 
+function TypingDots() {
+  return (
+    <span className="flex items-center gap-1 px-1" aria-hidden>
+      {[0, 1, 2].map(function (dot) {
+        return (
+          <span
+            key={dot}
+            className="h-1.5 w-1.5 rounded-full bg-fg-muted/70 animate-pulse"
+            style={{ animationDelay: String(dot * 120) + "ms" }}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+function TypingIndicator({
+  users,
+  otherAvatar,
+}: {
+  users: ChatTypingUser[];
+  otherAvatar: { bg: string; color: string; initial: string; src?: string | null };
+}) {
+  if (users.length === 0) {
+    return null;
+  }
+  const first = users[0];
+  const label =
+    users.length === 1
+      ? (first.username ? first.username.replace(/^@/, "") : "They") + " is typing"
+      : String(users.length) + " people are typing";
+  return (
+    <div className="flex items-end gap-2 pl-0.5 pt-1" role="status" aria-live="polite">
+      <Avatar
+        initial={(first.username || otherAvatar.initial || "?").charAt(0)}
+        src={first.avatarUrl ?? otherAvatar.src}
+        className="h-7 w-7 text-[11px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+        loading="lazy"
+      />
+      <div className="flex flex-col gap-1">
+        <div className="w-fit rounded-[18px] rounded-bl-[5px] border border-border bg-sunken px-3.5 py-2.5 text-fg shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <TypingDots />
+        </div>
+        <span className="pl-1 text-[10px] text-fg-muted/80">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 function BubbleRow({
   msg,
   otherAvatar,
@@ -688,6 +743,8 @@ export function ChatMessageList({
   onEditMessage,
   onDeleteMessage,
   onReportMessage,
+  typingUsers = [],
+  readReceipt = null,
   stickToBottomRef,
   scrollRootRef,
 }: ChatMessageListProps) {
@@ -717,6 +774,18 @@ export function ChatMessageList({
     [sortedMessages]
   );
 
+  const readReceiptIndex = useMemo(
+    function () {
+      if (!readReceipt) {
+        return -1;
+      }
+      return sortedMessages.findIndex(function (message) {
+        return message.id === readReceipt.messageId;
+      });
+    },
+    [readReceipt, sortedMessages]
+  );
+
   const scrollAnchorRef = useRef<{
     lastMessageId: string | null;
     count: number;
@@ -742,7 +811,16 @@ export function ChatMessageList({
         endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
       }
     },
-    [sortedMessages, stickToBottomRef]
+    [sortedMessages, stickToBottomRef, typingUsers.length]
+  );
+
+  useEffect(
+    function () {
+      if (typingUsers.length > 0 && stickToBottomRef.current) {
+        endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      }
+    },
+    [stickToBottomRef, typingUsers.length]
   );
 
   useEffect(
@@ -824,7 +902,7 @@ export function ChatMessageList({
         const showAvatar = !msg.isOwn && isFirstInRun;
         let receiptLabel: "read" | "delivered" | null = null;
         if (msg.isOwn && msg.id === lastOwnId && isLastInRun) {
-          if (msg.status === "read") {
+          if (readReceiptIndex >= index || msg.status === "read") {
             receiptLabel = "read";
           } else if (msg.status === "delivered") {
             receiptLabel = "delivered";
@@ -870,6 +948,7 @@ export function ChatMessageList({
           </div>
         );
       })}
+      <TypingIndicator users={typingUsers} otherAvatar={otherAvatar} />
       <div ref={endRef} className="h-px shrink-0" aria-hidden />
       <ImageViewer
         open={viewerSrc != null}

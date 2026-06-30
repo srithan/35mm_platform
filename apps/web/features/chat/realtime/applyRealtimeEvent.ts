@@ -8,9 +8,10 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import type { ChatRealtimeEvent } from "./types";
 import { chatQueryKeys } from "../lib/queryKeys";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, ChatPreview } from "../types";
 import { upsertChatMessageSorted } from "../lib/sortChatMessages";
-import type { PaginatedMessages } from "../api/types";
+import type { ChatFolder, PaginatedConversations, PaginatedMessages } from "../api/types";
+import { formatRelativeShort } from "../lib/formatChatTime";
 
 function emptyMessagesPage(): PaginatedMessages {
   return { items: [], nextCursor: null, hasMore: false };
@@ -60,6 +61,27 @@ function patchAllInfinitePages(
   };
 }
 
+function patchConversationList(
+  prev: PaginatedConversations | undefined,
+  patchItem: (item: ChatPreview) => ChatPreview
+): PaginatedConversations | undefined {
+  if (!prev) {
+    return prev;
+  }
+  return {
+    ...prev,
+    items: prev.items.map(patchItem),
+  };
+}
+
+function invalidateConversationLists(queryClient: QueryClient): void {
+  (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+    queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.conversations(folder),
+    });
+  });
+}
+
 export function applyChatRealtimeEvent(
   queryClient: QueryClient,
   event: ChatRealtimeEvent
@@ -81,15 +103,7 @@ export function applyChatRealtimeEvent(
         });
       }
     );
-    queryClient.invalidateQueries({
-      queryKey: chatQueryKeys.conversations("inbox"),
-    });
-    queryClient.invalidateQueries({
-      queryKey: chatQueryKeys.conversations("archived"),
-    });
-    queryClient.invalidateQueries({
-      queryKey: chatQueryKeys.conversations("requests"),
-    });
+    invalidateConversationLists(queryClient);
     return;
   }
   if (event.type === "message.deleted") {
@@ -120,11 +134,40 @@ export function applyChatRealtimeEvent(
     return;
   }
   if (event.type === "conversation.updated") {
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.root });
+    invalidateConversationLists(queryClient);
     return;
   }
   if (event.type === "conversation.invalidated") {
     queryClient.invalidateQueries({ queryKey: chatQueryKeys.root });
+    return;
+  }
+  if (event.type === "conversation.patch") {
+    let patched = false;
+    (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+      queryClient.setQueryData<PaginatedConversations>(
+        chatQueryKeys.conversations(folder),
+        function (prev) {
+          return patchConversationList(prev, function (item) {
+            if (item.id !== event.chatId) {
+              return item;
+            }
+            patched = true;
+            return {
+              ...item,
+              lastMessage: event.lastMessage ?? item.lastMessage,
+              lastMessageAt: event.lastMessageAt
+                ? formatRelativeShort(new Date(event.lastMessageAt))
+                : item.lastMessageAt,
+              unread: event.unread ?? item.unread,
+            };
+          });
+        }
+      );
+    });
+    invalidateConversationLists(queryClient);
+    if (!patched) {
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.root });
+    }
     return;
   }
   if (event.type === "conversation.deleted") {

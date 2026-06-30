@@ -32,6 +32,7 @@ interface ChatComposerProps {
   disabled?: boolean;
   isSending?: boolean;
   onFocusChange?: (focused: boolean) => void;
+  onTypingInput?: (text: string) => void;
   replyingTo: ChatComposerReplyTarget | null;
   onCancelReply: () => void;
 }
@@ -59,6 +60,7 @@ export function ChatComposer({
   disabled = false,
   isSending = false,
   onFocusChange,
+  onTypingInput,
   replyingTo,
   onCancelReply,
 }: ChatComposerProps) {
@@ -114,6 +116,13 @@ export function ChatComposer({
       el.style.height = Math.min(120, el.scrollHeight) + "px";
     },
     [value]
+  );
+
+  useEffect(
+    function () {
+      onTypingInput?.(value);
+    },
+    [onTypingInput, value]
   );
 
   useEffect(
@@ -184,6 +193,7 @@ export function ChatComposer({
     }
     onSend(payload);
     setValue("");
+    onTypingInput?.("");
     setPending(null);
     if (taRef.current) {
       taRef.current.style.height = "auto";
@@ -525,6 +535,7 @@ export function ChatComposer({
           }}
           onBlur={function () {
             onFocusChange?.(false);
+            onTypingInput?.("");
           }}
           placeholder={isEditing ? "Edit message" : "Message"}
           disabled={disabled || isSending}

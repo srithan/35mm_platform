@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -15,15 +13,14 @@ import type { ChatRealtimeEvent, ChatRealtimeTransport } from "./types";
 import { createNoopChatRealtimeTransport } from "./noopTransport";
 import { applyChatRealtimeEvent } from "./applyRealtimeEvent";
 import { createAblyChatRealtimeTransport } from "./ablyTransport";
+import {
+  ChatRealtimeContext,
+  type ChatReadReceiptState,
+  type ChatRealtimeContextValue,
+  type TypingUserState,
+} from "./state";
 
-interface ChatRealtimeContextValue {
-  transport: ChatRealtimeTransport;
-  emitDevEvent?: (event: ChatRealtimeEvent) => void;
-}
-
-const ChatRealtimeContext = createContext<ChatRealtimeContextValue | null>(
-  null
-);
+const TYPING_EXPIRES_MS = 5_000;
 
 interface ChatRealtimeProviderProps {
   children: ReactNode;
@@ -56,11 +53,17 @@ function buildTransport(
   fallbackTransport: ChatRealtimeTransport
 ): ChatRealtimeTransport {
   if (!enabled || !userId) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[chat-realtime] noop transport: auth/profile user is not ready");
+    }
     return fallbackTransport;
   }
 
   const apiKey = process.env.NEXT_PUBLIC_ABLY_API_KEY?.trim();
   if (!apiKey) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[chat-realtime] noop transport: NEXT_PUBLIC_ABLY_API_KEY is missing");
+    }
     return fallbackTransport;
   }
 
@@ -80,11 +83,30 @@ export function ChatRealtimeProvider({
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const [fallbackTransport] = useState(createNoopChatRealtimeTransport);
+  const [typingByChat, setTypingByChat] = useState<
+    Record<string, Record<string, TypingUserState>>
+  >({});
+  const [readReceiptByChat, setReadReceiptByChat] = useState<
+    Record<string, ChatReadReceiptState>
+  >({});
   const threadId = useMemo(
     function () {
       return getActiveThreadId(pathname);
     },
     [pathname]
+  );
+  const isRealtimeConfigured = useMemo(
+    function () {
+      if (transportProp) {
+        return true;
+      }
+      return Boolean(
+        enabled &&
+          userId &&
+          process.env.NEXT_PUBLIC_ABLY_API_KEY?.trim()
+      );
+    },
+    [enabled, transportProp, userId]
   );
   const transport = useMemo(
     function () {
@@ -96,36 +118,118 @@ export function ChatRealtimeProvider({
     [enabled, fallbackTransport, threadId, transportProp, userId]
   );
 
+  const applyRealtimeUiEvent = useCallback(
+    function (event: ChatRealtimeEvent): void {
+      if (event.type === "typing") {
+        if (!event.chatId || event.userId === userId) {
+          return;
+        }
+        setTypingByChat(function (prev) {
+          const prevChat = prev[event.chatId] ?? {};
+          const nextChat = { ...prevChat };
+          if (event.isTyping) {
+            nextChat[event.userId] = {
+              userId: event.userId,
+              username: event.username,
+              avatarUrl: event.avatarUrl,
+              expiresAt: Date.now() + TYPING_EXPIRES_MS,
+            };
+          } else {
+            delete nextChat[event.userId];
+          }
+          return {
+            ...prev,
+            [event.chatId]: nextChat,
+          };
+        });
+        return;
+      }
+      if (event.type === "read_receipt") {
+        if (event.userId && event.userId === userId) {
+          return;
+        }
+        setReadReceiptByChat(function (prev) {
+          return {
+            ...prev,
+            [event.chatId]: {
+              userId: event.userId,
+              username: event.username,
+              messageId: event.messageId,
+              readAt: event.readAt,
+            },
+          };
+        });
+      }
+    },
+    [userId]
+  );
+
   useEffect(
     function () {
       transport.connect();
       const unsub = transport.subscribe(function (event) {
         applyChatRealtimeEvent(queryClient, event);
+        applyRealtimeUiEvent(event);
       });
       return function () {
         unsub();
         transport.disconnect();
       };
     },
-    [queryClient, transport]
+    [applyRealtimeUiEvent, queryClient, transport]
+  );
+
+  useEffect(
+    function () {
+      const intervalId = window.setInterval(function () {
+        const now = Date.now();
+        setTypingByChat(function (prev) {
+          let changed = false;
+          const next: Record<string, Record<string, TypingUserState>> = {};
+          Object.keys(prev).forEach(function (chatId) {
+            const users = prev[chatId];
+            const nextUsers: Record<string, TypingUserState> = {};
+            Object.keys(users).forEach(function (typingUserId) {
+              const entry = users[typingUserId];
+              if (entry.expiresAt > now) {
+                nextUsers[typingUserId] = entry;
+              } else {
+                changed = true;
+              }
+            });
+            next[chatId] = nextUsers;
+          });
+          return changed ? next : prev;
+        });
+      }, 1_000);
+      return function () {
+        window.clearInterval(intervalId);
+      };
+    },
+    []
   );
 
   const emitDevEvent = useCallback(
     function (event: ChatRealtimeEvent) {
       applyChatRealtimeEvent(queryClient, event);
+      applyRealtimeUiEvent(event);
     },
-    [queryClient]
+    [applyRealtimeUiEvent, queryClient]
   );
 
   const value = useMemo(
     function (): ChatRealtimeContextValue {
       return {
         transport: transport,
+        currentUserId: userId,
+        isRealtimeConfigured,
+        typingByChat,
+        readReceiptByChat,
         emitDevEvent:
           process.env.NODE_ENV === "development" ? emitDevEvent : undefined,
       };
     },
-    [transport, emitDevEvent]
+    [emitDevEvent, isRealtimeConfigured, readReceiptByChat, transport, typingByChat, userId]
   );
 
   return (
@@ -133,14 +237,4 @@ export function ChatRealtimeProvider({
       {children}
     </ChatRealtimeContext.Provider>
   );
-}
-
-export function useChatRealtime(): ChatRealtimeContextValue {
-  const ctx = useContext(ChatRealtimeContext);
-  if (!ctx) {
-    return {
-      transport: createNoopChatRealtimeTransport(),
-    };
-  }
-  return ctx;
 }

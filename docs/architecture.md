@@ -501,6 +501,7 @@ Chat:
 - `POST /v1/chat/messages/:messageId/reactions?threadId=:threadId`
 - `DELETE /v1/chat/messages/:messageId/reactions/:emoji?threadId=:threadId`
 - `PATCH /v1/chat/threads/:threadId/read`
+- `GET /v1/chat/threads/:threadId/read-receipts`
 - `PATCH /v1/chat/threads/:threadId/archive`
 - `PATCH /v1/chat/threads/:threadId/mute`
 - `DELETE /v1/chat/threads/:threadId`
@@ -509,7 +510,7 @@ Chat:
 - `POST /v1/chat/presence/ping`
 - `POST /v1/chat/presence/batch`
 
-Chat uses hybrid storage. Postgres stores `chat_threads`, `chat_participants`, `chat_member_state`, and `chat_thread_meta`; AWS Keyspaces stores `thirtyFiveMM.messages`, `thirtyFiveMM.message_edits`, and high-scale `thirtyFiveMM.message_reactions`. Redis stores unread counters, typing indicators in a short-lived sorted set, and presence with 65 second TTL. Inbox/presence reads use batched Redis `MGET` instead of per-thread/per-user loops. BullMQ jobs `chat.deliver`, `chat.messageUpdated`, `chat.readReceipt`, and `chat.typing` publish to Ably channels `thread:{threadId}` and `user:{userId}:inbox`. The web `ChatRealtimeProvider` subscribes to those channels when `NEXT_PUBLIC_ABLY_API_KEY` is configured, patching active-thread messages and invalidating inbox queries. A future ScyllaDB Cloud migration can swap the Cassandra contact point while preserving schema and query shapes.
+Chat uses hybrid storage. Postgres stores `chat_threads`, `chat_participants`, `chat_member_state`, and `chat_thread_meta`; AWS Keyspaces stores `thirtyFiveMM.messages`, `thirtyFiveMM.message_edits`, and high-scale `thirtyFiveMM.message_reactions`. Redis stores unread counters, typing indicators in a short-lived sorted set, and presence with 65 second TTL. Inbox/presence reads use batched Redis `MGET` instead of per-thread/per-user loops. The API publishes latency-sensitive chat realtime events directly to Ably after durable state is written: new message thread events, small-conversation inbox unread updates, typing, and read receipts. BullMQ jobs `chat.deliver`, `chat.messageUpdated`, `chat.readReceipt`, and `chat.typing` remain fallback/asynchronous paths for publish failures, large inbox fanout, and message updates. The web `ChatRealtimeProvider` subscribes to those channels when `NEXT_PUBLIC_ABLY_API_KEY` is configured, patching active-thread messages and inbox unread rows. Read receipt snapshots use normal stale React Query reads without polling; typing snapshots are development-only fallback when realtime is not configured. A future ScyllaDB Cloud migration can swap the Cassandra contact point while preserving schema and query shapes.
 
 ---
 
@@ -818,6 +819,7 @@ Frontend:
 - React Query persists chat conversation lists and the latest bounded message page in `localStorage` for faster reload/offline read access. Infinite/older-history pages are not persisted, and persisted query cache is cleared on sign-out or user switch.
 - Chat list/header/message avatars use backend profile avatar URLs when present, thread headers render skeletons while metadata resolves, own messages can be edited through the chat edit route, and image/GIF message media opens in the shared `ImageViewer`.
 - The desktop site header Messages nav item shows unread chat count from inbox/request preview caches, which are refreshed by chat realtime inbox invalidation.
+- Active chat threads render live typing bubbles from `typing.update` and seen indicators from `message.read`; composer input posts typing state through `/v1/chat/threads/:threadId/typing`. The web UI avoids production polling for ephemeral typing state; realtime is the scale path.
 
 API:
 

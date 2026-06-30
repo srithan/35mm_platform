@@ -70,6 +70,43 @@ export async function getUnreadCounts(
   return out;
 }
 
+export async function getUnreadCountsForPairs(
+  pairs: Array<{ userId: string; threadId: string }>
+): Promise<Record<string, number>> {
+  var out: Record<string, number> = {};
+  var unique = Array.from(
+    new Map(
+      pairs
+        .filter(function (pair) {
+          return Boolean(pair.userId && pair.threadId);
+        })
+        .map(function (pair) {
+          return [pair.userId + ":" + pair.threadId, pair] as const;
+        })
+    ).values()
+  );
+  unique.forEach(function (pair) {
+    out[pair.userId + ":" + pair.threadId] = 0;
+  });
+  var redis = getRedisClient();
+  if (!redis || unique.length === 0) return out;
+
+  try {
+    var values = await redis.mget<number | string>(unique.map(function (pair) {
+      return unreadKey(pair.userId, pair.threadId);
+    }));
+    for (var i = 0; i < unique.length; i += 1) {
+      var pair = unique[i];
+      var parsed = Number(values[i] ?? 0);
+      out[pair.userId + ":" + pair.threadId] =
+        Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+  } catch {
+    return out;
+  }
+  return out;
+}
+
 export async function setTyping(threadId: string, userId: string): Promise<void> {
   var redis = getRedisClient();
   if (!redis) return;

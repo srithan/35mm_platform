@@ -28,6 +28,13 @@ export type ChatRealtimeEvent =
       type: "conversation.invalidated";
     }
   | {
+      type: "conversation.patch";
+      chatId: string;
+      lastMessage?: string | null;
+      lastMessageAt?: string | null;
+      unread?: number | null;
+    }
+  | {
       type: "conversation.deleted";
       chatId: string;
     }
@@ -35,11 +42,15 @@ export type ChatRealtimeEvent =
       type: "typing";
       chatId: string;
       userId: string;
+      username?: string | null;
+      avatarUrl?: string | null;
       isTyping: boolean;
     }
   | {
       type: "read_receipt";
       chatId: string;
+      userId?: string | null;
+      username?: string | null;
       messageId: string;
       readAt: string;
     };

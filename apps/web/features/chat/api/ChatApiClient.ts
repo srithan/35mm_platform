@@ -5,6 +5,10 @@
 
 import type { ChatMessage, ChatPreview, ChatSendPayload } from "../types";
 import type {
+  ChatReadReceiptsResponse,
+  ChatTypingSnapshot,
+} from "@35mm/types";
+import type {
   ChatFolder,
   CreateThreadParams,
   ListConversationsParams,
@@ -41,6 +45,12 @@ export interface ChatApiClient {
   deleteMessage(chatId: string, messageId: string): Promise<void>;
 
   markConversationRead(chatId: string, lastReadMessageId: string): Promise<void>;
+
+  listReadReceipts(chatId: string): Promise<ChatReadReceiptsResponse>;
+
+  setTyping(chatId: string, isTyping: boolean): Promise<void>;
+
+  listTypingUsers(chatId: string): Promise<ChatTypingSnapshot>;
 
   setConversationArchived(chatId: string, archived: boolean): Promise<void>;
 

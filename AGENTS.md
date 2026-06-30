@@ -5,6 +5,8 @@ Target scale: 35M+ users.
 Master architecture reference: `docs/architecture.md`
 Last agent-context refresh: 2026-06-28.
 
+We will get a minimum of 1 million daily active users. Make sure you are not writing code or taking approaches that hurt at scale.
+
 ---
 
 ## Monorepo

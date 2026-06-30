@@ -299,6 +299,27 @@ export interface ChatInboxPage {
   hasMore: boolean;
 }
 
+export interface ChatTypingUser {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+}
+
+export interface ChatTypingSnapshot {
+  typingUserIds: string[];
+  items: ChatTypingUser[];
+}
+
+export interface ChatReadReceipt {
+  userId: string;
+  username: string;
+  lastReadMessageId: string;
+}
+
+export interface ChatReadReceiptsResponse {
+  items: ChatReadReceipt[];
+}
+
 export interface HealthResponse {
   ok: true;
   service: string;

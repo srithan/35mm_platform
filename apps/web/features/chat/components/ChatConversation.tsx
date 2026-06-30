@@ -10,15 +10,23 @@ import { Avatar } from "@/components/Avatar";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   useChatMessages,
+  useChatReadReceiptsSnapshot,
+  useChatTypingSnapshot,
   useConversationRow,
   useSendMessage,
   useMarkConversationRead,
+  useSetTyping,
   useSetConversationArchived,
   useToggleReaction,
   useEditMessage,
   useDeleteMessage,
   useDeleteConversation,
 } from "../hooks/useChatQueries";
+import {
+  useChatReadReceipt,
+  useChatTypingUsers,
+  useIsChatRealtimeConfigured,
+} from "../realtime/state";
 import type { ChatMessage } from "../types";
 import { ChatMessageList, ChatMessagesSkeleton } from "./ChatMessageList";
 import { ChatComposer } from "./ChatComposer";
@@ -71,8 +79,19 @@ export function ChatConversation({
   const deleteMutation = useDeleteMessage();
   const setArchivedMutation = useSetConversationArchived();
   const deleteConversationMutation = useDeleteConversation();
+  const { mutate: setTyping } = useSetTyping();
   const { mutate: markConversationRead } = useMarkConversationRead();
   const { openNewChat } = useNewChat();
+  const typingUsers = useChatTypingUsers(chatId);
+  const readReceipt = useChatReadReceipt(chatId);
+  const isRealtimeConfigured = useIsChatRealtimeConfigured();
+  const typingSnapshot = useChatTypingSnapshot(chatId, {
+    enabled: !isRealtimeConfigured && process.env.NODE_ENV === "development",
+  });
+  const readReceiptSnapshot = useChatReadReceiptsSnapshot(chatId);
+  const visibleTypingUsers =
+    typingUsers.length > 0 ? typingUsers : typingSnapshot.data ?? [];
+  const visibleReadReceipt = readReceipt ?? readReceiptSnapshot.data ?? null;
 
   const conversationArchived = Boolean(conversationRow?.archived);
 
@@ -131,6 +150,9 @@ export function ChatConversation({
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const scrollAwayAnchorIdRef = useRef<string | null>(null);
+  const typingActiveRef = useRef(false);
+  const lastTypingSentAtRef = useRef(0);
+  const stopTypingTimeoutRef = useRef<number | null>(null);
   const displayedMessagesRef = useRef(displayedMessages);
   displayedMessagesRef.current = displayedMessages;
 
@@ -226,6 +248,61 @@ export function ChatConversation({
     }, 2400);
   }, []);
 
+  const publishTypingState = useCallback(
+    function (targetChatId: string | null, isTyping: boolean): void {
+      if (!targetChatId) {
+        return;
+      }
+      setTyping({
+        chatId: targetChatId,
+        isTyping: isTyping,
+      });
+    },
+    [setTyping]
+  );
+
+  const stopTypingNow = useCallback(
+    function (targetChatId: string | null): void {
+      if (stopTypingTimeoutRef.current) {
+        window.clearTimeout(stopTypingTimeoutRef.current);
+        stopTypingTimeoutRef.current = null;
+      }
+      if (typingActiveRef.current) {
+        typingActiveRef.current = false;
+        lastTypingSentAtRef.current = 0;
+        publishTypingState(targetChatId, false);
+      }
+    },
+    [publishTypingState]
+  );
+
+  const handleComposerTypingInput = useCallback(
+    function (text: string): void {
+      if (!chatId || editingMessage) {
+        stopTypingNow(chatId);
+        return;
+      }
+      const isTyping = text.trim().length > 0;
+      if (!isTyping) {
+        stopTypingNow(chatId);
+        return;
+      }
+      const now = Date.now();
+      if (!typingActiveRef.current || now - lastTypingSentAtRef.current > 2_000) {
+        typingActiveRef.current = true;
+        lastTypingSentAtRef.current = now;
+        publishTypingState(chatId, true);
+      }
+      if (stopTypingTimeoutRef.current) {
+        window.clearTimeout(stopTypingTimeoutRef.current);
+      }
+      stopTypingTimeoutRef.current = window.setTimeout(function () {
+        stopTypingNow(chatId);
+      }, 2_500);
+    },
+    [chatId, editingMessage, publishTypingState, stopTypingNow]
+  );
+
   const handleChatHeaderAction = useCallback(
     function (action: ChatHeaderMenuAction) {
       if (action === "delete") {
@@ -302,8 +379,11 @@ export function ChatConversation({
     function () {
       setReplyingTo(null);
       setEditingMessage(null);
+      return function () {
+        stopTypingNow(chatId);
+      };
     },
-    [chatId]
+    [chatId, stopTypingNow]
   );
 
   useEffect(
@@ -590,6 +670,8 @@ export function ChatConversation({
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDelete}
               onReportMessage={handleReportMessage}
+              typingUsers={visibleTypingUsers}
+              readReceipt={visibleReadReceipt}
               stickToBottomRef={stickToBottomRef}
               scrollRootRef={scrollRootRef}
             />
@@ -655,6 +737,7 @@ export function ChatConversation({
           }}
           onSend={function (payload) {
             stickToBottomRef.current = true;
+            stopTypingNow(chatId);
             sendMutation.mutate(
               {
                 chatId: chatId as string,
@@ -680,7 +763,11 @@ export function ChatConversation({
             if (fixedInputOnMobile) {
               setChatInputFocused(focused);
             }
+            if (!focused) {
+              stopTypingNow(chatId);
+            }
           }}
+          onTypingInput={handleComposerTypingInput}
         />
       </div>
       <ConfirmDialog

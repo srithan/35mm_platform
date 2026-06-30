@@ -42,10 +42,10 @@ Current job handlers:
 - `feed.fanout` (real): chunked accepted-follower `feed_items` writes below high-follower threshold
 - `feed.rescore` (real): periodic recent `feed_items.score` refresh from denormalized post counters
 - `counter.increment` (real): batched denormalized counter deltas
-- `chat.deliver` (real): publish new chat messages and inbox badge updates
+- `chat.deliver` (real): fallback/asynchronous publish for new chat messages and inbox badge updates when API direct publish fails or fanout is too large
 - `chat.messageUpdated` (real): publish chat edit/delete/reaction events
-- `chat.readReceipt` (real): publish read receipts
-- `chat.typing` (real): publish ephemeral typing state
+- `chat.readReceipt` (real): fallback publish for read receipts when API direct publish fails
+- `chat.typing` (real): fallback publish for ephemeral typing state when API direct publish fails
 - `notification.digest` (stub)
 
 ### Chat Channels (Ably)

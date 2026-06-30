@@ -299,11 +299,11 @@ Optional headers for support: **`X-Request-Id`**, **`CF-Ray`**, etc. (read for l
 
 ## 10. Realtime (WebSocket / SSE)
 
-The UI mounts **`ChatRealtimeProvider`** (`app/providers.tsx`) and automatically builds an Ably transport when **`NEXT_PUBLIC_ABLY_API_KEY`** and a signed-in **`userId`** are available. API and worker **`ABLY_API_KEY`** values only publish backend events; the web app also needs **`NEXT_PUBLIC_ABLY_API_KEY`** so the browser can subscribe.
+The UI mounts **`ChatRealtimeProvider`** (`app/providers.tsx`) and automatically builds an Ably transport when **`NEXT_PUBLIC_ABLY_API_KEY`** and a signed-in **`userId`** are available. API and worker **`ABLY_API_KEY`** values publish backend events; the web app also needs **`NEXT_PUBLIC_ABLY_API_KEY`** so the browser can subscribe.
 
 The provider subscribes to:
 
-- **`user:{userId}:inbox`** for `thread.updated`, which invalidates chat conversation queries.
+- **`user:{userId}:inbox`** for `thread.updated`, which patches cached chat preview rows and unread counts before invalidating conversation queries.
 - **`thread:{threadId}`** for the active `/chat/[chatId]` route and maps `message.new`, `message.edited`, `message.deleted`, `message.reaction`, `message.read`, and `typing.update`.
 
 If the web Ably key is missing, the provider falls back to a **noop** transport. Tests or alternate realtime implementations can still pass **`transport`** into **`<ChatRealtimeProvider transport={...}>`**.
@@ -315,12 +315,17 @@ See **`features/chat/realtime/types.ts`** — union **`ChatRealtimeEvent`**:
 - `message.created` / `message.updated` — includes full **`ChatMessage`**
 - `message.deleted` — `chatId`, `messageId`
 - `conversation.updated` — full **`ChatPreview`**
+- `conversation.patch` — partial inbox preview update from `thread.updated`
 - `conversation.deleted` — `chatId`
-- `typing`, `read_receipt` — defined for future UI (not all wired in components yet)
+- `typing`, `read_receipt` — held as ephemeral provider state for live typing bubbles and last-own-message seen indicators
 
 ### Applying events
 
-**`applyChatRealtimeEvent`** (`features/chat/realtime/applyRealtimeEvent.ts`) updates **`@tanstack/react-query`** cache and invalidates conversation lists. Implement **`ChatRealtimeTransport`**:
+**`applyChatRealtimeEvent`** (`features/chat/realtime/applyRealtimeEvent.ts`) updates **`@tanstack/react-query`** cache and invalidates conversation lists. `thread.updated` inbox events patch cached `ChatPreview` rows immediately so the site header Messages badge can update without waiting for a reload. **`ChatRealtimeProvider`** separately stores typing/read receipt events for UI hooks. Read receipt snapshots use normal stale React Query reads without an interval, and typing snapshot fallback is development-only when realtime is not configured; production live state is delivered through Ably.
+
+The API publishes latency-sensitive chat realtime events directly after persistence for low latency and worker independence. Worker jobs remain fallback/asynchronous delivery for publish failures, large inbox fanout, and message edit/delete/reaction updates. Do not replace this with production polling; polling typing/read state does not scale to 1M DAU.
+
+Implement **`ChatRealtimeTransport`**:
 
 ```ts
 {

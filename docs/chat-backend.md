@@ -497,7 +497,8 @@ Writes:
 2. Upsert Postgres `chat_thread_meta`.
 3. Increment Redis unread count for every active member except sender.
 4. Clear sender typing marker.
-5. Enqueue `chat.deliver`.
+5. Publish `message.new` to the thread channel and small-conversation `thread.updated` inbox events directly from the API.
+6. Enqueue `chat.deliver` only if direct publish fails or inbox fanout is too large for the API fast path.
 
 Response:
 
@@ -505,7 +506,7 @@ Response:
 
 Design reason:
 
-- Message row is inserted before summary/job side effects, so persisted message read remains possible even if later side effects fail.
+- Message row is inserted before summary/realtime/job side effects, so persisted message read remains possible even if later side effects fail.
 - Reply snapshots store lightweight sender/body/content metadata to avoid needing another Keyspaces lookup to render quoted replies.
 
 ### `PATCH /v1/chat/messages/:messageId?threadId=:threadId`
@@ -607,7 +608,8 @@ Behavior:
 - Requires active membership.
 - Upserts `chat_member_state.last_read_message_id`.
 - Resets Redis unread counter to 0.
-- Enqueues `chat.readReceipt`.
+- Publishes `message.read` directly from the API after read state is stored.
+- Enqueues `chat.readReceipt` only if direct publish fails.
 
 Design reason:
 
@@ -667,14 +669,24 @@ Behavior:
 
 - Requires active membership.
 - Sets or clears Redis typing marker.
-- Enqueues `chat.typing`.
+- Publishes `typing.update` directly from the API after the Redis typing marker is set or cleared.
+- Enqueues `chat.typing` only if direct publish fails.
+
+### `GET /v1/chat/threads/:threadId/read-receipts`
+
+Behavior:
+
+- Requires active membership.
+- Returns other active participants with `lastReadMessageId` from `chat_member_state`.
+- Used by the web active-thread seen indicator as non-polling snapshot state if a `message.read` Ably event was missed.
 
 ### `GET /v1/chat/threads/:threadId/typing`
 
 Behavior:
 
 - Requires active membership.
-- Returns typing user IDs currently visible in Redis.
+- Returns typing user IDs currently visible in Redis plus profile snippets for the active typing users.
+- Used by development/local fallback UI when realtime is not configured. Production live typing uses Ably rather than REST polling.
 
 ### `POST /v1/chat/presence/ping`
 
@@ -716,6 +728,7 @@ Payload:
 
 Worker behavior:
 
+- Fallback/asynchronous path for direct API publish failure or large inbox fanout.
 - Fetches message row from Keyspaces.
 - Fetches sender profile and active members from Postgres.
 - Publishes `message.new` to Ably channel `thread:{threadId}`.
@@ -768,6 +781,7 @@ Payload:
 
 Worker behavior:
 
+- Fallback path if API direct `message.read` publish fails.
 - Fetches reader username.
 - Publishes `message.read` to `thread:{threadId}`.
 
@@ -785,6 +799,7 @@ Payload:
 
 Worker behavior:
 
+- Fallback path if API direct `typing.update` publish fails.
 - Fetches user profile snippet.
 - Publishes `typing.update` to `thread:{threadId}`.
 

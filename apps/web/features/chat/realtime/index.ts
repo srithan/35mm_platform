@@ -3,7 +3,14 @@ export type {
   ChatRealtimeTransport,
   ChatRealtimeUnsubscribe,
 } from "./types";
-export { ChatRealtimeProvider, useChatRealtime } from "./ChatRealtimeProvider";
-export { createAblyChatRealtimeTransport } from "./ablyTransport";
+export { ChatRealtimeProvider } from "./ChatRealtimeProvider";
+export {
+  useChatReadReceipt,
+  useIsChatRealtimeConfigured,
+  useChatRealtime,
+  useChatTypingUsers,
+  type ChatReadReceiptState,
+  type ChatTypingUser,
+} from "./state";
 export { createNoopChatRealtimeTransport } from "./noopTransport";
 export { applyChatRealtimeEvent } from "./applyRealtimeEvent";

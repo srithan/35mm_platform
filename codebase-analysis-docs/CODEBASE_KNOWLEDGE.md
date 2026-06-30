@@ -66,7 +66,7 @@ Runtime flow:
 - AWS Keyspaces stores chat message rows and message edit history in `thirtyFiveMM.messages` and `thirtyFiveMM.message_edits`.
 - R2 presigned upload endpoints return deterministic future variant URLs; the worker later creates WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
 - Notification creation writes DB rows and enqueues `notification.publish`; the worker publishes Ably `notification.new` events when `ABLY_API_KEY` exists.
-- Chat write/update/read-state/typing routes enqueue BullMQ jobs; the worker publishes Ably events to thread and inbox channels when `ABLY_API_KEY` exists.
+- Chat send/read-state/typing routes publish latency-sensitive Ably events directly from the API after durable state is written, with BullMQ worker jobs retained as fallback/asynchronous paths for publish failures, large inbox fanout, and message updates.
 
 ## Repository Map
 
@@ -571,6 +571,7 @@ Current state:
 - Chat uses React Query for server state. Conversation lists and the latest bounded message page are persisted in `localStorage` for faster reload/offline read access. Infinite/older-history message pages are not persisted, and persisted query cache is cleared on sign-out or user switch.
 - Chat UI maps backend profile avatar URLs into chat list/header/message avatars, renders skeleton headers while thread metadata resolves, supports own-message edits through the chat edit route, and opens image/GIF message media with the shared `ImageViewer`.
 - The desktop site header Messages nav item shows an unread badge based on inbox/request preview unread counts and refreshes through chat realtime conversation invalidation.
+- Active chat threads render live typing bubbles from `typing.update` and seen indicators from `message.read`; composer input posts typing state through the chat typing route with frontend throttling/idle cleanup. Read receipt snapshots use stale React Query reads without an interval; typing snapshot fallback is development-only when realtime is not configured.
 - The API is authenticated and exposes:
   - `GET /v1/chat/inbox`
   - `POST /v1/chat/threads`
@@ -581,6 +582,7 @@ Current state:
   - `POST /v1/chat/messages/:messageId/reactions?threadId=:threadId`
   - `DELETE /v1/chat/messages/:messageId/reactions/:emoji?threadId=:threadId`
   - `PATCH /v1/chat/threads/:threadId/read`
+  - `GET /v1/chat/threads/:threadId/read-receipts`
   - `PATCH /v1/chat/threads/:threadId/archive`
   - `PATCH /v1/chat/threads/:threadId/mute`
   - `DELETE /v1/chat/threads/:threadId`
@@ -590,8 +592,8 @@ Current state:
   - `POST /v1/chat/presence/batch`
 - Persistence is wired with Postgres metadata tables plus AWS Keyspaces message/edit tables.
 - Redis stores unread counts, typing state, and presence state. Chat unread/presence reads batch via `MGET`; typing membership uses a short-lived sorted set instead of scanning `chat:typing:*` keys.
-- Worker jobs publish chat delivery/update/read/typing events through Ably.
-- The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patching current messages and invalidating conversation lists.
+- API routes publish low-latency chat delivery/read/typing events through Ably directly after persistence. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and message updates.
+- The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patching current messages and inbox unread rows while still invalidating conversation lists.
 - Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.
 
 ## Backend API Surface

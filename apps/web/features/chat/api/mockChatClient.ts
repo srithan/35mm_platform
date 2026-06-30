@@ -123,6 +123,18 @@ export function createMockChatClient(): ChatApiClient {
       return mockMarkConversationRead(chatId);
     },
 
+    listReadReceipts: function () {
+      return Promise.resolve({ items: [] });
+    },
+
+    setTyping: function () {
+      return Promise.resolve();
+    },
+
+    listTypingUsers: function () {
+      return Promise.resolve({ typingUserIds: [], items: [] });
+    },
+
     setConversationArchived: function (chatId, archived) {
       return mockSetConversationArchived(chatId, archived);
     },
