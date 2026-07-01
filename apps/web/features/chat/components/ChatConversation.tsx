@@ -411,13 +411,20 @@ export function ChatConversation({
       if (!chatId) {
         return;
       }
-      toggleReactionMutation.mutate({
-        chatId: chatId,
-        messageId: messageId,
-        emoji: emoji,
-      });
+      toggleReactionMutation.mutate(
+        {
+          chatId: chatId,
+          messageId: messageId,
+          emoji: emoji,
+        },
+        {
+          onError: function (error) {
+            flashHeaderToast(getChatErrorMessage(error, "Could not update reaction."));
+          },
+        }
+      );
     },
-    [chatId, toggleReactionMutation]
+    [chatId, flashHeaderToast, toggleReactionMutation]
   );
 
   const handleDelete = useCallback(

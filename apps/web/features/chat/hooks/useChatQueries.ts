@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import {
   useQuery,
   useMutation,
@@ -264,6 +264,150 @@ function invalidateAllConversationLists(queryClient: ReturnType<typeof useQueryC
   });
 }
 
+function applyViewerReaction(
+  reactions: ChatMessage["reactions"] | undefined,
+  emoji: string,
+  shouldRemove: boolean
+): ChatMessage["reactions"] {
+  var list = reactions
+    ? reactions.map(function (reaction) {
+        return {
+          emoji: reaction.emoji,
+          count: reaction.count,
+          includesMe: reaction.includesMe,
+        };
+      })
+    : [];
+
+  if (shouldRemove) {
+    return list
+      .map(function (reaction) {
+        if (reaction.emoji !== emoji || !reaction.includesMe) {
+          return reaction;
+        }
+        return {
+          emoji: reaction.emoji,
+          count: Math.max(0, reaction.count - 1),
+          includesMe: false,
+        };
+      })
+      .filter(function (reaction) {
+        return reaction.count > 0;
+      });
+  }
+
+  var previousMineIndex = list.findIndex(function (reaction) {
+    return reaction.includesMe;
+  });
+  if (previousMineIndex !== -1) {
+    var previousMine = list[previousMineIndex];
+    list[previousMineIndex] = {
+      emoji: previousMine.emoji,
+      count: Math.max(0, previousMine.count - 1),
+      includesMe: false,
+    };
+    if (list[previousMineIndex].count <= 0) {
+      list.splice(previousMineIndex, 1);
+    }
+  }
+
+  var nextIndex = list.findIndex(function (reaction) {
+    return reaction.emoji === emoji;
+  });
+  if (nextIndex === -1) {
+    list.push({ emoji: emoji, count: 1, includesMe: true });
+  } else {
+    var nextReaction = list[nextIndex];
+    list[nextIndex] = {
+      emoji: nextReaction.emoji,
+      count: nextReaction.count + 1,
+      includesMe: true,
+    };
+  }
+  return list;
+}
+
+function shouldRemoveViewerReaction(
+  message: ChatMessage | undefined,
+  emoji: string
+): boolean {
+  return Boolean(
+    message?.reactions?.some(function (reaction) {
+      return reaction.emoji === emoji && reaction.includesMe;
+    })
+  );
+}
+
+function updateMessageInList(
+  items: ChatMessage[],
+  messageId: string,
+  updater: (message: ChatMessage) => ChatMessage
+): ChatMessage[] {
+  return items.map(function (message) {
+    return message.id === messageId ? updater(message) : message;
+  });
+}
+
+function reconcileViewerReaction(
+  message: ChatMessage,
+  emoji: string,
+  shouldRemove: boolean
+): ChatMessage {
+  const hasExpectedReaction = Boolean(
+    message.reactions?.some(function (reaction) {
+      return reaction.emoji === emoji && reaction.includesMe;
+    })
+  );
+  if (hasExpectedReaction === !shouldRemove) {
+    return message;
+  }
+  if (!shouldRemove) {
+    var list = message.reactions
+      ? message.reactions.map(function (reaction) {
+          return {
+            emoji: reaction.emoji,
+            count: reaction.count,
+            includesMe: reaction.includesMe,
+          };
+        })
+      : [];
+    var previousMineIndex = list.findIndex(function (reaction) {
+      return reaction.includesMe;
+    });
+    if (previousMineIndex !== -1) {
+      var previousMine = list[previousMineIndex];
+      list[previousMineIndex] = {
+        emoji: previousMine.emoji,
+        count: Math.max(0, previousMine.count - 1),
+        includesMe: false,
+      };
+      if (list[previousMineIndex].count <= 0) {
+        list.splice(previousMineIndex, 1);
+      }
+    }
+    var nextIndex = list.findIndex(function (reaction) {
+      return reaction.emoji === emoji;
+    });
+    if (nextIndex === -1) {
+      list.push({ emoji: emoji, count: 1, includesMe: true });
+    } else {
+      list[nextIndex] = {
+        emoji: list[nextIndex].emoji,
+        count: Math.max(1, list[nextIndex].count),
+        includesMe: true,
+      };
+    }
+    return {
+      ...message,
+      reactions: list,
+    };
+  }
+  return {
+    ...message,
+    reactions: applyViewerReaction(message.reactions, emoji, shouldRemove),
+  };
+}
+
 export function useCreateConversation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -294,15 +438,15 @@ export function useSendMessage() {
           : "idemp-" + String(Date.now());
       return client().sendMessage(chatId, payload, { idempotencyKey: key });
     },
-    onMutate: async function (args) {
-      await queryClient.cancelQueries({
-        queryKey: chatQueryKeys.messages(args.chatId),
-      });
+    onMutate: function (args) {
       const previous = queryClient.getQueryData<PaginatedMessages>(
         chatQueryKeys.messages(args.chatId)
       );
       const optimisticId = createOptimisticMessageId();
       const optimistic = buildOptimisticChatMessage(args, optimisticId);
+      void queryClient.cancelQueries({
+        queryKey: chatQueryKeys.messages(args.chatId),
+      });
       queryClient.setQueryData<PaginatedMessages>(
         chatQueryKeys.messages(args.chatId),
         function (prev) {
@@ -364,23 +508,21 @@ export function useSendMessage() {
 
 export function useToggleReaction() {
   const queryClient = useQueryClient();
+  const pendingReactionIntentsRef = useRef(new Map<string, boolean>());
+
+  function intentKey(args: { chatId: string; messageId: string; emoji: string }): string {
+    return args.chatId + ":" + args.messageId + ":" + args.emoji;
+  }
+
   return useMutation({
     mutationFn: function (args: {
       chatId: string;
       messageId: string;
       emoji: string;
     }) {
-      const messagesPage = queryClient.getQueryData<PaginatedMessages>(
-        chatQueryKeys.messages(args.chatId)
-      );
-      const message = messagesPage?.items.find(function (item) {
-        return item.id === args.messageId;
-      });
-      const shouldRemove = Boolean(
-        message?.reactions?.some(function (reaction) {
-          return reaction.emoji === args.emoji && reaction.includesMe;
-        })
-      );
+      const key = intentKey(args);
+      const shouldRemove = pendingReactionIntentsRef.current.get(key) ?? false;
+      pendingReactionIntentsRef.current.delete(key);
       return client().toggleReaction(
         args.chatId,
         args.messageId,
@@ -388,10 +530,105 @@ export function useToggleReaction() {
         shouldRemove
       );
     },
-    onSuccess: function (_data, args) {
-      queryClient.invalidateQueries({
+    onMutate: async function (args) {
+      const previous = queryClient.getQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId)
+      );
+      const previousInfinite = queryClient.getQueryData<InfiniteData<PaginatedMessages>>(
+        chatQueryKeys.messagesInfinite(args.chatId)
+      );
+      const message = previous?.items.find(function (item) {
+        return item.id === args.messageId;
+      });
+      const shouldRemove = shouldRemoveViewerReaction(message, args.emoji);
+      pendingReactionIntentsRef.current.set(intentKey(args), shouldRemove);
+      await queryClient.cancelQueries({
         queryKey: chatQueryKeys.messages(args.chatId),
       });
+
+      queryClient.setQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId),
+        function (prev) {
+          if (!prev) {
+            return prev;
+          }
+          return patchMessagesPage(prev, function (items) {
+            return updateMessageInList(items, args.messageId, function (item) {
+              return {
+                ...item,
+                reactions: applyViewerReaction(
+                  item.reactions,
+                  args.emoji,
+                  shouldRemove
+                ),
+              };
+            });
+          });
+        }
+      );
+      queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+        chatQueryKeys.messagesInfinite(args.chatId),
+        function (prev) {
+          return patchNewestInfinitePage(prev, function (items) {
+            return updateMessageInList(items, args.messageId, function (item) {
+              return {
+                ...item,
+                reactions: applyViewerReaction(
+                  item.reactions,
+                  args.emoji,
+                  shouldRemove
+                ),
+              };
+            });
+          });
+        }
+      );
+      return {
+        previous: previous,
+        previousInfinite: previousInfinite,
+        shouldRemove: shouldRemove,
+      };
+    },
+    onError: function (_error, args, context) {
+      pendingReactionIntentsRef.current.delete(intentKey(args));
+      if (context?.previous) {
+        queryClient.setQueryData(
+          chatQueryKeys.messages(args.chatId),
+          context.previous
+        );
+      }
+      if (context?.previousInfinite) {
+        queryClient.setQueryData(
+          chatQueryKeys.messagesInfinite(args.chatId),
+          context.previousInfinite
+        );
+      }
+    },
+    onSuccess: function (message, args, context) {
+      if (!message) {
+        return;
+      }
+      const reconciled = reconcileViewerReaction(
+        message,
+        args.emoji,
+        context?.shouldRemove ?? false
+      );
+      queryClient.setQueryData<PaginatedMessages>(
+        chatQueryKeys.messages(args.chatId),
+        function (prev) {
+          return patchMessagesPage(prev, function (items) {
+            return upsertChatMessageSorted(items, reconciled);
+          });
+        }
+      );
+      queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
+        chatQueryKeys.messagesInfinite(args.chatId),
+        function (prev) {
+          return patchNewestInfinitePage(prev, function (items) {
+            return upsertChatMessageSorted(items, reconciled);
+          });
+        }
+      );
     },
   });
 }

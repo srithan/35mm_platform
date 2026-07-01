@@ -1,0 +1,173 @@
+@keyframes chatReactionBarEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chatReactionPillEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes chatReactionEmojiPop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.quickBar {
+  animation: chatReactionBarEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.quickEmoji {
+  transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.quickEmoji:hover {
+  transform: scale(1.32);
+}
+
+.quickEmoji:active {
+  transform: scale(0.88);
+}
+
+.anchor {
+  position: absolute;
+  top: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.anchorOwn {
+  left: 0.625rem;
+  transform: translate(-18%, -42%);
+}
+
+.anchorOther {
+  right: 0.625rem;
+  transform: translate(18%, -42%);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 11rem;
+  pointer-events: auto;
+  border-radius: 999px;
+  overflow: hidden;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: chatReactionPillEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:global([data-theme="dark"]) .pill,
+:global(.dark) .pill {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
+}
+
+.pillCircle {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.3125rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    transform 0.12s ease;
+}
+
+.chip:first-child {
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.chip:last-child {
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+.chip + .chip {
+  box-shadow: -1px 0 0 color-mix(in srgb, var(--color-border-strong) 50%, transparent);
+}
+
+:global([data-theme="dark"]) .chip + .chip,
+:global(.dark) .chip + .chip {
+  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.chip:hover {
+  background: color-mix(in srgb, var(--color-bg-hover) 85%, transparent);
+}
+
+.chip:active {
+  transform: scale(0.94);
+}
+
+.chipActive {
+  background: color-mix(in srgb, #007aff 12%, transparent);
+}
+
+.chipActive:hover {
+  background: color-mix(in srgb, #007aff 18%, transparent);
+}
+
+.emoji {
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.emojiPop {
+  animation: chatReactionEmojiPop 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.count {
+  font-size: 0.625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  letter-spacing: -0.01em;
+}
+
+.chipActive .count {
+  color: #007aff;
+}

@@ -38,7 +38,7 @@ export interface ChatApiClient {
     messageId: string,
     emoji: string,
     shouldRemove?: boolean
-  ): Promise<void>;
+  ): Promise<ChatMessage | null>;
 
   editMessage(chatId: string, messageId: string, body: string): Promise<ChatMessage>;
 

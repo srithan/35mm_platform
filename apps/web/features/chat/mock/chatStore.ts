@@ -352,18 +352,19 @@ export async function mockToggleReaction(
   chatId: string,
   messageId: string,
   emoji: string
-): Promise<void> {
+): Promise<ChatMessage> {
   await delay(45);
   const list = messagesByChat[chatId];
   if (!list) {
-    return;
+    throw new Error("Message not found");
   }
   for (let i = 0; i < list.length; i++) {
     if (list[i].id === messageId) {
       list[i].reactions = applyToggleReaction(list[i].reactions, emoji);
-      break;
+      return clone(list[i]);
     }
   }
+  throw new Error("Message not found");
 }
 
 export async function mockDeleteConversation(chatId: string): Promise<void> {

@@ -1,0 +1,164 @@
+.root {
+    --worm-radio-accent: var(--color-film-red);
+    --worm-radio-control-size: 1.5rem;
+    --worm-radio-segment-size: 0.75rem;
+    --worm-radio-row-gap: 1.25rem;
+    --worm-radio-hop-distance: -1.5rem;
+    border: 0;
+    color: var(--fg);
+    display: inline-block;
+    margin: 0;
+    min-inline-size: max-content;
+    padding: 0;
+}
+
+.legend {
+    color: var(--fg-muted);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.75rem;
+    padding: 0;
+}
+
+.optionList {
+    display: grid;
+    gap: var(--worm-radio-row-gap);
+    position: relative;
+}
+
+.optionRow {
+    align-items: center;
+    display: flex;
+    min-block-size: var(--worm-radio-control-size);
+}
+
+.input {
+    block-size: 1px;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    inline-size: 1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+}
+
+.label {
+    align-items: center;
+    color: var(--fg-muted);
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    gap: 0.5rem;
+    line-height: 1.2;
+    min-block-size: var(--worm-radio-control-size);
+    transition: color 0.2s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+
+.label:hover {
+    color: var(--fg);
+}
+
+.labelActive {
+    color: var(--worm-radio-accent);
+    transition-delay: 0.4s;
+}
+
+.labelDisabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.marker {
+    block-size: var(--worm-radio-control-size);
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 0.2rem currentColor inset,
+        0 0.15rem 0.25rem color-mix(in srgb, var(--fg) 14%, transparent),
+        0 0.25rem 0.2rem color-mix(in srgb, var(--fg) 12%, transparent) inset;
+    display: inline-block;
+    flex: 0 0 var(--worm-radio-control-size);
+    inline-size: var(--worm-radio-control-size);
+    transition:
+        transform 0.2s cubic-bezier(0.5, 0, 0.5, 2),
+        box-shadow 0.2s cubic-bezier(0.45, 0.05, 0.55, 0.95),
+        color 0.2s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+
+.labelActive .marker {
+    transform: scale(1.12);
+    transition-delay: 0.4s;
+}
+
+.input:focus-visible + .label .marker {
+    outline: 2px solid color-mix(in srgb, var(--worm-radio-accent) 55%, transparent);
+    outline-offset: 3px;
+}
+
+.labelText {
+    min-inline-size: 0;
+}
+
+.worm {
+    block-size: var(--worm-radio-segment-size);
+    color: var(--worm-radio-accent);
+    inline-size: var(--worm-radio-segment-size);
+    inset-block-start: calc((var(--worm-radio-control-size) - var(--worm-radio-segment-size)) / 2);
+    inset-inline-start: calc((var(--worm-radio-control-size) - var(--worm-radio-segment-size)) / 2);
+    pointer-events: none;
+    position: absolute;
+    z-index: 2;
+}
+
+.segment {
+    block-size: var(--worm-radio-segment-size);
+    display: block;
+    inline-size: var(--worm-radio-segment-size);
+    inset: 0;
+    position: absolute;
+    transform: translate3d(0, var(--worm-y), 0);
+    transition: transform 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+    transition-delay: var(--segment-delay);
+}
+
+.segmentDot {
+    animation: worm-radio-hop 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+    animation-delay: var(--segment-delay);
+    background: currentColor;
+    block-size: 100%;
+    border-radius: 50%;
+    display: block;
+    inline-size: 100%;
+}
+
+.segment:first-child .segmentDot,
+.segment:last-child .segmentDot {
+    box-shadow: 0 0 1rem 0 currentColor;
+}
+
+@keyframes worm-radio-hop {
+    from,
+    to {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(var(--worm-radio-hop-distance));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .label,
+    .marker,
+    .segment {
+        transition: none;
+    }
+
+    .segmentDot {
+        animation: none;
+    }
+}

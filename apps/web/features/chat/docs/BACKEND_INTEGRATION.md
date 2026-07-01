@@ -146,9 +146,14 @@ Content-Type: application/json
 { "emoji": "👍" }
 ```
 
-**Response:** `200` or `204` with empty body (adapter expects JSON parse; prefer **`200 {}`** or **`204`** — if `204`, extend `chatHttpJson` to allow empty body without throwing).
+**Preferred response:** updated `ChatMessage` with hydrated `reactions`.
 
-*Current `chatHttpJson` reads `res.text()` and parses JSON; **`204` with empty body is OK** (json stays null, caller should tolerate void).*
+The web adapter applies an optimistic chip immediately and then replaces that
+cache row with this authoritative message response. Avoid an extra refetch per
+reaction on hot threads.
+
+The adapter also tolerates `204` / empty success for older deployments and keeps
+the optimistic cache patch in place.
 
 ### 4.5 Delete message
 
@@ -323,7 +328,7 @@ See **`features/chat/realtime/types.ts`** — union **`ChatRealtimeEvent`**:
 
 **`applyChatRealtimeEvent`** (`features/chat/realtime/applyRealtimeEvent.ts`) updates **`@tanstack/react-query`** cache and invalidates conversation lists. `thread.updated` inbox events patch cached `ChatPreview` rows immediately so the site header Messages badge can update without waiting for a reload. **`ChatRealtimeProvider`** separately stores typing/read receipt events for UI hooks. Read receipt snapshots use normal stale React Query reads without an interval, and typing snapshot fallback is development-only when realtime is not configured; production live state is delivered through Ably.
 
-The API publishes latency-sensitive chat realtime events directly after persistence for low latency and worker independence. Worker jobs remain fallback/asynchronous delivery for publish failures, large inbox fanout, and message edit/delete/reaction updates. Do not replace this with production polling; polling typing/read state does not scale to 1M DAU.
+The API publishes latency-sensitive chat realtime events directly after persistence for low latency and worker independence, including message edits and reactions on the active thread channel. Worker jobs remain fallback/asynchronous delivery for publish failures, large inbox fanout, and delete/update recovery. Do not replace this with production polling; polling typing/read state does not scale to 1M DAU.
 
 Implement **`ChatRealtimeTransport`**:
 

@@ -137,7 +137,7 @@ function mapMessage(message: ApiChatMessage, currentUserId: string): ChatMessage
       return {
         emoji: reaction.emoji,
         count: reaction.count,
-        includesMe: reaction.viewerReacted,
+        includesMe: reaction.userIds.includes(currentUserId),
       };
     }),
     media,
@@ -226,6 +226,34 @@ function threadUpdatedEvent(data: unknown): ChatRealtimeEvent {
   };
 }
 
+function logChannelError(action: "attach" | "detach", channel: string, error: unknown): void {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+  console.warn("[chat-realtime] Ably channel " + action + " failed", {
+    channel,
+    error,
+  });
+}
+
+function safeAttach(channel: Ably.RealtimeChannel | null, channelName: string): void {
+  if (!channel || channel.state === "attached" || channel.state === "attaching") {
+    return;
+  }
+  void channel.attach().catch(function (error) {
+    logChannelError("attach", channelName, error);
+  });
+}
+
+function safeDetach(channel: Ably.RealtimeChannel | null, channelName: string): void {
+  if (!channel || channel.state === "detached" || channel.state === "initialized") {
+    return;
+  }
+  void channel.detach().catch(function (error) {
+    logChannelError("detach", channelName, error);
+  });
+}
+
 export function createAblyChatRealtimeTransport(
   input: AblyChatTransportInput
 ): ChatRealtimeTransport {
@@ -261,12 +289,16 @@ export function createAblyChatRealtimeTransport(
   return {
     connect: function () {
       attachChannels();
-      void inboxChannel?.attach();
-      void threadChannel?.attach();
+      safeAttach(inboxChannel, "user:" + input.userId + ":inbox");
+      if (input.threadId) {
+        safeAttach(threadChannel, "thread:" + input.threadId);
+      }
     },
     disconnect: function () {
-      void inboxChannel?.detach();
-      void threadChannel?.detach();
+      safeDetach(inboxChannel, "user:" + input.userId + ":inbox");
+      if (input.threadId) {
+        safeDetach(threadChannel, "thread:" + input.threadId);
+      }
       inboxChannel = null;
       threadChannel = null;
       realtime?.close();

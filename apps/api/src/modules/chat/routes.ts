@@ -54,6 +54,7 @@ import {
 import { bucketsNewestFirst, getMessageBucket, truncatePreview } from "./chatUtils.js";
 import {
   publishChatMessageCreated,
+  publishChatMessageUpdated,
   publishChatReadReceipt,
   publishChatTyping,
 } from "./realtime.js";
@@ -198,12 +199,12 @@ function reactionUserSet(value: unknown, emoji: string): Set<string> {
   return new Set(entry?.[1] ?? []);
 }
 
-function setReactionEntry(value: unknown, emoji: string, userIds: Set<string>): Map<string, Set<string>> {
-  var map = new Map<string, Set<string>>();
+function setReactionEntry(value: unknown, emoji: string, userIds: Set<string>): Record<string, string[]> {
+  var map: Record<string, string[]> = {};
   for (var [candidate, existing] of reactionEntries(value)) {
-    if (candidate !== emoji) map.set(candidate, new Set(existing));
+    if (candidate !== emoji) map[candidate] = existing;
   }
-  if (userIds.size > 0) map.set(emoji, userIds);
+  if (userIds.size > 0) map[emoji] = Array.from(userIds);
   return map;
 }
 
@@ -777,11 +778,19 @@ chatRoutes.patch("/messages/:messageId", messageWriteRateLimit, async function (
     [body.body, now, threadId, bucket, timeUuidFromString(messageId)],
     { executionProfile: "chat-write" }
   );
-  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "edit" });
   row.body = body.body;
   row.edited_at = now;
   var profileMap = await fetchProfiles([row.sender_id]);
-  return c.json(hydrateMessage(row, profileMap, viewer.userId));
+  var message = hydrateMessage(row, profileMap, viewer.userId);
+  var published = await publishChatMessageUpdated({
+    threadId,
+    type: "edit",
+    message,
+  });
+  if (!published) {
+    await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "edit" });
+  }
+  return c.json(message);
 });
 
 chatRoutes.delete("/messages/:messageId", messageWriteRateLimit, async function (c) {
@@ -819,14 +828,23 @@ chatRoutes.post("/messages/:messageId/reactions", reactionRateLimit, async funct
   if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
   var userIds = reactionUserSet(row.reactions, body.emoji);
   userIds.add(viewer.userId);
+  var nextReactions = setReactionEntry(row.reactions, body.emoji, userIds);
   await client.execute(
-    "UPDATE messages SET reactions[?] = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
-    [body.emoji, userIds, threadId, bucket, timeUuidFromString(messageId)],
+    "UPDATE messages SET reactions = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+    [nextReactions, threadId, bucket, timeUuidFromString(messageId)],
     { executionProfile: "chat-write" }
   );
-  row.reactions = setReactionEntry(row.reactions, body.emoji, userIds);
-  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
-  return c.json(hydrateMessage(row, await fetchProfiles([row.sender_id]), viewer.userId));
+  row.reactions = nextReactions;
+  var message = hydrateMessage(row, await fetchProfiles([row.sender_id]), viewer.userId);
+  var published = await publishChatMessageUpdated({
+    threadId,
+    type: "reaction",
+    message,
+  });
+  if (!published) {
+    await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
+  }
+  return c.json(message);
 });
 
 chatRoutes.delete("/messages/:messageId/reactions/:emoji", reactionRateLimit, async function (c) {
@@ -843,22 +861,23 @@ chatRoutes.delete("/messages/:messageId/reactions/:emoji", reactionRateLimit, as
   if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
   var userIds = reactionUserSet(row.reactions, emoji);
   userIds.delete(viewer.userId);
-  if (userIds.size === 0) {
-    await client.execute(
-      "DELETE reactions[?] FROM messages WHERE thread_id = ? AND bucket = ? AND message_id = ?",
-      [emoji, threadId, bucket, timeUuidFromString(messageId)],
-      { executionProfile: "chat-write" }
-    );
-  } else {
-    await client.execute(
-      "UPDATE messages SET reactions[?] = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
-      [emoji, userIds, threadId, bucket, timeUuidFromString(messageId)],
-      { executionProfile: "chat-write" }
-    );
+  var nextReactions = setReactionEntry(row.reactions, emoji, userIds);
+  await client.execute(
+    "UPDATE messages SET reactions = ? WHERE thread_id = ? AND bucket = ? AND message_id = ?",
+    [nextReactions, threadId, bucket, timeUuidFromString(messageId)],
+    { executionProfile: "chat-write" }
+  );
+  row.reactions = nextReactions;
+  var message = hydrateMessage(row, await fetchProfiles([row.sender_id]), viewer.userId);
+  var published = await publishChatMessageUpdated({
+    threadId,
+    type: "reaction",
+    message,
+  });
+  if (!published) {
+    await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
   }
-  row.reactions = setReactionEntry(row.reactions, emoji, userIds);
-  await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
-  return c.json(hydrateMessage(row, await fetchProfiles([row.sender_id]), viewer.userId));
+  return c.json(message);
 });
 
 chatRoutes.patch("/threads/:threadId/read", readStateRateLimit, async function (c) {

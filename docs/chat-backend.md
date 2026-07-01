@@ -233,7 +233,7 @@ Why `map<text, frozen<set<text>>>` for reactions:
 
 - Reaction state is keyed by emoji, with user IDs as set members.
 - AWS Keyspaces rejects nested non-frozen collections, so `map<text,set<text>>` is invalid.
-- The implementation uses `frozen<set<text>>` and updates a whole emoji entry after reading the existing set.
+- The implementation uses `frozen<set<text>>` and writes the whole reactions map after reading the existing set. The Node Cassandra driver binds this as a plain object of arrays (`Record<string, string[]>`) so CQL map/set encoding preserves values on later reads.
 - This is acceptable only for current low-scale per-message reaction sets. It is not the target shape for viral messages because it causes read-compute-write contention on one message row.
 
 #### `thirtyFiveMM.message_reactions`
@@ -528,7 +528,8 @@ Behavior:
 - Deleted messages cannot be edited.
 - Inserts previous body into `message_edits`.
 - Updates message body and `edited_at`.
-- Enqueues `chat.messageUpdated` with type `edit`.
+- Publishes `message.edited` directly to `thread:{threadId}` after persistence.
+- Enqueues `chat.messageUpdated` with type `edit` only when direct publish fails.
 
 Design reason:
 
@@ -569,14 +570,17 @@ Behavior:
 - Deleted messages reject reaction add.
 - Reads current reaction set for emoji.
 - Adds viewer ID.
-- Writes full frozen set back to `reactions[emoji]`.
-- Enqueues `chat.messageUpdated` with type `reaction`.
+- Writes the full reactions map back to `messages.reactions`.
+- Publishes `message.reaction` directly to `thread:{threadId}` after persistence.
+- Enqueues `chat.messageUpdated` with type `reaction` only when direct publish fails.
+- Returns the updated hydrated message so clients can patch the active thread
+  cache without a follow-up read.
 
 Why read-compute-write:
 
 - Keyspaces requires nested set values in a map to be frozen.
 - Frozen collections cannot be incrementally updated with `+` like non-frozen sets.
-- Therefore each emoji entry is replaced as a whole set.
+- Therefore the route computes the next emoji set and replaces the whole reactions map in one write.
 
 Race note:
 
@@ -589,9 +593,12 @@ Behavior:
 - Requires active membership.
 - Reads current reaction set.
 - Removes viewer ID.
-- If set becomes empty, deletes `reactions[emoji]`.
-- Else writes replacement frozen set.
-- Enqueues `chat.messageUpdated` with type `reaction`.
+- If the set becomes empty, omits that emoji from the next reactions map.
+- Writes the full reactions map back to `messages.reactions`.
+- Publishes `message.reaction` directly to `thread:{threadId}` after persistence.
+- Enqueues `chat.messageUpdated` with type `reaction` only when direct publish fails.
+- Returns the updated hydrated message so clients can patch the active thread
+  cache without a follow-up read.
 
 ### `PATCH /v1/chat/threads/:threadId/read`
 
@@ -995,7 +1002,7 @@ Message reads:
 
 ### Reactions
 
-Reactions use read-compute-write for a frozen set entry. This is simple and Keyspaces-compatible but not contention-proof. Heavy concurrent reaction traffic can drop one writer's update. Future hardening should use a separate reaction fact table.
+Reactions use read-compute-write for the frozen-set-backed reactions map. This is simple and Keyspaces-compatible but not contention-proof. Heavy concurrent reaction traffic can drop one writer's update. Future hardening should use a separate reaction fact table.
 
 ### Message Deletion
 

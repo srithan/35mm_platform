@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import Picker, {
   Categories,
   EmojiStyle,
@@ -8,9 +14,13 @@ import Picker, {
   Theme,
   type EmojiClickData,
 } from "emoji-picker-react";
+import { BodyPortal } from "@/components/BodyPortal/BodyPortal";
+import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 import { cn } from "@/lib/utils/cn";
 
 const QUICK = ["👍", "❤️", "😂", "😮", "😢", "🎬", "🔥", "👏"];
+const VIEWPORT_MARGIN_PX = 10;
+const ANCHOR_OFFSET_PX = 8;
 const EMOJI_CATEGORIES = [
   { category: Categories.SUGGESTED, name: "Frequently used" },
   { category: Categories.SMILEYS_PEOPLE, name: "Smileys & people" },
@@ -47,7 +57,9 @@ export function ChatEmojiPanel({
   pickerOnly = false,
   dismissInsideRef,
 }: ChatEmojiPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [isPositioned, setIsPositioned] = useState(false);
 
   const pickerStyleVars: CSSProperties = {
     ["--epr-emoji-size" as string]: variant === "composer" ? "24px" : "22px",
@@ -63,127 +75,192 @@ export function ChatEmojiPanel({
     ["--epr-category-label-height" as string]: "0px",
   };
 
-  useEffect(
-    function () {
-      if (!isOpen) {
-        return;
-      }
-      function onPointerDown(e: PointerEvent) {
-        const target = e.target as Node | null;
-        if (!target) {
-          return;
-        }
-        if (panelRef.current && panelRef.current.contains(target)) {
-          return;
-        }
-        if (anchorRef.current && anchorRef.current.contains(target)) {
-          return;
-        }
-        if (
-          dismissInsideRef &&
-          dismissInsideRef.current &&
-          dismissInsideRef.current.contains(target)
-        ) {
-          return;
-        }
-        onClose();
-      }
-      document.addEventListener("pointerdown", onPointerDown);
-      return function () {
-        document.removeEventListener("pointerdown", onPointerDown);
-      };
-    },
-    [isOpen, onClose, anchorRef, dismissInsideRef]
-  );
-
-  if (!isOpen) {
-    return null;
-  }
-
   const widthClass = pickerOnly
     ? "w-[min(100vw-24px,336px)]"
     : variant === "composer"
       ? "w-[min(100vw-24px,356px)]"
       : "w-[min(100vw-24px,312px)]";
+  const estimatedWidth = pickerOnly ? 336 : variant === "composer" ? 356 : 312;
 
   const pickerHeight = pickerOnly
     ? 344
     : variant === "composer"
       ? 392
       : 286;
+  const estimatedHeight =
+    pickerHeight + (!pickerOnly && variant !== "composer" ? 74 : 0);
+
+  const reposition = useCallback(
+    function () {
+      const anchor = anchorRef.current;
+      if (!anchor) {
+        return;
+      }
+      const panel = panelRef.current;
+      const anchorRect = anchor.getBoundingClientRect();
+      const panelRect = panel?.getBoundingClientRect();
+      const panelWidth =
+        panelRect && panelRect.width > 0
+          ? panelRect.width
+          : Math.min(window.innerWidth - VIEWPORT_MARGIN_PX * 2, estimatedWidth);
+      const panelHeight =
+        panelRect && panelRect.height > 0 ? panelRect.height : estimatedHeight;
+      const spaceAbove = anchorRect.top - VIEWPORT_MARGIN_PX;
+      const spaceBelow = window.innerHeight - anchorRect.bottom - VIEWPORT_MARGIN_PX;
+      const preferAbove =
+        spaceAbove >= panelHeight || spaceAbove >= spaceBelow;
+
+      var top = preferAbove
+        ? anchorRect.top - panelHeight - ANCHOR_OFFSET_PX
+        : anchorRect.bottom + ANCHOR_OFFSET_PX;
+      var left =
+        align === "right" ? anchorRect.right - panelWidth : anchorRect.left;
+
+      left = Math.max(
+        VIEWPORT_MARGIN_PX,
+        Math.min(left, window.innerWidth - panelWidth - VIEWPORT_MARGIN_PX)
+      );
+      top = Math.max(
+        VIEWPORT_MARGIN_PX,
+        Math.min(top, window.innerHeight - panelHeight - VIEWPORT_MARGIN_PX)
+      );
+
+      setPos({ top: top, left: left });
+      setIsPositioned(true);
+    },
+    [align, anchorRef, estimatedHeight, estimatedWidth]
+  );
+
+  const scheduleReposition = useCallback(
+    function () {
+      reposition();
+      window.requestAnimationFrame(function () {
+        reposition();
+        window.requestAnimationFrame(reposition);
+      });
+    },
+    [reposition]
+  );
+
+  const setPanelRef = useCallback(
+    function (node: HTMLDivElement | null) {
+      panelRef.current = node;
+      if (node && isOpen) {
+        scheduleReposition();
+      }
+    },
+    [isOpen, scheduleReposition]
+  );
+
+  const isInside = useCallback(
+    function (target: Node) {
+      return !!(
+        panelRef.current?.contains(target) ||
+        anchorRef.current?.contains(target) ||
+        dismissInsideRef?.current?.contains(target)
+      );
+    },
+    [anchorRef, dismissInsideRef]
+  );
+
+  usePopoverLayer({
+    open: isOpen,
+    reposition: scheduleReposition,
+    isInside: isInside,
+    onPointerOutsideDismiss: onClose,
+    onEscape: onClose,
+  });
+
+  useLayoutEffect(
+    function () {
+      if (!isOpen) {
+        setIsPositioned(false);
+        return;
+      }
+      scheduleReposition();
+    },
+    [isOpen, scheduleReposition]
+  );
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div
-      ref={panelRef}
-      data-chat-emoji-panel
-      data-emoji-picker-surface
-      className={cn(
-        "absolute z-[80] overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#111111] shadow-xl",
-        widthClass,
-        variant === "composer" ? "bottom-full mb-2" : "bottom-full mb-1.5",
-        align === "right" ? "right-0" : "left-0"
-      )}
-      style={{
-        boxShadow:
-          "0 22px 64px rgba(0,0,0,0.34), 0 8px 24px rgba(0,0,0,0.24)",
-      }}
-    >
-      {!pickerOnly && variant !== "composer" ? (
-        <div className="border-b border-white/[0.08] px-2.5 pb-1.5 pt-2">
-          <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-white/45">
-            Quick
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {QUICK.map(function (emoji) {
-              return (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={function () {
-                    onPick(emoji);
-                  }}
-                  className="h-9 w-9 rounded-xl text-[20px] leading-none transition-colors hover:bg-white/[0.12]"
-                >
-                  {emoji}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+    <BodyPortal>
       <div
+        ref={setPanelRef}
+        data-chat-emoji-panel
+        data-emoji-picker-surface
         className={cn(
-          "overflow-hidden",
-          pickerOnly
-            ? "h-[344px]"
-            : variant === "composer"
-              ? "h-[392px]"
-              : "h-[286px]"
+          "fixed z-[120] overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#111111] shadow-xl",
+          widthClass
         )}
+        style={{
+          top: pos.top,
+          left: pos.left,
+          visibility: isPositioned ? "visible" : "hidden",
+          boxShadow:
+            "0 22px 64px rgba(0,0,0,0.34), 0 8px 24px rgba(0,0,0,0.24)",
+        }}
       >
-        <Picker
-          onEmojiClick={function (data: EmojiClickData) {
-            onPick(data.emoji);
-          }}
-          onReactionClick={function (data: EmojiClickData) {
-            onPick(data.emoji);
-          }}
-          lazyLoadEmojis={true}
-          emojiStyle={EmojiStyle.APPLE}
-          theme={Theme.DARK}
-          categories={EMOJI_CATEGORIES}
-          skinTonesDisabled={false}
-          skinTonePickerLocation={SkinTonePickerLocation.SEARCH}
-          searchDisabled={false}
-          searchPlaceholder="Describe an Emoji"
-          searchPlaceHolder="Describe an Emoji"
-          width="100%"
-          height={pickerHeight}
-          emojiVersion="15.0"
-          style={pickerStyleVars}
-          previewConfig={{ showPreview: false }}
-        />
+        {!pickerOnly && variant !== "composer" ? (
+          <div className="border-b border-white/[0.08] px-2.5 pb-1.5 pt-2">
+            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-white/45">
+              Quick
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {QUICK.map(function (emoji) {
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={function () {
+                      onPick(emoji);
+                    }}
+                    className="h-9 w-9 rounded-xl text-[20px] leading-none transition-colors hover:bg-white/[0.12]"
+                  >
+                    {emoji}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            "overflow-hidden",
+            pickerOnly
+              ? "h-[344px]"
+              : variant === "composer"
+                ? "h-[392px]"
+                : "h-[286px]"
+          )}
+        >
+          <Picker
+            onEmojiClick={function (data: EmojiClickData) {
+              onPick(data.emoji);
+            }}
+            onReactionClick={function (data: EmojiClickData) {
+              onPick(data.emoji);
+            }}
+            lazyLoadEmojis={true}
+            emojiStyle={EmojiStyle.APPLE}
+            theme={Theme.DARK}
+            categories={EMOJI_CATEGORIES}
+            skinTonesDisabled={false}
+            skinTonePickerLocation={SkinTonePickerLocation.SEARCH}
+            searchDisabled={false}
+            searchPlaceholder="Describe an Emoji"
+            searchPlaceHolder="Describe an Emoji"
+            width="100%"
+            height={pickerHeight}
+            emojiVersion="15.0"
+            style={pickerStyleVars}
+            previewConfig={{ showPreview: false }}
+          />
+        </div>
       </div>
-    </div>
+    </BodyPortal>
   );
 }

@@ -25,6 +25,11 @@ import {
 } from "../lib/formatChatTime";
 import { sortChatMessages } from "../lib/sortChatMessages";
 import { ChatEmojiPanel } from "./ChatEmojiPanel";
+import {
+  ChatMessageReactions,
+  hasVisibleReactions,
+} from "./ChatMessageReactions";
+import reactionStyles from "./ChatReactions.module.css";
 
 const TOP_5_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"];
 
@@ -108,8 +113,11 @@ function MessageActions({
   }, []);
 
   const isInsideMessageActions = useCallback(function (t: Node): boolean {
+    const targetElement = t instanceof Element ? t : null;
     return !!(
-      moreMenuRef.current?.contains(t) || ref.current?.contains(t)
+      moreMenuRef.current?.contains(t) ||
+      ref.current?.contains(t) ||
+      targetElement?.closest("[data-chat-emoji-panel]")
     );
   }, []);
   const noopReposition = useCallback(function (): void {}, []);
@@ -174,7 +182,8 @@ function MessageActions({
         {showReactionBar ? (
           <div
             className={cn(
-              "absolute bottom-full mb-2 z-[75] flex items-center gap-0.5 rounded-full border border-border bg-elevated px-1.5 py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+              "absolute bottom-full mb-2.5 z-[75] flex items-center gap-0.5 rounded-full border border-border/80 bg-elevated/95 px-1 py-1 shadow-[0_6px_28px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-xl",
+              reactionStyles.quickBar,
               align === "left" ? "right-0" : "left-0"
             )}
             role="toolbar"
@@ -188,12 +197,19 @@ function MessageActions({
                   onClick={function () {
                     pickQuick(emoji);
                   }}
-                  className="w-9 h-9 rounded-full text-[20px] leading-none flex items-center justify-center hover:bg-hover transition-colors"
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full text-[22px] leading-none",
+                    reactionStyles.quickEmoji
+                  )}
                 >
                   {emoji}
                 </button>
               );
             })}
+            <span
+              className="mx-0.5 h-5 w-px shrink-0 bg-border/70"
+              aria-hidden
+            />
             <button
               ref={plusRef}
               type="button"
@@ -203,14 +219,14 @@ function MessageActions({
                 });
               }}
               className={cn(
-                "w-9 h-9 rounded-full flex items-center justify-center transition-colors",
+                "flex h-9 w-9 items-center justify-center rounded-full border border-dashed transition-colors",
                 reactionPhase === "picker"
-                  ? "bg-[#007AFF]/15 text-[#007AFF]"
-                  : "text-fg-muted hover:bg-hover"
+                  ? "border-[#007AFF]/45 bg-[#007AFF]/12 text-[#007AFF]"
+                  : "border-border/80 text-fg-muted hover:border-[#007AFF]/35 hover:bg-hover hover:text-fg"
               )}
               aria-label="More emoji"
             >
-              <Icon name="plus" className="w-[18px] h-[18px]" strokeWidth={2.25} />
+              <Icon name="plus" className="h-[17px] w-[17px]" strokeWidth={2.25} />
             </button>
           </div>
         ) : null}
@@ -330,56 +346,6 @@ function MessageActions({
   );
 }
 
-function ReactionChips({
-  msg,
-  isOwn,
-  onToggleReaction,
-}: {
-  msg: ChatMessage;
-  isOwn: boolean;
-  onToggleReaction: (messageId: string, emoji: string) => void;
-}) {
-  const list = (msg.reactions || []).filter(function (r) {
-    return r.count > 0;
-  });
-  if (list.length === 0) {
-    return null;
-  }
-  return (
-    <div
-      className={cn(
-        "flex flex-wrap gap-1 w-full max-w-[min(100%,520px)]",
-        isOwn ? "justify-end" : "justify-start"
-      )}
-    >
-      {list.map(function (r) {
-        return (
-          <button
-            key={r.emoji}
-            type="button"
-            onClick={function () {
-              onToggleReaction(msg.id, r.emoji);
-            }}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[13px] border transition-colors",
-              r.includesMe
-                ? "bg-[#007AFF]/12 border-[#007AFF]/35 dark:bg-[#007AFF]/20"
-                : "bg-sunken border-border"
-            )}
-          >
-            <span>{r.emoji}</span>
-            {r.count > 1 ? (
-              <span className="text-[10px] font-semibold tabular-nums text-fg-muted">
-                {r.count}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function TypingDots() {
   return (
     <span className="flex items-center gap-1 px-1" aria-hidden>
@@ -462,6 +428,15 @@ function BubbleRow({
 }) {
   const time = formatMessageTime(msg.createdAt);
   const hasAttachment = Boolean(msg.media || msg.file);
+  const showReactions = hasVisibleReactions(msg.reactions);
+  const statusLabel =
+    receiptLabel === "read"
+      ? "Read"
+      : receiptLabel === "delivered"
+        ? "Delivered"
+        : msg.isOwn && msg.status === "sending"
+          ? "Sending..."
+          : null;
 
   const bubbleRadius = msg.isOwn
     ? cn(
@@ -506,7 +481,8 @@ function BubbleRow({
       <div
         className={cn(
           "relative flex min-w-0 max-w-full group items-end gap-2 w-fit",
-          msg.isOwn ? "justify-end" : "justify-start"
+          msg.isOwn ? "justify-end" : "justify-start",
+          showReactions && "mt-2"
         )}
       >
         {msg.isOwn ? (
@@ -550,11 +526,11 @@ function BubbleRow({
         ) : null}
         <div
           className={cn(
-            "min-w-0 transition-shadow duration-300",
+            "relative min-w-0 transition-shadow duration-300",
             hasAttachment
               ? "max-w-[min(100%,340px)] overflow-visible"
               : cn(
-                  "max-w-[min(100%,520px)] overflow-hidden",
+                  "max-w-[min(100%,520px)] overflow-visible",
                   bubbleRadius,
                   "shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
                   msg.isOwn
@@ -569,9 +545,17 @@ function BubbleRow({
                   : "ring-2 ring-[#007AFF]/55 shadow-[0_0_0_1px_rgba(10,132,255,0.2),0_4px_18px_rgba(10,132,255,0.12)]")
           )}
         >
+          <ChatMessageReactions
+            reactions={msg.reactions}
+            isOwn={msg.isOwn}
+            onToggle={function (emoji) {
+              onToggleReaction(msg.id, emoji);
+            }}
+          />
           <div
             className={cn(
-              hasAttachment ? "p-0" : "px-3.5 py-2"
+              hasAttachment ? "p-0" : "px-3.5 py-2",
+              showReactions && !hasAttachment && "pt-4"
             )}
           >
             {msg.replyTo ? (
@@ -675,14 +659,6 @@ function BubbleRow({
                 ) : null}
               </p>
             ) : null}
-            <div
-              className={cn(
-                "flex items-center justify-end gap-1.5 mt-1",
-                hasAttachment || !msg.isOwn ? "text-fg-muted/90" : "text-white/55"
-              )}
-            >
-              <span className="text-[10px] tabular-nums">{time}</span>
-            </div>
           </div>
         </div>
         {!msg.isOwn ? (
@@ -708,27 +684,20 @@ function BubbleRow({
           />
         ) : null}
       </div>
-      <div
-        className={cn(
-          "max-w-[min(100%,520px)]",
-          msg.isOwn ? "self-end" : "self-start"
-        )}
-      >
-        <ReactionChips
-          msg={msg}
-          isOwn={msg.isOwn}
-          onToggleReaction={onToggleReaction}
-        />
-      </div>
-      {receiptLabel ? (
-        <div className="flex justify-end pr-1">
-          <span className="text-[10px] text-fg-muted/70 tabular-nums">
-            {receiptLabel === "read" ? "Read" : "Delivered"}
-          </span>
-        </div>
-      ) : msg.isOwn && msg.status === "sending" ? (
-        <div className="flex justify-end pr-1">
-          <span className="text-[10px] text-fg-muted/70">Sending…</span>
+      {isLastInRun ? (
+        <div
+          className={cn(
+            "flex items-center gap-1.5 px-1 text-[10px] text-fg-muted/70",
+            msg.isOwn ? "justify-end self-end" : "justify-start self-start pl-9"
+          )}
+        >
+          <span className="tabular-nums">{time}</span>
+          {statusLabel ? (
+            <>
+              <span aria-hidden>&middot;</span>
+              <span>{statusLabel}</span>
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

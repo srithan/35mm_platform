@@ -174,12 +174,23 @@ function mapMessage(msg: ApiChatMessage, currentUserId: string | null): ChatMess
       return {
         emoji: reaction.emoji,
         count: reaction.count,
-        includesMe: reaction.viewerReacted,
+        includesMe: reaction.userIds.includes(currentUserId ?? "") || reaction.viewerReacted,
       };
     }),
     media: media,
     file: file,
   };
+}
+
+function isApiMessage(value: unknown): value is ApiChatMessage {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      typeof (value as { id?: unknown }).id === "string" &&
+      typeof (value as { threadId?: unknown }).threadId === "string" &&
+      typeof (value as { senderId?: unknown }).senderId === "string" &&
+      typeof (value as { createdAt?: unknown }).createdAt === "string"
+  );
 }
 
 function mapSendPayload(payload: ChatSendPayload): {
@@ -317,7 +328,7 @@ export function createRemoteChatClient(opts: {
     },
 
     toggleReaction: function (chatId, messageId, emoji, shouldRemove) {
-      return chatHttpJson<void>({
+      return chatHttpJson<ApiChatMessage | null>({
         baseUrl: baseUrl,
         path:
           "/messages/" +
@@ -328,6 +339,11 @@ export function createRemoteChatClient(opts: {
         method: shouldRemove ? "DELETE" : "POST",
         body: shouldRemove ? undefined : { emoji: emoji },
         getAccessToken: getAccessToken,
+      }).then(function (message) {
+        if (!isApiMessage(message)) {
+          return null;
+        }
+        return mapMessage(message, getCurrentUserId());
       });
     },
 

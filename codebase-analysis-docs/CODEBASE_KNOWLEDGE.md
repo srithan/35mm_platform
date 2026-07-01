@@ -67,7 +67,7 @@ Runtime flow:
 - AWS Keyspaces stores chat message rows and message edit history in `thirtyFiveMM.messages` and `thirtyFiveMM.message_edits`.
 - R2 presigned upload endpoints return deterministic future variant URLs; the worker later creates WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
 - Notification creation writes DB rows and enqueues `notification.publish`; the worker publishes Ably `notification.new` events when `ABLY_API_KEY` exists.
-- Chat send/read-state/typing routes publish latency-sensitive Ably events directly from the API after durable state is written, with BullMQ worker jobs retained as fallback/asynchronous paths for publish failures, large inbox fanout, and message updates.
+- Chat send/read-state/typing/edit/reaction routes publish latency-sensitive Ably events directly from the API after durable state is written, with BullMQ worker jobs retained as fallback/asynchronous paths for publish failures, large inbox fanout, and delete/update recovery.
 
 ## Repository Map
 
@@ -615,7 +615,7 @@ Current state:
   - `POST /v1/chat/presence/batch`
 - Persistence is wired with Postgres metadata tables plus AWS Keyspaces message/edit tables.
 - Redis stores unread counts, typing state, and presence state. Chat unread/presence reads batch via `MGET`; typing membership uses a short-lived sorted set instead of scanning `chat:typing:*` keys.
-- API routes publish low-latency chat delivery/read/typing events through Ably directly after persistence. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and message updates.
+- API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
 - The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patching current messages and inbox unread rows while still invalidating conversation lists.
 - The iOS Messages tab now has a native inbox and core thread experience backed by the same chat contract: cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
 - Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.

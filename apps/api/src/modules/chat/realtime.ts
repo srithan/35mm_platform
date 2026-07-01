@@ -118,3 +118,15 @@ export async function publishChatReadReceipt(input: {
     readAt: new Date().toISOString(),
   });
 }
+
+export async function publishChatMessageUpdated(input: {
+  threadId: string;
+  type: "edit" | "reaction";
+  message: ChatMessage;
+}): Promise<boolean> {
+  return publishAbly(
+    "thread:" + input.threadId,
+    input.type === "edit" ? "message.edited" : "message.reaction",
+    input.message
+  );
+}
