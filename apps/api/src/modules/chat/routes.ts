@@ -55,6 +55,7 @@ import {
 import { bucketsNewestFirst, getMessageBucket, truncatePreview } from "./chatUtils.js";
 import {
   publishChatMessageCreated,
+  publishChatInboxThreadUpdated,
   publishChatMessageUpdated,
   publishChatReadReceipt,
   publishChatTyping,
@@ -397,6 +398,58 @@ async function createChatReactionNotification(input: {
       error,
     });
   }
+}
+
+async function publishChatReactionUnread(input: {
+  threadId: string;
+  actorId: string;
+  recipientId: string;
+  emoji: string;
+}): Promise<{
+  preview: string;
+  reactedAt: string;
+  inboxPublished: boolean;
+} | null> {
+  if (input.actorId === input.recipientId) return null;
+  if (!(await isActiveThreadMember(input.threadId, input.recipientId))) return null;
+
+  var now = new Date();
+  var preview = input.emoji + " Reacted to your message";
+  await getDb()
+    .insert(chatThreadMeta)
+    .values({
+      threadId: input.threadId,
+      lastMessageAt: now,
+      lastMessagePreview: preview,
+      lastSenderId: input.actorId,
+      messageCount: 0,
+    })
+    .onConflictDoUpdate({
+      target: chatThreadMeta.threadId,
+      set: {
+        lastMessageAt: now,
+        lastMessagePreview: preview,
+        lastSenderId: input.actorId,
+      },
+    });
+  await incrementUnread(input.recipientId, input.threadId);
+  var unreadCounts = await getUnreadCountsForPairs([
+    { userId: input.recipientId, threadId: input.threadId },
+  ]);
+  var unreadCount = unreadCounts[input.recipientId + ":" + input.threadId] ?? 0;
+  var inboxPublished = await publishChatInboxThreadUpdated({
+    recipientId: input.recipientId,
+    threadId: input.threadId,
+    lastMessageAt: now.toISOString(),
+    lastMessagePreview: preview,
+    senderId: input.actorId,
+    unreadCount,
+  });
+  return {
+    preview,
+    reactedAt: now.toISOString(),
+    inboxPublished,
+  };
 }
 
 async function getThreadPreview(threadId: string, viewerId: string): Promise<ChatThreadPreview> {
@@ -886,16 +939,33 @@ chatRoutes.post("/messages/:messageId/reactions", reactionRateLimit, async funct
     type: "reaction",
     message,
   });
-  if (!published) {
-    await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
-  }
   if (!alreadyReacted) {
+    var reactionUnread = await publishChatReactionUnread({
+      threadId,
+      actorId: viewer.userId,
+      recipientId: row.sender_id,
+      emoji: body.emoji,
+    });
     await createChatReactionNotification({
       threadId,
       messageId,
       actorId: viewer.userId,
       recipientId: row.sender_id,
     });
+    if (!published || reactionUnread?.inboxPublished === false) {
+      await enqueueChatJob("chat.messageUpdated", {
+        messageId,
+        threadId,
+        bucket,
+        type: "reaction",
+        reactionRecipientId: reactionUnread ? row.sender_id : undefined,
+        reactionActorId: reactionUnread ? viewer.userId : undefined,
+        reactionPreview: reactionUnread?.preview,
+        reactionAt: reactionUnread?.reactedAt,
+      });
+    }
+  } else if (!published) {
+    await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
   }
   return c.json(message);
 });

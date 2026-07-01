@@ -573,7 +573,7 @@ Behavior:
 - Writes the full reactions map back to `messages.reactions`.
 - Publishes `message.reaction` directly to `thread:{threadId}` after persistence.
 - Enqueues `chat.messageUpdated` with type `reaction` only when direct publish fails.
-- Creates a `chat_reaction` notification for the message sender only on the first reaction add by that actor; self-reactions, duplicate retries, inactive recipients, and reaction removals do not create notifications.
+- Creates a `chat_reaction` notification for the message sender only on the first reaction add by that actor, increments that sender's chat unread count, updates `chat_thread_meta` with a reaction preview, and publishes `thread.updated` to `user:{recipientId}:inbox` so header badges and unread rows update in realtime. Self-reactions, duplicate retries, inactive recipients, and reaction removals do not create notifications or unread increments.
 - Returns the updated hydrated message so clients can patch the active thread
   cache without a follow-up read.
 

@@ -130,3 +130,20 @@ export async function publishChatMessageUpdated(input: {
     input.message
   );
 }
+
+export async function publishChatInboxThreadUpdated(input: {
+  recipientId: string;
+  threadId: string;
+  lastMessageAt: string;
+  lastMessagePreview: string;
+  senderId: string;
+  unreadCount: number;
+}): Promise<boolean> {
+  return publishAbly("user:" + input.recipientId + ":inbox", "thread.updated", {
+    threadId: input.threadId,
+    lastMessageAt: input.lastMessageAt,
+    lastMessagePreview: input.lastMessagePreview,
+    senderId: input.senderId,
+    unreadCount: input.unreadCount,
+  });
+}

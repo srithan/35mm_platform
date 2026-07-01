@@ -36,6 +36,10 @@ type ChatMessageUpdatedJobPayload = {
   threadId: string;
   bucket: number;
   type: "edit" | "delete" | "reaction";
+  reactionRecipientId?: string;
+  reactionActorId?: string;
+  reactionPreview?: string;
+  reactionAt?: string;
 };
 
 type ChatReadReceiptJobPayload = {
