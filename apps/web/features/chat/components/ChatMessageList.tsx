@@ -154,10 +154,10 @@ function MessageActions({
     <div
       ref={ref}
       className={cn(
-        "hidden md:flex items-center gap-0.5 shrink-0 transition-opacity",
+        "flex items-center gap-0.5 shrink-0 transition-opacity",
         showMore || isReactionBarOpen
           ? "opacity-100"
-          : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+          : "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100",
         align === "left" && "order-first"
       )}
     >
@@ -171,7 +171,7 @@ function MessageActions({
             setShowMore(false);
           }}
           className={cn(
-            "p-1.5 rounded-full transition-colors",
+            "rounded-full p-1.5 transition-colors md:hidden",
             isReactionBarOpen
               ? "text-[#007AFF] bg-[#007AFF]/12 dark:bg-[#007AFF]/20"
               : "text-fg-muted hover:text-fg hover:bg-hover"
@@ -187,7 +187,7 @@ function MessageActions({
               "absolute bottom-full mb-2.5 z-[75] items-center gap-0.5 rounded-full border border-border/80 bg-elevated/95 px-1 py-1 shadow-[0_6px_28px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-xl",
               isReactionBarOpen
                 ? "flex"
-                : "hidden group-hover:flex group-focus-within:flex",
+                : "hidden md:group-hover:flex md:group-focus-within:flex",
               reactionStyles.quickBar,
               align === "left" ? "right-0" : "left-0"
             )}
@@ -259,12 +259,12 @@ function MessageActions({
           closeReactions();
           onReply();
         }}
-        className="p-1.5 text-fg-muted hover:text-fg hover:bg-hover rounded-full transition-colors"
+        className="hidden rounded-full p-1.5 text-fg-muted transition-colors hover:bg-hover hover:text-fg md:inline-flex"
         aria-label="Reply"
       >
         <Icon name="reply" className="w-4 h-4" strokeWidth={2} />
       </button>
-      <div className="relative">
+      <div className="relative hidden md:block">
         <button
           type="button"
           onClick={function () {
