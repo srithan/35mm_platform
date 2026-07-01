@@ -16,7 +16,7 @@ export function HeaderLeft() {
       </BrandLogo>
       <div className={styles.headerSearchWrap}>
         <SearchBar
-          placeholder="Search films, people, reviews…"
+          placeholder="Search 35mm"
           category="all"
           variant="inline"
           size="compact"

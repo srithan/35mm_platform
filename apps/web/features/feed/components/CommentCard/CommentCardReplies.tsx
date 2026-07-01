@@ -10,6 +10,7 @@ interface CommentCardRepliesProps {
   postBookmarkFolderId?: string | null;
   depth: number;
   expanded: boolean;
+  truncateText?: boolean;
   onReplySubmit?: CommentCardProps["onReplySubmit"];
 }
 
@@ -20,6 +21,7 @@ export function CommentCardReplies({
   postBookmarkFolderId = null,
   depth,
   expanded,
+  truncateText = true,
   onReplySubmit,
 }: CommentCardRepliesProps) {
   if (!expanded) return null;
@@ -34,6 +36,7 @@ export function CommentCardReplies({
           postBookmarked={postBookmarked}
           postBookmarkFolderId={postBookmarkFolderId}
           depth={depth + 1}
+          truncateText={truncateText}
           onReplySubmit={onReplySubmit}
         />
       ))}

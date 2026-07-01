@@ -2,14 +2,26 @@
 
 import { useEffect, useRef, type CSSProperties } from "react";
 import Picker, {
+  Categories,
   EmojiStyle,
+  SkinTonePickerLocation,
   Theme,
   type EmojiClickData,
 } from "emoji-picker-react";
-import { useTheme } from "@/lib/theme/useTheme";
 import { cn } from "@/lib/utils/cn";
 
 const QUICK = ["👍", "❤️", "😂", "😮", "😢", "🎬", "🔥", "👏"];
+const EMOJI_CATEGORIES = [
+  { category: Categories.SUGGESTED, name: "Frequently used" },
+  { category: Categories.SMILEYS_PEOPLE, name: "Smileys & people" },
+  { category: Categories.ANIMALS_NATURE, name: "Animals & nature" },
+  { category: Categories.FOOD_DRINK, name: "Food & drink" },
+  { category: Categories.TRAVEL_PLACES, name: "Travel & places" },
+  { category: Categories.ACTIVITIES, name: "Activities" },
+  { category: Categories.OBJECTS, name: "Objects" },
+  { category: Categories.SYMBOLS, name: "Symbols" },
+  { category: Categories.FLAGS, name: "Flags" },
+];
 
 interface ChatEmojiPanelProps {
   isOpen: boolean;
@@ -35,16 +47,20 @@ export function ChatEmojiPanel({
   pickerOnly = false,
   dismissInsideRef,
 }: ChatEmojiPanelProps) {
-  const { resolvedTheme } = useTheme();
   const panelRef = useRef<HTMLDivElement>(null);
-  const pickerTheme =
-    resolvedTheme === "light" || resolvedTheme === "barbie"
-      ? Theme.LIGHT
-      : Theme.DARK;
 
   const pickerStyleVars: CSSProperties = {
-    ["--epr-emoji-size" as string]: variant === "composer" ? "22px" : "20px",
-    ["--epr-category-navigation-button-size" as string]: "26px",
+    ["--epr-emoji-size" as string]: variant === "composer" ? "24px" : "22px",
+    ["--epr-emoji-padding" as string]: variant === "composer" ? "6px" : "5px",
+    ["--epr-category-navigation-button-size" as string]:
+      variant === "composer" ? "29px" : "27px",
+    ["--epr-search-input-border-radius" as string]: "999px",
+    ["--epr-search-input-height" as string]: variant === "composer" ? "46px" : "42px",
+    ["--epr-skin-tone-size" as string]: "18px",
+    ["--epr-horizontal-padding" as string]: variant === "composer" ? "12px" : "10px",
+    ["--epr-header-padding" as string]:
+      variant === "composer" ? "10px 10px 6px" : "8px 8px 5px",
+    ["--epr-category-label-height" as string]: "0px",
   };
 
   useEffect(
@@ -85,35 +101,36 @@ export function ChatEmojiPanel({
   }
 
   const widthClass = pickerOnly
-    ? "w-[min(100vw-24px,320px)]"
+    ? "w-[min(100vw-24px,336px)]"
     : variant === "composer"
-      ? "w-[min(100vw-24px,340px)]"
-      : "w-[min(100vw-24px,300px)]";
+      ? "w-[min(100vw-24px,356px)]"
+      : "w-[min(100vw-24px,312px)]";
 
   const pickerHeight = pickerOnly
-    ? 300
+    ? 344
     : variant === "composer"
-      ? 300
-      : 240;
+      ? 392
+      : 286;
 
   return (
     <div
       ref={panelRef}
       data-chat-emoji-panel
+      data-emoji-picker-surface
       className={cn(
-        "absolute z-[80] rounded-2xl border border-border bg-elevated/95 backdrop-blur-md shadow-xl overflow-hidden",
+        "absolute z-[80] overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#111111] shadow-xl",
         widthClass,
         variant === "composer" ? "bottom-full mb-2" : "bottom-full mb-1.5",
         align === "right" ? "right-0" : "left-0"
       )}
       style={{
         boxShadow:
-          "0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.08)",
+          "0 22px 64px rgba(0,0,0,0.34), 0 8px 24px rgba(0,0,0,0.24)",
       }}
     >
-      {!pickerOnly ? (
-        <div className="px-2.5 pt-2 pb-1.5 border-b border-border">
-          <p className="text-[10px] font-semibold tracking-wide uppercase text-fg-muted px-1 mb-1">
+      {!pickerOnly && variant !== "composer" ? (
+        <div className="border-b border-white/[0.08] px-2.5 pb-1.5 pt-2">
+          <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-white/45">
             Quick
           </p>
           <div className="flex flex-wrap gap-1">
@@ -125,7 +142,7 @@ export function ChatEmojiPanel({
                   onClick={function () {
                     onPick(emoji);
                   }}
-                  className="text-[20px] leading-none w-9 h-9 rounded-xl hover:bg-hover transition-colors"
+                  className="h-9 w-9 rounded-xl text-[20px] leading-none transition-colors hover:bg-white/[0.12]"
                 >
                   {emoji}
                 </button>
@@ -137,7 +154,11 @@ export function ChatEmojiPanel({
       <div
         className={cn(
           "overflow-hidden",
-          pickerOnly ? "max-h-[320px]" : variant === "composer" ? "max-h-[320px]" : "max-h-[260px]"
+          pickerOnly
+            ? "h-[344px]"
+            : variant === "composer"
+              ? "h-[392px]"
+              : "h-[286px]"
         )}
       >
         <Picker
@@ -148,10 +169,14 @@ export function ChatEmojiPanel({
             onPick(data.emoji);
           }}
           lazyLoadEmojis={true}
-          emojiStyle={EmojiStyle.NATIVE}
-          theme={pickerTheme}
+          emojiStyle={EmojiStyle.APPLE}
+          theme={Theme.DARK}
+          categories={EMOJI_CATEGORIES}
           skinTonesDisabled={false}
+          skinTonePickerLocation={SkinTonePickerLocation.SEARCH}
           searchDisabled={false}
+          searchPlaceholder="Describe an Emoji"
+          searchPlaceHolder="Describe an Emoji"
           width="100%"
           height={pickerHeight}
           emojiVersion="15.0"

@@ -18,12 +18,10 @@ import Picker, {
 import { BodyPortal } from "@/components/BodyPortal/BodyPortal";
 import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 
-const CINEMA_EMOJIS = ["🎬", "🎞️", "📽️", "🎭", "⭐", "❤️", "🔥", "👁️"];
-const PANEL_WIDTH_PX = 296;
-const PANEL_MAX_HEIGHT_PX = 420;
-const PANEL_MIN_HEIGHT_PX = 280;
-const QUICK_PICK_HEIGHT_PX = 62;
-const ESTIMATED_PANEL_HEIGHT_PX = 340;
+const PANEL_WIDTH_PX = 356;
+const PANEL_MAX_HEIGHT_PX = 484;
+const PANEL_MIN_HEIGHT_PX = 340;
+const ESTIMATED_PANEL_HEIGHT_PX = 448;
 
 const EMOJI_STYLE_MAP = {
   native: EmojiStyle.NATIVE,
@@ -33,6 +31,7 @@ const EMOJI_STYLE_MAP = {
 } as const;
 
 const EMOJI_CATEGORIES = [
+  { category: Categories.SUGGESTED, name: "Frequently used" },
   { category: Categories.SMILEYS_PEOPLE, name: "Smileys & people" },
   { category: Categories.ANIMALS_NATURE, name: "Animals & nature" },
   { category: Categories.FOOD_DRINK, name: "Food & drink" },
@@ -62,12 +61,14 @@ export function EmojiPicker({
 }: EmojiPickerProps) {
   const pickerStyleVars: CSSProperties = {
     ["--epr-emoji-size" as string]: "24px",
-    ["--epr-emoji-padding" as string]: "4px",
-    ["--epr-category-navigation-button-size" as string]: "26px",
-    ["--epr-category-icon-active-color" as string]: "#8f8f8f",
+    ["--epr-emoji-padding" as string]: "6px",
+    ["--epr-category-navigation-button-size" as string]: "29px",
     ["--epr-search-input-border-radius" as string]: "999px",
-    ["--epr-search-input-height" as string]: "36px",
+    ["--epr-search-input-height" as string]: "46px",
     ["--epr-skin-tone-size" as string]: "18px",
+    ["--epr-horizontal-padding" as string]: "12px",
+    ["--epr-header-padding" as string]: "10px 10px 6px",
+    ["--epr-category-label-height" as string]: "0px",
   };
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState({
@@ -127,7 +128,7 @@ export function EmojiPicker({
 
       const availableHeight = Math.max(PANEL_MIN_HEIGHT_PX, viewportBottom - top - margin);
       const maxHeight = Math.min(maxPanelHeight, availableHeight);
-      const pickerHeight = Math.max(220, maxHeight - QUICK_PICK_HEIGHT_PX);
+      const pickerHeight = Math.max(PANEL_MIN_HEIGHT_PX, maxHeight);
 
       setPos({ top: top, left: left, maxHeight: maxHeight, pickerHeight: pickerHeight });
       setIsPositioned(true);
@@ -196,18 +197,19 @@ export function EmojiPicker({
       <div
         ref={setPanelRef}
         data-emoji-panel
-        className="fixed z-[calc(var(--z-composer)+2)] overflow-visible overscroll-y-contain rounded-lg border border-border bg-elevated"
+        data-emoji-picker-surface
+        className="fixed z-[calc(var(--z-composer)+2)] overflow-hidden overscroll-y-contain rounded-[22px] border border-white/[0.09] bg-[#111111]"
         style={{
           top: pos.top,
           left: pos.left,
-          width: PANEL_WIDTH_PX,
+          width: `min(${PANEL_WIDTH_PX}px, calc(100vw - 16px))`,
           maxHeight: pos.maxHeight,
           visibility: isPositioned ? "visible" : "hidden",
           boxShadow:
-            "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
+            "0 22px 64px rgba(0,0,0,0.34), 0 8px 24px rgba(0,0,0,0.24)",
         }}
       >
-        <div className="min-h-0 touch-pan-y" style={{ maxHeight: pos.pickerHeight }}>
+        <div className="min-h-0 touch-pan-y" style={{ height: pos.pickerHeight }}>
           <Picker
             key={`${emojiStyle}-${selectedSkinTone}`}
             onEmojiClick={function (emojiData: EmojiClickData) {
@@ -218,67 +220,21 @@ export function EmojiPicker({
             }}
             lazyLoadEmojis={true}
             emojiStyle={EMOJI_STYLE_MAP[emojiStyle]}
-            theme={Theme.LIGHT}
+            theme={Theme.DARK}
             categories={EMOJI_CATEGORIES}
             defaultSkinTone={selectedSkinTone}
             onSkinToneChange={setSelectedSkinTone}
             skinTonesDisabled={false}
             skinTonePickerLocation={SkinTonePickerLocation.SEARCH}
+            searchPlaceholder="Describe an Emoji"
+            searchPlaceHolder="Describe an Emoji"
             width="100%"
             height={pos.pickerHeight}
-            emojiVersion="2.0"
+            emojiVersion="15.0"
             style={pickerStyleVars}
             previewConfig={{ showPreview: false }}
           />
         </div>
-
-        <div className="border-t border-border bg-elevated px-3 pb-1.5 pt-2">
-          <p className="mb-1 px-1 text-[9px] font-semibold uppercase tracking-widest text-fg-faint">
-            Cinema quick picks
-          </p>
-          <div className="grid grid-cols-8 gap-0.5">
-            {CINEMA_EMOJIS.map(function (emoji) {
-              return (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={function () {
-                    handleSelect(emoji);
-                  }}
-                  className="rounded-md p-0.5 text-center text-[14px] leading-none transition-colors hover:bg-sunken"
-                >
-                  {emoji}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <style jsx global>{`
-          [data-emoji-panel] .EmojiPickerReact {
-            overflow: visible !important;
-          }
-          [data-emoji-panel] .EmojiPickerReact .epr-search-container input {
-            border-radius: 999px !important;
-          }
-          [data-emoji-panel] .EmojiPickerReact .epr-skin-tones {
-            overflow: visible !important;
-            position: relative;
-            z-index: 3;
-          }
-          [data-emoji-panel] .EmojiPickerReact .epr-category-nav .epr-cat-btn.epr-active {
-            background-position-y: 0 !important;
-          }
-          [data-emoji-panel] .EmojiPickerReact .epr-body {
-            overflow-y: auto !important;
-            overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch;
-          }
-          [data-emoji-panel] .EmojiPickerReact .epr-emoji-category-content,
-          [data-emoji-panel] .EmojiPickerReact .epr-emoji-category-content > div {
-            justify-content: center;
-          }
-        `}</style>
       </div>
     </BodyPortal>
   );

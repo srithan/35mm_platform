@@ -12,6 +12,10 @@ function isChatQueryKey(value: unknown): value is readonly unknown[] {
   );
 }
 
+function isFeedQueryKey(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value) && value[0] === "feed";
+}
+
 function isPersistedClient(value: unknown): value is PersistedClient {
   return (
     typeof value === "object" &&
@@ -51,6 +55,9 @@ function sanitizeChatQueryData(queryKey: readonly unknown[], data: unknown): unk
 function sanitizePersistedClient(client: PersistedClient): PersistedClient {
   const queries = client.clientState.queries
     .map(function (query) {
+      if (isFeedQueryKey(query.queryKey)) {
+        return null;
+      }
       if (!isChatQueryKey(query.queryKey)) {
         return query;
       }
@@ -88,6 +95,9 @@ export const queryPersister = createSyncStoragePersister({
   throttleTime: 1000,
   serialize: function (client) {
     return JSON.stringify(sanitizePersistedClient(client));
+  },
+  deserialize: function (cachedString) {
+    return sanitizePersistedClient(JSON.parse(cachedString) as PersistedClient);
   },
 });
 

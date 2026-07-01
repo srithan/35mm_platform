@@ -24,6 +24,7 @@ export function CommentCard({
   postBookmarked = false,
   postBookmarkFolderId = null,
   depth = 0,
+  truncateText = true,
   onReplySubmit,
 }: CommentCardProps) {
   const [repliesExpanded, setRepliesExpanded] = useState(false);
@@ -56,7 +57,7 @@ export function CommentCard({
 
   const { bodyRef, measureRef, isOverflowing, truncatedText } = useClampText({
     text: cleanedText,
-    enabled: !isEditing,
+    enabled: truncateText && !isEditing,
     lineHeightFallback: 24.75,
   });
 
@@ -74,6 +75,7 @@ export function CommentCard({
         postBookmarked={postBookmarked}
         postBookmarkFolderId={postBookmarkFolderId}
         depth={depth}
+        truncateText={truncateText}
         onReplySubmit={onReplySubmit}
       />
     );
@@ -196,6 +198,7 @@ export function CommentCard({
               postBookmarkFolderId={postBookmarkFolderId}
               depth={depth}
               expanded={repliesExpanded}
+              truncateText={truncateText}
               onReplySubmit={onReplySubmit}
             />
           ) : null}

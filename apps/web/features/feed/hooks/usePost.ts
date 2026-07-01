@@ -4,12 +4,13 @@ import { fetchPost } from "../api/postsApi";
 import { feedKeys } from "./queryKeys";
 
 export function usePost(username: string, postId: string) {
-  const { getToken, isLoaded } = useAuth();
+  const { getToken, isLoaded, userId } = useAuth();
 
   return useQuery({
-    queryKey: feedKeys.post(postId),
+    queryKey: feedKeys.postForViewer(postId, userId),
     queryFn: async () => fetchPost(postId, await getToken()),
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     enabled: isLoaded && Boolean(username) && Boolean(postId),
   });
 }

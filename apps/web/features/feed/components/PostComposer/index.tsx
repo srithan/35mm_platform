@@ -50,7 +50,7 @@ const WRITE_MAX_CHARS = 500;
 const POLL_TEXT_MAX_CHARS = 140;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
-const POST_COMPOSER_EMOJI_STYLE = "native" as const;
+const POST_COMPOSER_EMOJI_STYLE = "apple" as const;
 const VIDEO_PREVIEW_CLASS = "mx-auto max-h-[min(42vh,360px)] max-w-full rounded-md object-contain bg-black";
 
 const YOUTUBE_REGEX =

@@ -92,15 +92,15 @@ export async function deletePost(postId: string, token: string | null): Promise<
   });
 }
 
-export async function likePost(postId: string, token: string | null): Promise<{ likeCount: number }> {
-  return apiRequest<{ likeCount: number }>(`/v1/feed/posts/${encodeURIComponent(postId)}/likes`, {
+export async function likePost(postId: string, token: string | null): Promise<{ likeCount: number; isLiked?: boolean }> {
+  return apiRequest<{ likeCount: number; isLiked?: boolean }>(`/v1/feed/posts/${encodeURIComponent(postId)}/likes`, {
     method: "POST",
     token,
   });
 }
 
-export async function unlikePost(postId: string, token: string | null): Promise<{ likeCount: number }> {
-  return apiRequest<{ likeCount: number }>(`/v1/feed/posts/${encodeURIComponent(postId)}/likes`, {
+export async function unlikePost(postId: string, token: string | null): Promise<{ likeCount: number; isLiked?: boolean }> {
+  return apiRequest<{ likeCount: number; isLiked?: boolean }>(`/v1/feed/posts/${encodeURIComponent(postId)}/likes`, {
     method: "DELETE",
     token,
   });

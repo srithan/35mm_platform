@@ -27,6 +27,7 @@ export interface CommentCardProps {
   postBookmarked?: boolean;
   postBookmarkFolderId?: string | null;
   depth?: number;
+  truncateText?: boolean;
   onReplySubmit?: (input: { parentId: string; body: string }) => Promise<void>;
 }
 

@@ -24,11 +24,9 @@ export function LandingHero({ authPanel, authRef }: LandingHeroProps) {
           </p>
         </div>
 
-        <aside className="landing-hero__auth landing-hero__auth--desktop">{authPanel}</aside>
-
-        <div ref={authRef} className="landing-hero__auth landing-hero__auth--mobile">
+        <aside ref={authRef} className="landing-hero__auth">
           {authPanel}
-        </div>
+        </aside>
       </div>
     </section>
   );

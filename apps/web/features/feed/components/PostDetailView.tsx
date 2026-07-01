@@ -164,6 +164,7 @@ export function PostDetailView({
         postUsername={username}
         postBookmarked={post.isBookmarked}
         postBookmarkFolderId={post.bookmarkFolderId}
+        truncateComments={false}
       />
     </div>
   );

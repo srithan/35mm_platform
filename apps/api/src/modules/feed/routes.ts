@@ -2634,19 +2634,17 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
       .returning({ postId: postLikes.postId });
 
     var countRows = await db
-      .select({ likeCount: posts.likeCount })
-      .from(posts)
-      .where(eq(posts.id, postId))
+      .select({ likeCount: count() })
+      .from(postLikes)
+      .where(eq(postLikes.postId, postId))
       .limit(1);
-    var nextLikeCount = Number(countRows[0]?.likeCount ?? 0) + (inserted.length > 0 ? 1 : 0);
+    var nextLikeCount = Number(countRows[0]?.likeCount ?? 0);
 
     if (inserted.length > 0) {
-      await enqueueCounterDelta({
-        targetTable: "posts",
-        targetId: postId,
-        counterName: "likeCount",
-        delta: 1,
-      });
+      await db
+        .update(posts)
+        .set({ likeCount: nextLikeCount, updatedAt: new Date() })
+        .where(eq(posts.id, postId));
 
       try {
         await createNotification(
@@ -2684,6 +2682,7 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
 
     return c.json({
       likeCount: nextLikeCount,
+      isLiked: true,
     });
   } catch (err) {
     throw toActionError(err);
@@ -2711,22 +2710,17 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
     .returning({ postId: postLikes.postId });
 
   var countRows = await db
-    .select({ likeCount: posts.likeCount })
-    .from(posts)
-    .where(eq(posts.id, postId))
+    .select({ likeCount: count() })
+    .from(postLikes)
+    .where(eq(postLikes.postId, postId))
     .limit(1);
-  var nextLikeCount = Math.max(
-    Number(countRows[0]?.likeCount ?? 0) - (deleted.length > 0 ? 1 : 0),
-    0
-  );
+  var nextLikeCount = Number(countRows[0]?.likeCount ?? 0);
 
   if (deleted.length > 0) {
-    await enqueueCounterDelta({
-      targetTable: "posts",
-      targetId: postId,
-      counterName: "likeCount",
-      delta: -1,
-    });
+    await db
+      .update(posts)
+      .set({ likeCount: nextLikeCount, updatedAt: new Date() })
+      .where(eq(posts.id, postId));
 
     try {
       var existingNotificationRows: Array<{
@@ -2835,6 +2829,7 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
 
   return c.json({
     likeCount: nextLikeCount,
+    isLiked: false,
   });
 });
 

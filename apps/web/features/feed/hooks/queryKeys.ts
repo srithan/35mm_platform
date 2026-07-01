@@ -3,6 +3,8 @@ export const feedKeys = {
   home: () => ["feed", "home"] as const,
   profile: (username: string) => ["feed", "profile", username] as const,
   post: (postId: string) => ["feed", "post", postId] as const,
+  postForViewer: (postId: string, viewerId: string | null | undefined) =>
+    ["feed", "post", postId, "viewer", viewerId ?? "guest"] as const,
   postLike: (postId: string) => ["feed", "post", postId, "like"] as const,
   postBookmark: (postId: string) => ["feed", "post", postId, "bookmark"] as const,
   comments: (postId: string) => ["feed", "comments", postId] as const,

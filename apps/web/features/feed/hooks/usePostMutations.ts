@@ -22,6 +22,7 @@ import { showGlobalFlashToast } from "@/components/FlashToast";
 import { applyOptimisticPollVote } from "../utils/pollUtils";
 
 type FeedCacheSnapshot = Array<[readonly unknown[], InfiniteData<FeedPage> | undefined]>;
+type PostCacheSnapshot = Array<[readonly unknown[], Post | undefined]>;
 
 function isInfiniteFeedData(
   value: unknown
@@ -97,6 +98,35 @@ function restoreFeedCaches(queryClient: QueryClient, snapshot: FeedCacheSnapshot
   }
 }
 
+function snapshotPostCaches(queryClient: QueryClient, postId: string): PostCacheSnapshot {
+  return queryClient.getQueriesData<Post | undefined>({
+    queryKey: feedKeys.post(postId),
+  });
+}
+
+function restorePostCaches(queryClient: QueryClient, snapshot: PostCacheSnapshot) {
+  for (var i = 0; i < snapshot.length; i += 1) {
+    var entry = snapshot[i];
+    queryClient.setQueryData(entry[0], entry[1]);
+  }
+}
+
+function patchPostDetailCaches(
+  queryClient: QueryClient,
+  postId: string,
+  updater: (post: Post) => Post,
+  fallbackPost?: Post
+) {
+  var entries = queryClient.getQueriesData<Post | undefined>({
+    queryKey: feedKeys.post(postId),
+  });
+
+  for (var i = 0; i < entries.length; i += 1) {
+    var [key, data] = entries[i];
+    queryClient.setQueryData<Post | undefined>(key, data ? updater(data) : fallbackPost);
+  }
+}
+
 function patchAllFeedCaches(
   queryClient: QueryClient,
   postId: string,
@@ -120,9 +150,7 @@ function patchAllFeedCaches(
     );
   }
 
-  queryClient.setQueryData<Post | undefined>(feedKeys.post(postId), function (existing) {
-    return existing ? updater(existing) : updatedPostFromFeed ?? existing;
-  });
+  patchPostDetailCaches(queryClient, postId, updater, updatedPostFromFeed);
 }
 
 function removePostFromAllFeedCaches(
@@ -158,7 +186,7 @@ export function useLikePost(postId?: string) {
       await queryClient.cancelQueries({ queryKey: feedKeys.post(input.postId) });
 
       var snapshot = snapshotFeedCaches(queryClient);
-      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+      var previousPosts = snapshotPostCaches(queryClient, input.postId);
 
       patchAllFeedCaches(queryClient, input.postId, function (post) {
         var countDelta = post.isLiked === input.isLiked ? 0 : input.isLiked ? 1 : -1;
@@ -171,19 +199,19 @@ export function useLikePost(postId?: string) {
 
       return {
         snapshot,
-        previousPost,
+        previousPosts,
       };
     },
     onError: function (_err, input, context) {
       if (!context) return;
       restoreFeedCaches(queryClient, context.snapshot);
-      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      restorePostCaches(queryClient, context.previousPosts);
     },
     onSuccess: function (data, input) {
       patchAllFeedCaches(queryClient, input.postId, function (post) {
         return {
           ...post,
-          isLiked: input.isLiked,
+          isLiked: data.isLiked ?? input.isLiked,
           likeCount: Math.max(0, Number(data.likeCount ?? post.likeCount)),
         };
       });
@@ -209,7 +237,7 @@ export function useRepostPost() {
       await queryClient.cancelQueries({ queryKey: feedKeys.post(input.postId) });
 
       var snapshot = snapshotFeedCaches(queryClient);
-      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+      var previousPosts = snapshotPostCaches(queryClient, input.postId);
 
       patchAllFeedCaches(queryClient, input.postId, function (post) {
         return {
@@ -219,12 +247,12 @@ export function useRepostPost() {
         };
       });
 
-      return { snapshot, previousPost };
+      return { snapshot, previousPosts };
     },
     onError: function (_err, input, context) {
       if (!context) return;
       restoreFeedCaches(queryClient, context.snapshot);
-      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      restorePostCaches(queryClient, context.previousPosts);
     },
   });
 }
@@ -252,7 +280,7 @@ export function useBookmarkPost(postId?: string) {
       await queryClient.cancelQueries({ queryKey: feedKeys.post(input.postId) });
 
       var snapshot = snapshotFeedCaches(queryClient);
-      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+      var previousPosts = snapshotPostCaches(queryClient, input.postId);
 
       patchAllFeedCaches(queryClient, input.postId, function (post) {
         var wasBookmarked = post.isBookmarked;
@@ -269,12 +297,12 @@ export function useBookmarkPost(postId?: string) {
         };
       });
 
-      return { snapshot, previousPost };
+      return { snapshot, previousPosts };
     },
     onError: function (_err, input, context) {
       if (!context) return;
       restoreFeedCaches(queryClient, context.snapshot);
-      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      restorePostCaches(queryClient, context.previousPosts);
     },
     onSuccess: function (data, input) {
       patchAllFeedCaches(queryClient, input.postId, function (post) {
@@ -305,7 +333,7 @@ export function useVotePoll() {
       await queryClient.cancelQueries({ queryKey: feedKeys.post(input.postId) });
 
       var snapshot = snapshotFeedCaches(queryClient);
-      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+      var previousPosts = snapshotPostCaches(queryClient, input.postId);
 
       patchAllFeedCaches(queryClient, input.postId, function (post) {
         if (!post.poll) return post;
@@ -315,19 +343,18 @@ export function useVotePoll() {
         };
       });
 
-      return { snapshot, previousPost };
+      return { snapshot, previousPosts };
     },
     onError: function (_err, input, context) {
       if (!context) return;
       restoreFeedCaches(queryClient, context.snapshot);
-      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      restorePostCaches(queryClient, context.previousPosts);
       showGlobalFlashToast("Could not submit vote", "error");
     },
     onSuccess: function (updated) {
       patchAllFeedCaches(queryClient, updated.id, function () {
         return updated;
       });
-      queryClient.setQueryData(feedKeys.post(updated.id), updated);
     },
   });
 }
@@ -356,7 +383,9 @@ export function useUpdatePost() {
       return updatePost(input, await getToken());
     },
     onSuccess: function (updated) {
-      queryClient.setQueryData(feedKeys.post(updated.id), updated);
+      patchPostDetailCaches(queryClient, updated.id, function () {
+        return updated;
+      }, updated);
       queryClient.invalidateQueries({ queryKey: feedKeys.post(updated.id) });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
     },
@@ -377,18 +406,18 @@ export function useDeletePost() {
       await queryClient.cancelQueries({ queryKey: feedKeys.comments(input.postId) });
 
       var snapshot = snapshotFeedCaches(queryClient);
-      var previousPost = queryClient.getQueryData<Post>(feedKeys.post(input.postId));
+      var previousPosts = snapshotPostCaches(queryClient, input.postId);
       var previousComments = queryClient.getQueryData(feedKeys.comments(input.postId));
 
       removePostFromAllFeedCaches(queryClient, input.postId);
-      queryClient.setQueryData(feedKeys.post(input.postId), undefined);
+      queryClient.setQueriesData({ queryKey: feedKeys.post(input.postId) }, undefined);
 
-      return { snapshot, previousPost, previousComments };
+      return { snapshot, previousPosts, previousComments };
     },
     onError: function (_err, input, context) {
       if (!context) return;
       restoreFeedCaches(queryClient, context.snapshot);
-      queryClient.setQueryData(feedKeys.post(input.postId), context.previousPost);
+      restorePostCaches(queryClient, context.previousPosts);
       queryClient.setQueryData(feedKeys.comments(input.postId), context.previousComments);
       showGlobalFlashToast("Could not delete post", "error");
     },

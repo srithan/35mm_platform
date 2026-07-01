@@ -6,7 +6,6 @@ const PUBLIC_FILE = /\.(?:avif|css|csv|docx?|gif|html?|ico|jpe?g|js|json|map|png
 
 const isPublicRoute = createRouteMatcher([
   "/",
-  "/landing(.*)",
   "/login(.*)",
   "/signup(.*)",
   "/forgot(.*)",
@@ -37,23 +36,13 @@ function isPublicAsset(request: NextRequest) {
 export default clerkMiddleware(async function (auth, request) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/landing" || pathname.startsWith("/landing/")) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   if (!isPublicAsset(request) && !isPublicRoute(request)) {
     await auth.protect();
     return;
-  }
-
-  // Keep "/" as the signed-in app entry and "/landing" as the signed-out entry.
-  // Redirect in middleware so users don't briefly render the wrong page.
-  if (pathname === "/" || pathname.startsWith("/landing")) {
-    const { userId } = await auth();
-
-    if (pathname === "/" && !userId) {
-      return NextResponse.redirect(new URL("/landing", request.url));
-    }
-
-    if (pathname.startsWith("/landing") && userId) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
   }
 });
 

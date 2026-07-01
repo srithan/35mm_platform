@@ -24,6 +24,7 @@ interface CommentSectionProps {
   hasMore?: boolean;
   isFetchingMore?: boolean;
   onLoadMore?: () => void;
+  truncateComments?: boolean;
 }
 
 function formatCommentTime(value: string): string {
@@ -69,6 +70,7 @@ export function CommentSection({
   hasMore = false,
   isFetchingMore = false,
   onLoadMore,
+  truncateComments = true,
 }: CommentSectionProps) {
   const [isComposerActive, setIsComposerActive] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -171,6 +173,7 @@ export function CommentSection({
               postBookmarked={postBookmarked}
               postBookmarkFolderId={postBookmarkFolderId}
               depth={0}
+              truncateText={truncateComments}
               onReplySubmit={handleNestedReplySubmit}
             />
           ))

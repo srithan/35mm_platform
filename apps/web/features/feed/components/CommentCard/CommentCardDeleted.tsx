@@ -11,6 +11,7 @@ interface CommentCardDeletedProps {
   postBookmarked?: boolean;
   postBookmarkFolderId?: string | null;
   depth: number;
+  truncateText?: boolean;
   onReplySubmit?: CommentCardProps["onReplySubmit"];
 }
 
@@ -20,6 +21,7 @@ export function CommentCardDeleted({
   postBookmarked = false,
   postBookmarkFolderId = null,
   depth,
+  truncateText = true,
   onReplySubmit,
 }: CommentCardDeletedProps) {
   const hasReplies = comment.replies && comment.replies.length > 0;
@@ -43,6 +45,7 @@ export function CommentCardDeleted({
           postBookmarkFolderId={postBookmarkFolderId}
           depth={depth}
           expanded
+          truncateText={truncateText}
           onReplySubmit={onReplySubmit}
         />
       ) : null}

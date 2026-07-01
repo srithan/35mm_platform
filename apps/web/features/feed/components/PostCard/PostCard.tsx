@@ -69,7 +69,7 @@ function PostCardComponent(props: PostCardProps) {
 
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { getToken, isLoaded: isAuthLoaded } = useAuth();
+  const { getToken, isLoaded: isAuthLoaded, userId: authUserId } = useAuth();
   const pathname = usePathname();
   const currentUserQuery = useCurrentUserProfile();
   const currentUserId = currentUserQuery.data?.userId;
@@ -139,7 +139,7 @@ function PostCardComponent(props: PostCardProps) {
     hoverPrefetchDoneRef.current = true;
 
     void queryClient.prefetchQuery({
-      queryKey: feedKeys.post(postId),
+      queryKey: feedKeys.postForViewer(postId, authUserId),
       queryFn: async () => fetchPost(postId, await getToken()),
       staleTime: 60_000,
     });
@@ -183,8 +183,9 @@ function PostCardComponent(props: PostCardProps) {
       onMouseEnter={prefetchPostDetail}
       onFocus={prefetchPostDetail}
       className={cn(
-        "PostCard w-full rounded-lg border-b border-border bg-bg px-4 py-4 transition-colors duration-150 hover:bg-card-hover",
+        "PostCard w-full rounded-lg border-b border-border bg-bg px-4 py-4 transition-colors duration-150",
         !disableAnimation && "animate-fade-up",
+        !isPostDetailView && "hover:bg-card-hover",
         postId && !isPostDetailView && "cursor-pointer",
         !disableAnimation && animationDelay && `[animation-delay:${animationDelay}ms]`
       )}

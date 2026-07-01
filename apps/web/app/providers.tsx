@@ -23,7 +23,6 @@ import { queryPersister, removePersistedQueryCache } from "@/lib/queryPersister"
 const QUERY_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
 const PERSISTED_QUERY_ROOTS = new Set([
   "35mm",
-  "feed",
   "profiles",
   "notifications",
   "film-lists",
