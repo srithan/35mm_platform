@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import styles from "./Switch.module.css";
 
 interface SwitchProps {
   checked: boolean;
@@ -8,6 +10,7 @@ interface SwitchProps {
   disabled?: boolean;
   className?: string;
   id?: string;
+  variant?: "blue" | "green" | "boo";
   "aria-label"?: string;
 }
 
@@ -17,44 +20,36 @@ export function Switch({
   disabled = false,
   className,
   id,
+  variant = "blue",
   "aria-label": ariaLabel,
 }: SwitchProps) {
+  const [toggledOnce, setToggledOnce] = useState(false);
+
   return (
     <label
       className={cn(
-        "relative h-[17px] w-[30px] flex-shrink-0",
-        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+        styles.root,
         className
       )}
+      data-disabled={disabled ? "true" : "false"}
+      data-variant={variant}
     >
       <input
         id={id}
         type="checkbox"
         checked={checked}
         onChange={function (e) {
+          setToggledOnce(true);
           onChange?.(e.target.checked);
         }}
         disabled={disabled}
         aria-label={ariaLabel}
-        className="peer sr-only"
+        data-toggled={toggledOnce ? "true" : "false"}
+        className={styles.input}
       />
-      <div
-        aria-hidden
-        className={cn(
-          "absolute inset-0 rounded-[17px] border transition-colors",
-          "border-[var(--switch-track-off-border)] bg-[var(--switch-track-off)]",
-          "peer-checked:border-[var(--switch-track-on)] peer-checked:bg-[var(--switch-track-on)]",
-          "peer-focus-visible:ring-2 peer-focus-visible:ring-fg/20 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg"
-        )}
-      />
-      <div
-        aria-hidden
-        className={cn(
-          "absolute left-[2.5px] top-[2.5px] h-3 w-3 rounded-full border shadow-sm transition-transform",
-          "border-[var(--switch-thumb-off-border)] bg-[var(--switch-thumb-off)]",
-          "peer-checked:translate-x-[13px] peer-checked:border-transparent peer-checked:bg-[var(--switch-thumb-on)]"
-        )}
-      />
+      <span aria-hidden className={styles.track}>
+        <span className={styles.thumb} />
+      </span>
     </label>
   );
 }
