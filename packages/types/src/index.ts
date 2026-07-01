@@ -320,6 +320,18 @@ export interface ChatReadReceiptsResponse {
   items: ChatReadReceipt[];
 }
 
+export interface ChatPresenceState {
+  userId: string;
+  status: "online" | "offline";
+  lastSeenAt: string | null;
+}
+
+export interface ChatPresenceBatchResponse {
+  /** Backward-compatible boolean map used by older clients. */
+  presence: Record<string, boolean>;
+  users: Record<string, ChatPresenceState>;
+}
+
 export interface HealthResponse {
   ok: true;
   service: string;

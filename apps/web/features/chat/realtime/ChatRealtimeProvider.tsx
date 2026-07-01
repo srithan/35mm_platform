@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
+import { getChatApiClient } from "../api/getChatApiClient";
 import type { ChatRealtimeEvent, ChatRealtimeTransport } from "./types";
 import { createNoopChatRealtimeTransport } from "./noopTransport";
 import { applyChatRealtimeEvent } from "./applyRealtimeEvent";
@@ -177,6 +178,56 @@ export function ChatRealtimeProvider({
       };
     },
     [applyRealtimeUiEvent, queryClient, transport]
+  );
+
+  useEffect(
+    function () {
+      if (!enabled || !userId) {
+        return;
+      }
+
+      let disposed = false;
+      let lastPingAt = 0;
+
+      function pingPresence(force: boolean): void {
+        if (disposed || document.visibilityState === "hidden") {
+          return;
+        }
+        const now = Date.now();
+        if (!force && now - lastPingAt < 15_000) {
+          return;
+        }
+        lastPingAt = now;
+        getChatApiClient().pingPresence().catch(function (error) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[chat-presence] heartbeat failed", error);
+          }
+        });
+      }
+
+      pingPresence(true);
+      const intervalId = window.setInterval(function () {
+        pingPresence(false);
+      }, 45_000);
+      const onVisible = function () {
+        if (document.visibilityState === "visible") {
+          pingPresence(true);
+        }
+      };
+      const onFocus = function () {
+        pingPresence(false);
+      };
+      document.addEventListener("visibilitychange", onVisible);
+      window.addEventListener("focus", onFocus);
+
+      return function () {
+        disposed = true;
+        window.clearInterval(intervalId);
+        document.removeEventListener("visibilitychange", onVisible);
+        window.removeEventListener("focus", onFocus);
+      };
+    },
+    [enabled, userId]
   );
 
   useEffect(

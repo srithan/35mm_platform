@@ -5,6 +5,7 @@
 
 import type { ChatMessage, ChatPreview, ChatSendPayload } from "../types";
 import type {
+  ChatPresenceBatchResponse,
   ChatReadReceiptsResponse,
   ChatTypingSnapshot,
 } from "@35mm/types";
@@ -51,6 +52,10 @@ export interface ChatApiClient {
   setTyping(chatId: string, isTyping: boolean): Promise<void>;
 
   listTypingUsers(chatId: string): Promise<ChatTypingSnapshot>;
+
+  pingPresence(): Promise<void>;
+
+  listPresence(userIds: string[]): Promise<ChatPresenceBatchResponse>;
 
   setConversationArchived(chatId: string, archived: boolean): Promise<void>;
 

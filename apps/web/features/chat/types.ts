@@ -1,3 +1,10 @@
+export interface ChatParticipant {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+}
+
 export interface ChatPreview {
   id: string;
   name: string;
@@ -13,6 +20,8 @@ export interface ChatPreview {
   archived?: boolean;
   /** Message request — shown in Requests tab until accepted. */
   isPendingRequest?: boolean;
+  /** Other participants for presence/read UI. DMs usually contain one item. */
+  members?: ChatParticipant[];
 }
 
 export interface ChatMessageReplyRef {

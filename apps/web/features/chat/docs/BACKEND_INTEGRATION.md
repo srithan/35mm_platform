@@ -330,6 +330,8 @@ See **`features/chat/realtime/types.ts`** — union **`ChatRealtimeEvent`**:
 
 The API publishes latency-sensitive chat realtime events directly after persistence for low latency and worker independence, including message edits and reactions on the active thread channel. Worker jobs remain fallback/asynchronous delivery for publish failures, large inbox fanout, and delete/update recovery. Do not replace this with production polling; polling typing/read state does not scale to 1M DAU.
 
+Presence is separate from Ably message events. `ChatRealtimeProvider` sends throttled `/v1/chat/presence/ping` heartbeats while signed in. Chat headers call `/v1/chat/presence/batch` for the active thread's bounded member list and render online, active-ago, or offline labels from the `users` map. The response also keeps `presence: Record<string, boolean>` for older clients. The API enforces `showActivityStatus` privacy server-side, and presence query cache is excluded from localStorage persistence.
+
 Implement **`ChatRealtimeTransport`**:
 
 ```ts

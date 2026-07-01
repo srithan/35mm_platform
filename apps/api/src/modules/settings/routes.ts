@@ -4,6 +4,7 @@ import { users, profiles, userSettings, type NotificationEmailPreferences } from
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
+import { setActivityVisibilityCache } from "../chat/chatRedis.js";
 
 interface SettingsRecord {
   email: string;
@@ -317,6 +318,10 @@ settingsRoutes.patch("/privacy", requireAuth, async function (c) {
       .update(userSettings)
       .set(updates)
       .where(eq(userSettings.userId, user.userId));
+  }
+
+  if (showActivityStatus !== null) {
+    await setActivityVisibilityCache(user.userId, showActivityStatus);
   }
 
   var record = await fetchSettingsForUser(user.userId);

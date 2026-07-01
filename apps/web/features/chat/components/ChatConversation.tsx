@@ -36,6 +36,10 @@ import {
 } from "./ChatHeaderMoreMenu";
 import { ChatSearchInput } from "./ChatSearchInput";
 import { ChatJumpToLatestFab } from "./ChatJumpToLatestFab";
+import {
+  ChatPresenceDot,
+  useChatPresenceSummary,
+} from "./ChatPresenceIndicator";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { useNewChat } from "../context/NewChatContext";
 import { getChatErrorMessage } from "../api/errors";
@@ -73,6 +77,7 @@ export function ChatConversation({
   const { setChatInputFocused } = useChatInputFocus();
   const { data: messages = [], isLoading, isError, refetch } = useChatMessages(chatId);
   const { row: conversationRow } = useConversationRow(chatId);
+  const presenceSummary = useChatPresenceSummary(conversationRow?.members);
   const sendMutation = useSendMessage();
   const toggleReactionMutation = useToggleReaction();
   const editMutation = useEditMessage();
@@ -487,6 +492,12 @@ export function ChatConversation({
 
   const displayName = chatName || "Conversation";
   const handle = chatUsername ? "@" + chatUsername.replace(/^@/, "") : null;
+  const showPresence = Boolean(conversationRow?.members?.length);
+  const subtitle = showPresence
+    ? handle
+      ? handle + " - " + presenceSummary.label
+      : presenceSummary.label
+    : handle;
   const otherAvatar = {
     bg: avatarBg,
     color: avatarColor,
@@ -541,31 +552,56 @@ export function ChatConversation({
                 href={ROUTES.PROFILE(chatUsername.replace(/^@/, ""))}
                 className="flex w-fit min-w-0 max-w-[min(18rem,calc(100%-3.5rem))] items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-black/[0.045] dark:hover:bg-white/[0.06] active:scale-[0.99] transition-[transform,background-color] duration-150"
               >
-                <Avatar
-                  initial={displayName.charAt(0)}
-                  src={otherAvatar.src}
-                  className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-                  loading="eager"
-                />
+                <div className="relative shrink-0">
+                  <Avatar
+                    initial={displayName.charAt(0)}
+                    src={otherAvatar.src}
+                    className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                    loading="eager"
+                  />
+                  {showPresence ? (
+                    <ChatPresenceDot
+                      availability={presenceSummary.availability}
+                      className="absolute -right-0.5 -bottom-0.5"
+                    />
+                  ) : null}
+                </div>
                 <div className="min-w-0 text-left">
                   <h2 className="font-semibold text-[15px] text-fg truncate tracking-[-0.01em]">
                     {displayName}
                   </h2>
-                  <p className="text-[12px] text-fg-muted truncate">{handle}</p>
+                  {subtitle ? (
+                    <p className="text-[12px] text-fg-muted truncate">
+                      <span className="truncate">{subtitle}</span>
+                    </p>
+                  ) : null}
                 </div>
               </Link>
             ) : (
               <div className="flex w-fit min-w-0 max-w-[min(18rem,calc(100%-3.5rem))] items-center gap-3 rounded-xl px-2 py-1.5">
-                <Avatar
-                  initial={displayName.charAt(0)}
-                  src={otherAvatar.src}
-                  className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-                  loading="eager"
-                />
+                <div className="relative shrink-0">
+                  <Avatar
+                    initial={displayName.charAt(0)}
+                    src={otherAvatar.src}
+                    className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                    loading="eager"
+                  />
+                  {showPresence ? (
+                    <ChatPresenceDot
+                      availability={presenceSummary.availability}
+                      className="absolute -right-0.5 -bottom-0.5"
+                    />
+                  ) : null}
+                </div>
                 <div className="min-w-0 text-left">
                   <h2 className="font-semibold text-[15px] text-fg truncate tracking-[-0.01em]">
                     {displayName}
                   </h2>
+                  {subtitle ? (
+                    <p className="text-[12px] text-fg-muted truncate">
+                      <span className="truncate">{subtitle}</span>
+                    </p>
+                  ) : null}
                 </div>
               </div>
             )}

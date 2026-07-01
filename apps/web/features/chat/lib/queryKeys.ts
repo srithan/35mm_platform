@@ -25,4 +25,8 @@ export const chatQueryKeys = {
   messagesInfinite: function (chatId: string) {
     return [...chatQueryRoot, "messagesInfinite", chatId] as const;
   },
+
+  presence: function (userIds: string[]) {
+    return [...chatQueryRoot, "presence", userIds.slice().sort().join(",")] as const;
+  },
 } as const;

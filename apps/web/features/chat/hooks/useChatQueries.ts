@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import type { ChatMessage, ChatPreview } from "../types";
 import type { ChatSendPayload } from "../types";
+import type { ChatPresenceState } from "@35mm/types";
 import type { ChatReadReceiptState, ChatTypingUser } from "../realtime/state";
 import type { CreateThreadParams, PaginatedMessages } from "../api/types";
 import type { PaginatedConversations } from "../api/types";
@@ -769,6 +770,44 @@ export function useChatTypingSnapshot(
     enabled: Boolean(chatId) && opts?.enabled === true,
     staleTime: 5_000,
     gcTime: 30_000,
+  });
+}
+
+export function useChatPresence(
+  userIds: Array<string | null | undefined>,
+  opts?: { enabled?: boolean }
+) {
+  const ids = useMemo(
+    function () {
+      return Array.from(
+        new Set(
+          userIds
+            .filter(function (id): id is string {
+              return typeof id === "string" && id.trim().length > 0;
+            })
+            .map(function (id) {
+              return id.trim();
+            })
+        )
+      ).slice(0, 50);
+    },
+    [userIds]
+  );
+
+  return useQuery({
+    queryKey: chatQueryKeys.presence(ids),
+    queryFn: function () {
+      return client().listPresence(ids);
+    },
+    select: function (data): Record<string, ChatPresenceState> {
+      return data.users;
+    },
+    enabled: ids.length > 0 && opts?.enabled !== false,
+    staleTime: 10_000,
+    gcTime: 120_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    retry: 1,
   });
 }
 

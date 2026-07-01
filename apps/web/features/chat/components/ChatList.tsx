@@ -7,10 +7,19 @@ import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/constants/routes";
 import { Icon } from "@/components/Icon/Icon";
 import { Avatar } from "@/components/Avatar";
-import { useConversationsByUiFilter } from "../hooks/useChatQueries";
+import {
+  useChatPresence,
+  useConversationsByUiFilter,
+} from "../hooks/useChatQueries";
 import { ChatSearchInput } from "./ChatSearchInput";
 import { NewChatComposeButton } from "./NewChatComposeButton";
 import { useNewChat } from "../context/NewChatContext";
+import { useChatRealtime } from "../realtime/state";
+import {
+  ChatPresenceDot,
+  getChatPresenceTargetIds,
+  summarizeChatPresence,
+} from "./ChatPresenceIndicator";
 
 export type { ChatPreview } from "../types";
 
@@ -78,7 +87,9 @@ export function ChatList({
   const { data: chats, isLoading, isError, refetch } =
     useConversationsByUiFilter(uiFolder);
   const { openNewChat } = useNewChat();
+  const { currentUserId } = useChatRealtime();
   const syncedSelectedIdRef = useRef<string | null | undefined>(undefined);
+  const [presenceNow, setPresenceNow] = useState(Date.now());
 
   useEffect(
     function () {
@@ -133,6 +144,35 @@ export function ChatList({
     },
     [chats, effectiveSearch]
   );
+
+  const presenceUserIds = useMemo(
+    function () {
+      const ids = new Set<string>();
+      for (var chat of filtered) {
+        var targetIds = getChatPresenceTargetIds(chat.members, currentUserId);
+        for (var userId of targetIds) {
+          if (ids.size >= 50) {
+            return Array.from(ids);
+          }
+          ids.add(userId);
+        }
+      }
+      return Array.from(ids);
+    },
+    [currentUserId, filtered]
+  );
+  const presence = useChatPresence(presenceUserIds, {
+    enabled: presenceUserIds.length > 0,
+  });
+
+  useEffect(function () {
+    const intervalId = window.setInterval(function () {
+      setPresenceNow(Date.now());
+    }, 60_000);
+    return function () {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full min-h-0 border-r border-border bg-bg select-none">
@@ -273,6 +313,15 @@ export function ChatList({
           filtered.map(function (chat) {
             const href = ROUTES.CHAT_WITH(chat.id);
             const isActive = activeId === chat.id;
+            const targetIds = getChatPresenceTargetIds(chat.members, currentUserId);
+            const showPresence = targetIds.some(function (userId) {
+              return presenceUserIds.includes(userId);
+            });
+            const presenceSummary = summarizeChatPresence(
+              targetIds,
+              presence.data,
+              presenceNow
+            );
             return (
               <Link
                 key={chat.id}
@@ -285,15 +334,23 @@ export function ChatList({
                     : "items-start gap-3 px-4 py-3 text-left"
                 )}
               >
-                <Avatar
-                  initial={chat.name.charAt(0)}
-                  src={chat.avatarUrl}
-                  className={cn(
-                    "w-11 h-11 text-[15px] shadow-sm ring-1 ring-black/[0.04]",
-                    isActive && "ring-2 ring-[#007AFF] ring-offset-2 ring-offset-bg"
-                  )}
-                  loading="eager"
-                />
+                <div className="relative shrink-0">
+                  <Avatar
+                    initial={chat.name.charAt(0)}
+                    src={chat.avatarUrl}
+                    className={cn(
+                      "w-11 h-11 text-[15px] shadow-sm ring-1 ring-black/[0.04]",
+                      isActive && "ring-2 ring-[#007AFF] ring-offset-2 ring-offset-bg"
+                    )}
+                    loading="eager"
+                  />
+                  {showPresence ? (
+                    <ChatPresenceDot
+                      availability={presenceSummary.availability}
+                      className="absolute -right-0.5 -bottom-0.5"
+                    />
+                  ) : null}
+                </div>
                 {!collapsed ? (
                   <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                     <div className="flex items-baseline justify-between gap-2">

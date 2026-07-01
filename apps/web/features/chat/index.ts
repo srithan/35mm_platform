@@ -25,6 +25,7 @@ export {
   useConversationRow,
   useChatMessages,
   useChatMessagesInfinite,
+  useChatPresence,
   useChatReadReceiptsSnapshot,
   useChatTypingSnapshot,
   useSendMessage,

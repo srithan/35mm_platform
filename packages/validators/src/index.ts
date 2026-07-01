@@ -329,6 +329,12 @@ export var messageCursorSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
+export var chatPresenceBatchSchema = z.object({
+  userIds: z
+    .array(z.string().trim().min(1).max(128))
+    .max(50, "userIds must include at most 50 IDs"),
+});
+
 export var inboxCursorSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -494,6 +500,7 @@ export type EditMessageInput = z.infer<typeof editMessageSchema>;
 export type MessageReactionInput = z.infer<typeof messageReactionSchema>;
 export type TypingIndicatorInput = z.infer<typeof typingIndicatorSchema>;
 export type MessageCursorInput = z.infer<typeof messageCursorSchema>;
+export type ChatPresenceBatchInput = z.infer<typeof chatPresenceBatchSchema>;
 export type InboxCursorInput = z.infer<typeof inboxCursorSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePrivacyInput = z.infer<typeof updatePrivacySchema>;

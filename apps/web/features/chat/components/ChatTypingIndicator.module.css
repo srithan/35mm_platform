@@ -1,0 +1,81 @@
+.bubble {
+  --typing-bg: var(--sunken);
+  --typing-dot: var(--fg-muted);
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 58px;
+  min-height: 32px;
+  border-radius: 999px;
+  background: var(--typing-bg);
+  padding: 10px 14px;
+  color: var(--typing-dot);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.04);
+  animation: typingBulge 2s ease-out infinite;
+  will-change: transform;
+}
+
+.bubble::before,
+.bubble::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: var(--typing-bg);
+}
+
+.bubble::before {
+  left: -1px;
+  bottom: -3px;
+  height: 15px;
+  width: 15px;
+}
+
+.bubble::after {
+  left: -8px;
+  bottom: -8px;
+  height: 8px;
+  width: 8px;
+}
+
+.dot {
+  display: block;
+  height: 7px;
+  width: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: typingBlink 1s infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 160ms;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 320ms;
+}
+
+@keyframes typingBlink {
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes typingBulge {
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .dot {
+    animation: none;
+  }
+
+  .dot {
+    opacity: 0.65;
+  }
+}

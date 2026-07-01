@@ -36,7 +36,11 @@ const PERSISTED_QUERY_ROOTS = new Set([
 function shouldPersistQueryKey(queryKey: readonly unknown[]): boolean {
   const keyRoot = queryKey[0];
   if (keyRoot === "35mm") {
-    return queryKey[1] === "chat" && queryKey[2] !== "messagesInfinite";
+    return (
+      queryKey[1] === "chat" &&
+      queryKey[2] !== "messagesInfinite" &&
+      queryKey[2] !== "presence"
+    );
   }
   return typeof keyRoot === "string" && PERSISTED_QUERY_ROOTS.has(keyRoot);
 }

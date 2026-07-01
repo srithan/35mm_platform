@@ -3,6 +3,7 @@
  */
 
 import type { ChatSendPayload } from "../types";
+import type { ChatPresenceBatchResponse } from "@35mm/types";
 import { CHAT_PAGE_LIMITS } from "../config/runtimeConfig";
 import type { ChatApiClient } from "./ChatApiClient";
 import type {
@@ -133,6 +134,24 @@ export function createMockChatClient(): ChatApiClient {
 
     listTypingUsers: function () {
       return Promise.resolve({ typingUserIds: [], items: [] });
+    },
+
+    pingPresence: function () {
+      return Promise.resolve();
+    },
+
+    listPresence: function (userIds) {
+      var users: ChatPresenceBatchResponse["users"] = {};
+      var presence: ChatPresenceBatchResponse["presence"] = {};
+      userIds.slice(0, 50).forEach(function (userId) {
+        users[userId] = {
+          userId: userId,
+          status: "offline",
+          lastSeenAt: null,
+        };
+        presence[userId] = false;
+      });
+      return Promise.resolve({ presence: presence, users: users });
     },
 
     setConversationArchived: function (chatId, archived) {

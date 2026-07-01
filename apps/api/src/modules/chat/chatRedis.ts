@@ -1,4 +1,5 @@
 import { getRedisClient } from "../../lib/redis.js";
+import type { ChatPresenceState } from "@35mm/types";
 
 function unreadKey(userId: string, threadId: string): string {
   return `chat:unread:${userId}:${threadId}`;
@@ -10,6 +11,14 @@ function typingSetKey(threadId: string): string {
 
 function presenceKey(userId: string): string {
   return `chat:presence:${userId}`;
+}
+
+function presenceLastSeenKey(userId: string): string {
+  return `chat:presence:last-seen:${userId}`;
+}
+
+function activityVisibilityKey(userId: string): string {
+  return `chat:presence:activity-visible:${userId}`;
 }
 
 export async function incrementUnread(userId: string, threadId: string): Promise<void> {
@@ -145,25 +154,91 @@ export async function setPresence(userId: string): Promise<void> {
   var redis = getRedisClient();
   if (!redis) return;
   try {
-    await redis.setex(presenceKey(userId), 65, new Date().toISOString());
+    var now = new Date().toISOString();
+    await redis.setex(presenceKey(userId), 65, now);
+    await redis.setex(presenceLastSeenKey(userId), 60 * 60 * 24 * 35, now);
   } catch {
     return;
   }
 }
 
 export async function getPresence(userIds: string[]): Promise<Record<string, boolean>> {
+  var details = await getPresenceStates(userIds);
+  var out: Record<string, boolean> = {};
+  Object.keys(details).forEach(function (userId) {
+    out[userId] = details[userId].status === "online";
+  });
+  return out;
+}
+
+export async function getPresenceStates(
+  userIds: string[]
+): Promise<Record<string, ChatPresenceState>> {
   var out: Record<string, boolean> = {};
   var redis = getRedisClient();
   for (var i = 0; i < userIds.length; i += 1) {
     var userId = userIds[i];
     if (userId) out[userId] = false;
   }
-  if (!redis) return out;
+  var states: Record<string, ChatPresenceState> = {};
+  Object.keys(out).forEach(function (userId) {
+    states[userId] = {
+      userId,
+      status: "offline",
+      lastSeenAt: null,
+    };
+  });
+  if (!redis) return states;
   var ids = Array.from(new Set(userIds.filter(Boolean)));
   try {
-    var values = await redis.mget<string>(ids.map(presenceKey));
+    var onlineValues = await redis.mget<string>(ids.map(presenceKey));
+    var lastSeenValues = await redis.mget<string>(ids.map(presenceLastSeenKey));
     for (var j = 0; j < ids.length; j += 1) {
-      out[ids[j]] = values[j] != null;
+      var onlineAt = onlineValues[j] ?? null;
+      var lastSeenAt = onlineAt ?? lastSeenValues[j] ?? null;
+      states[ids[j]] = {
+        userId: ids[j],
+        status: onlineAt != null ? "online" : "offline",
+        lastSeenAt,
+      };
+    }
+  } catch {
+    return states;
+  }
+  return states;
+}
+
+export async function setActivityVisibilityCache(
+  userId: string,
+  visible: boolean
+): Promise<void> {
+  var redis = getRedisClient();
+  if (!redis) return;
+  try {
+    await redis.setex(activityVisibilityKey(userId), 60 * 10, visible ? "1" : "0");
+  } catch {
+    return;
+  }
+}
+
+export async function getActivityVisibilityCache(
+  userIds: string[]
+): Promise<Record<string, boolean | null>> {
+  var ids = Array.from(new Set(userIds.filter(Boolean)));
+  var out: Record<string, boolean | null> = {};
+  ids.forEach(function (userId) {
+    out[userId] = null;
+  });
+  var redis = getRedisClient();
+  if (!redis || ids.length === 0) return out;
+  try {
+    var values = await redis.mget<string>(ids.map(activityVisibilityKey));
+    for (var i = 0; i < ids.length; i += 1) {
+      if (values[i] === "1") {
+        out[ids[i]] = true;
+      } else if (values[i] === "0") {
+        out[ids[i]] = false;
+      }
     }
   } catch {
     return out;

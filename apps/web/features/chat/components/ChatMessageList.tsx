@@ -30,6 +30,7 @@ import {
   hasVisibleReactions,
 } from "./ChatMessageReactions";
 import reactionStyles from "./ChatReactions.module.css";
+import typingStyles from "./ChatTypingIndicator.module.css";
 
 const TOP_5_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"];
 
@@ -353,13 +354,12 @@ function MessageActions({
 
 function TypingDots() {
   return (
-    <span className="flex items-center gap-1 px-1" aria-hidden>
+    <span className={typingStyles.bubble} aria-hidden>
       {[0, 1, 2].map(function (dot) {
         return (
           <span
             key={dot}
-            className="h-1.5 w-1.5 rounded-full bg-fg-muted/70 animate-pulse"
-            style={{ animationDelay: String(dot * 120) + "ms" }}
+            className={typingStyles.dot}
           />
         );
       })}
@@ -391,7 +391,7 @@ function TypingIndicator({
         loading="lazy"
       />
       <div className="flex flex-col gap-1">
-        <div className="w-fit rounded-[18px] rounded-bl-[5px] border border-border bg-sunken px-3.5 py-2.5 text-fg shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <div className="w-fit text-fg-muted">
           <TypingDots />
         </div>
         <span className="pl-1 text-[10px] text-fg-muted/80">{label}</span>

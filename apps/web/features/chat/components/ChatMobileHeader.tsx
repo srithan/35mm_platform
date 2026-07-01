@@ -19,6 +19,10 @@ import {
   useSetConversationArchived,
   useDeleteConversation,
 } from "../hooks/useChatQueries";
+import {
+  ChatPresenceDot,
+  useChatPresenceSummary,
+} from "./ChatPresenceIndicator";
 
 interface ChatMobileHeaderProps {
   chat: ChatPreview;
@@ -43,6 +47,8 @@ export function ChatMobileHeader({
   const [toast, setToast] = useState<string | null>(null);
   const [threadSearchOpen, setThreadSearchOpen] = useState(false);
   const [deleteConvoDialogOpen, setDeleteConvoDialogOpen] = useState(false);
+  const presenceSummary = useChatPresenceSummary(chat.members);
+  const showPresence = Boolean(chat.members?.length);
 
   const flash = useCallback(function (text: string): void {
     setToast(text);
@@ -91,21 +97,34 @@ export function ChatMobileHeader({
 
   const profileSlug = chat.username.replace(/^@/, "");
   const handle = profileSlug ? "@" + profileSlug : null;
+  const subtitle = showPresence
+    ? handle
+      ? handle + " - " + presenceSummary.label
+      : presenceSummary.label
+    : handle;
   const headerIdentity = (
     <>
-      <Avatar
-        initial={chat.name.charAt(0)}
-        src={chat.avatarUrl}
-        className="w-8 h-8 text-[12px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-        loading="eager"
-      />
+      <div className="relative shrink-0">
+        <Avatar
+          initial={chat.name.charAt(0)}
+          src={chat.avatarUrl}
+          className="w-8 h-8 text-[12px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+          loading="eager"
+        />
+        {showPresence ? (
+          <ChatPresenceDot
+            availability={presenceSummary.availability}
+            className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5"
+          />
+        ) : null}
+      </div>
       <div className="min-w-0 text-left">
         <p className="font-semibold text-[15px] text-fg truncate leading-tight tracking-[-0.02em]">
           {chat.name}
         </p>
-        {handle ? (
+        {subtitle ? (
           <p className="text-[11px] text-fg-muted truncate leading-tight">
-            {handle}
+            <span className="truncate">{subtitle}</span>
           </p>
         ) : null}
       </div>

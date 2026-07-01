@@ -8,6 +8,7 @@ import {
   chatThreadMeta,
   chatThreads,
   profiles,
+  userSettings,
   userBlocks,
   users,
 } from "@35mm/db/schema";
@@ -17,6 +18,7 @@ import type {
   ChatMember,
   ChatMessage,
   ChatMessageContentType,
+  ChatPresenceBatchResponse,
   ChatReadReceiptsResponse,
   ChatThreadPreview,
   ChatTypingSnapshot,
@@ -25,6 +27,7 @@ import type {
 } from "@35mm/types";
 import {
   createChatThreadSchema,
+  chatPresenceBatchSchema,
   editMessageSchema,
   inboxCursorSchema,
   messageCursorSchema,
@@ -43,12 +46,14 @@ import { enqueueChatJob } from "../../lib/jobs.js";
 import { createNotification } from "../../lib/notifications.js";
 import {
   clearTyping,
-  getPresence,
+  getActivityVisibilityCache,
+  getPresenceStates,
   getTypingUsers,
   getUnreadCounts,
   getUnreadCountsForPairs,
   incrementUnread,
   resetUnread,
+  setActivityVisibilityCache,
   setPresence,
   setTyping,
 } from "./chatRedis.js";
@@ -112,6 +117,7 @@ var reactionRateLimit = userRateLimit("chat:reaction", 60, 60);
 var readStateRateLimit = userRateLimit("chat:read-state", 120, 60);
 var typingRateLimit = userRateLimit("chat:typing", 30, 60);
 var presenceRateLimit = userRateLimit("chat:presence", 4, 60);
+var presenceBatchRateLimit = userRateLimit("chat:presence-batch", 120, 60);
 
 function parseJson<T>(schema: { parse(value: unknown): T }, value: unknown): T {
   try {
@@ -1164,13 +1170,49 @@ chatRoutes.post("/presence/ping", presenceRateLimit, async function (c) {
   return c.body(null, 204);
 });
 
-chatRoutes.post("/presence/batch", async function (c) {
-  var body = await c.req.json() as { userIds?: unknown };
-  if (!Array.isArray(body.userIds) || body.userIds.length > 50) {
-    throw badRequest("userIds must be an array with at most 50 IDs");
-  }
-  var userIds = body.userIds.filter(function (value): value is string {
-    return typeof value === "string";
+chatRoutes.post("/presence/batch", presenceBatchRateLimit, async function (c) {
+  var body = parseJson(chatPresenceBatchSchema, await c.req.json());
+  var userIds = Array.from(new Set(body.userIds));
+  var users = await getPresenceStates(userIds);
+  var visibility = await getActivityVisibilityCache(userIds);
+  var missingVisibilityIds = userIds.filter(function (userId) {
+    return visibility[userId] === null;
   });
-  return c.json({ presence: await getPresence(userIds) });
+  var settingsRows = missingVisibilityIds.length > 0
+    ? await getDb()
+        .select({
+          userId: userSettings.userId,
+          showActivityStatus: userSettings.showActivityStatus,
+        })
+        .from(userSettings)
+        .where(inArray(userSettings.userId, missingVisibilityIds))
+    : [];
+  settingsRows.forEach(function (row) {
+    visibility[row.userId] = row.showActivityStatus;
+  });
+  await Promise.all(
+    missingVisibilityIds.map(function (userId) {
+      var visible = visibility[userId] ?? true;
+      visibility[userId] = visible;
+      return setActivityVisibilityCache(userId, visible);
+    })
+  );
+  var hiddenUserIds = new Set(
+    userIds.filter(function (userId) {
+      return visibility[userId] === false;
+    })
+  );
+  hiddenUserIds.forEach(function (userId) {
+    users[userId] = {
+      userId,
+      status: "offline",
+      lastSeenAt: null,
+    };
+  });
+  var presence: Record<string, boolean> = {};
+  Object.keys(users).forEach(function (userId) {
+    presence[userId] = users[userId].status === "online";
+  });
+  var response: ChatPresenceBatchResponse = { presence, users };
+  return c.json(response);
 });

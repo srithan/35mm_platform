@@ -8,6 +8,7 @@ import type {
   ChatInboxPage,
   ChatMessage as ApiChatMessage,
   ChatMessagesPage,
+  ChatPresenceBatchResponse,
   ChatReadReceiptsResponse,
   ChatThreadPreview,
   ChatTypingSnapshot,
@@ -90,6 +91,14 @@ function mapThreadPreview(thread: ChatThreadPreview): ChatPreview {
     avatarColor: avatar.color,
     archived: thread.isArchived,
     isPendingRequest: false,
+    members: members.map(function (member) {
+      return {
+        userId: member.userId,
+        username: member.username,
+        displayName: member.displayName,
+        avatarUrl: member.avatarUrl,
+      };
+    }),
   };
 }
 
@@ -406,6 +415,25 @@ export function createRemoteChatClient(opts: {
       return chatHttpJson<ChatTypingSnapshot>({
         baseUrl: baseUrl,
         path: "/threads/" + encodeURIComponent(chatId) + "/typing",
+        getAccessToken: getAccessToken,
+      });
+    },
+
+    pingPresence: function () {
+      return chatHttpJson<void>({
+        baseUrl: baseUrl,
+        path: "/presence/ping",
+        method: "POST",
+        getAccessToken: getAccessToken,
+      });
+    },
+
+    listPresence: function (userIds) {
+      return chatHttpJson<ChatPresenceBatchResponse>({
+        baseUrl: baseUrl,
+        path: "/presence/batch",
+        method: "POST",
+        body: { userIds: userIds.slice(0, 50) },
         getAccessToken: getAccessToken,
       });
     },

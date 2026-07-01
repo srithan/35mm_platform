@@ -1,6 +1,6 @@
 # Chat Backend Implementation
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 
 This document explains the chat backend implemented in this thread. It is intentionally backend-only: API routes, storage, queues, worker jobs, realtime events, environment, migrations, operational checks, and known follow-up work. Frontend details appear only where they affect backend contracts.
 
@@ -323,6 +323,8 @@ Keys:
 - `chat:unread:{userId}:{threadId}`: unread counter.
 - `chat:typing:{threadId}:{userId}`: typing marker with 4 second TTL.
 - `chat:presence:{userId}`: presence marker with 65 second TTL.
+- `chat:presence:last-seen:{userId}`: last successful presence heartbeat, retained for 35 days.
+- `chat:presence:activity-visible:{userId}`: cached `showActivityStatus` privacy value with 10 minute TTL, refreshed immediately when settings privacy changes.
 
 Unread behavior:
 
@@ -339,8 +341,10 @@ Typing behavior:
 Presence behavior:
 
 - `POST /presence/ping` sets a 65 second marker for current user.
-- `POST /presence/batch` checks markers for up to 50 user IDs.
-- Presence is best-effort. If Redis is unavailable, presence returns false and chat persistence still works.
+- `POST /presence/ping` also refreshes the 35 day last-seen key used for "Active n mins/hours/days/weeks ago" labels.
+- `POST /presence/batch` checks online markers and last-seen keys for up to 50 user IDs with batched `MGET`.
+- `POST /presence/batch` enforces `showActivityStatus` server-side; opted-out users return offline/null last seen.
+- Presence is best-effort. If Redis is unavailable, presence returns false/offline and chat persistence still works.
 
 ## API Surface
 
@@ -359,6 +363,7 @@ Current per-user fixed-window limits:
 - `chat:read-state`: 120/min
 - `chat:typing`: 30/min
 - `chat:presence`: 4/min
+- `chat:presence-batch`: 120/min
 
 Reasoning:
 
@@ -701,6 +706,7 @@ Behavior:
 Behavior:
 
 - Sets viewer presence marker in Redis for 65 seconds.
+- Refreshes viewer last-seen marker in Redis for 35 days.
 
 ### `POST /v1/chat/presence/batch`
 
@@ -711,6 +717,28 @@ Body:
   "userIds": ["uuid-1", "uuid-2"]
 }
 ```
+
+Response:
+
+```json
+{
+  "presence": { "uuid-1": true, "uuid-2": false },
+  "users": {
+    "uuid-1": {
+      "userId": "uuid-1",
+      "status": "online",
+      "lastSeenAt": "2026-07-01T18:12:00.000Z"
+    },
+    "uuid-2": {
+      "userId": "uuid-2",
+      "status": "offline",
+      "lastSeenAt": "2026-07-01T17:58:00.000Z"
+    }
+  }
+}
+```
+
+`presence` remains for older clients. Web uses `users` to render online, active-ago, and offline labels.
 
 Behavior:
 
