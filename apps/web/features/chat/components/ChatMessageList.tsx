@@ -535,7 +535,7 @@ function BubbleRow({
                   "shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
                   msg.isOwn
                     ? "bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
-                    : "bg-sunken text-fg border border-border"
+                    : "bg-sunken text-fg border border-border dark:bg-[color-mix(in_srgb,var(--elevated)_88%,var(--fg)_12%)] dark:border-white/[0.08]"
                 ),
             isJumpHighlighted &&
               (hasAttachment
