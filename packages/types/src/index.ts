@@ -337,7 +337,8 @@ export type NotificationType =
   | "follow_request_approved"
   | "mention"
   | "repost"
-  | "film_logged";
+  | "film_logged"
+  | "chat_reaction";
 
 export interface NotificationActor {
   id: string;
@@ -348,7 +349,7 @@ export interface NotificationActor {
 }
 
 export interface NotificationEntity {
-  type: "post" | "comment" | "user" | "film" | null;
+  type: "post" | "comment" | "user" | "film" | "chat_thread" | null;
   id: string | null;
   title: string | null;
   thumbnailUrl: string | null;

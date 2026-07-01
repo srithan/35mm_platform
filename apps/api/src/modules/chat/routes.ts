@@ -40,6 +40,7 @@ import { createRateLimitMiddleware } from "../../lib/rateLimit.js";
 import { createUlid } from "../../lib/ulid.js";
 import { tryGetKeyspacesClient } from "../../lib/keyspaces.js";
 import { enqueueChatJob } from "../../lib/jobs.js";
+import { createNotification } from "../../lib/notifications.js";
 import {
   clearTyping,
   getPresence,
@@ -353,6 +354,49 @@ async function assertActiveMember(threadId: string, userId: string) {
     .limit(1);
   if (rows.length === 0) throw apiError(403, "NOT_MEMBER", "Not a member of this thread");
   return rows[0];
+}
+
+async function isActiveThreadMember(threadId: string, userId: string): Promise<boolean> {
+  var rows = await getDb()
+    .select({ threadId: chatParticipants.threadId })
+    .from(chatParticipants)
+    .where(
+      and(
+        eq(chatParticipants.threadId, threadId),
+        eq(chatParticipants.userId, userId),
+        isNull(chatParticipants.leftAt)
+      )
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function createChatReactionNotification(input: {
+  threadId: string;
+  messageId: string;
+  actorId: string;
+  recipientId: string;
+}): Promise<void> {
+  if (input.actorId === input.recipientId) return;
+  if (!(await isActiveThreadMember(input.threadId, input.recipientId))) return;
+
+  try {
+    await createNotification({
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      type: "chat_reaction",
+      entityType: "chat_thread",
+      entityId: input.threadId,
+    });
+  } catch (error) {
+    console.warn("[chat.notifications] reaction notification failed", {
+      threadId: input.threadId,
+      messageId: input.messageId,
+      actorId: input.actorId,
+      recipientId: input.recipientId,
+      error,
+    });
+  }
 }
 
 async function getThreadPreview(threadId: string, viewerId: string): Promise<ChatThreadPreview> {
@@ -827,6 +871,7 @@ chatRoutes.post("/messages/:messageId/reactions", reactionRateLimit, async funct
   var client = tryGetKeyspacesClient();
   if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
   var userIds = reactionUserSet(row.reactions, body.emoji);
+  var alreadyReacted = userIds.has(viewer.userId);
   userIds.add(viewer.userId);
   var nextReactions = setReactionEntry(row.reactions, body.emoji, userIds);
   await client.execute(
@@ -843,6 +888,14 @@ chatRoutes.post("/messages/:messageId/reactions", reactionRateLimit, async funct
   });
   if (!published) {
     await enqueueChatJob("chat.messageUpdated", { messageId, threadId, bucket, type: "reaction" });
+  }
+  if (!alreadyReacted) {
+    await createChatReactionNotification({
+      threadId,
+      messageId,
+      actorId: viewer.userId,
+      recipientId: row.sender_id,
+    });
   }
   return c.json(message);
 });

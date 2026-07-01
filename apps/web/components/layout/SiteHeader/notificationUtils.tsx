@@ -96,6 +96,14 @@ export function formatNotificationText(row: HeaderNotifRow): ReactNode {
     );
   }
 
+  if (row.type === "chat_reaction") {
+    return (
+      <>
+        <strong>{actorLabel}</strong> reacted to your message
+      </>
+    );
+  }
+
   return (
     <>
       <strong>{actorLabel}</strong> reposted your {row.entity?.title ? <em>{row.entity.title}</em> : "post"}

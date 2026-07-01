@@ -203,6 +203,15 @@ async function resolveEntity(
     };
   }
 
+  if (row.entityType === "chat_thread") {
+    return {
+      type: "chat_thread",
+      id: row.entityId,
+      title: null,
+      thumbnailUrl: null,
+    };
+  }
+
   var rowUser = maps.users.get(row.entityId);
   if (!rowUser) {
     return {

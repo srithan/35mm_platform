@@ -21,6 +21,7 @@ const ALLOWED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   "mention",
   "repost",
   "film_logged",
+  "chat_reaction",
 ] as const;
 
 function parseActorIds(value: unknown): string[] {
@@ -50,10 +51,16 @@ function parseNotificationType(value: unknown): NotificationType | undefined {
     : undefined;
 }
 
-function parseEntityType(value: unknown): "post" | "comment" | "user" | "film" | null | undefined {
+function parseEntityType(value: unknown): "post" | "comment" | "user" | "film" | "chat_thread" | null | undefined {
   if (value === null || value === undefined) return undefined;
   if (typeof value !== "string") return undefined;
-  if (value === "post" || value === "comment" || value === "user" || value === "film") return value;
+  if (
+    value === "post" ||
+    value === "comment" ||
+    value === "user" ||
+    value === "film" ||
+    value === "chat_thread"
+  ) return value;
   return undefined;
 }
 

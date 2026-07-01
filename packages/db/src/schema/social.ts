@@ -32,6 +32,7 @@ export var notificationTypeEnum = pgEnum("notification_type", [
   "mention",
   "repost",
   "film_logged",
+  "chat_reaction",
 ]);
 
 export var follows = pgTable(

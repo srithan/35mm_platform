@@ -11,7 +11,7 @@ type NotificationSettings = {
   notifyMentions: boolean;
 };
 
-type NotificationEntityKind = "post" | "comment" | "user" | "film" | null;
+type NotificationEntityKind = "post" | "comment" | "user" | "film" | "chat_thread" | null;
 
 type NotificationInput = {
   recipientId: string;
@@ -25,7 +25,8 @@ type NotificationInput = {
     | "follow_request_approved"
     | "mention"
     | "repost"
-    | "film_logged";
+    | "film_logged"
+    | "chat_reaction";
   entityType: NotificationEntityKind;
   entityId: string | null;
 };
@@ -117,6 +118,7 @@ function canPreferenceNotify(type: NotificationInput["type"], settings: Notifica
   if (type === "like" || type === "repost") return settings.notifyLikesOnPosts;
   if (type === "comment" || type === "reply") return settings.notifyCommentsAndReplies;
   if (type === "mention") return settings.notifyMentions;
+  if (type === "chat_reaction") return true;
   if (type === "film_logged") return false;
   return false;
 }

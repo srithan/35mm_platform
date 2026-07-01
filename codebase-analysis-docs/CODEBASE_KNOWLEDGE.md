@@ -248,7 +248,7 @@ Current Drizzle schema highlights:
 - `post_polls`, `poll_options`, `poll_votes`: ranking/image polls, results visibility, end time, votes.
 - `follows`: composite PK `(follower_id, following_id)`, status `pending | accepted`.
 - `comments`: post/user/parent, body, like count, soft delete, edit timestamp. App code enforces nesting rules.
-- `notifications`: recipient, actor, actor ID bundle array, type, entity, read state, bundle count. Notification types include `follow_request_approved` for accepted private-account requests.
+- `notifications`: recipient, actor, actor ID bundle array, type, entity, read state, bundle count. Notification types include `follow_request_approved` for accepted private-account requests and `chat_reaction` for first-time message reaction adds.
 - `feed_items`: materialized feed rows for fanout/backfill.
 - `post_edits`: post body/headline edit history.
 - `user_blocks`, `user_mutes`: moderation relationship tables.
@@ -474,6 +474,7 @@ How it works:
 - API creates notifications through `createNotification`.
 - Preferences and moderation checks decide whether to skip.
 - Bundlable unread notifications for the same recipient/type/entity are merged with `bundle_count` and up to three recent `actor_ids`.
+- Chat reaction notifications use `type=chat_reaction`, `entityType=chat_thread`, and route back to the conversation thread.
 - Publish jobs are delayed/enqueued through BullMQ; removing likes/reposts can remove pending publish jobs.
 - Worker reads notification and actor profiles, then publishes an Ably event to `user:{recipientId}:notifications`.
 
@@ -615,7 +616,7 @@ Current state:
   - `POST /v1/chat/presence/batch`
 - Persistence is wired with Postgres metadata tables plus AWS Keyspaces message/edit tables.
 - Redis stores unread counts, typing state, and presence state. Chat unread/presence reads batch via `MGET`; typing membership uses a short-lived sorted set instead of scanning `chat:typing:*` keys.
-- API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
+- API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. First-time reaction adds also create `chat_reaction` notifications for the original message sender. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
 - The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patching current messages and inbox unread rows while still invalidating conversation lists.
 - The iOS Messages tab now has a native inbox and core thread experience backed by the same chat contract: cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
 - Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.

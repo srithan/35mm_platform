@@ -22,6 +22,10 @@ export function getNotificationDestination(item: NotificationDestinationInput): 
     }
   }
 
+  if (item.type === "chat_reaction" && entity?.type === "chat_thread" && entity.id) {
+    return ROUTES.CHAT_WITH(entity.id);
+  }
+
   if ((item.type === "follow" || item.type === "follow_request" || item.type === "follow_request_approved") && item.actor?.username) {
     return ROUTES.PROFILE(item.actor.username);
   }

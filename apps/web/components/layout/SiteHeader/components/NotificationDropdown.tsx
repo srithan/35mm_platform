@@ -7,6 +7,7 @@ import {
   Film,
   MessageCircle,
   Repeat2,
+  Smile,
   UserCheck,
   UserPlus,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const NOTIF_KIND_ICON = {
   reply: MessageCircle,
   repost: Repeat2,
   film_logged: Film,
+  chat_reaction: Smile,
 } as const;
 
 type NotificationDropdownProps = {

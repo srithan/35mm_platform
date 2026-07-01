@@ -152,6 +152,8 @@ function activityText(item: ApiNotificationItem): NotificationTextPart[] {
   } else if (item.type === "film_logged") {
     textParts.push({ type: "text", value: " logged " });
     textParts.push({ type: item.entity?.title ? "film" : "strong", value: item.entity?.title ?? "a film you logged" });
+  } else if (item.type === "chat_reaction") {
+    textParts.push({ type: "text", value: " reacted to your message" });
   } else {
     textParts.push({ type: "text", value: " interacted with you" });
   }
