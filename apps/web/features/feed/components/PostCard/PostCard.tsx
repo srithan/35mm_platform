@@ -39,6 +39,7 @@ function PostCardComponent(props: PostCardProps) {
     avatarColor,
     headline,
     text,
+    editBody,
     filmRef,
     filmCard,
     attachedFilm = null,
@@ -206,6 +207,7 @@ function PostCardComponent(props: PostCardProps) {
               variant={variant}
               sourcePostType={sourcePostType}
               text={text}
+              editBody={editBody}
               headline={headline}
               normalizedMediaUrls={resolvedMedia.normalizedMediaUrls}
               linkPreview={linkPreview}

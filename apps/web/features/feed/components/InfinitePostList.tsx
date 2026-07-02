@@ -217,6 +217,7 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
         avatarUrl: post.author.avatarUrl,
         headline: post.headline,
         text: post.body,
+        editBody: post.body,
         filmCard,
         attachedFilm: post.film,
         mediaUrls: resolvedMediaUrls,

@@ -67,6 +67,59 @@ function posterUrlForFilm(film: FilmResult): string | null {
   return `${TMDB_IMAGE_BASE}/${TMDB_POSTER_SIZE}${film.posterPath}`;
 }
 
+function modeForEditingPost(
+  editingPost: EditingPost | null | undefined,
+  fallback: ComposerInitialMode
+): ComposerMode {
+  if (!editingPost) return fallback;
+  if (editingPost.type === "discussion") return "discussion";
+  if (editingPost.type === "log" || editingPost.type === "review") return "log";
+  return "write";
+}
+
+function writeTextForEditingPost(editingPost: EditingPost | null | undefined): string {
+  if (!editingPost) return "";
+  if (editingPost.type === "discussion" || editingPost.type === "log" || editingPost.type === "review") {
+    return "";
+  }
+  return editingPost.body ?? "";
+}
+
+function discussionTextForEditingPost(editingPost: EditingPost | null | undefined): string {
+  return editingPost?.type === "discussion" ? editingPost.body ?? "" : "";
+}
+
+function discussionHeadlineForEditingPost(editingPost: EditingPost | null | undefined): string {
+  return editingPost?.type === "discussion" ? editingPost.headline ?? "" : "";
+}
+
+function logTextForEditingPost(editingPost: EditingPost | null | undefined): string {
+  return editingPost?.type === "log" || editingPost?.type === "review" ? editingPost.body ?? "" : "";
+}
+
+function selectedFilmForEditingPost(editingPost: EditingPost | null | undefined): FilmResult | null {
+  if (!editingPost || (editingPost.type !== "log" && editingPost.type !== "review")) return null;
+  if (!editingPost.film) return null;
+  return {
+    id: editingPost.film.tmdbId ?? 0,
+    title: editingPost.film.title,
+    year: editingPost.film.year ? String(editingPost.film.year) : "",
+    language: "",
+    genres: editingPost.film.genres ?? [],
+    posterPath: editingPost.film.posterUrl,
+  };
+}
+
+function selectedFilmUlidForEditingPost(editingPost: EditingPost | null | undefined): string | null {
+  if (!editingPost || (editingPost.type !== "log" && editingPost.type !== "review")) return null;
+  return editingPost.film?.id ?? null;
+}
+
+function existingMediaUrlsForEditingPost(editingPost: EditingPost | null | undefined): string[] {
+  if (!editingPost || editingPost.type === "log" || editingPost.type === "review") return [];
+  return editingPost.mediaUrls ?? [];
+}
+
 function isVideoMediaUrl(url: string): boolean {
   var lower = url.toLowerCase();
   return (
@@ -154,18 +207,19 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     ref
   ) {
   const resolvedInitialMode = initialMode ?? "write";
-  const [mode, setMode] = useState<ComposerMode>(resolvedInitialMode);
-  const [writeText, setWriteText] = useState("");
-  const [discussionText, setDiscussionText] = useState("");
-  const [discussionHeadline, setDiscussionHeadline] = useState("");
-  const [logText, setLogText] = useState("");
-  const [selectedFilm, setSelectedFilm] = useState<FilmResult | null>(null);
-  const [selectedFilmUlid, setSelectedFilmUlid] = useState<string | null>(null);
+  const initialComposerMode = modeForEditingPost(editingPost, resolvedInitialMode);
+  const [mode, setMode] = useState<ComposerMode>(initialComposerMode);
+  const [writeText, setWriteText] = useState(() => writeTextForEditingPost(editingPost));
+  const [discussionText, setDiscussionText] = useState(() => discussionTextForEditingPost(editingPost));
+  const [discussionHeadline, setDiscussionHeadline] = useState(() => discussionHeadlineForEditingPost(editingPost));
+  const [logText, setLogText] = useState(() => logTextForEditingPost(editingPost));
+  const [selectedFilm, setSelectedFilm] = useState<FilmResult | null>(() => selectedFilmForEditingPost(editingPost));
+  const [selectedFilmUlid, setSelectedFilmUlid] = useState<string | null>(() => selectedFilmUlidForEditingPost(editingPost));
   const [isResolvingFilm, setIsResolvingFilm] = useState(false);
-  const [starRating, setStarRating] = useState(0);
+  const [starRating, setStarRating] = useState(() => editingPost?.film?.rating ?? 0);
   const [isRewatch, setIsRewatch] = useState(false);
   const [images, setImages] = useState<File[]>([]);
-  const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
+  const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>(() => existingMediaUrlsForEditingPost(editingPost));
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [pollDraft, setPollDraft] = useState<PollDraft | null>(null);
@@ -178,7 +232,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
-  } | null>(null);
+  } | null>(editingPost?.linkPreview ?? null);
   const [dismissedPreviewUrl, setDismissedPreviewUrl] = useState<string | null>(null);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showDropZone, setShowDropZone] = useState(false);
@@ -205,7 +259,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   );
 
   // Track which input is active to show the correct char limit (for discussion mode)
-  const [activeField, setActiveField] = useState<"headline" | "body" | null>(null);
+  const [activeField, setActiveField] = useState<"headline" | "body" | null>(() =>
+    editingPost ? (editingPost.type === "discussion" ? "headline" : "body") : null
+  );
 
   const discussionHeadlineRef = useRef<HTMLInputElement>(null);
   const [writeEditor, setWriteEditor] = useState<Editor | null>(null);
@@ -440,35 +496,34 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setGifUrl(null);
     setPollDraft(null);
     setShowDropZone(false);
-    setExistingMediaUrls(editingPost.mediaUrls ?? []);
+    setWriteText("");
+    setDiscussionHeadline("");
+    setDiscussionText("");
+    setLogText("");
+    setSelectedFilm(null);
+    setSelectedFilmUlid(null);
+    setIsResolvingFilm(false);
+    setStarRating(0);
+    setIsRewatch(false);
+    setExistingMediaUrls(existingMediaUrlsForEditingPost(editingPost));
     setLinkPreview(editingPost.linkPreview ?? null);
     setDismissedPreviewUrl(null);
 
     if (editingPost.type === "discussion") {
       setMode("discussion");
-      setDiscussionHeadline(editingPost.headline ?? "");
-      setDiscussionText(editingPost.body ?? "");
+      setDiscussionHeadline(discussionHeadlineForEditingPost(editingPost));
+      setDiscussionText(discussionTextForEditingPost(editingPost));
       setActiveField("headline");
     } else if (editingPost.type === "log" || editingPost.type === "review") {
       setMode("log");
-      setLogText(editingPost.body ?? "");
-      if (editingPost.film) {
-        setSelectedFilm({
-          id: editingPost.film.tmdbId ?? 0,
-          title: editingPost.film.title,
-          year: editingPost.film.year ? String(editingPost.film.year) : "",
-          language: "",
-          genres: editingPost.film.genres ?? [],
-          posterPath: editingPost.film.posterUrl,
-        });
-        setSelectedFilmUlid(editingPost.film.id);
-        setStarRating(editingPost.film.rating ?? 0);
-      }
-      setExistingMediaUrls([]);
+      setLogText(logTextForEditingPost(editingPost));
+      setSelectedFilm(selectedFilmForEditingPost(editingPost));
+      setSelectedFilmUlid(selectedFilmUlidForEditingPost(editingPost));
+      setStarRating(editingPost.film?.rating ?? 0);
       setActiveField("body");
     } else {
       setMode("write");
-      setWriteText(editingPost.body ?? "");
+      setWriteText(writeTextForEditingPost(editingPost));
       setActiveField("body");
     }
   }, [editingPost]);

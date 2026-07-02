@@ -131,6 +131,7 @@ export function PostDetailView({
         avatarUrl={post.author.avatarUrl}
         headline={post.headline}
         text={post.body}
+        editBody={post.body}
         filmRef={legacy.filmRef ?? undefined}
         filmCard={legacy.filmCard ?? filmCard}
         attachedFilm={post.film}

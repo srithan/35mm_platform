@@ -84,6 +84,8 @@ export interface PostCardProps {
   /** Discussion headline (shown above `text` / body). */
   headline?: string;
   text: string;
+  /** Raw persisted post body used to seed the edit composer. Defaults to `text`. */
+  editBody?: string;
   filmRef?: string;
   filmCard?: PostCardFilmCard;
   attachedFilm?: PostCardAttachedFilm | null;

@@ -31,6 +31,7 @@ interface PostCardMoreMenuProps {
   variant: PostVariant;
   sourcePostType?: SourcePostType;
   text: string;
+  editBody?: string;
   headline?: string;
   normalizedMediaUrls: string[];
   linkPreview?: PostCardLinkPreview | null;
@@ -53,6 +54,7 @@ export function PostCardMoreMenu({
   variant,
   sourcePostType,
   text,
+  editBody,
   headline,
   normalizedMediaUrls,
   linkPreview,
@@ -98,7 +100,7 @@ export function PostCardMoreMenu({
                             : variant === "image"
                               ? "image"
                               : "text"),
-                      body: text,
+                      body: editBody ?? text,
                       headline: headline ?? undefined,
                       mediaUrls: normalizedMediaUrls,
                       linkPreview: linkPreview ?? null,

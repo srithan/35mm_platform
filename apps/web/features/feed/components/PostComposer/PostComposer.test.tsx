@@ -120,6 +120,21 @@ function findMentionNode(node: any): any | null {
   return null;
 }
 
+function storedBody(text: string): string {
+  return (
+    "__35MM_RICH_TEXT_V1__" +
+    JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text }],
+        },
+      ],
+    })
+  );
+}
+
 describe("PostComposer", () => {
   it("keeps pasted YouTube URL in text and submits it", async () => {
     const user = userEvent.setup();
@@ -193,6 +208,86 @@ describe("PostComposer", () => {
       id: "11111111-1111-4111-8111-111111111111",
       username: "ava",
       label: "ava",
+    });
+  });
+
+  it("hydrates edit post body into the write editor", async () => {
+    const body = storedBody("Existing post body");
+
+    render(
+      <PostComposer
+        variant="modal"
+        editingPost={{
+          postId: "post_1",
+          userId: "11111111-1111-4111-8111-111111111111",
+          type: "text",
+          body,
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: WRITE_PLACEHOLDER })
+      ).toHaveTextContent("Existing post body");
+    });
+  });
+
+  it("hydrates edit discussion headline and body", async () => {
+    render(
+      <PostComposer
+        variant="modal"
+        editingPost={{
+          postId: "post_1",
+          userId: "11111111-1111-4111-8111-111111111111",
+          type: "discussion",
+          headline: "Existing discussion headline",
+          body: storedBody("Existing discussion body"),
+        }}
+      />
+    );
+
+    expect(screen.getByPlaceholderText("What's your question or take?")).toHaveValue(
+      "Existing discussion headline"
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: "Add more context... (optional)" })
+      ).toHaveTextContent("Existing discussion body");
+    });
+  });
+
+  it("hydrates edit log body and attached film", async () => {
+    render(
+      <PostComposer
+        variant="modal"
+        editingPost={{
+          postId: "post_1",
+          userId: "11111111-1111-4111-8111-111111111111",
+          type: "log",
+          body: storedBody("Existing log note"),
+          film: {
+            id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            tmdbId: 550,
+            title: "Fight Club",
+            year: 1999,
+            posterUrl: "/poster.jpg",
+            genres: ["Drama"],
+            rating: 8,
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText("Fight Club")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", {
+          name: "Optional note. 200+ characters turns this into a review.",
+        })
+      ).toHaveTextContent("Existing log note");
     });
   });
 

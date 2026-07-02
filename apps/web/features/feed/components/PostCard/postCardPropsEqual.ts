@@ -152,6 +152,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     prev.avatarColor === next.avatarColor &&
     prev.headline === next.headline &&
     prev.text === next.text &&
+    prev.editBody === next.editBody &&
     prev.filmRef === next.filmRef &&
     areFilmCardsEqual(prev.filmCard, next.filmCard) &&
     areAttachedFilmsEqual(prev.attachedFilm, next.attachedFilm) &&
