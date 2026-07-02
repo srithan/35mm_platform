@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useEffect,
+  useLayoutEffect,
   useState,
   useCallback,
   type MutableRefObject,
@@ -33,6 +34,9 @@ import reactionStyles from "./ChatReactions.module.css";
 import typingStyles from "./ChatTypingIndicator.module.css";
 
 const TOP_5_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"];
+const KEYCAP_EMOJI_PATTERN = /[0-9#*]\uFE0F?\u20E3/gu;
+const EMOJI_COMPONENT_PATTERN =
+  /[\p{Emoji_Presentation}\p{Emoji_Modifier}\p{Emoji_Modifier_Base}\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0E\uFE0F\u200D\u20E3]/gu;
 
 type ReactionPhase = "closed" | "bar" | "picker";
 
@@ -49,6 +53,18 @@ interface ChatMessageListProps {
   /** When false, new messages do not auto-scroll (user is reading history). */
   stickToBottomRef: MutableRefObject<boolean>;
   scrollRootRef: MutableRefObject<HTMLDivElement | null>;
+}
+
+function isStandaloneEmojiText(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  return trimmed
+    .replace(KEYCAP_EMOJI_PATTERN, "")
+    .replace(EMOJI_COMPONENT_PATTERN, "")
+    .replace(/\s/g, "").length === 0;
 }
 
 export function ChatMessagesSkeleton() {
@@ -433,6 +449,11 @@ function BubbleRow({
 }) {
   const time = formatMessageTime(msg.createdAt);
   const hasAttachment = Boolean(msg.media || msg.file);
+  const trimmedText = msg.text.trim();
+  const isStandaloneEmoji =
+    !hasAttachment && !msg.replyTo && isStandaloneEmojiText(trimmedText);
+  const isStandaloneMedia =
+    Boolean(msg.media) && !msg.file && !msg.replyTo && trimmedText.length === 0;
   const showReactions = hasVisibleReactions(msg.reactions);
   const statusLabel =
     receiptLabel === "read"
@@ -445,18 +466,18 @@ function BubbleRow({
 
   const bubbleRadius = msg.isOwn
     ? cn(
-        "rounded-[20px]",
-        isFirstInRun && isLastInRun && "rounded-br-[5px]",
-        isFirstInRun && !isLastInRun && "rounded-br-[4px]",
-        !isFirstInRun && isLastInRun && "rounded-tr-[20px] rounded-br-[5px]",
-        !isFirstInRun && !isLastInRun && "rounded-[5px]"
+        "rounded-[24px]",
+        isFirstInRun && isLastInRun && "rounded-br-[14px]",
+        isFirstInRun && !isLastInRun && "rounded-br-[14px]",
+        !isFirstInRun && isLastInRun && "rounded-tr-[14px] rounded-br-[14px]",
+        !isFirstInRun && !isLastInRun && "rounded-r-[14px]"
       )
     : cn(
-        "rounded-[20px]",
-        isFirstInRun && isLastInRun && "rounded-bl-[5px]",
-        isFirstInRun && !isLastInRun && "rounded-bl-[4px]",
-        !isFirstInRun && isLastInRun && "rounded-tl-[20px] rounded-bl-[5px]",
-        !isFirstInRun && !isLastInRun && "rounded-[5px]"
+        "rounded-[24px]",
+        isFirstInRun && isLastInRun && "rounded-bl-[14px]",
+        isFirstInRun && !isLastInRun && "rounded-bl-[14px]",
+        !isFirstInRun && isLastInRun && "rounded-tl-[14px] rounded-bl-[14px]",
+        !isFirstInRun && !isLastInRun && "rounded-l-[14px]"
       );
 
   async function copyText(): Promise<boolean> {
@@ -532,7 +553,9 @@ function BubbleRow({
         <div
           className={cn(
             "relative min-w-0 transition-shadow duration-300",
-            hasAttachment
+            isStandaloneEmoji
+              ? "max-w-[min(100%,18rem)] overflow-visible"
+              : hasAttachment
               ? "max-w-[min(100%,340px)] overflow-visible"
               : cn(
                   "max-w-[min(100%,520px)] overflow-visible",
@@ -543,7 +566,9 @@ function BubbleRow({
                     : "bg-sunken text-fg border border-border dark:bg-[color-mix(in_srgb,var(--elevated)_88%,var(--fg)_12%)] dark:border-white/[0.08]"
                 ),
             isJumpHighlighted &&
-              (hasAttachment
+              (isStandaloneEmoji || isStandaloneMedia
+                ? "rounded-[18px] ring-2 ring-[#007AFF]/50"
+                : hasAttachment
                 ? "rounded-[16px] ring-2 ring-[#007AFF]/50"
                 : msg.isOwn
                   ? "ring-2 ring-white/70 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_4px_20px_rgba(10,132,255,0.35)]"
@@ -559,8 +584,13 @@ function BubbleRow({
           />
           <div
             className={cn(
-              hasAttachment ? "p-0" : "px-3.5 py-2",
-              showReactions && !hasAttachment && "pt-4"
+              hasAttachment
+                ? "p-0"
+                : isStandaloneEmoji
+                  ? "px-0.5 py-0"
+                  : "px-3.5 py-2",
+              showReactions && !hasAttachment && !isStandaloneEmoji && "pt-4",
+              showReactions && isStandaloneEmoji && "pt-3"
             )}
           >
             {msg.replyTo ? (
@@ -643,8 +673,13 @@ function BubbleRow({
             {msg.text ? (
               <p
                 className={cn(
-                  "whitespace-pre-wrap break-words text-[16px] leading-[1.42] tracking-[0.01em] md:text-[15px]",
-                  hasAttachment
+                  "whitespace-pre-wrap break-words",
+                  isStandaloneEmoji
+                    ? "select-text text-[40px] leading-none tracking-normal md:text-[38px] [text-shadow:0_1px_3px_rgba(0,0,0,0.10)]"
+                    : "text-[16px] leading-[1.42] tracking-[0.01em] md:text-[15px]",
+                  isStandaloneEmoji
+                    ? "text-fg"
+                    : hasAttachment
                     ? "mt-1.5 px-0.5 text-fg"
                     : msg.isOwn
                       ? "text-white"
@@ -723,6 +758,9 @@ export function ChatMessageList({
   scrollRootRef,
 }: ChatMessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const initialPinUntilRef = useRef(0);
+  const scheduledScrollTimeoutsRef = useRef<number[]>([]);
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(
     null
@@ -765,7 +803,51 @@ export function ChatMessageList({
     count: number;
   } | null>(null);
 
-  useEffect(
+  const scrollToBottom = useCallback(
+    function (behavior: ScrollBehavior = "auto"): void {
+      const root = scrollRootRef.current;
+      if (!root) {
+        endRef.current?.scrollIntoView({ behavior: behavior, block: "end" });
+        return;
+      }
+      const maxTop = Math.max(0, root.scrollHeight - root.clientHeight);
+      if (behavior === "auto") {
+        root.scrollTop = maxTop;
+        return;
+      }
+      root.scrollTo({ top: maxTop, behavior: behavior });
+    },
+    [scrollRootRef]
+  );
+
+  const clearScheduledScrolls = useCallback(function (): void {
+    scheduledScrollTimeoutsRef.current.forEach(function (id) {
+      window.clearTimeout(id);
+    });
+    scheduledScrollTimeoutsRef.current = [];
+  }, []);
+
+  const scheduleScrollToBottom = useCallback(
+    function (): void {
+      clearScheduledScrolls();
+      scrollToBottom("auto");
+      requestAnimationFrame(function () {
+        scrollToBottom("auto");
+        requestAnimationFrame(function () {
+          scrollToBottom("auto");
+        });
+      });
+      [80, 180, 360].forEach(function (delay) {
+        const id = window.setTimeout(function () {
+          scrollToBottom("auto");
+        }, delay);
+        scheduledScrollTimeoutsRef.current.push(id);
+      });
+    },
+    [clearScheduledScrolls, scrollToBottom]
+  );
+
+  useLayoutEffect(
     function () {
       const count = sortedMessages.length;
       const lastMessageId =
@@ -776,36 +858,65 @@ export function ChatMessageList({
         count: count,
       };
       if (prev === null) {
-        endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+        initialPinUntilRef.current = performance.now() + 1200;
+        stickToBottomRef.current = true;
+        scheduleScrollToBottom();
         return;
       }
       const appendedOrReplacedLast =
         lastMessageId !== prev.lastMessageId || count > prev.count;
       if (appendedOrReplacedLast && stickToBottomRef.current) {
-        endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+        scheduleScrollToBottom();
       }
     },
-    [sortedMessages, stickToBottomRef, typingUsers.length]
+    [scheduleScrollToBottom, sortedMessages, stickToBottomRef, typingUsers.length]
   );
 
   useEffect(
     function () {
       if (typingUsers.length > 0 && stickToBottomRef.current) {
-        endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+        scheduleScrollToBottom();
       }
     },
-    [stickToBottomRef, typingUsers.length]
+    [scheduleScrollToBottom, stickToBottomRef, typingUsers.length]
+  );
+
+  useEffect(
+    function () {
+      const list = listRef.current;
+      const root = scrollRootRef.current;
+      if (!list || typeof ResizeObserver === "undefined") {
+        return;
+      }
+      const observer = new ResizeObserver(function () {
+        if (
+          stickToBottomRef.current ||
+          performance.now() <= initialPinUntilRef.current
+        ) {
+          scrollToBottom("auto");
+        }
+      });
+      observer.observe(list);
+      if (root) {
+        observer.observe(root);
+      }
+      return function () {
+        observer.disconnect();
+      };
+    },
+    [scrollRootRef, scrollToBottom, stickToBottomRef]
   );
 
   useEffect(
     function () {
       return function () {
+        clearScheduledScrolls();
         if (highlightClearRef.current) {
           window.clearTimeout(highlightClearRef.current);
         }
       };
     },
-    []
+    [clearScheduledScrolls]
   );
 
   function scrollMessageIntoViewCentered(el: HTMLElement, root: HTMLDivElement): void {
@@ -859,7 +970,7 @@ export function ChatMessageList({
   }
 
   return (
-    <div className="space-y-2 px-3 md:px-4 py-4 md:py-5">
+    <div ref={listRef} className="space-y-2 px-3 md:px-4 py-4 md:py-5">
       {sortedMessages.map(function (msg, index) {
         const prev = sortedMessages[index - 1];
         const next = sortedMessages[index + 1];
