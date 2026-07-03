@@ -58,6 +58,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/discover" ||
     pathname === ROUTES.BOOKMARKS ||
     pathname === ROUTES.SUGGESTIONS_PEOPLE ||
+    isSettingsSection ||
     isChatSection ||
     isShortFilmsSection ||
     isTitlePage;

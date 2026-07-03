@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, X } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useSignUp, useSignIn } from "@clerk/nextjs/legacy";
 import { clerkSignUp, clerkSignIn } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
-import { BrandLogo } from "@/components/Logo";
+import { Modal } from "@/components/Modal/Modal";
 import { LandingReveal } from "./LandingReveal";
 import { LandingHero } from "./LandingHero";
 
@@ -58,6 +58,7 @@ type LandingPageProps = {
 type AuthPanelProps = {
   mode: "signup" | "login";
   setMode: (mode: "signup" | "login") => void;
+  onClose: () => void;
   signupForm: ReturnType<typeof useForm<SignupValues>>;
   loginForm: ReturnType<typeof useForm<LoginValues>>;
   signupError: string | null;
@@ -79,6 +80,7 @@ function LandingAuthPanel(props: AuthPanelProps) {
   const {
     mode,
     setMode,
+    onClose,
     signupForm,
     loginForm,
     signupError,
@@ -98,6 +100,15 @@ function LandingAuthPanel(props: AuthPanelProps) {
 
   return (
     <div className="landing-auth-panel">
+      <div className="landing-auth-panel__header">
+        <p className="landing-auth-panel__title">
+          {mode === "signup" ? "Join 35mm" : "Login to 35mm"}
+        </p>
+        <button type="button" onClick={onClose} className="landing-auth-panel__close" aria-label="Close auth form">
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+
       <div className="landing-auth-panel__tabs">
         <button
           type="button"
@@ -128,7 +139,7 @@ function LandingAuthPanel(props: AuthPanelProps) {
       </div>
 
       {mode === "signup" ? (
-        <div className="landing-auth-panel__body">
+        <div className="landing-auth-panel__body" data-landing-auth-body>
           <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="landing-auth-panel__form">
             {signupError ? (
               <p className="landing-auth-panel__alert" role="alert">
@@ -242,7 +253,7 @@ function LandingAuthPanel(props: AuthPanelProps) {
           </form>
         </div>
       ) : (
-        <div className="landing-auth-panel__body">
+        <div className="landing-auth-panel__body" data-landing-auth-body>
           <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="landing-auth-panel__form">
             {loginError ? (
               <p className="landing-auth-panel__alert" role="alert">
@@ -320,8 +331,8 @@ export function LandingPage({ children }: LandingPageProps) {
   const { isLoaded: authIsLoaded, isSignedIn } = useAuth();
   const { signUp: clerkSignUpObj, isLoaded: signUpLoaded } = useSignUp();
   const { signIn: clerkSignInObj, setActive, isLoaded: signInLoaded } = useSignIn();
-  const authRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<"signup" | "login">("signup");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -383,11 +394,13 @@ export function LandingPage({ children }: LandingPageProps) {
     [authIsLoaded, isSignedIn]
   );
 
-  const scrollToAuth = useCallback(function (nextMode: "signup" | "login") {
+  const openAuthModal = useCallback(function (nextMode: "signup" | "login") {
     setMode(nextMode);
-    if (authRef.current) {
-      authRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    setAuthModalOpen(true);
+  }, []);
+
+  const closeAuthModal = useCallback(function () {
+    setAuthModalOpen(false);
   }, []);
 
   const onSignupSubmit = async function (data: SignupValues) {
@@ -435,6 +448,7 @@ export function LandingPage({ children }: LandingPageProps) {
   const authPanelProps: AuthPanelProps = {
     mode: mode,
     setMode: setMode,
+    onClose: closeAuthModal,
     signupForm: signupForm,
     loginForm: loginForm,
     signupError: signupError,
@@ -457,33 +471,13 @@ export function LandingPage({ children }: LandingPageProps) {
       <div className="landing-hero__ambient" aria-hidden />
 
       <div className="landing-shell">
-        <header className="landing-header">
-          <BrandLogo href="/" className="landing-header__logo" />
-          <nav className="landing-header__nav lg:hidden">
-            <button
-              type="button"
-              onClick={function () {
-                scrollToAuth("login");
-              }}
-              className="landing-header__link"
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              onClick={function () {
-                scrollToAuth("signup");
-              }}
-              className="landing-header__cta"
-            >
-              Sign up
-            </button>
-          </nav>
-        </header>
-
         <LandingHero
-          authRef={authRef}
-          authPanel={<LandingAuthPanel {...authPanelProps} />}
+          onJoin={function () {
+            openAuthModal("signup");
+          }}
+          onLogin={function () {
+            openAuthModal("login");
+          }}
         />
 
         <div className="landing-below">
@@ -554,6 +548,18 @@ export function LandingPage({ children }: LandingPageProps) {
           </footer>
         </div>
       </div>
+
+      <Modal
+        open={authModalOpen}
+        onClose={closeAuthModal}
+        variant="bare"
+        ariaLabel={mode === "signup" ? "Join 35mm" : "Login to 35mm"}
+        containerClassName="landing-auth-modal__container"
+        contentClassName="landing-auth-modal"
+        initialFocusWithinSelector="[data-landing-auth-body]"
+      >
+        <LandingAuthPanel {...authPanelProps} />
+      </Modal>
     </main>
   );
 }

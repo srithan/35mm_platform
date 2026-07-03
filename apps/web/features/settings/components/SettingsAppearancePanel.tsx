@@ -53,7 +53,7 @@ export function SettingsAppearancePanel({
 
   return (
     <div className="space-y-10">
-      <SettingsSection title="Appearance">
+      <SettingsSection title="Theme and color">
         <div className="space-y-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <h3 className="text-[13px] text-fg-light font-medium shrink-0">
@@ -85,11 +85,11 @@ export function SettingsAppearancePanel({
             />
           </div>
           <div className="mt-6 border-t border-border pt-6">
-            <div className="space-y-4">
-              <div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+              <div className="shrink-0 lg:w-[12rem]">
                 <h3 className="text-[13px] text-fg-light font-medium">Accent color</h3>
-                <p className="mt-1 text-[11.5px] text-fg-muted">
-                  Applies to buttons, links, and highlights across all themes.
+                <p className="mt-1 max-w-[13rem] text-[11.5px] leading-relaxed text-fg-muted">
+                  Buttons, links, and highlights.
                 </p>
               </div>
               <AccentColorPicker

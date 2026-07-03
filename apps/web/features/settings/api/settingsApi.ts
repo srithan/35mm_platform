@@ -7,6 +7,19 @@ import type {
 } from "../types/settings";
 import { apiRequest } from "@/features/feed/api/http";
 
+export type UsernameAvailabilityResponse = {
+  available: boolean;
+  reason?: string;
+};
+
+export async function checkUsernameAvailability(
+  username: string
+): Promise<UsernameAvailabilityResponse> {
+  return apiRequest<UsernameAvailabilityResponse>(
+    "/v1/usernames/" + encodeURIComponent(username.trim().toLowerCase()) + "/available"
+  );
+}
+
 export async function getSettings(token: string | null): Promise<UserSettings> {
   const data = await apiRequest<Pick<UserSettings, "profile" | "privacy" | "notifications" | "appearance">>(
     "/v1/me/settings",

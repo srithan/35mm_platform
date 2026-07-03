@@ -3,8 +3,11 @@
 import { Button } from "@/components/Button";
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { ROUTES } from "@/lib/constants/routes";
+import { cn } from "@/lib/utils/cn";
 import { useTheme } from "@/lib/theme/useTheme";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
+import { Bell, Database, Palette, Shield, UserRound } from "lucide-react";
 import { SettingsAccountPanel } from "./SettingsAccountPanel";
 import { SettingsPrivacyPanel } from "./SettingsPrivacyPanel";
 import { SettingsNotificationsPanel } from "./SettingsNotificationsPanel";
@@ -23,29 +26,39 @@ const SETTINGS_TABS = [
   {
     id: "Account",
     label: "Account",
+    description: "Profile and login basics",
+    icon: UserRound,
     href: ROUTES.SETTINGS_ACCOUNT,
   },
   {
     id: "Privacy",
     label: "Privacy",
+    description: "Audience and interactions",
+    icon: Shield,
     href: ROUTES.SETTINGS_PRIVACY,
   },
   {
     id: "Notifications",
     label: "Notifications",
     mobileLabel: "Notices",
+    description: "Push, activity, email",
+    icon: Bell,
     href: ROUTES.SETTINGS_NOTIFICATIONS,
   },
   {
     id: "Appearance",
     label: "Appearance",
     mobileLabel: "Display",
+    description: "Theme, color, motion",
+    icon: Palette,
     href: ROUTES.SETTINGS_APPEARANCE,
   },
   {
     id: "Data & security",
     label: "Data & security",
     mobileLabel: "Data",
+    description: "Exports and account safety",
+    icon: Database,
     href: ROUTES.SETTINGS_DATA_SECURITY,
   },
 ] as const;
@@ -109,7 +122,7 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
       variant="headline"
       title="Settings"
       subtitle="Manage your account and preferences"
-      rootClassName="shadow-[0_1px_0_rgba(0,0,0,0.02)]"
+      rootClassName="shadow-[0_1px_0_rgba(0,0,0,0.02)] md:hidden"
       headerClassName="mx-auto w-full max-w-3xl px-4 sm:px-6 md:px-8"
       tabsViewportClassName="md:justify-start"
       tabsListClassName="mx-auto w-full max-w-3xl gap-5 px-4 sm:px-6 md:px-8"
@@ -121,8 +134,8 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
     return (
       <>
         {settingsTabBar}
-        <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 md:px-8 lg:py-8">
-          <div className="rounded-lg border border-border bg-elevated p-5 text-sm text-fg-muted sm:p-6">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:px-8 lg:py-8">
+          <div className="rounded-2xl border border-border bg-elevated p-5 text-sm text-fg-muted shadow-[0_18px_44px_rgba(0,0,0,0.05)] sm:p-6">
             Loading settings...
           </div>
         </div>
@@ -170,31 +183,116 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
     "Data & security": <SettingsDataSecurityPanel />,
   };
 
+  const activeTab = SETTINGS_TABS.find((tab) => tab.id === initialTab) ?? SETTINGS_TABS[0];
+  const ActiveIcon = activeTab.icon;
+
   return (
     <>
       {settingsTabBar}
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 md:px-8 lg:py-8">
-        {settingsQuery.isError ? (
-          <div className="rounded-lg border border-accent/30 bg-elevated p-5 sm:p-6">
-            <p className="text-sm text-accent">
-              Could not load settings. Please retry.
-            </p>
-            <div className="pt-4">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  void settingsQuery.refetch();
-                }}
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 md:px-8 lg:py-8">
+        <aside className="hidden md:block">
+          <div className="sticky top-[calc(var(--site-header-sticky-offset,4.5rem)+1rem)] overflow-hidden rounded-2xl border border-border bg-elevated p-3 shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
+            <div className="px-4 pb-3 pt-2">
+              <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-fg">
+                Settings
+              </h1>
+            </div>
+            <nav aria-label="Settings sections" className="space-y-1">
+              {SETTINGS_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const active = tab.id === initialTab;
+
+                return (
+                  <Link
+                    key={tab.id}
+                    href={tab.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "group relative flex items-start gap-3.5 rounded-xl px-4 py-3 text-left no-underline transition-colors",
+                      active
+                        ? "bg-sunken text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                        : "text-fg-muted hover:bg-sunken hover:text-fg"
+                    )}
+                  >
+                    {active ? (
+                      <span
+                        className="absolute left-1.5 top-3 bottom-3 w-0.5 rounded-full bg-accent"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                        active
+                          ? "bg-bg text-accent shadow-sm"
+                          : "bg-sunken text-fg-muted group-hover:text-fg"
+                      )}
+                      aria-hidden
+                    >
+                      <Icon className="h-[17px] w-[17px]" strokeWidth={1.9} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold leading-5">
+                        {tab.label}
+                      </span>
+                      <span
+                        className={cn(
+                          "block text-[11.5px] leading-4",
+                          active ? "text-fg-muted" : "text-fg-faint"
+                        )}
+                      >
+                        {tab.description}
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
+        <main className="min-w-0">
+          <div className="overflow-hidden rounded-2xl border border-border bg-elevated shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
+            <div className="hidden border-b border-border bg-[linear-gradient(135deg,var(--elevated)_0%,color-mix(in_srgb,var(--sunken)_90%,var(--accent)_10%)_100%)] px-8 py-9 text-center md:block">
+              <span
+                className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-bg text-accent shadow-[0_14px_34px_rgba(0,0,0,0.08)]"
+                aria-hidden
               >
-                Retry
-              </Button>
+                <ActiveIcon className="h-7 w-7" strokeWidth={1.8} />
+              </span>
+              <h2 className="mt-4 text-[36px] font-semibold leading-none text-fg">
+                {activeTab.label}
+              </h2>
+              <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-fg-muted">
+                {activeTab.description}
+              </p>
+            </div>
+
+            <div className="p-5 sm:p-6">
+              {settingsQuery.isError ? (
+                <div className="rounded-2xl border border-accent/30 bg-sunken p-5 sm:p-6">
+                  <p className="text-sm text-accent">
+                    Could not load settings. Please retry.
+                  </p>
+                  <div className="pt-4">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        void settingsQuery.refetch();
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                tabPanels[initialTab]
+              )}
             </div>
           </div>
-        ) : (
-          tabPanels[initialTab]
-        )}
+        </main>
       </div>
     </>
   );

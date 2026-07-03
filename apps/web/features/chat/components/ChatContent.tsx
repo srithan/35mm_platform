@@ -5,6 +5,7 @@ import { useChatSidebar } from "../context/ChatSidebarContext";
 import { ChatList } from "./ChatList";
 import { ChatConversation } from "./ChatConversation";
 import { useConversationRow } from "../hooks/useChatQueries";
+import { useNewChat } from "../context/NewChatContext";
 
 interface ChatContentProps {
   /** Chat ID from URL (e.g. from /chat/[chatId]) */
@@ -13,7 +14,8 @@ interface ChatContentProps {
 
 export function ChatContent({ selectedId: initialSelectedId = null }: ChatContentProps = {}) {
   const { collapsed: sidebarCollapsed, toggleCollapse } = useChatSidebar();
-  const selectedId = initialSelectedId;
+  const { draftOpen } = useNewChat();
+  const selectedId = draftOpen ? null : initialSelectedId;
   const { row: chat, isLoading: chatLoading } = useConversationRow(selectedId);
   const avatar = chat ? { bg: chat.avatarBg, color: chat.avatarColor } : undefined;
   const chatName = chat?.name ?? null;
@@ -31,6 +33,7 @@ export function ChatContent({ selectedId: initialSelectedId = null }: ChatConten
           selectedId={selectedId}
           collapsed={sidebarCollapsed}
           onToggleCollapse={toggleCollapse}
+          draftSelected={draftOpen}
         />
       </div>
       <div className="min-w-0 h-full overflow-hidden bg-bg flex flex-col border-r border-border">
@@ -42,6 +45,7 @@ export function ChatContent({ selectedId: initialSelectedId = null }: ChatConten
           avatarBg={avatar?.bg}
           avatarColor={avatar?.color}
           conversationLoading={chatLoading}
+          newChatDraftOpen={draftOpen}
         />
       </div>
     </div>

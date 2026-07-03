@@ -136,28 +136,30 @@ export function SettingsInput({
   disabled?: boolean;
 }) {
   return (
-    <div className="border-b border-border py-4 last:border-b-0">
-      <label className="text-[11.5px] text-fg-muted block mb-1.5">
+    <div className="border-b border-border py-4 last:border-b-0 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-start sm:gap-5">
+      <label className="block text-[12.5px] font-medium text-fg-light sm:pt-3">
         {label}
       </label>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        aria-invalid={Boolean(error)}
-        className={cn(
-          "w-full text-[13px] text-fg bg-transparent border border-border rounded-sm px-3 py-2 focus:outline-none focus:border-fg-muted placeholder:text-fg-muted/60",
-          error ? "border-accent" : "",
-          disabled ? "opacity-60 cursor-not-allowed" : ""
-        )}
-      />
-      {error ? (
-        <p className="mt-1 text-[11px] text-accent">{error}</p>
-      ) : hint ? (
-        <p className="mt-1 text-[11px] text-fg-muted">{hint}</p>
-      ) : null}
+      <div className="mt-2 min-w-0 sm:mt-0 sm:max-w-md">
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          aria-invalid={Boolean(error)}
+          className={cn(
+            "h-11 w-full rounded-xl border border-border bg-sunken px-3.5 text-[14px] leading-none text-fg shadow-[inset_0_1px_0_color-mix(in_srgb,var(--fg)_4%,transparent)] outline-none transition-colors placeholder:text-fg-faint focus:border-border-strong focus:bg-bg",
+            error ? "border-accent bg-[color-mix(in_srgb,var(--color-film-red)_6%,var(--sunken))]" : "",
+            disabled ? "cursor-not-allowed opacity-60" : ""
+          )}
+        />
+        {error ? (
+          <p className="mt-1.5 text-[11.5px] text-accent">{error}</p>
+        ) : hint ? (
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-fg-muted">{hint}</p>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -26,6 +26,7 @@ This document is for **frontend engineers** and **maintainers** of the 35mm chat
 The chat module provides:
 
 - **Desktop:** split view — conversation list + active thread (`ChatContent`), or full thread on `/chat/[chatId]`.
+- **Desktop new message:** **`NewChatProvider`** owns an ephemeral draft state. Clicking **New message** inserts a selected **New Message** row in **`ChatList`** and swaps the thread header for **`NewChatRecipientBar`**. No conversation is persisted until a contact is selected and **`useCreateConversation`** succeeds.
 - **Mobile:** list + tabs (**All / Requests / Archived**) on `/chat`, and thread view with **`ChatMobileHeader`** + **`ChatConversation`** on `/chat/[chatId]`.
 - **Behaviors:** send text, replies, reactions, GIFs (Tenor), lightweight file/image payloads in mock, archive/unarchive, delete message (own), delete conversation, in-thread search, jump-to-quoted message, read receipts (mock), message-request row (**`isPendingRequest`**).
 
@@ -72,7 +73,7 @@ The chat module provides:
 | `features/chat/hooks/` | **`useChatQueries.ts`**, **`chatQueryDefaults.ts`** |
 | `features/chat/lib/` | **`queryKeys.ts`**, **`formatChatTime.ts`** |
 | `features/chat/realtime/` | Transport interface, noop impl, **`applyChatRealtimeEvent`**, provider |
-| `features/chat/context/` | **`ChatSidebarContext`** — shared desktop rail collapse |
+| `features/chat/context/` | **`ChatSidebarContext`** — shared desktop rail collapse; **`NewChatContext`** — desktop draft compose and mobile modal state |
 | `features/chat/components/` | All React UI for chat |
 | `features/chat/types.ts` | Shared **ChatPreview**, **ChatMessage**, **ChatSendPayload**, etc. |
 | `features/chat/index.ts` | Public re-exports for app-level wiring |
@@ -142,10 +143,11 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 
 | Component | Responsibility |
 | --------- | -------------- |
-| **`ChatContent`** | Grid: **`ChatList`** + **`ChatConversation`**. Resolves selected thread metadata through **`useConversationRow(selectedId)`**. |
-| **`ChatList`** | Folders (desktop), search, collapse, links to **`ROUTES.CHAT_WITH(id)`**, avatar URLs, loading skeleton rows. Data from **`useConversationsByUiFilter`**. |
+| **`ChatContent`** | Grid: **`ChatList`** + **`ChatConversation`**. Resolves selected thread metadata through **`useConversationRow(selectedId)`** unless desktop new-message draft is active. |
+| **`ChatList`** | Folders (desktop), search, collapse, desktop **New Message** draft row, links to **`ROUTES.CHAT_WITH(id)`**, avatar URLs, loading skeleton rows. Data from **`useConversationsByUiFilter`**. |
 | **`ChatPageMobile`** | Top search, tabs, embeds **`ChatList`** with `showHeader={false}` and `conversationFilter` from tab. |
 | **`ChatConversation`** | Thread header (desktop), header skeleton, scroll region, **`ChatMessageList`**, **`ChatComposer`**, typing publishes, mutations, delete/archive dialogs. |
+| **`NewChatRecipientBar`** | Desktop new-message header with **To:** recipient search, bounded contact suggestions from **`useChatContactCandidates`**, and **`useCreateConversation`** on selection. |
 | **`ChatMessageList`** | Text bubbles, standalone attachment media/cards, avatars, reactions toolbar, anchored inline more menu, copy feedback, image lightbox, day separators, jump highlight, typing bubble, and seen indicators. |
 | **`ChatComposer`** | Textarea, attachments, Tenor, emoji panel, reply strip, composer-based edit mode, typing input callbacks. |
 | **`ChatHeaderMoreMenu`** | Thread-level menu (portaled, fixed position). |
@@ -163,6 +165,7 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 
 - List folder (desktop) when not controlled by parent.
 - Composer focus, reply target, thread search open/query, header toasts, dialog open flags.
+- New-message draft: **`NewChatProvider`** keeps `draftOpen` + `recipientQuery`; it is UI-only and intentionally not cached or persisted.
 - **`ChatContent`:** reads sidebar collapse from **`useChatSidebar()`** (provider in **`app/providers.tsx`**).
 
 **URL:** `chatId` from route drives **`selectedId`** on desktop detail layout.

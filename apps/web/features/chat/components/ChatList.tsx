@@ -36,6 +36,7 @@ interface ChatListProps {
    */
   conversationFilter?: "active" | "archived" | "requests";
   onConversationFilterChange?: (filter: "active" | "archived") => void;
+  draftSelected?: boolean;
 }
 
 function ChatListSkeleton({ collapsed }: { collapsed: boolean }) {
@@ -72,6 +73,7 @@ export function ChatList({
   searchQuery = "",
   conversationFilter: conversationFilterProp,
   onConversationFilterChange,
+  draftSelected = false,
 }: ChatListProps) {
   const pathname = usePathname() ?? "";
   const routeId = pathname.replace("/chat/", "").split("/")[0] || null;
@@ -86,7 +88,7 @@ export function ChatList({
       : internalInboxFilter;
   const { data: chats, isLoading, isError, refetch } =
     useConversationsByUiFilter(uiFolder);
-  const { openNewChat } = useNewChat();
+  const { openNewChat, closeNewChatDraft } = useNewChat();
   const { currentUserId } = useChatRealtime();
   const syncedSelectedIdRef = useRef<string | null | undefined>(undefined);
   const [presenceNow, setPresenceNow] = useState(Date.now());
@@ -288,7 +290,7 @@ export function ChatList({
               Retry
             </button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : !draftSelected && filtered.length === 0 ? (
           <div className="px-4 py-12 text-center text-[13px] text-fg-muted">
             {effectiveSearch.trim()
               ? "No matches."
@@ -301,7 +303,9 @@ export function ChatList({
                       <p>No messages yet.</p>
                       <button
                         type="button"
-                        onClick={openNewChat}
+                        onClick={function () {
+                          openNewChat();
+                        }}
                         className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
                       >
                         New message
@@ -310,7 +314,44 @@ export function ChatList({
                   )}
           </div>
         ) : (
-          filtered.map(function (chat) {
+          <>
+          {draftSelected && inboxSegment === "active" ? (
+            <button
+              type="button"
+              onClick={function () {
+                openNewChat({ presentation: "draft" });
+              }}
+              className={cn(
+                "w-full flex items-center border-b border-black/[0.04] bg-[#007AFF] text-white transition-colors cursor-pointer",
+                collapsed
+                  ? "justify-center py-3 px-2"
+                  : "items-start gap-3 px-4 py-4 text-left"
+              )}
+            >
+              <div className="relative shrink-0">
+                <div
+                  className={cn(
+                    "flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white shadow-sm",
+                    collapsed && "h-10 w-10"
+                  )}
+                  aria-hidden
+                >
+                  <Icon name="user" className="h-6 w-6" strokeWidth={2} />
+                </div>
+              </div>
+              {!collapsed ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[15px] font-semibold tracking-[-0.01em]">
+                    New Message
+                  </span>
+                  <span className="truncate text-[13px] text-white/80">
+                    Choose someone to message
+                  </span>
+                </div>
+              ) : null}
+            </button>
+          ) : null}
+          {filtered.map(function (chat) {
             const href = ROUTES.CHAT_WITH(chat.id);
             const isActive = activeId === chat.id;
             const targetIds = getChatPresenceTargetIds(chat.members, currentUserId);
@@ -326,6 +367,7 @@ export function ChatList({
               <Link
                 key={chat.id}
                 href={href}
+                onClick={closeNewChatDraft}
                 className={cn(
                   "w-full flex items-center border-b border-black/[0.04] dark:border-white/[0.06] transition-colors hover:bg-hover cursor-pointer no-underline text-inherit",
                   isActive && "bg-white/80 dark:bg-white/[0.04]",
@@ -375,7 +417,8 @@ export function ChatList({
                 ) : null}
               </Link>
             );
-          })
+          })}
+          </>
         )}
       </div>
     </div>

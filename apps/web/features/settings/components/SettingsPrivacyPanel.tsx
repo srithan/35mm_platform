@@ -123,7 +123,7 @@ export function SettingsPrivacyPanel({
 
   return (
     <div className="space-y-10">
-      <SettingsSection title="Privacy">
+      <SettingsSection title="Visibility">
         <div className="space-y-0">
           <SettingsToggle
 	            label="Private account"

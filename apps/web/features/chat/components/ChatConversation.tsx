@@ -36,6 +36,7 @@ import {
 } from "./ChatHeaderMoreMenu";
 import { ChatSearchInput } from "./ChatSearchInput";
 import { ChatJumpToLatestFab } from "./ChatJumpToLatestFab";
+import { NewChatRecipientBar } from "./NewChatRecipientBar";
 import {
   ChatPresenceDot,
   useChatPresenceSummary,
@@ -57,6 +58,7 @@ interface ChatConversationProps {
   /** In-thread message search (e.g. from mobile header). Omit to use internal state on desktop. */
   threadSearchQuery?: string;
   onThreadSearchQueryChange?: (query: string) => void;
+  newChatDraftOpen?: boolean;
 }
 
 export function ChatConversation({
@@ -71,6 +73,7 @@ export function ChatConversation({
   fixedInputOnMobile = false,
   threadSearchQuery: threadSearchQueryProp,
   onThreadSearchQueryChange,
+  newChatDraftOpen = false,
 }: ChatConversationProps) {
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -465,6 +468,15 @@ export function ChatConversation({
     [flashHeaderToast]
   );
 
+  if (newChatDraftOpen) {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-bg">
+        <NewChatRecipientBar />
+        <div className="min-h-0 flex-1 bg-bg" />
+      </div>
+    );
+  }
+
   if (!chatId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full text-center px-8 bg-bg">
@@ -480,7 +492,9 @@ export function ChatConversation({
         <div className="mt-5">
           <button
             type="button"
-            onClick={openNewChat}
+            onClick={function () {
+              openNewChat();
+            }}
             className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90"
           >
             New message
