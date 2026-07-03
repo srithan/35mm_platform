@@ -3,7 +3,6 @@
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
 import { Icon } from "@/components/Icon/Icon";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
-import { useMuteUserMutation } from "@/features/profile/hooks/useProfile";
 import { useBookmarkToFolderFlow } from "@/features/bookmarks/hooks/useBookmarkToFolderFlow";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -41,7 +40,7 @@ interface PostCardMoreMenuProps {
   onDeleteRequest: () => void;
   onBlockRequest: () => void;
   onReportRequest: () => void;
-  onMuteSuccess: (payload: { handle: string; userId: string }) => void;
+  onMuteRequest: () => void;
 }
 
 export function PostCardMoreMenu({
@@ -64,10 +63,9 @@ export function PostCardMoreMenu({
   onDeleteRequest,
   onBlockRequest,
   onReportRequest,
-  onMuteSuccess,
+  onMuteRequest,
 }: PostCardMoreMenuProps) {
   const openComposerForEdit = useComposerModalStore((state) => state.openForEdit);
-  const muteUserMutation = useMuteUserMutation();
   const bookmarkFlow = useBookmarkToFolderFlow({
     postId: postId,
     initialBookmarked: isBookmarked,
@@ -150,16 +148,7 @@ export function PostCardMoreMenu({
             description: "Hide their posts from your feed",
             icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
             dividerBefore: true,
-            onSelect: () => {
-              muteUserMutation.mutate(
-                { userId, muted: false },
-                {
-                  onSuccess: () => {
-                    onMuteSuccess({ handle: author.handle, userId });
-                  },
-                }
-              );
-            },
+            onSelect: onMuteRequest,
           },
           {
             id: "block-user",

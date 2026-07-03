@@ -33,6 +33,7 @@ export function CommentCard({
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showMuteConfirm, setShowMuteConfirm] = useState(false);
   const [muteToast, setMuteToast] = useState<{ handle: string; userId: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState(comment.text);
@@ -126,7 +127,7 @@ export function CommentCard({
       }}
       onDeleteRequest={() => setShowDeleteConfirm(true)}
       onBlockRequest={() => setShowBlockConfirm(true)}
-      onMuteSuccess={setMuteToast}
+      onMuteRequest={() => setShowMuteConfirm(true)}
     />
   );
 
@@ -212,9 +213,12 @@ export function CommentCard({
         authorId={comment.authorId}
         showDeleteConfirm={showDeleteConfirm}
         showBlockConfirm={showBlockConfirm}
+        showMuteConfirm={showMuteConfirm}
         muteToast={muteToast}
         onCloseDeleteConfirm={() => setShowDeleteConfirm(false)}
         onCloseBlockConfirm={() => setShowBlockConfirm(false)}
+        onCloseMuteConfirm={() => setShowMuteConfirm(false)}
+        onMuteSuccess={setMuteToast}
         onClearMuteToast={() => setMuteToast(null)}
       />
     </div>

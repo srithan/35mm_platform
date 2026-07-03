@@ -80,6 +80,7 @@ function PostCardComponent(props: PostCardProps) {
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showMuteConfirm, setShowMuteConfirm] = useState(false);
   const [muteToast, setMuteToast] = useState<{ handle: string; userId: string } | null>(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [viewerImageIndex, setViewerImageIndex] = useState(0);
@@ -217,7 +218,7 @@ function PostCardComponent(props: PostCardProps) {
               onDeleteRequest={() => setShowDeleteConfirm(true)}
               onBlockRequest={() => setShowBlockConfirm(true)}
               onReportRequest={() => setShowReportConfirm(true)}
-              onMuteSuccess={setMuteToast}
+              onMuteRequest={() => setShowMuteConfirm(true)}
             />
           }
         >
@@ -304,11 +305,14 @@ function PostCardComponent(props: PostCardProps) {
         showReportConfirm={showReportConfirm}
         showDeleteConfirm={showDeleteConfirm}
         showBlockConfirm={showBlockConfirm}
+        showMuteConfirm={showMuteConfirm}
         muteToast={muteToast}
         onCloseShareModal={() => setShowShareModal(false)}
         onCloseReportConfirm={() => setShowReportConfirm(false)}
         onCloseDeleteConfirm={() => setShowDeleteConfirm(false)}
         onCloseBlockConfirm={() => setShowBlockConfirm(false)}
+        onCloseMuteConfirm={() => setShowMuteConfirm(false)}
+        onMuteSuccess={setMuteToast}
         onClearMuteToast={() => setMuteToast(null)}
       />
     </article>

@@ -12,9 +12,12 @@ interface CommentCardOverlaysProps {
   authorId?: string;
   showDeleteConfirm: boolean;
   showBlockConfirm: boolean;
+  showMuteConfirm: boolean;
   muteToast: { handle: string; userId: string } | null;
   onCloseDeleteConfirm: () => void;
   onCloseBlockConfirm: () => void;
+  onCloseMuteConfirm: () => void;
+  onMuteSuccess: (payload: { handle: string; userId: string }) => void;
   onClearMuteToast: () => void;
 }
 
@@ -25,9 +28,12 @@ export function CommentCardOverlays({
   authorId,
   showDeleteConfirm,
   showBlockConfirm,
+  showMuteConfirm,
   muteToast,
   onCloseDeleteConfirm,
   onCloseBlockConfirm,
+  onCloseMuteConfirm,
+  onMuteSuccess,
   onClearMuteToast,
 }: CommentCardOverlaysProps) {
   const deleteCommentMutation = useDeleteComment(postId);
@@ -64,6 +70,25 @@ export function CommentCardOverlays({
         confirmLabel="Block"
         cancelLabel="Cancel"
         variant="danger"
+      />
+      <ConfirmDialog
+        open={showMuteConfirm}
+        onClose={onCloseMuteConfirm}
+        onConfirm={() => {
+          if (!authorId || muteUserMutation.isPending) return;
+          muteUserMutation.mutate(
+            { userId: authorId, muted: false },
+            {
+              onSuccess: () => {
+                onMuteSuccess({ handle: authorHandle, userId: authorId });
+              },
+            }
+          );
+        }}
+        title={`Mute ${authorHandle}?`}
+        description="Their posts won't appear in your feed. You can unmute them anytime in Settings."
+        confirmLabel="Mute"
+        cancelLabel="Cancel"
       />
       {muteToast ? (
         <MuteUndoToast
