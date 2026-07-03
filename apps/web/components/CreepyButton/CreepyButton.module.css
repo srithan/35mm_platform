@@ -1,0 +1,179 @@
+.root {
+    --creepy-button-face-bg: var(--elevated);
+    --creepy-button-face-bg-hover: var(--color-bg-hover);
+    --creepy-button-base-bg: #050505;
+    --creepy-button-border: color-mix(in srgb, var(--fg-muted) 50%, transparent);
+    --creepy-button-border-hover: var(--fg-muted);
+    --creepy-button-text: var(--fg-muted);
+    --creepy-button-text-hover: var(--fg);
+    --creepy-button-eye-bg: #f8f8f8;
+    --creepy-button-pupil-bg: #050505;
+    --creepy-button-shadow: color-mix(in srgb, #050505 18%, transparent);
+    --creepy-button-focus: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+    -webkit-tap-highlight-color: transparent;
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 9999px;
+    color: var(--creepy-button-text);
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--font-sans);
+    font-size: 0.78125rem;
+    font-weight: 700;
+    gap: 0.375rem;
+    inline-size: max-content;
+    justify-content: center;
+    line-height: 1.2;
+    min-block-size: 2rem;
+    min-inline-size: 6.5rem;
+    outline: 0;
+    padding: 0;
+    position: relative;
+    transition: color 0.15s ease;
+}
+
+.root::before {
+    background: var(--creepy-button-base-bg);
+    border: 1px solid var(--creepy-button-base-bg);
+    border-radius: inherit;
+    box-shadow: 0 0.375rem 1rem var(--creepy-button-shadow);
+    content: "";
+    inset: 0;
+    position: absolute;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+    z-index: 0;
+}
+
+.root:hover,
+.root:focus-visible {
+    color: var(--creepy-button-text-hover);
+}
+
+.root:hover::before,
+.root:focus-visible::before {
+    box-shadow: 0 0.5rem 1.25rem color-mix(in srgb, #050505 24%, transparent);
+}
+
+.root:focus-visible {
+    box-shadow: 0 0 0 3px var(--creepy-button-focus);
+}
+
+.root:active .cover {
+    transform: rotate(0deg);
+    transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.root:disabled,
+.root[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.root:disabled .eye,
+.root[aria-disabled="true"] .eye {
+    animation-play-state: paused;
+}
+
+.root:disabled .cover,
+.root[aria-disabled="true"] .cover {
+    transform: none;
+}
+
+.root:not(:disabled):not([aria-disabled="true"]):hover .cover,
+.root:not(:disabled):not([aria-disabled="true"]):focus-visible .cover {
+    background: var(--creepy-button-face-bg-hover);
+    border-color: var(--creepy-button-border-hover);
+    color: var(--creepy-button-text-hover);
+    transform: rotate(-14deg);
+    transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1.55);
+}
+
+.eyes {
+    align-items: center;
+    block-size: 0.875rem;
+    display: flex;
+    gap: 0.3125rem;
+    inset-block-end: 0.1875rem;
+    inset-inline-end: 0.625rem;
+    pointer-events: none;
+    position: absolute;
+    z-index: 1;
+}
+
+.eye {
+    animation: creepy-button-blink 3.6s infinite;
+    background: var(--creepy-button-eye-bg);
+    block-size: 0.8125rem;
+    border: 1px solid color-mix(in srgb, var(--fg) 24%, transparent);
+    border-radius: 9999px;
+    display: block;
+    inline-size: 0.8125rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.pupil {
+    aspect-ratio: 1;
+    background: var(--creepy-button-pupil-bg);
+    border-radius: 9999px;
+    display: block;
+    inline-size: 0.34375rem;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    position: absolute;
+    transform: translate(-50%, -50%);
+}
+
+.cover {
+    align-items: center;
+    background: var(--creepy-button-face-bg);
+    border: 1px solid var(--creepy-button-border);
+    border-radius: inherit;
+    color: currentColor;
+    display: inline-flex;
+    justify-content: center;
+    min-block-size: 2rem;
+    min-inline-size: 100%;
+    padding: 0.375rem 1rem;
+    position: relative;
+    transform-origin: 1rem 50%;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.25s cubic-bezier(0.65, 0, 0.35, 1);
+    z-index: 2;
+}
+
+@keyframes creepy-button-blink {
+    0%,
+    91%,
+    100% {
+        block-size: 0.8125rem;
+    }
+
+    95% {
+        block-size: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .eye {
+        animation: none;
+    }
+
+    .cover {
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease;
+    }
+
+    .root:not(:disabled):not([aria-disabled="true"]):hover .cover,
+    .root:not(:disabled):not([aria-disabled="true"]):focus-visible .cover {
+        transform: none;
+    }
+}

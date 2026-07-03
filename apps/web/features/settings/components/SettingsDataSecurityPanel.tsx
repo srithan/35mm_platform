@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
+import { CreepyButton } from "@/components/CreepyButton";
 import { SettingsRow, SettingsSection } from "./SettingsFormPrimitives";
 
 export function SettingsDataSecurityPanel() {
@@ -39,14 +40,12 @@ export function SettingsDataSecurityPanel() {
                 Hide your profile and content. Reactivate anytime by signing in.
               </span>
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="shrink-0 border-fg-muted/50 text-fg-muted hover:border-fg-muted hover:text-fg"
+            <CreepyButton
+              className="shrink-0"
               onClick={() => setDeactivateOpen(true)}
             >
               Deactivate
-            </Button>
+            </CreepyButton>
           </div>
           <div className="flex items-start justify-between gap-4 py-4 sm:items-center">
             <div className="min-w-0">
