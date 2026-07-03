@@ -458,9 +458,7 @@ export function LandingPage({ children }: LandingPageProps) {
 
       <div className="landing-shell">
         <header className="landing-header">
-          <BrandLogo href="/" className="landing-header__logo">
-            35<span>mm</span>
-          </BrandLogo>
+          <BrandLogo href="/" className="landing-header__logo" />
           <nav className="landing-header__nav lg:hidden">
             <button
               type="button"

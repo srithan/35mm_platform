@@ -87,7 +87,7 @@ Important files:
 
 - `app/layout.tsx`: global metadata, Clerk provider, Query provider, fonts, analytics, service worker, offline status.
 - `app/providers.tsx`: React Query client and persisted query cache, theme/accent providers, notification realtime provider, chat auth/current-user wiring, notification title/sound side effects, toast host.
-- `middleware.ts`: Clerk route protection. `/landing` is signed-out entry; `/` redirects signed-out users to `/landing`.
+- `middleware.ts`: Clerk route protection. `/landing` redirects to `/`; guest-only auth pages (`/login`, `/signup`, `/forgot`, `/reset`, `/verify`) redirect authenticated sessions in middleware before page render.
 - `app/(shell)/layout.tsx`: authenticated app shell with scroll restore, auth bootstrap, onboarding gate, and `ShellGrid`.
 - `app/(shell)/page.tsx`: home feed, renders `PostComposer` and `InfinitePostList`.
 - `app/api/tmdb/[...path]/route.ts`: TMDB proxy using server-side `TMDB_API_KEY`; used for cold-start/discover/autocomplete surfaces.
@@ -320,7 +320,7 @@ Query key conventions:
 Shell and navigation:
 
 - Root layout wraps everything with Clerk, React Query, theme/accent providers, service worker registration, offline status, analytics, speed insights.
-- Middleware protects all non-public routes.
+- Middleware protects all non-public routes and prevents authenticated users from rendering guest-only auth pages.
 - Shell layout adds auth bootstrap, onboarding gate, scroll restoration, skip link, and the shared `ShellGrid`.
 - Home route renders composer and infinite feed.
 

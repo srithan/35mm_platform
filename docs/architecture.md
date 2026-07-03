@@ -536,12 +536,12 @@ Root app:
 
 - `app/layout.tsx`: global metadata, Clerk provider, React Query providers, fonts, analytics, service worker, offline status.
 - `app/providers.tsx`: QueryClient, theme provider, accent color provider, notification realtime provider, title badge, sound player, toast host.
-- `middleware.ts`: public route definitions and Clerk protection.
+- `middleware.ts`: public route definitions, guest-only auth page redirects, and Clerk protection.
 - `app/(shell)/layout.tsx`: authenticated shell, auth bootstrap, onboarding gate, scroll restoration, shared layout grid.
 
 Route groups:
 
-- `(auth)`: login, signup, forgot, reset, verify.
+- `(auth)`: login, signup, forgot, reset, verify. These are guest-only; authenticated sessions redirect in middleware before page render.
 - `(legal)`: about, privacy, terms, help, careers.
 - `(shell)`: authenticated product routes.
 

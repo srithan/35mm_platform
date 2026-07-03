@@ -6,7 +6,7 @@ type BrandLogoProps = {
   href?: string;
   className?: string;
   markClassName?: string;
-  children: React.ReactNode;
+  style?: React.CSSProperties;
   ariaLabel?: string;
 };
 
@@ -14,28 +14,35 @@ export function BrandLogo({
   href,
   className,
   markClassName,
-  children,
+  style,
   ariaLabel = "35mm.in Home",
 }: BrandLogoProps) {
-  const content = (
-    <>
-      <LogoMark className={markClassName} />
-      <span className="min-w-0">{children}</span>
-    </>
-  );
-
   const sharedClassName = cn(
-    "inline-flex items-center gap-[0.42em] no-underline",
+    "inline-flex items-center no-underline",
     className
   );
 
   if (href) {
     return (
-      <Link href={href} className={sharedClassName} aria-label={ariaLabel}>
-        {content}
+      <Link
+        href={href}
+        className={sharedClassName}
+        style={style}
+        aria-label={ariaLabel}
+      >
+        <LogoMark className={markClassName} />
       </Link>
     );
   }
 
-  return <span className={sharedClassName}>{content}</span>;
+  return (
+    <span
+      className={sharedClassName}
+      style={style}
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <LogoMark className={markClassName} />
+    </span>
+  );
 }
