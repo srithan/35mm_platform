@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { FlashToastHost } from "@/components/FlashToast";
 import { ChatInputFocusProvider } from "@/components/layout/ChatInputFocusContext";
 import { ChatSidebarProvider } from "@/features/chat/context/ChatSidebarContext";
+import { NewChatProvider } from "@/features/chat/context/NewChatContext";
 import {
   setChatAuthGetToken,
   setChatCurrentUserIdGetter,
@@ -71,9 +72,23 @@ const ChatRealtimeProvider = dynamic(
   }
 );
 
+const FloatingChatInbox = dynamic(
+  function () {
+    return import("@/features/chat/components/FloatingChatInbox").then(function (module) {
+      return {
+        default: module.FloatingChatInbox,
+      };
+    });
+  },
+  {
+    ssr: false,
+  }
+);
+
 function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { getToken, isLoaded: isUserLoaded, isSignedIn } = useAuth();
+  const [floatingChatId, setFloatingChatId] = useState<string | null>(null);
   const currentUserQuery = useCurrentUserProfile();
   const notificationUserId = currentUserQuery.data?.userId ?? null;
   const isNotificationRealtimeReady = isUserLoaded && Boolean(isSignedIn) && Boolean(notificationUserId);
@@ -149,9 +164,13 @@ function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
       <ChatRealtimeProvider
         enabled={isChatRealtimeReady}
         userId={isUserLoaded ? chatRealtimeUserId : null}
+        activeThreadId={floatingChatId}
       >
         <ChatSidebarProvider>
-          <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
+          <NewChatProvider>
+            <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
+            <FloatingChatInbox onActiveChatIdChange={setFloatingChatId} />
+          </NewChatProvider>
         </ChatSidebarProvider>
       </ChatRealtimeProvider>
     </NotificationRealtimeProvider>

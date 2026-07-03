@@ -8,6 +8,7 @@ import styles from "./ChatReactions.module.css";
 interface ChatMessageReactionsProps {
   reactions: ChatMessageReaction[] | undefined;
   isOwn: boolean;
+  compact?: boolean;
   onToggle: (emoji: string) => void;
 }
 
@@ -22,6 +23,7 @@ function visibleReactions(
 export function ChatMessageReactions({
   reactions,
   isOwn,
+  compact = false,
   onToggle,
 }: ChatMessageReactionsProps) {
   const list = useMemo(
@@ -87,13 +89,15 @@ export function ChatMessageReactions({
     <div
       className={cn(
         styles.anchor,
-        isOwn ? styles.anchorOwn : styles.anchorOther
+        isOwn ? styles.anchorOwn : styles.anchorOther,
+        compact && styles.anchorCompact
       )}
     >
       <div
         className={cn(
           styles.pill,
-          list.length === 1 && list[0].count <= 1 && styles.pillCircle
+          list.length === 1 && list[0].count <= 1 && styles.pillCircle,
+          compact && styles.pillCompact
         )}
         role="group"
         aria-label="Message reactions"

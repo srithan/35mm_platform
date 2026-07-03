@@ -6,7 +6,16 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ArrowRight, Eye, EyeOff, X } from "lucide-react";
+import {
+  ArrowRight,
+  Clapperboard,
+  Eye,
+  EyeOff,
+  MessagesSquare,
+  UserRound,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useSignUp, useSignIn } from "@clerk/nextjs/legacy";
 import { clerkSignUp, clerkSignIn } from "@/features/auth/lib/auth-client";
@@ -492,55 +501,100 @@ export function LandingPage({ children }: LandingPageProps) {
             </LandingReveal>
           ) : null}
 
-          <LandingReveal className="landing-block landing-block--rule">
-            <h2 className="landing-block__title">Log what you watch</h2>
-            <p className="landing-block__text">
-              Every post can carry a film — a first watch, a rewatch, a half-star rating, a long review, a hot
-              take at 2am. Logs land in your diary. Reviews stay on your profile. Threads can run for days.
-            </p>
-            <p className="landing-block__text">
-              This is not a spreadsheet you update in private. It is a public record of taste that other people
-              can follow, reply to, and argue with.
-            </p>
+          <LandingReveal className="landing-after-carousel">
+            <section className="landing-after-carousel__grid" aria-labelledby="landing-after-carousel-title">
+              <div className="landing-after-carousel__intro">
+                <p className="landing-section-kicker">What happens next</p>
+                <h2 id="landing-after-carousel-title">A public record for the films that stay with you.</h2>
+                <p>
+                  35mm turns watching into a living profile: logs, ratings, reviews, and conversations that travel
+                  through the people you actually follow.
+                </p>
+              </div>
+
+              <div className="landing-feature-grid">
+                <article className="landing-feature-card">
+                  <span className="landing-feature-card__icon" aria-hidden>
+                    <Clapperboard className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="landing-feature-card__label">Logs</p>
+                    <h3>Every post can carry a film.</h3>
+                    <p>
+                      First watches, rewatches, half-star ratings, festival notes, and long reviews all connect
+                      back to the title being discussed.
+                    </p>
+                  </div>
+                </article>
+
+                <article className="landing-feature-card">
+                  <span className="landing-feature-card__icon" aria-hidden>
+                    <UserRound className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="landing-feature-card__label">Profiles</p>
+                    <h3>Your taste becomes legible.</h3>
+                    <p>
+                      Favorites, diary entries, ratings, lists, and the films you defend build a profile that says
+                      more than a bio ever could.
+                    </p>
+                  </div>
+                </article>
+
+                <article className="landing-feature-card">
+                  <span className="landing-feature-card__icon" aria-hidden>
+                    <MessagesSquare className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="landing-feature-card__label">Feed</p>
+                    <h3>The timeline starts with your follows.</h3>
+                    <p>
+                      Follow filmmakers, critics, friends, programmers, and people with impossible watchlists.
+                      Their film activity becomes your home feed.
+                    </p>
+                  </div>
+                </article>
+              </div>
+            </section>
           </LandingReveal>
 
-          <LandingReveal className="landing-block landing-block--rule" delay={0.03}>
-            <h2 className="landing-block__title">Profiles built from taste</h2>
-            <p className="landing-block__text">
-              Your 35mm profile is the films you have seen, the ones you would defend, and the ones you would
-              never sit through again. Favourites on display. Ratings in your diary. A history of what cinema
-              means to you — not a résumé with a poster pasted on.
-            </p>
-            <p className="landing-block__text">
-              When someone visits your page, they should understand how you watch movies before they read a
-              single word of your bio.
-            </p>
+          <LandingReveal className="landing-audience" delay={0.04}>
+            <div className="landing-audience__header">
+              <UsersRound className="h-5 w-5" aria-hidden />
+              <h2>Made for the people who keep cinema moving.</h2>
+            </div>
+            <div className="landing-audience__list">
+              <p>Directors and DPs sharing work, influences, and festival notes.</p>
+              <p>Critics and programmers writing in public without leaving the conversation.</p>
+              <p>Students, collectors, and casual viewers building a record one film at a time.</p>
+            </div>
           </LandingReveal>
 
-          <LandingReveal className="landing-block landing-block--rule" delay={0.04}>
-            <h2 className="landing-block__title">A feed you choose</h2>
-            <p className="landing-block__text">
-              Follow filmmakers whose work you study. Follow critics who hate the same franchises you do.
-              Follow friends from film school, programmers you met at a festival, the person who posted a
-              perfect thread about Jeanne Dielman.
-            </p>
-            <p className="landing-block__text">
-              Your home timeline is built from those follows — film logs, festival dispatches, shorts,
-              recommendations, and arguments that go long after midnight. No trending tab. No engagement bait.
-              Just people you decided to hear from.
-            </p>
-          </LandingReveal>
-
-          <LandingReveal className="landing-block landing-block--rule" delay={0.05}>
-            <h2 className="landing-block__title">Who 35mm is for</h2>
-            <p className="landing-block__text">
-              Directors and DPs sharing work and influences. Critics and programmers writing in public.
-              Students building a canon. Casual viewers who care enough to log and rate. Anyone who would
-              rather talk about a film than scroll past it.
-            </p>
-            <p className="landing-block__text">
-              Free to join. Claim a username, follow a few people, and your feed starts there.
-            </p>
+          <LandingReveal className="landing-cta-strip" delay={0.06}>
+            <div>
+              <p className="landing-section-kicker">Start with one film</p>
+              <h2>Claim your username and build the feed from there.</h2>
+            </div>
+            <div className="landing-cta-strip__actions">
+              <button
+                type="button"
+                onClick={function () {
+                  openAuthModal("signup");
+                }}
+                className="landing-cta-strip__button landing-cta-strip__button--primary"
+              >
+                Join 35mm <ArrowRight className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={function () {
+                  openAuthModal("login");
+                }}
+                className="landing-cta-strip__button landing-cta-strip__button--secondary"
+              >
+                Login
+              </button>
+            </div>
           </LandingReveal>
 
           <footer className="landing-footer">

@@ -7,6 +7,8 @@ import {
   useLayoutEffect,
   useState,
   useCallback,
+  type CSSProperties,
+  type MouseEvent,
   type MutableRefObject,
 } from "react";
 import { cn } from "@/lib/utils/cn";
@@ -53,6 +55,7 @@ interface ChatMessageListProps {
   /** When false, new messages do not auto-scroll (user is reading history). */
   stickToBottomRef: MutableRefObject<boolean>;
   scrollRootRef: MutableRefObject<HTMLDivElement | null>;
+  compact?: boolean;
 }
 
 function isStandaloneEmojiText(text: string): boolean {
@@ -96,6 +99,7 @@ export function ChatMessagesSkeleton() {
 function MessageActions({
   align,
   isOwn,
+  compact,
   onReply,
   onToggleReaction,
   onCopy,
@@ -105,6 +109,7 @@ function MessageActions({
 }: {
   align: "left" | "right";
   isOwn: boolean;
+  compact: boolean;
   onReply: () => void;
   onToggleReaction: (emoji: string) => void;
   onCopy: () => boolean | Promise<boolean>;
@@ -115,6 +120,8 @@ function MessageActions({
   const [reactionPhase, setReactionPhase] = useState<ReactionPhase>("closed");
   const [showMore, setShowMore] = useState(false);
   const [copyLabel, setCopyLabel] = useState<"Copy" | "Copied">("Copy");
+  const [compactQuickBarStyle, setCompactQuickBarStyle] =
+    useState<CSSProperties | undefined>(undefined);
   const ref = useRef<HTMLDivElement>(null);
   const reactionClusterRef = useRef<HTMLDivElement>(null);
   const plusRef = useRef<HTMLButtonElement>(null);
@@ -123,6 +130,7 @@ function MessageActions({
   const closeOverlays = useCallback(function (): void {
     setReactionPhase("closed");
     setShowMore(false);
+    setCompactQuickBarStyle(undefined);
   }, []);
 
   const dismissMoreMenuOnly = useCallback(function (): void {
@@ -158,11 +166,40 @@ function MessageActions({
 
   function closeReactions(): void {
     setReactionPhase("closed");
+    setCompactQuickBarStyle(undefined);
+  }
+
+  function getCompactQuickBarStyle(anchor: HTMLElement): CSSProperties | undefined {
+    const panel = anchor.closest("[data-floating-chat-panel]");
+    if (!(panel instanceof HTMLElement)) {
+      return undefined;
+    }
+    const panelRect = panel.getBoundingClientRect();
+    const anchorRect = anchor.getBoundingClientRect();
+    const horizontalInset = 12;
+    const barHeight = 48;
+    return {
+      left: panelRect.left + horizontalInset,
+      top: Math.max(panelRect.top + 8, anchorRect.top - barHeight),
+      width: Math.max(0, panelRect.width - horizontalInset * 2),
+    };
+  }
+
+  function toggleReactionBar(event: MouseEvent<HTMLButtonElement>): void {
+    const nextPhase = reactionPhase === "closed" ? "bar" : "closed";
+    setReactionPhase(nextPhase);
+    setShowMore(false);
+    if (!compact || nextPhase === "closed") {
+      setCompactQuickBarStyle(undefined);
+      return;
+    }
+    setCompactQuickBarStyle(getCompactQuickBarStyle(event.currentTarget));
   }
 
   function pickQuick(emoji: string): void {
     onToggleReaction(emoji);
     setReactionPhase("closed");
+    setCompactQuickBarStyle(undefined);
   }
 
   const isReactionBarOpen = reactionPhase !== "closed";
@@ -181,14 +218,10 @@ function MessageActions({
       <div className="relative" ref={reactionClusterRef}>
         <button
           type="button"
-          onClick={function () {
-            setReactionPhase(function (p) {
-              return p === "closed" ? "bar" : "closed";
-            });
-            setShowMore(false);
-          }}
+          onClick={toggleReactionBar}
           className={cn(
-            "rounded-full p-1.5 transition-colors md:hidden",
+            "rounded-full p-1.5 transition-colors",
+            !compact && "md:hidden",
             isReactionBarOpen
               ? "text-[#007AFF] bg-[#007AFF]/12 dark:bg-[#007AFF]/20"
               : "text-fg-muted hover:text-fg hover:bg-hover"
@@ -201,13 +234,19 @@ function MessageActions({
         {!showMore ? (
           <div
             className={cn(
-              "absolute bottom-full mb-2.5 z-[75] items-center gap-0.5 rounded-full border border-border/80 bg-elevated/95 px-1 py-1 shadow-[0_6px_28px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-xl",
-              isReactionBarOpen
+              "z-[75] items-center gap-0.5 rounded-full border border-border/80 bg-elevated/95 px-1 py-1 shadow-[0_6px_28px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-xl",
+              compact
+                ? "fixed justify-center"
+                : "absolute bottom-full mb-2.5",
+              isReactionBarOpen && (!compact || compactQuickBarStyle)
                 ? "flex"
-                : "hidden md:group-hover:flex md:group-focus-within:flex",
+                : compact
+                  ? "hidden"
+                  : "hidden md:group-hover:flex md:group-focus-within:flex",
               reactionStyles.quickBar,
-              align === "left" ? "right-0" : "left-0"
+              !compact && (align === "left" ? "right-0" : "left-0")
             )}
+            style={compact ? compactQuickBarStyle : undefined}
             role="toolbar"
             aria-label="Quick reactions"
           >
@@ -228,47 +267,53 @@ function MessageActions({
                 </button>
               );
             })}
-            <span
-              className="mx-0.5 h-5 w-px shrink-0 bg-border/70"
-              aria-hidden
-            />
-            <button
-              ref={plusRef}
-              type="button"
-              onClick={function () {
-                setReactionPhase(function (p) {
-                  return p === "picker" ? "bar" : "picker";
-                });
-              }}
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-full border border-dashed transition-colors",
-                reactionPhase === "picker"
-                  ? "border-[#007AFF]/45 bg-[#007AFF]/12 text-[#007AFF]"
-                  : "border-border/80 text-fg-muted hover:border-[#007AFF]/35 hover:bg-hover hover:text-fg"
-              )}
-              aria-label="More emoji"
-            >
-              <Icon name="plus" className="h-[17px] w-[17px]" strokeWidth={2.25} />
-            </button>
+            {!compact ? (
+              <>
+                <span
+                  className="mx-0.5 h-5 w-px shrink-0 bg-border/70"
+                  aria-hidden
+                />
+                <button
+                  ref={plusRef}
+                  type="button"
+                  onClick={function () {
+                    setReactionPhase(function (p) {
+                      return p === "picker" ? "bar" : "picker";
+                    });
+                  }}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full border border-dashed transition-colors",
+                    reactionPhase === "picker"
+                      ? "border-[#007AFF]/45 bg-[#007AFF]/12 text-[#007AFF]"
+                      : "border-border/80 text-fg-muted hover:border-[#007AFF]/35 hover:bg-hover hover:text-fg"
+                  )}
+                  aria-label="More emoji"
+                >
+                  <Icon name="plus" className="h-[17px] w-[17px]" strokeWidth={2.25} />
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
-        <ChatEmojiPanel
-          isOpen={reactionPhase === "picker"}
-          onClose={function () {
-            setReactionPhase(function (p) {
-              return p === "picker" ? "bar" : p;
-            });
-          }}
-          onPick={function (emoji) {
-            onToggleReaction(emoji);
-            setReactionPhase("closed");
-          }}
-          anchorRef={plusRef}
-          variant="bubble"
-          align={align === "right" ? "right" : "left"}
-          pickerOnly
-          dismissInsideRef={reactionClusterRef}
-        />
+        {!compact ? (
+          <ChatEmojiPanel
+            isOpen={reactionPhase === "picker"}
+            onClose={function () {
+              setReactionPhase(function (p) {
+                return p === "picker" ? "bar" : p;
+              });
+            }}
+            onPick={function (emoji) {
+              onToggleReaction(emoji);
+              setReactionPhase("closed");
+            }}
+            anchorRef={plusRef}
+            variant="bubble"
+            align={align === "right" ? "right" : "left"}
+            pickerOnly
+            dismissInsideRef={reactionClusterRef}
+          />
+        ) : null}
       </div>
       <button
         type="button"
@@ -431,6 +476,7 @@ function BubbleRow({
   onReportMessage,
   onJumpToMessage,
   onOpenImage,
+  compact,
 }: {
   msg: ChatMessage;
   otherAvatar: { bg: string; color: string; initial: string; src?: string | null };
@@ -446,6 +492,7 @@ function BubbleRow({
   onReportMessage?: (messageId: string) => void;
   onJumpToMessage: (messageId: string) => void;
   onOpenImage: (url: string) => void;
+  compact: boolean;
 }) {
   const time = formatMessageTime(msg.createdAt);
   const hasAttachment = Boolean(msg.media || msg.file);
@@ -515,6 +562,7 @@ function BubbleRow({
           <MessageActions
             align="left"
             isOwn={msg.isOwn}
+            compact={compact}
             onReply={function () {
               onReply(msg);
             }}
@@ -554,11 +602,19 @@ function BubbleRow({
           className={cn(
             "relative min-w-0 transition-shadow duration-300",
             isStandaloneEmoji
-              ? "max-w-[min(100%,18rem)] overflow-visible"
+              ? cn(
+                  compact ? "max-w-[min(100%,10rem)]" : "max-w-[min(100%,18rem)]",
+                  "overflow-visible"
+                )
               : hasAttachment
-              ? "max-w-[min(100%,340px)] overflow-visible"
+              ? cn(
+                  compact ? "max-w-[min(100%,240px)]" : "max-w-[min(100%,340px)]",
+                  "overflow-visible"
+                )
               : cn(
-                  "max-w-[min(100%,520px)] overflow-visible",
+                  compact
+                    ? "max-w-[min(100%,230px)] overflow-visible"
+                    : "max-w-[min(100%,520px)] overflow-visible",
                   bubbleRadius,
                   "shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
                   msg.isOwn
@@ -578,6 +634,7 @@ function BubbleRow({
           <ChatMessageReactions
             reactions={msg.reactions}
             isOwn={msg.isOwn}
+            compact={compact}
             onToggle={function (emoji) {
               onToggleReaction(msg.id, emoji);
             }}
@@ -635,21 +692,29 @@ function BubbleRow({
                 onClick={function () {
                   onOpenImage(msg.media!.url);
                 }}
-                className="block w-fit overflow-hidden rounded-[14px] bg-black/[0.03] ring-1 ring-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60 dark:bg-white/[0.04] dark:ring-white/10"
+                className="block w-fit max-w-full overflow-hidden rounded-[14px] bg-black/[0.03] ring-1 ring-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60 dark:bg-white/[0.04] dark:ring-white/10"
                 aria-label="View image"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={msg.media.url}
                   alt=""
-                  className="block h-auto max-h-[320px] max-w-[min(70vw,320px)] object-contain"
+                  className={cn(
+                    "block h-auto object-contain",
+                    compact
+                      ? "max-h-[220px] max-w-[min(100%,230px)]"
+                      : "max-h-[320px] max-w-[min(70vw,320px)]"
+                  )}
                   loading="lazy"
                 />
               </button>
             ) : null}
             {msg.file && !msg.media ? (
               <div
-                className="flex max-w-[min(70vw,320px)] items-center gap-2 rounded-[14px] border border-border bg-elevated px-3 py-2.5 text-fg shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
+                className={cn(
+                  "flex items-center gap-2 rounded-[14px] border border-border bg-elevated px-3 py-2.5 text-fg shadow-[0_2px_10px_rgba(0,0,0,0.06)]",
+                  compact ? "max-w-[min(100%,230px)]" : "max-w-[min(70vw,320px)]"
+                )}
               >
                 <Icon
                   name="paperclip"
@@ -675,13 +740,17 @@ function BubbleRow({
                 className={cn(
                   "whitespace-pre-wrap break-words",
                   isStandaloneEmoji
-                    ? "select-text text-[40px] leading-none tracking-normal md:text-[38px] [text-shadow:0_1px_3px_rgba(0,0,0,0.10)]"
+                    ? cn(
+                        "select-text leading-none tracking-normal [text-shadow:0_1px_3px_rgba(0,0,0,0.10)]",
+                        compact ? "text-[32px]" : "text-[40px] md:text-[38px]"
+                      )
                     : "text-[16px] leading-[1.42] tracking-[0.01em] md:text-[15px]",
                   isStandaloneEmoji
                     ? "text-fg"
                     : hasAttachment
                     ? cn(
-                        "mt-1.5 w-fit max-w-[min(70vw,320px)] rounded-[22px] px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
+                        "mt-1.5 w-fit rounded-[22px] px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
+                        compact ? "max-w-[min(100%,230px)]" : "max-w-[min(70vw,320px)]",
                         msg.isOwn
                           ? "ml-auto rounded-br-[14px] bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
                           : "rounded-bl-[14px] border border-border bg-sunken text-fg dark:bg-[color-mix(in_srgb,var(--elevated)_88%,var(--fg)_12%)] dark:border-white/[0.08]"
@@ -710,6 +779,7 @@ function BubbleRow({
           <MessageActions
             align="right"
             isOwn={msg.isOwn}
+            compact={compact}
             onReply={function () {
               onReply(msg);
             }}
@@ -761,6 +831,7 @@ export function ChatMessageList({
   readReceipt = null,
   stickToBottomRef,
   scrollRootRef,
+  compact = false,
 }: ChatMessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -975,7 +1046,13 @@ export function ChatMessageList({
   }
 
   return (
-    <div ref={listRef} className="space-y-2 px-3 md:px-4 py-4 md:py-5">
+    <div
+      ref={listRef}
+      className={cn(
+        "max-w-full overflow-x-hidden space-y-2 py-4 md:py-5",
+        compact ? "px-2" : "px-3 md:px-4"
+      )}
+    >
       {sortedMessages.map(function (msg, index) {
         const prev = sortedMessages[index - 1];
         const next = sortedMessages[index + 1];
@@ -1014,7 +1091,8 @@ export function ChatMessageList({
             <div
               id={"chat-message-" + msg.id}
               className={cn(
-                "flex w-fit max-w-[min(100%,520px)] min-w-0 flex-col gap-1 scroll-mt-[calc(3rem+max(0.5rem,env(safe-area-inset-top,0px))+0.5rem)] md:scroll-mt-8",
+                "flex w-fit min-w-0 flex-col gap-1 scroll-mt-[calc(3rem+max(0.5rem,env(safe-area-inset-top,0px))+0.5rem)] md:scroll-mt-8",
+                compact ? "max-w-full" : "max-w-[min(100%,520px)]",
                 msg.isOwn ? "self-end" : "self-start"
               )}
             >
@@ -1033,6 +1111,7 @@ export function ChatMessageList({
                 onReportMessage={onReportMessage}
                 onJumpToMessage={jumpToMessage}
                 onOpenImage={setViewerSrc}
+                compact={compact}
               />
             </div>
           </div>

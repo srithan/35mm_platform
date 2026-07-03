@@ -59,6 +59,7 @@ interface ChatConversationProps {
   threadSearchQuery?: string;
   onThreadSearchQueryChange?: (query: string) => void;
   newChatDraftOpen?: boolean;
+  compact?: boolean;
 }
 
 export function ChatConversation({
@@ -74,6 +75,7 @@ export function ChatConversation({
   threadSearchQuery: threadSearchQueryProp,
   onThreadSearchQueryChange,
   newChatDraftOpen = false,
+  compact = false,
 }: ChatConversationProps) {
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -542,7 +544,7 @@ export function ChatConversation({
     } as const);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-bg">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-bg">
       {!hideHeader ? (
         <header className="shrink-0 border-b border-black/[0.06] dark:border-white/[0.08] bg-bg/95 backdrop-blur-md select-none">
           {conversationLoading && !conversationRow ? (
@@ -685,6 +687,7 @@ export function ChatConversation({
           onScroll={handleMessagesScroll}
           className={cn(
             "flex-1 min-h-0 overflow-y-auto bg-bg",
+            compact && "overflow-x-hidden",
             fixedInputOnMobile &&
               "scroll-pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] pb-4"
           )}
@@ -731,6 +734,7 @@ export function ChatConversation({
               readReceipt={visibleReadReceipt}
               stickToBottomRef={stickToBottomRef}
               scrollRootRef={scrollRootRef}
+              compact={compact}
             />
           )}
         </div>

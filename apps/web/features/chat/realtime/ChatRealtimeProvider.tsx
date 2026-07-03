@@ -28,6 +28,7 @@ interface ChatRealtimeProviderProps {
   transport?: ChatRealtimeTransport;
   enabled?: boolean;
   userId?: string | null;
+  activeThreadId?: string | null;
 }
 
 function getActiveThreadId(pathname: string | null): string | null {
@@ -80,6 +81,7 @@ export function ChatRealtimeProvider({
   transport: transportProp,
   enabled = false,
   userId = null,
+  activeThreadId = null,
 }: ChatRealtimeProviderProps) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -90,12 +92,13 @@ export function ChatRealtimeProvider({
   const [readReceiptByChat, setReadReceiptByChat] = useState<
     Record<string, ChatReadReceiptState>
   >({});
-  const threadId = useMemo(
+  const routeThreadId = useMemo(
     function () {
       return getActiveThreadId(pathname);
     },
     [pathname]
   );
+  const threadId = routeThreadId ?? activeThreadId;
   const isRealtimeConfigured = useMemo(
     function () {
       if (transportProp) {

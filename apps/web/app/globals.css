@@ -1307,7 +1307,7 @@ body {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(180deg, #f5f5f7 0%, #fafafa 18%, #ffffff 42%, #ffffff 100%);
+    background: #ffffff;
 }
 
 .landing-shell {
@@ -1550,10 +1550,6 @@ body {
     padding: 4.25rem 0;
 }
 
-.landing-block--rule {
-    border-top: 1px solid #d2d2d7;
-}
-
 .landing-block__title {
     font-size: clamp(1.75rem, 3.5vw, 2rem);
     font-weight: 600;
@@ -1574,6 +1570,268 @@ body {
 
 .landing-block__text+.landing-block__text {
     margin-top: 1rem;
+}
+
+.landing-after-carousel {
+    padding: clamp(4.5rem, 9vw, 7rem) 0 clamp(3.75rem, 7vw, 5.5rem);
+    border-top: 1px solid #e5e5e7;
+}
+
+.landing-after-carousel__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: clamp(2rem, 6vw, 4.5rem);
+    align-items: start;
+}
+
+.landing-after-carousel__intro {
+    position: sticky;
+    top: 2rem;
+}
+
+.landing-section-kicker {
+    margin: 0 0 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: var(--landing-accent);
+}
+
+.landing-after-carousel__intro h2,
+.landing-cta-strip h2 {
+    margin: 0;
+    font-size: clamp(2.1rem, 5vw, 4.4rem);
+    font-weight: 700;
+    line-height: 0.96;
+    letter-spacing: 0;
+    color: #1d1d1f;
+}
+
+.landing-after-carousel__intro p:not(.landing-section-kicker) {
+    margin: 1.35rem 0 0;
+    max-width: 31rem;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    font-weight: 400;
+    line-height: 1.45;
+    letter-spacing: 0;
+    color: #6e6e73;
+}
+
+.landing-feature-grid {
+    display: grid;
+    gap: 0.875rem;
+}
+
+.landing-feature-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1.1rem;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.landing-feature-card__icon {
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: #1d1d1f;
+    background: #f5f5f7;
+}
+
+.landing-feature-card__label {
+    margin: 0 0 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: #86868b;
+}
+
+.landing-feature-card h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0;
+    color: #1d1d1f;
+}
+
+.landing-feature-card p:last-child {
+    margin: 0.55rem 0 0;
+    font-size: 0.98rem;
+    font-weight: 400;
+    line-height: 1.48;
+    letter-spacing: 0;
+    color: #6e6e73;
+}
+
+.landing-audience {
+    display: grid;
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+    gap: clamp(1.5rem, 5vw, 4rem);
+    align-items: start;
+    padding: clamp(2rem, 5vw, 3.5rem) 0;
+    border-top: 1px solid #e5e5e7;
+    border-bottom: 1px solid #e5e5e7;
+}
+
+.landing-audience__header {
+    display: grid;
+    gap: 1rem;
+    color: #1d1d1f;
+}
+
+.landing-audience__header svg {
+    color: var(--landing-accent);
+}
+
+.landing-audience__header h2 {
+    margin: 0;
+    max-width: 24rem;
+    font-size: clamp(1.6rem, 3.2vw, 2.35rem);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: 0;
+}
+
+.landing-audience__list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.landing-audience__list p {
+    margin: 0;
+    min-height: 8rem;
+    padding-left: 1rem;
+    border-left: 2px solid #1d1d1f;
+    font-size: 0.98rem;
+    line-height: 1.45;
+    letter-spacing: 0;
+    color: #4c4c50;
+}
+
+.landing-cta-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-top: clamp(3rem, 7vw, 5rem);
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    background: #1d1d1f;
+    color: #ffffff;
+}
+
+.landing-cta-strip .landing-section-kicker {
+    color: #ffb3aa;
+}
+
+.landing-cta-strip h2 {
+    max-width: 34rem;
+    font-size: clamp(1.8rem, 4vw, 3.2rem);
+    color: #ffffff;
+}
+
+.landing-cta-strip__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.landing-cta-strip__button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.7rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.landing-cta-strip__button--primary {
+    color: #1d1d1f;
+    background: #ffffff;
+}
+
+.landing-cta-strip__button--primary:hover {
+    background: #f5f5f7;
+}
+
+.landing-cta-strip__button--secondary {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
+    background: transparent;
+}
+
+.landing-cta-strip__button--secondary:hover {
+    border-color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 820px) {
+    .landing-after-carousel__grid,
+    .landing-audience {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-after-carousel__intro {
+        position: static;
+    }
+
+    .landing-audience__list {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-audience__list p {
+        min-height: 0;
+        padding: 0 0 0.85rem;
+        border-left: 0;
+        border-bottom: 1px solid #e5e5e7;
+    }
+
+    .landing-audience__list p:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .landing-cta-strip {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .landing-cta-strip__actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 520px) {
+    .landing-after-carousel {
+        padding-top: 3.5rem;
+    }
+
+    .landing-feature-card {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-cta-strip__button {
+        width: 100%;
+    }
 }
 
 .landing-footer {

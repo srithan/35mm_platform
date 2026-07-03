@@ -65,6 +65,20 @@
   transform: translate(18%, -42%);
 }
 
+.anchorCompact {
+  max-width: calc(100% - 1rem);
+}
+
+.anchorOwn.anchorCompact {
+  left: 0.375rem;
+  transform: translate(-8%, -42%);
+}
+
+.anchorOther.anchorCompact {
+  right: 0.375rem;
+  transform: translate(8%, -42%);
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -88,6 +102,10 @@
   border-color: rgba(255, 255, 255, 0.1);
   background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
+}
+
+.pillCompact {
+  max-width: 7.5rem;
 }
 
 .pillCircle {
