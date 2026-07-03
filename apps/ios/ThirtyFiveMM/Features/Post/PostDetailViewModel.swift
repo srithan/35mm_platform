@@ -90,6 +90,23 @@ final class PostDetailViewModel: ObservableObject {
     )
   }
 
+  func votePoll(postId: String, optionIds: [String]) async {
+    guard post.id == postId else { return }
+
+    let original = post
+    guard let optimistic = original.votedPoll(optionIds: optionIds) else { return }
+
+    post = optimistic
+    error = nil
+
+    do {
+      let _: FeedPost = try await apiClient.request(.votePoll(postId: postId, optionIds: optionIds))
+    } catch {
+      post = original
+      self.error = error.localizedDescription
+    }
+  }
+
   func toggleCommentLike(comment: Comment) async {
     guard let index = flatComments.firstIndex(where: { $0.id == comment.id }) else { return }
 

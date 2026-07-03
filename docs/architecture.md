@@ -1,7 +1,7 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-06-30
+> Last updated: 2026-07-02
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
 
@@ -120,6 +120,8 @@ Local dev note: BullMQ workers emit continuous blocking Redis commands while idl
 | Tests | `ThirtyFiveMMTests` XCTest target |
 
 Native auth keeps Clerk session state separate from API bootstrap state. If Clerk has an active session but `/v1/me` or onboarding bootstrap fails, the app shows a retry/sign-out recovery screen instead of routing back to signed-out auth screens.
+
+Native feed post cards mirror the shared REST feed contract through `Core/Models/FeedPost.swift`, `PostInteracting`, and `Features/Feed/PostCard.swift`. Likes, reposts, bookmarks, comments navigation, and poll votes use the same `/v1/feed/posts/:postId/*` endpoints as web. Poll voting is optimistic on-device and relies on the API's idempotent vote fact row plus async `counter.increment` jobs for durable poll totals/options, so the hot request path does not perform synchronous counter updates. The native bottom tab bar currently exposes Home, Create, and Activity; Messages/Profile are not bottom-tab destinations. The app shell header loads the current `/v1/me` profile once, opens a left profile sidebar from the avatar, and pushes the native Messages inbox through each tab's `NavigationStack` from the header message icon.
 
 ### External Services
 
@@ -575,6 +577,7 @@ Feature ownership:
 - `features/settings`: account, privacy, notifications, appearance, data/security settings.
   Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
+  Onboarding follow suggestions are a bounded seed query over active public profiles, exclude already-followed/blocked/muted accounts, and rank by denormalized profile activity rather than live follower-count aggregation.
 - `features/discover`: TMDB-backed browsing and search.
 - `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
 - `features/chat`: rich frontend, remote backend client, optional mock mode, chat route pages, realtime cache application, and bounded persisted React Query cache for inbox/recent messages.
@@ -842,7 +845,7 @@ iOS:
 - `apps/ios/ThirtyFiveMM/Core/Models/Chat.swift` mirrors the shared chat contracts: `ChatInboxPage`, `ChatThreadPreview`, `ChatMessagesPage`, `ChatMessage`, `ChatMember`, `MessageReaction`, `MessageReplySnapshot`, typing snapshots, and read receipts.
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatAPIClient.swift` covers every `/v1/chat` endpoint using the existing Clerk-backed `APIClient`; chat message IDs stay opaque `String` TIMEUUID values and message pagination uses `before`, not offsets.
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatRealtimeClient.swift` adds optional Ably subscriptions for `user:{userId}:inbox` and `thread:{threadId}` events with explicit inbox/thread subscribe and unsubscribe lifecycle methods. Without `ABLY_API_KEY`, chat remains fetch-capable through the noop client.
-- `apps/ios/ThirtyFiveMM/Features/Chat/ChatInboxViewModel.swift` and `ChatInboxView.swift` implement the native Messages tab inbox: cursor paging, archived/default views, pull refresh, native archive/mute/delete swipe actions, batched visible-row presence, visible-thread typing indicators, profile search backed DM creation, and in-place `thread.updated` realtime row updates.
+- `apps/ios/ThirtyFiveMM/Features/Chat/ChatInboxViewModel.swift` and `ChatInboxView.swift` implement the native messages inbox module: cursor paging, archived/default views, pull refresh, native archive/mute/delete swipe actions, batched visible-row presence, visible-thread typing indicators, profile search backed DM creation, and in-place `thread.updated` realtime row updates. `MainTabView` mounts Messages as a header-pushed `NavigationStack` destination rather than a bottom tab.
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatThreadViewModel.swift` and `ChatThreadView.swift` implement the native thread read side: reverse-display message history with `before` pagination, Ably thread event patching, grouped bubbles, deleted/edited/reply rendering, media/link/file content, reaction pills with endpoint-backed toggles, read receipt summaries, typing bubbles, reconnect reconciliation, and non-disruptive new-message affordance while scrolled up.
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatBlurhash.swift` provides native blurhash placeholder decoding for chat media thumbnails before Kingfisher image fade-in.
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatMediaUploadClient.swift` and `ChatComposerModels.swift` support the native thread write side: growing composer, optimistic sends with retryable failure state, typed upload via the existing `/v1/media/presign` + direct R2 PUT flow, image/file staged previews, 4000-character enforcement, reply/edit context, sender-only edit/delete UI, throttled typing dispatch, and foreground-only read dispatch.

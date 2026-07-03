@@ -84,6 +84,14 @@ extension APIEndpoint {
     APIEndpoint(path: "/v1/feed/posts/\(postId)/bookmarks", method: .delete)
   }
 
+  static func votePoll(postId: String, optionIds: [String]) -> APIEndpoint {
+    APIEndpoint(
+      path: "/v1/feed/posts/\(postId)/poll/votes",
+      method: .post,
+      body: VotePollRequest(optionIds: optionIds)
+    )
+  }
+
   static func getComments(postId: String, cursor: String?, limit: Int) -> APIEndpoint {
     var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
     if let cursor {
@@ -129,6 +137,10 @@ struct AnyEncodable: Encodable {
 private struct CreateCommentRequest: Encodable {
   let body: String
   let parentId: String?
+}
+
+private struct VotePollRequest: Encodable {
+  let optionIds: [String]
 }
 
 struct SubmitOnboardingRequest: Encodable {

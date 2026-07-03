@@ -680,7 +680,12 @@ function BubbleRow({
                   isStandaloneEmoji
                     ? "text-fg"
                     : hasAttachment
-                    ? "mt-1.5 px-0.5 text-fg"
+                    ? cn(
+                        "mt-1.5 w-fit max-w-[min(70vw,320px)] rounded-[22px] px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
+                        msg.isOwn
+                          ? "ml-auto rounded-br-[14px] bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
+                          : "rounded-bl-[14px] border border-border bg-sunken text-fg dark:bg-[color-mix(in_srgb,var(--elevated)_88%,var(--fg)_12%)] dark:border-white/[0.08]"
+                      )
                     : msg.isOwn
                       ? "text-white"
                       : "text-fg"
@@ -691,7 +696,7 @@ function BubbleRow({
                   <span
                     className={cn(
                       "ml-1 text-[11px]",
-                      hasAttachment || !msg.isOwn ? "text-fg-muted" : "text-white/55"
+                      msg.isOwn && !isStandaloneEmoji ? "text-white/55" : "text-fg-muted"
                     )}
                   >
                     edited

@@ -7,19 +7,74 @@ struct MainTabView: View {
   @State private var previousTab: AppTab = .home
   @State private var isTabBarVisible = true
   @State private var isShowingComposer = false
+  @State private var isShowingProfileSidebar = false
+  @State private var homePath: [AppRoute] = []
+  @State private var activityPath: [AppRoute] = []
+  @State private var profile: UserProfile?
+  @State private var profileLoadError: String?
 
   init() {
     Self.configureTabBarAppearance()
   }
 
   var body: some View {
+    GeometryReader { proxy in
+      let sidebarWidth = min(proxy.size.width * 0.78, 320)
+
+      ZStack(alignment: .leading) {
+        tabContent
+          .disabled(isShowingProfileSidebar)
+          .offset(x: isShowingProfileSidebar ? min(sidebarWidth * 0.28, 96) : 0)
+          .scaleEffect(isShowingProfileSidebar ? 0.98 : 1, anchor: .trailing)
+
+        if isShowingProfileSidebar {
+          Color.black.opacity(0.18)
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .onTapGesture {
+              closeProfileSidebar()
+            }
+            .transition(.opacity)
+        }
+
+        ProfileSidebar(
+          profile: profile,
+          profileLoadError: profileLoadError,
+          width: sidebarWidth
+        )
+        .offset(x: isShowingProfileSidebar ? 0 : -sidebarWidth)
+        .allowsHitTesting(isShowingProfileSidebar)
+        .accessibilityHidden(!isShowingProfileSidebar)
+      }
+      .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isShowingProfileSidebar)
+    }
+    .task {
+      await loadProfile()
+    }
+  }
+
+  private var tabContent: some View {
     TabView(selection: $selectedTab) {
-      NavigationStack {
-        FeedView(apiClient: env.apiClient) { direction in
-          guard selectedTab == .home else { return }
-          withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-            isTabBarVisible = direction == .up
+      NavigationStack(path: $homePath) {
+        AppTabRootScreen(
+          title: .logo,
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: .home)
           }
+        ) {
+          FeedView(apiClient: env.apiClient) { direction in
+            guard selectedTab == .home else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+              isTabBarVisible = direction == .up
+            }
+          }
+        }
+        .navigationDestination(for: AppRoute.self) { route in
+          destination(for: route)
         }
       }
       .tabItem {
@@ -28,20 +83,6 @@ struct MainTabView: View {
       }
       .tag(AppTab.home)
 
-      NavigationStack {
-        if case .authenticated(let userId) = env.authManager.authState {
-          ChatInboxView(apiClient: env.apiClient, currentUserId: userId)
-        } else {
-          ProgressView()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-      }
-      .tabItem {
-        Image(systemName: AppTab.messages.systemImage)
-        Text(AppTab.messages.accessibilityLabel)
-      }
-      .tag(AppTab.messages)
-
       Color.clear
         .tabItem {
           Image(systemName: AppTab.create.systemImage)
@@ -49,9 +90,22 @@ struct MainTabView: View {
         }
         .tag(AppTab.create)
 
-      NavigationStack {
-        Text("Notifications - coming soon")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      NavigationStack(path: $activityPath) {
+        AppTabRootScreen(
+          title: .text(AppTab.activity.headerTitle),
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: .activity)
+          }
+        ) {
+          AppTabPlaceholder(message: "Notifications - coming soon")
+        }
+        .navigationDestination(for: AppRoute.self) { route in
+          destination(for: route)
+        }
       }
       .tabItem {
         Image(systemName: AppTab.activity.systemImage)
@@ -59,16 +113,6 @@ struct MainTabView: View {
       }
       .badge("")
       .tag(AppTab.activity)
-
-      NavigationStack {
-        Text("Profile - coming soon")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      }
-      .tabItem {
-        Image(systemName: AppTab.profile.systemImage)
-        Text(AppTab.profile.accessibilityLabel)
-      }
-      .tag(AppTab.profile)
     }
     .tint(.black)
     .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
@@ -87,6 +131,66 @@ struct MainTabView: View {
       withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
         isTabBarVisible = true
       }
+    }
+  }
+
+  @ViewBuilder
+  private func destination(for route: AppRoute) -> some View {
+    switch route {
+    case .messages:
+      if let currentUserId {
+        ChatInboxView(apiClient: env.apiClient, currentUserId: currentUserId)
+          .toolbar(.hidden, for: .tabBar)
+      } else {
+        ProgressView()
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+  }
+
+  private var currentUserId: String? {
+    if case .authenticated(let userId) = env.authManager.authState {
+      return userId
+    }
+
+    return profile?.userId
+  }
+
+  private func openProfileSidebar() {
+    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+      isShowingProfileSidebar = true
+    }
+  }
+
+  private func closeProfileSidebar() {
+    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+      isShowingProfileSidebar = false
+    }
+  }
+
+  private func openMessages(in tab: AppTab) {
+    guard currentUserId != nil else { return }
+
+    closeProfileSidebar()
+
+    switch tab {
+    case .home:
+      homePath.append(.messages)
+    case .activity:
+      activityPath.append(.messages)
+    case .create:
+      break
+    }
+  }
+
+  private func loadProfile() async {
+    guard profile == nil else { return }
+
+    do {
+      profile = try await env.apiClient.request(.getMe())
+      profileLoadError = nil
+    } catch {
+      profileLoadError = error.localizedDescription
     }
   }
 
@@ -113,25 +217,318 @@ struct MainTabView: View {
   }
 }
 
+private enum AppHeaderTitle: Equatable {
+  case logo
+  case text(String)
+}
+
+private enum AppRoute: Hashable {
+  case messages
+}
+
+private struct AppTabRootScreen<Content: View>: View {
+  let title: AppHeaderTitle
+  let profile: UserProfile?
+  let profileLoadError: String?
+  let canOpenMessages: Bool
+  let onProfileTapped: () -> Void
+  let onMessagesTapped: () -> Void
+  let content: () -> Content
+
+  init(
+    title: AppHeaderTitle,
+    profile: UserProfile?,
+    profileLoadError: String?,
+    canOpenMessages: Bool,
+    onProfileTapped: @escaping () -> Void,
+    onMessagesTapped: @escaping () -> Void,
+    @ViewBuilder content: @escaping () -> Content
+  ) {
+    self.title = title
+    self.profile = profile
+    self.profileLoadError = profileLoadError
+    self.canOpenMessages = canOpenMessages
+    self.onProfileTapped = onProfileTapped
+    self.onMessagesTapped = onMessagesTapped
+    self.content = content
+  }
+
+  var body: some View {
+    VStack(spacing: 0) {
+      AppHeader(
+        title: title,
+        profile: profile,
+        profileLoadError: profileLoadError,
+        canOpenMessages: canOpenMessages,
+        onProfileTapped: onProfileTapped,
+        onMessagesTapped: onMessagesTapped
+      )
+
+      content()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    .background(Color(.systemBackground))
+  }
+}
+
+private struct AppHeader: View {
+  let title: AppHeaderTitle
+  let profile: UserProfile?
+  let profileLoadError: String?
+  let canOpenMessages: Bool
+  let onProfileTapped: () -> Void
+  let onMessagesTapped: () -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      ZStack {
+        centerTitle
+          .frame(maxWidth: 180)
+          .padding(.horizontal, 58)
+
+        HStack {
+          Button(action: onProfileTapped) {
+            HeaderAvatar(url: profile?.avatarUrl ?? profile?.avatarUrlLg, size: 38)
+              .contentShape(Circle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(profile == nil && profileLoadError != nil ? "Open profile menu. Profile unavailable." : "Open profile menu")
+
+          Spacer()
+
+          Button(action: onMessagesTapped) {
+            Image(systemName: "bubble.left.and.bubble.right")
+              .font(.system(size: 21, weight: .bold))
+              .foregroundStyle(canOpenMessages ? Color(.label) : Color(.tertiaryLabel))
+              .frame(width: 42, height: 42)
+              .contentShape(Circle())
+          }
+          .buttonStyle(.plain)
+          .disabled(!canOpenMessages)
+          .accessibilityLabel("Messages")
+        }
+      }
+      .frame(height: 64)
+      .padding(.horizontal, 16)
+
+      Divider()
+    }
+    .background(Color(.systemBackground))
+  }
+
+  @ViewBuilder
+  private var centerTitle: some View {
+    switch title {
+    case .logo:
+      Text(AppConstants.appName)
+        .font(.system(size: 27, weight: .black, design: .serif))
+        .foregroundStyle(Color(.label))
+        .lineLimit(1)
+        .minimumScaleFactor(0.82)
+        .accessibilityAddTraits(.isHeader)
+    case .text(let value):
+      Text(value)
+        .font(.system(size: 22, weight: .black, design: .rounded))
+        .foregroundStyle(Color(.label))
+        .lineLimit(1)
+        .minimumScaleFactor(0.82)
+        .accessibilityAddTraits(.isHeader)
+    }
+  }
+}
+
+private struct HeaderAvatar: View {
+  let url: String?
+  let size: CGFloat
+
+  var body: some View {
+    AsyncImage(url: url.flatMap(URL.init(string:))) { phase in
+      switch phase {
+      case .success(let image):
+        image.resizable().scaledToFill()
+      default:
+        ZStack {
+          Circle()
+            .fill(Color(.systemGray6))
+          Image(systemName: "person.fill")
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(Color(.systemGray2))
+        }
+      }
+    }
+    .frame(width: size, height: size)
+    .clipShape(Circle())
+    .overlay {
+      Circle()
+        .stroke(Color(.systemGray5), lineWidth: 1)
+    }
+  }
+}
+
+private struct ProfileSidebar: View {
+  let profile: UserProfile?
+  let profileLoadError: String?
+  let width: CGFloat
+
+  private var displayName: String {
+    let trimmed = profile?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return trimmed.isEmpty ? username : trimmed
+  }
+
+  private var username: String {
+    guard let value = profile?.username, !value.isEmpty else {
+      return "35mm"
+    }
+
+    return "@\(value)"
+  }
+
+  private var subtitle: String? {
+    if let roleContext = profile?.roleContext?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !roleContext.isEmpty
+    {
+      return roleContext
+    }
+
+    if let filmsLoggedCount = profile?.filmsLoggedCount {
+      return "\(filmsLoggedCount.compactFormatted) films logged"
+    }
+
+    if profileLoadError != nil {
+      return "Profile unavailable"
+    }
+
+    return nil
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      VStack(alignment: .leading, spacing: 12) {
+        HeaderAvatar(url: profile?.avatarUrl ?? profile?.avatarUrlLg, size: 48)
+          .padding(.bottom, 2)
+
+        VStack(alignment: .leading, spacing: 4) {
+          Text(displayName)
+            .font(.system(size: 22, weight: .black, design: .rounded))
+            .foregroundStyle(Color(.label))
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+
+          Text(username)
+            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .foregroundStyle(Color(.secondaryLabel))
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+
+          if let subtitle {
+            Text(subtitle)
+              .font(.system(size: 14, weight: .semibold, design: .rounded))
+              .foregroundStyle(Color(.secondaryLabel))
+              .lineLimit(2)
+              .padding(.top, 2)
+          }
+        }
+      }
+      .padding(.top, 58)
+      .padding(.horizontal, 22)
+      .padding(.bottom, 22)
+
+      VStack(alignment: .leading, spacing: 0) {
+        ProfileSidebarRow(systemImage: "person", title: "Profile")
+        ProfileSidebarRow(systemImage: "seal", title: "Premium")
+        ProfileSidebarRow(systemImage: "bookmark", title: "History")
+        ProfileSidebarRow(systemImage: "person.2", title: "Communities")
+        ProfileSidebarRow(systemImage: "arrow.down.to.line", title: "Offline")
+        ProfileSidebarRow(systemImage: "rectangle.on.rectangle", title: "Lists")
+        ProfileSidebarRow(systemImage: "mic.circle", title: "Spaces")
+        ProfileSidebarRow(systemImage: "paperplane", title: "Creator Studio")
+      }
+      .padding(.horizontal, 22)
+
+      Divider()
+        .padding(.horizontal, 22)
+        .padding(.vertical, 18)
+
+      VStack(alignment: .leading, spacing: 0) {
+        ProfileSidebarRow(systemImage: "gearshape", title: "Settings and privacy", size: .compact)
+        ProfileSidebarRow(systemImage: "questionmark.circle", title: "Help Center", size: .compact)
+      }
+      .padding(.horizontal, 22)
+
+      Spacer(minLength: 0)
+    }
+    .frame(width: width)
+    .frame(maxHeight: .infinity, alignment: .leading)
+    .background(Color(.systemBackground))
+    .shadow(color: .black.opacity(0.16), radius: 24, x: 8, y: 0)
+    .ignoresSafeArea()
+  }
+}
+
+private struct ProfileSidebarRow: View {
+  enum Size {
+    case regular
+    case compact
+  }
+
+  let systemImage: String
+  let title: String
+  var size: Size = .regular
+
+  private var fontSize: CGFloat {
+    size == .regular ? 19 : 16
+  }
+
+  private var iconSize: CGFloat {
+    size == .regular ? 21 : 18
+  }
+
+  private var rowHeight: CGFloat {
+    size == .regular ? 50 : 44
+  }
+
+  var body: some View {
+    HStack(spacing: 18) {
+      Image(systemName: systemImage)
+        .font(.system(size: iconSize, weight: .semibold))
+        .foregroundStyle(Color(.label))
+        .frame(width: 30)
+
+      Text(title)
+        .font(.system(size: fontSize, weight: .black, design: .rounded))
+        .foregroundStyle(Color(.label))
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+    }
+    .frame(height: rowHeight)
+    .accessibilityElement(children: .combine)
+  }
+}
+
+private struct AppTabPlaceholder: View {
+  let message: String
+
+  var body: some View {
+    Text(message)
+      .font(.system(size: 16, weight: .semibold, design: .rounded))
+      .foregroundStyle(Color(.secondaryLabel))
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+}
+
 private enum AppTab: Hashable, CaseIterable {
   case home
-  case messages
   case create
   case activity
-  case profile
 
   var systemImage: String {
     switch self {
     case .home:
-      return "film"
-    case .messages:
-      return "bubble.left.and.bubble.right"
+      return "house.fill"
     case .create:
       return "plus.circle"
     case .activity:
       return "bell"
-    case .profile:
-      return "person.crop.circle"
     }
   }
 
@@ -139,14 +536,21 @@ private enum AppTab: Hashable, CaseIterable {
     switch self {
     case .home:
       return "Home"
-    case .messages:
-      return "Messages"
     case .create:
       return "Create"
     case .activity:
       return "Activity"
-    case .profile:
-      return "Profile"
+    }
+  }
+
+  var headerTitle: String {
+    switch self {
+    case .home:
+      return AppConstants.appName
+    case .create:
+      return "Create"
+    case .activity:
+      return "Notifications"
     }
   }
 }

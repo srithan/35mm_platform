@@ -244,10 +244,18 @@ onboardingRoutes.post("/me/onboarding", requireAuth, async function (c) {
     var followableRows = await db
       .select({ id: users.id })
       .from(users)
-      .where(and(inArray(users.id, followUserIds), eq(users.status, "active")));
+      .innerJoin(profiles, eq(profiles.userId, users.id))
+      .where(
+        and(
+          inArray(users.id, followUserIds),
+          eq(users.status, "active"),
+          eq(profiles.isPrivate, false),
+          ...blockFiltersForAuthor(user.userId, users.id)
+        )
+      );
 
     if (followableRows.length !== followUserIds.length) {
-      throw badRequest("followUserIds contain unknown users");
+      throw badRequest("followUserIds contain unknown or unavailable users");
     }
   }
 
@@ -296,8 +304,6 @@ onboardingRoutes.get("/onboarding/suggestions", requireAuth, async function (c) 
   var user = c.get("user");
   var db = getDb();
 
-  var followerCountSql = sql<number>`count(${follows.followerId})`;
-
   var rows = await db
     .select({
       id: profiles.userId,
@@ -308,34 +314,25 @@ onboardingRoutes.get("/onboarding/suggestions", requireAuth, async function (c) 
       role: sql<string | null>`coalesce(${profiles.headline}, ${profiles.role})`,
       roleContext: sql<string | null>`coalesce(${profiles.headlineContext}, ${profiles.roleContext})`,
       filmsLoggedCount: profiles.filmsLoggedCount,
-      followerCount: followerCountSql,
     })
     .from(profiles)
     .innerJoin(users, eq(users.id, profiles.userId))
-    .leftJoin(
-      follows,
-      and(eq(follows.followingId, profiles.userId), eq(follows.status, "accepted"))
-    )
     .where(
       and(
         eq(users.status, "active"),
+        eq(profiles.isPrivate, false),
         sql`${profiles.userId} <> ${user.userId}`,
+        sql<boolean>`not exists(
+          select 1
+          from ${follows}
+          where ${follows.followerId} = ${user.userId}
+            and ${follows.followingId} = ${profiles.userId}
+        )`,
         ...blockFiltersForAuthor(user.userId, profiles.userId),
         notMutedByViewerSql(user.userId, profiles.userId)
       )
     )
-    .groupBy(
-      profiles.userId,
-      profiles.username,
-      profiles.displayName,
-      profiles.avatarUrl,
-      profiles.headline,
-      profiles.role,
-      profiles.headlineContext,
-      profiles.roleContext,
-      profiles.filmsLoggedCount
-    )
-    .orderBy(desc(followerCountSql), profiles.createdAt)
+    .orderBy(desc(profiles.filmsLoggedCount), desc(profiles.createdAt), profiles.userId)
     .limit(10);
 
   var usersOut = await Promise.all(
@@ -349,7 +346,7 @@ onboardingRoutes.get("/onboarding/suggestions", requireAuth, async function (c) 
         role: row.role,
         roleContext: row.roleContext,
         filmsLoggedCount: row.filmsLoggedCount ?? 0,
-        followerCount: Number(row.followerCount ?? 0),
+        followerCount: 0,
       };
     })
   );

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 import UIKit
 
 struct ChatThreadView: View {
+  @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
   @StateObject private var viewModel: ChatThreadViewModel
   @State private var selectedImage: ChatImageSelection?
@@ -30,9 +31,35 @@ struct ChatThreadView: View {
   var body: some View {
     ZStack {
       VStack(spacing: 0) {
+        ChatThreadHeader(
+          title: title,
+          subtitle: threadSubtitle,
+          onBack: {
+            dismiss()
+          },
+          onMore: {}
+        )
+
         threadContent
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
 
+    }
+    .fullScreenCover(item: $selectedImage) { selection in
+      ChatImageViewerView(selection: selection) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+          selectedImage = nil
+        }
+      }
+      .presentationBackground(.black)
+      .transaction { transaction in
+        transaction.animation = nil
+      }
+    }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
+      VStack(spacing: 0) {
         Divider()
 
         ChatComposerBar(
@@ -67,19 +94,11 @@ struct ChatThreadView: View {
         )
         .fixedSize(horizontal: false, vertical: true)
       }
-
-      if let selectedImage {
-        ChatImageViewerView(selection: selectedImage) {
-          withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-            self.selectedImage = nil
-          }
-        }
-        .transition(.scale(scale: 0.94).combined(with: .opacity))
-        .zIndex(20)
-      }
+      .background(Color(.systemBackground))
     }
-    .navigationTitle(title)
-    .navigationBarTitleDisplayMode(.inline)
+    .navigationBarBackButtonHidden(true)
+    .toolbar(.hidden, for: .navigationBar)
+    .toolbar(.hidden, for: .tabBar)
     .task {
       await viewModel.start()
     }
@@ -153,6 +172,7 @@ struct ChatThreadView: View {
             .padding(.vertical, 10)
           }
           .scrollDismissesKeyboard(.interactively)
+          .defaultScrollAnchor(.bottom)
           .overlay(alignment: .top) {
             if let error = viewModel.error, !viewModel.messages.isEmpty {
               ChatInlineErrorBanner(message: error) {
@@ -176,24 +196,26 @@ struct ChatThreadView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(Capsule().fill(Color.black.opacity(0.88)))
+                .background(Capsule().fill(ChatTheme.accent))
             }
             .buttonStyle(.plain)
             .padding(.bottom, 14)
           }
         }
+        .onAppear {
+          scrollToInitialBottom(proxy)
+        }
         .onChange(of: viewModel.messages.last?.id) { _, _ in
-          guard viewModel.shouldAutoScrollToBottom() || !didScrollInitial else { return }
-          withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-            proxy.scrollTo("bottom", anchor: .bottom)
+          if !didScrollInitial {
+            scrollToInitialBottom(proxy)
+            return
           }
-          didScrollInitial = true
+          guard viewModel.shouldAutoScrollToBottom() else { return }
+          scrollToBottom(proxy, animated: true)
         }
         .onChange(of: viewModel.typingUsers) { _, users in
           guard !users.isEmpty, viewModel.shouldAutoScrollToBottom() else { return }
-          withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-            proxy.scrollTo("bottom", anchor: .bottom)
-          }
+          scrollToBottom(proxy, animated: true)
         }
       }
     }
@@ -207,8 +229,38 @@ struct ChatThreadView: View {
     return names.isEmpty ? "Group chat" : names.joined(separator: ", ")
   }
 
+  private var threadSubtitle: String? {
+    if viewModel.thread.type == .dm {
+      return viewModel.thread.members.first.map { "@\($0.username)" }
+    }
+
+    return "\(viewModel.thread.members.count) members"
+  }
+
   private func displayName(_ member: ChatMember) -> String {
     member.displayName.isEmpty ? "@\(member.username)" : member.displayName
+  }
+
+  private func scrollToInitialBottom(_ proxy: ScrollViewProxy) {
+    guard !didScrollInitial, !viewModel.messages.isEmpty else { return }
+    scrollToBottom(proxy, animated: false)
+    didScrollInitial = true
+    viewModel.setNearBottom(true)
+  }
+
+  private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
+    if animated {
+      withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
+        proxy.scrollTo("bottom", anchor: .bottom)
+      }
+      return
+    }
+
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      proxy.scrollTo("bottom", anchor: .bottom)
+    }
   }
 
   private var reactionDialogPresented: Binding<Bool> {
@@ -238,12 +290,17 @@ struct ChatThreadView: View {
       localState: viewModel.localMessageStateById[message.id],
       currentUserId: viewModel.currentUserId,
       onOpenImage: { url in
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
           selectedImage = ChatImageSelection(url: url)
         }
       },
       onReact: {
         reactionTarget = ChatReactionTarget(message: message)
+      },
+      onReactEmoji: { emoji in
+        Task { await viewModel.toggleReaction(message: message, emoji: emoji) }
       },
       onReply: {
         viewModel.setReplyingTo(message)
@@ -272,7 +329,9 @@ struct ChatThreadView: View {
     )
     .id(message.id)
     .onAppear {
-      Task { await viewModel.loadOlderIfNeeded(currentMessageId: message.id) }
+      if didScrollInitial {
+        Task { await viewModel.loadOlderIfNeeded(currentMessageId: message.id) }
+      }
       if message.id == viewModel.messages.last?.id {
         viewModel.markVisible(message: message)
       }
@@ -378,6 +437,66 @@ struct ChatThreadView: View {
   }
 }
 
+private struct ChatThreadHeader: View {
+  let title: String
+  let subtitle: String?
+  let onBack: () -> Void
+  let onMore: () -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      ZStack {
+        VStack(spacing: 2) {
+          Text(title)
+            .font(.system(size: 18, weight: .black, design: .rounded))
+            .foregroundStyle(Color(.label))
+            .lineLimit(1)
+            .minimumScaleFactor(0.76)
+
+          if let subtitle, !subtitle.isEmpty {
+            Text(subtitle)
+              .font(.system(size: 12, weight: .semibold, design: .rounded))
+              .foregroundStyle(Color(.secondaryLabel))
+              .lineLimit(1)
+          }
+        }
+        .frame(maxWidth: 190)
+        .padding(.horizontal, 58)
+        .accessibilityAddTraits(.isHeader)
+
+        HStack {
+          Button(action: onBack) {
+            Image(systemName: "chevron.left")
+              .font(.system(size: 20, weight: .bold))
+              .foregroundStyle(Color(.label))
+              .frame(width: 42, height: 42)
+              .contentShape(Circle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Back")
+
+          Spacer()
+
+          Button(action: onMore) {
+            Image(systemName: "ellipsis.circle")
+              .font(.system(size: 22, weight: .semibold))
+              .foregroundStyle(Color(.label))
+              .frame(width: 42, height: 42)
+              .contentShape(Circle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Conversation options")
+        }
+      }
+      .frame(height: 64)
+      .padding(.horizontal, 16)
+
+      Divider()
+    }
+    .background(Color(.systemBackground))
+  }
+}
+
 private struct ChatMessageRow: View {
   let message: ChatMessage
   let isMine: Bool
@@ -388,6 +507,7 @@ private struct ChatMessageRow: View {
   let currentUserId: String
   let onOpenImage: (String) -> Void
   let onReact: () -> Void
+  let onReactEmoji: (String) -> Void
   let onReply: () -> Void
   let onEdit: () -> Void
   let onDelete: () -> Void
@@ -396,22 +516,16 @@ private struct ChatMessageRow: View {
 
   var body: some View {
     VStack(alignment: isMine ? .trailing : .leading, spacing: 4) {
-      if !isMine && showHeader {
-        HStack(spacing: 8) {
-          ChatAvatarImage(url: message.senderAvatarUrl, size: 24)
-          Text(displayName)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.secondary)
-          Spacer()
-        }
-        .padding(.leading, 4)
-      }
-
       HStack(alignment: .bottom, spacing: 8) {
         if isMine {
           Spacer(minLength: 42)
-        } else if !showHeader {
-          Color.clear.frame(width: 24, height: 1)
+        } else {
+          if showHeader {
+            ChatAvatarImage(url: message.senderAvatarUrl, size: 30)
+          } else {
+            Color.clear
+              .frame(width: 30, height: 1)
+          }
         }
 
         ChatMessageBubble(
@@ -422,13 +536,20 @@ private struct ChatMessageRow: View {
           onOpenImage: onOpenImage,
           onReplyTap: onReplyTap
         )
-        .onLongPressGesture(perform: onReact)
         .contextMenu {
           if !message.isDeleted {
+            ForEach(ChatReactionTarget.availableEmojis, id: \.self) { emoji in
+              Button(emoji) {
+                onReactEmoji(emoji)
+              }
+            }
+
+            Divider()
+
             Button {
               onReact()
             } label: {
-              Label("React", systemImage: "face.smiling")
+              Label("More reactions", systemImage: "face.smiling")
             }
 
             Button {
@@ -478,10 +599,6 @@ private struct ChatMessageRow: View {
     }
     .padding(.vertical, showHeader ? 5 : 1)
   }
-
-  private var displayName: String {
-    message.senderDisplayName.isEmpty ? "@\(message.senderUsername)" : message.senderDisplayName
-  }
 }
 
 private struct ChatMessageBubble: View {
@@ -495,7 +612,7 @@ private struct ChatMessageBubble: View {
   let onReplyTap: () -> Void
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(alignment: contentAlignment, spacing: 8) {
       if let replySnapshot = message.replySnapshot, !message.isDeleted {
         Button(action: onReplyTap) {
           ChatReplyPreview(snapshot: replySnapshot)
@@ -518,7 +635,7 @@ private struct ChatMessageBubble: View {
           .foregroundStyle(isMine ? Color.white.opacity(0.72) : Color.secondary)
       }
     }
-    .padding(message.contentType == .image || message.contentType == .gif ? 5 : 11)
+    .padding(bubblePadding)
     .background(background)
     .overlay(highlightOverlay)
     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -531,17 +648,23 @@ private struct ChatMessageBubble: View {
     switch message.contentType {
     case .text:
       Text(message.body ?? "")
-        .font(.system(size: 16))
+        .font(.system(size: isStandaloneEmojiText ? 42 : 16))
         .foregroundStyle(isMine ? .white : .primary)
         .textSelection(.enabled)
     case .image, .gif:
       if let mediaUrl = message.mediaUrl {
-        Button {
-          onOpenImage(mediaUrl)
-        } label: {
-          ChatMediaThumbnail(message: message)
+        VStack(alignment: contentAlignment, spacing: 7) {
+          Button {
+            onOpenImage(mediaUrl)
+          } label: {
+            ChatMediaThumbnail(message: message)
+          }
+          .buttonStyle(.plain)
+
+          if let captionText {
+            ChatMediaCaptionBubble(text: captionText, isMine: isMine)
+          }
         }
-        .buttonStyle(.plain)
       }
     case .file:
       ChatFileChip(message: message, isMine: isMine)
@@ -553,20 +676,61 @@ private struct ChatMessageBubble: View {
   }
 
   private var background: some ShapeStyle {
+    if isBubblelessContent {
+      return AnyShapeStyle(Color.clear)
+    }
     if message.isDeleted {
-      return AnyShapeStyle(Color(.secondarySystemBackground))
+      return AnyShapeStyle(ChatTheme.incomingBubble)
     }
     if isMine {
-      return AnyShapeStyle(Color.black)
+      return AnyShapeStyle(LinearGradient(
+        colors: [ChatTheme.outgoingBubbleTop, ChatTheme.outgoingBubbleBottom],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      ))
     }
-    return AnyShapeStyle(Color(.secondarySystemBackground))
+    return AnyShapeStyle(ChatTheme.incomingBubble)
+  }
+
+  private var bubblePadding: CGFloat {
+    if isBubblelessContent { return 0 }
+    return message.contentType == .image || message.contentType == .gif ? 5 : 11
+  }
+
+  private var contentAlignment: HorizontalAlignment {
+    isMine ? .trailing : .leading
+  }
+
+  private var captionText: String? {
+    guard message.contentType == .image || message.contentType == .gif else { return nil }
+    let trimmed = message.body?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return trimmed.isEmpty ? nil : trimmed
+  }
+
+  private var isBubblelessContent: Bool {
+    !message.isDeleted && (message.contentType == .image || message.contentType == .gif || isStandaloneEmojiText)
+  }
+
+  private var isStandaloneEmojiText: Bool {
+    guard
+      message.contentType == .text,
+      let body = message.body?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !body.isEmpty
+    else {
+      return false
+    }
+    let characters = body.filter { !$0.isWhitespace }
+    guard !characters.isEmpty, characters.count <= 6 else { return false }
+    return characters.allSatisfy { character in
+      character.isEmojiCluster
+    }
   }
 
   @ViewBuilder
   private var highlightOverlay: some View {
     if isHighlighted {
       RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .stroke(Color(.systemBlue), lineWidth: 3)
+        .stroke(ChatTheme.accent, lineWidth: 3)
     }
   }
 }
@@ -586,7 +750,7 @@ private struct ChatReplyPreview: View {
     .padding(.leading, 8)
     .overlay(alignment: .leading) {
       RoundedRectangle(cornerRadius: 2)
-        .fill(Color.secondary.opacity(0.35))
+        .fill(ChatTheme.accent.opacity(0.55))
         .frame(width: 3)
     }
   }
@@ -647,6 +811,34 @@ private struct ChatMediaThumbnail: View {
     }
     let ratio = CGFloat(height) / CGFloat(width)
     return min(320, max(140, 244 * ratio))
+  }
+}
+
+private struct ChatMediaCaptionBubble: View {
+  let text: String
+  let isMine: Bool
+
+  var body: some View {
+    Text(text)
+      .font(.system(size: 16))
+      .foregroundStyle(isMine ? .white : .primary)
+      .textSelection(.enabled)
+      .padding(.horizontal, 12)
+      .padding(.vertical, 9)
+      .background(background)
+      .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+      .frame(maxWidth: 244, alignment: isMine ? .trailing : .leading)
+  }
+
+  private var background: some ShapeStyle {
+    if isMine {
+      return AnyShapeStyle(LinearGradient(
+        colors: [ChatTheme.outgoingBubbleTop, ChatTheme.outgoingBubbleBottom],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      ))
+    }
+    return AnyShapeStyle(ChatTheme.incomingBubble)
   }
 }
 
@@ -743,7 +935,7 @@ private struct ChatReactionPills: View {
             .foregroundStyle(reaction.viewerReacted ? .white : .primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(reaction.viewerReacted ? Color.black : Color(.tertiarySystemBackground)))
+            .background(Capsule().fill(reaction.viewerReacted ? ChatTheme.accent : Color(.tertiarySystemBackground)))
             .overlay(Capsule().stroke(Color(.systemGray5), lineWidth: reaction.viewerReacted ? 0 : 1))
         }
         .buttonStyle(.plain)
@@ -814,6 +1006,8 @@ private struct ChatComposerBar: View {
   }
 
   var body: some View {
+    let attachmentIconColor = isEditing ? Color.secondary : ChatTheme.accent
+
     VStack(spacing: 8) {
       if let attachmentError {
         Text(attachmentError)
@@ -852,6 +1046,7 @@ private struct ChatComposerBar: View {
         PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
           Image(systemName: "photo")
             .font(.system(size: 19, weight: .semibold))
+            .foregroundStyle(attachmentIconColor)
             .frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
@@ -861,6 +1056,7 @@ private struct ChatComposerBar: View {
         Button(action: onPickFile) {
           Image(systemName: "paperclip")
             .font(.system(size: 19, weight: .semibold))
+            .foregroundStyle(attachmentIconColor)
             .frame(width: 34, height: 34)
         }
         .buttonStyle(.plain)
@@ -868,7 +1064,12 @@ private struct ChatComposerBar: View {
 
         ZStack(alignment: .topLeading) {
           RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(Color(.secondarySystemBackground))
+            .fill(ChatTheme.composerField)
+            .overlay(
+              RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(ChatTheme.composerBorder, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 3)
 
           TextField(isEditing ? "Edit message" : "Message", text: $text, axis: .vertical)
             .font(.system(size: 16))
@@ -887,7 +1088,7 @@ private struct ChatComposerBar: View {
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: 34, height: 34)
-            .background(Circle().fill(canSend ? Color.black : Color(.systemGray3)))
+            .background(Circle().fill(canSend ? ChatTheme.accent : Color(.systemGray3)))
         }
         .buttonStyle(.plain)
         .disabled(!canSend)
@@ -902,7 +1103,12 @@ private struct ChatComposerBar: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 9)
-    .background(.regularMaterial)
+    .background(ChatTheme.composerBackground)
+    .overlay(alignment: .top) {
+      Rectangle()
+        .fill(ChatTheme.composerBorder)
+        .frame(height: 1)
+    }
   }
 }
 
@@ -914,11 +1120,12 @@ private struct ChatComposerContextBar: View {
   var body: some View {
     HStack(spacing: 9) {
       RoundedRectangle(cornerRadius: 2)
-        .fill(Color.secondary.opacity(0.35))
+        .fill(ChatTheme.accent)
         .frame(width: 3, height: 34)
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
           .font(.system(size: 12, weight: .bold))
+          .foregroundStyle(ChatTheme.accent)
         Text(bodyText)
           .font(.system(size: 12))
           .foregroundStyle(.secondary)
@@ -934,7 +1141,11 @@ private struct ChatComposerContextBar: View {
     }
     .padding(.horizontal, 10)
     .padding(.vertical, 7)
-    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.secondarySystemBackground)))
+    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(ChatTheme.accent.opacity(0.08)))
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(ChatTheme.accent.opacity(0.22), lineWidth: 1)
+    )
   }
 }
 
@@ -1017,7 +1228,7 @@ private struct ChatTypingBubble: View {
       }
       .padding(.horizontal, 13)
       .padding(.vertical, 11)
-      .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(.secondarySystemBackground)))
+      .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(ChatTheme.incomingBubble))
       Spacer()
     }
     .padding(.top, 4)
@@ -1072,7 +1283,7 @@ private struct ChatThreadErrorView: View {
         .multilineTextAlignment(.center)
       Button("Retry", action: retry)
         .buttonStyle(.borderedProminent)
-        .tint(.black)
+        .tint(ChatTheme.accent)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding()
@@ -1084,7 +1295,7 @@ private struct ChatThreadEmptyView: View {
     VStack(spacing: 12) {
       Image(systemName: "bubble.left.and.bubble.right")
         .font(.system(size: 42, weight: .semibold))
-        .foregroundStyle(Color(.systemGray2))
+        .foregroundStyle(ChatTheme.accent.opacity(0.72))
       Text("No messages yet")
         .font(.system(size: 22, weight: .bold))
       Text("Conversation history will appear here.")
@@ -1152,6 +1363,16 @@ private struct ChatReactionTarget: Identifiable {
   var id: String { message.id }
 }
 
+private enum ChatTheme {
+  static let accent = Color(red: 0.0, green: 122.0 / 255.0, blue: 1.0)
+  static let outgoingBubbleTop = Color(red: 10.0 / 255.0, green: 132.0 / 255.0, blue: 1.0)
+  static let outgoingBubbleBottom = Color(red: 0.0, green: 112.0 / 255.0, blue: 224.0 / 255.0)
+  static let incomingBubble = Color(.secondarySystemBackground)
+  static let composerBackground = Color(.systemBackground)
+  static let composerField = Color(.systemBackground)
+  static let composerBorder = Color.black.opacity(0.07)
+}
+
 private extension Date {
   var chatThreadSeparatorText: String {
     if Calendar.current.isDateInToday(self) {
@@ -1174,6 +1395,30 @@ private extension Date {
 private extension Int {
   var formattedFileSize: String {
     ByteCountFormatter.string(fromByteCount: Int64(self), countStyle: .file)
+  }
+}
+
+private extension Character {
+  var isEmojiCluster: Bool {
+    let scalars = unicodeScalars.map { $0 }
+    let hasEmojiPresentation = scalars.contains { (scalar: Unicode.Scalar) in
+      scalar.properties.isEmojiPresentation
+        || scalar.properties.isEmojiModifier
+        || scalar.properties.isEmojiModifierBase
+        || scalar.properties.isEmoji
+        || scalar.value == 0xFE0F
+    }
+    guard hasEmojiPresentation else { return false }
+
+    return scalars.allSatisfy { (scalar: Unicode.Scalar) in
+      scalar.properties.isEmoji
+        || scalar.properties.isEmojiPresentation
+        || scalar.properties.isEmojiModifier
+        || scalar.properties.isEmojiModifierBase
+        || scalar.value == 0xFE0F
+        || scalar.value == 0x200D
+        || scalar.value == 0x20E3
+    }
   }
 }
 

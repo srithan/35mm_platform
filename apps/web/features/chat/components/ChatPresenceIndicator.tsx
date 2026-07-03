@@ -145,7 +145,8 @@ export function ChatPresenceDot({
         "inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-bg",
         availability === "online" && "bg-[#22c55e]",
         availability === "away" && "bg-[#f5c542]",
-        availability === "offline" && "bg-fg-muted/45",
+        availability === "offline" &&
+          "bg-neutral-400 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.10)] dark:bg-neutral-500 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]",
         className
       )}
       aria-hidden="true"

@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23. Last refreshed for iOS chat core thread alignment on 2026-06-30.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for native iOS feed poll wiring on 2026-07-02.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -118,6 +118,9 @@ Important files:
 - `ThirtyFiveMM/App/AppConstants.swift`: API base URL, Clerk publishable key, and optional Ably API key loaded from `ThirtyFiveMM.xcconfig` / Info.plist.
 - `ThirtyFiveMM/Core/Auth/AuthManager.swift` and `ThirtyFiveMM/App/RootView.swift`: Clerk session restoration, API bootstrap/onboarding gate, and retry/sign-out recovery when Clerk is signed in but app bootstrap is unavailable.
 - `ThirtyFiveMM/Core/Networking/APIClient.swift`: async/await REST client with Clerk bearer auth, standard `{code,message}` errors, and typed `KEYSPACES_UNAVAILABLE` mapping.
+- `ThirtyFiveMM/Core/Networking/APIEndpoint.swift` and `ThirtyFiveMM/Core/PostInteracting.swift`: typed native endpoints and interaction protocol for feed likes, reposts, bookmarks, poll votes, comments, onboarding, and chat-adjacent app flows.
+- `ThirtyFiveMM/Core/Models/FeedPost.swift`: native Codable mirror of feed post payloads, including canonical film refs, media/link previews, viewer interaction flags, and ranking/image poll state.
+- `ThirtyFiveMM/Features/Feed/FeedViewModel.swift`, `PostDetailViewModel.swift`, and `PostCard.swift`: native home/detail post interaction state with optimistic likes/reposts/bookmarks/poll votes, comment navigation, rich text, media grids, link previews, and web-aligned poll result UI.
 - `ThirtyFiveMM/Core/Models/Chat.swift`: native Codable mirror of shared chat contracts. Message IDs are opaque TIMEUUID strings.
 - `ThirtyFiveMM/Features/Chat/ChatAPIClient.swift`: every `/v1/chat` endpoint, including `before` cursor message paging, reactions, read state, archive/mute/delete, typing, and presence.
 - `ThirtyFiveMM/Features/Chat/ChatRealtimeClient.swift`: optional Ably transport for `user:{userId}:inbox` and `thread:{threadId}` lifecycle subscriptions, with noop fallback when Ably config is missing.
@@ -125,7 +128,7 @@ Important files:
 - `ThirtyFiveMM/Features/Chat/ChatComposerModels.swift`: local composer, staged attachment, and optimistic delivery-state models for native chat writes.
 - `ThirtyFiveMM/Features/Chat/ChatMediaUploadClient.swift`: native wrapper for the existing media presign flow, `POST /v1/media/presign` plus direct R2 PUT, used by chat image/file attachments.
 - `ThirtyFiveMM/Features/Chat/ChatInboxViewModel.swift`: native inbox state coordinator for cursor paging, refresh/reconnect reconciliation, in-place `thread.updated` realtime row updates, visible-row presence batching, visible-thread typing TTLs, swipe mutations, profile search, and DM thread creation.
-- `ThirtyFiveMM/Features/Chat/ChatInboxView.swift`: SwiftUI Messages tab inbox with DM/group rows, skeleton/error/empty states, archived/default views, native swipe actions, unread badges, presence dots, typing previews, and minimal DM compose flow.
+- `ThirtyFiveMM/Features/Chat/ChatInboxView.swift`: SwiftUI native messages inbox module with DM/group rows, skeleton/error/empty states, archived/default views, native swipe actions, unread badges, presence dots, typing previews, and minimal DM compose flow. It is mounted from the app shell header as a `NavigationStack` push, not as a bottom-tab destination.
 - `ThirtyFiveMM/Features/Chat/ChatThreadViewModel.swift`: native thread coordinator for newest-at-bottom display, `before` pagination, Ably message/reaction/read/typing updates, read receipt summaries, reaction toggles, optimistic send/retry, edit/delete, throttled typing, foreground-only read dispatch, reconnect reconciliation, reply highlighting, and non-disruptive new-message state while scrolled up.
 - `ThirtyFiveMM/Features/Chat/ChatThreadView.swift`: SwiftUI thread screen with grouped bubbles, date separators, deleted/edited/reply rendering, image/GIF/file/link content, reaction pills/picker, read receipts, typing bubbles, skeleton/error/empty states, full-screen chat image viewer, growing composer, photo/file pickers, staged attachment previews, reply/edit bars, and sender-only message actions.
 - `ThirtyFiveMMTests/ChatDecodingTests.swift`: fixture decoding coverage for text/image/reply/reaction/deleted messages plus DM/group inbox pages.
@@ -546,6 +549,7 @@ API:
 - Resolve TMDB film payloads into canonical `films` rows.
 - Submit role/headline/favorite film IDs/genre IDs/follow IDs.
 - Suggestions endpoint and worker-backed friend-of-friend suggestions.
+- Onboarding follow suggestions use a bounded active-public-profile seed query, exclude already-followed/blocked/muted accounts, and avoid live follower-count aggregation on the read path.
 
 Worker:
 
@@ -618,7 +622,7 @@ Current state:
 - Redis stores unread counts, typing state, 65 second online presence, 35 day last-seen presence markers, and cached `showActivityStatus` privacy flags. Chat unread/presence reads batch via `MGET`; typing membership uses a short-lived sorted set instead of scanning `chat:typing:*` keys.
 - API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. First-time reaction adds also create `chat_reaction` notifications for the original message sender, increment that sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
 - The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patches current messages and inbox unread rows, and sends throttled presence heartbeats while signed in. Chat headers batch-read active thread member presence and render online, active-ago, and offline state; presence query cache is not persisted, and the API enforces `showActivityStatus` privacy server-side.
-- The iOS Messages tab now has a native inbox and core thread experience backed by the same chat contract: cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
+- The iOS messages module has a native inbox and core thread experience backed by the same chat contract. Messages is not mounted in the bottom tab bar; `MainTabView` pushes it from the header message icon using each tab's `NavigationStack`, while the header avatar opens a left profile sidebar populated from `/v1/me`. The module supports cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
 - Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.
 
 ## Backend API Surface

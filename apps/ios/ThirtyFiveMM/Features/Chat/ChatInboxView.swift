@@ -2,48 +2,54 @@ import Kingfisher
 import SwiftUI
 
 struct ChatInboxView: View {
+  @Environment(\.dismiss) private var dismiss
   @StateObject private var viewModel: ChatInboxViewModel
   @State private var isShowingComposer = false
   private let apiClient: APIClient
   private let mode: ChatInboxMode
+  private let showsSystemChrome: Bool
 
-  init(apiClient: APIClient, currentUserId: String, mode: ChatInboxMode = .inbox) {
+  init(
+    apiClient: APIClient,
+    currentUserId: String,
+    mode: ChatInboxMode = .inbox,
+    showsSystemChrome: Bool = true
+  ) {
     self.apiClient = apiClient
     _viewModel = StateObject(
       wrappedValue: ChatInboxViewModel(apiClient: apiClient, currentUserId: currentUserId)
     )
     self.mode = mode
+    self.showsSystemChrome = showsSystemChrome
   }
 
   var body: some View {
-    content
-      .navigationTitle(mode == .inbox ? "Messages" : "Archived")
-      .navigationBarTitleDisplayMode(.large)
-      .toolbar {
-        if mode == .inbox {
-          ToolbarItem(placement: .topBarLeading) {
-            NavigationLink {
-              ChatInboxView(
-                apiClient: apiClient,
-                currentUserId: viewModel.currentUserId,
-                mode: .archived
-              )
-            } label: {
-              Image(systemName: "archivebox")
-            }
-            .accessibilityLabel("Archived messages")
+    VStack(spacing: 0) {
+      if showsSystemChrome {
+        ChatInboxHeader(
+          title: mode == .inbox ? "Messages" : "Archived",
+          showsArchiveAction: mode == .inbox,
+          onBack: {
+            dismiss()
+          },
+          onCompose: {
+            isShowingComposer = true
           }
-
-          ToolbarItem(placement: .topBarTrailing) {
-            Button {
-              isShowingComposer = true
-            } label: {
-              Image(systemName: "square.and.pencil")
-            }
-            .accessibilityLabel("New message")
-          }
+        ) {
+          ChatInboxView(
+            apiClient: apiClient,
+            currentUserId: viewModel.currentUserId,
+            mode: .archived
+          )
         }
       }
+
+      content
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+      .background(Color(.systemBackground))
+      .navigationBarBackButtonHidden(true)
+      .toolbar(.hidden, for: .navigationBar)
       .sheet(isPresented: $isShowingComposer) {
         ChatComposeSheet(viewModel: viewModel)
       }
@@ -137,6 +143,86 @@ struct ChatInboxView: View {
         }
       }
     }
+  }
+}
+
+private struct ChatInboxHeader<ArchiveDestination: View>: View {
+  let title: String
+  let showsArchiveAction: Bool
+  let onBack: () -> Void
+  let onCompose: () -> Void
+  let archiveDestination: () -> ArchiveDestination
+
+  init(
+    title: String,
+    showsArchiveAction: Bool,
+    onBack: @escaping () -> Void,
+    onCompose: @escaping () -> Void,
+    @ViewBuilder archiveDestination: @escaping () -> ArchiveDestination
+  ) {
+    self.title = title
+    self.showsArchiveAction = showsArchiveAction
+    self.onBack = onBack
+    self.onCompose = onCompose
+    self.archiveDestination = archiveDestination
+  }
+
+  var body: some View {
+    VStack(spacing: 0) {
+      ZStack {
+        Text(title)
+          .font(.system(size: 22, weight: .black, design: .rounded))
+          .foregroundStyle(Color(.label))
+          .lineLimit(1)
+          .minimumScaleFactor(0.82)
+          .frame(maxWidth: 180)
+          .padding(.horizontal, 104)
+          .accessibilityAddTraits(.isHeader)
+
+        HStack(spacing: 8) {
+          Button(action: onBack) {
+            Image(systemName: "chevron.left")
+              .font(.system(size: 20, weight: .bold))
+              .foregroundStyle(Color(.label))
+              .frame(width: 42, height: 42)
+              .contentShape(Circle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Back")
+
+          Spacer()
+
+          if showsArchiveAction {
+            NavigationLink {
+              archiveDestination()
+            } label: {
+              Image(systemName: "archivebox")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(.label))
+                .frame(width: 38, height: 42)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Archived messages")
+
+            Button(action: onCompose) {
+              Image(systemName: "square.and.pencil")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color(.label))
+                .frame(width: 38, height: 42)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("New message")
+          }
+        }
+      }
+      .frame(height: 64)
+      .padding(.horizontal, 16)
+
+      Divider()
+    }
+    .background(Color(.systemBackground))
   }
 }
 
