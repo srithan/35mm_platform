@@ -24,7 +24,9 @@ type PupilStyle = CSSProperties & {
   "--creepy-button-pupil-y": string;
 };
 
-export type CreepyButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
+export type CreepyButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "default" | "danger";
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -44,7 +46,10 @@ function assignForwardedRef<T>(ref: ForwardedRef<T>, node: T | null) {
 }
 
 export const CreepyButton = forwardRef<HTMLButtonElement, CreepyButtonProps>(
-  function CreepyButton({ children, className, disabled, onPointerLeave, onPointerMove, type, ...props }, ref) {
+  function CreepyButton(
+    { children, className, disabled, onPointerLeave, onPointerMove, type, variant = "default", ...props },
+    ref
+  ) {
     const eyesRef = useRef<HTMLSpanElement>(null);
     const [eyeOffset, setEyeOffset] = useState<EyeOffset>({ x: 0, y: 0 });
 
@@ -110,7 +115,7 @@ export const CreepyButton = forwardRef<HTMLButtonElement, CreepyButtonProps>(
         ref={setButtonRef}
         type={type ?? "button"}
         disabled={disabled}
-        className={cn(styles.root, className)}
+        className={cn(styles.root, variant === "danger" && styles.danger, className)}
         onPointerLeave={resetEyes}
         onPointerMove={updateEyes}
         {...props}

@@ -149,7 +149,7 @@ export function SettingsInput({
           disabled={disabled}
           aria-invalid={Boolean(error)}
           className={cn(
-            "h-11 w-full rounded-xl border border-border bg-sunken px-3.5 text-[14px] leading-none text-fg shadow-[inset_0_1px_0_color-mix(in_srgb,var(--fg)_4%,transparent)] outline-none transition-colors placeholder:text-fg-faint focus:border-border-strong focus:bg-bg",
+            "h-11 w-full select-text rounded-xl border border-border bg-sunken px-3.5 text-[14px] leading-none text-fg shadow-[inset_0_1px_0_color-mix(in_srgb,var(--fg)_4%,transparent)] outline-none transition-colors placeholder:text-fg-faint focus:border-border-strong focus:bg-bg",
             error ? "border-accent bg-[color-mix(in_srgb,var(--color-film-red)_6%,var(--sunken))]" : "",
             disabled ? "cursor-not-allowed opacity-60" : ""
           )}

@@ -1,7 +1,7 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-07-02
+> Last updated: 2026-07-04
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
 
@@ -234,7 +234,8 @@ Source of truth: `packages/db/src/schema/*`.
 
 - Privacy preferences.
 - Notification preferences.
-- Theme, accent color, video autoplay.
+- Theme and accent color.
+- Media playback preferences: video autoplay, default quality, captions default, caption display style, and quiet mode.
 
 ### Film Catalog
 
@@ -495,6 +496,7 @@ Settings:
 - `PATCH /v1/me/settings/notifications`
 - `PATCH /v1/me/settings/profile`
 - `PATCH /v1/me/settings/appearance`
+- `PATCH /v1/me/settings/media`
 
 Media:
 
@@ -557,7 +559,7 @@ Important app routes:
 - `/notifications`: notifications.
 - `/bookmarks`: two-column bookmarks surface with folder navigation, create/rename/delete folder controls, folder-filtered saved posts, and loading skeletons.
 - `/settings`: redirects to `/settings/account`.
-- `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/data-security`: settings sections with URL-backed tab navigation.
+- `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, `/settings/data-security`: settings sections with URL-backed tab navigation.
 - `/list/:listId`: list detail.
 - `/suggestions/people`: follow suggestions.
 - `/title/:media/:id`: title detail.
@@ -574,7 +576,7 @@ Feature ownership:
 - `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime. Realtime handles normal freshness; no-Ably fallback invalidates notification queries every 30 seconds without duplicate 5-second component polling.
 - `features/lists`: film lists and watchlists.
-- `features/settings`: account, privacy, notifications, appearance, data/security settings.
+- `features/settings`: account, privacy, notifications, appearance, media, data/security settings.
   Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
   Onboarding follow suggestions are a bounded seed query over active public profiles, exclude already-followed/blocked/muted accounts, and rank by denormalized profile activity rather than live follower-count aggregation.

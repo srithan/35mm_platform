@@ -1,5 +1,6 @@
 import type {
   UpdateAppearanceInput,
+  UpdateMediaInput,
   UpdateNotificationsInput,
   UpdatePrivacyInput,
   UpdateProfileInput,
@@ -21,7 +22,7 @@ export async function checkUsernameAvailability(
 }
 
 export async function getSettings(token: string | null): Promise<UserSettings> {
-  const data = await apiRequest<Pick<UserSettings, "profile" | "privacy" | "notifications" | "appearance">>(
+  const data = await apiRequest<UserSettings>(
     "/v1/me/settings",
     {
       method: "GET",
@@ -78,6 +79,17 @@ export async function updateAppearance(
   token: string | null
 ): Promise<UserSettings> {
   return apiRequest<UserSettings>("/v1/me/settings/appearance", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
+}
+
+export async function updateMedia(
+  input: UpdateMediaInput,
+  token: string | null
+): Promise<UserSettings> {
+  return apiRequest<UserSettings>("/v1/me/settings/media", {
     method: "PATCH",
     token,
     body: input,

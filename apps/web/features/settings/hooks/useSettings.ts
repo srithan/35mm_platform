@@ -3,6 +3,7 @@ import { useAuth } from "@clerk/nextjs";
 import {
   getSettings,
   updateAppearance,
+  updateMedia,
   updateNotifications,
   updatePrivacy,
   updateProfile,
@@ -13,6 +14,7 @@ import { profileKeys } from "@/features/profile/hooks/queryKeys";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import type {
   UpdateAppearanceInput,
+  UpdateMediaInput,
   UpdateNotificationsInput,
   UpdatePrivacyInput,
   UpdateProfileInput,
@@ -193,6 +195,42 @@ export function useUpdateAppearanceMutation() {
           ...input,
         },
       });
+    },
+  });
+}
+
+export function useUpdateMediaMutation() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  return useMutation<UserSettings, Error, UpdateMediaInput, MutationContext>({
+    mutationFn: async function (input) {
+      return updateMedia(input, await getToken());
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
+      const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
+
+      if (previous) {
+        queryClient.setQueryData<UserSettings>(settingsKeys.detail(), {
+          ...previous,
+          media: input,
+          appearance: {
+            ...previous.appearance,
+            videoAutoplay: input.videoAutoplay,
+          },
+        });
+      }
+
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(settingsKeys.detail(), context.previous);
+      }
+    },
+    onSuccess: (next) => {
+      queryClient.setQueryData(settingsKeys.detail(), next);
     },
   });
 }

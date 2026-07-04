@@ -207,7 +207,7 @@ export function SettingsAccountPanel({
                   aria-invalid={Boolean(usernameError) || usernameStatus.state === "unavailable"}
                   aria-describedby={usernameMessageId}
                   className={cn(
-                    "min-w-0 flex-1 border-0 bg-transparent px-3 text-[14px] outline-none placeholder:text-fg-faint disabled:cursor-not-allowed disabled:opacity-60",
+                    "min-w-0 flex-1 select-text border-0 bg-transparent px-3 text-[14px] outline-none placeholder:text-fg-faint disabled:cursor-not-allowed disabled:opacity-60",
                     usernameStatus.state === "unavailable" || usernameStatus.state === "error"
                       ? "text-[var(--color-film-red)] placeholder:text-[color-mix(in_srgb,var(--color-film-red)_45%,transparent)]"
                       : "text-fg"

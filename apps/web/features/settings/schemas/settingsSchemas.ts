@@ -57,6 +57,14 @@ export const appearanceSettingsSchema = z.object({
   videoAutoplay: z.boolean(),
 });
 
+export const mediaSettingsSchema = z.object({
+  videoDefaultQuality: z.enum(["auto", "data_saver", "standard", "high"]),
+  videoAutoplay: z.boolean(),
+  alwaysShowCaptions: z.boolean(),
+  captionStyle: z.enum(["default", "large", "high_contrast"]),
+  quietMode: z.boolean(),
+});
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password."),
@@ -76,6 +84,7 @@ export type ProfileSettingsFormValues = z.infer<typeof profileSettingsSchema>;
 export type PrivacySettingsFormValues = z.infer<typeof privacySettingsSchema>;
 export type NotificationSettingsFormValues = z.infer<typeof notificationSettingsSchema>;
 export type AppearanceSettingsFormValues = z.infer<typeof appearanceSettingsSchema>;
+export type MediaSettingsFormValues = z.infer<typeof mediaSettingsSchema>;
 export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export function toFormErrorMessage(error: unknown, fallback: string): string {

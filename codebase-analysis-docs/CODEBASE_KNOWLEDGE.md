@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23. Last refreshed for native iOS feed poll wiring on 2026-07-02.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for settings media preferences on 2026-07-04.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -101,7 +101,7 @@ Feature folders:
 - `features/lists`: film lists, watchlists, list detail/editor, list entry notes.
 - `features/onboarding`: role/favorite films/genres/follow suggestions flow.
 - `features/discover`: TMDB-backed discovery and search views.
-- `features/settings`: account/privacy/notification/appearance/data-security settings with URL-backed section routes.
+- `features/settings`: account/privacy/notification/appearance/media/data-security settings with URL-backed section routes.
 - `features/bookmarks`: two-column bookmark page, folder management, and post-to-folder flow backed by feed bookmark endpoints.
 - `features/chat`: rich chat frontend with App Router chat pages, remote client backed by `/v1/chat`, optional mock mode for demos/tests, realtime cache application, and bounded persisted cache for inbox/recent messages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
@@ -257,7 +257,7 @@ Current Drizzle schema highlights:
 - `user_blocks`, `user_mutes`: moderation relationship tables.
 - `film_lists`, `film_list_entries`, `film_list_likes`: custom lists and one private watchlist per user.
 - `follow_suggestions`: suggestion table populated by worker.
-- `user_settings`: privacy, notification, theme/accent/autoplay settings.
+- `user_settings`: privacy, notification, theme/accent, and media playback settings.
 - `chat_threads`, `chat_participants`, `chat_member_state`, `chat_thread_meta`: Postgres chat metadata, membership, per-user read/archive/mute/delete state, and last-message summaries.
 - AWS Keyspaces `thirtyFiveMM.messages`: message body/media/reply/reaction rows, partitioned by `(thread_id, bucket)` and clustered by descending `message_id` TIMEUUID.
 - AWS Keyspaces `thirtyFiveMM.message_edits`: edit history partitioned by `(thread_id, message_id)` and clustered by descending `edit_id` TIMEUUID.
@@ -557,21 +557,22 @@ Worker:
 
 ### Settings
 
-Business purpose: account preferences, privacy, notifications, appearance.
+Business purpose: account preferences, privacy, notifications, appearance, media playback.
 
 How it works:
 
-- `GET /v1/me/settings` returns profile/privacy/notification/appearance grouped settings.
+- `GET /v1/me/settings` returns profile/privacy/notification/appearance/media grouped settings.
 - Privacy update writes both `profiles.is_private` and `user_settings`.
 - Notifications update booleans used by notification creation.
-- Appearance supports theme, accent color, and video autoplay.
-- API contains fallback logic for legacy DBs missing theme/autoplay/accent columns.
+- Appearance supports theme and accent color.
+- Media supports video autoplay, default quality, always-show-captions, caption display style, and quiet mode via `PATCH /v1/me/settings/media`.
+- API contains fallback logic for legacy DBs missing theme/autoplay/accent/media columns.
 
 Frontend:
 
 - Settings hooks use React Query with optimistic cache patching.
-- Settings UI includes account, privacy, notification, appearance, and data/security panels. `/settings` redirects to `/settings/account`; tabs link to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, and `/settings/data-security`.
-- Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved.
+- Settings UI includes account, privacy, notification, appearance, media, and data/security panels. `/settings` redirects to `/settings/account`; tabs link to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, and `/settings/data-security`.
+- Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved. The modal includes show/hide password controls and a local strength indicator for the new password.
 
 ### Discovery, Title Pages, Short Films, Festivals, Communities
 

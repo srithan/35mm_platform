@@ -38,6 +38,7 @@ export const ROUTES = {
   SETTINGS: "/settings/account",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_APPEARANCE: "/settings/appearance",
+  SETTINGS_MEDIA: "/settings/media",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
   SETTINGS_PRIVACY: "/settings/privacy",
   SETTINGS_DATA_SECURITY: "/settings/data-security",

@@ -6,6 +6,7 @@ import * as settingsApi from "../api/settingsApi";
 import { settingsKeys } from "./queryKeys";
 import {
   useUpdateAppearanceMutation,
+  useUpdateMediaMutation,
   useUpdateNotificationsMutation,
   useUpdateProfileMutation,
 } from "./useSettings";
@@ -45,6 +46,13 @@ const fixture = {
     theme: "auto" as const,
     accentColor: "theme" as const,
     videoAutoplay: true,
+  },
+  media: {
+    videoDefaultQuality: "auto" as const,
+    videoAutoplay: true,
+    alwaysShowCaptions: false,
+    captionStyle: "default" as const,
+    quietMode: false,
   },
 };
 
@@ -90,6 +98,16 @@ vi.mock("../api/settingsApi", () => {
       next.appearance = {
         ...next.appearance,
         ...input,
+      };
+      mockSettings = next;
+      return next;
+    },
+    updateMedia: async (input: SettingsState["media"]) => {
+      const next = cloneSettings();
+      next.media = input;
+      next.appearance = {
+        ...next.appearance,
+        videoAutoplay: input.videoAutoplay,
       };
       mockSettings = next;
       return next;
@@ -259,5 +277,26 @@ describe("useSettings mutations", () => {
     expect(cached?.appearance.theme).toBe("dark");
     expect(cached?.appearance.accentColor).toBe("ocean");
     expect(cached?.appearance.videoAutoplay).toBe(initial.appearance.videoAutoplay);
+  });
+
+  it("updates media settings and keeps appearance autoplay aligned", async () => {
+    const queryClient = new QueryClient();
+    const initial = await settingsApi.getSettings("test-token");
+    queryClient.setQueryData(settingsKeys.detail(), initial);
+    const wrapper = createWrapper(queryClient);
+    const { result } = renderHook(() => useUpdateMediaMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        ...initial.media,
+        videoDefaultQuality: "high",
+        videoAutoplay: false,
+      });
+    });
+
+    const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
+    expect(cached?.media.videoDefaultQuality).toBe("high");
+    expect(cached?.media.videoAutoplay).toBe(false);
+    expect(cached?.appearance.videoAutoplay).toBe(false);
   });
 });

@@ -33,6 +33,20 @@
     transition: color 0.15s ease;
 }
 
+.danger {
+    --creepy-button-face-bg: color-mix(in srgb, var(--color-film-red) 7%, var(--elevated));
+    --creepy-button-face-bg-hover: color-mix(in srgb, var(--color-film-red) 12%, var(--elevated));
+    --creepy-button-base-bg: color-mix(in srgb, var(--color-film-red) 86%, #050505);
+    --creepy-button-border: color-mix(in srgb, var(--color-film-red) 46%, transparent);
+    --creepy-button-border-hover: color-mix(in srgb, var(--color-film-red) 80%, transparent);
+    --creepy-button-text: color-mix(in srgb, var(--color-film-red) 82%, var(--fg));
+    --creepy-button-text-hover: color-mix(in srgb, var(--color-film-red) 94%, var(--fg));
+    --creepy-button-eye-bg: color-mix(in srgb, #fff 88%, var(--color-film-red));
+    --creepy-button-pupil-bg: color-mix(in srgb, var(--color-film-red) 78%, #050505);
+    --creepy-button-shadow: color-mix(in srgb, var(--color-film-red) 24%, transparent);
+    --creepy-button-focus: color-mix(in srgb, var(--color-film-red) 32%, transparent);
+}
+
 .root::before {
     background: var(--creepy-button-base-bg);
     border: 1px solid var(--creepy-button-base-bg);

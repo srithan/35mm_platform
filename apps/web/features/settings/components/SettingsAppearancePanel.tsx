@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Switch } from "@/components/Switch";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 import { applyAccentColor } from "@/lib/theme/applyAccentColor";
 import {
-  SettingsRow,
   SettingsSection,
   ThemePicker,
 } from "./SettingsFormPrimitives";
@@ -33,7 +31,6 @@ export function SettingsAppearancePanel({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isSavingAccentColor, setIsSavingAccentColor] = useState(false);
-  const [isSavingVideoAutoplay, setIsSavingVideoAutoplay] = useState(false);
 
   const {
     watch,
@@ -121,44 +118,10 @@ export function SettingsAppearancePanel({
               />
             </div>
           </div>
-          <div className="mt-6 border-t border-border pt-6">
-            <SettingsRow
-              label="Video autoplay"
-              description="Auto-play videos in feed"
-              action={
-                <Switch
-                  checked={watch("videoAutoplay")}
-                  onChange={function (nextVideoAutoplay) {
-                    void (async function () {
-                      setValue("videoAutoplay", nextVideoAutoplay, { shouldDirty: true });
-                      setSubmitError(null);
-                      setIsSavingVideoAutoplay(true);
-                      const nextValues: AppearanceSettingsFormValues = {
-                        ...getValues(),
-                        videoAutoplay: nextVideoAutoplay,
-                      };
-                      try {
-                        await onSave(nextValues);
-                        reset(nextValues);
-                      } catch (error: unknown) {
-                        setSubmitError(
-                          toFormErrorMessage(error, "Could not update video autoplay.")
-                        );
-                      } finally {
-                        setIsSavingVideoAutoplay(false);
-                      }
-                    })();
-                  }}
-                  disabled={isSubmitting || isSavingVideoAutoplay}
-                  aria-label="Video autoplay"
-                />
-              }
-            />
-          </div>
           {submitError ? (
             <p className="pt-1 text-[12px] text-accent">{submitError}</p>
           ) : null}
-          {(isSavingTheme || isSavingAccentColor || isSavingVideoAutoplay) && (
+          {(isSavingTheme || isSavingAccentColor) && (
             <p className="text-[11px] text-fg-muted">Saving appearance changes...</p>
           )}
         </div>

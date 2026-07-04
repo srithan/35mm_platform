@@ -17,6 +17,8 @@ import { useSiteHeaderNotifications } from "./hooks/useSiteHeaderNotifications";
 import { useSiteHeaderStickyOffset } from "./hooks/useSiteHeaderStickyOffset";
 import styles from "./SiteHeader.module.css";
 
+const USE_SKEUOMORPHIC_MAIN_NAV_ACTIVE = true;
+
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
@@ -85,7 +87,11 @@ export function SiteHeader() {
       >
         <div className={styles.navMain}>
           <HeaderLeft />
-          <NavLinks isActive={isActive} profileHref={profileHref} />
+          <NavLinks
+            isActive={isActive}
+            profileHref={profileHref}
+            useSkeuomorphicActive={USE_SKEUOMORPHIC_MAIN_NAV_ACTIVE}
+          />
           <div className={styles.navActions}>
             <NotificationDropdown
               wrapRef={notifWrapRef}

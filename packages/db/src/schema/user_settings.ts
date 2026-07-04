@@ -31,6 +31,10 @@ export var userSettings = pgTable("user_settings", {
   theme: text("theme").default("auto").notNull(),
   accentColor: text("accent_color").default("theme").notNull(),
   videoAutoplay: boolean("video_autoplay").default(true).notNull(),
+  videoDefaultQuality: text("video_default_quality").default("auto").notNull(),
+  videoAlwaysShowCaptions: boolean("video_always_show_captions").default(false).notNull(),
+  videoCaptionStyle: text("video_caption_style").default("default").notNull(),
+  videoQuietMode: boolean("video_quiet_mode").default(false).notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

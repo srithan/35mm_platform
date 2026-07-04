@@ -7,15 +7,17 @@ import { cn } from "@/lib/utils/cn";
 import { useTheme } from "@/lib/theme/useTheme";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { Bell, Database, Palette, Shield, UserRound } from "lucide-react";
+import { Bell, Database, Palette, Shield, UserRound, Video } from "lucide-react";
 import { SettingsAccountPanel } from "./SettingsAccountPanel";
 import { SettingsPrivacyPanel } from "./SettingsPrivacyPanel";
 import { SettingsNotificationsPanel } from "./SettingsNotificationsPanel";
 import { SettingsAppearancePanel } from "./SettingsAppearancePanel";
+import { SettingsMediaPanel } from "./SettingsMediaPanel";
 import { SettingsDataSecurityPanel } from "./SettingsDataSecurityPanel";
 import {
   useSettingsQuery,
   useUpdateAppearanceMutation,
+  useUpdateMediaMutation,
   useUpdateNotificationsMutation,
   useUpdatePrivacyMutation,
   useUpdateProfileMutation,
@@ -54,6 +56,13 @@ const SETTINGS_TABS = [
     href: ROUTES.SETTINGS_APPEARANCE,
   },
   {
+    id: "Media",
+    label: "Media",
+    description: "Video playback and captions",
+    icon: Video,
+    href: ROUTES.SETTINGS_MEDIA,
+  },
+  {
     id: "Data & security",
     label: "Data & security",
     mobileLabel: "Data",
@@ -73,6 +82,7 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
   const updatePrivacyMutation = useUpdatePrivacyMutation();
   const updateNotificationsMutation = useUpdateNotificationsMutation();
   const updateAppearanceMutation = useUpdateAppearanceMutation();
+  const updateMediaMutation = useUpdateMediaMutation();
 
   const settings = settingsQuery.data;
 
@@ -112,6 +122,13 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
       accentColor: "theme",
       videoAutoplay: true,
     },
+    media: {
+      videoDefaultQuality: "auto",
+      videoAutoplay: true,
+      alwaysShowCaptions: false,
+      captionStyle: "default",
+      quietMode: false,
+    },
   };
 
   const settingsTabBar = (
@@ -120,9 +137,7 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
       activeTabId={initialTab}
       navAriaLabel="Settings sections"
       variant="headline"
-      title="Settings"
-      subtitle="Manage your account and preferences"
-      rootClassName="shadow-[0_1px_0_rgba(0,0,0,0.02)] md:hidden"
+      rootClassName="select-none shadow-[0_1px_0_rgba(0,0,0,0.02)] md:hidden"
       headerClassName="mx-auto w-full max-w-3xl px-4 sm:px-6 md:px-8"
       tabsViewportClassName="md:justify-start"
       tabsListClassName="mx-auto w-full max-w-3xl gap-5 px-4 sm:px-6 md:px-8"
@@ -180,17 +195,29 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
         }}
       />
     ),
+    Media: (
+      <SettingsMediaPanel
+        initialValues={{
+          ...hydratedSettings.media,
+          videoAutoplay:
+            hydratedSettings.media?.videoAutoplay ??
+            hydratedSettings.appearance.videoAutoplay,
+        }}
+        onSave={async (values) => {
+          await updateMediaMutation.mutateAsync(values);
+        }}
+      />
+    ),
     "Data & security": <SettingsDataSecurityPanel />,
   };
 
   const activeTab = SETTINGS_TABS.find((tab) => tab.id === initialTab) ?? SETTINGS_TABS[0];
-  const ActiveIcon = activeTab.icon;
 
   return (
     <>
       {settingsTabBar}
 
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 md:px-8 lg:py-8">
+      <div className="mx-auto w-full max-w-6xl select-none px-4 py-6 sm:px-6 md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 md:px-8 lg:py-8">
         <aside className="hidden md:block">
           <div className="sticky top-[calc(var(--site-header-sticky-offset,4.5rem)+1rem)] overflow-hidden rounded-2xl border border-border bg-elevated p-3 shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
             <div className="px-4 pb-3 pt-2">
@@ -254,17 +281,27 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
 
         <main className="min-w-0">
           <div className="overflow-hidden rounded-2xl border border-border bg-elevated shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
-            <div className="hidden border-b border-border bg-[linear-gradient(135deg,var(--elevated)_0%,color-mix(in_srgb,var(--sunken)_90%,var(--accent)_10%)_100%)] px-8 py-9 text-center md:block">
-              <span
-                className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-bg text-accent shadow-[0_14px_34px_rgba(0,0,0,0.08)]"
-                aria-hidden
-              >
-                <ActiveIcon className="h-7 w-7" strokeWidth={1.8} />
-              </span>
-              <h2 className="mt-4 text-[36px] font-semibold leading-none text-fg">
+            <div className="hidden border-b border-border px-5 py-4 md:block sm:px-6">
+              <div className="flex min-w-0 items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="truncate text-[15px] font-semibold leading-5 text-fg">
+                    {activeTab.label}
+                  </h2>
+                  <p className="mt-0.5 truncate text-[12px] leading-4 text-fg-muted">
+                    {activeTab.description}
+                  </p>
+                </div>
+                <span className="text-[11px] font-medium text-fg-faint">
+                  Settings
+                </span>
+              </div>
+            </div>
+
+            <div className="px-5 pt-5 sm:px-6 md:hidden">
+              <h1 className="text-[17px] font-semibold leading-6 text-fg">
                 {activeTab.label}
-              </h2>
-              <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-fg-muted">
+              </h1>
+              <p className="mt-0.5 text-[12px] leading-4 text-fg-muted">
                 {activeTab.description}
               </p>
             </div>
