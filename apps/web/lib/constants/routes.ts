@@ -35,7 +35,7 @@ export const ROUTES = {
   LIST: (listId: string) => `/list/${listId}`,
   PROFILE_STATS: (username: string) => `/${username}/stats`,
   POST: (username: string, postId: string) => `/${username}/post/${postId}`,
-  SETTINGS: "/settings/account",
+  SETTINGS: "/settings",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_APPEARANCE: "/settings/appearance",
   SETTINGS_MEDIA: "/settings/media",

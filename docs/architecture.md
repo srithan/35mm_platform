@@ -558,8 +558,8 @@ Important app routes:
 - `/discover`: discovery.
 - `/notifications`: notifications.
 - `/bookmarks`: two-column bookmarks surface with folder navigation, create/rename/delete folder controls, folder-filtered saved posts, and loading skeletons.
-- `/settings`: redirects to `/settings/account`.
-- `/settings/account`, `/settings/privacy`, `/settings/privacy/blocked`, `/settings/privacy/muted`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, `/settings/data-security`: settings sections with URL-backed tab navigation. Blocked/muted privacy subroutes keep the Privacy tab active and show a compact header with a back control plus `Blocked` or `Muted`.
+- `/settings`: mobile settings index listing the main settings sections; desktop renders the account settings layout.
+- `/settings/account`, `/settings/privacy`, `/settings/privacy/blocked`, `/settings/privacy/muted`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, `/settings/data-security`: settings sections with URL-backed navigation. Mobile section pages use a back control instead of a tab bar. Blocked/muted privacy subroutes keep the Privacy tab active on desktop and show a compact header with a back control plus `Blocked` or `Muted`.
 - `/list/:listId`: list detail.
 - `/suggestions/people`: follow suggestions.
 - `/title/:media/:id`: title detail.

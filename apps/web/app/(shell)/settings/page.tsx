@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { ROUTES } from "@/lib/constants/routes";
+import { SettingsContent } from "@/features/settings/components/SettingsContent";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -9,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SettingsPage() {
-  redirect(ROUTES.SETTINGS_ACCOUNT);
+  return <SettingsContent initialTab="Account" mobileHome />;
 }
