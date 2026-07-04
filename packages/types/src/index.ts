@@ -174,6 +174,12 @@ export interface FilmListEntry {
   addedAt: string;
 }
 
+export interface FilmListEntriesPage {
+  items: FilmListEntry[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface FilmListSummary {
   id: string;
   userId: string;
@@ -197,6 +203,7 @@ export interface FilmListSummary {
 
 export interface FilmListDetail extends FilmListSummary {
   entries: FilmListEntry[];
+  entriesPage?: FilmListEntriesPage;
   clonedFromListId: string | null;
 }
 

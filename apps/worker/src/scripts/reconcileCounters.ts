@@ -36,6 +36,9 @@ function parseArgs(argv: string[]): Args {
   var dryRun = false;
 
   for (var arg of argv) {
+    if (arg === "--") {
+      continue;
+    }
     if (arg === "--dry-run") {
       dryRun = true;
       continue;

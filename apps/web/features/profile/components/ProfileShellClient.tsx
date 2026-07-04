@@ -128,6 +128,8 @@ export function ProfileShellClient(props: { username: string }) {
           location={resolvedProfile.location ?? ""}
           website={resolvedProfile.website ?? ""}
           dateOfBirth={resolvedProfile.dateOfBirth ?? ""}
+          role={resolvedProfile.role}
+          roleContext={resolvedProfile.roleContext}
           followerCount={resolvedProfile.followerCount}
           followingCount={resolvedProfile.followingCount}
 	          filmsLoggedCount={resolvedProfile.filmsLoggedCount ?? 0}

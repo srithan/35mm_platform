@@ -65,16 +65,35 @@ function patchNewestInfinitePage(
   };
 }
 
-function findConversationInPage(
-  page: PaginatedConversations | undefined,
+function flattenConversationPages(
+  pages: InfiniteData<PaginatedConversations> | undefined
+): ChatPreview[] {
+  if (!pages || pages.pages.length === 0) {
+    return [];
+  }
+  const result: ChatPreview[] = [];
+  for (var index = 0; index < pages.pages.length; index++) {
+    result.push(...pages.pages[index].items);
+  }
+  return result;
+}
+
+function findConversationInPages(
+  pages: InfiniteData<PaginatedConversations> | undefined,
   chatId: string | null
 ): ChatPreview | undefined {
-  if (!chatId || !page) {
+  if (!chatId || !pages) {
     return undefined;
   }
-  return page.items.find(function (item) {
-    return item.id === chatId;
-  });
+  for (var pageIndex = 0; pageIndex < pages.pages.length; pageIndex++) {
+    const row = pages.pages[pageIndex].items.find(function (item) {
+      return item.id === chatId;
+    });
+    if (row) {
+      return row;
+    }
+  }
+  return undefined;
 }
 
 export function useConversations(opts: {
@@ -82,17 +101,24 @@ export function useConversations(opts: {
   enabled?: boolean;
 }) {
   const folder = opts.folder;
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: chatQueryKeys.conversations(folder),
-    queryFn: function () {
+    queryFn: function ({ pageParam }) {
       return client().listConversations({
         folder: folder,
         limit: CHAT_PAGE_LIMITS.conversations,
-        cursor: null,
+        cursor: pageParam,
       });
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: function (lastPage) {
+      if (!lastPage.hasMore) {
+        return undefined;
+      }
+      return lastPage.nextCursor ?? undefined;
+    },
     select: function (data) {
-      return data.items;
+      return flattenConversationPages(data);
     },
     staleTime: CHAT_QUERY_POLICY.staleTimeMs,
     gcTime: CHAT_QUERY_POLICY.gcTimeMs,
@@ -125,10 +151,10 @@ export function useConversationRow(chatId: string | null): {
         return undefined;
       }
       for (var folder of ["inbox", "archived", "requests"] as ChatFolder[]) {
-        var page = queryClient.getQueryData<PaginatedConversations>(
+        var page = queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
           chatQueryKeys.conversations(folder)
         );
-        var row = findConversationInPage(page, chatId);
+        var row = findConversationInPages(page, chatId);
         if (row) {
           return row;
         }

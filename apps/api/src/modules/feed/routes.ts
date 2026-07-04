@@ -1,6 +1,19 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { and, asc, count, desc, eq, gte, inArray, lt, ne, notInArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   computeFeedScore,
@@ -31,6 +44,7 @@ import {
   postPolls,
   pollOptions,
   pollVotes,
+  counterJobDeltas,
   notifications,
   profiles,
   feedItems,
@@ -41,7 +55,7 @@ import {
   films,
   users,
 } from "@35mm/db/schema";
-import { getDb } from "../../lib/db.js";
+import { getDb, getWriteDb } from "../../lib/db.js";
 import {
   assertCanInteractWithPost,
   assertNoBlockBetween,
@@ -71,13 +85,19 @@ import {
   setHighFollowerAuthorFeedCache,
 } from "../../lib/feedCache.js";
 import {
-  enqueueCounterIncrementJob,
   enqueueFeedFanoutJob,
   enqueueMediaProcessJob,
   removeNotificationPublishJob,
+  type CounterIncrementJobPayload,
 } from "../../lib/jobs.js";
+import { recordCounterDeltas, wakeCounterOutbox } from "../../lib/counterOutbox.js";
 import { createNotification } from "../../lib/notifications.js";
-import { applyRateLimit, createRateLimitMiddleware, identifyByIp } from "../../lib/rateLimit.js";
+import {
+  applyRateLimit,
+  createRateLimitMiddleware,
+  identifyByIp,
+  identifyByUserId,
+} from "../../lib/rateLimit.js";
 import {
   feedHighFollowerCachePostLimit,
   feedHighFollowerCacheTtlSeconds,
@@ -93,11 +113,22 @@ var createPostRateLimit = createRateLimitMiddleware({
   keyPrefix: "feed:create",
   limit: 20,
   windowSeconds: 60,
-  identify: function (c) {
-    var user = c.get("user") as { userId?: string };
-    return typeof user.userId === "string" ? user.userId : null;
-  },
+  identify: identifyByUserId,
 });
+
+function userRateLimit(keyPrefix: string, limit: number, windowSeconds: number) {
+  return createRateLimitMiddleware({
+    keyPrefix,
+    limit,
+    windowSeconds,
+    identify: identifyByUserId,
+  });
+}
+
+var postEditRateLimit = userRateLimit("feed:post-edit", 30, 60);
+var postInteractionRateLimit = userRateLimit("feed:interaction", 120, 60);
+var commentWriteRateLimit = userRateLimit("feed:comment-write", 60, 60);
+var bookmarkFolderRateLimit = userRateLimit("feed:bookmark-folder", 30, 60);
 
 function isDbError(err: unknown): err is { code?: unknown; message?: unknown } {
   return err != null && typeof err === "object";
@@ -147,15 +178,6 @@ function normalizeActorIds(value: unknown): string[] {
   return [];
 }
 
-async function enqueueCounterDelta(
-  payload: Parameters<typeof enqueueCounterIncrementJob>[0]
-): Promise<void> {
-  var queued = await enqueueCounterIncrementJob(payload);
-  if (!queued) {
-    console.warn("[counter.increment] dropped counter delta; reconciliation required", payload);
-  }
-}
-
 function isMissingActorIdsColumnError(err: unknown): boolean {
   if (err == null || typeof err !== "object") return false;
 
@@ -184,6 +206,97 @@ function isMissingActorIdsColumnError(err: unknown): boolean {
     causeMessage.includes("actor_ids") ||
     (message.includes("column") && message.includes("does not exist"))
   );
+}
+
+type PostCounterName = "likeCount" | "commentCount" | "repostCount" | "bookmarkCount";
+type PostCounterFields = Record<PostCounterName, number>;
+
+var POST_COUNTER_NAMES: PostCounterName[] = ["likeCount", "commentCount", "repostCount", "bookmarkCount"];
+
+function applyPendingPostCounterDeltas(
+  base: PostCounterFields,
+  deltas: Partial<Record<PostCounterName, number>>
+): PostCounterFields {
+  return {
+    likeCount: Math.max(0, Number(base.likeCount ?? 0) + Number(deltas.likeCount ?? 0)),
+    commentCount: Math.max(0, Number(base.commentCount ?? 0) + Number(deltas.commentCount ?? 0)),
+    repostCount: Math.max(0, Number(base.repostCount ?? 0) + Number(deltas.repostCount ?? 0)),
+    bookmarkCount: Math.max(0, Number(base.bookmarkCount ?? 0) + Number(deltas.bookmarkCount ?? 0)),
+  };
+}
+
+async function getPendingPostCounterDeltas(postId: string): Promise<Partial<Record<PostCounterName, number>>> {
+  var db = getDb();
+  var rows = await db
+    .select({
+      counterName: counterJobDeltas.counterName,
+      delta: sql<number>`coalesce(sum(${counterJobDeltas.delta}), 0)`,
+    })
+    .from(counterJobDeltas)
+    .where(
+      and(
+        eq(counterJobDeltas.targetTable, "posts"),
+        eq(counterJobDeltas.targetId, postId),
+        inArray(counterJobDeltas.counterName, POST_COUNTER_NAMES)
+      )
+    )
+    .groupBy(counterJobDeltas.counterName);
+
+  var deltas: Partial<Record<PostCounterName, number>> = {};
+  for (var row of rows) {
+    if (POST_COUNTER_NAMES.includes(row.counterName as PostCounterName)) {
+      deltas[row.counterName as PostCounterName] = Number(row.delta ?? 0);
+    }
+  }
+  return deltas;
+}
+
+async function getVisiblePostCounters(postId: string, base: PostCounterFields): Promise<PostCounterFields> {
+  var deltas = await getPendingPostCounterDeltas(postId);
+  return applyPendingPostCounterDeltas(base, deltas);
+}
+
+async function applyVisiblePostCountersToRows<T extends { id: string } & PostCounterFields>(rows: T[]): Promise<T[]> {
+  if (rows.length === 0) return rows;
+
+  var db = getDb();
+  var postIds = Array.from(new Set(rows.map(function (row) {
+    return row.id;
+  })));
+  var deltaRows = await db
+    .select({
+      targetId: counterJobDeltas.targetId,
+      counterName: counterJobDeltas.counterName,
+      delta: sql<number>`coalesce(sum(${counterJobDeltas.delta}), 0)`,
+    })
+    .from(counterJobDeltas)
+    .where(
+      and(
+        eq(counterJobDeltas.targetTable, "posts"),
+        inArray(counterJobDeltas.targetId, postIds),
+        inArray(counterJobDeltas.counterName, POST_COUNTER_NAMES)
+      )
+    )
+    .groupBy(counterJobDeltas.targetId, counterJobDeltas.counterName);
+
+  if (deltaRows.length === 0) return rows;
+
+  var deltasByPostId = new Map<string, Partial<Record<PostCounterName, number>>>();
+  for (var deltaRow of deltaRows) {
+    if (!POST_COUNTER_NAMES.includes(deltaRow.counterName as PostCounterName)) continue;
+    var deltas = deltasByPostId.get(deltaRow.targetId) ?? {};
+    deltas[deltaRow.counterName as PostCounterName] = Number(deltaRow.delta ?? 0);
+    deltasByPostId.set(deltaRow.targetId, deltas);
+  }
+
+  return rows.map(function (row) {
+    var deltas = deltasByPostId.get(row.id);
+    if (!deltas) return row;
+    return {
+      ...row,
+      ...applyPendingPostCounterDeltas(row, deltas),
+    };
+  });
 }
 
 function weakEtag(input: unknown, prefix: string): string {
@@ -292,6 +405,139 @@ async function hydrateRichMentions(value: string): Promise<string> {
   }
   walk(doc);
   return RICH_TEXT_PREFIX + JSON.stringify(doc);
+}
+
+function collectMentionIdsFromNode(node: RichTextNode, set: Set<string>) {
+  if (node.type === "mention" && typeof node.attrs?.id === "string") {
+    set.add(node.attrs.id);
+  }
+  for (var child of node.content ?? []) {
+    collectMentionIdsFromNode(child, set);
+  }
+}
+
+function applyMentionMetadataToNode(
+  node: RichTextNode,
+  byId: Map<string, { username: string; status: string; isPrivate: boolean }>
+) {
+  if (node.type === "mention" && typeof node.attrs?.id === "string") {
+    var row = byId.get(node.attrs.id);
+    if (!row || row.status !== "active") {
+      node.attrs = { ...node.attrs, deleted: true };
+    } else {
+      node.attrs = {
+        ...node.attrs,
+        username: row.username,
+        label: row.username,
+        isPrivate: row.isPrivate,
+        deleted: false,
+      };
+    }
+  }
+  for (var child of node.content ?? []) {
+    applyMentionMetadataToNode(child, byId);
+  }
+}
+
+type HydratedPostText = {
+  body: string;
+  headline: string | null;
+};
+
+async function hydratePostRichMentionsForRows(
+  rows: Array<{ id: string; body: string; headline: string | null }>
+): Promise<Map<string, HydratedPostText>> {
+  var result = new Map<string, HydratedPostText>();
+  if (rows.length === 0) return result;
+
+  var docsByPostId = new Map<string, { bodyDoc?: RichTextNode; headlineDoc?: RichTextNode }>();
+  var mentionIds = new Set<string>();
+
+  for (var row of rows) {
+    var bodyDoc = parseRichBody(row.body);
+    if (bodyDoc) {
+      collectMentionIdsFromNode(bodyDoc, mentionIds);
+      var bodyEntry = docsByPostId.get(row.id) ?? {};
+      bodyEntry.bodyDoc = bodyDoc;
+      docsByPostId.set(row.id, bodyEntry);
+    }
+
+    if (row.headline) {
+      var headlineDoc = parseRichBody(row.headline);
+      if (headlineDoc) {
+        collectMentionIdsFromNode(headlineDoc, mentionIds);
+        var headlineEntry = docsByPostId.get(row.id) ?? {};
+        headlineEntry.headlineDoc = headlineDoc;
+        docsByPostId.set(row.id, headlineEntry);
+      }
+    }
+  }
+
+  if (mentionIds.size === 0) {
+    for (var row of rows) {
+      result.set(row.id, { body: row.body, headline: row.headline });
+    }
+    return result;
+  }
+
+  var db = getDb();
+  var mentionRows = await db
+    .select({
+      id: profiles.userId,
+      username: profiles.username,
+      isPrivate: profiles.isPrivate,
+      status: users.status,
+    })
+    .from(profiles)
+    .innerJoin(users, eq(users.id, profiles.userId))
+    .where(inArray(profiles.userId, Array.from(mentionIds)));
+
+  var byId = new Map(
+    mentionRows.map(function (row) {
+      return [row.id, row];
+    })
+  );
+
+  for (var row of rows) {
+    var entry = docsByPostId.get(row.id);
+    var hydratedBody = row.body;
+    var hydratedHeadline = row.headline;
+    if (entry?.bodyDoc) {
+      applyMentionMetadataToNode(entry.bodyDoc, byId);
+      hydratedBody = RICH_TEXT_PREFIX + JSON.stringify(entry.bodyDoc);
+    }
+    if (entry?.headlineDoc) {
+      applyMentionMetadataToNode(entry.headlineDoc, byId);
+      hydratedHeadline = RICH_TEXT_PREFIX + JSON.stringify(entry.headlineDoc);
+    }
+    result.set(row.id, {
+      body: hydratedBody,
+      headline: hydratedHeadline,
+    });
+  }
+
+  return result;
+}
+
+async function hydratePostsForRows<T extends { id: string; body: string; headline: string | null }>(
+  rows: T[],
+  viewerUserId: string | null
+): Promise<Array<T & { _preloadedBody: string; _preloadedHeadline: string | null; _preloadedPoll: FeedPoll | null }>> {
+  var ids = rows.map(function (row) { return row.id; });
+  var [pollsByPostId, richMentionsByPostId] = await Promise.all([
+    hydratePostPollsForRows(ids, viewerUserId),
+    hydratePostRichMentionsForRows(rows),
+  ]);
+
+  return rows.map(function (row) {
+    var richText = richMentionsByPostId.get(row.id) ?? { body: row.body, headline: row.headline };
+    return {
+      ...row,
+      _preloadedBody: richText.body,
+      _preloadedHeadline: richText.headline,
+      _preloadedPoll: pollsByPostId.get(row.id) ?? null,
+    };
+  });
 }
 
 function toActionError(err: unknown): ApiError {
@@ -659,46 +905,21 @@ function compositeCursorSql(createdAtColumn: unknown, idColumn: unknown, cursor:
   );
 }
 
-async function acceptedFollowerIds(userId: string): Promise<string[]> {
-  var db = getDb();
-  var rows = await db
-    .select({ followerId: follows.followerId })
-    .from(follows)
-    .where(and(eq(follows.followingId, userId), eq(follows.status, "accepted")));
-  return rows.map(function (row) {
-    return row.followerId;
-  });
-}
-
 async function invalidatePostInteractionCaches(input: {
   actorUserId: string;
   postOwnerId: string;
   isPostPublic: boolean;
 }) {
-  var followerIds = await acceptedFollowerIds(input.postOwnerId);
-  await invalidateViewerFeedCaches([
-    input.actorUserId,
-    input.postOwnerId,
-    ...followerIds,
-  ]);
+  void input.isPostPublic;
+  await invalidateViewerFeedCaches([input.actorUserId, input.postOwnerId]);
   await invalidateAuthorProfileFeedCaches([input.postOwnerId]);
-  if (input.isPostPublic) {
-    await invalidateFeedCacheForGuest();
-  }
 }
 
 async function invalidateFeedAfterAuthorMutation(input: {
   authorUserId: string;
   includeGuest: boolean;
-  includeFollowers?: boolean;
 }) {
-  var viewerIds = [input.authorUserId] as Array<string | null>;
-  if (input.includeFollowers) {
-    var followers = await acceptedFollowerIds(input.authorUserId);
-    viewerIds.push(...followers);
-  }
-
-  await invalidateViewerFeedCaches(viewerIds);
+  await invalidateViewerFeedCaches([input.authorUserId]);
   await invalidateAuthorProfileFeedCaches([input.authorUserId]);
   if (input.includeGuest) {
     await invalidateFeedCacheForGuest();
@@ -726,6 +947,36 @@ type FeedPoll = {
 };
 
 var pollTablesAvailable: boolean | null = null;
+
+type RawPollRow = {
+  postId: string;
+  id: string;
+  type: "ranking" | "image";
+  resultsVisibility: "after_vote" | "after_end";
+  endsAt: Date;
+  totalVotes: number;
+};
+
+type RawPollOptionRow = {
+  pollId: string;
+  id: string;
+  label: string | null;
+  imageUrl: string | null;
+  position: number;
+  voteCount: number | null;
+};
+
+type RawPollVoteRow = {
+  pollId: string;
+  optionId: string | null;
+  rankingOptionIds: string[];
+};
+
+type PreloadedPoll = {
+  body?: string;
+  headline?: string | null;
+  poll?: FeedPoll | null;
+};
 
 function dateFromDb(value: Date | string | number): Date {
   return value instanceof Date ? value : new Date(value);
@@ -853,6 +1104,138 @@ async function hydratePostPoll(postId: string, viewerUserId: string | null): Pro
   };
 }
 
+async function hydratePostPollsForRows(
+  postIds: string[],
+  viewerUserId: string | null
+): Promise<Map<string, FeedPoll | null>> {
+  var result = new Map<string, FeedPoll | null>();
+  for (var i = 0; i < postIds.length; i += 1) {
+    result.set(postIds[i], null);
+  }
+  if (postIds.length === 0 || pollTablesAvailable === false) return result;
+
+  var db = getDb();
+  var pollRows: RawPollRow[];
+  try {
+    pollRows = await db
+      .select({
+        postId: postPolls.postId,
+        id: postPolls.id,
+        type: postPolls.type,
+        resultsVisibility: postPolls.resultsVisibility,
+        endsAt: postPolls.endsAt,
+        totalVotes: postPolls.totalVotes,
+      })
+      .from(postPolls)
+      .where(inArray(postPolls.postId, postIds));
+    pollTablesAvailable = true;
+  } catch (error) {
+    if (isMissingRelationError(error)) {
+      pollTablesAvailable = false;
+      return result;
+    }
+    throw error;
+  }
+
+  if (pollRows.length === 0) return result;
+
+  var pollIds: string[] = [];
+  for (var row of pollRows) {
+    pollIds.push(row.id);
+  }
+
+  var optionRows: RawPollOptionRow[] = [];
+  if (pollIds.length > 0) {
+    optionRows = await db
+      .select({
+        pollId: pollOptions.pollId,
+        id: pollOptions.id,
+        label: pollOptions.label,
+        imageUrl: pollOptions.imageUrl,
+        position: pollOptions.position,
+        voteCount: pollOptions.voteCount,
+      })
+      .from(pollOptions)
+      .where(inArray(pollOptions.pollId, pollIds))
+      .orderBy(asc(pollOptions.pollId), asc(pollOptions.position));
+  }
+
+  var optionsByPollId = new Map<string, RawPollOptionRow[]>();
+  for (var optionRow of optionRows) {
+    var list = optionsByPollId.get(optionRow.pollId);
+    if (!list) {
+      list = [];
+      optionsByPollId.set(optionRow.pollId, list);
+    }
+    list.push(optionRow);
+  }
+
+  var voteRows: RawPollVoteRow[] = [];
+  if (viewerUserId && pollIds.length > 0) {
+    voteRows = await db
+      .select({
+        pollId: pollVotes.pollId,
+        optionId: pollVotes.optionId,
+        rankingOptionIds: pollVotes.rankingOptionIds,
+      })
+      .from(pollVotes)
+      .where(and(eq(pollVotes.userId, viewerUserId), inArray(pollVotes.pollId, pollIds)));
+  }
+
+  var votesByPollId = new Map<string, RawPollVoteRow>();
+  for (var vote of voteRows) {
+    votesByPollId.set(vote.pollId, vote);
+  }
+
+  for (var pollRow of pollRows) {
+    var endsAt = dateFromDb(pollRow.endsAt);
+    var isEnded = endsAt.getTime() <= Date.now();
+    var voteRow = votesByPollId.get(pollRow.id) ?? null;
+    var selectedOptionIds = voteRow
+      ? pollRow.type === "ranking"
+        ? voteRow.rankingOptionIds
+        : voteRow.optionId
+          ? [voteRow.optionId]
+          : []
+      : [];
+    var hasVoted = selectedOptionIds.length > 0;
+    var resultsVisible = hasVoted || isEnded;
+    var totalVotes = Number(pollRow.totalVotes ?? 0);
+    var pollOptionRows = optionsByPollId.get(pollRow.id) ?? [];
+    var scoreTotal = pollOptionRows.reduce(function (sum, option) {
+      return sum + Number(option.voteCount ?? 0);
+    }, 0);
+    var denominator = pollRow.type === "ranking" ? scoreTotal : totalVotes;
+
+    var responseOptions = await Promise.all(pollOptionRows.map(async function (option) {
+      var voteCount = Number(option.voteCount ?? 0);
+      return {
+        id: option.id,
+        label: option.label,
+        imageUrl: await resolvePublicMediaUrl(option.imageUrl),
+        position: Number(option.position),
+        voteCount,
+        percent: resultsVisible && denominator > 0 ? Math.round((voteCount / denominator) * 1000) / 10 : null,
+      };
+    }));
+
+    result.set(pollRow.postId, {
+      id: pollRow.id,
+      type: pollRow.type,
+      resultsVisibility: pollRow.resultsVisibility,
+      endsAt: Number.isNaN(endsAt.getTime()) ? new Date().toISOString() : endsAt.toISOString(),
+      totalVotes,
+      hasVoted,
+      isEnded,
+      resultsVisible,
+      selectedOptionIds,
+      options: responseOptions,
+    });
+  }
+
+  return result;
+}
+
 async function toPostItem(row: {
   id: string;
   type: "text" | "discussion" | "log" | "review" | "image";
@@ -898,7 +1281,7 @@ async function toPostItem(row: {
   isReposted: boolean;
   isBookmarked: boolean;
   bookmarkFolderId?: string | null;
-}, viewerUserId: string | null = null) {
+}, viewerUserId: string | null = null, preloaded: PreloadedPoll = {}) {
   var [avatarUrl, avatarUrlLg] = await Promise.all([
     resolveProfileAvatarUrl(row.avatarUrl, row.authorId, row.avatarVariants, "sm"),
     resolveProfileAvatarUrl(row.avatarUrl, row.authorId, row.avatarVariants, "lg"),
@@ -922,9 +1305,16 @@ async function toPostItem(row: {
       return item.url;
     });
 
-  var hydratedBody = await hydrateRichMentions(row.body);
-  var hydratedHeadline = row.headline ? await hydrateRichMentions(row.headline) : row.headline;
-  var poll = await hydratePostPoll(row.id, viewerUserId);
+  var hydratedBody = preloaded?.body ?? await hydrateRichMentions(row.body);
+  var hydratedHeadline = preloaded && Object.prototype.hasOwnProperty.call(preloaded, "headline")
+    ? preloaded.headline ?? null
+    : row.headline
+      ? await hydrateRichMentions(row.headline)
+      : row.headline;
+  var hasPollOverride = preloaded != null && Object.prototype.hasOwnProperty.call(preloaded, "poll");
+  var poll = hasPollOverride
+    ? preloaded.poll
+    : await hydratePostPoll(row.id, viewerUserId);
 
   return {
     id: row.id,
@@ -1561,21 +1951,18 @@ async function applyViewerInteractionFlags<T extends HomeFeedRow>(
 async function highFollowerFolloweeIds(viewerUserId: string, threshold: number): Promise<string[]> {
   var db = getDb();
   var viewerFollows = alias(follows, "viewer_follows");
-  var authorFollowers = alias(follows, "author_followers");
 
   var rows = await db
     .select({ followingId: viewerFollows.followingId })
     .from(viewerFollows)
-    .innerJoin(
-      authorFollowers,
+    .innerJoin(profiles, eq(profiles.userId, viewerFollows.followingId))
+    .where(
       and(
-        eq(authorFollowers.followingId, viewerFollows.followingId),
-        eq(authorFollowers.status, "accepted")
+        eq(viewerFollows.followerId, viewerUserId),
+        eq(viewerFollows.status, "accepted"),
+        gte(profiles.followerCount, threshold)
       )
-    )
-    .where(and(eq(viewerFollows.followerId, viewerUserId), eq(viewerFollows.status, "accepted")))
-    .groupBy(viewerFollows.followingId)
-    .having(sql<boolean>`count(${authorFollowers.followerId}) >= ${threshold}`);
+    );
 
   return rows.map(function (row) {
     return row.followingId;
@@ -1652,7 +2039,18 @@ async function getPostById(postId: string, viewerUserId: string | null) {
     .limit(1);
 
   if (rows.length === 0) return null;
-  return toPostItem(rows[0], viewerUserId);
+  var row = rows[0];
+  var visibleCounters = await getVisiblePostCounters(postId, {
+    likeCount: Number(row.likeCount ?? 0),
+    commentCount: Number(row.commentCount ?? 0),
+    repostCount: Number(row.repostCount ?? 0),
+    bookmarkCount: Number(row.bookmarkCount ?? 0),
+  });
+
+  return toPostItem({
+    ...row,
+    ...visibleCounters,
+  }, viewerUserId);
 }
 
 async function assertPostOwner(postId: string, userId: string) {
@@ -1855,8 +2253,18 @@ feedRoutes.get("/", async function (c) {
     );
     var visibleRows = merged.rows.slice(0, parsed.limit);
     var visibleRowsWithInteractions = await applyViewerInteractionFlags(visibleRows, viewer.userId);
-    var items = await Promise.all(visibleRowsWithInteractions.map(function (row) {
-      return toPostItem(row, viewer?.userId ?? null);
+    var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRowsWithInteractions);
+    var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, viewer.userId);
+    var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
+      return toPostItem(
+        row,
+        viewer?.userId ?? null,
+        {
+          body: row._preloadedBody,
+          headline: row._preloadedHeadline,
+          poll: row._preloadedPoll,
+        }
+      );
     }));
 
     var hasMore = merged.rows.length > parsed.limit || merged.hasMore;
@@ -1951,8 +2359,18 @@ feedRoutes.get("/", async function (c) {
     .limit(parsed.limit + 1);
 
   var guestVisibleRows = guestRows.slice(0, parsed.limit);
-  var guestItems = await Promise.all(guestVisibleRows.map(function (row) {
-    return toPostItem(row, null);
+  var guestVisibleRowsWithCounters = await applyVisiblePostCountersToRows(guestVisibleRows);
+  var guestVisibleRowsWithPreloaded = await hydratePostsForRows(guestVisibleRowsWithCounters, null);
+  var guestItems = await Promise.all(guestVisibleRowsWithPreloaded.map(function (row) {
+    return toPostItem(
+      row,
+      null,
+      {
+        body: row._preloadedBody,
+        headline: row._preloadedHeadline,
+        poll: row._preloadedPoll,
+      }
+    );
   }));
 
   var guestHasMore = guestRows.length > parsed.limit;
@@ -2015,55 +2433,79 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     }
   }
 
-  var insertedRows = await db
-    .insert(posts)
-    .values({
-      userId: user.userId,
-      type: input.type,
-      headline: input.headline ?? null,
-      body: input.body,
-      filmId: input.filmId ?? null,
-      filmRating: input.filmRating,
-      visibility: input.visibility,
-      media: normalizedMedia,
-      mediaUrls: normalizedMediaUrls,
-      linkPreview: input.linkPreview,
-    })
-    .returning({ id: posts.id, createdAt: posts.createdAt });
-
-  var postId = insertedRows[0]?.id;
-  if (!postId) {
-    throw badRequest("Unable to create post");
-  }
-  var postCreatedAt = insertedRows[0].createdAt;
-
-  if (input.poll) {
-    var endsAt = new Date(Date.now() + input.poll.durationMinutes * 60 * 1000);
-    var pollRows = await db
-      .insert(postPolls)
+  var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
+  var createdPost = await getWriteDb().transaction(async function (tx) {
+    var insertedRows = await tx
+      .insert(posts)
       .values({
-        postId,
-        type: input.poll.type,
-        resultsVisibility: input.poll.resultsVisibility,
-        endsAt,
+        userId: user.userId,
+        type: input.type,
+        headline: input.headline ?? null,
+        body: input.body,
+        filmId: input.filmId ?? null,
+        filmRating: input.filmRating,
+        visibility: input.visibility,
+        media: normalizedMedia,
+        mediaUrls: normalizedMediaUrls,
+        linkPreview: input.linkPreview,
       })
-      .returning({ id: postPolls.id });
-    var pollId = pollRows[0]?.id;
-    if (!pollId) {
-      throw badRequest("Unable to create poll");
+      .returning({ id: posts.id, createdAt: posts.createdAt });
+
+    var postId = insertedRows[0]?.id;
+    if (!postId) {
+      throw badRequest("Unable to create post");
+    }
+    var postCreatedAt = insertedRows[0].createdAt;
+
+    if (input.poll) {
+      var endsAt = new Date(Date.now() + input.poll.durationMinutes * 60 * 1000);
+      var pollRows = await tx
+        .insert(postPolls)
+        .values({
+          postId,
+          type: input.poll.type,
+          resultsVisibility: input.poll.resultsVisibility,
+          endsAt,
+        })
+        .returning({ id: postPolls.id });
+      var pollId = pollRows[0]?.id;
+      if (!pollId) {
+        throw badRequest("Unable to create poll");
+      }
+
+      await tx.insert(pollOptions).values(
+        input.poll.options.map(function (option, index) {
+          return {
+            pollId,
+            label: option.label,
+            imageUrl: option.imageUrl,
+            position: index + 1,
+          };
+        })
+      );
     }
 
-    await db.insert(pollOptions).values(
-      input.poll.options.map(function (option, index) {
-        return {
-          pollId,
-          label: option.label,
-          imageUrl: option.imageUrl,
-          position: index + 1,
-        };
-      })
-    );
-  }
+    if (shouldFanoutToFeed) {
+      await tx
+        .insert(feedItems)
+        .values({
+          userId: user.userId,
+          postId,
+          score: computeFeedScore({
+            createdAt: postCreatedAt,
+            likeCount: 0,
+            commentCount: 0,
+            repostCount: 0,
+          }),
+        })
+        .onConflictDoNothing({
+          target: [feedItems.userId, feedItems.postId],
+        });
+    }
+
+    return { postId, postCreatedAt };
+  });
+  var postId = createdPost.postId;
 
   await createMentionNotifications({
     body: input.body,
@@ -2072,24 +2514,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     entityId: postId,
   });
 
-  var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
   if (shouldFanoutToFeed) {
-    await db
-      .insert(feedItems)
-      .values({
-        userId: user.userId,
-        postId,
-        score: computeFeedScore({
-          createdAt: postCreatedAt,
-          likeCount: 0,
-          commentCount: 0,
-          repostCount: 0,
-        }),
-      })
-      .onConflictDoNothing({
-        target: [feedItems.userId, feedItems.postId],
-      });
-
     void enqueueFeedFanoutJob({
       postId,
       authorUserId: user.userId,
@@ -2119,7 +2544,6 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
   if (shouldFanoutToFeed) {
     await invalidateFeedAfterAuthorMutation({
       authorUserId: user.userId,
-      includeFollowers: false,
       includeGuest: input.visibility === "public",
     });
   } else {
@@ -2138,11 +2562,7 @@ feedRoutes.get("/posts/:postId", async function (c) {
   var postId = c.req.param("postId");
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var post = await assertReadablePost(postId, viewer?.userId ?? null);
-  var etag = `W/"post-${post.id}-${post.updatedAt}"`;
-  c.header("ETag", etag);
-  if (c.req.header("If-None-Match") === etag) {
-    return new Response(null, { status: 304 });
-  }
+  c.header("Cache-Control", "no-store");
   return c.json(post);
 });
 
@@ -2282,8 +2702,18 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     .limit(parsed.limit + 1);
 
   var visibleRows = rows.slice(0, parsed.limit);
-  var items = await Promise.all(visibleRows.map(function (row) {
-    return toPostItem(row, viewerUserId);
+  var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
+  var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, viewerUserId);
+  var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
+    return toPostItem(
+      row,
+      viewerUserId,
+      {
+        body: row._preloadedBody,
+        headline: row._preloadedHeadline,
+        poll: row._preloadedPoll,
+      }
+    );
   }));
   var hasMore = rows.length > parsed.limit;
   var tail = visibleRows[visibleRows.length - 1];
@@ -2399,8 +2829,18 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
     .limit(parsed.limit + 1);
 
   var visibleRows = rows.slice(0, parsed.limit);
-  var items = await Promise.all(visibleRows.map(function (row) {
-    return toPostItem(row, user.userId);
+  var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
+  var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, user.userId);
+  var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
+    return toPostItem(
+      row,
+      user.userId,
+      {
+        body: row._preloadedBody,
+        headline: row._preloadedHeadline,
+        poll: row._preloadedPoll,
+      }
+    );
   }));
   var hasMore = rows.length > parsed.limit;
   var tail = visibleRows[visibleRows.length - 1];
@@ -2411,7 +2851,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
   return c.json({ items, nextCursor, hasMore });
 });
 
-feedRoutes.delete("/posts/:postId", requireAuth, async function (c) {
+feedRoutes.delete("/posts/:postId", requireAuth, postEditRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var current = await assertPostOwner(postId, user.userId);
@@ -2427,14 +2867,13 @@ feedRoutes.delete("/posts/:postId", requireAuth, async function (c) {
 
   await invalidateFeedAfterAuthorMutation({
     authorUserId: user.userId,
-    includeFollowers: true,
     includeGuest: current.visibility === "public",
   });
 
   return c.json({ ok: true });
 });
 
-feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
+feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var input = parsePatchPostInput(await c.req.json());
@@ -2490,7 +2929,6 @@ feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
 
   await invalidateFeedAfterAuthorMutation({
     authorUserId: user.userId,
-    includeFollowers: true,
     includeGuest: current.visibility === "public",
   });
 
@@ -2500,7 +2938,7 @@ feedRoutes.patch("/posts/:postId", requireAuth, async function (c) {
   return c.json(updated);
 });
 
-feedRoutes.post("/posts/:postId/poll/votes", requireAuth, async function (c) {
+feedRoutes.post("/posts/:postId/poll/votes", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
@@ -2557,24 +2995,9 @@ feedRoutes.post("/posts/:postId/poll/votes", requireAuth, async function (c) {
     throw badRequest("Invalid poll option");
   }
 
-  var inserted = await db
-    .insert(pollVotes)
-    .values({
-      postId,
-      pollId: poll.id,
-      userId: user.userId,
-      optionId: poll.type === "image" ? uniqueOptionIds[0] : null,
-      rankingOptionIds: poll.type === "ranking" ? uniqueOptionIds : [],
-    })
-    .onConflictDoNothing()
-    .returning({ id: pollVotes.id });
-
-  if (inserted.length === 0) {
-    throw conflict("You already voted in this poll");
-  }
-
+  var counterDeltas: CounterIncrementJobPayload[] = [];
   if (poll.type === "image") {
-    await enqueueCounterDelta({
+    counterDeltas.push({
       targetTable: "poll_options",
       targetId: uniqueOptionIds[0],
       counterName: "voteCount",
@@ -2582,22 +3005,45 @@ feedRoutes.post("/posts/:postId/poll/votes", requireAuth, async function (c) {
     });
   } else {
     for (var index = 0; index < uniqueOptionIds.length; index += 1) {
-      var score = uniqueOptionIds.length - index;
-      await enqueueCounterDelta({
+      counterDeltas.push({
         targetTable: "poll_options",
         targetId: uniqueOptionIds[index],
         counterName: "voteCount",
-        delta: score,
+        delta: uniqueOptionIds.length - index,
       });
     }
   }
-
-  await enqueueCounterDelta({
+  counterDeltas.push({
     targetTable: "post_polls",
     targetId: poll.id,
     counterName: "totalVotes",
     delta: 1,
   });
+
+  var inserted = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .insert(pollVotes)
+      .values({
+        postId,
+        pollId: poll.id,
+        userId: user.userId,
+        optionId: poll.type === "image" ? uniqueOptionIds[0] : null,
+        rankingOptionIds: poll.type === "ranking" ? uniqueOptionIds : [],
+      })
+      .onConflictDoNothing()
+      .returning({ id: pollVotes.id });
+
+    if (rows.length > 0) {
+      await recordCounterDeltas(tx, counterDeltas);
+    }
+
+    return rows;
+  });
+
+  if (inserted.length === 0) {
+    throw conflict("You already voted in this poll");
+  }
+  wakeCounterOutbox();
 
   await invalidatePostInteractionCaches({
     actorUserId: user.userId,
@@ -2610,7 +3056,7 @@ feedRoutes.post("/posts/:postId/poll/votes", requireAuth, async function (c) {
   return c.json(updated);
 });
 
-feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
+feedRoutes.post("/posts/:postId/likes", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   try {
@@ -2627,24 +3073,44 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
       throw notFound("Post not found");
     }
 
-    var inserted = await db
-      .insert(postLikes)
-      .values({ postId: postId, userId: user.userId })
-      .onConflictDoNothing()
-      .returning({ postId: postLikes.postId });
+    var inserted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .insert(postLikes)
+        .values({ postId: postId, userId: user.userId })
+        .onConflictDoNothing()
+        .returning({ postId: postLikes.postId });
 
-    var countRows = await db
-      .select({ likeCount: count() })
-      .from(postLikes)
-      .where(eq(postLikes.postId, postId))
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "posts",
+          targetId: postId,
+          counterName: "likeCount",
+          delta: 1,
+        });
+      }
+
+      return rows;
+    });
+
+    var currentPostRows = await db
+      .select({
+        likeCount: posts.likeCount,
+        commentCount: posts.commentCount,
+        repostCount: posts.repostCount,
+        bookmarkCount: posts.bookmarkCount,
+      })
+      .from(posts)
+      .where(eq(posts.id, postId))
       .limit(1);
-    var nextLikeCount = Number(countRows[0]?.likeCount ?? 0);
+    var visibleCounters = await getVisiblePostCounters(postId, {
+      likeCount: Number(currentPostRows[0]?.likeCount ?? 0),
+      commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
+      repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
+      bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+    });
 
     if (inserted.length > 0) {
-      await db
-        .update(posts)
-        .set({ likeCount: nextLikeCount, updatedAt: new Date() })
-        .where(eq(posts.id, postId));
+      wakeCounterOutbox();
 
       try {
         await createNotification(
@@ -2681,7 +3147,7 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
     }
 
     return c.json({
-      likeCount: nextLikeCount,
+      likeCount: visibleCounters.likeCount,
       isLiked: true,
     });
   } catch (err) {
@@ -2689,7 +3155,7 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, async function (c) {
   }
 });
 
-feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
+feedRoutes.delete("/posts/:postId/likes", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
@@ -2704,23 +3170,43 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
     throw notFound("Post not found");
   }
 
-  var deleted = await db
-    .delete(postLikes)
-    .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, user.userId)))
-    .returning({ postId: postLikes.postId });
+  var deleted = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .delete(postLikes)
+      .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, user.userId)))
+      .returning({ postId: postLikes.postId });
 
-  var countRows = await db
-    .select({ likeCount: count() })
-    .from(postLikes)
-    .where(eq(postLikes.postId, postId))
+    if (rows.length > 0) {
+      await recordCounterDeltas(tx, {
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "likeCount",
+        delta: -1,
+      });
+    }
+
+    return rows;
+  });
+
+  var currentPostRows = await db
+    .select({
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+    })
+    .from(posts)
+    .where(eq(posts.id, postId))
     .limit(1);
-  var nextLikeCount = Number(countRows[0]?.likeCount ?? 0);
+  var visibleCounters = await getVisiblePostCounters(postId, {
+    likeCount: Number(currentPostRows[0]?.likeCount ?? 0),
+    commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
+    repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
+    bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+  });
 
   if (deleted.length > 0) {
-    await db
-      .update(posts)
-      .set({ likeCount: nextLikeCount, updatedAt: new Date() })
-      .where(eq(posts.id, postId));
+    wakeCounterOutbox();
 
     try {
       var existingNotificationRows: Array<{
@@ -2828,12 +3314,12 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, async function (c) {
   }
 
   return c.json({
-    likeCount: nextLikeCount,
+    likeCount: visibleCounters.likeCount,
     isLiked: false,
   });
 });
 
-feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
+feedRoutes.post("/posts/:postId/reposts", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
@@ -2861,22 +3347,19 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
     throw notFound("Post not found");
   }
 
-  var inserted = await db
-    .insert(postReposts)
-    .values({ postId: postId, userId: user.userId })
-    .onConflictDoNothing()
-    .returning({ postId: postReposts.postId });
+  var sourcePost = sourceRows[0];
+  var repostCreate = await getWriteDb().transaction(async function (tx) {
+    var inserted = await tx
+      .insert(postReposts)
+      .values({ postId: postId, userId: user.userId })
+      .onConflictDoNothing()
+      .returning({ postId: postReposts.postId });
 
-  if (inserted.length > 0) {
-    await enqueueCounterDelta({
-      targetTable: "posts",
-      targetId: postId,
-      counterName: "repostCount",
-      delta: 1,
-    });
+    if (inserted.length === 0) {
+      return { created: false, repostPostId: null as string | null };
+    }
 
-    var sourcePost = sourceRows[0];
-    var repostInsertRows = await db
+    var repostInsertRows = await tx
       .insert(posts)
       .values({
         userId: user.userId,
@@ -2894,10 +3377,10 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
       })
       .returning({ id: posts.id, createdAt: posts.createdAt });
 
-    var repostPostId = repostInsertRows[0]?.id;
+    var repostPostId = repostInsertRows[0]?.id ?? null;
     if (repostPostId) {
       var repostCreatedAt = repostInsertRows[0].createdAt;
-      await db
+      await tx
         .insert(feedItems)
         .values({
           userId: user.userId,
@@ -2912,7 +3395,23 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
         .onConflictDoNothing({
           target: [feedItems.userId, feedItems.postId],
         });
+    }
 
+    await recordCounterDeltas(tx, {
+      targetTable: "posts",
+      targetId: postId,
+      counterName: "repostCount",
+      delta: 1,
+    });
+
+    return { created: true, repostPostId };
+  });
+
+  if (repostCreate.created) {
+    wakeCounterOutbox();
+
+    var repostPostId = repostCreate.repostPostId;
+    if (repostPostId) {
       void enqueueFeedFanoutJob({
         postId: repostPostId,
         authorUserId: user.userId,
@@ -2927,7 +3426,6 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
 
     await invalidateFeedAfterAuthorMutation({
       authorUserId: user.userId,
-      includeFollowers: false,
       includeGuest: true,
     });
     await invalidatePostInteractionCaches({
@@ -2940,7 +3438,7 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, async function (c) {
   return c.json({ ok: true });
 });
 
-feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
+feedRoutes.delete("/posts/:postId/reposts", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
@@ -2954,37 +3452,44 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, async function (c) {
     throw notFound("Post not found");
   }
 
-  var deleted = await db
-    .delete(postReposts)
-    .where(and(eq(postReposts.postId, postId), eq(postReposts.userId, user.userId)))
-    .returning({ postId: postReposts.postId });
+  var deleted = await getWriteDb().transaction(async function (tx) {
+    var deletedRows = await tx
+      .delete(postReposts)
+      .where(and(eq(postReposts.postId, postId), eq(postReposts.userId, user.userId)))
+      .returning({ postId: postReposts.postId });
+
+    if (deletedRows.length > 0) {
+      await tx
+        .update(posts)
+        .set({
+          isDeleted: true,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(posts.userId, user.userId),
+            eq(posts.replyToId, postId),
+            eq(posts.isRepost, true),
+            eq(posts.isDeleted, false)
+          )
+        );
+
+      await recordCounterDeltas(tx, {
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "repostCount",
+        delta: -1,
+      });
+    }
+
+    return deletedRows;
+  });
 
   if (deleted.length > 0) {
-    await enqueueCounterDelta({
-      targetTable: "posts",
-      targetId: postId,
-      counterName: "repostCount",
-      delta: -1,
-    });
-
-    await db
-      .update(posts)
-      .set({
-        isDeleted: true,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(posts.userId, user.userId),
-          eq(posts.replyToId, postId),
-          eq(posts.isRepost, true),
-          eq(posts.isDeleted, false)
-        )
-      );
+    wakeCounterOutbox();
 
     await invalidateFeedAfterAuthorMutation({
       authorUserId: user.userId,
-      includeFollowers: true,
       includeGuest: true,
     });
     await invalidatePostInteractionCaches({
@@ -3016,6 +3521,7 @@ feedRoutes.get("/bookmarks/folders", requireAuth, async function (c) {
     .select({
       id: bookmarkFolders.id,
       name: bookmarkFolders.name,
+      itemCount: bookmarkFolders.itemCount,
       createdAt: bookmarkFolders.createdAt,
       updatedAt: bookmarkFolders.updatedAt,
     })
@@ -3023,47 +3529,29 @@ feedRoutes.get("/bookmarks/folders", requireAuth, async function (c) {
     .where(eq(bookmarkFolders.userId, user.userId))
     .orderBy(desc(bookmarkFolders.updatedAt));
 
-  var countFilters: any[] = [
-    eq(postBookmarks.userId, user.userId),
-    eq(posts.isDeleted, false),
-    postVisibilitySql(user.userId),
-    profileAccessSql(user.userId),
-    ...blockFiltersForAuthor(user.userId, posts.userId),
-    notMutedByViewerSql(user.userId, posts.userId),
-  ];
-
-  var countRows = await db
+  var unsortedCountRows = await db
     .select({
-      folderId: postBookmarks.folderId,
-      itemCount: count(),
+      unsortedCount: profiles.unsortedBookmarkCount,
     })
-    .from(postBookmarks)
-    .innerJoin(posts, eq(posts.id, postBookmarks.postId))
-    .innerJoin(profiles, eq(profiles.userId, posts.userId))
-    .where(and(...countFilters))
-    .groupBy(postBookmarks.folderId);
-
-  var countsByFolder = new Map<string | null, number>();
-  for (var i = 0; i < countRows.length; i += 1) {
-    var countRow = countRows[i];
-    countsByFolder.set(countRow.folderId ?? null, Number(countRow.itemCount ?? 0));
-  }
+    .from(profiles)
+    .where(eq(profiles.userId, user.userId))
+    .limit(1);
 
   return c.json({
     folders: folderRows.map(function (folder) {
       return {
         id: folder.id,
         name: folder.name,
+        itemCount: Number(folder.itemCount ?? 0),
         createdAt: folder.createdAt.toISOString(),
         updatedAt: folder.updatedAt.toISOString(),
-        itemCount: countsByFolder.get(folder.id) ?? 0,
       };
     }),
-    unsortedCount: countsByFolder.get(null) ?? 0,
+    unsortedCount: Number(unsortedCountRows[0]?.unsortedCount ?? 0),
   });
 });
 
-feedRoutes.post("/bookmarks/folders", requireAuth, async function (c) {
+feedRoutes.post("/bookmarks/folders", requireAuth, bookmarkFolderRateLimit, async function (c) {
   var user = c.get("user");
   var body = bookmarkFolderNameSchema.parse(await c.req.json());
   var db = getDb();
@@ -3073,12 +3561,14 @@ feedRoutes.post("/bookmarks/folders", requireAuth, async function (c) {
     .values({
       userId: user.userId,
       name: body.name,
+      itemCount: 0,
       createdAt: now,
       updatedAt: now,
     })
     .returning({
       id: bookmarkFolders.id,
       name: bookmarkFolders.name,
+      itemCount: bookmarkFolders.itemCount,
       createdAt: bookmarkFolders.createdAt,
       updatedAt: bookmarkFolders.updatedAt,
     });
@@ -3088,14 +3578,14 @@ feedRoutes.post("/bookmarks/folders", requireAuth, async function (c) {
     folder: {
       id: folder.id,
       name: folder.name,
+      itemCount: Number(folder.itemCount ?? 0),
       createdAt: folder.createdAt.toISOString(),
       updatedAt: folder.updatedAt.toISOString(),
-      itemCount: 0,
     },
   });
 });
 
-feedRoutes.patch("/bookmarks/folders/:folderId", requireAuth, async function (c) {
+feedRoutes.patch("/bookmarks/folders/:folderId", requireAuth, bookmarkFolderRateLimit, async function (c) {
   var user = c.get("user");
   var folderId = c.req.param("folderId");
   var body = bookmarkFolderNameSchema.parse(await c.req.json());
@@ -3108,6 +3598,7 @@ feedRoutes.patch("/bookmarks/folders/:folderId", requireAuth, async function (c)
     .returning({
       id: bookmarkFolders.id,
       name: bookmarkFolders.name,
+      itemCount: bookmarkFolders.itemCount,
       createdAt: bookmarkFolders.createdAt,
       updatedAt: bookmarkFolders.updatedAt,
     });
@@ -3121,24 +3612,47 @@ feedRoutes.patch("/bookmarks/folders/:folderId", requireAuth, async function (c)
     folder: {
       id: folder.id,
       name: folder.name,
+      itemCount: Number(folder.itemCount ?? 0),
       createdAt: folder.createdAt.toISOString(),
       updatedAt: folder.updatedAt.toISOString(),
     },
   });
 });
 
-feedRoutes.delete("/bookmarks/folders/:folderId", requireAuth, async function (c) {
+feedRoutes.delete("/bookmarks/folders/:folderId", requireAuth, bookmarkFolderRateLimit, async function (c) {
   var user = c.get("user");
   var folderId = c.req.param("folderId");
   await assertOwnedBookmarkFolder(user.userId, folderId);
-  var db = getDb();
-  await db
-    .delete(bookmarkFolders)
-    .where(and(eq(bookmarkFolders.id, folderId), eq(bookmarkFolders.userId, user.userId)));
+  var db = getWriteDb();
+  await db.transaction(async function (tx) {
+    var unsortedTransferRows = await tx
+      .select({ count: count() })
+      .from(postBookmarks)
+      .where(and(eq(postBookmarks.folderId, folderId), eq(postBookmarks.userId, user.userId)))
+      .limit(1);
+    var unsortedTransferCount = Number(unsortedTransferRows[0]?.count ?? 0);
+
+    var deletedFolderRows = await tx
+      .delete(bookmarkFolders)
+      .where(and(eq(bookmarkFolders.id, folderId), eq(bookmarkFolders.userId, user.userId)))
+      .returning({ id: bookmarkFolders.id });
+
+    if (deletedFolderRows.length > 0 && unsortedTransferCount > 0) {
+      await tx
+        .update(profiles)
+        .set({
+          unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} + ${unsortedTransferCount}, 0)`,
+        })
+        .where(eq(profiles.userId, user.userId));
+    }
+    if (deletedFolderRows.length === 0) {
+      throw notFound("Folder not found");
+    }
+  });
   return c.json({ ok: true });
 });
 
-feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
+feedRoutes.post("/posts/:postId/bookmarks", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   try {
@@ -3157,8 +3671,10 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
       return {};
     });
     var folderId = bookmarkPostSchema.parse(rawBody).folderId;
-    if (folderId) {
-      await assertOwnedBookmarkFolder(user.userId, folderId);
+    var hasExplicitFolderId = folderId !== undefined;
+    var targetFolderId = folderId ?? null;
+    if (targetFolderId) {
+      await assertOwnedBookmarkFolder(user.userId, targetFolderId);
     }
 
     var existingRows = await db
@@ -3168,22 +3684,45 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
       .limit(1);
 
     if (existingRows.length === 0) {
-      var inserted = await db
-        .insert(postBookmarks)
-        .values({
-          postId: postId,
-          userId: user.userId,
-          folderId: folderId ?? null,
-        })
-        .returning({ postId: postBookmarks.postId, folderId: postBookmarks.folderId });
+      var inserted = await getWriteDb().transaction(async function (tx) {
+        var rows = await tx
+          .insert(postBookmarks)
+          .values({
+            postId: postId,
+            userId: user.userId,
+            folderId: targetFolderId,
+          })
+          .returning({ postId: postBookmarks.postId, folderId: postBookmarks.folderId });
+
+          if (rows.length > 0) {
+            await recordCounterDeltas(tx, {
+              targetTable: "posts",
+              targetId: postId,
+              counterName: "bookmarkCount",
+              delta: 1,
+            });
+            if (targetFolderId !== null) {
+              await tx
+                .update(bookmarkFolders)
+                .set({
+                  itemCount: sql`GREATEST(${bookmarkFolders.itemCount} + 1, 0)`,
+                })
+                .where(eq(bookmarkFolders.id, targetFolderId));
+            } else {
+              await tx
+                .update(profiles)
+                .set({
+                  unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} + 1, 0)`,
+                })
+                .where(eq(profiles.userId, user.userId));
+            }
+          }
+
+        return rows;
+      });
 
       if (inserted.length > 0) {
-        await enqueueCounterDelta({
-          targetTable: "posts",
-          targetId: postId,
-          counterName: "bookmarkCount",
-          delta: 1,
-        });
+        wakeCounterOutbox();
         try {
           await invalidatePostInteractionCaches({
             actorUserId: user.userId,
@@ -3199,25 +3738,104 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, async function (c) {
         }
       }
 
-      return c.json({ ok: true, folderId: inserted[0]?.folderId ?? null });
+      var currentPostRows = await db
+        .select({
+          likeCount: posts.likeCount,
+          commentCount: posts.commentCount,
+          repostCount: posts.repostCount,
+          bookmarkCount: posts.bookmarkCount,
+        })
+        .from(posts)
+        .where(eq(posts.id, postId))
+        .limit(1);
+      var visibleCounters = await getVisiblePostCounters(postId, {
+        likeCount: Number(currentPostRows[0]?.likeCount ?? 0),
+        commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
+        repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
+        bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+      });
+
+      return c.json({
+        ok: true,
+        folderId: inserted[0]?.folderId ?? null,
+        bookmarkCount: visibleCounters.bookmarkCount,
+        isBookmarked: true,
+      });
     }
 
-    if (folderId !== undefined) {
-      var updated = await db
-        .update(postBookmarks)
-        .set({ folderId: folderId })
-        .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
-        .returning({ folderId: postBookmarks.folderId });
-      return c.json({ ok: true, folderId: updated[0]?.folderId ?? null });
+    if (hasExplicitFolderId) {
+      var existingFolderId = existingRows[0]?.folderId ?? null;
+      if (existingFolderId === targetFolderId) {
+        return c.json({
+          ok: true,
+          folderId: targetFolderId,
+          isBookmarked: true,
+        });
+      }
+
+      var updated = await getWriteDb().transaction(async function (tx) {
+        var rows = await tx
+          .update(postBookmarks)
+          .set({ folderId: targetFolderId })
+          .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
+          .returning({ folderId: postBookmarks.folderId });
+
+          if (rows.length > 0 && existingFolderId !== rows[0]?.folderId) {
+            if (existingFolderId !== null) {
+              await tx
+                .update(bookmarkFolders)
+                .set({
+                  itemCount: sql`GREATEST(${bookmarkFolders.itemCount} - 1, 0)`,
+                })
+                .where(eq(bookmarkFolders.id, existingFolderId));
+            }
+
+            if (targetFolderId !== null) {
+              await tx
+                .update(bookmarkFolders)
+                .set({
+                  itemCount: sql`GREATEST(${bookmarkFolders.itemCount} + 1, 0)`,
+                })
+                .where(eq(bookmarkFolders.id, targetFolderId));
+            } else {
+              await tx
+                .update(profiles)
+                .set({
+                  unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} + 1, 0)`,
+                })
+                .where(eq(profiles.userId, user.userId));
+            }
+
+            if (existingFolderId === null) {
+              await tx
+                .update(profiles)
+                .set({
+                  unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} - 1, 0)`,
+                })
+                .where(eq(profiles.userId, user.userId));
+            }
+          }
+
+        return rows;
+      });
+      return c.json({
+        ok: true,
+        folderId: updated[0]?.folderId ?? null,
+        isBookmarked: true,
+      });
     }
 
-    return c.json({ ok: true, folderId: existingRows[0]?.folderId ?? null });
+    return c.json({
+      ok: true,
+      folderId: existingRows[0]?.folderId ?? null,
+      isBookmarked: true,
+    });
   } catch (err) {
     throw toActionError(err);
   }
 });
 
-feedRoutes.patch("/posts/:postId/bookmarks", requireAuth, async function (c) {
+feedRoutes.patch("/posts/:postId/bookmarks", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   try {
@@ -3228,23 +3846,84 @@ feedRoutes.patch("/posts/:postId/bookmarks", requireAuth, async function (c) {
     }
 
     var db = getDb();
-    var updated = await db
-      .update(postBookmarks)
-      .set({ folderId: body.folderId })
+    var current = await db
+      .select({ folderId: postBookmarks.folderId })
+      .from(postBookmarks)
       .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
-      .returning({ folderId: postBookmarks.folderId });
+      .limit(1);
+    if (current.length === 0) {
+      throw notFound("Bookmark not found");
+    }
+
+    var currentFolderId = current[0]?.folderId ?? null;
+    if (currentFolderId === body.folderId) {
+      return c.json({
+        ok: true,
+        folderId: currentFolderId,
+        isBookmarked: true,
+      });
+    }
+
+    var updated = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .update(postBookmarks)
+        .set({ folderId: body.folderId })
+        .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
+        .returning({ folderId: postBookmarks.folderId });
+
+      if (rows.length > 0) {
+        if (currentFolderId !== null) {
+          await tx
+            .update(bookmarkFolders)
+            .set({
+              itemCount: sql`GREATEST(${bookmarkFolders.itemCount} - 1, 0)`,
+            })
+            .where(eq(bookmarkFolders.id, currentFolderId));
+        }
+        if (currentFolderId === null) {
+          await tx
+            .update(profiles)
+            .set({
+              unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} - 1, 0)`,
+            })
+            .where(eq(profiles.userId, user.userId));
+        }
+
+        if (body.folderId !== null) {
+          await tx
+            .update(bookmarkFolders)
+            .set({
+              itemCount: sql`GREATEST(${bookmarkFolders.itemCount} + 1, 0)`,
+            })
+            .where(eq(bookmarkFolders.id, body.folderId));
+        } else {
+          await tx
+            .update(profiles)
+            .set({
+              unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} + 1, 0)`,
+            })
+            .where(eq(profiles.userId, user.userId));
+        }
+      }
+
+      return rows;
+    });
 
     if (updated.length === 0) {
       throw notFound("Bookmark not found");
     }
 
-    return c.json({ ok: true, folderId: updated[0].folderId ?? null });
+    return c.json({
+      ok: true,
+      folderId: updated[0].folderId ?? null,
+      isBookmarked: true,
+    });
   } catch (err) {
     throw toActionError(err);
   }
 });
 
-feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
+feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   await assertReadablePostForInteraction(postId, user.userId);
@@ -3258,18 +3937,41 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
     throw notFound("Post not found");
   }
 
-  var deleted = await db
-    .delete(postBookmarks)
-    .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
-    .returning({ postId: postBookmarks.postId });
+  var deleted = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .delete(postBookmarks)
+      .where(and(eq(postBookmarks.postId, postId), eq(postBookmarks.userId, user.userId)))
+      .returning({ postId: postBookmarks.postId, folderId: postBookmarks.folderId });
+
+    if (rows.length > 0) {
+      await recordCounterDeltas(tx, {
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "bookmarkCount",
+        delta: -1,
+      });
+      if (rows[0].folderId !== null) {
+        await tx
+          .update(bookmarkFolders)
+          .set({
+            itemCount: sql`GREATEST(${bookmarkFolders.itemCount} - 1, 0)`,
+          })
+          .where(eq(bookmarkFolders.id, rows[0].folderId));
+      } else {
+        await tx
+          .update(profiles)
+          .set({
+            unsortedBookmarkCount: sql`GREATEST(${profiles.unsortedBookmarkCount} - 1, 0)`,
+          })
+          .where(eq(profiles.userId, user.userId));
+      }
+    }
+
+    return rows;
+  });
 
   if (deleted.length > 0) {
-    await enqueueCounterDelta({
-      targetTable: "posts",
-      targetId: postId,
-      counterName: "bookmarkCount",
-      delta: -1,
-    });
+    wakeCounterOutbox();
     try {
       await invalidatePostInteractionCaches({
         actorUserId: user.userId,
@@ -3285,10 +3987,31 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, async function (c) {
     }
   }
 
-  return c.json({ ok: true });
+  var currentPostRows = await db
+    .select({
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+    })
+    .from(posts)
+    .where(eq(posts.id, postId))
+    .limit(1);
+  var visibleCounters = await getVisiblePostCounters(postId, {
+    likeCount: Number(currentPostRows[0]?.likeCount ?? 0),
+    commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
+    repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
+    bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+  });
+
+  return c.json({
+    ok: true,
+    bookmarkCount: visibleCounters.bookmarkCount,
+    isBookmarked: false,
+  });
 });
 
-feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, async function (c) {
+feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var commentId = c.req.param("commentId");
@@ -3307,19 +4030,27 @@ feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, async f
       throw notFound("Comment not found");
     }
 
-    var inserted = await db
-      .insert(commentLikes)
-      .values({ commentId: commentId, userId: user.userId })
-      .onConflictDoNothing()
-      .returning({ commentId: commentLikes.commentId });
+    var inserted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .insert(commentLikes)
+        .values({ commentId: commentId, userId: user.userId })
+        .onConflictDoNothing()
+        .returning({ commentId: commentLikes.commentId });
+
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "comments",
+          targetId: commentId,
+          counterName: "likeCount",
+          delta: 1,
+        });
+      }
+
+      return rows;
+    });
 
     if (inserted.length > 0) {
-      await enqueueCounterDelta({
-        targetTable: "comments",
-        targetId: commentId,
-        counterName: "likeCount",
-        delta: 1,
-      });
+      wakeCounterOutbox();
 
       await createNotification({
         recipientId: commentRows[0].userId,
@@ -3344,7 +4075,7 @@ feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, async f
   }
 });
 
-feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, async function (c) {
+feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, postInteractionRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var commentId = c.req.param("commentId");
@@ -3362,18 +4093,26 @@ feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, async
     throw notFound("Comment not found");
   }
 
-  var deleted = await db
-    .delete(commentLikes)
-    .where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.userId, user.userId)))
-    .returning({ commentId: commentLikes.commentId });
+  var deleted = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .delete(commentLikes)
+      .where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.userId, user.userId)))
+      .returning({ commentId: commentLikes.commentId });
+
+    if (rows.length > 0) {
+      await recordCounterDeltas(tx, {
+        targetTable: "comments",
+        targetId: commentId,
+        counterName: "likeCount",
+        delta: -1,
+      });
+    }
+
+    return rows;
+  });
 
   if (deleted.length > 0) {
-    await enqueueCounterDelta({
-      targetTable: "comments",
-      targetId: commentId,
-      counterName: "likeCount",
-      delta: -1,
-    });
+    wakeCounterOutbox();
 
     var existingNotificationRows: Array<{
       id: string;
@@ -3581,7 +4320,7 @@ async function getCommentDepth(postId: string, commentId: string): Promise<numbe
   return depth;
 }
 
-feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
+feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var input = parseCreateCommentInput(await c.req.json());
@@ -3624,38 +4363,46 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
     parentCommentOwnerId = parentRows[0].userId;
   }
 
-  var insertedRows = await db
-    .insert(comments)
-    .values({
-      postId,
-      userId: user.userId,
-      parentId: input.parentId ?? null,
-      body: input.body,
-    })
-    .returning({
-      id: comments.id,
-      postId: comments.postId,
-      userId: comments.userId,
-      parentId: comments.parentId,
-      body: comments.body,
-      likeCount: comments.likeCount,
-      isDeleted: comments.isDeleted,
-      editedAt: comments.editedAt,
-      createdAt: comments.createdAt,
-      updatedAt: comments.updatedAt,
-    });
+  var insertedRows = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .insert(comments)
+      .values({
+        postId,
+        userId: user.userId,
+        parentId: input.parentId ?? null,
+        body: input.body,
+      })
+      .returning({
+        id: comments.id,
+        postId: comments.postId,
+        userId: comments.userId,
+        parentId: comments.parentId,
+        body: comments.body,
+        likeCount: comments.likeCount,
+        isDeleted: comments.isDeleted,
+        editedAt: comments.editedAt,
+        createdAt: comments.createdAt,
+        updatedAt: comments.updatedAt,
+      });
+
+    if (rows.length > 0) {
+      await recordCounterDeltas(tx, {
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "commentCount",
+        delta: 1,
+      });
+    }
+
+    return rows;
+  });
 
   var inserted = insertedRows[0];
   if (!inserted) {
     throw badRequest("Unable to create comment");
   }
 
-  await enqueueCounterDelta({
-    targetTable: "posts",
-    targetId: postId,
-    counterName: "commentCount",
-    delta: 1,
-  });
+  wakeCounterOutbox();
 
   await createMentionNotifications({
     body: inserted.body,
@@ -3722,7 +4469,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, async function (c) {
   );
 });
 
-feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, async function (c) {
+feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWriteRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var commentId = c.req.param("commentId");
@@ -3815,7 +4562,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, async functi
   });
 });
 
-feedRoutes.delete("/posts/:postId/comments/:commentId", requireAuth, async function (c) {
+feedRoutes.delete("/posts/:postId/comments/:commentId", requireAuth, commentWriteRateLimit, async function (c) {
   var user = c.get("user");
   var postId = c.req.param("postId");
   var commentId = c.req.param("commentId");
@@ -3843,20 +4590,23 @@ feedRoutes.delete("/posts/:postId/comments/:commentId", requireAuth, async funct
   }
 
   if (!current.isDeleted) {
-    await db
-      .update(comments)
-      .set({
-        isDeleted: true,
-        updatedAt: new Date(),
-      })
-      .where(eq(comments.id, commentId));
+    await getWriteDb().transaction(async function (tx) {
+      await tx
+        .update(comments)
+        .set({
+          isDeleted: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(comments.id, commentId));
 
-    await enqueueCounterDelta({
-      targetTable: "posts",
-      targetId: postId,
-      counterName: "commentCount",
-      delta: -1,
+      await recordCounterDeltas(tx, {
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "commentCount",
+        delta: -1,
+      });
     });
+    wakeCounterOutbox();
   }
 
   return c.json({ ok: true });

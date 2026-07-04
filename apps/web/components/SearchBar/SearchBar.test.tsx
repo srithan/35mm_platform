@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { act } from "react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SearchBar } from "./SearchBar";
@@ -20,6 +21,12 @@ function renderWithProviders(ui: React.ReactElement) {
   return render(
     <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
   );
+}
+
+async function advanceTimers(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
 }
 
 const STORAGE_KEY = "35mm-recent-searches";
@@ -99,7 +106,7 @@ describe("SearchBar", () => {
     await user.type(input, "Par");
 
     // Advance past the 300ms debounce
-    await vi.advanceTimersByTimeAsync(400);
+    await advanceTimers(400);
 
     expect(onSearch).toHaveBeenCalledWith("Par");
   });
@@ -113,13 +120,14 @@ describe("SearchBar", () => {
     await user.type(input, "Par");
 
     // Wait for debounce + query resolution
-    await vi.advanceTimersByTimeAsync(500);
+    await advanceTimers(500);
 
     const listbox = screen.getByRole("listbox");
     expect(listbox).toBeInTheDocument();
 
-    const options = within(listbox).getAllByRole("option");
-    expect(options.length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(within(listbox).getAllByRole("option").length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // 6. Arrow-key navigation highlights items
@@ -129,7 +137,7 @@ describe("SearchBar", () => {
     const input = screen.getByRole("combobox");
 
     await user.type(input, "Par");
-    await vi.advanceTimersByTimeAsync(500);
+    await advanceTimers(500);
 
     await user.keyboard("{ArrowDown}");
 
@@ -152,7 +160,7 @@ describe("SearchBar", () => {
     const input = screen.getByRole("combobox");
 
     await user.type(input, "Par");
-    await vi.advanceTimersByTimeAsync(500);
+    await advanceTimers(500);
 
     await user.keyboard("{ArrowDown}");
     await user.keyboard("{Enter}");
@@ -170,7 +178,7 @@ describe("SearchBar", () => {
     const input = screen.getByRole("combobox");
 
     await user.type(input, "Par");
-    await vi.advanceTimersByTimeAsync(500);
+    await advanceTimers(500);
 
     expect(screen.getByRole("listbox")).toBeInTheDocument();
 
@@ -204,13 +212,15 @@ describe("SearchBar", () => {
     expect(document.activeElement).not.toBe(input);
 
     // Simulate ⌘K
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "k",
-        metaKey: true,
-        bubbles: true,
-      }),
-    );
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "k",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+    });
 
     expect(document.activeElement).toBe(input);
   });

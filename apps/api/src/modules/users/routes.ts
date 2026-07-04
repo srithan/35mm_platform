@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import { profiles, follows, userBlocks, userMutes, users } from "@35mm/db/schema";
-import { getDb } from "../../lib/db.js";
+import { getDb, getWriteDb } from "../../lib/db.js";
 import { purgeFeedItemsBetweenUsers } from "../../lib/moderation.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest, notFound } from "../../lib/errors.js";
@@ -9,11 +9,21 @@ import {
   invalidateAuthorProfileFeedCaches,
   invalidateViewerFeedCaches,
 } from "../../lib/feedCache.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
+import { recordCounterDeltas, wakeCounterOutbox } from "../../lib/counterOutbox.js";
+import type { CounterIncrementJobPayload } from "../../lib/jobs.js";
 import { cursorPaginationSchema } from "@35mm/validators";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { resolveProfileAvatarUrl } from "../media/url.js";
 
 export var userRoutes = new Hono();
+
+var moderationWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "users:moderation",
+  limit: 60,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
 
 async function assertTargetUser(userId: string) {
   var db = getDb();
@@ -26,37 +36,80 @@ async function assertTargetUser(userId: string) {
   if (rows.length === 0) throw notFound("User not found");
 }
 
-userRoutes.post("/users/:userId/block", requireAuth, async function (c) {
+function deletedFollowCounterDeltas(rows: Array<{
+  followerId: string;
+  followingId: string;
+  status: "pending" | "accepted";
+}>): CounterIncrementJobPayload[] {
+  return rows
+    .filter(function (row) {
+      return row.status === "accepted";
+    })
+    .flatMap(function (row) {
+      return [
+        {
+          targetTable: "profiles" as const,
+          targetId: row.followingId,
+          counterName: "followerCount" as const,
+          delta: -1,
+        },
+        {
+          targetTable: "profiles" as const,
+          targetId: row.followerId,
+          counterName: "followingCount" as const,
+          delta: -1,
+        },
+      ];
+    });
+}
+
+userRoutes.post("/users/:userId/block", requireAuth, moderationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var targetUserId = c.req.param("userId");
   if (targetUserId === user.userId) throw badRequest("Cannot block yourself");
   await assertTargetUser(targetUserId);
 
-  var db = getDb();
-  await db
-    .insert(userBlocks)
-    .values({
-      blockerId: user.userId,
-      blockedId: targetUserId,
-    })
-    .onConflictDoNothing();
+  var deletedFollows = await getWriteDb().transaction(async function (tx) {
+    await tx
+      .insert(userBlocks)
+      .values({
+        blockerId: user.userId,
+        blockedId: targetUserId,
+      })
+      .onConflictDoNothing();
 
-  await db
-    .delete(follows)
-    .where(
-      or(
-        and(eq(follows.followerId, user.userId), eq(follows.followingId, targetUserId)),
-        and(eq(follows.followerId, targetUserId), eq(follows.followingId, user.userId))
+    var deletedRows = await tx
+      .delete(follows)
+      .where(
+        or(
+          and(eq(follows.followerId, user.userId), eq(follows.followingId, targetUserId)),
+          and(eq(follows.followerId, targetUserId), eq(follows.followingId, user.userId))
+        )
       )
-    );
+      .returning({
+        followerId: follows.followerId,
+        followingId: follows.followingId,
+        status: follows.status,
+      });
 
-  await db
-    .insert(userMutes)
-    .values({
-      muterId: user.userId,
-      mutedId: targetUserId,
-    })
-    .onConflictDoNothing();
+    var deltas = deletedFollowCounterDeltas(deletedRows);
+    if (deltas.length > 0) {
+      await recordCounterDeltas(tx, deltas);
+    }
+
+    await tx
+      .insert(userMutes)
+      .values({
+        muterId: user.userId,
+        mutedId: targetUserId,
+      })
+      .onConflictDoNothing();
+
+    return deletedRows;
+  });
+  if (deletedFollows.some(function (row) { return row.status === "accepted"; })) {
+    wakeCounterOutbox();
+  }
 
   await purgeFeedItemsBetweenUsers(user.userId, targetUserId);
   await invalidateViewerFeedCaches([user.userId, targetUserId]);
@@ -65,7 +118,7 @@ userRoutes.post("/users/:userId/block", requireAuth, async function (c) {
   return c.json({ ok: true });
 });
 
-userRoutes.delete("/users/:userId/block", requireAuth, async function (c) {
+userRoutes.delete("/users/:userId/block", requireAuth, moderationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var targetUserId = c.req.param("userId");
   if (targetUserId === user.userId) throw badRequest("Cannot unblock yourself");
@@ -81,7 +134,7 @@ userRoutes.delete("/users/:userId/block", requireAuth, async function (c) {
   return c.json({ ok: true });
 });
 
-userRoutes.post("/users/:userId/mute", requireAuth, async function (c) {
+userRoutes.post("/users/:userId/mute", requireAuth, moderationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var targetUserId = c.req.param("userId");
   if (targetUserId === user.userId) throw badRequest("Cannot mute yourself");
@@ -101,7 +154,7 @@ userRoutes.post("/users/:userId/mute", requireAuth, async function (c) {
   return c.json({ ok: true });
 });
 
-userRoutes.delete("/users/:userId/mute", requireAuth, async function (c) {
+userRoutes.delete("/users/:userId/mute", requireAuth, moderationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var targetUserId = c.req.param("userId");
   if (targetUserId === user.userId) throw badRequest("Cannot unmute yourself");

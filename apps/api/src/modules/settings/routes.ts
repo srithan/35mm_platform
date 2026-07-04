@@ -4,6 +4,7 @@ import { users, profiles, userSettings, type NotificationEmailPreferences } from
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { setActivityVisibilityCache } from "../chat/chatRedis.js";
 
 interface SettingsRecord {
@@ -315,13 +316,20 @@ function ensureBooleanish(value: unknown): boolean | null {
 
 export var settingsRoutes = new Hono();
 
+var settingsWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "settings:write",
+  limit: 30,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
+
 settingsRoutes.get("/", requireAuth, async function (c) {
   var user = c.get("user");
   var record = await fetchSettingsForUser(user.userId);
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/privacy", requireAuth, async function (c) {
+settingsRoutes.patch("/privacy", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();
@@ -365,7 +373,7 @@ settingsRoutes.patch("/privacy", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/notifications", requireAuth, async function (c) {
+settingsRoutes.patch("/notifications", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
 
@@ -440,7 +448,7 @@ settingsRoutes.patch("/notifications", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/profile", requireAuth, async function (c) {
+settingsRoutes.patch("/profile", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();
@@ -502,7 +510,7 @@ settingsRoutes.patch("/profile", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/appearance", requireAuth, async function (c) {
+settingsRoutes.patch("/appearance", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();
@@ -557,7 +565,7 @@ settingsRoutes.patch("/appearance", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/media", requireAuth, async function (c) {
+settingsRoutes.patch("/media", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();

@@ -87,8 +87,8 @@ function FloatingChatPill({
           : "Open messages"
       }
     >
-      <span className="flex items-center gap-3 min-w-0">
-        <span className="relative flex h-8 w-8 items-center justify-center rounded-full text-fg">
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="relative flex h-6 w-6 items-center justify-center rounded-full text-fg">
           <MessageCircle className="h-7 w-7" strokeWidth={2} />
           {unreadCount > 0 ? (
             <span className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3045] px-1.5 text-[11px] font-bold text-white ring-2 ring-bg tabular-nums">
@@ -332,6 +332,8 @@ export function FloatingChatInbox({
   const [composeSearch, setComposeSearch] = useState("");
   const [listSearch, setListSearch] = useState("");
   const [listFilter, setListFilter] = useState<"active" | "archived">("active");
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const listLoadMoreRef = useRef<HTMLDivElement>(null);
 
   const activeInboxQuery = useConversationsByUiFilter("active", enabled);
   const archivedInboxQuery = useConversationsByUiFilter("archived", enabled && open);
@@ -365,7 +367,7 @@ export function FloatingChatInbox({
             );
           })
         : chats;
-      return list.slice(0, 8);
+      return list;
     },
     [chats, listSearch]
   );
@@ -421,6 +423,48 @@ export function FloatingChatInbox({
   );
   const rowActionDisabled =
     setArchivedMutation.isPending || deleteConversationMutation.isPending;
+
+  const canLoadMoreConversations = listQuery.hasNextPage;
+  const isLoadingMoreConversations = listQuery.isFetchingNextPage;
+
+  const loadMoreConversations = useCallback(function (): void {
+    if (!listQuery.hasNextPage || listQuery.isFetchingNextPage) {
+      return;
+    }
+    void listQuery.fetchNextPage();
+  }, [listQuery]);
+
+  useEffect(
+    function () {
+      if (listSearch.trim() || !listQuery.hasNextPage) {
+        return;
+      }
+      const container = listScrollRef.current;
+      const sentinel = listLoadMoreRef.current;
+      if (!container || !sentinel) {
+        return;
+      }
+      const observer = new IntersectionObserver(
+        function (entries) {
+          const entry = entries[0];
+          if (!entry || !entry.isIntersecting) {
+            return;
+          }
+          loadMoreConversations();
+        },
+        {
+          root: container,
+          rootMargin: "0px 0px 180px 0px",
+          threshold: 0,
+        }
+      );
+      observer.observe(sentinel);
+      return function () {
+        observer.disconnect();
+      };
+    },
+    [listQuery.hasNextPage, listQuery.isFetchingNextPage, listSearch, loadMoreConversations]
+  );
 
   const handleRowMenuAction = useCallback(
     function (chat: ChatPreview, action: FloatingChatRowMenuAction): void {
@@ -814,7 +858,10 @@ export function FloatingChatInbox({
               </button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            ref={listScrollRef}
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
             {listQuery.isLoading ? (
               <div className="space-y-1 px-3 py-3" aria-hidden>
                 {[0, 1, 2, 3, 4].map(function (item) {
@@ -905,6 +952,21 @@ export function FloatingChatInbox({
                     />
                   );
                 })}
+                <div ref={listLoadMoreRef} />
+                {canLoadMoreConversations ? (
+                  <div className="px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={loadMoreConversations}
+                      disabled={isLoadingMoreConversations}
+                      className="w-full rounded-full border border-border bg-bg px-3 py-2 text-[12px] font-semibold text-fg disabled:opacity-60"
+                    >
+                      {isLoadingMoreConversations
+                        ? "Loading older conversations..."
+                        : "Load older conversations"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

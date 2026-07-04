@@ -306,6 +306,11 @@ export function ProfileListsPanel({ username, displayName, isOwnProfile }: Profi
                       }
                     : undefined
                 }
+                hasMoreEntries={Boolean(selectedListQuery.data?.entriesPage?.hasMore)}
+                isLoadingMoreEntries={selectedListQuery.isFetchingNextPage}
+                onLoadMoreEntries={function () {
+                  if (selectedListQuery.hasNextPage) void selectedListQuery.fetchNextPage();
+                }}
               />
             );
           })}

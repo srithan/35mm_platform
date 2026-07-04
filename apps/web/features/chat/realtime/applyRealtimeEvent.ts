@@ -62,15 +62,20 @@ function patchAllInfinitePages(
 }
 
 function patchConversationList(
-  prev: PaginatedConversations | undefined,
+  prev: InfiniteData<PaginatedConversations> | undefined,
   patchItem: (item: ChatPreview) => ChatPreview
-): PaginatedConversations | undefined {
+): InfiniteData<PaginatedConversations> | undefined {
   if (!prev) {
     return prev;
   }
   return {
     ...prev,
-    items: prev.items.map(patchItem),
+    pages: prev.pages.map(function (page) {
+      return {
+        ...page,
+        items: page.items.map(patchItem),
+      };
+    }),
   };
 }
 
@@ -144,7 +149,7 @@ export function applyChatRealtimeEvent(
   if (event.type === "conversation.patch") {
     let patched = false;
     (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
-      queryClient.setQueryData<PaginatedConversations>(
+      queryClient.setQueryData<InfiniteData<PaginatedConversations>>(
         chatQueryKeys.conversations(folder),
         function (prev) {
           return patchConversationList(prev, function (item) {

@@ -30,6 +30,8 @@ interface ProfileHeaderProps {
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
+  role?: string | null;
+  roleContext?: string | null;
   isPrivate?: boolean;
   followerCount: number;
   followingCount: number;
@@ -50,6 +52,8 @@ export function ProfileHeader({
   location: initialLocation = "",
   website: initialWebsite = "",
   dateOfBirth: initialDateOfBirth = "",
+  role: initialRole = null,
+  roleContext: initialRoleContext = null,
 	  followerCount,
 	  followingCount,
 	  filmsLoggedCount,
@@ -79,6 +83,8 @@ export function ProfileHeader({
     location: initialLocation,
     website: initialWebsite,
     dateOfBirth: initialDateOfBirth ?? "",
+    role: initialRole ?? "Cinephile",
+    roleContext: initialRoleContext ?? "",
   });
   const followToggleMutation = useFollowToggle(username);
   const blockMutation = useBlockUserMutation();
@@ -127,10 +133,22 @@ export function ProfileHeader({
       location: initialLocation ?? "",
       website: initialWebsite ?? "",
       dateOfBirth: initialDateOfBirth ?? "",
+      role: initialRole ?? "Cinephile",
+      roleContext: initialRoleContext ?? "",
     });
     setProfileImage(initialAvatarUrl);
     onAvatarUrlChange?.(initialAvatarUrl);
-  }, [initialDisplayName, username, initialBio, initialLocation, initialWebsite, initialDateOfBirth, initialAvatarUrl]);
+  }, [
+    initialDisplayName,
+    username,
+    initialBio,
+    initialLocation,
+    initialWebsite,
+    initialDateOfBirth,
+    initialRole,
+    initialRoleContext,
+    initialAvatarUrl,
+  ]);
 
   useEffect(() => {
     setIsMutedByViewer(initialIsMutedByViewer);
@@ -445,6 +463,8 @@ export function ProfileHeader({
         initialData={{
           displayName: profileData.displayName,
           dateOfBirth: profileData.dateOfBirth,
+          role: profileData.role,
+          roleContext: profileData.roleContext,
           bio: profileData.bio,
           location: profileData.location,
           website: profileData.website,

@@ -234,6 +234,11 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
         <ListEntriesPanel
           list={list}
           isOwner={isOwner}
+          hasMoreEntries={Boolean(list.entriesPage?.hasMore)}
+          isLoadingMoreEntries={listQuery.isFetchingNextPage}
+          onLoadMoreEntries={function () {
+            if (listQuery.hasNextPage) void listQuery.fetchNextPage();
+          }}
           onAddFilm={isOwner ? handleAddFilm : undefined}
           onEditNote={
             isOwner && list.type !== "watchlist"

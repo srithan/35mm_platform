@@ -86,7 +86,7 @@ Design conventions:
 | Framework | Hono v4 |
 | Contract style | REST, chosen over tRPC for Swift/Kotlin/native compatibility |
 | ORM | Drizzle ORM |
-| Database | Neon Postgres through `@neondatabase/serverless` |
+| Database | Neon Postgres through `@neondatabase/serverless`; HTTP driver for general reads and pooled Neon driver for transaction-required writes |
 | Auth | Clerk backend token verification |
 | Webhooks | Svix for Clerk webhooks |
 | Validation | Zod from `packages/validators` |
@@ -201,8 +201,10 @@ Request path:
 3. API protected routes use `requireAuth`.
 4. API verifies Clerk token, bootstraps missing local `users`, `profiles`, `user_settings`, and a private watchlist.
 5. API reads/writes Neon through Drizzle.
-6. API invalidates Redis caches and enqueues async jobs where needed.
-7. Worker consumes BullMQ jobs for media processing, notification publish, and suggestions.
+6. Public mutation routes apply Upstash-backed rate limits before writes. Rate limiting is fail-closed outside explicit test/disabled modes: missing/unreachable Redis returns `503 RATE_LIMIT_UNAVAILABLE`.
+7. API uses pooled Neon transactions for multi-table write units such as post+poll creation, repost materialization, list cloning, and chat thread metadata creation.
+8. API invalidates Redis caches and enqueues async jobs where needed. Counter-touching mutations also write durable `counter_jobs` rows in the same DB transaction as their fact-row changes, then best-effort wake the worker.
+9. Worker consumes BullMQ jobs for media processing, notification publish, and suggestions.
 
 ---
 
@@ -226,6 +228,7 @@ Source of truth: `packages/db/src/schema/*`.
   - `avatar_variants`: `{ sm?: string; lg?: string }`
   - `cover_variants`: `{ default?: string }`
 - Role/headline fields and onboarding completion state.
+- Edit Profile can update role/headline metadata through `/v1/profiles/me`; role changes write both role and headline fields so profile and post bylines stay aligned.
 - Favorite film IDs and genre IDs arrays.
 - Private account flag.
 - Denormalized `films_logged_count`.
@@ -270,13 +273,19 @@ Source of truth: `packages/db/src/schema/*`.
 - Join tables with unique `(post_id, user_id)` indexes.
 - `post_bookmarks` is the current table name. Do not use `post_saves`.
 - `post_bookmarks.folder_id` optionally points at `bookmark_folders`; deleting a folder sets saved posts back to unsorted bookmarks.
+- Bookmark listing uses user-first cursor indexes on `(user_id, created_at, post_id)` and `(user_id, folder_id, created_at, post_id)` so per-user and folder-filtered pages avoid post-first scans.
 
 `bookmark_folders`
 
 - Per-user bookmark folders.
 - UUID primary key.
 - `user_id` FK to `users`.
+- `item_count` cached folder total. The value is maintained by bookmark add/remove/move endpoints and is backfilled on migration for existing rows.
 - `name`, `created_at`, `updated_at`.
+
+`profiles`
+
+- `unsorted_bookmark_count` denormalized cache for `post_bookmarks` with `folder_id IS NULL`.
 
 `post_polls`, `poll_options`, `poll_votes`
 
@@ -316,6 +325,8 @@ Source of truth: `packages/db/src/schema/*`.
 - Recipient, optional actor, `actor_ids` bundle array.
 - Type enum: `like | comment | reply | follow | follow_request | follow_request_approved | mention | repost`.
 - Entity ID/type, read state, bundle count, created timestamp.
+- Unread bundle writes are indexed by partial index `notifications_unread_bundle_lookup_idx` on
+  `(recipient_id, type, entity_type, entity_id, created_at)` with `WHERE is_read = false`.
 
 ### Feed Materialization
 
@@ -344,6 +355,7 @@ Source of truth: `packages/db/src/schema/*`.
 - Text primary key, intended to be ULID.
 - List, film, position, note, added timestamp.
 - Unique `(list_id, film_id)`.
+- Composite `(list_id, COALESCE(position, -1), added_at, id)` index supports keyset list-entry pagination order used by `/v1/lists/:listId` with nullable `position`.
 
 `film_list_likes`
 
@@ -418,6 +430,7 @@ Profiles, follows, moderation:
 - `GET /v1/profiles/search`
 - `GET /v1/profiles/:username`
 - `PATCH /v1/profiles/me`
+  - switching a private profile to public writes one `profile_follow_approval_outbox` row in the same DB transaction as profile visibility, and `counter.outbox` drains it through bounded `profile.followApproval` batches
 - `GET /v1/profiles/:username/followers`
 - `GET /v1/profiles/:username/following`
 - `GET /v1/profiles/:username/follow-requests`
@@ -444,6 +457,8 @@ Feed, posts, comments, polls:
 - `POST /v1/feed/bookmarks/folders`
 - `PATCH /v1/feed/bookmarks/folders/:folderId`
 - `DELETE /v1/feed/bookmarks/folders/:folderId`
+- `GET /v1/feed/bookmarks/folders` reads folder totals from `bookmark_folders.item_count` (denormalized) to avoid per-folder full-history scans; unsorted totals come from denormalized `profiles.unsorted_bookmark_count`.
+- `DELETE /v1/feed/bookmarks/folders/:folderId` relies on FK `set null` so child bookmarks move to unsorted bucket; unsorted totals are incremented by the deleted-folder transfer count.
 - `PATCH /v1/feed/posts/:postId`
 - `DELETE /v1/feed/posts/:postId`
 - `POST /v1/feed/posts/:postId/likes`
@@ -477,7 +492,7 @@ Lists and watchlists:
 - `DELETE /v1/lists/:listId/entries/:entryId`
 - `POST /v1/lists/:listId/like`
 - `DELETE /v1/lists/:listId/like`
-- `POST /v1/lists/:listId/clone`
+- `POST /v1/lists/:listId/clone` (`503 LIST_CLONE_QUEUE_UNAVAILABLE` on queue enqueue failure)
 - `GET /v1/lists/watchlist/films/:filmId`
 - `POST /v1/lists/watchlist/films`
 - `DELETE /v1/lists/watchlist/films/:filmId`
@@ -529,6 +544,7 @@ Chat:
 - `POST /v1/chat/presence/batch`
 
 Chat uses hybrid storage. Postgres stores `chat_threads`, `chat_participants`, `chat_member_state`, and `chat_thread_meta`; AWS Keyspaces stores `thirtyFiveMM.messages`, `thirtyFiveMM.message_edits`, and high-scale `thirtyFiveMM.message_reactions`. Redis stores unread counters, typing indicators in a short-lived sorted set, online presence with a 65 second TTL, last-seen presence markers retained for 35 days, and cached `showActivityStatus` privacy flags. Inbox/presence reads use batched Redis `MGET` instead of per-thread/per-user loops, and presence batch responses enforce activity-status privacy server-side. The API publishes latency-sensitive chat realtime events directly to Ably after durable state is written: new message thread events, small-conversation inbox unread updates, message edit/reaction updates, typing, and read receipts. First-time chat reaction adds also create `chat_reaction` notifications for the original message sender, increment that sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch. BullMQ jobs `chat.deliver`, `chat.messageUpdated`, `chat.readReceipt`, and `chat.typing` remain fallback/asynchronous paths for publish failures, large inbox fanout, and delete/update recovery. The web `ChatRealtimeProvider` subscribes to those channels when `NEXT_PUBLIC_ABLY_API_KEY` is configured, patches active-thread messages and inbox unread rows, and sends throttled presence heartbeats while signed in. On desktop, signed-in users also get a route-independent floating chat inbox mounted from `app/providers.tsx` outside `/chat`; opening a thread there registers that thread as the active realtime subscription so messages, typing, and read receipts update in place without navigating to `/chat`. Chat headers batch-read active thread member presence to render online, active-ago, and offline labels without persisting presence query cache. Read receipt snapshots use normal stale React Query reads without polling; typing snapshots are development-only fallback when realtime is not configured. A future ScyllaDB Cloud migration can swap the Cassandra contact point while preserving schema and query shapes.
+`POST /v1/chat/threads` now resolves existing DM threads by deterministic pair identity (`chat_threads.dm_member_low`, `chat_threads.dm_member_high`) and a partial unique pair index, not by scanning viewer inbox participants.
 
 ---
 
@@ -567,7 +583,7 @@ Important app routes:
 
 Next app API routes:
 
-- `/api/tmdb/[...path]`: server-side TMDB proxy.
+- `/api/tmdb/[...path]`: server-side TMDB proxy with Upstash Redis REST response caching and IP rate limiting.
 - `/api/notifications`: legacy/mock notification data.
 
 Feature ownership:
@@ -612,15 +628,16 @@ Write path:
 
 1. Web composer validates and submits post payload.
 2. API validates with `createPostSchema`.
-3. API writes post, poll rows if needed, the author's own feed item row, and edit/history metadata.
-4. API writes interaction fact rows synchronously and enqueues `counter.increment` for denormalized counters instead of updating hot counter rows inline.
+3. API writes post, poll rows if needed, the author's own feed item row, and edit/history metadata in a pooled Neon transaction.
+4. API writes interaction fact rows synchronously and writes matching `counter_jobs` rows in the same pooled Neon transaction, instead of updating hot counter rows inline. The worker drains the durable counter outbox and applies batched `counter.increment` updates; BullMQ enqueue only wakes the worker and is not the durability boundary.
 5. API enqueues `feed.fanout` for accepted followers when the post should enter home feeds.
 6. API creates mention notifications and enqueues media processing if media exists.
-7. API invalidates author/guest feed caches; the worker invalidates viewer caches as materialized rows are written.
+7. API invalidates author/actor/guest feed caches for author mutations. Post interactions invalidate only bounded caches: the actor viewer cache, the post owner's viewer cache, and the post owner's profile-feed cache. It does not load every follower for cache invalidation; follower feeds rely on short feed TTLs, materialized feed writes, and async counter/rescore jobs for broad freshness.
 
 Interactions:
 
 - Likes, reposts, bookmarks, poll votes, comment CRUD, and comment likes are real API paths.
+- Feed mutations are user-rate-limited by route family: create posts, post edits/deletes, interactions, bookmark folders, and comment writes.
 - Notifications are created for relevant social actions.
 - Rich text mentions are hydrated and can create mention notifications.
 
@@ -632,12 +649,13 @@ Scale target:
 
 Current feed behavior:
 
-- `feed.fanout` writes follower `feed_items` in cursor-paginated chunks and skips high-follower authors.
+- `feed.fanout` reads `profiles.follower_count` and writes follower `feed_items` in cursor-paginated chunks for non-high-follower authors.
 - `FEED_HIGH_FOLLOWER_THRESHOLD` defaults to `10000`, matching the architecture target, and can be overridden per environment.
 - `FEED_FANOUT_BATCH_SIZE` defaults to `500` and is capped by the worker at `2000`.
 - Authenticated home feed reads materialized `feed_items` plus live recent posts from followed high-follower accounts, ordered by score + post ID.
 - Feed score formula is `1000 * exp(-ageHours / 36) + 120 * ln(1 + likes + comments*3 + reposts*4)`.
 - `feed_items.score` is computed at fanout/backfill/write time from denormalized post counters, and `feed.rescore` periodically refreshes recent rows after async counter deltas settle.
+- `GET /v1/feed/posts/:postId` is viewer-specific because it includes `isLiked`, `isBookmarked`, `isReposted`, and bookmark folder state. The route is served with `Cache-Control: no-store`; browser/HTTP caches must not reuse detail payloads across interaction state changes. Detail/action payloads add pending `counter_job_deltas` for that one post to denormalized counters, so the viewer sees their interaction count change while the worker catches up without scanning fact tables. Feed/profile/bookmark pages apply the same pending-delta overlay in one grouped query for the visible page.
 - `feed_items` retention defaults to 30 days (`FEED_ITEMS_RETENTION_DAYS`). This keeps the hot materialized table bounded while covering the practical depth of normal social feed pagination; users who page beyond that switch to the cold path.
 - `feed.pruneFeedItems` runs as a repeatable worker job every 60 minutes by default, deleting old `feed_items` in indexed `(created_at, id)` chunks of 5,000 rows, up to 20 chunks per run. It logs pruned rows and distinct touched viewers; it relies on the 60-second feed cache TTL instead of issuing per-viewer Redis invalidations during prune.
 - Authenticated home feed cursors include score, post ID, ranking timestamp, and the materialized row creation time when a row came from `feed_items`. When that materialized cursor anchor reaches the retention boundary, the API bypasses feed cache and reads that page from `posts` for the viewer's own posts plus accepted followees.
@@ -646,14 +664,17 @@ Current feed behavior:
 - Authenticated home feeds that include high-follower live rows cache the final per-viewer merged page with the normal feed payload TTL and also cache the viewer-independent slice: recent rows for each high-follower author, keyed by author ID.
 - `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaults to 45 seconds. This intentionally allows high-follower author scores/counters/profile fields to be up to TTL seconds stale in exchange for sharing one cached author slice across many followers.
 - `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaults to 100 rows per author. Deep pagination beyond the cached slice falls back to a direct per-author DB query for that rare page.
-- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, and film list like/entry counters.
-- Counter jobs are batched in the worker for a short window before writing Postgres; the manual reconciliation path is `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`.
+- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/follower/following counters, and film list like/entry counters.
+- `counter.outbox`: worker drains pending rows with row locks, batches by target/counter, and now loops until empty or a configured time budget (`COUNTER_OUTBOX_LOOP_BUDGET_MS`) before ending. If a full batch is processed and backlog remains, worker self-enqueues follow-up `counter.outbox` work to keep up with burst writes.
+- Counter jobs are durable through `counter_jobs`: API counter-touching mutations write outbox rows in the same transaction as the fact mutation, then best-effort enqueue `counter.outbox` to wake the worker. The worker deletes processed `counter_jobs` rows and decrements `counter_job_deltas`, and also drains `profile_follow_approval_outbox` rows in the same loop and re-schedules `profile.followApproval` pages when needed. If BullMQ is unavailable, the repeatable `counter.outbox` worker job still drains pending DB rows when the queue returns. Manual reconciliation path: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`.
 
 ---
 
 ## 9. Film Lists, Watchlists, and Catalog Resolution
 
 Business role: user-curated film identity surfaces and private watchlist.
+
+List mutations are user-rate-limited by route family: list writes, entry/watchlist writes, likes, and clones. Clone writes the new list row plus first entry chunk (`LIST_ENTRIES_PAGE_SIZE`) in one pooled Neon transaction, then enqueues `list.clone` jobs for remaining chunks. If queue enqueue fails, API returns `503 LIST_CLONE_QUEUE_UNAVAILABLE` and aborts the clone transaction.
 
 Resolution inputs:
 
@@ -689,7 +710,8 @@ Creation path:
 
 1. API calls `createNotification`.
 2. Preferences, mutes, blocks, and self-action rules can skip creation.
-3. Unread notifications for the same recipient/type/entity can bundle.
+3. Unread notifications for the same recipient/type/entity can bundle using the partial index in step shape:
+   `WHERE recipient_id = ?, type = ?, entity_type = ?, entity_id = ?, is_read = false ORDER BY created_at`
 4. API enqueues `notification.publish`.
 5. Worker reads notification and actor profiles.
 6. Worker publishes Ably `notification.new` to `user:{recipientId}:notifications`.
@@ -700,6 +722,7 @@ Client path:
 
 - Web notifications use React Query for list/read/unread state.
 - Follow requests use a dedicated `/v1/follows/requests/received` data source and render in a separate tray above the regular activity notification feed.
+- `POST /v1/me/notifications/read-all` updates unread rows up to a fixed DB cutoff in bounded batches and returns only `updatedCount`; it does not materialize notification IDs in the response path.
 - Global providers install realtime, title badge, and sound side effects.
 - Realtime provider can run with noop transport when Ably is not configured.
 
@@ -796,9 +819,22 @@ Implemented:
 - `notification.publish`: Ably notification publish.
 - `compute-suggestions`: friend-of-friend follow suggestions.
 - `counter.increment`: batched denormalized counter deltas for hot social/list/poll counters.
+- `counter.outbox`: durable `counter_jobs` and `profile_follow_approval_outbox` drain, now run with bounded time budget loops and emit `backlog` + `followUp` metrics in worker result payloads.
+- `counter_job_deltas`: aggregates active `counter_jobs` deltas by `(target_table, target_id, counter_name)` to keep feed overlays bounded to active keys.
 - `feed.fanout`: materializes new posts into accepted followers' `feed_items` below the high-follower threshold; skips high-follower authors for live read merge.
 - `feed.rescore`: recomputes scores for recent materialized `feed_items` from denormalized post counters and invalidates touched viewer caches.
 - `feed.pruneFeedItems`: deletes materialized feed rows older than the retention window in small indexed batches; `feed.rescore` uses the retention boundary as a lower cutoff so it does not refresh rows about to be pruned. Prune does not target-invalidate viewer caches because feed payload TTL is short and per-viewer invalidation can be more expensive than the old rows being removed.
+
+Transaction-capable DB writes:
+
+- `packages/db` exposes both `createDb()` for Neon HTTP reads/simple statements and `createPooledDb()` for Neon pooled driver transactions.
+- `apps/api/src/lib/db.ts` exposes `getWriteDb()` for multi-table write paths.
+- Current transaction-converted write units: post+poll+own-feed-item create, poll vote, post/comment/list interaction facts plus counter outbox rows, follow/unfollow/accept plus profile counter outbox rows, private->public follow-approval via `profile_follow_approval_outbox` + `counter.outbox`, onboarding profile+follow writes, user/profile/settings creation, block+follow cleanup+mute, repost fact+repost-post+own-feed-item create, repost delete+soft-delete, list clone (first chunk + queue enqueue), and chat thread Postgres metadata create.
+
+Rate limiting:
+
+- `apps/api/src/lib/rateLimit.ts` uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is missing or command checks fail.
+- Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, and media presign have route-family rate limiters. Public email unsubscribe POST is IP-limited. `RATE_LIMIT_DISABLED=true` remains the explicit local/test escape hatch.
 
 Stub or incomplete:
 
@@ -899,6 +935,7 @@ CF_IMAGES_DEFAULT_THUMB_VARIANT=
 CF_IMAGES_DEFAULT_FEED_VARIANT=
 CF_IMAGES_DEFAULT_FULL_VARIANT=
 COUNTER_BATCH_WINDOW_MS=
+COUNTER_OUTBOX_LOOP_BUDGET_MS=
 FEED_HIGH_FOLLOWER_THRESHOLD=
 FEED_FANOUT_BATCH_SIZE=
 FEED_RESCORE_MAX_AGE_HOURS=

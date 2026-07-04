@@ -146,6 +146,9 @@ export var notifications = pgTable(
         table.createdAt
       ),
       recipientIsReadIdx: index("notifications_recipient_id_is_read_idx").on(table.recipientId, table.isRead),
+      unreadBundleLookupIdx: index("notifications_unread_bundle_lookup_idx")
+        .on(table.recipientId, table.type, table.entityType, table.entityId, table.createdAt)
+        .where(sql`${table.isRead} = false`),
     };
   }
 );
@@ -189,6 +192,78 @@ export var postEdits = pgTable(
     body: text("body").notNull(),
     headline: text("headline"),
     editedAt: timestamp("edited_at", { withTimezone: true }).defaultNow().notNull(),
+  }
+);
+
+export var counterJobs = pgTable(
+  "counter_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    targetTable: text("target_table").notNull(),
+    targetId: text("target_id").notNull(),
+    counterName: text("counter_name").notNull(),
+    delta: integer("delta").notNull(),
+    status: text("status").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      statusCreatedAtIdx: index("counter_jobs_status_created_at_idx").on(table.status, table.createdAt),
+      targetIdx: index("counter_jobs_target_idx").on(table.targetTable, table.counterName, table.targetId),
+      deltaNonzeroCheck: check("counter_jobs_delta_nonzero_chk", sql`${table.delta} <> 0`),
+    };
+  }
+);
+
+export var counterJobDeltas = pgTable(
+  "counter_job_deltas",
+  {
+    targetTable: text("target_table").notNull(),
+    targetId: text("target_id").notNull(),
+    counterName: text("counter_name").notNull(),
+    delta: integer("delta").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      targetCounterIdx: uniqueIndex("counter_job_deltas_target_counter_idx").on(
+        table.targetTable,
+        table.targetId,
+        table.counterName
+      ),
+      targetIdx: index("counter_job_deltas_target_table_id_idx").on(table.targetTable, table.targetId),
+    };
+  }
+);
+
+export var profileFollowApprovalOutbox = pgTable(
+  "profile_follow_approval_outbox",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    targetUserId: uuid("target_user_id")
+      .notNull()
+      .references(function () {
+        return users.id;
+      }, { onDelete: "cascade" }),
+    cursor: text("cursor"),
+    status: text("status").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      targetUserIdx: uniqueIndex("profile_follow_approval_outbox_target_user_id_idx").on(table.targetUserId),
+      statusNextAttemptIdx: index("profile_follow_approval_outbox_status_next_attempt_idx").on(table.status, table.nextAttemptAt),
+    };
   }
 );
 

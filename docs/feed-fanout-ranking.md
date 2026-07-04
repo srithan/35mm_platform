@@ -26,7 +26,7 @@ New post/repost write flow:
 1. API creates the `posts` row.
 2. API writes only the author's own `feed_items` row synchronously when the post should enter feeds.
 3. API enqueues `feed.fanout` with `{ postId, authorUserId }`.
-4. Worker reads the post and accepted follower count.
+4. Worker reads `profiles.follower_count` for the author.
 5. Worker skips private/deleted posts.
 6. Worker skips high-follower authors.
 7. Worker paginates accepted followers and inserts follower `feed_items` in chunks.
@@ -36,7 +36,7 @@ High-follower behavior:
 
 - Default threshold: `10000`.
 - Env override: `FEED_HIGH_FOLLOWER_THRESHOLD`.
-- Authors with accepted follower count `>= threshold` skip write fanout.
+- Authors with `profiles.follower_count >= threshold` skip write fanout.
 - Their posts are merged live into followed viewers' home feed read path.
 
 Fanout batching:

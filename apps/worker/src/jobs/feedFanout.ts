@@ -1,7 +1,7 @@
 import { createDb, type Db } from "@35mm/db";
-import { feedItems, follows, posts } from "@35mm/db/schema";
+import { feedItems, follows, posts, profiles } from "@35mm/db/schema";
 import { computeFeedScore } from "@35mm/types";
-import { and, asc, count, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, gt, or } from "drizzle-orm";
 import { loadWorkerEnv } from "../lib/env.js";
 import { invalidateViewerFeedCaches } from "../lib/feedCache.js";
 
@@ -66,13 +66,16 @@ function assertPayload(value: unknown): FeedFanoutJobPayload {
   };
 }
 
-async function acceptedFollowerCount(database: Db, authorUserId: string): Promise<number> {
+async function authorFollowerCount(database: Db, authorUserId: string): Promise<number> {
   var rows = await database
-    .select({ value: count() })
-    .from(follows)
-    .where(and(eq(follows.followingId, authorUserId), eq(follows.status, "accepted")));
+    .select({
+      followerCount: profiles.followerCount,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, authorUserId))
+    .limit(1);
 
-  return Number(rows[0]?.value ?? 0);
+  return Number(rows[0]?.followerCount ?? 0);
 }
 
 async function followerPage(database: Db, authorUserId: string, size: number, cursor: FollowerCursor | null) {
@@ -139,7 +142,7 @@ export async function runFeedFanoutJob(payloadValue: unknown): Promise<FeedFanou
     throw new Error("Invalid feed.fanout payload: authorUserId does not match post");
   }
 
-  var followerCount = await acceptedFollowerCount(database, post.userId);
+  var followerCount = await authorFollowerCount(database, post.userId);
   var baseResult = {
     postId: post.id,
     authorUserId: post.userId,

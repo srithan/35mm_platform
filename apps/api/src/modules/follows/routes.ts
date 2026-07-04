@@ -1,10 +1,12 @@
 import { Hono } from "hono";
-import { and, count, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { computeFeedScore } from "@35mm/types";
 import { feedItems, follows, posts, profiles, users } from "@35mm/db/schema";
-import { getDb } from "../../lib/db.js";
+import { getDb, getWriteDb } from "../../lib/db.js";
 import { createNotification } from "../../lib/notifications.js";
+import type { CounterIncrementJobPayload } from "../../lib/jobs.js";
+import { recordCounterDeltas, wakeCounterOutbox } from "../../lib/counterOutbox.js";
 import { assertNoBlockBetween } from "../../lib/moderation.js";
 import { enqueueSuggestionRefresh } from "../../lib/queues/suggestionQueue.js";
 import { requireAuth } from "../../lib/middleware.js";
@@ -14,19 +16,50 @@ import {
   invalidateAuthorProfileFeedCaches,
   invalidateViewerFeedCaches,
 } from "../../lib/feedCache.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { feedHighFollowerThreshold } from "../feed/fanoutConfig.js";
 import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
 export var followRoutes = new Hono();
 const FOLLOW_BACKFILL_LIMIT = 200;
 
+var followWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "follows:write",
+  limit: 60,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
+var MAX_MUTUAL_FOLLOWER_COUNTS_PER_PAGE = 24;
+
 async function isHighFollowerAccount(userId: string): Promise<boolean> {
   var db = getDb();
   var rows = await db
-    .select({ value: count() })
-    .from(follows)
-    .where(and(eq(follows.followingId, userId), eq(follows.status, "accepted")));
+    .select({ value: profiles.followerCount })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
   return Number(rows[0]?.value ?? 0) >= feedHighFollowerThreshold();
+}
+
+function followCounterDeltas(input: {
+  followerId: string;
+  followingId: string;
+  delta: 1 | -1;
+}): CounterIncrementJobPayload[] {
+  return [
+    {
+      targetTable: "profiles",
+      targetId: input.followingId,
+      counterName: "followerCount",
+      delta: input.delta,
+    },
+    {
+      targetTable: "profiles",
+      targetId: input.followerId,
+      counterName: "followingCount",
+      delta: input.delta,
+    },
+  ];
 }
 
 async function assertTargetExists(userId: string) {
@@ -57,7 +90,60 @@ async function isPrivateAccount(userId: string): Promise<boolean> {
   return Boolean(rows[0]?.isPrivate ?? false);
 }
 
-followRoutes.post("/:userId", requireAuth, async function (c) {
+async function mutualFollowerCountsForRequesters(
+  viewerId: string,
+  requesterIds: string[]
+): Promise<Map<string, number>> {
+  if (requesterIds.length === 0) return new Map<string, number>();
+
+  if (await isHighFollowerAccount(viewerId)) {
+    return new Map<string, number>();
+  }
+
+  var requesterFollower = alias(follows, "requester_follower");
+  var viewerFollower = alias(follows, "viewer_follower");
+  var rows = await getDb()
+    .select({
+      requesterId: follows.followerId,
+      mutualFollowerCount: sql<number>`count(distinct ${viewerFollower.followerId})`,
+    })
+    .from(follows)
+    .leftJoin(
+      requesterFollower,
+      and(
+        eq(requesterFollower.followingId, follows.followerId),
+        eq(requesterFollower.status, "accepted")
+      )
+    )
+    .leftJoin(
+      viewerFollower,
+      and(
+        eq(viewerFollower.followingId, viewerId),
+        eq(viewerFollower.status, "accepted"),
+        eq(viewerFollower.followerId, requesterFollower.followerId)
+      )
+    )
+    .where(
+      and(
+        eq(follows.followingId, viewerId),
+        eq(follows.status, "pending"),
+        inArray(follows.followerId, requesterIds)
+      )
+    )
+    .groupBy(follows.followerId)
+    .orderBy(desc(follows.createdAt), desc(follows.followerId));
+
+  var map = new Map<string, number>();
+  var index = 0;
+  for (index = 0; index < rows.length; index += 1) {
+    var row = rows[index];
+    map.set(row.requesterId, Number(row.mutualFollowerCount ?? 0));
+  }
+
+  return map;
+}
+
+followRoutes.post("/:userId", requireAuth, followWriteRateLimit, async function (c) {
   var user = c.get("user");
   var followingId = c.req.param("userId");
 
@@ -70,15 +156,28 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
   var targetIsPrivate = await isPrivateAccount(followingId);
 
   var db = getDb();
-  var inserted = await db
-    .insert(follows)
-    .values({
-      followerId: user.userId,
-      followingId,
-      status: targetIsPrivate ? "pending" : "accepted",
-    })
-    .onConflictDoNothing()
-    .returning({ followerId: follows.followerId, status: follows.status });
+  var inserted = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .insert(follows)
+      .values({
+        followerId: user.userId,
+        followingId,
+        status: targetIsPrivate ? "pending" : "accepted",
+      })
+      .onConflictDoNothing()
+      .returning({ followerId: follows.followerId, status: follows.status });
+
+    if (rows[0]?.status === "accepted") {
+      await recordCounterDeltas(tx, followCounterDeltas({
+        followerId: user.userId,
+        followingId,
+        delta: 1,
+      }));
+    }
+
+    return rows;
+  });
+  if (inserted[0]?.status === "accepted") wakeCounterOutbox();
 
   // Backfill recent visible posts into the follower's materialized feed so
   // newly-followed accounts appear immediately without waiting for next post.
@@ -182,7 +281,7 @@ followRoutes.post("/:userId", requireAuth, async function (c) {
   });
 });
 
-followRoutes.delete("/:userId", requireAuth, async function (c) {
+followRoutes.delete("/:userId", requireAuth, followWriteRateLimit, async function (c) {
   var user = c.get("user");
   var followingId = c.req.param("userId");
 
@@ -193,10 +292,23 @@ followRoutes.delete("/:userId", requireAuth, async function (c) {
   await assertTargetExists(followingId);
 
   var db = getDb();
-  var deleted = await db
-    .delete(follows)
-    .where(and(eq(follows.followerId, user.userId), eq(follows.followingId, followingId)))
-    .returning({ followerId: follows.followerId });
+  var deleted = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .delete(follows)
+      .where(and(eq(follows.followerId, user.userId), eq(follows.followingId, followingId)))
+      .returning({ followerId: follows.followerId, status: follows.status });
+
+    if (rows[0]?.status === "accepted") {
+      await recordCounterDeltas(tx, followCounterDeltas({
+        followerId: user.userId,
+        followingId,
+        delta: -1,
+      }));
+    }
+
+    return rows;
+  });
+  if (deleted[0]?.status === "accepted") wakeCounterOutbox();
 
   if (deleted.length > 0) {
     await db
@@ -224,7 +336,7 @@ followRoutes.delete("/:userId", requireAuth, async function (c) {
   });
 });
 
-followRoutes.post("/:userId/accept", requireAuth, async function (c) {
+followRoutes.post("/:userId/accept", requireAuth, followWriteRateLimit, async function (c) {
   var user = c.get("user");
   var followerId = c.req.param("userId");
 
@@ -235,18 +347,30 @@ followRoutes.post("/:userId/accept", requireAuth, async function (c) {
   await assertTargetExists(followerId);
 
   var db = getDb();
-  var result = await db.execute(sql`
-    with updated_follow as (
-      update ${follows}
-      set status = 'accepted'
-      where ${follows.followerId} = ${followerId}
-        and ${follows.followingId} = ${user.userId}
-        and ${follows.status} = 'pending'
-      returning ${follows.followerId} as follower_id
-    )
-    select follower_id from updated_follow
-  `) as { rows: Array<{ follower_id: string }> };
-  var updated = result.rows;
+  var updated = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .update(follows)
+      .set({ status: "accepted" })
+      .where(
+        and(
+          eq(follows.followerId, followerId),
+          eq(follows.followingId, user.userId),
+          eq(follows.status, "pending")
+        )
+      )
+      .returning({ followerId: follows.followerId });
+
+    if (rows.length > 0) {
+      await recordCounterDeltas(tx, followCounterDeltas({
+        followerId,
+        followingId: user.userId,
+        delta: 1,
+      }));
+    }
+
+    return rows;
+  });
+  if (updated.length > 0) wakeCounterOutbox();
 
   if (updated.length > 0) {
     await createNotification({
@@ -269,8 +393,6 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
   var limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 50) : 20;
   var cursor = decodeCompositeCursor(c.req.query("cursor"));
   var db = getDb();
-  var requesterFollower = alias(follows, "requester_follower");
-  var viewerFollower = alias(follows, "viewer_follower");
 
   var cursorFilter = cursor
     ? or(
@@ -278,11 +400,6 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
         and(eq(follows.createdAt, cursor.createdAt), lt(follows.followerId, cursor.id))
       )
     : undefined;
-
-  var totalRows = await db
-    .select({ value: count() })
-    .from(follows)
-    .where(and(eq(follows.followingId, user.userId), eq(follows.status, "pending")));
 
   var rows = await db
     .select({
@@ -292,25 +409,9 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
       requestedAt: follows.createdAt,
-      mutualFollowerCount: sql<number>`count(distinct ${viewerFollower.followerId})`,
     })
     .from(follows)
     .innerJoin(profiles, eq(profiles.userId, follows.followerId))
-    .leftJoin(
-      requesterFollower,
-      and(
-        eq(requesterFollower.followingId, follows.followerId),
-        eq(requesterFollower.status, "accepted")
-      )
-    )
-    .leftJoin(
-      viewerFollower,
-      and(
-        eq(viewerFollower.followingId, user.userId),
-        eq(viewerFollower.status, "accepted"),
-        eq(viewerFollower.followerId, requesterFollower.followerId)
-      )
-    )
     .where(
       and(
         eq(follows.followingId, user.userId),
@@ -318,12 +419,30 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
         cursorFilter
       )
     )
-    .groupBy(follows.followerId, profiles.username, profiles.displayName, profiles.avatarUrl, profiles.avatarVariants, follows.createdAt)
+    .groupBy(
+      follows.followerId,
+      profiles.username,
+      profiles.displayName,
+      profiles.avatarUrl,
+      profiles.avatarVariants,
+      follows.createdAt
+    )
     .orderBy(desc(follows.createdAt), desc(follows.followerId))
     .limit(limit + 1);
 
   var visibleRows = rows.slice(0, limit);
   var tail = visibleRows[visibleRows.length - 1];
+  var hasMore = rows.length > limit;
+  var mutualRequesterIds = visibleRows
+    .slice(0, MAX_MUTUAL_FOLLOWER_COUNTS_PER_PAGE)
+    .map(function (row) {
+      return row.requesterId;
+    });
+  var mutualFollowerCounts = await mutualFollowerCountsForRequesters(
+    user.userId,
+    mutualRequesterIds
+  );
+  var total = hasMore ? visibleRows.length + 1 : visibleRows.length;
 
   return c.json({
     requests: await Promise.all(visibleRows.map(async function (row) {
@@ -333,18 +452,19 @@ followRoutes.get("/requests/received", requireAuth, async function (c) {
         displayName: row.displayName,
         avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.requesterId, row.avatarVariants as AvatarVariants | null, "sm"),
         avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.requesterId, row.avatarVariants as AvatarVariants | null, "lg"),
-        mutualFollowerCount: Number(row.mutualFollowerCount ?? 0),
+        mutualFollowerCount: Number(mutualFollowerCounts.get(row.requesterId) ?? 0),
         requestedAt: row.requestedAt.toISOString(),
       };
     })),
-    total: Number(totalRows[0]?.value ?? 0),
+    total,
+    hasMore,
     nextCursor: rows.length > limit && tail
       ? encodeCompositeCursor({ createdAt: tail.requestedAt, id: tail.requesterId })
       : null,
   });
 });
 
-followRoutes.delete("/:userId/request", requireAuth, async function (c) {
+followRoutes.delete("/:userId/request", requireAuth, followWriteRateLimit, async function (c) {
   var user = c.get("user");
   var followerId = c.req.param("userId");
 

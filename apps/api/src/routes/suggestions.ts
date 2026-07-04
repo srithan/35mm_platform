@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { followSuggestions, follows, profiles, users } from "@35mm/db/schema";
 import type { FollowSuggestion } from "@35mm/types";
 import { getDb } from "../lib/db.js";
@@ -72,12 +72,48 @@ async function readSuggestionRows(userId: string, candidateIds: string[]) {
       signalType: followSuggestions.signalType,
     })
     .from(followSuggestions)
+    .leftJoin(
+      follows,
+      and(
+        eq(follows.followerId, userId),
+        eq(follows.followingId, followSuggestions.suggestedUserId)
+      )
+    )
     .where(
       and(
         eq(followSuggestions.userId, userId),
-        inArray(followSuggestions.suggestedUserId, candidateIds)
+        inArray(followSuggestions.suggestedUserId, candidateIds),
+        isNull(follows.followingId)
       )
     );
+}
+
+async function readTopSuggestionRows(userId: string, limit: number) {
+  if (limit <= 0) return [];
+
+  var db = getDb();
+  return db
+    .select({
+      suggestedUserId: followSuggestions.suggestedUserId,
+      score: followSuggestions.score,
+      signalType: followSuggestions.signalType,
+    })
+    .from(followSuggestions)
+    .leftJoin(
+      follows,
+      and(
+        eq(follows.followerId, userId),
+        eq(follows.followingId, followSuggestions.suggestedUserId)
+      )
+    )
+    .where(
+      and(
+        eq(followSuggestions.userId, userId),
+        isNull(follows.followingId)
+      )
+    )
+    .orderBy(desc(followSuggestions.score))
+    .limit(limit);
 }
 
 async function asFollowSuggestion(
@@ -155,20 +191,8 @@ suggestionsRoutes.get("/suggestions/users", requireAuth, async function (c) {
       | [];
 
     if (cachedIds.length === 0) {
-      var db = getDb();
-      var dbRows = await db
-        .select({
-          suggestedUserId: followSuggestions.suggestedUserId,
-          score: followSuggestions.score,
-          signalType: followSuggestions.signalType,
-        })
-        .from(followSuggestions)
-        .where(eq(followSuggestions.userId, userId))
-        .orderBy(desc(followSuggestions.score))
-        .limit(50);
-
-      suggestionRows = dbRows;
-      cachedIds = dbRows.map(function (row) {
+      suggestionRows = await readTopSuggestionRows(userId, 50);
+      cachedIds = suggestionRows.map(function (row) {
         return row.suggestedUserId;
       }).filter(function (value) {
         return value !== userId;
@@ -194,18 +218,6 @@ suggestionsRoutes.get("/suggestions/users", requireAuth, async function (c) {
 
     var filteredRows = suggestionRows.filter(function (row) {
       return row.suggestedUserId !== userId;
-    });
-    var followedRows = await getDb()
-      .select({ followingId: follows.followingId })
-      .from(follows)
-      .where(eq(follows.followerId, userId));
-    var followedByViewer = new Set<string>(
-      followedRows.map(function (row) {
-        return row.followingId;
-      })
-    );
-    filteredRows = filteredRows.filter(function (row) {
-      return !followedByViewer.has(row.suggestedUserId);
     });
     var filteredIds = filteredRows.map(function (row) {
       return row.suggestedUserId;

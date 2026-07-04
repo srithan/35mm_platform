@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/constants/routes";
 import { Icon } from "@/components/Icon/Icon";
@@ -82,12 +82,27 @@ export function ChatList({
   const [internalInboxFilter, setInternalInboxFilter] = useState<
     "active" | "archived"
   >("active");
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const listLoadMoreRef = useRef<HTMLDivElement>(null);
   const uiFolder =
     conversationFilterProp !== undefined
       ? conversationFilterProp
       : internalInboxFilter;
-  const { data: chats, isLoading, isError, refetch } =
-    useConversationsByUiFilter(uiFolder);
+  const listQuery = useConversationsByUiFilter(uiFolder);
+  const chats = listQuery.data ?? [];
+  const isLoading = listQuery.isLoading;
+  const isError = listQuery.isError;
+  const refetch = listQuery.refetch;
+  const canLoadMoreConversations = listQuery.hasNextPage;
+  const isLoadingMoreConversations = listQuery.isFetchingNextPage;
+
+  const loadMoreConversations = useCallback(function (): void {
+    if (!listQuery.hasNextPage || listQuery.isFetchingNextPage) {
+      return;
+    }
+    void listQuery.fetchNextPage();
+  }, [listQuery]);
+
   const { openNewChat, closeNewChatDraft } = useNewChat();
   const { currentUserId } = useChatRealtime();
   const syncedSelectedIdRef = useRef<string | null | undefined>(undefined);
@@ -118,6 +133,38 @@ export function ChatList({
   );
 
   const effectiveSearch = showHeader ? headerListSearch : searchQuery;
+
+  useEffect(
+    function () {
+      if (effectiveSearch.trim() || !listQuery.hasNextPage) {
+        return;
+      }
+      const container = listScrollRef.current;
+      const sentinel = listLoadMoreRef.current;
+      if (!container || !sentinel) {
+        return;
+      }
+      const observer = new IntersectionObserver(
+        function (entries) {
+          const entry = entries[0];
+          if (!entry || !entry.isIntersecting) {
+            return;
+          }
+          loadMoreConversations();
+        },
+        {
+          root: container,
+          rootMargin: "0px 0px 180px 0px",
+          threshold: 0,
+        }
+      );
+      observer.observe(sentinel);
+      return function () {
+        observer.disconnect();
+      };
+    },
+    [effectiveSearch, listQuery.hasNextPage, listQuery.isFetchingNextPage, loadMoreConversations]
+  );
 
   const inboxSegment: "active" | "archived" | "requests" = uiFolder;
 
@@ -274,7 +321,7 @@ export function ChatList({
         </div>
       ) : null}
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto">
         {isLoading ? (
           <ChatListSkeleton collapsed={collapsed} />
         ) : isError ? (
@@ -308,10 +355,24 @@ export function ChatList({
                         }}
                         className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
                       >
-                        New message
-                      </button>
-                    </div>
+                    New message
+                  </button>
+                </div>
                   )}
+            {canLoadMoreConversations ? (
+              <div className={cn("mt-4", collapsed ? "px-2" : "") }>
+                <button
+                  type="button"
+                  onClick={loadMoreConversations}
+                  disabled={isLoadingMoreConversations}
+                  className="w-full rounded-full border border-border bg-bg px-3 py-2 text-[12px] font-semibold text-fg disabled:opacity-60"
+                >
+                  {isLoadingMoreConversations
+                    ? "Loading older conversations..."
+                    : "Load older conversations"}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <>
@@ -418,6 +479,21 @@ export function ChatList({
               </Link>
             );
           })}
+          <div ref={listLoadMoreRef} />
+          {canLoadMoreConversations ? (
+            <div className="px-4 py-3">
+              <button
+                type="button"
+                onClick={loadMoreConversations}
+                disabled={isLoadingMoreConversations}
+                className="w-full rounded-full border border-border bg-bg px-3 py-2 text-[12px] font-semibold text-fg disabled:opacity-60"
+              >
+                {isLoadingMoreConversations
+                  ? "Loading older conversations..."
+                  : "Load older conversations"}
+              </button>
+            </div>
+          ) : null}
           </>
         )}
       </div>

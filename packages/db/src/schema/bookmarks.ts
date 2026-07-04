@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./users.js";
 
 export var bookmarkFolders = pgTable(
@@ -11,6 +11,7 @@ export var bookmarkFolders = pgTable(
         return users.id;
       }, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    itemCount: integer("item_count").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

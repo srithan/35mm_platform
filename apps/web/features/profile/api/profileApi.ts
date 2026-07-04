@@ -54,6 +54,8 @@ export interface CurrentProfilePatch {
   dateOfBirth: string | null;
   role: string | null;
   roleContext: string | null;
+  headline?: string | null;
+  headlineContext?: string | null;
 }
 
 type ProfileUpdateResponse = {
@@ -272,6 +274,8 @@ export async function updateCurrentProfile(
     coverUrl: string | null;
     role: string | null;
     roleContext: string | null;
+    headline: string | null;
+    headlineContext: string | null;
   }>,
   token: string | null
 ): Promise<CurrentProfilePatch> {

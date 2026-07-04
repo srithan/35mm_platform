@@ -272,8 +272,11 @@ export function useBookmarkPost(postId?: string) {
       if (input.isBookmarked) {
         return bookmarkPost(input.postId, token, input.folderId);
       }
-      await unbookmarkPost(input.postId, token);
-      return { folderId: null as string | null };
+      var result = await unbookmarkPost(input.postId, token);
+      return {
+        ...result,
+        folderId: null as string | null,
+      };
     },
     onMutate: async function (input) {
       await queryClient.cancelQueries({ queryKey: feedKeys.all });
@@ -306,10 +309,15 @@ export function useBookmarkPost(postId?: string) {
     },
     onSuccess: function (data, input) {
       patchAllFeedCaches(queryClient, input.postId, function (post) {
+        var isBookmarked = data.isBookmarked ?? input.isBookmarked;
+        var bookmarkCount = data.bookmarkCount === undefined
+          ? post.bookmarkCount
+          : Math.max(0, Number(data.bookmarkCount));
         return {
           ...post,
-          isBookmarked: input.isBookmarked,
-          bookmarkFolderId: input.isBookmarked ? data.folderId : null,
+          isBookmarked,
+          bookmarkFolderId: isBookmarked ? data.folderId : null,
+          bookmarkCount,
         };
       });
       queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });

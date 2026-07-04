@@ -1,5 +1,5 @@
 import { createDb, follows, followSuggestions } from "@35mm/db";
-import { and, count, desc, eq, ne, notInArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ulid } from "ulid";
 import { loadWorkerEnv } from "../lib/env.js";
@@ -12,6 +12,7 @@ type RedisClient = {
 
 var workerQueueKey = "suggestions:fof:";
 var suggestionCacheTtl = 21600;
+var suggestionSecondHopSeedLimit = 200;
 var db: ReturnType<typeof createDb> | null = null;
 
 function getDb() {
@@ -33,7 +34,8 @@ async function fetchFollowingUserRows(userId: string) {
   return getDb()
     .select({ followingId: follows.followingId })
     .from(follows)
-    .where(and(eq(follows.followerId, userId), eq(follows.status, "accepted")));
+    .where(and(eq(follows.followerId, userId), eq(follows.status, "accepted")))
+    .limit(suggestionSecondHopSeedLimit);
 }
 
 function getSuggestionsKey(userId: string): string {
@@ -103,45 +105,47 @@ export async function runSuggestionComputeJob(payload: SuggestionRefreshPayload)
   var dbClient = getDb();
   var userId = validateUserId(payload.userId);
   var redis = await createRedisClient();
+  var key = getSuggestionsKey(userId);
 
   var followsAlias = alias(follows, "f1");
   var followsOfFollows = alias(follows, "f2");
+  var followsAlreadyFollowing = alias(follows, "f3");
 
   var alreadyFollowing = await fetchFollowingUserRows(userId);
-  var alreadyFollowingIds = alreadyFollowing.map(function (row) {
+  var firstHopFollowingIds = alreadyFollowing.map(function (row) {
     return row.followingId;
   });
-  var scoreField = count();
-  var queryConditions = [
-    eq(followsAlias.followerId, userId),
-    eq(followsAlias.status, "accepted"),
-    eq(followsOfFollows.status, "accepted"),
-    ne(followsOfFollows.followingId, userId),
-  ];
-  if (alreadyFollowingIds.length > 0) {
-    queryConditions.push(notInArray(followsOfFollows.followingId, alreadyFollowingIds));
-  }
-  var results = await dbClient
-    .select({
-      suggestedUserId: followsOfFollows.followingId,
-      score: scoreField,
-    })
-    .from(followsAlias)
-    .innerJoin(followsOfFollows, eq(followsAlias.followingId, followsOfFollows.followerId))
-    .where(
-      and(
-        queryConditions[0],
-        queryConditions[1],
-        queryConditions[2],
-        queryConditions[3],
-        ...queryConditions.slice(4)
-      )
-    )
-    .groupBy(followsOfFollows.followingId)
-    .orderBy(desc(scoreField))
-    .limit(50);
+  var results: Array<{ suggestedUserId: string; score: number }> = [];
 
-  var key = getSuggestionsKey(userId);
+  if (firstHopFollowingIds.length > 0) {
+    var scoreField = count();
+    var queryConditions = [
+      eq(followsAlias.followerId, userId),
+      eq(followsAlias.status, "accepted"),
+      eq(followsOfFollows.status, "accepted"),
+      ne(followsOfFollows.followingId, userId),
+      inArray(followsAlias.followingId, firstHopFollowingIds),
+    ];
+    results = await dbClient
+      .select({
+        suggestedUserId: followsOfFollows.followingId,
+        score: scoreField,
+      })
+      .from(followsAlias)
+      .innerJoin(followsOfFollows, eq(followsAlias.followingId, followsOfFollows.followerId))
+      .leftJoin(
+        followsAlreadyFollowing,
+        and(
+          eq(followsAlreadyFollowing.followerId, userId),
+          eq(followsAlreadyFollowing.followingId, followsOfFollows.followingId),
+          eq(followsAlreadyFollowing.status, "accepted")
+        )
+      )
+      .where(and(...queryConditions, isNull(followsAlreadyFollowing.followingId)))
+      .groupBy(followsOfFollows.followingId)
+      .orderBy(desc(scoreField))
+      .limit(50);
+  }
 
   if (results.length === 0) {
     if (redis) {

@@ -1,6 +1,6 @@
 # Chat Backend Implementation
 
-Last updated: 2026-07-01
+Last updated: 2026-07-04
 
 This document explains the chat backend implemented in this thread. It is intentionally backend-only: API routes, storage, queues, worker jobs, realtime events, environment, migrations, operational checks, and known follow-up work. Frontend details appear only where they affect backend contracts.
 
@@ -96,6 +96,8 @@ Columns:
 - `id text primary key`: 35mm ULID-shaped app ID from `createUlid()`.
 - `type text not null`: currently `dm` or `group`, validated at API layer.
 - `created_by uuid not null`: FK to `users.id`.
+- `dm_member_low uuid`: deterministic low member UUID for DM pair identity (`NULL` for groups).
+- `dm_member_high uuid`: deterministic high member UUID for DM pair identity (`NULL` for groups).
 - `created_at timestamptz not null default now()`.
 - `updated_at timestamptz not null default now()`.
 
@@ -430,6 +432,7 @@ Validation:
 DM idempotency:
 
 - If a matching active DM already exists with exactly the same two participants, route returns that thread preview instead of creating a duplicate.
+- `POST /v1/chat/threads` resolves DM dedupe through an indexed pair lookup on `dm_member_low/dm_member_high`; this avoids scanning viewer thread rows.
 
 Writes:
 
@@ -461,13 +464,10 @@ Behavior:
 
 - Requires active membership.
 - If Keyspaces config is absent, returns empty page for reads. This supports local development where chat message storage may not be configured.
-- Queries latest 12 monthly buckets newest-first.
+- Starts at current bucket (or cursor bucket for paginated reads), then scans older buckets newest-first.
+- Scans up to 12 buckets per request and stops early once enough rows are found for requested page.
 - Uses `message_id < before` for cursor pagination when `before` exists.
 - Hydrates sender profile data and reaction summaries.
-
-Important limitation:
-
-- Current reader scans only 12 monthly buckets from "now". Older messages need either archive pagination by bucket, expanded bucket windows, or a thread-level oldest/newest bucket index.
 
 ### `POST /v1/chat/threads/:threadId/messages`
 

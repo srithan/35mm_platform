@@ -19,6 +19,7 @@ type SupportedJobName =
   | "feed.fanout"
   | "feed.rescore"
   | "counter.increment"
+  | "counter.outbox"
   | "notification.publish"
   | "notification.digest"
   | "compute-suggestions";

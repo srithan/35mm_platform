@@ -80,8 +80,22 @@ export async function fetchProfileLists(params: {
   );
 }
 
-export async function fetchList(listId: string, token?: string | null): Promise<FilmListDetail> {
-  return apiRequest<FilmListDetail>(`/v1/lists/${encodeURIComponent(listId)}`, { token });
+export async function fetchList(
+  listId: string,
+  options?: {
+    cursor?: string;
+    token?: string | null;
+    limit?: number;
+  }
+): Promise<FilmListDetail> {
+  var query = new URLSearchParams();
+  if (options?.cursor) query.set("cursor", options.cursor);
+  if (options?.limit) query.set("limit", String(options.limit));
+
+  return apiRequest<FilmListDetail>(
+    `/v1/lists/${encodeURIComponent(listId)}${query.toString() ? `?${query.toString()}` : ""}`,
+    { token: options?.token }
+  );
 }
 
 export async function createFilmList(

@@ -171,7 +171,8 @@ From repo root:
 
 ```bash
 pnpm install
-pnpm dev              # runs web + api + worker in parallel
+pnpm dev              # runs web + api only
+pnpm dev:all          # runs web + api + worker in parallel
 pnpm dev:web          # run Next.js only
 pnpm dev:api          # run API only
 pnpm dev:worker       # run worker only

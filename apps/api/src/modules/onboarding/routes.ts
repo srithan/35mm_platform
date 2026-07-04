@@ -6,14 +6,24 @@ import {
   resolveOnboardingTmdbFilmsSchema,
 } from "@35mm/validators";
 import { films, follows, profiles, users } from "@35mm/db/schema";
-import { getDb } from "../../lib/db.js";
+import { getDb, getWriteDb } from "../../lib/db.js";
+import { recordCounterDeltas, wakeCounterOutbox } from "../../lib/counterOutbox.js";
+import type { CounterIncrementJobPayload } from "../../lib/jobs.js";
 import { blockFiltersForAuthor, notMutedByViewerSql } from "../../lib/moderation.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 import { requireAuth } from "../../lib/middleware.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { createUlid, isValidUlid } from "../../lib/ulid.js";
 import { resolveProfileAvatarUrl, resolveProfileCoverUrl } from "../media/url.js";
 
 export var onboardingRoutes = new Hono();
+
+var onboardingWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "onboarding:write",
+  limit: 20,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
 
 var ROLE_TO_HEADLINE: Record<string, string> = {
   cinephile: "Cinephile",
@@ -52,6 +62,23 @@ function normalizeGenreSlugs(values: string[]): string[] {
   }
 
   return normalized;
+}
+
+function followCounterDeltas(followerId: string, followingId: string): CounterIncrementJobPayload[] {
+  return [
+    {
+      targetTable: "profiles",
+      targetId: followingId,
+      counterName: "followerCount",
+      delta: 1,
+    },
+    {
+      targetTable: "profiles",
+      targetId: followerId,
+      counterName: "followingCount",
+      delta: 1,
+    },
+  ];
 }
 
 async function getPublicProfile(userId: string): Promise<PublicProfile> {
@@ -149,7 +176,7 @@ onboardingRoutes.get("/me/onboarding-status", requireAuth, async function (c) {
   });
 });
 
-onboardingRoutes.post("/onboarding/films/resolve", requireAuth, async function (c) {
+onboardingRoutes.post("/onboarding/films/resolve", requireAuth, onboardingWriteRateLimit, async function (c) {
   var payload = resolveOnboardingTmdbFilmsSchema.parse(await c.req.json());
   var db = getDb();
   var ids: string[] = [];
@@ -206,7 +233,7 @@ onboardingRoutes.post("/onboarding/films/resolve", requireAuth, async function (
   return c.json({ ids });
 });
 
-onboardingRoutes.post("/me/onboarding", requireAuth, async function (c) {
+onboardingRoutes.post("/me/onboarding", requireAuth, onboardingWriteRateLimit, async function (c) {
   var user = c.get("user");
   var payload = onboardingSubmitSchema.parse(await c.req.json());
   var db = getDb();
@@ -266,23 +293,25 @@ onboardingRoutes.post("/me/onboarding", requireAuth, async function (c) {
       : payload.headlineContext?.trim() || null;
   var now = new Date();
 
-  await db
-    .update(profiles)
-    .set({
-      role: roleLabel,
-      roleContext: contextValue,
-      headline: roleLabel,
-      headlineContext: contextValue,
-      favoriteFilmIds,
-      favoriteGenreIds,
-      onboardingCompleted: true,
-      onboardingCompletedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(profiles.userId, user.userId));
+  var insertedFollowRows = await getWriteDb().transaction(async function (tx) {
+    await tx
+      .update(profiles)
+      .set({
+        role: roleLabel,
+        roleContext: contextValue,
+        headline: roleLabel,
+        headlineContext: contextValue,
+        favoriteFilmIds,
+        favoriteGenreIds,
+        onboardingCompleted: true,
+        onboardingCompletedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(profiles.userId, user.userId));
 
-  if (followUserIds.length > 0) {
-    await db
+    if (followUserIds.length === 0) return [] as Array<{ followingId: string }>;
+
+    var inserted = await tx
       .insert(follows)
       .values(
         followUserIds.map(function (targetUserId) {
@@ -293,8 +322,21 @@ onboardingRoutes.post("/me/onboarding", requireAuth, async function (c) {
           };
         })
       )
-      .onConflictDoNothing();
-  }
+      .onConflictDoNothing()
+      .returning({ followingId: follows.followingId });
+
+    if (inserted.length > 0) {
+      await recordCounterDeltas(
+        tx,
+        inserted.flatMap(function (row) {
+          return followCounterDeltas(user.userId, row.followingId);
+        })
+      );
+    }
+
+    return inserted;
+  });
+  if (insertedFollowRows.length > 0) wakeCounterOutbox();
 
   var profile = await getPublicProfile(user.userId);
   return c.json({ ok: true, profile });

@@ -1,17 +1,17 @@
 import { Hono } from "hono";
-import { and, desc, eq, lt, or, sql, type SQL } from "drizzle-orm";
-import { users, profiles, follows } from "@35mm/db/schema";
-import { getDb } from "../../lib/db.js";
-import { createNotification } from "../../lib/notifications.js";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
+import { users, profiles, follows, profileFollowApprovalOutbox } from "@35mm/db/schema";
+import { getDb, getWriteDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
-import { notFound, badRequest, forbidden } from "../../lib/errors.js";
+import { notFound, badRequest, forbidden, serviceUnavailable } from "../../lib/errors.js";
 import {
   invalidateAuthorProfileFeedCaches,
   invalidateFeedCacheForGuest,
   invalidateViewerFeedCaches,
 } from "../../lib/feedCache.js";
-import { enqueueMediaProcessJob } from "../../lib/jobs.js";
+import { enqueueCounterOutboxDrainJob, enqueueMediaProcessJob } from "../../lib/jobs.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
 import {
@@ -25,6 +25,13 @@ import {
 
 export var profileRoutes = new Hono();
 type FollowState = "none" | "requested" | "following" | "self";
+
+var profileWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "profiles:write",
+  limit: 30,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
 
 function isR2Url(value: string): boolean {
   return isR2ConfiguredPublicUrl(value);
@@ -205,6 +212,8 @@ profileRoutes.get("/:username", async function (c) {
       headlineContext: profiles.headlineContext,
       isPrivate: profiles.isPrivate,
       filmsLoggedCount: profiles.filmsLoggedCount,
+      followerCount: profiles.followerCount,
+      followingCount: profiles.followingCount,
       status: users.status,
       createdAt: profiles.createdAt,
     })
@@ -237,19 +246,9 @@ profileRoutes.get("/:username", async function (c) {
   }
 
   var [
-    followerRows,
-    followingRows,
     followRelationRows,
     incomingFollowRequestRows,
   ] = await Promise.all([
-    db
-      .select({ id: follows.followerId })
-      .from(follows)
-      .where(and(eq(follows.followingId, row.userId), eq(follows.status, "accepted"))),
-    db
-      .select({ id: follows.followingId })
-      .from(follows)
-      .where(and(eq(follows.followerId, row.userId), eq(follows.status, "accepted"))),
     viewer
       ? db
           .select({ status: follows.status })
@@ -272,8 +271,8 @@ profileRoutes.get("/:username", async function (c) {
       : Promise.resolve([] as Array<{ followerId: string }>),
   ]);
 
-  var followerCount = followerRows.length;
-  var followingCount = followingRows.length;
+  var followerCount = Number(row.followerCount ?? 0);
+  var followingCount = Number(row.followingCount ?? 0);
   var followStatus = followRelationRows[0]?.status ?? null;
   var followState = followStateFromStatus(viewer?.userId ?? null, row.userId, followStatus);
   var isFollowing = followState === "following";
@@ -388,34 +387,34 @@ function normalizeRole(value: string | null | undefined): string {
   return value.trim().toLowerCase();
 }
 
-function profileUpdateSetChunks(updates: Record<string, any>): SQL[] {
-  var chunks: SQL[] = [];
+function profileUpdateSetChunks(updates: Record<string, any>): Record<string, any> {
+  var chunks: Record<string, any> = {};
 
-  if ("displayName" in updates) chunks.push(sql`"display_name" = ${updates.displayName}`);
-  if ("bio" in updates) chunks.push(sql`"bio" = ${updates.bio}`);
-  if ("location" in updates) chunks.push(sql`"location" = ${updates.location}`);
-  if ("website" in updates) chunks.push(sql`"website" = ${updates.website}`);
-  if ("dateOfBirth" in updates) chunks.push(sql`"date_of_birth" = ${updates.dateOfBirth}`);
-  if ("role" in updates) chunks.push(sql`"role" = ${updates.role}`);
-  if ("roleContext" in updates) chunks.push(sql`"role_context" = ${updates.roleContext}`);
-  if ("isPrivate" in updates) chunks.push(sql`"is_private" = ${updates.isPrivate}`);
-  if ("headline" in updates) chunks.push(sql`"headline" = ${updates.headline}`);
-  if ("headlineContext" in updates) chunks.push(sql`"headline_context" = ${updates.headlineContext}`);
-  if ("favoriteFilmIds" in updates) chunks.push(sql`"favorite_film_ids" = ${updates.favoriteFilmIds}`);
-  if ("favoriteGenreIds" in updates) chunks.push(sql`"favorite_genre_ids" = ${updates.favoriteGenreIds}`);
-  if ("avatarUrl" in updates) chunks.push(sql`"avatar_url" = ${updates.avatarUrl}`);
-  if ("avatarVariants" in updates) chunks.push(sql`"avatar_variants" = ${updates.avatarVariants}`);
-  if ("coverUrl" in updates) chunks.push(sql`"cover_url" = ${updates.coverUrl}`);
-  if ("coverVariants" in updates) chunks.push(sql`"cover_variants" = ${updates.coverVariants}`);
-  if ("updatedAt" in updates) chunks.push(sql`"updated_at" = ${updates.updatedAt}`);
+  if ("displayName" in updates) chunks.displayName = updates.displayName;
+  if ("bio" in updates) chunks.bio = updates.bio;
+  if ("location" in updates) chunks.location = updates.location;
+  if ("website" in updates) chunks.website = updates.website;
+  if ("dateOfBirth" in updates) chunks.dateOfBirth = updates.dateOfBirth;
+  if ("role" in updates) chunks.role = updates.role;
+  if ("roleContext" in updates) chunks.roleContext = updates.roleContext;
+  if ("isPrivate" in updates) chunks.isPrivate = updates.isPrivate;
+  if ("headline" in updates) chunks.headline = updates.headline;
+  if ("headlineContext" in updates) chunks.headlineContext = updates.headlineContext;
+  if ("favoriteFilmIds" in updates) chunks.favoriteFilmIds = updates.favoriteFilmIds;
+  if ("favoriteGenreIds" in updates) chunks.favoriteGenreIds = updates.favoriteGenreIds;
+  if ("avatarUrl" in updates) chunks.avatarUrl = updates.avatarUrl;
+  if ("avatarVariants" in updates) chunks.avatarVariants = updates.avatarVariants;
+  if ("coverUrl" in updates) chunks.coverUrl = updates.coverUrl;
+  if ("coverVariants" in updates) chunks.coverVariants = updates.coverVariants;
+  if ("updatedAt" in updates) chunks.updatedAt = updates.updatedAt;
 
   return chunks;
 }
 
-profileRoutes.patch("/me", requireAuth, async function (c) {
+profileRoutes.patch("/me", requireAuth, profileWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = updateProfileSchema.parse(await c.req.json());
-  var db = getDb();
+  var db = getWriteDb();
 
   var updates: Record<string, any> = {};
 
@@ -593,37 +592,40 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
     if (currentRows.length === 0) throw notFound("Profile not found");
 
     if (currentRows[0].isPrivate) {
-      var setChunks = profileUpdateSetChunks(updates);
-      var approvedResult = await db.execute(sql`
-        with updated_profile as (
-          update ${profiles}
-          set ${sql.join(setChunks, sql`, `)}
-          where ${profiles.userId} = ${user.userId}
-          returning ${profiles.userId} as user_id
-        ),
-        updated_follows as (
-          update ${follows}
-          set status = 'accepted'
-          where ${follows.followingId} = ${user.userId}
-            and ${follows.status} = 'pending'
-            and exists(select 1 from updated_profile)
-          returning ${follows.followerId} as follower_id
-        )
-        select follower_id from updated_follows
-      `) as { rows: Array<{ follower_id: string }> };
-
-      for (var index = 0; index < approvedResult.rows.length; index += 1) {
-        var approvedFollowerId = approvedResult.rows[index]?.follower_id;
-        if (!approvedFollowerId) continue;
-
-        await createNotification({
-          recipientId: approvedFollowerId,
-          actorId: user.userId,
-          type: "follow_request_approved",
-          entityType: "user",
-          entityId: user.userId,
-        });
+      var woken = await enqueueCounterOutboxDrainJob();
+      if (!woken) {
+        throw serviceUnavailable(
+          "PROFILE_FOLLOW_APPROVAL_QUEUE_UNAVAILABLE",
+          "Profile follow approval queue is unavailable; retry this request"
+        );
       }
+
+      await db.transaction(async function (tx) {
+        await tx
+          .update(profiles)
+          .set(profileUpdateSetChunks(updates))
+          .where(eq(profiles.userId, user.userId));
+
+        await tx
+          .insert(profileFollowApprovalOutbox)
+          .values({
+            targetUserId: user.userId,
+            cursor: null,
+            status: "pending",
+          })
+          .onConflictDoUpdate({
+            target: profileFollowApprovalOutbox.targetUserId,
+            set: {
+              cursor: null,
+              status: "pending",
+              attempts: 0,
+              lockedAt: null,
+              nextAttemptAt: new Date(),
+              lastError: null,
+              updatedAt: new Date(),
+            },
+          });
+      });
     } else {
       await db
         .update(profiles)
@@ -684,18 +686,8 @@ profileRoutes.patch("/me", requireAuth, async function (c) {
   ]);
 
   if (body.isPrivate !== undefined) {
-    var followerRows = await db
-      .select({ followerId: follows.followerId })
-      .from(follows)
-      .where(and(eq(follows.followingId, user.userId), eq(follows.status, "accepted")));
-
     await invalidateAuthorProfileFeedCaches([user.userId]);
-    await invalidateViewerFeedCaches([
-      user.userId,
-      ...followerRows.map(function (row) {
-        return row.followerId;
-      }),
-    ]);
+    await invalidateViewerFeedCaches([user.userId]);
     await invalidateFeedCacheForGuest();
   }
 
