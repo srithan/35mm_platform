@@ -87,11 +87,16 @@ function FloatingChatPill({
           : "Open messages"
       }
     >
-      <span className="flex items-center gap-2 min-w-0">
-        <span className="relative flex h-6 w-6 items-center justify-center rounded-full text-fg">
-          <MessageCircle className="h-7 w-7" strokeWidth={2} />
+      <span className="flex items-center gap-1 min-w-0">
+        <span className="relative flex h-5 w-5 items-center justify-center rounded-full">
+          <img
+            src="/float-message.svg"
+            alt=""
+            aria-hidden="true"
+            className="h-5 w-5 shrink-0 object-contain"
+          />
           {unreadCount > 0 ? (
-            <span className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3045] px-1.5 text-[11px] font-bold text-white ring-2 ring-bg tabular-nums">
+            <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff3045] px-1 text-[10px] font-bold text-white ring-2 ring-bg tabular-nums">
               {formatUnread(unreadCount)}
             </span>
           ) : null}
