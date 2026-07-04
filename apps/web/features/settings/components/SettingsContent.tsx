@@ -13,6 +13,10 @@ import { SettingsPrivacyPanel } from "./SettingsPrivacyPanel";
 import { SettingsNotificationsPanel } from "./SettingsNotificationsPanel";
 import { SettingsAppearancePanel } from "./SettingsAppearancePanel";
 import { SettingsMediaPanel } from "./SettingsMediaPanel";
+import {
+  SettingsModerationListPanel,
+  type SettingsModerationListKind,
+} from "./SettingsModerationListPanel";
 import { SettingsDataSecurityPanel } from "./SettingsDataSecurityPanel";
 import {
   useSettingsQuery,
@@ -74,7 +78,17 @@ const SETTINGS_TABS = [
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
-export function SettingsContent({ initialTab = "Account" }: { initialTab?: SettingsTab }) {
+type SettingsContentProps = {
+  initialTab?: SettingsTab;
+  privacyList?: SettingsModerationListKind;
+};
+
+const PRIVACY_LIST_LABELS: Record<SettingsModerationListKind, string> = {
+  blocked: "Blocked",
+  muted: "Muted",
+};
+
+export function SettingsContent({ initialTab = "Account", privacyList }: SettingsContentProps) {
   const { theme, setTheme } = useTheme();
   const { isLoaded } = useAuth();
   const settingsQuery = useSettingsQuery();
@@ -169,7 +183,9 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
         }}
       />
     ),
-    Privacy: (
+    Privacy: privacyList ? (
+      <SettingsModerationListPanel kind={privacyList} />
+    ) : (
       <SettingsPrivacyPanel
         initialValues={hydratedSettings.privacy}
         onSave={async (values) => {
@@ -212,6 +228,9 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
   };
 
   const activeTab = SETTINGS_TABS.find((tab) => tab.id === initialTab) ?? SETTINGS_TABS[0];
+  const privacyListLabel = privacyList ? PRIVACY_LIST_LABELS[privacyList] : null;
+  const headerTitle = privacyListLabel ?? activeTab.label;
+  const headerDescription = privacyListLabel ? "Privacy controls" : activeTab.description;
 
   return (
     <>
@@ -284,25 +303,52 @@ export function SettingsContent({ initialTab = "Account" }: { initialTab?: Setti
             <div className="hidden border-b border-border px-5 py-4 md:block sm:px-6">
               <div className="flex min-w-0 items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className="truncate text-[15px] font-semibold leading-5 text-fg">
-                    {activeTab.label}
-                  </h2>
+                  {privacyListLabel ? (
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Link
+                        href={ROUTES.SETTINGS_PRIVACY}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                        aria-label="Back to privacy settings"
+                      >
+                        <span aria-hidden>←</span>
+                      </Link>
+                      <h2 className="truncate text-[15px] font-semibold leading-5 text-fg">
+                        {privacyListLabel}
+                      </h2>
+                    </div>
+                  ) : (
+                    <h2 className="truncate text-[15px] font-semibold leading-5 text-fg">
+                      {headerTitle}
+                    </h2>
+                  )}
                   <p className="mt-0.5 truncate text-[12px] leading-4 text-fg-muted">
-                    {activeTab.description}
+                    {headerDescription}
                   </p>
                 </div>
-                <span className="text-[11px] font-medium text-fg-faint">
-                  Settings
-                </span>
               </div>
             </div>
 
             <div className="px-5 pt-5 sm:px-6 md:hidden">
-              <h1 className="text-[17px] font-semibold leading-6 text-fg">
-                {activeTab.label}
-              </h1>
+              {privacyListLabel ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <Link
+                    href={ROUTES.SETTINGS_PRIVACY}
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                    aria-label="Back to privacy settings"
+                  >
+                    <span aria-hidden>←</span>
+                  </Link>
+                  <h1 className="truncate text-[17px] font-semibold leading-6 text-fg">
+                    {privacyListLabel}
+                  </h1>
+                </div>
+              ) : (
+                <h1 className="text-[17px] font-semibold leading-6 text-fg">
+                  {headerTitle}
+                </h1>
+              )}
               <p className="mt-0.5 text-[12px] leading-4 text-fg-muted">
-                {activeTab.description}
+                {headerDescription}
               </p>
             </div>
 

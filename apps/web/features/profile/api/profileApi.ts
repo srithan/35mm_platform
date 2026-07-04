@@ -141,6 +141,7 @@ export interface ModeratedUser {
   userId: string;
   username: string;
   displayName: string;
+  bio: string | null;
   avatarUrl: string | null;
   avatarUrlLg?: string | null;
 }
@@ -164,10 +165,16 @@ export interface ProfileFollowRequest {
 }
 
 export async function fetchMyBlocks(
-  token: string | null
+  token: string | null,
+  params?: { cursor?: string | null; limit?: number }
 ): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params?.limit ?? 50),
+  });
+  if (params?.cursor) query.set("cursor", params.cursor);
+
   return apiRequest<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }>(
-    "/v1/me/blocks?limit=50",
+    "/v1/me/blocks?" + query.toString(),
     {
       token,
     }
@@ -175,10 +182,16 @@ export async function fetchMyBlocks(
 }
 
 export async function fetchMyMutes(
-  token: string | null
+  token: string | null,
+  params?: { cursor?: string | null; limit?: number }
 ): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params?.limit ?? 50),
+  });
+  if (params?.cursor) query.set("cursor", params.cursor);
+
   return apiRequest<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }>(
-    "/v1/me/mutes?limit=50",
+    "/v1/me/mutes?" + query.toString(),
     {
       token,
     }

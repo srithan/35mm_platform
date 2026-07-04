@@ -41,6 +41,8 @@ export const ROUTES = {
   SETTINGS_MEDIA: "/settings/media",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
   SETTINGS_PRIVACY: "/settings/privacy",
+  SETTINGS_PRIVACY_BLOCKED: "/settings/privacy/blocked",
+  SETTINGS_PRIVACY_MUTED: "/settings/privacy/muted",
   SETTINGS_DATA_SECURITY: "/settings/data-security",
   BOOKMARKS: "/bookmarks",
   DRAFTS: "/drafts",

@@ -466,7 +466,7 @@ Blocks/mutes:
 
 - Blocking inserts `user_blocks`, deletes both follow directions, inserts a mute, purges feed items between users, and invalidates caches.
 - Mutes filter feed/profile surfaces without removing follows.
-- Settings privacy panel can list/unblock/unmute via `/v1/me/blocks` and `/v1/me/mutes`.
+- Settings privacy subroutes `/settings/privacy/blocked` and `/settings/privacy/muted` list profile picture, display name, username, and bio from `/v1/me/blocks` and `/v1/me/mutes`, with unblock/unmute actions.
 
 ### Notifications
 
@@ -571,7 +571,7 @@ How it works:
 Frontend:
 
 - Settings hooks use React Query with optimistic cache patching.
-- Settings UI includes account, privacy, notification, appearance, media, and data/security panels. `/settings` redirects to `/settings/account`; tabs link to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, and `/settings/data-security`.
+- Settings UI includes account, privacy, notification, appearance, media, and data/security panels. `/settings` redirects to `/settings/account`; tabs link to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, and `/settings/data-security`. Privacy has nested `/settings/privacy/blocked` and `/settings/privacy/muted` screens with a compact header that shows a back control plus `Blocked` or `Muted`.
 - Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved. The modal includes show/hide password controls and a local strength indicator for the new password.
 
 ### Discovery, Title Pages, Short Films, Festivals, Communities

@@ -140,6 +140,7 @@ userRoutes.get("/me/blocks", requireAuth, async function (c) {
       userId: profiles.userId,
       username: profiles.username,
       displayName: profiles.displayName,
+      bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
     })
@@ -164,6 +165,7 @@ userRoutes.get("/me/blocks", requireAuth, async function (c) {
           userId: row.userId,
           username: row.username,
           displayName: row.displayName,
+          bio: row.bio,
           avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
           avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         };
@@ -200,6 +202,7 @@ userRoutes.get("/me/mutes", requireAuth, async function (c) {
       userId: profiles.userId,
       username: profiles.username,
       displayName: profiles.displayName,
+      bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
     })
@@ -224,6 +227,7 @@ userRoutes.get("/me/mutes", requireAuth, async function (c) {
           userId: row.userId,
           username: row.username,
           displayName: row.displayName,
+          bio: row.bio,
           avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
           avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         };

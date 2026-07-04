@@ -559,7 +559,7 @@ Important app routes:
 - `/notifications`: notifications.
 - `/bookmarks`: two-column bookmarks surface with folder navigation, create/rename/delete folder controls, folder-filtered saved posts, and loading skeletons.
 - `/settings`: redirects to `/settings/account`.
-- `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, `/settings/data-security`: settings sections with URL-backed tab navigation.
+- `/settings/account`, `/settings/privacy`, `/settings/privacy/blocked`, `/settings/privacy/muted`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, `/settings/data-security`: settings sections with URL-backed tab navigation. Blocked/muted privacy subroutes keep the Privacy tab active and show a compact header with a back control plus `Blocked` or `Muted`.
 - `/list/:listId`: list detail.
 - `/suggestions/people`: follow suggestions.
 - `/title/:media/:id`: title detail.
