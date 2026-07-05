@@ -508,7 +508,7 @@ export function ChatConversation({
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full text-center px-8 bg-bg">
         <div className="w-[72px] h-[72px] rounded-full bg-elevated flex items-center justify-center mb-5 shadow-sm border border-border">
-          <Icon name="chat" className="w-9 h-9 text-[#007AFF]" strokeWidth={1.5} />
+          <Icon name="chat" className="w-9 h-9 text-[var(--chat-accent)]" strokeWidth={1.5} />
         </div>
         <p className="text-[17px] font-semibold text-fg tracking-[-0.02em]">
           Messages
@@ -522,7 +522,7 @@ export function ChatConversation({
             onClick={function () {
               openNewChat();
             }}
-            className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90"
+            className="inline-flex items-center justify-center rounded-full bg-[image:var(--chat-own-bubble)] px-5 py-2.5 text-[14px] font-semibold text-[var(--chat-own-fg)] hover:brightness-[0.96]"
           >
             New message
           </button>
@@ -569,9 +569,14 @@ export function ChatConversation({
     } as const);
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-bg">
+    <div
+      className={cn(
+        "flex flex-col h-full min-h-0 overflow-hidden bg-bg",
+        compact && "bg-[var(--chat-floating-bg)]"
+      )}
+    >
       {!hideHeader ? (
-        <header className="shrink-0 border-b border-black/[0.06] dark:border-white/[0.08] bg-bg/95 backdrop-blur-md select-none">
+        <header className="shrink-0 border-b border-border bg-bg/95 backdrop-blur-md select-none">
           {conversationLoading && !conversationRow ? (
             <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2.5 animate-pulse" aria-hidden>
               <div className="flex items-center gap-3 px-2 py-1.5">
@@ -591,13 +596,13 @@ export function ChatConversation({
             {chatUsername ? (
               <Link
                 href={ROUTES.PROFILE(chatUsername.replace(/^@/, ""))}
-                className="flex w-fit min-w-0 max-w-[min(18rem,calc(100%-3.5rem))] items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-black/[0.045] dark:hover:bg-white/[0.06] active:scale-[0.99] transition-[transform,background-color] duration-150"
+                className="flex w-fit min-w-0 max-w-[min(18rem,calc(100%-3.5rem))] items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-hover active:scale-[0.99] transition-[transform,background-color] duration-150"
               >
                 <div className="relative shrink-0">
                   <Avatar
                     initial={displayName.charAt(0)}
                     src={otherAvatar.src}
-                    className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                    className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-border"
                     loading="eager"
                   />
                   {showPresence ? (
@@ -624,7 +629,7 @@ export function ChatConversation({
                   <Avatar
                     initial={displayName.charAt(0)}
                     src={otherAvatar.src}
-                    className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                    className="w-10 h-10 text-[14px] shadow-sm ring-1 ring-border"
                     loading="eager"
                   />
                   {showPresence ? (
@@ -657,8 +662,8 @@ export function ChatConversation({
                 className={cn(
                   "p-2 rounded-xl transition-colors",
                   threadSearchOpen || threadSearchQuery.trim()
-                    ? "text-[#007AFF] bg-[#007AFF]/12 dark:bg-[#007AFF]/20"
-                    : "text-fg-muted hover:text-fg hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
+                    ? "text-[var(--chat-accent)] bg-[var(--chat-accent-bg-strong)]"
+                    : "text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
                 )}
                 aria-label="Search in conversation"
                 aria-expanded={threadSearchOpen}
@@ -688,7 +693,7 @@ export function ChatConversation({
           ) : null}
           {headerToast ? (
             <div
-              className="px-4 py-2 text-center text-[12px] font-medium text-[#007AFF] bg-[#007AFF]/[0.08] border-t border-[#007AFF]/15"
+              className="px-4 py-2 text-center text-[12px] font-medium text-[var(--chat-accent)] bg-[var(--chat-accent-bg)] border-t border-[var(--chat-accent-border)]"
               role="status"
             >
               {headerToast}
@@ -699,7 +704,7 @@ export function ChatConversation({
 
       {hideHeader && headerToast ? (
         <div
-          className="shrink-0 px-4 py-2 text-center text-[12px] font-medium text-[#007AFF] bg-[#007AFF]/[0.08] border-b border-black/[0.06] dark:border-white/[0.08]"
+          className="shrink-0 px-4 py-2 text-center text-[12px] font-medium text-[var(--chat-accent)] bg-[var(--chat-accent-bg)] border-b border-border"
           role="status"
         >
           {headerToast}
@@ -709,9 +714,11 @@ export function ChatConversation({
       <div className="relative flex-1 min-h-0 flex flex-col">
         <div
           ref={scrollRootRef}
+          data-chat-scroll-root
           onScroll={handleMessagesScroll}
           className={cn(
             "flex-1 min-h-0 overflow-y-auto bg-bg",
+            compact && "bg-[var(--chat-floating-bg)]",
             compact && "overflow-x-hidden",
             fixedInputOnMobile &&
               "scroll-pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] pb-4"
@@ -729,7 +736,7 @@ export function ChatConversation({
                 onClick={function () {
                   refetch();
                 }}
-                className="text-[13px] font-semibold text-[#007AFF] hover:opacity-80"
+                className="text-[13px] font-semibold text-[var(--chat-accent)] hover:opacity-80"
               >
                 Try again
               </button>
@@ -781,7 +788,8 @@ export function ChatConversation({
 
       <div
         className={cn(
-          "shrink-0 px-3 md:px-4 pt-2 pb-3 md:pb-4 border-t border-black/[0.06] dark:border-white/[0.08] bg-bg/95 backdrop-blur-md",
+          "shrink-0 px-3 md:px-4 pt-2 pb-3 md:pb-4 border-t border-border bg-bg/95 backdrop-blur-md",
+          compact && "bg-[var(--chat-floating-bg)]",
           fixedInputOnMobile &&
             "md:relative fixed left-0 right-0 md:bottom-auto z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
         )}

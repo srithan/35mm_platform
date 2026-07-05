@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MoreVertical, UserPlus, VolumeX, CircleSlash, Flag } from "lucide-react";
+import {
+  Flag,
+  Loader2,
+  MessageCircle,
+  MoreVertical,
+  UserPlus,
+  VolumeX,
+  CircleSlash,
+} from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/Icon/Icon";
@@ -227,14 +235,25 @@ export function ProfileHeader({
   ) : (
     <>
       <Button
-        variant="ghost"
+        variant="secondary"
         size="sm"
+        aria-label={
+          isMessageActionPending
+            ? "Opening message with " + profileData.displayName
+            : "Message " + profileData.displayName
+        }
+        className="h-9 border-border-strong bg-elevated px-4 text-[13px] font-bold text-fg shadow-[0_1px_0_rgb(15_23_42/4%)] hover:border-fg-muted hover:bg-hover"
         disabled={Boolean(isMessageActionPending)}
         onClick={function () {
           onMessageClick?.();
         }}
       >
-        Message
+        {isMessageActionPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+        ) : (
+          <MessageCircle className="h-4 w-4" strokeWidth={2} />
+        )}
+        <span>{isMessageActionPending ? "Opening" : "Message"}</span>
       </Button>
 	      {hasIncomingFollowRequestAction ? (
 	        <>

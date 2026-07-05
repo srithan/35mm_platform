@@ -23,6 +23,11 @@ import {
 } from "../config/runtimeConfig";
 import { chatQueryKeys } from "../lib/queryKeys";
 import { sortChatMessages, upsertChatMessageSorted } from "../lib/sortChatMessages";
+import { formatRelativeShort } from "../lib/formatChatTime";
+import {
+  patchConversationPreviewInPages,
+  type ConversationPreviewPatch,
+} from "../lib/patchConversationPreview";
 import {
   buildOptimisticChatMessage,
   createOptimisticMessageId,
@@ -291,6 +296,56 @@ function invalidateAllConversationLists(queryClient: ReturnType<typeof useQueryC
   });
 }
 
+function previewFromSendPayload(payload: ChatSendPayload): string {
+  if (payload.text.trim()) {
+    return payload.text.trim();
+  }
+  if (payload.gifUrl) {
+    return "GIF";
+  }
+  if (payload.imageDataUrl) {
+    return "Photo";
+  }
+  if (payload.file) {
+    return payload.file.name || "File";
+  }
+  return "Message";
+}
+
+function previewFromMessage(message: ChatMessage): string {
+  if (message.text.trim()) {
+    return message.text.trim();
+  }
+  if (message.media?.type === "gif") {
+    return "GIF";
+  }
+  if (message.media?.type === "image") {
+    return "Photo";
+  }
+  if (message.file) {
+    return message.file.name || "File";
+  }
+  return "Message";
+}
+
+function patchConversationPreviewCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  patch: ConversationPreviewPatch
+): boolean {
+  let patched = false;
+  (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+    queryClient.setQueryData<InfiniteData<PaginatedConversations>>(
+      chatQueryKeys.conversations(folder),
+      function (prev) {
+        const result = patchConversationPreviewInPages(prev, patch);
+        patched = patched || result.patched;
+        return result.data;
+      }
+    );
+  });
+  return patched;
+}
+
 function applyViewerReaction(
   reactions: ChatMessage["reactions"] | undefined,
   emoji: string,
@@ -469,10 +524,26 @@ export function useSendMessage() {
       const previous = queryClient.getQueryData<PaginatedMessages>(
         chatQueryKeys.messages(args.chatId)
       );
+      const previousConversations = {
+        inbox: queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
+          chatQueryKeys.conversations("inbox")
+        ),
+        archived: queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
+          chatQueryKeys.conversations("archived")
+        ),
+        requests: queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
+          chatQueryKeys.conversations("requests")
+        ),
+      };
       const optimisticId = createOptimisticMessageId();
       const optimistic = buildOptimisticChatMessage(args, optimisticId);
       void queryClient.cancelQueries({
         queryKey: chatQueryKeys.messages(args.chatId),
+      });
+      (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+        void queryClient.cancelQueries({
+          queryKey: chatQueryKeys.conversations(folder),
+        });
       });
       queryClient.setQueryData<PaginatedMessages>(
         chatQueryKeys.messages(args.chatId),
@@ -482,9 +553,27 @@ export function useSendMessage() {
           });
         }
       );
-      return { previous: previous, optimisticId: optimisticId };
+      patchConversationPreviewCaches(queryClient, {
+        chatId: args.chatId,
+        lastMessage: previewFromSendPayload(args),
+        lastMessageAt: formatRelativeShort(new Date(optimistic.createdAt)),
+        unread: 0,
+      });
+      return {
+        previous: previous,
+        previousConversations: previousConversations,
+        optimisticId: optimisticId,
+      };
     },
     onError: function (_error, args, context) {
+      if (context?.previousConversations) {
+        (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+          queryClient.setQueryData(
+            chatQueryKeys.conversations(folder),
+            context.previousConversations[folder]
+          );
+        });
+      }
       if (context?.previous) {
         queryClient.setQueryData(
           chatQueryKeys.messages(args.chatId),
@@ -517,6 +606,12 @@ export function useSendMessage() {
           });
         }
       );
+      patchConversationPreviewCaches(queryClient, {
+        chatId: args.chatId,
+        lastMessage: previewFromMessage(result.message),
+        lastMessageAt: formatRelativeShort(new Date(result.message.createdAt)),
+        unread: 0,
+      });
       queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
         chatQueryKeys.messagesInfinite(args.chatId),
         function (prev) {

@@ -261,7 +261,7 @@ export function TenorGifPicker({
                     onSelect(g.sendUrl);
                     onClose();
                   }}
-                  className="relative aspect-[4/3] rounded-lg overflow-hidden bg-sunken focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]"
+                  className="relative aspect-[4/3] rounded-lg overflow-hidden bg-sunken focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--chat-accent-ring)]"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

@@ -118,6 +118,30 @@ export function messageBucketsNewestFirst(startBucket: number, maxBuckets = 12):
   return buckets;
 }
 
+export function visibleLastMessageAt(
+  memberLastMessageAt: Date | null | undefined,
+  threadLastMessageAt: Date | null | undefined
+): Date | null {
+  if (!memberLastMessageAt) {
+    return threadLastMessageAt ?? null;
+  }
+  if (!threadLastMessageAt) {
+    return memberLastMessageAt;
+  }
+  return memberLastMessageAt.getTime() >= threadLastMessageAt.getTime()
+    ? memberLastMessageAt
+    : threadLastMessageAt;
+}
+
+function chatLastActivityExpression() {
+  return sql<Date | null>`case
+    when ${chatMemberState.lastMessageAt} is null then ${chatThreadMeta.lastMessageAt}
+    when ${chatThreadMeta.lastMessageAt} is null then ${chatMemberState.lastMessageAt}
+    when ${chatMemberState.lastMessageAt} >= ${chatThreadMeta.lastMessageAt} then ${chatMemberState.lastMessageAt}
+    else ${chatThreadMeta.lastMessageAt}
+  end`;
+}
+
 export async function fetchChatMessages(
   threadId: string,
   before: cassandra.types.TimeUuid | null,
@@ -496,6 +520,17 @@ async function publishChatReactionUnread(input: {
         lastSenderId: input.actorId,
       },
     });
+  await getDb()
+    .insert(chatMemberState)
+    .values({
+      threadId: input.threadId,
+      userId: input.recipientId,
+      lastMessageAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [chatMemberState.threadId, chatMemberState.userId],
+      set: { lastMessageAt: now },
+    });
   await incrementUnread(input.recipientId, input.threadId);
   var unreadCounts = await getUnreadCountsForPairs([
     { userId: input.recipientId, threadId: input.threadId },
@@ -521,7 +556,8 @@ async function getThreadPreview(threadId: string, viewerId: string): Promise<Cha
     .select({
       id: chatThreads.id,
       type: chatThreads.type,
-      lastMessageAt: chatMemberState.lastMessageAt,
+      memberLastMessageAt: chatMemberState.lastMessageAt,
+      threadLastMessageAt: chatThreadMeta.lastMessageAt,
       lastMessagePreview: chatThreadMeta.lastMessagePreview,
       lastSenderId: chatThreadMeta.lastSenderId,
       archivedAt: chatMemberState.archivedAt,
@@ -545,11 +581,15 @@ async function getThreadPreview(threadId: string, viewerId: string): Promise<Cha
     });
   }
   var unread = await getUnreadCounts(viewerId, [threadId]);
+  var lastMessageAt = visibleLastMessageAt(
+    rows[0].memberLastMessageAt,
+    rows[0].threadLastMessageAt
+  );
   return {
     id: rows[0].id,
     type: rows[0].type === "group" ? "group" : "dm",
     members,
-    lastMessageAt: rows[0].lastMessageAt?.toISOString() ?? null,
+    lastMessageAt: lastMessageAt?.toISOString() ?? null,
     lastMessagePreview: rows[0].lastMessagePreview,
     lastSenderId: rows[0].lastSenderId,
     unreadCount: unread[threadId] ?? 0,
@@ -579,11 +619,14 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
   });
   var cursor = decodeCompositeCursor(query.cursor);
   var limitPlus = query.limit + 1;
+  var lastActivityAt = chatLastActivityExpression();
   var rows = await getDb()
     .select({
       id: chatThreads.id,
       type: chatThreads.type,
-      lastMessageAt: chatMemberState.lastMessageAt,
+      memberLastMessageAt: chatMemberState.lastMessageAt,
+      threadLastMessageAt: chatThreadMeta.lastMessageAt,
+      activityLastMessageAt: lastActivityAt,
       lastMessagePreview: chatThreadMeta.lastMessagePreview,
       lastSenderId: chatThreadMeta.lastSenderId,
       archivedAt: chatMemberState.archivedAt,
@@ -607,13 +650,13 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
         isNull(chatMemberState.deletedAt),
         cursor
           ? or(
-              lt(chatMemberState.lastMessageAt, cursor.createdAt),
-              and(eq(chatMemberState.lastMessageAt, cursor.createdAt), lt(chatThreads.id, cursor.id))
+              lt(lastActivityAt, cursor.createdAt),
+              and(eq(lastActivityAt, cursor.createdAt), lt(chatThreads.id, cursor.id))
             )
           : sql`true`
       )
     )
-    .orderBy(desc(chatMemberState.lastMessageAt), desc(chatThreads.id))
+    .orderBy(sql`${lastActivityAt} desc nulls last`, desc(chatThreads.id))
     .limit(limitPlus);
 
   var pageRows = rows.slice(0, query.limit);
@@ -634,7 +677,10 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
       id: row.id,
       type: row.type === "group" ? "group" : "dm",
       members,
-      lastMessageAt: row.lastMessageAt?.toISOString() ?? null,
+      lastMessageAt: visibleLastMessageAt(
+        row.memberLastMessageAt,
+        row.threadLastMessageAt
+      )?.toISOString() ?? null,
       lastMessagePreview: row.lastMessagePreview,
       lastSenderId: row.lastSenderId,
       unreadCount: unread[row.id] ?? 0,
@@ -647,8 +693,8 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
   var response: ChatInboxPage = {
     items,
     hasMore: rows.length > query.limit,
-    nextCursor: rows.length > query.limit && last?.lastMessageAt
-      ? encodeCompositeCursor({ createdAt: last.lastMessageAt, id: last.id })
+    nextCursor: rows.length > query.limit && last?.activityLastMessageAt
+      ? encodeCompositeCursor({ createdAt: last.activityLastMessageAt, id: last.id })
       : null,
   };
   return c.json(response);
@@ -933,12 +979,25 @@ chatRoutes.post("/threads/:threadId/messages", sendMessageRateLimit, async funct
         messageCount: sql`${chatThreadMeta.messageCount} + 1`,
       },
     });
-  await getDb()
-    .update(chatMemberState)
-    .set({ lastMessageAt: now })
-    .where(eq(chatMemberState.threadId, threadId));
   var members = await fetchThreadMembers([threadId]);
   var activeMembers = members.get(threadId) ?? [];
+  if (activeMembers.length > 0) {
+    await getDb()
+      .insert(chatMemberState)
+      .values(
+        activeMembers.map(function (member) {
+          return {
+            threadId,
+            userId: member.userId,
+            lastMessageAt: now,
+          };
+        })
+      )
+      .onConflictDoUpdate({
+        target: [chatMemberState.threadId, chatMemberState.userId],
+        set: { lastMessageAt: now },
+      });
+  }
   for (var member of activeMembers) {
     if (member.userId !== viewer.userId) await incrementUnread(member.userId, threadId);
   }

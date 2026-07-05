@@ -80,7 +80,7 @@ function FloatingChatPill({
     <button
       type="button"
       onClick={onOpen}
-      className="fixed bottom-5 right-5 z-40 hidden min-h-[52px] w-[260px] items-center justify-between gap-3 rounded-full border border-black/[0.06] bg-bg/95 px-4 py-2 text-left shadow-[0_14px_44px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(0,0,0,0.22)] md:flex"
+      className="fixed bottom-5 right-5 z-40 hidden min-h-[52px] w-[260px] items-center justify-between gap-3 rounded-full border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] px-4 py-2 text-left shadow-[0_14px_44px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(0,0,0,0.22)] md:flex"
       aria-label={
         unreadCount > 0
           ? "Open messages, " + formatUnread(unreadCount) + " unread"
@@ -261,7 +261,7 @@ function FloatingChatListRow({
     <div
       className={cn(
         "group flex w-full items-center gap-1 transition-colors hover:bg-hover",
-        selected && "bg-hover"
+        selected && "bg-[var(--color-bg-active)] hover:bg-[var(--color-bg-active)]"
       )}
     >
       <button
@@ -290,7 +290,7 @@ function FloatingChatListRow({
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               {unread > 0 ? (
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#007AFF] px-1 text-[10px] font-semibold text-white tabular-nums">
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--chat-accent)] px-1 text-[10px] font-semibold text-[var(--chat-own-fg)] tabular-nums">
                   {formatUnread(unread)}
                 </span>
               ) : null}
@@ -550,11 +550,11 @@ export function FloatingChatInbox({
 
   return (
     <section
-      className="fixed bottom-5 right-5 z-40 hidden h-[min(512px,calc(100dvh-5rem))] w-[372px] overflow-hidden rounded-[20px] border border-black/[0.08] bg-bg shadow-[0_18px_64px_rgba(0,0,0,0.22)] md:flex md:flex-col"
+      className="fixed bottom-5 right-5 z-40 hidden h-[min(512px,calc(100dvh-5rem))] w-[372px] overflow-hidden rounded-[20px] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] shadow-[0_18px_64px_rgba(0,0,0,0.22)] md:flex md:flex-col"
       data-floating-chat-panel
       aria-label="Floating messages"
     >
-      <header className="flex h-[58px] shrink-0 items-center justify-between border-b border-border bg-bg/95 px-3 backdrop-blur-xl">
+      <header className="flex h-[58px] shrink-0 items-center justify-between border-b border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] px-3 backdrop-blur-xl">
         {showingThread ? (
           <div className="flex min-w-0 items-center gap-2">
             <button
@@ -563,7 +563,7 @@ export function FloatingChatInbox({
                 setSelectedId(null);
                 setComposeOpen(false);
               }}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg hover:bg-hover"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
               aria-label="Back to messages"
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={2.2} />
@@ -661,7 +661,7 @@ export function FloatingChatInbox({
                 setComposeOpen(true);
                 setComposeSearch("");
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-fg hover:bg-hover"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
               aria-label="New message"
             >
               <PenLine className="h-4 w-4" strokeWidth={2.3} />
@@ -670,7 +670,7 @@ export function FloatingChatInbox({
           {showingThread || !composeOpen ? (
             <Link
               href={fullChatHref}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-fg hover:bg-hover"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
               aria-label="Open full messages page"
             >
               <Maximize2 className="h-4 w-4" strokeWidth={2.3} />
@@ -686,7 +686,7 @@ export function FloatingChatInbox({
               setListSearch("");
               setListFilter("active");
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-fg hover:bg-hover"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
             aria-label="Close messages"
           >
             <X className="h-6 w-6" strokeWidth={2} />
@@ -695,8 +695,8 @@ export function FloatingChatInbox({
       </header>
 
       {composeOpen ? (
-        <div className="flex min-h-0 flex-1 flex-col bg-bg">
-          <div className="border-b border-border px-3 py-3">
+        <div className="flex min-h-0 flex-1 flex-col bg-[var(--chat-floating-bg)]">
+          <div className="border-b border-[var(--chat-floating-border)] px-3 py-3">
             <input
               type="search"
               value={composeSearch}
@@ -704,7 +704,7 @@ export function FloatingChatInbox({
                 setComposeSearch(event.target.value);
               }}
               placeholder="Search by name or @username"
-              className="w-full rounded-xl border border-border bg-sunken px-3 py-2 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:ring-2 focus-visible:ring-[#007AFF]/25"
+              className="w-full rounded-xl border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-3 py-2 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)]"
               aria-label="Search people"
               disabled={createConversationMutation.isPending}
             />
@@ -729,7 +729,7 @@ export function FloatingChatInbox({
                   onClick={function () {
                     contactsQuery.refetch();
                   }}
-                  className="text-[13px] font-semibold text-[#007AFF]"
+                  className="text-[13px] font-semibold text-[var(--chat-accent)]"
                 >
                   Try again
                 </button>
@@ -812,7 +812,7 @@ export function FloatingChatInbox({
           />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col bg-bg">
+        <div className="flex min-h-0 flex-1 flex-col bg-[var(--chat-floating-bg)]">
           <div className="px-3 py-3">
             <input
               type="search"
@@ -821,11 +821,11 @@ export function FloatingChatInbox({
                 setListSearch(event.target.value);
               }}
               placeholder="Search messages"
-              className="w-full rounded-full border border-border/70 bg-sunken px-4 py-2.5 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:ring-2 focus-visible:ring-[#007AFF]/25"
+              className="w-full rounded-full border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-4 py-2.5 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)]"
               aria-label="Search chats"
             />
             <div
-              className="mt-2 flex rounded-full bg-sunken p-1"
+              className="mt-2 flex rounded-full border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] p-1"
               role="tablist"
               aria-label="Floating chat folder"
             >
@@ -839,8 +839,8 @@ export function FloatingChatInbox({
                 className={cn(
                   "flex-1 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors",
                   listFilter === "active"
-                    ? "bg-elevated text-fg shadow-sm"
-                    : "text-fg-muted hover:text-fg"
+                    ? "bg-active text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                    : "text-fg-muted hover:bg-hover hover:text-fg"
                 )}
               >
                 Inbox
@@ -855,8 +855,8 @@ export function FloatingChatInbox({
                 className={cn(
                   "flex-1 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors",
                   listFilter === "archived"
-                    ? "bg-elevated text-fg shadow-sm"
-                    : "text-fg-muted hover:text-fg"
+                    ? "bg-active text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                    : "text-fg-muted hover:bg-hover hover:text-fg"
                 )}
               >
                 Archived
@@ -890,7 +890,7 @@ export function FloatingChatInbox({
                     listQuery.refetch();
                     requestsQuery.refetch();
                   }}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-fg px-4 py-2 text-[13px] font-semibold text-bg"
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-[image:var(--chat-own-bubble)] px-4 py-2 text-[13px] font-semibold text-[var(--chat-own-fg)]"
                 >
                   <RefreshCw className="h-4 w-4" strokeWidth={2} />
                   Retry
@@ -920,7 +920,7 @@ export function FloatingChatInbox({
                       setComposeOpen(true);
                       setComposeSearch("");
                     }}
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-fg px-4 py-2 text-[13px] font-semibold text-bg"
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-[image:var(--chat-own-bubble)] px-4 py-2 text-[13px] font-semibold text-[var(--chat-own-fg)]"
                   >
                     <PenLine className="h-4 w-4" strokeWidth={2} />
                     New message

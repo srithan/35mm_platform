@@ -5,23 +5,24 @@
   height: 24px;
   flex-shrink: 0;
   border-radius: 999px;
-  --switch-on: #3384fb;
-  --switch-off: color-mix(in srgb, var(--fg) 24%, var(--bg));
-  --switch-off-border: color-mix(in srgb, var(--fg) 20%, transparent);
-  --switch-thumb: color-mix(in srgb, #fff 92%, var(--elevated));
+  --switch-on: var(--switch-track-on, var(--accent));
+  --switch-off: var(--switch-track-off, color-mix(in srgb, var(--fg) 24%, var(--bg)));
+  --switch-off-border: var(--switch-track-off-border, color-mix(in srgb, var(--fg) 20%, transparent));
+  --switch-thumb: var(--switch-thumb-off, color-mix(in srgb, #fff 92%, var(--elevated)));
+  --switch-thumb-checked: var(--switch-thumb-on, var(--bg));
   --switch-thumb-shadow: rgb(0 0 0 / 0.2);
 }
 
 .root[data-variant="green"] {
-  --switch-on: var(--color-success, #4ccf59);
+  --switch-on: var(--switch-track-on, var(--color-success, var(--accent)));
 }
 
 .root[data-variant="blue"] {
-  --switch-on: #3384fb;
+  --switch-on: var(--switch-track-on, var(--accent));
 }
 
 .root[data-variant="boo"] {
-  --switch-on: #ff3372;
+  --switch-on: var(--switch-track-on, var(--color-like, var(--accent)));
 }
 
 .root[data-disabled="true"] {
@@ -91,6 +92,7 @@
 
 .input:checked + .track > .thumb {
   transform: translateX(18px) scale(1);
+  background: var(--switch-thumb-checked);
 }
 
 .input[data-toggled="true"] + .track > .thumb {

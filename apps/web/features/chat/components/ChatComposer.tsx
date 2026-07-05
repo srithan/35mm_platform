@@ -307,9 +307,9 @@ export function ChatComposer({
       />
 
       {isEditing ? (
-        <div className="flex items-start gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.08] px-3 py-2">
-          <div className="flex-1 min-w-0 border-l-2 border-[#007AFF] pl-2.5">
-            <p className="text-[11px] font-semibold text-[#007AFF] uppercase tracking-wide">
+        <div className="flex items-start gap-2 rounded-xl border border-[var(--chat-accent-border)] bg-[var(--chat-accent-bg)] px-3 py-2">
+          <div className="flex-1 min-w-0 border-l-2 border-[var(--chat-accent)] pl-2.5">
+            <p className="text-[11px] font-semibold text-[var(--chat-accent)] uppercase tracking-wide">
               Editing message
             </p>
             <p className="text-[13px] text-fg-muted line-clamp-1 mt-0.5">
@@ -327,8 +327,8 @@ export function ChatComposer({
         </div>
       ) : replyingTo ? (
         <div className="flex items-start gap-2 rounded-xl border border-border bg-sunken px-3 py-2">
-          <div className="flex-1 min-w-0 border-l-2 border-[#007AFF] pl-2.5">
-            <p className="text-[11px] font-semibold text-[#007AFF] uppercase tracking-wide">
+          <div className="flex-1 min-w-0 border-l-2 border-[var(--chat-accent)] pl-2.5">
+            <p className="text-[11px] font-semibold text-[var(--chat-accent)] uppercase tracking-wide">
               Replying to {replyingTo.isOwn ? "you" : "them"}
             </p>
             <p className="text-[13px] text-fg-muted line-clamp-2 mt-0.5">
@@ -353,10 +353,10 @@ export function ChatComposer({
             <img
               src={pending.kind === "gif" ? pending.url : pending.dataUrl}
               alt=""
-              className="w-14 h-14 rounded-lg object-cover bg-black/10"
+              className="w-14 h-14 rounded-lg object-cover bg-sunken"
             />
           ) : (
-            <div className="w-14 h-14 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] flex items-center justify-center">
+            <div className="w-14 h-14 rounded-lg bg-sunken flex items-center justify-center">
               <FolderOpen className="w-6 h-6 text-fg-muted" strokeWidth={1.5} />
             </div>
           )}
@@ -383,7 +383,7 @@ export function ChatComposer({
 
       <div
         className={cn(
-          "relative flex items-end gap-1 rounded-[23px] bg-elevated/95 border border-border pl-1 pr-1 py-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#007AFF]/25 focus-within:border-[#007AFF]/40 transition-shadow"
+          "relative flex items-end gap-1 rounded-[23px] bg-elevated/95 border border-border pl-1 pr-1 py-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--fg)_8%,transparent)] focus-within:ring-2 focus-within:ring-[var(--chat-accent-ring)] focus-within:border-[var(--chat-accent-border)] transition-shadow"
         )}
       >
         <div className="flex items-center shrink-0 pl-0.5">
@@ -393,7 +393,7 @@ export function ChatComposer({
               onClick={function () {
                 photoInputRef.current?.click();
               }}
-              className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
+              className="p-2 text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] rounded-full transition-colors"
               aria-label="Photos and videos"
               disabled={disabled || isSending || isEditing}
             >
@@ -404,7 +404,7 @@ export function ChatComposer({
               onClick={function () {
                 fileInputRef.current?.click();
               }}
-              className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
+              className="p-2 text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] rounded-full transition-colors"
               aria-label="Files"
               disabled={disabled || isSending || isEditing}
             >
@@ -421,7 +421,7 @@ export function ChatComposer({
                   return !v;
                 });
               }}
-              className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
+              className="p-2 text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] rounded-full transition-colors"
               aria-label="Attach"
               aria-expanded={attachOpen}
               disabled={disabled || isSending || isEditing}
@@ -441,7 +441,7 @@ export function ChatComposer({
                     desktopPhotoInputRef.current?.click();
                   }}
                 >
-                  <ImagePlus className="w-4 h-4 text-[#007AFF]" strokeWidth={2} />
+                  <ImagePlus className="w-4 h-4 text-[var(--chat-accent)]" strokeWidth={2} />
                   Photos &amp; videos
                 </button>
                 <button
@@ -452,7 +452,7 @@ export function ChatComposer({
                     desktopFileInputRef.current?.click();
                   }}
                 >
-                  <FolderOpen className="w-4 h-4 text-[#007AFF]" strokeWidth={2} />
+                  <FolderOpen className="w-4 h-4 text-[var(--chat-accent)]" strokeWidth={2} />
                   Files
                 </button>
               </div>
@@ -469,7 +469,7 @@ export function ChatComposer({
                 });
                 setShowGif(false);
               }}
-              className="p-2 text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors"
+              className="p-2 text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] rounded-full transition-colors"
               aria-label="Emoji"
               disabled={disabled || isSending}
             >
@@ -502,7 +502,7 @@ export function ChatComposer({
                 });
                 setShowEmoji(false);
               }}
-              className="px-2 py-2 text-[12px] font-bold text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors tracking-tight"
+              className="px-2 py-2 text-[12px] font-bold text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] rounded-full transition-colors tracking-tight"
               aria-label="GIF"
               disabled={disabled || isSending || isEditing}
             >
@@ -549,7 +549,7 @@ export function ChatComposer({
           className={cn(
             "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 mb-0.5 mr-0.5",
             canSend
-              ? "bg-[#007AFF] text-white shadow-sm scale-100 hover:bg-[#0066d6] active:scale-95"
+              ? "bg-[image:var(--chat-own-bubble)] text-[var(--chat-own-fg)] shadow-sm scale-100 hover:brightness-[0.96] active:scale-95"
               : "bg-sunken-2 text-fg-muted scale-95 opacity-80"
           )}
           aria-label={isEditing ? "Save edit" : "Send message"}

@@ -281,8 +281,8 @@ export function ChatList({
                     className={cn(
                       "flex-1 rounded-[10px] py-2 text-[12px] font-semibold transition-colors",
                       inboxSegment === "active"
-                        ? "bg-elevated text-fg shadow-sm"
-                        : "text-fg-muted hover:text-fg"
+                        ? "bg-active text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                        : "text-fg-muted hover:bg-hover hover:text-fg"
                     )}
                   >
                     Inbox
@@ -297,8 +297,8 @@ export function ChatList({
                     className={cn(
                       "flex-1 rounded-[10px] py-2 text-[12px] font-semibold transition-colors",
                       inboxSegment === "archived"
-                        ? "bg-elevated text-fg shadow-sm"
-                        : "text-fg-muted hover:text-fg"
+                        ? "bg-active text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                        : "text-fg-muted hover:bg-hover hover:text-fg"
                     )}
                   >
                     Archived
@@ -332,7 +332,7 @@ export function ChatList({
               onClick={function () {
                 refetch();
               }}
-              className="text-[13px] font-semibold text-[#007AFF]"
+              className="text-[13px] font-semibold text-[var(--chat-accent)]"
             >
               Retry
             </button>
@@ -353,7 +353,7 @@ export function ChatList({
                         onClick={function () {
                           openNewChat();
                         }}
-                        className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
+                        className="inline-flex items-center justify-center rounded-full bg-[image:var(--chat-own-bubble)] px-4 py-2 text-[13px] font-semibold text-[var(--chat-own-fg)] hover:brightness-[0.96]"
                       >
                     New message
                   </button>
@@ -383,7 +383,7 @@ export function ChatList({
                 openNewChat({ presentation: "draft" });
               }}
               className={cn(
-                "w-full flex items-center border-b border-black/[0.04] bg-[#007AFF] text-white transition-colors cursor-pointer",
+                "w-full flex items-center border-b border-black/[0.04] bg-[image:var(--chat-own-bubble)] text-[var(--chat-own-fg)] transition-colors cursor-pointer",
                 collapsed
                   ? "justify-center py-3 px-2"
                   : "items-start gap-3 px-4 py-4 text-left"
@@ -392,7 +392,7 @@ export function ChatList({
               <div className="relative shrink-0">
                 <div
                   className={cn(
-                    "flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white shadow-sm",
+                    "flex h-11 w-11 items-center justify-center rounded-full bg-[var(--chat-own-overlay)] text-[var(--chat-own-fg)] shadow-sm",
                     collapsed && "h-10 w-10"
                   )}
                   aria-hidden
@@ -405,7 +405,7 @@ export function ChatList({
                   <span className="truncate text-[15px] font-semibold tracking-[-0.01em]">
                     New Message
                   </span>
-                  <span className="truncate text-[13px] text-white/80">
+                  <span className="truncate text-[13px] text-[var(--chat-own-fg-muted)]">
                     Choose someone to message
                   </span>
                 </div>
@@ -431,7 +431,7 @@ export function ChatList({
                 onClick={closeNewChatDraft}
                 className={cn(
                   "w-full flex items-center border-b border-black/[0.04] dark:border-white/[0.06] transition-colors hover:bg-hover cursor-pointer no-underline text-inherit",
-                  isActive && "bg-white/80 dark:bg-white/[0.04]",
+                  isActive && "bg-[var(--color-bg-active)] hover:bg-[var(--color-bg-active)]",
                   collapsed
                     ? "justify-center py-3 px-2"
                     : "items-start gap-3 px-4 py-3 text-left"
@@ -442,8 +442,7 @@ export function ChatList({
                     initial={chat.name.charAt(0)}
                     src={chat.avatarUrl}
                     className={cn(
-                      "w-11 h-11 text-[15px] shadow-sm ring-1 ring-black/[0.04]",
-                      isActive && "ring-2 ring-[#007AFF] ring-offset-2 ring-offset-bg"
+                      "w-11 h-11 text-[15px] shadow-sm ring-1 ring-black/[0.04]"
                     )}
                     loading="eager"
                   />
@@ -462,7 +461,7 @@ export function ChatList({
                       </span>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         {chat.unread !== undefined && chat.unread > 0 ? (
-                          <span className="text-[10px] font-semibold min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#007AFF] text-white tabular-nums">
+                          <span className="text-[10px] font-semibold min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--chat-accent)] text-[var(--chat-own-fg)] tabular-nums">
                             {chat.unread > 99 ? "99+" : chat.unread}
                           </span>
                         ) : null}

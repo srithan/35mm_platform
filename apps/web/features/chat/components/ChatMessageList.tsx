@@ -83,7 +83,7 @@ export function ChatMessagesSkeleton() {
               className={cn(
                 "h-11 rounded-[18px]",
                 i % 3 === 0
-                  ? "w-[min(62%,22rem)] bg-[#007AFF]/35"
+                  ? "w-[min(62%,22rem)] bg-fg/25"
                   : i % 3 === 1
                     ? "w-[min(74%,26rem)] bg-sunken"
                     : "w-[min(48%,18rem)] bg-sunken"
@@ -122,6 +122,7 @@ function MessageActions({
   const [copyLabel, setCopyLabel] = useState<"Copy" | "Copied">("Copy");
   const [compactQuickBarStyle, setCompactQuickBarStyle] =
     useState<CSSProperties | undefined>(undefined);
+  const [quickBarPlacement, setQuickBarPlacement] = useState<"above" | "below">("above");
   const ref = useRef<HTMLDivElement>(null);
   const reactionClusterRef = useRef<HTMLDivElement>(null);
   const plusRef = useRef<HTMLButtonElement>(null);
@@ -131,6 +132,7 @@ function MessageActions({
     setReactionPhase("closed");
     setShowMore(false);
     setCompactQuickBarStyle(undefined);
+    setQuickBarPlacement("above");
   }, []);
 
   const dismissMoreMenuOnly = useCallback(function (): void {
@@ -167,6 +169,28 @@ function MessageActions({
   function closeReactions(): void {
     setReactionPhase("closed");
     setCompactQuickBarStyle(undefined);
+    setQuickBarPlacement("above");
+  }
+
+  function getQuickBarTopBoundary(anchor: HTMLElement): number {
+    const scrollRoot = anchor.closest("[data-chat-scroll-root]");
+    if (scrollRoot instanceof HTMLElement) {
+      return scrollRoot.getBoundingClientRect().top + 8;
+    }
+    return 10;
+  }
+
+  function updateQuickBarPlacement(anchor: HTMLElement): void {
+    if (compact) {
+      return;
+    }
+    const anchorRect = anchor.getBoundingClientRect();
+    const barHeight = 48;
+    const gap = 10;
+    const topBoundary = getQuickBarTopBoundary(anchor);
+    setQuickBarPlacement(
+      anchorRect.top - barHeight - gap < topBoundary ? "below" : "above"
+    );
   }
 
   function getCompactQuickBarStyle(anchor: HTMLElement): CSSProperties | undefined {
@@ -189,6 +213,7 @@ function MessageActions({
     const nextPhase = reactionPhase === "closed" ? "bar" : "closed";
     setReactionPhase(nextPhase);
     setShowMore(false);
+    updateQuickBarPlacement(event.currentTarget);
     if (!compact || nextPhase === "closed") {
       setCompactQuickBarStyle(undefined);
       return;
@@ -214,16 +239,32 @@ function MessageActions({
           : "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100",
         align === "left" && "order-first"
       )}
+      onMouseEnter={function () {
+        if (ref.current) {
+          updateQuickBarPlacement(ref.current);
+        }
+      }}
+      onFocus={function () {
+        if (ref.current) {
+          updateQuickBarPlacement(ref.current);
+        }
+      }}
     >
       <div className="relative" ref={reactionClusterRef}>
         <button
           type="button"
           onClick={toggleReactionBar}
+          onMouseEnter={function (event) {
+            updateQuickBarPlacement(event.currentTarget);
+          }}
+          onFocus={function (event) {
+            updateQuickBarPlacement(event.currentTarget);
+          }}
           className={cn(
             "rounded-full p-1.5 transition-colors",
             !compact && "md:hidden",
             isReactionBarOpen
-              ? "text-[#007AFF] bg-[#007AFF]/12 dark:bg-[#007AFF]/20"
+              ? "text-[var(--chat-accent)] bg-[var(--chat-accent-bg)]"
               : "text-fg-muted hover:text-fg hover:bg-hover"
           )}
           aria-label="React"
@@ -237,7 +278,10 @@ function MessageActions({
               "z-[75] items-center gap-0.5 rounded-full border border-border/80 bg-elevated/95 px-1 py-1 shadow-[0_6px_28px_rgba(0,0,0,0.14),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-xl",
               compact
                 ? "fixed justify-center"
-                : "absolute bottom-full mb-2.5",
+                : cn(
+                    "absolute",
+                    quickBarPlacement === "below" ? "top-full mt-2.5" : "bottom-full mb-2.5"
+                  ),
               isReactionBarOpen && (!compact || compactQuickBarStyle)
                 ? "flex"
                 : compact
@@ -284,8 +328,8 @@ function MessageActions({
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-full border border-dashed transition-colors",
                     reactionPhase === "picker"
-                      ? "border-[#007AFF]/45 bg-[#007AFF]/12 text-[#007AFF]"
-                      : "border-border/80 text-fg-muted hover:border-[#007AFF]/35 hover:bg-hover hover:text-fg"
+                      ? "border-[var(--chat-accent-border)] bg-[var(--chat-accent-bg)] text-[var(--chat-accent)]"
+                      : "border-border/80 text-fg-muted hover:border-[var(--chat-accent-border)] hover:bg-hover hover:text-fg"
                   )}
                   aria-label="More emoji"
                 >
@@ -397,7 +441,7 @@ function MessageActions({
               <button
                 type="button"
                 role="menuitem"
-                className="w-full px-3 py-2 text-left text-[12px] text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                className="w-full px-3 py-2 text-left text-[12px] text-film-red hover:bg-[color-mix(in_srgb,var(--film-red)_10%,transparent)]"
                 onClick={function () {
                   onDelete();
                   setShowMore(false);
@@ -448,7 +492,7 @@ function TypingIndicator({
       <Avatar
         initial={(first.username || otherAvatar.initial || "?").charAt(0)}
         src={first.avatarUrl ?? otherAvatar.src}
-        className="h-7 w-7 text-[11px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+        className="h-7 w-7 text-[11px] shadow-sm ring-1 ring-border"
         loading="lazy"
       />
       <div className="flex flex-col gap-1">
@@ -591,7 +635,7 @@ function BubbleRow({
           <Avatar
             initial={otherAvatar.initial}
             src={msg.senderAvatarUrl ?? otherAvatar.src}
-            className="w-7 h-7 text-[11px] shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+            className="w-7 h-7 text-[11px] shadow-sm ring-1 ring-border"
             loading="lazy"
           />
         ) : null}
@@ -616,19 +660,19 @@ function BubbleRow({
                     ? "max-w-[min(100%,230px)] overflow-visible"
                     : "max-w-[min(100%,520px)] overflow-visible",
                   bubbleRadius,
-                  "shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
+                  "shadow-[0_2px_8px_color-mix(in_srgb,var(--fg)_10%,transparent)]",
                   msg.isOwn
-                    ? "bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
-                    : "bg-sunken text-fg border border-border dark:bg-[color-mix(in_srgb,var(--elevated)_88%,var(--fg)_12%)] dark:border-white/[0.08]"
+                    ? "bg-[image:var(--chat-own-bubble)] text-[var(--chat-own-fg)]"
+                    : "bg-sunken text-fg border border-border"
                 ),
             isJumpHighlighted &&
               (isStandaloneEmoji || isStandaloneMedia
-                ? "rounded-[18px] ring-2 ring-[#007AFF]/50"
+                ? "rounded-[18px] ring-2 ring-[var(--chat-accent-ring)]"
                 : hasAttachment
-                ? "rounded-[16px] ring-2 ring-[#007AFF]/50"
+                ? "rounded-[16px] ring-2 ring-[var(--chat-accent-ring)]"
                 : msg.isOwn
-                  ? "ring-2 ring-white/70 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_4px_20px_rgba(10,132,255,0.35)]"
-                  : "ring-2 ring-[#007AFF]/55 shadow-[0_0_0_1px_rgba(10,132,255,0.2),0_4px_18px_rgba(10,132,255,0.12)]")
+                  ? "ring-2 ring-[var(--chat-accent-ring)] shadow-[0_0_0_1px_var(--chat-accent-border),0_4px_20px_color-mix(in_srgb,var(--chat-accent)_22%,transparent)]"
+                  : "ring-2 ring-[var(--chat-accent-ring)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--chat-accent)_22%,transparent),0_4px_18px_color-mix(in_srgb,var(--chat-accent)_14%,transparent)]")
           )}
         >
           <ChatMessageReactions
@@ -659,19 +703,19 @@ function BubbleRow({
                   e.currentTarget.blur();
                 }}
                 className={cn(
-                  "mb-2 block w-full text-left pl-2.5 border-l-[3px] rounded-lg py-1.5 -mx-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#007AFF]/45",
+                  "mb-2 block w-full text-left pl-2.5 border-l-[3px] rounded-lg py-1.5 -mx-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--chat-accent-ring)]",
                   hasAttachment
-                    ? "border-[#007AFF]/50 bg-elevated text-fg hover:bg-hover"
+                    ? "border-[var(--chat-accent-border)] bg-elevated text-fg hover:bg-hover"
                     : msg.isOwn
-                    ? "border-white/45 bg-white/10 hover:bg-white/[0.14]"
-                    : "border-[#007AFF]/50 bg-border/25 hover:bg-border/40"
+                    ? "border-[var(--chat-own-fg-muted)] bg-[var(--chat-own-overlay)] hover:bg-[var(--chat-own-overlay-hover)]"
+                    : "border-[var(--chat-accent-border)] bg-border/25 hover:bg-border/40"
                 )}
                 aria-label="Jump to quoted message"
               >
                 <p
                   className={cn(
                     "text-[11px] font-semibold uppercase tracking-wide",
-                    hasAttachment || !msg.isOwn ? "text-[#007AFF]" : "text-white/75"
+                    hasAttachment || !msg.isOwn ? "text-[var(--chat-accent)]" : "text-[var(--chat-own-fg-muted)]"
                   )}
                 >
                   {msg.replyTo.isOwn ? "You" : "Them"}
@@ -679,7 +723,7 @@ function BubbleRow({
                 <p
                   className={cn(
                     "text-[12px] leading-snug line-clamp-2 mt-0.5",
-                    hasAttachment || !msg.isOwn ? "text-fg-muted" : "text-white/85"
+                    hasAttachment || !msg.isOwn ? "text-fg-muted" : "text-[var(--chat-own-fg-muted)]"
                   )}
                 >
                   {msg.replyTo.snippet}
@@ -692,7 +736,7 @@ function BubbleRow({
                 onClick={function () {
                   onOpenImage(msg.media!.url);
                 }}
-                className="block w-fit max-w-full overflow-hidden rounded-[14px] bg-black/[0.03] ring-1 ring-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60 dark:bg-white/[0.04] dark:ring-white/10"
+                className="block w-fit max-w-full overflow-hidden rounded-[14px] bg-sunken ring-1 ring-border shadow-[0_2px_10px_color-mix(in_srgb,var(--fg)_10%,transparent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--chat-accent-ring)]"
                 aria-label="View image"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -749,14 +793,14 @@ function BubbleRow({
                     ? "text-fg"
                     : hasAttachment
                     ? cn(
-                        "mt-1.5 w-fit rounded-[22px] px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)]",
+                        "mt-1.5 w-fit rounded-[22px] px-3.5 py-2 shadow-[0_2px_8px_color-mix(in_srgb,var(--fg)_10%,transparent)]",
                         compact ? "max-w-[min(100%,230px)]" : "max-w-[min(70vw,320px)]",
                         msg.isOwn
-                          ? "ml-auto rounded-br-[14px] bg-gradient-to-br from-[#0A84FF] to-[#0070E0] text-white"
-                          : "rounded-bl-[14px] border border-border bg-sunken text-fg dark:bg-[color-mix(in_srgb,var(--elevated)_88%,var(--fg)_12%)] dark:border-white/[0.08]"
+                          ? "ml-auto rounded-br-[14px] bg-[image:var(--chat-own-bubble)] text-[var(--chat-own-fg)]"
+                          : "rounded-bl-[14px] border border-border bg-sunken text-fg"
                       )
                     : msg.isOwn
-                      ? "text-white"
+                      ? "text-[var(--chat-own-fg)]"
                       : "text-fg"
                 )}
               >
@@ -765,7 +809,7 @@ function BubbleRow({
                   <span
                     className={cn(
                       "ml-1 text-[11px]",
-                      msg.isOwn && !isStandaloneEmoji ? "text-white/55" : "text-fg-muted"
+                      msg.isOwn && !isStandaloneEmoji ? "text-[var(--chat-own-fg-muted)]" : "text-fg-muted"
                     )}
                   >
                     edited

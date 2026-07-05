@@ -36,7 +36,7 @@ export function ChatJumpToLatestFab({
       aria-label={label}
     >
       {newMessageCount > 0 ? (
-        <span className="text-[12px] font-semibold text-[#007AFF] tabular-nums">
+        <span className="text-[12px] font-semibold text-[var(--chat-accent)] tabular-nums">
           {newMessageCount > 99 ? "99+" : String(newMessageCount)}
         </span>
       ) : null}

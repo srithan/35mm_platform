@@ -1,7 +1,11 @@
 import cassandra from "cassandra-driver";
 import { describe, expect, it } from "vitest";
 
-import { fetchChatMessages, messageBucketsNewestFirst } from "./routes.js";
+import {
+  fetchChatMessages,
+  messageBucketsNewestFirst,
+  visibleLastMessageAt,
+} from "./routes.js";
 
 type TestMessageRow = Awaited<ReturnType<typeof fetchChatMessages>>["rows"][number];
 
@@ -112,5 +116,31 @@ describe("chat message bucket paging", function () {
     );
 
     expect(buckets).toEqual(messageBucketsNewestFirst(202607));
+  });
+});
+
+describe("chat thread preview activity", function () {
+  it("falls back to thread metadata when member activity state is missing", function () {
+    var threadLastMessageAt = new Date("2026-07-04T16:20:00.000Z");
+
+    expect(visibleLastMessageAt(null, threadLastMessageAt)).toBe(threadLastMessageAt);
+  });
+
+  it("prefers member activity state when it is newer", function () {
+    var memberLastMessageAt = new Date("2026-07-04T16:21:00.000Z");
+    var threadLastMessageAt = new Date("2026-07-04T16:20:00.000Z");
+
+    expect(visibleLastMessageAt(memberLastMessageAt, threadLastMessageAt)).toBe(
+      memberLastMessageAt
+    );
+  });
+
+  it("prefers thread metadata when it is newer than member activity state", function () {
+    var memberLastMessageAt = new Date("2026-07-04T16:20:00.000Z");
+    var threadLastMessageAt = new Date("2026-07-04T16:21:00.000Z");
+
+    expect(visibleLastMessageAt(memberLastMessageAt, threadLastMessageAt)).toBe(
+      threadLastMessageAt
+    );
   });
 });

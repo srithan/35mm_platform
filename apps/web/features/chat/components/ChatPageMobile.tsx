@@ -34,7 +34,7 @@ export function ChatPageMobile() {
               onChange={function (e) {
                 setSearch(e.target.value);
               }}
-              className="w-full pl-9 pr-4 py-2.5 rounded-full bg-border/60 text-fg text-[16px] placeholder:text-fg-muted border-none focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 focus:bg-border/80 select-text"
+              className="w-full rounded-full border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] py-2.5 pl-9 pr-4 text-[16px] text-fg placeholder:text-fg-muted outline-none select-text focus:border-[var(--chat-search-border-focus)] focus:bg-[var(--chat-search-bg-focus)] focus:ring-2 focus:ring-[var(--chat-focus-ring)]"
               aria-label="Search conversations"
             />
           </div>
@@ -53,7 +53,7 @@ export function ChatPageMobile() {
             className={cn(
               "py-3 text-[13px] font-medium transition-colors border-b-2 -mb-px text-center px-1",
               activeTab === "all"
-                ? "text-fg border-accent"
+                ? "text-fg border-[var(--chat-accent)]"
                 : "text-fg-muted border-transparent hover:text-fg-light"
             )}
           >
@@ -67,7 +67,7 @@ export function ChatPageMobile() {
             className={cn(
               "py-3 text-[13px] font-medium transition-colors border-b-2 -mb-px text-center px-1",
               activeTab === "requests"
-                ? "text-fg border-accent"
+                ? "text-fg border-[var(--chat-accent)]"
                 : "text-fg-muted border-transparent hover:text-fg-light"
             )}
           >
@@ -81,7 +81,7 @@ export function ChatPageMobile() {
             className={cn(
               "py-3 text-[13px] font-medium transition-colors border-b-2 -mb-px text-center px-1",
               activeTab === "archived"
-                ? "text-fg border-accent"
+                ? "text-fg border-[var(--chat-accent)]"
                 : "text-fg-muted border-transparent hover:text-fg-light"
             )}
           >

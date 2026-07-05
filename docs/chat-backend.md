@@ -1,6 +1,6 @@
 # Chat Backend Implementation
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 
 This document explains the chat backend implemented in this thread. It is intentionally backend-only: API routes, storage, queues, worker jobs, realtime events, environment, migrations, operational checks, and known follow-up work. Frontend details appear only where they affect backend contracts.
 
@@ -38,6 +38,8 @@ This split keeps common inbox reads cheap:
 - Inbox reads query Postgres metadata and Redis unread counters.
 - Message page reads query Keyspaces by `(thread_id, bucket)` and descending `message_id`.
 - Message send writes one Keyspaces row plus one Postgres summary upsert.
+- Message send also upserts `chat_member_state.last_message_at` for active participants so inbox ordering stays on the per-user metadata path.
+- First-time reaction notifications upsert `chat_member_state.last_message_at` for the recipient because they update inbox activity and unread state.
 - Worker jobs hydrate Keyspaces rows only when realtime publishing needs a payload.
 
 The tradeoff is cross-store consistency. A send touches Keyspaces, Postgres, Redis, and BullMQ. The code orders writes so the message row is created before the thread summary and delivery job. If realtime fails, persisted reads still work.
@@ -139,6 +141,7 @@ Columns:
 - `thread_id text not null`: FK to `chat_threads.id`.
 - `user_id uuid not null`: FK to `users.id`.
 - `last_read_message_id text`.
+- `last_message_at timestamptz`.
 - `archived_at timestamptz`.
 - `deleted_at timestamptz`.
 - `muted_until timestamptz`.
@@ -151,6 +154,7 @@ Constraints and indexes:
 Reasoning:
 
 - Archive, mute, delete, and read state are user-specific.
+- Inbox previews expose this per-user last activity timestamp when available.
 - Keeping state separate from `chat_participants` avoids overloading membership with inbox preferences.
 - `deleted_at` means "hidden for this member", not thread deletion.
 
@@ -174,6 +178,7 @@ Reasoning:
 
 - Inbox must not query Keyspaces per thread just to sort previews.
 - Summary rows are updated on send.
+- Preview responses use the latest of `chat_member_state.last_message_at` and `chat_thread_meta.last_message_at`, preserving visible list timestamps and ordering when legacy member-state activity is missing or stale. Migration `0034_chat_member_activity_backfill` repairs existing member activity rows from thread metadata.
 - This is denormalized by design.
 
 ### AWS Keyspaces Tables
@@ -390,7 +395,7 @@ Behavior:
 
 - Reads threads where current user is active participant.
 - Excludes threads where current user's `chat_member_state.deleted_at` is set.
-- Sorts by `chat_thread_meta.last_message_at DESC`, then thread ID.
+- Sorts by effective last activity timestamp (`GREATEST`-equivalent of `chat_member_state.last_message_at` and `chat_thread_meta.last_message_at`) descending with `NULLS LAST`, then thread ID.
 - Uses composite cursor encoding from existing cursor helpers.
 - Hydrates members from profiles.
 - For DMs, response members exclude the viewer, so the client can render the other participant.
@@ -500,10 +505,11 @@ Writes:
 
 1. Insert Keyspaces `messages` row.
 2. Upsert Postgres `chat_thread_meta`.
-3. Increment Redis unread count for every active member except sender.
-4. Clear sender typing marker.
-5. Publish `message.new` to the thread channel and small-conversation `thread.updated` inbox events directly from the API.
-6. Enqueue `chat.deliver` only if direct publish fails or inbox fanout is too large for the API fast path.
+3. Upsert `chat_member_state.last_message_at` for active participants.
+4. Increment Redis unread count for every active member except sender.
+5. Clear sender typing marker.
+6. Publish `message.new` to the thread channel and small-conversation `thread.updated` inbox events directly from the API.
+7. Enqueue `chat.deliver` only if direct publish fails or inbox fanout is too large for the API fast path.
 
 Response:
 
@@ -578,7 +584,7 @@ Behavior:
 - Writes the full reactions map back to `messages.reactions`.
 - Publishes `message.reaction` directly to `thread:{threadId}` after persistence.
 - Enqueues `chat.messageUpdated` with type `reaction` only when direct publish fails.
-- Creates a `chat_reaction` notification for the message sender only on the first reaction add by that actor, increments that sender's chat unread count, updates `chat_thread_meta` with a reaction preview, and publishes `thread.updated` to `user:{recipientId}:inbox` so header badges and unread rows update in realtime. Self-reactions, duplicate retries, inactive recipients, and reaction removals do not create notifications or unread increments.
+- Creates a `chat_reaction` notification for the message sender only on the first reaction add by that actor, increments that sender's chat unread count, updates `chat_thread_meta` and recipient `chat_member_state.last_message_at` with reaction activity, and publishes `thread.updated` to `user:{recipientId}:inbox` so header badges and unread rows update in realtime. Self-reactions, duplicate retries, inactive recipients, and reaction removals do not create notifications or unread increments.
 - Returns the updated hydrated message so clients can patch the active thread
   cache without a follow-up read.
 

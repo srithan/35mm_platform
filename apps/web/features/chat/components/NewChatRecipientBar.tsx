@@ -30,7 +30,7 @@ export function NewChatRecipientBar() {
 
   return (
     <header className="relative shrink-0 border-b border-black/[0.06] bg-bg/95 px-3 py-3 backdrop-blur-md dark:border-white/[0.08]">
-      <div className="flex min-h-[48px] items-center gap-2 rounded-full border border-border bg-sunken px-4 shadow-sm">
+      <div className="flex min-h-[48px] items-center gap-2 rounded-full border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-4 shadow-sm transition-shadow focus-within:border-[var(--chat-search-border-focus)] focus-within:bg-[var(--chat-search-bg-focus)] focus-within:ring-2 focus-within:ring-[var(--chat-focus-ring)]">
         <label
           htmlFor="new-chat-recipient"
           className="shrink-0 text-[15px] font-semibold text-fg-muted"
@@ -77,7 +77,7 @@ export function NewChatRecipientBar() {
                 onClick={function () {
                   refetch();
                 }}
-                className="text-[13px] font-semibold text-[#007AFF]"
+                className="text-[13px] font-semibold text-[var(--chat-accent)]"
               >
                 Try again
               </button>
@@ -100,7 +100,7 @@ export function NewChatRecipientBar() {
                       className={cn(
                         "mx-3 flex w-[calc(100%-1.5rem)] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors disabled:opacity-60",
                         index === 0
-                          ? "bg-[#007AFF] text-white"
+                          ? "bg-[image:var(--chat-own-bubble)] text-[var(--chat-own-fg)]"
                           : "text-fg hover:bg-hover"
                       )}
                     >

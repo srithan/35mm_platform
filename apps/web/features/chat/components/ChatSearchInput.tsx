@@ -25,7 +25,7 @@ export function ChatSearchInput({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-xl border border-border bg-sunken px-3 py-2 focus-within:ring-2 focus-within:ring-[#007AFF]/25 focus-within:border-[#007AFF]/35 transition-shadow",
+        "flex items-center gap-2 rounded-xl border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-3 py-2 transition-shadow focus-within:border-[var(--chat-search-border-focus)] focus-within:bg-[var(--chat-search-bg-focus)] focus-within:ring-2 focus-within:ring-[var(--chat-focus-ring)]",
         className
       )}
     >

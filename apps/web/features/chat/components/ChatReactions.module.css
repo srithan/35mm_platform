@@ -93,15 +93,8 @@
   background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--fg) 8%, transparent);
   animation: chatReactionPillEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-:global([data-theme="dark"]) .pill,
-:global(.dark) .pill {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
 }
 
 .pillCompact {
@@ -145,11 +138,6 @@
   box-shadow: -1px 0 0 color-mix(in srgb, var(--color-border-strong) 50%, transparent);
 }
 
-:global([data-theme="dark"]) .chip + .chip,
-:global(.dark) .chip + .chip {
-  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.08);
-}
-
 .chip:hover {
   background: color-mix(in srgb, var(--color-bg-hover) 85%, transparent);
 }
@@ -159,11 +147,11 @@
 }
 
 .chipActive {
-  background: color-mix(in srgb, #007aff 12%, transparent);
+  background: var(--chat-accent-bg);
 }
 
 .chipActive:hover {
-  background: color-mix(in srgb, #007aff 18%, transparent);
+  background: var(--chat-accent-bg-strong);
 }
 
 .emoji {
@@ -187,5 +175,5 @@
 }
 
 .chipActive .count {
-  color: #007aff;
+  color: var(--chat-accent);
 }
