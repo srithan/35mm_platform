@@ -7,7 +7,7 @@ interface DiaryRowProps {
   meta: string;
   posterSrc?: string | null;
   imdbId?: string | null;
-  rating: number;
+  rating?: number | null;
 }
 
 export function DiaryRow({
@@ -36,7 +36,7 @@ export function DiaryRow({
         <div className="font-display text-sm italic">{title}</div>
         <div className="text-[11px] text-fg-muted mt-0.5">{meta}</div>
       </div>
-      <StarRating rating={rating} size="sm" />
+      {rating != null && rating > 0 ? <StarRating rating={rating} size="sm" /> : null}
     </div>
   );
 }

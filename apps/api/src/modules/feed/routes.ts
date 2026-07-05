@@ -84,6 +84,7 @@ import {
   setFeedCache,
   setHighFollowerAuthorFeedCache,
 } from "../../lib/feedCache.js";
+import { invalidateProfileStatsCaches } from "../../lib/profileStatsCache.js";
 import {
   enqueueFeedFanoutJob,
   enqueueMediaProcessJob,
@@ -913,6 +914,7 @@ async function invalidatePostInteractionCaches(input: {
   void input.isPostPublic;
   await invalidateViewerFeedCaches([input.actorUserId, input.postOwnerId]);
   await invalidateAuthorProfileFeedCaches([input.postOwnerId]);
+  await invalidateProfileStatsCaches([input.postOwnerId]);
 }
 
 async function invalidateFeedAfterAuthorMutation(input: {
@@ -921,6 +923,7 @@ async function invalidateFeedAfterAuthorMutation(input: {
 }) {
   await invalidateViewerFeedCaches([input.authorUserId]);
   await invalidateAuthorProfileFeedCaches([input.authorUserId]);
+  await invalidateProfileStatsCaches([input.authorUserId]);
   if (input.includeGuest) {
     await invalidateFeedCacheForGuest();
   }
@@ -2548,6 +2551,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     });
   } else {
     await invalidateAuthorProfileFeedCaches([user.userId]);
+    await invalidateProfileStatsCaches([user.userId]);
   }
 
   var created = await getPostById(postId, user.userId);

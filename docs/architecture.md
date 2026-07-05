@@ -429,6 +429,9 @@ Profiles, follows, moderation:
 
 - `GET /v1/profiles/search`
 - `GET /v1/profiles/:username`
+- `GET /v1/profiles/:username/stats`
+  - returns real profile stats for visible logged films, runtime hours, average rating, review counts/likes, favorite films, genre breakdown, last-12-month activity, and recent diary rows
+  - enforces profile privacy, blocks, and per-post visibility server-side; public guest payloads are Redis-cached for 60 seconds and invalidated on author post mutations and post-owner interactions
 - `PATCH /v1/profiles/me`
   - switching a private profile to public writes one `profile_follow_approval_outbox` row in the same DB transaction as profile visibility, and `counter.outbox` drains it through bounded `profile.followApproval` batches
 - `GET /v1/profiles/:username/followers`
@@ -790,6 +793,13 @@ Feed cache:
 - Cache disables automatically if Upstash REST env is missing.
 - TTL is 60 seconds for feed payloads.
 - Authenticated home feeds with followed high-follower authors use Redis payload caching like other viewer feeds. On misses, high-follower author rows are cached separately by author ID with a short TTL, then merged with the viewer's materialized rows, block/mute state, and interaction flags per request.
+
+Profile stats cache:
+
+- Namespace: `profile-stats:v1`.
+- Public guest stats for public profiles are cached by username for 60 seconds and indexed by author user ID.
+- Authenticated stats are not cached because follower state and owner/private post visibility change the aggregate payload.
+- Author post create/edit/delete, post-owner interaction invalidation, and profile edits clear the author stats cache. Profile stats queries use `posts_user_type_created_at_idx` for per-user log/review scans and keep recent diary rows bounded.
 
 Rate limiting:
 

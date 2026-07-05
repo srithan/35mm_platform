@@ -58,6 +58,7 @@ interface ChatConversationProps {
   /** In-thread message search (e.g. from mobile header). Omit to use internal state on desktop. */
   threadSearchQuery?: string;
   onThreadSearchQueryChange?: (query: string) => void;
+  discardDraftIfNoMessages?: boolean;
   newChatDraftOpen?: boolean;
   compact?: boolean;
 }
@@ -74,6 +75,7 @@ export function ChatConversation({
   fixedInputOnMobile = false,
   threadSearchQuery: threadSearchQueryProp,
   onThreadSearchQueryChange,
+  discardDraftIfNoMessages = false,
   newChatDraftOpen = false,
   compact = false,
 }: ChatConversationProps) {
@@ -163,6 +165,7 @@ export function ChatConversation({
   const typingActiveRef = useRef(false);
   const lastTypingSentAtRef = useRef(0);
   const stopTypingTimeoutRef = useRef<number | null>(null);
+  const hasSentMessageRef = useRef(false);
   const displayedMessagesRef = useRef(displayedMessages);
   displayedMessagesRef.current = displayedMessages;
 
@@ -373,6 +376,13 @@ export function ChatConversation({
 
   useEffect(
     function () {
+      hasSentMessageRef.current = false;
+    },
+    [chatId]
+  );
+
+  useEffect(
+    function () {
       if (!chatId || messages.length === 0) {
         return;
       }
@@ -383,6 +393,21 @@ export function ChatConversation({
       });
     },
     [chatId, markConversationRead, messages]
+  );
+
+  useEffect(
+    function () {
+      return function () {
+        if (!discardDraftIfNoMessages) {
+          return;
+        }
+        if (!chatId || hasSentMessageRef.current || messages.length > 0) {
+          return;
+        }
+        deleteConversationMutation.mutate(chatId);
+      };
+    },
+    [chatId, discardDraftIfNoMessages, messages.length, deleteConversationMutation]
   );
 
   useEffect(
@@ -799,6 +824,7 @@ export function ChatConversation({
           onSend={function (payload) {
             stickToBottomRef.current = true;
             stopTypingNow(chatId);
+            hasSentMessageRef.current = true;
             sendMutation.mutate(
               {
                 chatId: chatId as string,

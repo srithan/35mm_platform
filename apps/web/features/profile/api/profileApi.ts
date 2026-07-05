@@ -41,6 +41,49 @@ export interface CurrentUserProfile {
   filmsLoggedCount: number;
 }
 
+export interface ProfileStatsFilm {
+  id: string;
+  tmdbId: number | null;
+  imdbId: string | null;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+}
+
+export interface ProfileStatsGenre {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
+export interface ProfileStatsActivityDay {
+  date: string;
+  count: number;
+}
+
+export interface ProfileStatsDiaryEntry {
+  postId: string;
+  type: "log" | "review";
+  createdAt: string;
+  rating: number | null;
+  film: ProfileStatsFilm;
+}
+
+export interface ProfileStatsSummary {
+  username: string;
+  filmsLoggedCount: number;
+  hoursWatched: number;
+  averageRating: number | null;
+  reviewsWrittenCount: number;
+  reviewLikeCount: number;
+  memberSince: string | null;
+  favoriteFilms: ProfileStatsFilm[];
+  genres: ProfileStatsGenre[];
+  activity: ProfileStatsActivityDay[];
+  recentDiary: ProfileStatsDiaryEntry[];
+  cachedAt: string;
+}
+
 export interface CurrentProfilePatch {
   userId: string;
   username: string;
@@ -89,6 +132,18 @@ export async function fetchCurrentUserProfile(token: string | null): Promise<Cur
     token,
   });
   return resolveProfileMediaUrls(profile);
+}
+
+export async function fetchProfileStats(
+  username: string,
+  token?: string | null
+): Promise<ProfileStatsSummary> {
+  return apiRequest<ProfileStatsSummary>(
+    "/v1/profiles/" + encodeURIComponent(username) + "/stats",
+    {
+      token,
+    }
+  );
 }
 
 export async function followUser(

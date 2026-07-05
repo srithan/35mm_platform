@@ -2,24 +2,44 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils/cn";
+import type { ProfileStatsActivityDay } from "../api/profileApi";
 
 const LEVELS = ["", "h1", "h2", "h3", "h4"] as const;
 
-/** Deterministic pseudo-random from index — same output on server and client to avoid hydration mismatch */
-function deterministicLevel(i: number): (typeof LEVELS)[number] {
-  const hash = ((i * 2654435761) % 1000) / 1000;
-  if (hash > 0.72) return LEVELS[(Math.floor(hash * 5) % 4) + 1];
-  return LEVELS[0];
+function isoDateDaysAgo(daysAgo: number): string {
+  var date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  return date.toISOString().slice(0, 10);
 }
 
-function deterministicFilms(i: number): number {
-  return ((i * 2654435761) % 3);
+function levelForCount(count: number): (typeof LEVELS)[number] {
+  if (count >= 4) return "h4";
+  if (count >= 3) return "h3";
+  if (count >= 2) return "h2";
+  if (count >= 1) return "h1";
+  return "";
 }
 
-export function ActivityHeatmap() {
+export function ActivityHeatmap(props: { activity: ProfileStatsActivityDay[] }) {
   const cells = useMemo(
-    () => Array.from({ length: 364 }, (_, i) => deterministicLevel(i)),
-    []
+    function () {
+      var byDate = new Map(
+        props.activity.map(function (day) {
+          return [day.date, day.count];
+        })
+      );
+      return Array.from({ length: 364 }, function (_, index) {
+        var date = isoDateDaysAgo(363 - index);
+        var count = byDate.get(date) ?? 0;
+        return {
+          date,
+          count,
+          level: levelForCount(count),
+        };
+      });
+    },
+    [props.activity]
   );
 
   return (
@@ -28,17 +48,17 @@ export function ActivityHeatmap() {
         Activity — last 12 months
       </div>
       <div className="grid gap-0.5 mt-3" style={{ gridTemplateColumns: "repeat(52, 1fr)" }}>
-        {cells.map((level, i) => (
+        {cells.map((cell) => (
           <div
-            key={i}
+            key={cell.date}
             className={cn(
               "aspect-square rounded-sm bg-border transition-opacity cursor-pointer hover:opacity-70",
-              level === "h1" && "bg-[var(--color-heat-1)]",
-              level === "h2" && "bg-[var(--color-heat-2)]",
-              level === "h3" && "bg-[var(--color-heat-3)]",
-              level === "h4" && "bg-accent"
+              cell.level === "h1" && "bg-[var(--color-heat-1)]",
+              cell.level === "h2" && "bg-[var(--color-heat-2)]",
+              cell.level === "h3" && "bg-[var(--color-heat-3)]",
+              cell.level === "h4" && "bg-accent"
             )}
-            title={`${deterministicFilms(i)} films`}
+            title={`${cell.date}: ${cell.count} ${cell.count === 1 ? "film" : "films"}`}
           />
         ))}
       </div>

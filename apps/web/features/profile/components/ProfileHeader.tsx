@@ -27,6 +27,8 @@ interface ProfileHeaderProps {
   showFollowButton?: boolean;
   isOwnProfile?: boolean;
   isMutedByViewer?: boolean;
+  onMessageClick?: () => void;
+  isMessageActionPending?: boolean;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
@@ -58,11 +60,13 @@ export function ProfileHeader({
 	  followingCount,
 	  filmsLoggedCount,
 	  followState,
-	  isPrivate = false,
+  isPrivate = false,
   hasIncomingFollowRequest = false,
   showFollowButton = true,
   avatarUrl: initialAvatarUrl = null,
   onAvatarUrlChange,
+  onMessageClick,
+  isMessageActionPending = false,
 }: ProfileHeaderProps) {
   const { getToken, isLoaded } = useAuth();
   const queryClient = useQueryClient();
@@ -222,7 +226,16 @@ export function ProfileHeader({
     </Button>
   ) : (
     <>
-      <Button variant="ghost" size="sm">Message</Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={Boolean(isMessageActionPending)}
+        onClick={function () {
+          onMessageClick?.();
+        }}
+      >
+        Message
+      </Button>
 	      {hasIncomingFollowRequestAction ? (
 	        <>
 	          <span className="inline-flex items-center text-[12px] font-medium text-fg-muted">

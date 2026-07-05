@@ -17,13 +17,30 @@ export async function generateMetadata({
 
 export default async function ChatIdPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ chatId: string }>;
+  searchParams?: Promise<{
+    source?: string | string[];
+    hasExistingMessages?: string | string[];
+  }>;
 }) {
   const { chatId } = await params;
+  const qs = (await searchParams) ?? {};
+  const source = Array.isArray(qs.source) ? qs.source[0] : qs.source;
+  const hasExistingMessages = Array.isArray(qs.hasExistingMessages)
+    ? qs.hasExistingMessages[0]
+    : qs.hasExistingMessages;
   const urlChatId = chatId.toLowerCase();
   if (chatId !== urlChatId) {
     redirect("/chat/" + encodeURIComponent(urlChatId));
   }
-  return <ChatDetailPage chatId={chatId.toUpperCase()} />;
+  return (
+    <ChatDetailPage
+      chatId={chatId.toUpperCase()}
+      discardDraftIfNoMessages={
+        source === "profile-message" && hasExistingMessages === "0"
+      }
+    />
+  );
 }

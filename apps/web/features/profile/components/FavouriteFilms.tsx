@@ -1,60 +1,57 @@
 import Link from "next/link";
 import { FilmPoster } from "@/components/FilmPoster";
+import { ROUTES } from "@/lib/constants/routes";
+import type { ProfileStatsFilm } from "../api/profileApi";
 
-const FAVOURITES = [
-  { title: "Mulholland Drive", src: "https://m.media-amazon.com/images/M/MV5BMjIxNTU4MzY4MF5BMl5BanBnXkFtZTgwNzY1MTU0MTE@._V1_FMjpg_UX800_.jpg", imdbId: "tt0166924" },
-  { title: "Moonlight", src: "https://m.media-amazon.com/images/M/MV5BNDc2NTM1MjktYmVhNS00YzQwLWE5NjctNWQ4NzEzZGY5ODI4XkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", imdbId: "tt4975722" },
-  { title: "The Dark Knight", src: "https://m.media-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_.jpg", imdbId: "tt0468569" },
-  { title: "Spirited Away", src: "https://m.media-amazon.com/images/M/MV5BMTY0OTA1MTkxN15BMl5BanBnXkFtZTgwMjE2NzI3MTE@._V1_FMjpg_UX800_.jpg", imdbId: "tt0245429" },
-  { title: "Stalker", src: "https://m.media-amazon.com/images/M/MV5BYjBiOTYxZWItMzdiZi00NjlkLWIzZTYtYmFhZjhiMTljOTVkXkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", imdbId: "tt0079944" },
-  { title: "Chungking Express", src: "https://m.media-amazon.com/images/M/MV5BZTE2MmFiYjYtMjVjNS00MGEyLWFjZmItMmUwMDAxMWRhNTYxXkEyXkFqcGc@._V1_FMjpg_UX800_.jpg", imdbId: "tt0109424" },
-];
+function PosterCard(props: { film: ProfileStatsFilm }) {
+  var content = (
+    <>
+      <div className="w-[52px] transition-opacity group-hover:opacity-80">
+        <FilmPoster
+          src={props.film.posterUrl}
+          imdbId={props.film.imdbId}
+          alt={props.film.title}
+          size="favourite"
+        />
+      </div>
+      <div className="text-[9px] text-fg-muted mt-1 leading-snug max-w-[52px] truncate">
+        {props.film.title}
+      </div>
+    </>
+  );
 
-export function FavouriteFilms() {
+  if (props.film.tmdbId == null) {
+    return (
+      <div className="flex-shrink-0 text-center group" title={props.film.title}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={ROUTES.TITLE("movie", props.film.tmdbId)}
+      className="flex-shrink-0 text-center cursor-pointer group"
+      title={props.film.title}
+    >
+      {content}
+    </Link>
+  );
+}
+
+export function FavouriteFilms(props: { films: ProfileStatsFilm[] }) {
   return (
     <div className="py-7 px-10 border-b border-border bg-fg/5">
       <div className="text-[10px] tracking-[0.1em] uppercase text-fg-muted mb-3">
         Favourite films
       </div>
+      {props.films.length === 0 ? (
+        <div className="text-xs text-fg-muted">No favourites selected yet</div>
+      ) : null}
       <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        {FAVOURITES.map((f) => (
-          <Link
-            key={f.title}
-            href="#"
-            className="flex-shrink-0 text-center cursor-pointer group"
-          >
-            <div className="w-[52px] transition-opacity group-hover:opacity-80">
-              <FilmPoster
-                src={f.src}
-                imdbId={f.imdbId}
-                alt={f.title}
-                size="favourite"
-              />
-            </div>
-            <div className="text-[9px] text-fg-muted mt-1 leading-snug max-w-[52px] truncate">
-              {f.title}
-            </div>
-          </Link>
+        {props.films.map((film) => (
+          <PosterCard key={film.id} film={film} />
         ))}
-        <div className="flex-shrink-0 text-center cursor-pointer group">
-          <div className="w-[52px] aspect-[2/3] rounded-sm overflow-hidden bg-gradient-to-br from-[#1a1a2e] to-[#3a3a6e] flex items-center justify-center">
-            <svg
-              width={16}
-              height={16}
-              fill="none"
-              stroke="rgba(255,255,255,0.3)"
-              strokeWidth={1.2}
-              viewBox="0 0 24 24"
-              className="group-hover:stroke-white/50 transition-colors"
-            >
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" />
-            </svg>
-          </div>
-          <div className="text-[9px] text-fg-muted mt-1 max-w-[52px]">
-            + Add
-          </div>
-        </div>
       </div>
     </div>
   );

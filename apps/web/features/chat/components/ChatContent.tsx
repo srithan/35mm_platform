@@ -10,9 +10,13 @@ import { useNewChat } from "../context/NewChatContext";
 interface ChatContentProps {
   /** Chat ID from URL (e.g. from /chat/[chatId]) */
   selectedId?: string | null;
+  discardDraftIfNoMessages?: boolean;
 }
 
-export function ChatContent({ selectedId: initialSelectedId = null }: ChatContentProps = {}) {
+export function ChatContent({
+  selectedId: initialSelectedId = null,
+  discardDraftIfNoMessages = false,
+}: ChatContentProps = {}) {
   const { collapsed: sidebarCollapsed, toggleCollapse } = useChatSidebar();
   const { draftOpen } = useNewChat();
   const selectedId = draftOpen ? null : initialSelectedId;
@@ -45,6 +49,7 @@ export function ChatContent({ selectedId: initialSelectedId = null }: ChatConten
           avatarBg={avatar?.bg}
           avatarColor={avatar?.color}
           conversationLoading={chatLoading}
+          discardDraftIfNoMessages={discardDraftIfNoMessages}
           newChatDraftOpen={draftOpen}
         />
       </div>

@@ -8,6 +8,7 @@ import { privacyKeys } from "@/features/settings/hooks/queryKeys";
 import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
 import {
   fetchPublicProfile,
+  fetchProfileStats,
   followUser,
   fetchProfileFollowRequests,
   blockUser,
@@ -29,6 +30,21 @@ export function usePublicProfile(username: string) {
     queryFn: async () => fetchPublicProfile(username, await getToken()),
     enabled: isLoaded && username.trim().length > 0,
     staleTime: 2 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useProfileStats(username: string) {
+  var { getToken, isLoaded } = useAuth();
+
+  return useQuery({
+    queryKey: profileKeys.stats(username),
+    queryFn: async function () {
+      return fetchProfileStats(username, await getToken());
+    },
+    enabled: isLoaded && username.trim().length > 0,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
     retry: 1,
   });
 }

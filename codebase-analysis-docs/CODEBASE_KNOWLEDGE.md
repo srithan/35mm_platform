@@ -454,6 +454,7 @@ Business purpose: user identity, social graph, privacy, and moderation.
 Profiles:
 
 - Public profile route includes display fields, media URLs, role/headline, private status, counts, unified `followState`, incoming request state, and block/mute state.
+- Profile stats route `/v1/profiles/:username/stats` backs the web Stats tab with real DB data: visible film count, runtime hours, average rating, review counts/likes, favorite films, genre breakdown, last-12-month activity, and recent diary rows. It enforces profile privacy, block state, and per-post visibility server-side.
 - Profile media URLs are resolved through R2/public URL helpers.
 - Profile edit APIs exist in both `/v1/profiles/me` and settings profile endpoints. Edit Profile writes role/headline metadata through `/v1/profiles/me` so the displayed profile/post byline follows role changes. Switching a profile from private to public now writes a `profile_follow_approval_outbox` row in the same DB transaction as visibility, and `counter.outbox` drains pending approval rows in bounded `profile.followApproval` batches.
 
@@ -644,6 +645,7 @@ Public or optional-auth:
 - `GET /poster-proxy`
 - `GET /v1/usernames/:username/available`
 - `GET /v1/profiles/:username`
+- `GET /v1/profiles/:username/stats`
 - `GET /v1/feed`
 - `GET /v1/feed/posts/:postId`
 - `GET /v1/feed/profiles/:username/posts`
@@ -730,6 +732,7 @@ Caching:
 - Profile feed key includes username, viewer, cursor, limit.
 - Index sets track cache keys by viewer and author for targeted invalidation.
 - Cache auto-disables when Upstash REST env is missing.
+- Profile stats cache namespace is `profile-stats:v1`; only public guest stats for public profiles are cached. Authenticated stats stay uncached because viewer relationship changes affect visibility. Author post mutations, post-owner interactions, and profile edits invalidate this cache, and stats scans use `posts_user_type_created_at_idx`.
 
 Rate limits:
 

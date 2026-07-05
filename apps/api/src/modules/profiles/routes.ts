@@ -1,10 +1,17 @@
 import { Hono } from "hono";
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
-import { users, profiles, follows, profileFollowApprovalOutbox } from "@35mm/db/schema";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { users, profiles, follows, profileFollowApprovalOutbox, posts, films } from "@35mm/db/schema";
 import { getDb, getWriteDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
 import { notFound, badRequest, forbidden, serviceUnavailable } from "../../lib/errors.js";
+import {
+  getProfileStatsCache,
+  invalidateProfileStatsCaches,
+  profileStatsCacheKey,
+  setProfileStatsCache,
+  type ProfileStatsCachePayload,
+} from "../../lib/profileStatsCache.js";
 import {
   invalidateAuthorProfileFeedCaches,
   invalidateFeedCacheForGuest,
@@ -371,6 +378,336 @@ profileRoutes.get("/:username", async function (c) {
   });
 });
 
+type ProfileStatsFilm = {
+  id: string;
+  tmdbId: number | null;
+  imdbId: string | null;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+};
+
+type ProfileStatsGenre = {
+  name: string;
+  count: number;
+  percentage: number;
+};
+
+type ProfileStatsActivityDay = {
+  date: string;
+  count: number;
+};
+
+type ProfileStatsDiaryEntry = {
+  postId: string;
+  type: "log" | "review";
+  createdAt: string;
+  rating: number | null;
+  film: ProfileStatsFilm;
+};
+
+function postVisibilityForStatsSql(viewerUserId: string | null, targetUserId: string) {
+  if (viewerUserId === targetUserId) return sql<boolean>`true`;
+  if (!viewerUserId) return eq(posts.visibility, "public");
+
+  return sql<boolean>`(
+    ${posts.visibility} = 'public'
+    or (
+      ${posts.visibility} = 'followers_only'
+      and exists (
+        select 1
+        from ${follows}
+        where ${follows.followerId} = ${viewerUserId}
+          and ${follows.followingId} = ${targetUserId}
+          and ${follows.status} = 'accepted'
+      )
+    )
+  )`;
+}
+
+function emptyProfileStatsPayload(input: {
+  username: string;
+  filmsLoggedCount: number;
+  memberSince: string | null;
+}): ProfileStatsCachePayload {
+  return {
+    username: input.username,
+    filmsLoggedCount: input.filmsLoggedCount,
+    hoursWatched: 0,
+    averageRating: null,
+    reviewsWrittenCount: 0,
+    reviewLikeCount: 0,
+    memberSince: input.memberSince,
+    favoriteFilms: [],
+    genres: [],
+    activity: [],
+    recentDiary: [],
+    cachedAt: new Date().toISOString(),
+  };
+}
+
+async function assertCanReadProfileStats(input: {
+  viewerUserId: string | null;
+  targetUserId: string;
+  isPrivate: boolean;
+}) {
+  if (input.viewerUserId === input.targetUserId) return;
+
+  if (input.viewerUserId) {
+    var moderation = await getModerationStatus(input.viewerUserId, input.targetUserId);
+    if (moderation.blockedByViewer || moderation.blockedByTarget) {
+      throw forbidden(moderation.blockedByViewer ? `BLOCKED_BY_YOU:${input.targetUserId}` : "BLOCKED_BY_THEM");
+    }
+  }
+
+  if (!input.isPrivate) return;
+  if (!input.viewerUserId) {
+    throw forbidden("This account is private");
+  }
+
+  var db = getDb();
+  var followRows = await db
+    .select({ status: follows.status })
+    .from(follows)
+    .where(and(eq(follows.followerId, input.viewerUserId), eq(follows.followingId, input.targetUserId)))
+    .limit(1);
+
+  if (followRows[0]?.status !== "accepted") {
+    throw forbidden("This account is private");
+  }
+}
+
+function toFiniteNumber(value: unknown): number {
+  var numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+profileRoutes.get("/:username/stats", async function (c) {
+  var username = c.req.param("username").toLowerCase().trim();
+  var db = getDb();
+  var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerUserId = viewer?.userId ?? null;
+
+  var profileRows = await db
+    .select({
+      userId: users.id,
+      username: profiles.username,
+      isPrivate: profiles.isPrivate,
+      filmsLoggedCount: profiles.filmsLoggedCount,
+      favoriteFilmIds: profiles.favoriteFilmIds,
+      createdAt: profiles.createdAt,
+      status: users.status,
+    })
+    .from(profiles)
+    .innerJoin(users, eq(users.id, profiles.userId))
+    .where(eq(profiles.username, username))
+    .limit(1);
+
+  if (profileRows.length === 0) {
+    throw notFound("Profile not found");
+  }
+
+  var profile = profileRows[0];
+  await assertCanReadProfileStats({
+    viewerUserId,
+    targetUserId: profile.userId,
+    isPrivate: profile.isPrivate,
+  });
+
+  var memberSince = profile.createdAt ? profile.createdAt.toISOString() : null;
+  if (profile.status === "deactivated") {
+    return c.json(emptyProfileStatsPayload({
+      username: profile.username,
+      filmsLoggedCount: 0,
+      memberSince: null,
+    }));
+  }
+
+  var canUsePublicGuestCache = viewerUserId === null && !profile.isPrivate;
+  var cacheKey = profileStatsCacheKey({ username: profile.username, viewerId: null });
+  if (canUsePublicGuestCache) {
+    c.header("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    var cached = await getProfileStatsCache(cacheKey);
+    if (cached) {
+      c.header("X-Profile-Stats-Cache", "HIT");
+      return c.json(cached);
+    }
+    c.header("X-Profile-Stats-Cache", "MISS");
+  } else {
+    c.header("Cache-Control", "private, no-store");
+  }
+
+  var visibilitySql = postVisibilityForStatsSql(viewerUserId, profile.userId);
+  var basePostFilters = and(eq(posts.userId, profile.userId), eq(posts.isDeleted, false), visibilitySql);
+  var diaryFilter = sql<boolean>`${posts.type} in ('log', 'review')`;
+
+  var [aggregateRows, recentDiaryRows, genreResult, activityResult] = await Promise.all([
+    db
+      .select({
+        filmsLoggedCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null)::integer`,
+        hoursWatched: sql<number>`coalesce(sum(${films.runtime}) filter (where ${diaryFilter} and ${posts.filmId} is not null), 0)::integer`,
+        averageRating: sql<number | null>`avg((${posts.filmRating}::numeric) / 2.0) filter (where ${diaryFilter} and ${posts.filmRating} is not null)`,
+        reviewsWrittenCount: sql<number>`count(*) filter (where ${posts.type} = 'review')::integer`,
+        reviewLikeCount: sql<number>`coalesce(sum(${posts.likeCount}) filter (where ${posts.type} = 'review'), 0)::integer`,
+      })
+      .from(posts)
+      .leftJoin(films, eq(films.id, posts.filmId))
+      .where(basePostFilters),
+    db
+      .select({
+        postId: posts.id,
+        type: posts.type,
+        createdAt: posts.createdAt,
+        rating: posts.filmRating,
+        filmId: films.id,
+        tmdbId: films.tmdbId,
+        imdbId: films.imdbId,
+        title: films.title,
+        year: films.year,
+        posterUrl: films.posterUrl,
+      })
+      .from(posts)
+      .innerJoin(films, eq(films.id, posts.filmId))
+      .where(and(basePostFilters, diaryFilter))
+      .orderBy(desc(posts.createdAt), desc(posts.id))
+      .limit(4),
+    db.execute<{
+      name: string;
+      count: number;
+    }>(sql`
+      select genre as name, count(*)::integer as count
+      from (
+        select unnest(${films.genres}) as genre
+        from ${posts}
+        inner join ${films} on ${films.id} = ${posts.filmId}
+        where ${basePostFilters}
+          and ${diaryFilter}
+          and array_length(${films.genres}, 1) > 0
+      ) genre_rows
+      where genre is not null and length(trim(genre)) > 0
+      group by genre
+      order by count(*) desc, genre asc
+      limit 6
+    `),
+    db.execute<{
+      date: string;
+      count: number;
+    }>(sql`
+      select
+        to_char(date_trunc('day', ${posts.createdAt} at time zone 'UTC'), 'YYYY-MM-DD') as date,
+        count(*)::integer as count
+      from ${posts}
+      where ${basePostFilters}
+        and ${diaryFilter}
+        and ${posts.createdAt} >= now() - interval '364 days'
+      group by 1
+      order by 1 asc
+    `),
+  ]);
+
+  var favoriteFilmIds = (profile.favoriteFilmIds ?? []).slice(0, 6);
+  var favoriteRows =
+    favoriteFilmIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: films.id,
+            tmdbId: films.tmdbId,
+            imdbId: films.imdbId,
+            title: films.title,
+            year: films.year,
+            posterUrl: films.posterUrl,
+          })
+          .from(films)
+          .where(inArray(films.id, favoriteFilmIds));
+
+  var favoriteById = new Map(
+    favoriteRows.map(function (row) {
+      return [row.id, row];
+    })
+  );
+  var favoriteFilms: ProfileStatsFilm[] = favoriteFilmIds
+    .map(function (id) {
+      var row = favoriteById.get(id);
+      if (!row) return null;
+      return {
+        id: row.id,
+        tmdbId: row.tmdbId,
+        imdbId: row.imdbId,
+        title: row.title,
+        year: row.year,
+        posterUrl: row.posterUrl,
+      };
+    })
+    .filter(function (film): film is ProfileStatsFilm {
+      return film !== null;
+    });
+
+  var aggregate = aggregateRows[0];
+  var totalGenreCount = genreResult.rows.reduce(function (sum, row) {
+    return sum + toFiniteNumber(row.count);
+  }, 0);
+  var genres: ProfileStatsGenre[] = genreResult.rows.map(function (row) {
+    var count = toFiniteNumber(row.count);
+    return {
+      name: String(row.name),
+      count,
+      percentage: totalGenreCount > 0 ? Math.round((count / totalGenreCount) * 100) : 0,
+    };
+  });
+
+  var activity: ProfileStatsActivityDay[] = activityResult.rows.map(function (row) {
+    return {
+      date: String(row.date),
+      count: toFiniteNumber(row.count),
+    };
+  });
+
+  var recentDiary: ProfileStatsDiaryEntry[] = recentDiaryRows
+    .filter(function (row) {
+      return row.type === "log" || row.type === "review";
+    })
+    .map(function (row) {
+      var entryType: "log" | "review" = row.type === "review" ? "review" : "log";
+      return {
+        postId: row.postId,
+        type: entryType,
+        createdAt: row.createdAt.toISOString(),
+        rating: row.rating == null ? null : row.rating / 2,
+        film: {
+          id: row.filmId,
+          tmdbId: row.tmdbId,
+          imdbId: row.imdbId,
+          title: row.title,
+          year: row.year,
+          posterUrl: row.posterUrl,
+        },
+      };
+    });
+
+  var payload: ProfileStatsCachePayload = {
+    username: profile.username,
+    filmsLoggedCount: toFiniteNumber(aggregate?.filmsLoggedCount),
+    hoursWatched: toFiniteNumber(aggregate?.hoursWatched),
+    averageRating:
+      aggregate?.averageRating == null ? null : Math.round(toFiniteNumber(aggregate.averageRating) * 10) / 10,
+    reviewsWrittenCount: toFiniteNumber(aggregate?.reviewsWrittenCount),
+    reviewLikeCount: toFiniteNumber(aggregate?.reviewLikeCount),
+    memberSince,
+    favoriteFilms,
+    genres,
+    activity,
+    recentDiary,
+    cachedAt: new Date().toISOString(),
+  };
+
+  if (canUsePublicGuestCache) {
+    await setProfileStatsCache(cacheKey, payload, { authorUserId: profile.userId });
+  }
+
+  return c.json(payload);
+});
+
 function dedupeStrings(values: string[]): string[] {
   var seen = new Set<string>();
   var out: string[] = [];
@@ -683,6 +1020,7 @@ profileRoutes.patch("/me", requireAuth, profileWriteRateLimit, async function (c
     typeof body.coverUrl === "string" && body.coverUrl.trim().length > 0
       ? enqueueProfileMediaProcess(user.userId, "cover", body.coverUrl)
       : Promise.resolve(),
+    invalidateProfileStatsCaches([user.userId]),
   ]);
 
   if (body.isPrivate !== undefined) {
