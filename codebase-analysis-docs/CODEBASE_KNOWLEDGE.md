@@ -186,7 +186,7 @@ Important files:
 - `src/index.ts`: exits early when `WORKER_ENABLED=false`; otherwise resolves Redis URL, creates BullMQ `Worker` and `QueueEvents`, and dispatches jobs by name.
 - `src/jobs/mediaProcess.ts`: pulls originals from R2; generates post thumb/feed/full WebP variants and blurhash; generates avatar sm/lg and cover default variants; optionally uploads post media to Cloudflare Images; updates `posts.media` / `posts.media_urls` or profile variant JSONB fields.
 - `src/jobs/notificationPublish.ts`: reads notification details and publishes Ably `notification.new` to `user:{recipientId}:notifications`.
-- `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes `follow_suggestions` plus Redis cache.
+- `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes UUID-backed `follow_suggestions` rows plus Redis cache.
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
 - `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
@@ -257,7 +257,7 @@ Current Drizzle schema highlights:
 - `post_edits`: post body/headline edit history.
 - `user_blocks`, `user_mutes`: moderation relationship tables.
 - `film_lists`, `film_list_entries`, `film_list_likes`: custom lists and one private watchlist per user. `film_list_entries` has a list-entry cursor pagination index on `(list_id, COALESCE(position, -1), added_at, id)` for `/v1/lists/:listId` keyset scans.
-- `follow_suggestions`: suggestion table populated by worker.
+- `follow_suggestions`: suggestion table populated by worker. `user_id` and `suggested_user_id` are UUID FKs to `users.id`, with `(user_id, score desc, suggested_user_id)` for bounded top-suggestion reads.
 - `user_settings`: privacy, notification, theme/accent, and media playback settings.
 - `chat_threads`, `chat_participants`, `chat_member_state`, `chat_thread_meta`: Postgres chat metadata, membership, per-user read/archive/mute/delete state plus activity timestamps, and last-message summaries. `chat_threads` now stores deterministic DM pair identity (`dm_member_low`, `dm_member_high`) with a partial unique pair index.
 - AWS Keyspaces `thirtyFiveMM.messages`: message body/media/reply/reaction rows, partitioned by `(thread_id, bucket)` and clustered by descending `message_id` TIMEUUID.
@@ -557,11 +557,12 @@ API:
 - Resolve TMDB film payloads into canonical `films` rows.
 - Submit role/headline/favorite film IDs/genre IDs/follow IDs.
 - Suggestions endpoint and worker-backed friend-of-friend suggestions.
+  `GET /v1/suggestions/users` reads a Redis-cached per-user ID list or the indexed `follow_suggestions` table; empty rows enqueue `compute-suggestions`.
 - Onboarding follow suggestions use a bounded active-public-profile seed query, exclude already-followed/blocked/muted accounts, and avoid live follower-count aggregation on the read path.
 
 Worker:
 
-- `compute-suggestions` reads accepted follows, computes follows-of-follows candidates, stores rows in `follow_suggestions`, and caches IDs in Redis.
+- `compute-suggestions` reads accepted follows, computes follows-of-follows candidates, stores UUID user IDs in `follow_suggestions`, and caches IDs in Redis.
 
 ### Settings
 
@@ -698,7 +699,7 @@ Implemented or partially implemented:
 
 - `media.process`: implemented for post media and profile avatar/cover variants.
 - `notification.publish`: implemented when `ABLY_API_KEY` exists.
-- `compute-suggestions`: implemented.
+- `compute-suggestions`: implemented; stores UUID-backed follow suggestion rows and refreshes Redis suggestion caches.
 - `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries for legacy/direct jobs.
 - `counter.outbox`: durable DB drain for `counter_jobs` and `profile_follow_approval_outbox`. API counter-touching mutations write `counter_jobs` rows in the same DB transaction as fact changes; follow-approval flips write `profile_follow_approval_outbox` in the visibility transaction. Worker drains both tables with row locks, applies batched counter updates in bounded time-budget loops, and deletes processed rows. `backlog` is returned from each run for observability. If a full batch drains and backlog remains, worker self-enqueues follow-up `counter.outbox` work. Repeatable worker schedule still drains pending rows if an API wake enqueue failed.
 - `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.

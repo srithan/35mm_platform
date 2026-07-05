@@ -87,7 +87,7 @@ function FloatingChatPill({
           : "Open messages"
       }
     >
-      <span className="flex items-center gap-1 min-w-0">
+      <span className="flex items-center gap-2 min-w-0">
         <span className="relative flex h-5 w-5 items-center justify-center rounded-full">
           <img
             src="/float-message.svg"

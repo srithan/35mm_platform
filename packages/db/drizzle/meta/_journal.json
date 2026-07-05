@@ -253,6 +253,13 @@
       "when": 1784000000009,
       "tag": "0034_chat_member_activity_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1784000000010,
+      "tag": "0035_follow_suggestions_uuid_ids",
+      "breakpoints": true
     }
   ]
 }

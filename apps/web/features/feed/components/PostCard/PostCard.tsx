@@ -241,6 +241,7 @@ function PostCardComponent(props: PostCardProps) {
           <PostCardAttachments
             variant={variant}
             filmCard={filmCard}
+            attachedFilm={attachedFilm}
             hasAttachedMedia={resolvedMedia.hasAttachedMedia}
             combinedVideoPreviews={combinedVideoPreviews}
             shouldRenderLinkPreviewCard={shouldRenderLinkPreviewCard}

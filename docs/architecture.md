@@ -366,6 +366,8 @@ Source of truth: `packages/db/src/schema/*`.
 `follow_suggestions`
 
 - Stores computed follow suggestions, currently friend-of-friend oriented.
+- `user_id` and `suggested_user_id` are UUID FKs to `users.id`; suggestion reads join against `follows` without casts.
+- Indexed by `user_id`, `(user_id, score desc, suggested_user_id)`, and unique `(user_id, suggested_user_id)` for per-user top suggestion reads and idempotent worker writes.
 
 ---
 
@@ -525,6 +527,8 @@ Media:
 Suggestions:
 
 - `GET /v1/suggestions/users`
+  - Authenticated, cursor-based, Redis-cached ID list backed by `follow_suggestions`.
+  - Falls back to enqueueing `compute-suggestions` when no rows exist; the read path remains bounded by per-user cache/table indexes.
 
 Chat:
 
@@ -828,6 +832,7 @@ Implemented:
 - `media.process`: post image variants/blurhash and profile avatar/cover variants.
 - `notification.publish`: Ably notification publish.
 - `compute-suggestions`: friend-of-friend follow suggestions.
+  Writes UUID-backed `follow_suggestions` rows and refreshes the Redis cached ID list.
 - `counter.increment`: batched denormalized counter deltas for hot social/list/poll counters.
 - `counter.outbox`: durable `counter_jobs` and `profile_follow_approval_outbox` drain, now run with bounded time budget loops and emit `backlog` + `followUp` metrics in worker result payloads.
 - `counter_job_deltas`: aggregates active `counter_jobs` deltas by `(target_table, target_id, counter_name)` to keep feed overlays bounded to active keys.
