@@ -22,11 +22,14 @@ interface PostCardOverlaysProps {
   showReportConfirm: boolean;
   showDeleteConfirm: boolean;
   showBlockConfirm: boolean;
+  showMuteConfirm: boolean;
   muteToast: { handle: string; userId: string } | null;
   onCloseShareModal: () => void;
   onCloseReportConfirm: () => void;
   onCloseDeleteConfirm: () => void;
   onCloseBlockConfirm: () => void;
+  onCloseMuteConfirm: () => void;
+  onMuteSuccess: (payload: { handle: string; userId: string }) => void;
   onClearMuteToast: () => void;
 }
 
@@ -43,11 +46,14 @@ export function PostCardOverlays({
   showReportConfirm,
   showDeleteConfirm,
   showBlockConfirm,
+  showMuteConfirm,
   muteToast,
   onCloseShareModal,
   onCloseReportConfirm,
   onCloseDeleteConfirm,
   onCloseBlockConfirm,
+  onCloseMuteConfirm,
+  onMuteSuccess,
   onClearMuteToast,
 }: PostCardOverlaysProps) {
   const router = useRouter();
@@ -70,6 +76,25 @@ export function PostCardOverlays({
         confirmLabel="Block"
         cancelLabel="Cancel"
         variant="danger"
+      />
+      <ConfirmDialog
+        open={showMuteConfirm}
+        onClose={onCloseMuteConfirm}
+        onConfirm={() => {
+          if (!userId || muteUserMutation.isPending) return;
+          muteUserMutation.mutate(
+            { userId, muted: false },
+            {
+              onSuccess: () => {
+                onMuteSuccess({ handle, userId });
+              },
+            }
+          );
+        }}
+        title={`Mute ${handle}?`}
+        description="Their posts won't appear in your feed. You can unmute them anytime in Settings."
+        confirmLabel="Mute"
+        cancelLabel="Cancel"
       />
       <ConfirmDialog
         open={showReportConfirm}

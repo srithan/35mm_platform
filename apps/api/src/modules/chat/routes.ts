@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import cassandra from "cassandra-driver";
 import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   chatMemberState,
   chatParticipants,
@@ -35,7 +36,7 @@ import {
   sendMessageSchema,
   typingIndicatorSchema,
 } from "@35mm/validators";
-import { getDb } from "../../lib/db.js";
+import { getDb, getWriteDb } from "../../lib/db.js";
 import { ApiError, badRequest, forbidden } from "../../lib/errors.js";
 import { requireAuth, type AuthUser } from "../../lib/middleware.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
@@ -57,7 +58,7 @@ import {
   setPresence,
   setTyping,
 } from "./chatRedis.js";
-import { bucketsNewestFirst, getMessageBucket, truncatePreview } from "./chatUtils.js";
+import { getMessageBucket, truncatePreview } from "./chatUtils.js";
 import {
   publishChatMessageCreated,
   publishChatInboxThreadUpdated,
@@ -96,6 +97,79 @@ type MessageRow = {
 export var chatRoutes = new Hono();
 chatRoutes.use("*", requireAuth);
 
+type MessageBucketFetcher = (params: {
+  bucket: number;
+  before: cassandra.types.TimeUuid | null;
+  limit: number;
+}) => Promise<MessageRow[]>;
+
+export function messageBucketsNewestFirst(startBucket: number, maxBuckets = 12): number[] {
+  var buckets: number[] = [];
+  var year = Math.floor(startBucket / 100);
+  var month = startBucket % 100;
+  for (var i = 0; i < maxBuckets; i += 1) {
+    buckets.push(year * 100 + month);
+    month -= 1;
+    if (month === 0) {
+      month = 12;
+      year -= 1;
+    }
+  }
+  return buckets;
+}
+
+export function visibleLastMessageAt(
+  memberLastMessageAt: Date | null | undefined,
+  threadLastMessageAt: Date | null | undefined
+): Date | null {
+  if (!memberLastMessageAt) {
+    return threadLastMessageAt ?? null;
+  }
+  if (!threadLastMessageAt) {
+    return memberLastMessageAt;
+  }
+  return memberLastMessageAt.getTime() >= threadLastMessageAt.getTime()
+    ? memberLastMessageAt
+    : threadLastMessageAt;
+}
+
+function chatLastActivityExpression() {
+  return sql<Date | null>`case
+    when ${chatMemberState.lastMessageAt} is null then ${chatThreadMeta.lastMessageAt}
+    when ${chatThreadMeta.lastMessageAt} is null then ${chatMemberState.lastMessageAt}
+    when ${chatMemberState.lastMessageAt} >= ${chatThreadMeta.lastMessageAt} then ${chatMemberState.lastMessageAt}
+    else ${chatThreadMeta.lastMessageAt}
+  end`;
+}
+
+export async function fetchChatMessages(
+  threadId: string,
+  before: cassandra.types.TimeUuid | null,
+  limit: number,
+  fetchBucket: MessageBucketFetcher,
+  now: Date
+): Promise<{ rows: MessageRow[]; hasMore: boolean }> {
+  var rows: MessageRow[] = [];
+  var startBucket = before ? getMessageBucket(before.getDate()) : getMessageBucket(now);
+  var buckets = messageBucketsNewestFirst(startBucket);
+  for (var i = 0; i < buckets.length; i += 1) {
+    var remaining = limit + 1 - rows.length;
+    if (remaining <= 0) break;
+    var bucket = buckets[i];
+    var bucketRows = await fetchBucket({
+      bucket,
+      before: i === 0 ? before : null,
+      limit: remaining,
+    });
+    rows.push(...bucketRows);
+    if (rows.length > limit) break;
+  }
+  return {
+    rows: rows.slice(0, Math.max(0, limit)),
+    hasMore: rows.length > limit,
+  };
+}
+
 function userRateLimit(keyPrefix: string, limit: number, windowSeconds: number) {
   return createRateLimitMiddleware({
     keyPrefix,
@@ -115,6 +189,7 @@ var sendMessageRateLimit = userRateLimit("chat:send-message", 30, 60);
 var messageWriteRateLimit = userRateLimit("chat:message-write", 30, 60);
 var reactionRateLimit = userRateLimit("chat:reaction", 60, 60);
 var readStateRateLimit = userRateLimit("chat:read-state", 120, 60);
+var threadStateRateLimit = userRateLimit("chat:thread-state", 60, 60);
 var typingRateLimit = userRateLimit("chat:typing", 30, 60);
 var presenceRateLimit = userRateLimit("chat:presence", 4, 60);
 var presenceBatchRateLimit = userRateLimit("chat:presence-batch", 120, 60);
@@ -158,6 +233,13 @@ function parseJsonObject<T>(value: string | null): T | null {
   } catch {
     return null;
   }
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  var typed = error as { code?: unknown; cause?: { code?: unknown } };
+  if (typeof typed.code === "string" && typed.code === "23505") return true;
+  return typeof typed.cause?.code === "string" && typed.cause.code === "23505";
 }
 
 function timeUuidFromString(value: string): cassandra.types.TimeUuid {
@@ -438,6 +520,17 @@ async function publishChatReactionUnread(input: {
         lastSenderId: input.actorId,
       },
     });
+  await getDb()
+    .insert(chatMemberState)
+    .values({
+      threadId: input.threadId,
+      userId: input.recipientId,
+      lastMessageAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [chatMemberState.threadId, chatMemberState.userId],
+      set: { lastMessageAt: now },
+    });
   await incrementUnread(input.recipientId, input.threadId);
   var unreadCounts = await getUnreadCountsForPairs([
     { userId: input.recipientId, threadId: input.threadId },
@@ -463,7 +556,8 @@ async function getThreadPreview(threadId: string, viewerId: string): Promise<Cha
     .select({
       id: chatThreads.id,
       type: chatThreads.type,
-      lastMessageAt: chatThreadMeta.lastMessageAt,
+      memberLastMessageAt: chatMemberState.lastMessageAt,
+      threadLastMessageAt: chatThreadMeta.lastMessageAt,
       lastMessagePreview: chatThreadMeta.lastMessagePreview,
       lastSenderId: chatThreadMeta.lastSenderId,
       archivedAt: chatMemberState.archivedAt,
@@ -487,11 +581,15 @@ async function getThreadPreview(threadId: string, viewerId: string): Promise<Cha
     });
   }
   var unread = await getUnreadCounts(viewerId, [threadId]);
+  var lastMessageAt = visibleLastMessageAt(
+    rows[0].memberLastMessageAt,
+    rows[0].threadLastMessageAt
+  );
   return {
     id: rows[0].id,
     type: rows[0].type === "group" ? "group" : "dm",
     members,
-    lastMessageAt: rows[0].lastMessageAt?.toISOString() ?? null,
+    lastMessageAt: lastMessageAt?.toISOString() ?? null,
     lastMessagePreview: rows[0].lastMessagePreview,
     lastSenderId: rows[0].lastSenderId,
     unreadCount: unread[threadId] ?? 0,
@@ -499,6 +597,22 @@ async function getThreadPreview(threadId: string, viewerId: string): Promise<Cha
     isMuted: rows[0].mutedUntil != null && rows[0].mutedUntil > new Date(),
     deletedAt: rows[0].deletedAt?.toISOString() ?? null,
   };
+}
+
+async function restoreDeletedThreadForMembers(threadId: string, userIds: string[]): Promise<void> {
+  var uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueUserIds.length === 0) return;
+  await getDb()
+    .insert(chatMemberState)
+    .values(
+      uniqueUserIds.map(function (userId) {
+        return { threadId, userId, deletedAt: null };
+      })
+    )
+    .onConflictDoUpdate({
+      target: [chatMemberState.threadId, chatMemberState.userId],
+      set: { deletedAt: null },
+    });
 }
 
 async function fetchMessage(threadId: string, bucket: number, messageId: string): Promise<MessageRow | null> {
@@ -521,11 +635,14 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
   });
   var cursor = decodeCompositeCursor(query.cursor);
   var limitPlus = query.limit + 1;
+  var lastActivityAt = chatLastActivityExpression();
   var rows = await getDb()
     .select({
       id: chatThreads.id,
       type: chatThreads.type,
-      lastMessageAt: chatThreadMeta.lastMessageAt,
+      memberLastMessageAt: chatMemberState.lastMessageAt,
+      threadLastMessageAt: chatThreadMeta.lastMessageAt,
+      activityLastMessageAt: lastActivityAt,
       lastMessagePreview: chatThreadMeta.lastMessagePreview,
       lastSenderId: chatThreadMeta.lastSenderId,
       archivedAt: chatMemberState.archivedAt,
@@ -549,13 +666,13 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
         isNull(chatMemberState.deletedAt),
         cursor
           ? or(
-              lt(chatThreadMeta.lastMessageAt, cursor.createdAt),
-              and(eq(chatThreadMeta.lastMessageAt, cursor.createdAt), lt(chatThreads.id, cursor.id))
+              lt(lastActivityAt, cursor.createdAt),
+              and(eq(lastActivityAt, cursor.createdAt), lt(chatThreads.id, cursor.id))
             )
           : sql`true`
       )
     )
-    .orderBy(desc(chatThreadMeta.lastMessageAt), desc(chatThreads.id))
+    .orderBy(sql`${lastActivityAt} desc nulls last`, desc(chatThreads.id))
     .limit(limitPlus);
 
   var pageRows = rows.slice(0, query.limit);
@@ -576,7 +693,10 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
       id: row.id,
       type: row.type === "group" ? "group" : "dm",
       members,
-      lastMessageAt: row.lastMessageAt?.toISOString() ?? null,
+      lastMessageAt: visibleLastMessageAt(
+        row.memberLastMessageAt,
+        row.threadLastMessageAt
+      )?.toISOString() ?? null,
       lastMessagePreview: row.lastMessagePreview,
       lastSenderId: row.lastSenderId,
       unreadCount: unread[row.id] ?? 0,
@@ -589,8 +709,8 @@ chatRoutes.get("/inbox", inboxRateLimit, async function (c) {
   var response: ChatInboxPage = {
     items,
     hasMore: rows.length > query.limit,
-    nextCursor: rows.length > query.limit && last?.lastMessageAt
-      ? encodeCompositeCursor({ createdAt: last.lastMessageAt, id: last.id })
+    nextCursor: rows.length > query.limit && last?.activityLastMessageAt
+      ? encodeCompositeCursor({ createdAt: last.activityLastMessageAt, id: last.id })
       : null,
   };
   return c.json(response);
@@ -606,6 +726,8 @@ chatRoutes.post("/threads", createThreadRateLimit, async function (c) {
     throw badRequest("DM threads require exactly one other member");
   }
   var allMemberIds = [viewer.userId, ...memberIds];
+  var dmMemberLow = "";
+  var dmMemberHigh = "";
   var existingUsers = await getDb()
     .select({ id: users.id })
     .from(users)
@@ -628,67 +750,141 @@ chatRoutes.post("/threads", createThreadRateLimit, async function (c) {
   if (blockRows.length > 0) throw apiError(403, "BLOCKED_USER", "Blocked user");
 
   if (body.type === "dm") {
-    var viewerDmRows = await getDb()
-      .select({ threadId: chatParticipants.threadId })
-      .from(chatParticipants)
-      .innerJoin(chatThreads, eq(chatThreads.id, chatParticipants.threadId))
+    var partnerId = memberIds[0];
+    if (viewer.userId < partnerId) {
+      dmMemberLow = viewer.userId;
+      dmMemberHigh = partnerId;
+    } else {
+      dmMemberLow = partnerId;
+      dmMemberHigh = viewer.userId;
+    }
+    var viewerParticipant = alias(chatParticipants, "viewerParticipant");
+    var partnerParticipant = alias(chatParticipants, "partnerParticipant");
+    var existingDmByPairRows = await getDb()
+      .select({ threadId: chatThreads.id })
+      .from(chatThreads)
+      .innerJoin(
+        viewerParticipant,
+        and(
+          eq(viewerParticipant.threadId, chatThreads.id),
+          eq(viewerParticipant.userId, viewer.userId),
+          isNull(viewerParticipant.leftAt)
+        )
+      )
+      .innerJoin(
+        partnerParticipant,
+        and(
+          eq(partnerParticipant.threadId, chatThreads.id),
+          eq(partnerParticipant.userId, partnerId),
+          isNull(partnerParticipant.leftAt)
+        )
+      )
       .where(
         and(
-          eq(chatParticipants.userId, viewer.userId),
-          isNull(chatParticipants.leftAt),
-          eq(chatThreads.type, "dm")
+          eq(chatThreads.type, "dm"),
+          eq(chatThreads.dmMemberLow, dmMemberLow),
+          eq(chatThreads.dmMemberHigh, dmMemberHigh)
         )
-      );
-    var threadIds = viewerDmRows.map(function (row) {
-      return row.threadId;
-    });
-    if (threadIds.length > 0) {
-      var participantRows = await getDb()
-        .select({ threadId: chatParticipants.threadId, userId: chatParticipants.userId })
-        .from(chatParticipants)
-        .where(and(inArray(chatParticipants.threadId, threadIds), isNull(chatParticipants.leftAt)));
-      for (var threadId of threadIds) {
-        var ids = participantRows
-          .filter(function (row) {
-            return row.threadId === threadId;
-          })
-          .map(function (row) {
-            return row.userId;
-          })
-          .sort();
-        if (ids.length === 2 && ids.join(":") === allMemberIds.slice().sort().join(":")) {
-          return c.json(await getThreadPreview(threadId, viewer.userId), 200);
-        }
-      }
+      )
+      .limit(1);
+    if (existingDmByPairRows.length > 0) {
+      await restoreDeletedThreadForMembers(existingDmByPairRows[0].threadId, [viewer.userId]);
+      return c.json(await getThreadPreview(existingDmByPairRows[0].threadId, viewer.userId), 200);
     }
   }
 
   var now = new Date();
   var threadId = createUlid();
-  await getDb().insert(chatThreads).values({
-    id: threadId,
-    type: body.type,
-    createdBy: viewer.userId,
-    createdAt: now,
-    updatedAt: now,
-  });
-  await getDb().insert(chatParticipants).values(
-    allMemberIds.map(function (userId) {
-      return {
-        threadId,
-        userId,
-        joinedAt: now,
-        role: body.type === "group" && userId === viewer.userId ? "admin" : "member",
-      };
-    })
-  );
-  await getDb().insert(chatMemberState).values(
-    allMemberIds.map(function (userId) {
-      return { threadId, userId };
-    })
-  );
-  await getDb().insert(chatThreadMeta).values({ threadId, messageCount: 0 });
-  return c.json(await getThreadPreview(threadId, viewer.userId), 201);
+  var isNewThread = true;
+  try {
+    await getWriteDb().transaction(async function (tx) {
+      var insertedThreadRows = await tx
+        .insert(chatThreads)
+        .values({
+          id: threadId,
+          type: body.type,
+          createdBy: viewer.userId,
+          ...(body.type === "dm"
+            ? {
+                dmMemberLow,
+                dmMemberHigh,
+              }
+            : {}),
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({ id: chatThreads.id })
+        .onConflictDoNothing();
+
+      if (insertedThreadRows.length === 0) {
+        if (body.type !== "dm") {
+          throw apiError(409, "THREAD_CREATE_CONFLICT", "Could not create thread");
+        }
+
+        var conflictingDmRows = await tx
+          .select({ id: chatThreads.id })
+          .from(chatThreads)
+          .where(
+            and(
+              eq(chatThreads.type, "dm"),
+              eq(chatThreads.dmMemberLow, dmMemberLow),
+              eq(chatThreads.dmMemberHigh, dmMemberHigh)
+            )
+          )
+          .limit(1);
+        if (conflictingDmRows.length === 0) {
+          throw apiError(409, "THREAD_CREATE_CONFLICT", "Could not create DM thread");
+        }
+        threadId = conflictingDmRows[0].id;
+        isNewThread = false;
+      } else {
+        threadId = insertedThreadRows[0].id;
+      }
+
+      await tx
+        .insert(chatParticipants)
+        .values(
+          allMemberIds.map(function (userId) {
+            return {
+              threadId,
+              userId,
+              joinedAt: now,
+              role: body.type === "group" && userId === viewer.userId ? "admin" : "member",
+            };
+          })
+        )
+        .onConflictDoNothing();
+      await tx
+        .insert(chatMemberState)
+        .values(
+          allMemberIds.map(function (userId) {
+            return { threadId, userId };
+          })
+        )
+        .onConflictDoNothing();
+      await tx.insert(chatThreadMeta).values({ threadId, messageCount: 0 }).onConflictDoNothing();
+    });
+  } catch (error) {
+    if (body.type !== "dm" || !isUniqueConstraintError(error)) throw error;
+    var conflictingDmRows = await getDb()
+      .select({ id: chatThreads.id })
+      .from(chatThreads)
+      .where(
+        and(
+          eq(chatThreads.type, "dm"),
+          eq(chatThreads.dmMemberLow, dmMemberLow),
+          eq(chatThreads.dmMemberHigh, dmMemberHigh)
+        )
+      )
+      .limit(1);
+    if (conflictingDmRows.length === 0) throw error;
+    await restoreDeletedThreadForMembers(conflictingDmRows[0].id, [viewer.userId]);
+    return c.json(await getThreadPreview(conflictingDmRows[0].id, viewer.userId), 200);
+  }
+  if (!isNewThread) {
+    await restoreDeletedThreadForMembers(threadId, [viewer.userId]);
+  }
+  return c.json(await getThreadPreview(threadId, viewer.userId), isNewThread ? 201 : 200);
 });
 
 chatRoutes.get("/threads/:threadId/messages", readMessagesRateLimit, async function (c) {
@@ -704,23 +900,25 @@ chatRoutes.get("/threads/:threadId/messages", readMessagesRateLimit, async funct
     console.warn("[chat] Keyspaces unavailable; returning empty messages page", { threadId });
     return c.json({ items: [], nextCursor: null, hasMore: false } satisfies ChatMessagesPage);
   }
+  var keyspacesClient = client;
   var before = query.before ? timeUuidFromString(query.before) : null;
-  var rows: MessageRow[] = [];
-  for (var bucket of bucketsNewestFirst(new Date())) {
-    var cql = before
-      ? "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? AND message_id < ? ORDER BY message_id DESC LIMIT ?"
-      : "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? ORDER BY message_id DESC LIMIT ?";
-    var params = before
-      ? [threadId, bucket, before, query.limit + 1]
-      : [threadId, bucket, query.limit + 1];
-    var result = await client.execute(cql, params, { executionProfile: "chat-read" });
-    rows.push(...result.rows.map(rowFromKeyspaces));
-    rows.sort(function (a, b) {
-      return b.message_id.toString().localeCompare(a.message_id.toString());
-    });
-    rows = rows.slice(0, query.limit + 1);
-  }
-  var pageRows = rows.slice(0, query.limit);
+  var messageRows = await fetchChatMessages(
+    threadId,
+    before,
+    query.limit,
+    async function (params) {
+      var cql = params.before
+        ? "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? AND message_id < ? ORDER BY message_id DESC LIMIT ?"
+        : "SELECT * FROM messages WHERE thread_id = ? AND bucket = ? ORDER BY message_id DESC LIMIT ?";
+      var paramsWithCursor = params.before
+        ? [threadId, params.bucket, params.before, params.limit]
+        : [threadId, params.bucket, params.limit];
+      var result = await keyspacesClient.execute(cql, paramsWithCursor, { executionProfile: "chat-read" });
+      return result.rows.map(rowFromKeyspaces);
+    },
+    new Date()
+  );
+  var pageRows = messageRows.rows;
   var profileMap = await fetchProfiles(pageRows.map(function (row) {
     return row.sender_id;
   }));
@@ -729,8 +927,8 @@ chatRoutes.get("/threads/:threadId/messages", readMessagesRateLimit, async funct
   });
   return c.json({
     items,
-    hasMore: rows.length > query.limit,
-    nextCursor: rows.length > query.limit ? items[items.length - 1]?.id ?? null : null,
+    hasMore: messageRows.hasMore,
+    nextCursor: messageRows.hasMore ? items[items.length - 1]?.id ?? null : null,
   });
 });
 
@@ -804,6 +1002,24 @@ chatRoutes.post("/threads/:threadId/messages", sendMessageRateLimit, async funct
     });
   var members = await fetchThreadMembers([threadId]);
   var activeMembers = members.get(threadId) ?? [];
+  if (activeMembers.length > 0) {
+    await getDb()
+      .insert(chatMemberState)
+      .values(
+        activeMembers.map(function (member) {
+          return {
+            threadId,
+            userId: member.userId,
+            lastMessageAt: now,
+            deletedAt: null,
+          };
+        })
+      )
+      .onConflictDoUpdate({
+        target: [chatMemberState.threadId, chatMemberState.userId],
+        set: { lastMessageAt: now, deletedAt: null },
+      });
+  }
   for (var member of activeMembers) {
     if (member.userId !== viewer.userId) await incrementUnread(member.userId, threadId);
   }
@@ -1097,7 +1313,7 @@ async function updateMemberStateDate(
     });
 }
 
-chatRoutes.patch("/threads/:threadId/archive", async function (c) {
+chatRoutes.patch("/threads/:threadId/archive", threadStateRateLimit, async function (c) {
   var viewer = authUser(c);
   var body = await c.req.json() as { archived?: unknown };
   await updateMemberStateDate(
@@ -1109,7 +1325,7 @@ chatRoutes.patch("/threads/:threadId/archive", async function (c) {
   return c.body(null, 204);
 });
 
-chatRoutes.patch("/threads/:threadId/mute", async function (c) {
+chatRoutes.patch("/threads/:threadId/mute", threadStateRateLimit, async function (c) {
   var viewer = authUser(c);
   var body = await c.req.json() as { mutedUntil?: unknown };
   var mutedUntil = typeof body.mutedUntil === "string" ? new Date(body.mutedUntil) : null;
@@ -1118,7 +1334,7 @@ chatRoutes.patch("/threads/:threadId/mute", async function (c) {
   return c.body(null, 204);
 });
 
-chatRoutes.delete("/threads/:threadId", async function (c) {
+chatRoutes.delete("/threads/:threadId", threadStateRateLimit, async function (c) {
   var viewer = authUser(c);
   await updateMemberStateDate(c.req.param("threadId"), viewer.userId, "deletedAt", new Date());
   return c.body(null, 204);

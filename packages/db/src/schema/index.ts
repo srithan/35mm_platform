@@ -14,6 +14,7 @@ export {
 } from "./users.js";
 export { followSuggestions } from "./follow_suggestions.js";
 export { profiles } from "./profiles.js";
+export { usernameLocks, type UsernameLockState } from "./username_locks.js";
 export { userSettings } from "./user_settings.js";
 export { films, filmSourceEnum } from "./films.js";
 export {
@@ -47,6 +48,9 @@ export {
   comments,
   commentLikes,
   notifications,
+  counterJobs,
+  counterJobDeltas,
+  profileFollowApprovalOutbox,
   notificationTypeEnum,
   feedItems,
   postEdits,

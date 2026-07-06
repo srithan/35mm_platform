@@ -46,6 +46,26 @@ type NotificationResult =
       reason: "disabled" | "skipped";
     };
 
+const MARK_ALL_NOTIFICATIONS_READ_BATCH_SIZE = 5000;
+
+type MarkAllNotificationsReadRow = {
+  updated_count: number | string | bigint | null;
+};
+
+type MarkAllNotificationsReadCutoffRow = {
+  cutoff: Date | string;
+};
+
+function numericCount(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "bigint") return Number(value);
+  if (typeof value === "string") {
+    var parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
 function isMissingActorIdsColumnError(err: unknown): boolean {
   if (err == null || typeof err !== "object") return false;
 
@@ -398,13 +418,40 @@ export async function markNotificationUnread(
 
 export async function markAllNotificationsRead(recipientId: string): Promise<number> {
   var db = getDb();
-  var updated = await db
-    .update(notifications)
-    .set({ isRead: true })
-    .where(
-      and(eq(notifications.recipientId, recipientId), eq(notifications.isRead, false))
-    )
-    .returning({ id: notifications.id });
+  var cutoffResult = await db.execute<MarkAllNotificationsReadCutoffRow>(sql`
+    select now() as cutoff
+  `);
+  var readCutoff = cutoffResult.rows[0]?.cutoff ?? new Date();
+  var updatedTotal = 0;
 
-  return updated.length;
+  while (true) {
+    var result = await db.execute<MarkAllNotificationsReadRow>(sql`
+      with unread as (
+        select ${notifications.id} as id
+        from ${notifications}
+        where ${notifications.recipientId} = ${recipientId}
+          and ${notifications.isRead} = false
+          and ${notifications.createdAt} <= ${readCutoff}
+        limit ${MARK_ALL_NOTIFICATIONS_READ_BATCH_SIZE}
+      ),
+      updated as (
+        update ${notifications}
+        set "is_read" = true
+        from unread
+        where ${notifications.id} = unread.id
+          and ${notifications.recipientId} = ${recipientId}
+          and ${notifications.isRead} = false
+          and ${notifications.createdAt} <= ${readCutoff}
+        returning 1
+      )
+      select count(*)::integer as updated_count from updated
+    `);
+
+    var updatedCount = numericCount(result.rows[0]?.updated_count);
+    if (updatedCount === 0) break;
+
+    updatedTotal += updatedCount;
+  }
+
+  return updatedTotal;
 }

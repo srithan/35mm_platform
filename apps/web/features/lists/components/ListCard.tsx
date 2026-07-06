@@ -15,6 +15,9 @@ type ListCardProps = {
   expanded: boolean;
   detail?: FilmListDetail | null;
   detailLoading?: boolean;
+  hasMoreEntries?: boolean;
+  isLoadingMoreEntries?: boolean;
+  onLoadMoreEntries?: () => void;
   isOwnProfile: boolean;
   onToggle: () => void;
   onEdit?: () => void;
@@ -32,6 +35,9 @@ export function ListCard({
   expanded,
   detail,
   detailLoading = false,
+  hasMoreEntries,
+  isLoadingMoreEntries,
+  onLoadMoreEntries,
   isOwnProfile,
   onToggle,
   onEdit,
@@ -181,6 +187,9 @@ export function ListCard({
               list={detail}
               isOwner={isOwnProfile}
               isLoading={detailLoading}
+              hasMoreEntries={hasMoreEntries}
+              isLoadingMoreEntries={isLoadingMoreEntries}
+              onLoadMoreEntries={onLoadMoreEntries}
               onAddFilm={onAddFilm}
               onEditNote={onEditNote}
               onMoveEntry={onMoveEntry}

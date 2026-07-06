@@ -5,6 +5,7 @@ import { users, type NotificationEmailPreferences } from "@35mm/db/schema";
 import { badRequest } from "../../lib/errors.js";
 import { getDb } from "../../lib/db.js";
 import { loadEnv } from "../../lib/env.js";
+import { createRateLimitMiddleware, identifyByIp } from "../../lib/rateLimit.js";
 
 type EmailNotificationType =
   | "like"
@@ -118,6 +119,13 @@ async function unsubscribe(token: string): Promise<EmailNotificationType> {
 
 export var emailRoutes = new Hono();
 
+var unsubscribeRateLimit = createRateLimitMiddleware({
+  keyPrefix: "email:unsubscribe",
+  limit: 30,
+  windowSeconds: 60,
+  identify: identifyByIp,
+});
+
 emailRoutes.get("/unsubscribe", async function (c) {
   var token = c.req.query("token") ?? "";
   var type = await unsubscribe(token);
@@ -128,7 +136,7 @@ emailRoutes.get("/unsubscribe", async function (c) {
   );
 });
 
-emailRoutes.post("/unsubscribe", async function (c) {
+emailRoutes.post("/unsubscribe", unsubscribeRateLimit, async function (c) {
   var token = c.req.query("token") ?? "";
   var type = await unsubscribe(token);
   return c.json({ ok: true, type });

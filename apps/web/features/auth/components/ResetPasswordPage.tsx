@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import { Lock, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { clerkResetPassword } from "@/features/auth/lib/auth-client";
@@ -38,7 +38,7 @@ export function ResetPasswordPage() {
   var [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   var form = useForm<ResetValues>({
-    resolver: zodResolver(resetSchema),
+    resolver: standardSchemaResolver(resetSchema),
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
 

@@ -284,10 +284,10 @@ function SuggestionsSidebarEmptyState(props: { variant: "computing" | "empty" })
           Follow a few filmmakers or log some films — we&apos;ll find your next favorite account.
         </p>
         <Link
-          href={ROUTES.DISCOVER}
+          href={ROUTES.SUGGESTIONS_PEOPLE}
           className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-fg transition-colors hover:opacity-80"
         >
-          Explore Discover
+          Find people to follow
           <ArrowRight className="h-3 w-3" strokeWidth={2.5} aria-hidden />
         </Link>
       </div>

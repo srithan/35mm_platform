@@ -4,22 +4,34 @@ import {
   text,
   timestamp,
   integer,
+  uniqueIndex,
   index,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import { desc, sql } from "drizzle-orm";
 import { users } from "./users.js";
 
-export var chatThreads = pgTable("chat_threads", {
-  id: text("id").primaryKey(),
-  type: text("type").notNull(),
-  createdBy: uuid("created_by")
-    .notNull()
-    .references(function () {
-      return users.id;
-    }, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export var chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(function () {
+        return users.id;
+      }, { onDelete: "cascade" }),
+    dmMemberLow: uuid("dm_member_low"),
+    dmMemberHigh: uuid("dm_member_high"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    dmPairIdx: uniqueIndex("chat_threads_dm_pair_idx")
+      .on(table.dmMemberLow, table.dmMemberHigh)
+      .where(sql`${table.type} = 'dm'`),
+  })
+);
 
 export var chatParticipants = pgTable(
   "chat_participants",
@@ -60,6 +72,7 @@ export var chatMemberState = pgTable(
         return users.id;
       }, { onDelete: "cascade" }),
     lastReadMessageId: text("last_read_message_id"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     mutedUntil: timestamp("muted_until", { withTimezone: true }),
@@ -68,6 +81,12 @@ export var chatMemberState = pgTable(
     return {
       pk: primaryKey({ columns: [table.threadId, table.userId], name: "chat_member_state_thread_user_pk" }),
       userIdx: index("chat_member_state_user_idx").on(table.userId),
+      userInboxIdx: index("chat_member_state_user_inbox_idx").on(
+        table.userId,
+        table.deletedAt,
+        desc(table.lastMessageAt),
+        table.threadId
+      ),
     };
   }
 );

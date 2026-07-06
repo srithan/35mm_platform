@@ -20,9 +20,11 @@ export function NewChatComposeButton({
   return (
     <button
       type="button"
-      onClick={openNewChat}
+      onClick={function () {
+        openNewChat();
+      }}
       className={cn(
-        "inline-flex items-center justify-center rounded-full text-fg-muted hover:text-fg hover:bg-hover transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+        "inline-flex items-center justify-center rounded-full text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--chat-accent-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         dimension,
         className
       )}

@@ -42,14 +42,27 @@ export interface AppearanceSettings {
   videoAutoplay: boolean;
 }
 
+export type VideoDefaultQuality = "auto" | "data_saver" | "standard" | "high";
+export type VideoCaptionStyle = "default" | "large" | "high_contrast";
+
+export interface MediaSettings {
+  videoDefaultQuality: VideoDefaultQuality;
+  videoAutoplay: boolean;
+  alwaysShowCaptions: boolean;
+  captionStyle: VideoCaptionStyle;
+  quietMode: boolean;
+}
+
 export interface UserSettings {
   profile: ProfileSettings;
   privacy: PrivacySettings;
   notifications: NotificationSettings;
   appearance: AppearanceSettings;
+  media: MediaSettings;
 }
 
 export type UpdateProfileInput = ProfileSettings;
 export type UpdatePrivacyInput = PrivacySettings;
 export type UpdateNotificationsInput = NotificationSettings;
 export type UpdateAppearanceInput = Partial<AppearanceSettings>;
+export type UpdateMediaInput = MediaSettings;

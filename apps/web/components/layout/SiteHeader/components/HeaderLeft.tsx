@@ -11,9 +11,11 @@ export function HeaderLeft() {
 
   return (
     <div className={styles.navLeft}>
-      <BrandLogo href={ROUTES.HOME} className={styles.navLogo}>
-        35mm<span className={styles.dot}>.</span>
-      </BrandLogo>
+      <BrandLogo
+        href={ROUTES.HOME}
+        className={styles.navLogo}
+        style={{ fontSize: "1.75rem" }}
+      />
       <div className={styles.headerSearchWrap}>
         <SearchBar
           placeholder="Search 35mm"

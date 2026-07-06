@@ -17,6 +17,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
   let isLiked: Bool
   let isReposted: Bool
   let isBookmarked: Bool
+  let bookmarkFolderId: String?
   let filmRating: Int?
   let media: [PostMedia]?
   let mediaUrls: [String]?
@@ -42,6 +43,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     case isLiked
     case isReposted
     case isBookmarked
+    case bookmarkFolderId
     case filmRating
     case media
     case mediaUrls
@@ -68,6 +70,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     isLiked: Bool,
     isReposted: Bool,
     isBookmarked: Bool,
+    bookmarkFolderId: String? = nil,
     filmRating: Int?,
     media: [PostMedia]?,
     mediaUrls: [String]?,
@@ -92,6 +95,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     self.isLiked = isLiked
     self.isReposted = isReposted
     self.isBookmarked = isBookmarked
+    self.bookmarkFolderId = bookmarkFolderId
     self.filmRating = filmRating
     self.media = media
     self.mediaUrls = mediaUrls
@@ -120,6 +124,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     isLiked = try container.decodeIfPresent(Bool.self, forKey: .isLiked) ?? false
     isReposted = try container.decodeIfPresent(Bool.self, forKey: .isReposted) ?? false
     isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked) ?? false
+    bookmarkFolderId = try container.decodeIfPresent(String.self, forKey: .bookmarkFolderId)
     filmRating = try container.decodeIfPresent(Int.self, forKey: .filmRating)
     media = try container.decodeIfPresent([PostMedia].self, forKey: .media)
     mediaUrls = try container.decodeIfPresent([String].self, forKey: .mediaUrls)
@@ -143,10 +148,52 @@ struct FeedPost: Codable, Identifiable, Hashable {
   }
 
   func toggledBookmark() -> FeedPost {
-    copy(
+    movedBookmark(
+      to: isBookmarked ? nil : bookmarkFolderId,
       isBookmarked: !isBookmarked,
       bookmarkCount: max(bookmarkCount + (isBookmarked ? -1 : 1), 0)
     )
+  }
+
+  func movedBookmark(to folderId: String?) -> FeedPost {
+    movedBookmark(to: folderId, isBookmarked: isBookmarked, bookmarkCount: bookmarkCount)
+  }
+
+  private func movedBookmark(to folderId: String?, isBookmarked: Bool, bookmarkCount: Int) -> FeedPost {
+    FeedPost(
+      id: id,
+      type: type,
+      headline: headline,
+      body: body,
+      createdAt: createdAt,
+      editedAt: editedAt,
+      isRepost: isRepost,
+      repostOfId: repostOfId,
+      visibility: visibility,
+      likeCount: likeCount,
+      commentCount: commentCount,
+      repostCount: repostCount,
+      bookmarkCount: bookmarkCount,
+      isLiked: isLiked,
+      isReposted: isReposted,
+      isBookmarked: isBookmarked,
+      bookmarkFolderId: folderId,
+      filmRating: filmRating,
+      media: media,
+      mediaUrls: mediaUrls,
+      linkPreview: linkPreview,
+      film: film,
+      author: author,
+      poll: poll
+    )
+  }
+
+  func votedPoll(optionIds: [String]) -> FeedPost? {
+    guard let poll, let updatedPoll = poll.applyingOptimisticVote(optionIds: optionIds) else {
+      return nil
+    }
+
+    return copy(poll: updatedPoll)
   }
 
   private func copy(
@@ -155,7 +202,8 @@ struct FeedPost: Codable, Identifiable, Hashable {
     isReposted: Bool? = nil,
     repostCount: Int? = nil,
     isBookmarked: Bool? = nil,
-    bookmarkCount: Int? = nil
+    bookmarkCount: Int? = nil,
+    poll: Poll? = nil
   ) -> FeedPost {
     FeedPost(
       id: id,
@@ -174,13 +222,14 @@ struct FeedPost: Codable, Identifiable, Hashable {
       isLiked: isLiked ?? self.isLiked,
       isReposted: isReposted ?? self.isReposted,
       isBookmarked: isBookmarked ?? self.isBookmarked,
+      bookmarkFolderId: bookmarkFolderId,
       filmRating: filmRating,
       media: media,
       mediaUrls: mediaUrls,
       linkPreview: linkPreview,
       film: film,
       author: author,
-      poll: poll
+      poll: poll ?? self.poll
     )
   }
 }
@@ -313,16 +362,24 @@ struct PostMedia: Codable, Equatable {
 
 struct Poll: Codable, Identifiable, Equatable {
   let id: String
+  let type: PollType
   let options: [PollOption]
   let totalVotes: Int
-  let userVotedOptionId: String?
-  let resultsVisibility: String
+  let hasVoted: Bool
+  let isEnded: Bool
+  let resultsVisible: Bool
+  let selectedOptionIds: [String]
+  let resultsVisibility: PollResultsVisibility
   let endsAt: Date?
 
   enum CodingKeys: String, CodingKey {
     case id
+    case type
     case options
     case totalVotes
+    case hasVoted
+    case isEnded
+    case resultsVisible
     case userVotedOptionId
     case selectedOptionIds
     case resultsVisibility
@@ -332,48 +389,188 @@ struct Poll: Codable, Identifiable, Equatable {
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     id = try container.decode(String.self, forKey: .id)
+    type = try container.decodeIfPresent(PollType.self, forKey: .type) ?? .ranking
     options = try container.decode([PollOption].self, forKey: .options)
     totalVotes = try container.decodeIfPresent(Int.self, forKey: .totalVotes) ?? 0
-    if let userVotedOptionId = try container.decodeIfPresent(
-      String.self,
-      forKey: .userVotedOptionId
-    ) {
-      self.userVotedOptionId = userVotedOptionId
-    } else {
-      self.userVotedOptionId =
-        try container.decodeIfPresent([String].self, forKey: .selectedOptionIds)?.first
-    }
-    resultsVisibility =
-      try container.decodeIfPresent(String.self, forKey: .resultsVisibility) ?? "after_vote"
+    let legacySelectedOptionId = try container.decodeIfPresent(String.self, forKey: .userVotedOptionId)
+    let selectedOptionIds =
+      try container.decodeIfPresent([String].self, forKey: .selectedOptionIds)
+      ?? legacySelectedOptionId.map { [$0] }
+      ?? []
+
+    self.selectedOptionIds = selectedOptionIds
+    hasVoted = try container.decodeIfPresent(Bool.self, forKey: .hasVoted) ?? !selectedOptionIds.isEmpty
     endsAt = try container.decodeIfPresent(Date.self, forKey: .endsAt)
+
+    let computedEnded = endsAt.map { $0 <= Date() } ?? false
+    isEnded = try container.decodeIfPresent(Bool.self, forKey: .isEnded) ?? computedEnded
+    resultsVisibility =
+      try container.decodeIfPresent(PollResultsVisibility.self, forKey: .resultsVisibility)
+      ?? .afterVote
+
+    if let resultsVisible = try container.decodeIfPresent(Bool.self, forKey: .resultsVisible) {
+      self.resultsVisible = resultsVisible
+    } else {
+      self.resultsVisible = hasVoted || isEnded
+    }
+  }
+
+  init(
+    id: String,
+    type: PollType,
+    options: [PollOption],
+    totalVotes: Int,
+    hasVoted: Bool,
+    isEnded: Bool,
+    resultsVisible: Bool,
+    selectedOptionIds: [String],
+    resultsVisibility: PollResultsVisibility,
+    endsAt: Date?
+  ) {
+    self.id = id
+    self.type = type
+    self.options = options
+    self.totalVotes = totalVotes
+    self.hasVoted = hasVoted
+    self.isEnded = isEnded
+    self.resultsVisible = resultsVisible
+    self.selectedOptionIds = selectedOptionIds
+    self.resultsVisibility = resultsVisibility
+    self.endsAt = endsAt
   }
 
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(id, forKey: .id)
+    try container.encode(type, forKey: .type)
     try container.encode(options, forKey: .options)
     try container.encode(totalVotes, forKey: .totalVotes)
-    try container.encodeIfPresent(userVotedOptionId, forKey: .userVotedOptionId)
+    try container.encode(hasVoted, forKey: .hasVoted)
+    try container.encode(isEnded, forKey: .isEnded)
+    try container.encode(resultsVisible, forKey: .resultsVisible)
+    try container.encode(selectedOptionIds, forKey: .selectedOptionIds)
     try container.encode(resultsVisibility, forKey: .resultsVisibility)
     try container.encodeIfPresent(endsAt, forKey: .endsAt)
+  }
+
+  func applyingOptimisticVote(optionIds: [String]) -> Poll? {
+    let uniqueOptionIds = optionIds.reduce(into: [String]()) { result, optionId in
+      guard !optionId.isEmpty, !result.contains(optionId) else { return }
+      result.append(optionId)
+    }
+    guard !hasVoted, !isEnded, !uniqueOptionIds.isEmpty else { return nil }
+    if type == .image && uniqueOptionIds.count != 1 { return nil }
+
+    let newTotalVotes = totalVotes + 1
+    let votedOptions = options.map { option in
+      guard let rankIndex = uniqueOptionIds.firstIndex(of: option.id) else {
+        return option.withVoteCount(option.voteCount ?? 0)
+      }
+
+      let increment = type == .image ? 1 : uniqueOptionIds.count - rankIndex
+      return option.withVoteCount((option.voteCount ?? 0) + increment)
+    }
+
+    let scoreTotal = votedOptions.reduce(0) { $0 + ($1.voteCount ?? 0) }
+    let denominator = type == .ranking ? scoreTotal : newTotalVotes
+
+    return Poll(
+      id: id,
+      type: type,
+      options: votedOptions.map { $0.withPercent(Self.percent(voteCount: $0.voteCount, denominator: denominator)) },
+      totalVotes: newTotalVotes,
+      hasVoted: true,
+      isEnded: isEnded,
+      resultsVisible: true,
+      selectedOptionIds: uniqueOptionIds,
+      resultsVisibility: resultsVisibility,
+      endsAt: endsAt
+    )
+  }
+
+  private static func percent(voteCount: Int?, denominator: Int) -> Double? {
+    guard denominator > 0 else { return nil }
+    return (Double(voteCount ?? 0) / Double(denominator) * 1000).rounded() / 10
   }
 }
 
 struct PollOption: Codable, Identifiable, Equatable {
   let id: String
-  let label: String
-  let voteCount: Int
+  let label: String?
+  let imageUrl: String?
+  let position: Int
+  let voteCount: Int?
+  let percent: Double?
 
   enum CodingKeys: String, CodingKey {
     case id
     case label
+    case imageUrl
+    case position
     case voteCount
+    case percent
   }
 
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     id = try container.decodeIfPresent(String.self, forKey: .id) ?? ""
-    label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
-    voteCount = try container.decodeIfPresent(Int.self, forKey: .voteCount) ?? 0
+    label = try container.decodeIfPresent(String.self, forKey: .label)
+    imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+    position = try container.decodeIfPresent(Int.self, forKey: .position) ?? 0
+    voteCount = try container.decodeIfPresent(Int.self, forKey: .voteCount)
+    percent = try container.decodeIfPresent(Double.self, forKey: .percent)
   }
+
+  init(
+    id: String,
+    label: String?,
+    imageUrl: String?,
+    position: Int,
+    voteCount: Int?,
+    percent: Double?
+  ) {
+    self.id = id
+    self.label = label
+    self.imageUrl = imageUrl
+    self.position = position
+    self.voteCount = voteCount
+    self.percent = percent
+  }
+
+  var displayLabel: String {
+    let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return trimmed.isEmpty ? "Option \(position + 1)" : trimmed
+  }
+
+  func withVoteCount(_ voteCount: Int) -> PollOption {
+    PollOption(
+      id: id,
+      label: label,
+      imageUrl: imageUrl,
+      position: position,
+      voteCount: voteCount,
+      percent: percent
+    )
+  }
+
+  func withPercent(_ percent: Double?) -> PollOption {
+    PollOption(
+      id: id,
+      label: label,
+      imageUrl: imageUrl,
+      position: position,
+      voteCount: voteCount,
+      percent: percent
+    )
+  }
+}
+
+enum PollType: String, Codable {
+  case ranking
+  case image
+}
+
+enum PollResultsVisibility: String, Codable {
+  case afterVote = "after_vote"
+  case afterEnd = "after_end"
 }

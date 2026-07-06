@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect } from "react";
+import { useMemo, useState, useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -13,6 +13,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { HomeSuggestionsSidebar } from "@/features/feed/components/HomeSuggestionsSidebar";
 import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
+import { ShellLayoutContext } from "@/components/layout/ShellLayoutContext";
 
 /** Inlined — imported helpers can go stale in Turbopack client bundles. */
 function isProfileShellPath(pathname: string): boolean {
@@ -40,6 +41,13 @@ function isProfileShellPath(pathname: string): boolean {
 export function ShellGrid({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileRailDisabled, setProfileRailDisabled] = useState(false);
+  const shellLayoutContextValue = useMemo(
+    function () {
+      return { profileRailDisabled, setProfileRailDisabled };
+    },
+    [profileRailDisabled, setProfileRailDisabled]
+  );
   const isTitlePage = Boolean(pathname?.startsWith("/title/"));
   const isShortFilmsSection =
     pathname === ROUTES.SHORT_FILMS ||
@@ -58,6 +66,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/discover" ||
     pathname === ROUTES.BOOKMARKS ||
     pathname === ROUTES.SUGGESTIONS_PEOPLE ||
+    isSettingsSection ||
     isChatSection ||
     isShortFilmsSection ||
     isTitlePage;
@@ -88,11 +97,13 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     isSettingsSection;
 
   const useHomeRailLayout = isHomePage;
+  const useProfileFullWidthLayout = isProfileUsernamePage && profileRailDisabled;
   /** Profile spans main except the widgets column (`xl:`). */
-  const useProfileRailLayout = isProfileUsernamePage;
+  const useProfileRailLayout = isProfileUsernamePage && !profileRailDisabled;
 
   return (
-    <ComposerModalProvider>
+    <ShellLayoutContext.Provider value={shellLayoutContextValue}>
+      <ComposerModalProvider>
       <div
         className="flex flex-col min-h-screen w-full bg-bg"
         style={
@@ -130,7 +141,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
               : "pb-[calc(5.25rem+max(0.625rem,env(safe-area-inset-bottom,0px)))] md:pb-0",
             useHomeRailLayout
               ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
-              : useProfileRailLayout
+              : useProfileRailLayout || useProfileFullWidthLayout
                 ? "w-full max-w-none mx-0"
                 : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
             isChatSection
@@ -199,6 +210,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
           ) : null}
         </div>
       </div>
-    </ComposerModalProvider>
+      </ComposerModalProvider>
+    </ShellLayoutContext.Provider>
   );
 }

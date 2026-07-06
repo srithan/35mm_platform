@@ -2,9 +2,11 @@
 
 import type { ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { FilmCard } from "@/components/FilmCard";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
+import { ROUTES } from "@/lib/constants/routes";
 import { PostImageGallery } from "../PostImageGallery";
 import { VideoUrlPreview } from "../VideoUrlPreview";
 import { RichPostInline } from "@/lib/utils/richPostText";
@@ -12,6 +14,7 @@ import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
 import { cn } from "@/lib/utils/cn";
 import type { VideoPreview } from "../../utils/videoPreviews";
 import type {
+  PostCardAttachedFilm,
   PostCardFilmCard,
   PostCardLinkPreview,
   PostCardPoll,
@@ -24,6 +27,7 @@ interface PostCardAttachmentsProps {
   variant: PostVariant;
   filmRef?: string;
   filmCard?: PostCardFilmCard;
+  attachedFilm?: PostCardAttachedFilm | null;
   hasAttachedMedia: boolean;
   combinedVideoPreviews: VideoPreview[];
   shouldRenderLinkPreviewCard: boolean;
@@ -48,9 +52,15 @@ interface PostCardAttachmentsProps {
   imageViewerFooter?: ReactNode;
 }
 
+function getFilmTitleHref(film: PostCardAttachedFilm | null | undefined): string | null {
+  if (!film?.tmdbId) return null;
+  return ROUTES.TITLE("movie", film.tmdbId);
+}
+
 export function PostCardAttachments({
   variant,
   filmCard,
+  attachedFilm,
   hasAttachedMedia,
   combinedVideoPreviews,
   shouldRenderLinkPreviewCard,
@@ -74,6 +84,17 @@ export function PostCardAttachments({
   onCloseImageViewer,
   imageViewerFooter,
 }: PostCardAttachmentsProps) {
+  const filmTitleHref = getFilmTitleHref(attachedFilm);
+  const filmCardNode = filmCard ? (
+    <FilmCard
+      title={filmCard.title}
+      year={filmCard.year}
+      genre={filmCard.genre}
+      posterUrl={filmCard.posterUrl ?? undefined}
+      rating={filmCard.rating}
+    />
+  ) : null;
+
   return (
     <>
       {!hasAttachedMedia &&
@@ -86,13 +107,19 @@ export function PostCardAttachments({
 
       {filmCard && (
         <div className={cn("mt-2", variant === "film-log" && "mt-2")}>
-          <FilmCard
-            title={filmCard.title}
-            year={filmCard.year}
-            genre={filmCard.genre}
-            posterUrl={filmCard.posterUrl ?? undefined}
-            rating={filmCard.rating}
-          />
+          {filmTitleHref ? (
+            <Link
+              href={filmTitleHref}
+              aria-label={`Open ${filmCard.title}`}
+              className="block no-underline"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {filmCardNode}
+            </Link>
+          ) : (
+            filmCardNode
+          )}
         </div>
       )}
 

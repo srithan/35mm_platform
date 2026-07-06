@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
 import { Avatar } from "@/components/Avatar";
@@ -21,6 +21,32 @@ import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { profileKeys } from "../hooks/queryKeys";
 
 const BIO_MAX = 160;
+const ROLE_CONTEXT_MAX = 25;
+
+const PROFILE_ROLE_OPTIONS = [
+  {
+    value: "Cinephile",
+    description: "You primarily watch, log, and talk about films.",
+  },
+  {
+    value: "Creator",
+    description: "You make films, videos, or visual work.",
+  },
+  {
+    value: "Critic",
+    description: "You review, write, podcast, or publish film criticism.",
+  },
+  {
+    value: "Film Student",
+    description: "You are studying film or learning the craft.",
+  },
+  {
+    value: "Industry",
+    description: "You work in production, distribution, festivals, or studios.",
+  },
+] as const;
+
+type ProfileRoleLabel = (typeof PROFILE_ROLE_OPTIONS)[number]["value"];
 
 const profileSchema = z.object({
   displayName: z
@@ -33,6 +59,8 @@ const profileSchema = z.object({
     .refine(function (value) {
       return value.length === 0 || /^\d{4}-\d{2}-\d{2}$/.test(value);
     }, "Use a valid date"),
+  role: z.string().trim().min(1, "Choose a role").max(50, "Role is too long"),
+  roleContext: z.string().trim().max(ROLE_CONTEXT_MAX, "Context is too long"),
   bio: z.string().max(BIO_MAX, "Bio must be 160 characters or less"),
   location: z.string().max(100, "Location must be 100 characters or less"),
   website: z.string().max(200, "URL is too long"),
@@ -65,6 +93,24 @@ function isValidWebsite(value: string): boolean {
   } catch (_error) {
     return false;
   }
+}
+
+function normalizeRoleLabel(value: string | null | undefined): ProfileRoleLabel {
+  var normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "creator") return "Creator";
+  if (normalized === "critic" || normalized === "film critic") return "Critic";
+  if (normalized === "film_student" || normalized === "film student") return "Film Student";
+  if (normalized === "industry") return "Industry";
+  return "Cinephile";
+}
+
+function normalizeInitialValues(values: ProfileFormValues): ProfileFormValues {
+  var role = normalizeRoleLabel(values.role);
+  return {
+    ...values,
+    role,
+    roleContext: role === "Cinephile" ? "" : values.roleContext.trim().slice(0, ROLE_CONTEXT_MAX),
+  };
 }
 
 function EditProfileSection({
@@ -163,11 +209,12 @@ export function EditProfileModal({
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors, isDirty, isSubmitting, isValid },
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: initialData,
+    resolver: standardSchemaResolver(profileSchema),
+    defaultValues: normalizeInitialValues(initialData),
     mode: "onChange",
   });
 
@@ -175,10 +222,18 @@ export function EditProfileModal({
 
   const bioContent = watch("bio") || "";
   const bioRemaining = BIO_MAX - bioContent.length;
+  const roleValue = normalizeRoleLabel(watch("role"));
+  const roleContextValue = watch("roleContext") || "";
+  const roleContextTrimmed = roleContextValue.trim();
+  const roleContextRemaining = ROLE_CONTEXT_MAX - roleContextValue.length;
+  const roleBylinePreview =
+    roleValue === "Cinephile" || roleContextTrimmed.length === 0
+      ? roleValue
+      : `${roleValue} · ${roleContextTrimmed}`;
 
   useEffect(function () {
     if (open) {
-      reset(initialData);
+      reset(normalizeInitialValues(initialData));
       setSaveError(null);
       setWebsiteError(null);
       setDiscardConfirmOpen(false);
@@ -204,6 +259,9 @@ export function EditProfileModal({
 
     try {
       const nextWebsite = normalizeWebsite(data.website);
+      const nextRole = normalizeRoleLabel(data.role);
+      const nextRoleContext =
+        nextRole === "Cinephile" ? null : data.roleContext.trim() || null;
       const next = await updateCurrentProfile(
         {
           displayName: data.displayName.trim(),
@@ -211,6 +269,10 @@ export function EditProfileModal({
           location: data.location.trim(),
           website: nextWebsite.length > 0 ? nextWebsite : null,
           dateOfBirth: data.dateOfBirth.trim().length > 0 ? data.dateOfBirth : null,
+          role: nextRole,
+          roleContext: nextRoleContext,
+          headline: nextRole,
+          headlineContext: nextRoleContext,
         },
         await getToken()
       );
@@ -219,6 +281,8 @@ export function EditProfileModal({
       onSave({
         displayName: next.displayName,
         dateOfBirth: next.dateOfBirth ?? "",
+        role: next.role ?? "Cinephile",
+        roleContext: next.roleContext ?? "",
         bio: next.bio ?? "",
         location: next.location ?? "",
         website: next.website ?? "",
@@ -331,6 +395,134 @@ export function EditProfileModal({
                   }}
                 />
               </EditProfileField>
+              </div>
+            </EditProfileSection>
+
+            <EditProfileSection
+              title="Profile label"
+              description="Choose the label people see under your name."
+            >
+              <div className={fieldGroupClassName}>
+                <div className="px-4 py-3.5">
+                  <div className="mb-3">
+                    <p className="text-[12px] font-semibold text-fg">
+                      Pick one role
+                    </p>
+                    <p className="mt-0.5 text-[11.5px] leading-relaxed text-fg-muted">
+                      This becomes your primary byline on your profile and posts.
+                    </p>
+                  </div>
+                  <div
+                    id="edit-profile-role"
+                    role="radiogroup"
+                    aria-label="Pick one role"
+                    className="space-y-2"
+                  >
+                    {PROFILE_ROLE_OPTIONS.map(function (option) {
+                      var selected = roleValue === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          disabled={isSubmitting}
+                          onClick={function () {
+                            setValue("role", option.value, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                            if (option.value === "Cinephile") {
+                              setValue("roleContext", "", {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            }
+                          }}
+                          className={cn(
+                            "flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                            selected
+                              ? "border-accent/45 bg-[color-mix(in_srgb,var(--color-film-red)_7%,var(--bg))] text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-film-red)_20%,transparent)]"
+                              : "border-border bg-bg/55 text-fg-muted hover:border-border-strong hover:bg-bg"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                              selected
+                                ? "border-accent bg-accent"
+                                : "border-border-strong bg-transparent"
+                            )}
+                            aria-hidden
+                          >
+                            {selected ? (
+                              <span className="h-2 w-2 rounded-full bg-bg" />
+                            ) : null}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                              <span className="text-[13.5px] font-semibold leading-5 text-fg">
+                                {option.value}
+                              </span>
+                              {selected ? (
+                                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold leading-none text-accent">
+                                  Selected
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 block text-[12px] leading-relaxed text-fg-muted">
+                              {option.description}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.role?.message ? (
+                    <p className="mt-2 text-[11.5px] text-accent" role="alert">
+                      {errors.role.message}
+                    </p>
+                  ) : null}
+                </div>
+
+              {roleValue !== "Cinephile" ? (
+                <EditProfileField
+                  id="edit-profile-role-context"
+                  label="Add detail"
+                  hint={`This appears after your role: ${roleValue} · Executive Producer`}
+                  error={errors.roleContext?.message}
+                  meta={
+                    <span
+                      className={cn(
+                        "text-[11px] tabular-nums text-fg-muted",
+                        roleContextRemaining < 0 && "text-accent"
+                      )}
+                      aria-live="polite"
+                    >
+                      {roleContextValue.length}/{ROLE_CONTEXT_MAX}
+                    </span>
+                  }
+                >
+                  <input
+                    {...register("roleContext")}
+                    id="edit-profile-role-context"
+                    type="text"
+                    maxLength={ROLE_CONTEXT_MAX}
+                    placeholder="Executive Producer, NYU, Sight & Sound..."
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(errors.roleContext)}
+                    className={inputStateClassName(Boolean(errors.roleContext))}
+                  />
+                </EditProfileField>
+              ) : null}
+                <div className="px-4 py-3.5">
+                  <p className="text-[12px] font-medium text-fg-muted">
+                    Your byline will show
+                  </p>
+                  <p className="mt-1 rounded-xl border border-border bg-bg px-3 py-2 text-[13.5px] font-semibold text-fg">
+                    {roleBylinePreview}
+                  </p>
+                </div>
               </div>
             </EditProfileSection>
 
@@ -457,7 +649,7 @@ export function EditProfileModal({
         }}
         onConfirm={function () {
           setDiscardConfirmOpen(false);
-          reset(initialData);
+          reset(normalizeInitialValues(initialData));
           onClose();
         }}
         title="Discard changes?"

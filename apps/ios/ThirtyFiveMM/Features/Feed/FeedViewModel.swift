@@ -103,6 +103,25 @@ final class FeedViewModel: ObservableObject {
     )
   }
 
+  func votePoll(postId: String, optionIds: [String]) async {
+    guard let index = posts.firstIndex(where: { $0.id == postId }) else { return }
+
+    let original = posts[index]
+    guard let optimistic = original.votedPoll(optionIds: optionIds) else { return }
+
+    posts[index] = optimistic
+    error = nil
+
+    do {
+      let _: FeedPost = try await apiClient.request(.votePoll(postId: postId, optionIds: optionIds))
+    } catch {
+      if let currentIndex = posts.firstIndex(where: { $0.id == postId }) {
+        posts[currentIndex] = original
+      }
+      self.error = error.localizedDescription
+    }
+  }
+
   func clearError() {
     error = nil
   }

@@ -1,8 +1,8 @@
 import { createMiddleware } from "hono/factory";
 import { createClerkClient, verifyToken } from "@clerk/backend";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { users, profiles, userSettings } from "@35mm/db/schema";
-import { getDb } from "./db.js";
+import { getDb, getWriteDb } from "./db.js";
 import { ApiError, unauthorized } from "./errors.js";
 import { tryEnsureWatchlistForUser } from "./filmLists.js";
 import { resolveProfileAvatarUrl } from "../modules/media/url.js";
@@ -82,50 +82,73 @@ async function ensureLocalUser(clerkUserId: string) {
   var username = (clerkUser.username || clerkUserId).toLowerCase();
   var displayName = displayNameForClerkUser(clerkUser);
   var email = emailForClerkUser(clerkUser);
-  var inserted = await db
-    .insert(users)
-    .values({
-      clerkUserId: clerkUserId,
-      email: email,
-      ageVerifiedAt: new Date(),
-      status: "active",
-    })
-    .returning({ id: users.id })
-    .onConflictDoNothing();
+  var userId = await getWriteDb().transaction(async function (tx) {
+    var rows = await tx
+      .insert(users)
+      .values({
+        clerkUserId: clerkUserId,
+        email: email,
+        ageVerifiedAt: new Date(),
+        status: "active",
+      })
+      .returning({ id: users.id })
+      .onConflictDoNothing();
 
-  var userId: string | null = inserted[0]?.id ?? null;
-  if (!userId) {
-    var rows = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.clerkUserId, clerkUserId))
+    var localUserId = rows[0]?.id ?? null;
+    if (!localUserId) {
+      var existingUsers = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.clerkUserId, clerkUserId))
+        .limit(1);
+      localUserId = existingUsers[0]?.id ?? null;
+    }
+
+    if (!localUserId) {
+      return null;
+    }
+
+    var existingProfiles = await tx
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.userId, localUserId))
       .limit(1);
-    userId = rows[0]?.id ?? null;
-  }
+
+    if (existingProfiles.length === 0) {
+      var fallbackUsername = clerkUserId.toLowerCase();
+      var stableUsername = "u" + localUserId.replace(/-/g, "").slice(0, 16);
+      var usernameCandidates = Array.from(new Set([username, fallbackUsername, stableUsername]));
+
+      for (var usernameCandidate of usernameCandidates) {
+        var insertedProfile = await tx
+          .insert(profiles)
+          .values({
+            userId: localUserId,
+            username: usernameCandidate,
+            displayName: displayName,
+            avatarUrl: null,
+            bio: null,
+            coverUrl: null,
+            location: null,
+            website: null,
+            role: null,
+            roleContext: null,
+          })
+          .returning({ id: profiles.id })
+          .onConflictDoNothing();
+
+        if (insertedProfile.length > 0) break;
+      }
+    }
+
+    await tx.insert(userSettings).values({ userId: localUserId }).onConflictDoNothing();
+
+    return localUserId;
+  });
 
   if (!userId) {
     throw unauthorized("User not found. Complete signup first.");
   }
-
-  await db
-    .insert(profiles)
-    .values({
-      userId: userId,
-      username: username,
-      displayName: displayName,
-      avatarUrl: null,
-      bio: null,
-      coverUrl: null,
-      location: null,
-      website: null,
-      role: null,
-      roleContext: null,
-    })
-    .onConflictDoNothing();
-
-  await db.execute(
-    sql`insert into "user_settings" ("user_id") values (${userId}) on conflict ("user_id") do nothing`
-  );
 
   var created = await db
     .select({

@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Switch } from "@/components/Switch";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
 import { applyAccentColor } from "@/lib/theme/applyAccentColor";
 import {
-  SettingsRow,
   SettingsSection,
   ThemePicker,
 } from "./SettingsFormPrimitives";
 import { AccentColorPicker } from "./AccentColorPicker";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import {
   appearanceSettingsSchema,
   type AppearanceSettingsFormValues,
@@ -33,7 +31,6 @@ export function SettingsAppearancePanel({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isSavingAccentColor, setIsSavingAccentColor] = useState(false);
-  const [isSavingVideoAutoplay, setIsSavingVideoAutoplay] = useState(false);
 
   const {
     watch,
@@ -42,7 +39,7 @@ export function SettingsAppearancePanel({
     getValues,
     formState: { isSubmitting },
   } = useForm<AppearanceSettingsFormValues>({
-    resolver: zodResolver(appearanceSettingsSchema),
+    resolver: standardSchemaResolver(appearanceSettingsSchema),
     defaultValues: initialValues,
   });
 
@@ -53,7 +50,7 @@ export function SettingsAppearancePanel({
 
   return (
     <div className="space-y-10">
-      <SettingsSection title="Appearance">
+      <SettingsSection title="Theme and color">
         <div className="space-y-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <h3 className="text-[13px] text-fg-light font-medium shrink-0">
@@ -85,11 +82,11 @@ export function SettingsAppearancePanel({
             />
           </div>
           <div className="mt-6 border-t border-border pt-6">
-            <div className="space-y-4">
-              <div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+              <div className="shrink-0 lg:w-[12rem]">
                 <h3 className="text-[13px] text-fg-light font-medium">Accent color</h3>
-                <p className="mt-1 text-[11.5px] text-fg-muted">
-                  Applies to buttons, links, and highlights across all themes.
+                <p className="mt-1 max-w-[13rem] text-[11.5px] leading-relaxed text-fg-muted">
+                  Buttons, links, and highlights.
                 </p>
               </div>
               <AccentColorPicker
@@ -121,44 +118,10 @@ export function SettingsAppearancePanel({
               />
             </div>
           </div>
-          <div className="mt-6 border-t border-border pt-6">
-            <SettingsRow
-              label="Video autoplay"
-              description="Auto-play videos in feed"
-              action={
-                <Switch
-                  checked={watch("videoAutoplay")}
-                  onChange={function (nextVideoAutoplay) {
-                    void (async function () {
-                      setValue("videoAutoplay", nextVideoAutoplay, { shouldDirty: true });
-                      setSubmitError(null);
-                      setIsSavingVideoAutoplay(true);
-                      const nextValues: AppearanceSettingsFormValues = {
-                        ...getValues(),
-                        videoAutoplay: nextVideoAutoplay,
-                      };
-                      try {
-                        await onSave(nextValues);
-                        reset(nextValues);
-                      } catch (error: unknown) {
-                        setSubmitError(
-                          toFormErrorMessage(error, "Could not update video autoplay.")
-                        );
-                      } finally {
-                        setIsSavingVideoAutoplay(false);
-                      }
-                    })();
-                  }}
-                  disabled={isSubmitting || isSavingVideoAutoplay}
-                  aria-label="Video autoplay"
-                />
-              }
-            />
-          </div>
           {submitError ? (
             <p className="pt-1 text-[12px] text-accent">{submitError}</p>
           ) : null}
-          {(isSavingTheme || isSavingAccentColor || isSavingVideoAutoplay) && (
+          {(isSavingTheme || isSavingAccentColor) && (
             <p className="text-[11px] text-fg-muted">Saving appearance changes...</p>
           )}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   addFilmToList,
   addToWatchlist,
@@ -48,13 +48,31 @@ export function useProfileLists(username: string, sort: FilmListSort) {
 export function useFilmList(listId: string | null) {
   var { getToken, isLoaded } = useAuth();
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: listKeys.detail(listId ?? ""),
-    queryFn: async function () {
+    queryFn: async function ({ pageParam }) {
       if (!listId) throw new Error("Missing list id");
-      return fetchList(listId, await getToken());
+      return fetchList(listId, { cursor: pageParam as string | undefined, token: await getToken() });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: function (lastPage) {
+      return lastPage.entriesPage?.nextCursor ?? undefined;
     },
     enabled: isLoaded && Boolean(listId),
+    staleTime: 30_000,
+    select: function (data) {
+      var first = data.pages[0]!;
+      var allEntries = data.pages.flatMap(function (page) {
+        return page.entries;
+      });
+      var last = data.pages[data.pages.length - 1];
+
+      return {
+        ...first,
+        entries: allEntries,
+        entriesPage: last?.entriesPage,
+      };
+    },
   });
 }
 

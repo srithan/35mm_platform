@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SettingsNotificationsPanel } from "./SettingsNotificationsPanel";
@@ -35,9 +35,15 @@ describe("SettingsNotificationsPanel", () => {
       />
     );
 
-    const toggles = screen.getAllByRole("checkbox");
-    await user.click(toggles[0]);
-    await user.click(toggles[6]);
+    const activitySection = screen.getByText("Activity").closest("details");
+    expect(activitySection).not.toBeNull();
+    const newFollowersToggle = within(activitySection as HTMLElement).getByRole("checkbox", {
+      name: "New followers",
+    });
+    const emailDigestToggle = screen.getByRole("checkbox", { name: "Email digest" });
+
+    await user.click(newFollowersToggle);
+    await user.click(emailDigestToggle);
 
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 

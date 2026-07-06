@@ -206,7 +206,7 @@ export function PeopleSuggestionsPage() {
   }
 
   return (
-    <div className="mx-auto min-h-[calc(100vh-var(--site-header-sticky-offset,4.5rem))] w-full max-w-[860px] border-x border-border bg-bg">
+    <div className="mx-auto min-h-[calc(100vh-var(--site-header-sticky-offset,4.5rem))] w-full max-w-[640px] border-x border-border bg-bg">
       <header className="sticky top-0 z-10 border-b border-border bg-bg/95 px-4 py-4 backdrop-blur md:top-[var(--site-header-sticky-offset,4.5rem)] sm:px-5">
         <div className="flex items-start justify-between gap-4">
           <div>

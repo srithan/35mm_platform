@@ -1,9 +1,15 @@
 import { Queue, QueueEvents, Worker, type Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
-import { runCounterIncrementJob } from "./jobs/counterIncrement.js";
+import {
+  runCounterIncrementJob,
+  runCounterOutboxJob,
+  type CounterOutboxJobResult,
+} from "./jobs/counterIncrement.js";
 import { runFeedFanoutJob } from "./jobs/feedFanout.js";
 import { runFeedPruneFeedItemsJob } from "./jobs/feedPruneFeedItems.js";
 import { runFeedRescoreJob } from "./jobs/feedRescore.js";
+import { runListCloneJob } from "./jobs/listClone.js";
+import { runProfileFollowApprovalJob } from "./jobs/profileFollowApproval.js";
 import { runSuggestionComputeJob } from "./workers/suggestionWorker.js";
 import { processPostById, processProfileMediaByPayload, type MediaProcessJobPayload } from "./jobs/mediaProcess.js";
 import { runNotificationDigestJob } from "./jobs/notificationDigest.js";
@@ -15,6 +21,8 @@ import { runChatTypingJob } from "./jobs/chatTyping.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
+
+var outboxQueue: Queue | null = null;
 
 function requiredRedisUrl(): string {
   var env = loadWorkerEnv();
@@ -46,7 +54,7 @@ function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
   };
 }
 
-async function handleJob(job: Job): Promise<unknown> {
+async function handleJob(job: Job, queue: Queue): Promise<unknown> {
   if (job.name === "media.process") {
     var payload = job.data as MediaProcessJobPayload;
     if (!payload || typeof payload !== "object") {
@@ -109,6 +117,14 @@ async function handleJob(job: Job): Promise<unknown> {
     return runCounterIncrementJob(job.data);
   }
 
+  if (job.name === "counter.outbox") {
+    var result = (await runCounterOutboxJob(job.data, queue)) as CounterOutboxJobResult;
+    if (result.followUp) {
+      await enqueueCounterOutboxFollowupJob();
+    }
+    return result;
+  }
+
   if (job.name === "notification.publish") {
     await runNotificationPublishJob(job.data as { notificationId: string });
     return { ok: true, stub: true };
@@ -135,6 +151,14 @@ async function handleJob(job: Job): Promise<unknown> {
     return runChatTypingJob(job.data);
   }
 
+  if (job.name === "list.clone") {
+    return runListCloneJob(job.data, queue);
+  }
+
+  if (job.name === "profile.followApproval") {
+    return runProfileFollowApprovalJob(job.data, queue);
+  }
+
   throw new Error("Unknown job: " + job.name);
 }
 
@@ -150,8 +174,11 @@ async function main() {
   var schedulerQueue = new Queue(WORKER_QUEUE_NAME, {
     connection,
   });
+  outboxQueue = schedulerQueue;
 
-  var worker = new Worker(WORKER_QUEUE_NAME, handleJob, {
+  var worker = new Worker(WORKER_QUEUE_NAME, function (job) {
+    return handleJob(job, schedulerQueue);
+  }, {
     connection,
     concurrency: Number.isFinite(env.WORKER_CONCURRENCY)
       ? Math.max(1, env.WORKER_CONCURRENCY)
@@ -184,6 +211,20 @@ async function main() {
     },
     removeOnComplete: true,
     removeOnFail: 500,
+  });
+
+  await schedulerQueue.add("counter.outbox", {}, {
+    jobId: "counter.outbox-repeat",
+    repeat: {
+      every: 30_000,
+    },
+    attempts: 6,
+    backoff: {
+      type: "exponential",
+      delay: 1_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 1000,
   });
 
   queueEvents.on("completed", function (payload) {
@@ -226,6 +267,24 @@ async function main() {
   process.on("SIGTERM", function () {
     void shutdown("SIGTERM");
   });
+}
+
+async function enqueueCounterOutboxFollowupJob(): Promise<void> {
+  if (!outboxQueue) return;
+
+  try {
+    await outboxQueue.add("counter.outbox", {}, {
+      attempts: 6,
+      backoff: {
+        type: "exponential",
+        delay: 1_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    });
+  } catch (error) {
+    console.warn("[counter.outbox] follow-up enqueue failed", { error });
+  }
 }
 
 void main().catch(function (error) {

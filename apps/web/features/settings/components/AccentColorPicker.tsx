@@ -146,7 +146,7 @@ export function AccentColorPicker({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 min-[420px]:grid-cols-4" role="group" aria-label="Accent color">
+    <div className="grid w-full grid-cols-2 gap-3 min-[420px]:grid-cols-3 lg:grid-cols-4" role="group" aria-label="Accent color">
       {ACCENT_COLOR_OPTIONS.map(function (option) {
         var selected = value === option.id;
         return (

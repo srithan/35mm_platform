@@ -20,6 +20,41 @@ const isPublicRoute = createRouteMatcher([
   "/api/notifications(.*)",
 ]);
 
+const isGuestOnlyRoute = createRouteMatcher([
+  "/login(.*)",
+  "/signup(.*)",
+  "/forgot(.*)",
+  "/reset(.*)",
+  "/verify(.*)",
+]);
+
+function isGuestOnlyPath(pathname: string) {
+  return (
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname === "/signup" ||
+    pathname.startsWith("/signup/") ||
+    pathname === "/forgot" ||
+    pathname.startsWith("/forgot/") ||
+    pathname === "/reset" ||
+    pathname.startsWith("/reset/") ||
+    pathname === "/verify" ||
+    pathname.startsWith("/verify/")
+  );
+}
+
+function safeRedirectPath(raw: string | null) {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
+
+  try {
+    const target = new URL(raw, "https://35mm.in");
+    if (isGuestOnlyPath(target.pathname)) return "/";
+    return target.pathname + target.search + target.hash;
+  } catch {
+    return "/";
+  }
+}
+
 function isPublicAsset(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -38,6 +73,15 @@ export default clerkMiddleware(async function (auth, request) {
 
   if (pathname === "/landing" || pathname.startsWith("/landing/")) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (!isPublicAsset(request) && isGuestOnlyRoute(request)) {
+    const { isAuthenticated } = await auth();
+    if (isAuthenticated) {
+      return NextResponse.redirect(
+        new URL(safeRedirectPath(request.nextUrl.searchParams.get("next")), request.url)
+      );
+    }
   }
 
   if (!isPublicAsset(request) && !isPublicRoute(request)) {

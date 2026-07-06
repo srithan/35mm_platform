@@ -36,49 +36,46 @@ struct FeedView: View {
         .transition(.move(edge: .top).combined(with: .opacity))
       }
 
-      if let selectedImage {
-        PostImageViewerView(
-          destination: selectedImage.destination,
-          metrics: PostImageViewerMetrics(
-            likeCount: selectedImage.post.likeCount,
-            commentCount: selectedImage.post.commentCount,
-            repostCount: selectedImage.post.repostCount,
-            shareCount: selectedImage.post.bookmarkCount,
-            isLiked: selectedImage.post.isLiked
-          ),
-          onClose: {
-            withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-              self.selectedImage = nil
-            }
-          },
-          onLike: {
-            Task { await viewModel.toggleLike(postId: selectedImage.post.id) }
-          },
-          onComment: {
-            self.selectedImage = nil
-            selectedPost = selectedImage.post
-          },
-          onRepost: {
-            Task { await viewModel.toggleRepost(postId: selectedImage.post.id) }
-          },
-          onShare: {
-            UIPasteboard.general.string = "https://35mm.app/posts/\(selectedImage.post.id)"
-          }
-        )
-        .transition(.scale(scale: 0.94).combined(with: .opacity))
-        .zIndex(20)
-      }
     }
     .animation(.easeInOut(duration: 0.2), value: viewModel.error)
-    .animation(.spring(response: 0.22, dampingFraction: 0.9), value: selectedImage?.id)
+    .fullScreenCover(item: $selectedImage) { imageSelection in
+      PostImageViewerView(
+        destination: imageSelection.destination,
+        metrics: PostImageViewerMetrics(
+          likeCount: imageSelection.post.likeCount,
+          commentCount: imageSelection.post.commentCount,
+          repostCount: imageSelection.post.repostCount,
+          shareCount: imageSelection.post.bookmarkCount,
+          isLiked: imageSelection.post.isLiked
+        ),
+        onClose: {
+          clearSelectedImage()
+        },
+        onLike: {
+          Task { await viewModel.toggleLike(postId: imageSelection.post.id) }
+        },
+        onComment: {
+          clearSelectedImage()
+          selectedPost = imageSelection.post
+        },
+        onRepost: {
+          Task { await viewModel.toggleRepost(postId: imageSelection.post.id) }
+        },
+        onShare: {
+          UIPasteboard.general.string = "https://35mm.app/posts/\(imageSelection.post.id)"
+        }
+      )
+      .presentationBackground(.black)
+      .transaction { transaction in
+        transaction.animation = nil
+      }
+    }
     .refreshable {
       await viewModel.refresh()
     }
     .task {
       await viewModel.loadInitial()
     }
-    .navigationTitle(AppConstants.appName)
-    .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(item: $selectedPost) { post in
       PostDetailView(post: post)
         .environmentObject(env)
@@ -114,7 +111,9 @@ struct FeedView: View {
                 selectedPost = post
               },
               onOpenImage: { destination in
-                withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
                   selectedImage = FeedImageSelection(destination: destination, post: post)
                 }
               }
@@ -167,6 +166,14 @@ struct FeedView: View {
       onScrollDirectionChange(.down)
     } else if delta > 8 {
       onScrollDirectionChange(.up)
+    }
+  }
+
+  private func clearSelectedImage() {
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      selectedImage = nil
     }
   }
 }

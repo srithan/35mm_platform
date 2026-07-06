@@ -1,6 +1,7 @@
 import { Queue, type JobsOptions } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { loadEnv } from "./env.js";
+import { ApiError, serviceUnavailable } from "./errors.js";
 
 export const API_QUEUE_NAME = "35mm-jobs";
 
@@ -22,6 +23,17 @@ type NotificationPublishJobPayload = {
 type FeedFanoutJobPayload = {
   postId: string;
   authorUserId: string;
+};
+
+type ListCloneJobPayload = {
+  sourceListId: string;
+  targetListId: string;
+  cursor: string | null;
+};
+
+type ProfileFollowApprovalJobPayload = {
+  targetUserId: string;
+  cursor: string | null;
 };
 
 type ChatDeliverJobPayload = {
@@ -70,7 +82,9 @@ export type CounterName =
   | "totalVotes"
   | "voteCount"
   | "entryCount"
-  | "filmsLoggedCount";
+  | "filmsLoggedCount"
+  | "followerCount"
+  | "followingCount";
 
 export type CounterIncrementJobPayload = {
   targetTable: CounterTargetTable;
@@ -83,7 +97,10 @@ type QueueName =
   | "media.process"
   | "notification.publish"
   | "counter.increment"
+  | "counter.outbox"
   | "feed.fanout"
+  | "list.clone"
+  | "profile.followApproval"
   | "chat.deliver"
   | "chat.messageUpdated"
   | "chat.readReceipt"
@@ -124,6 +141,18 @@ function defaultJobOptions(name: QueueName): JobsOptions {
   if (name === "counter.increment") {
     return {
       attempts: 8,
+      backoff: {
+        type: "exponential",
+        delay: 1_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    };
+  }
+
+  if (name === "counter.outbox") {
+    return {
+      attempts: 6,
       backoff: {
         type: "exponential",
         delay: 1_000,
@@ -289,6 +318,88 @@ export async function enqueueMediaProcessJob(payload: MediaProcessJobPayload): P
   return true;
 }
 
+export async function enqueueListCloneJob(payload: ListCloneJobPayload): Promise<boolean> {
+  var q = getQueue();
+  if (!q) {
+    console.warn("[list.clone] queue disabled", payload);
+    return false;
+  }
+
+  var sourceListId = payload.sourceListId.trim();
+  var targetListId = payload.targetListId.trim();
+  if (!sourceListId || !targetListId) {
+    console.error("[list.clone] invalid payload", payload);
+    return false;
+  }
+
+  var normalizedCursor = payload.cursor && payload.cursor.trim().length > 0
+    ? payload.cursor.trim()
+    : null;
+  var cursorKey = normalizedCursor ? Buffer.from(normalizedCursor).toString("hex") : "start";
+  var jobId = "list.clone-" + targetListId + "-" + cursorKey;
+
+  try {
+    await q.add("list.clone", {
+      sourceListId,
+      targetListId,
+      cursor: normalizedCursor,
+    }, {
+      ...defaultJobOptions("list.clone"),
+      jobId,
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    });
+  } catch (error) {
+    console.warn("[list.clone] enqueue failed", { payload, error });
+    return false;
+  }
+
+  return true;
+}
+
+export async function enqueueProfileFollowApprovalJob(
+  payload: ProfileFollowApprovalJobPayload
+): Promise<boolean> {
+  var q = getQueue();
+  if (!q) {
+    console.error("[profile.followApproval] queue disabled; rejecting mutation", payload);
+    throw serviceUnavailable(
+      "PROFILE_FOLLOW_APPROVAL_QUEUE_UNAVAILABLE",
+      "Profile follow approval queue is unavailable; retry this request"
+    );
+  }
+
+  var targetUserId = payload.targetUserId.trim();
+  if (!targetUserId) {
+    console.error("[profile.followApproval] invalid payload", payload);
+    throw new ApiError(500, "PROFILE_FOLLOW_APPROVAL_INVALID_PAYLOAD", "Invalid profile follow-approval payload");
+  }
+
+  var cursor = payload.cursor && payload.cursor.trim().length > 0 ? payload.cursor.trim() : null;
+  var cursorKey = cursor ? Buffer.from(cursor).toString("hex") : "start";
+  var jobId = "profile.followApproval-" + targetUserId + "-" + cursorKey;
+
+  try {
+    await q.add("profile.followApproval", {
+      targetUserId,
+      cursor,
+    }, {
+      ...defaultJobOptions("profile.followApproval"),
+      jobId,
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    });
+  } catch (error) {
+    console.warn("[profile.followApproval] enqueue failed", { payload, error });
+    throw serviceUnavailable(
+      "PROFILE_FOLLOW_APPROVAL_QUEUE_UNAVAILABLE",
+      "Profile follow approval queue is unavailable; retry this request"
+    );
+  }
+
+  return true;
+}
+
 export async function enqueueFeedFanoutJob(payload: FeedFanoutJobPayload): Promise<boolean> {
   try {
     var q = getQueue();
@@ -313,20 +424,45 @@ export async function enqueueCounterIncrementJob(
   payload: CounterIncrementJobPayload
 ): Promise<boolean> {
   if (!Number.isInteger(payload.delta) || payload.delta === 0) {
-    console.warn("[counter.increment] invalid delta", payload);
-    return false;
+    throw new ApiError(500, "COUNTER_QUEUE_INVALID_PAYLOAD", "Invalid counter delta");
   }
 
   var q = getQueue();
   if (!q) {
-    console.warn("[counter.increment] queue disabled", payload);
-    return false;
+    console.error("[counter.increment] queue disabled; rejecting mutation", payload);
+    throw serviceUnavailable(
+      "COUNTER_QUEUE_UNAVAILABLE",
+      "Counter queue is unavailable; retry the mutation"
+    );
   }
 
   try {
     await q.add("counter.increment", payload, defaultJobOptions("counter.increment"));
   } catch (error) {
-    console.warn("[counter.increment] enqueue failed", { payload, error });
+    console.error("[counter.increment] enqueue failed; rejecting mutation", { payload, error });
+    throw serviceUnavailable(
+      "COUNTER_QUEUE_UNAVAILABLE",
+      "Counter queue is unavailable; retry the mutation"
+    );
+  }
+
+  return true;
+}
+
+export async function enqueueCounterOutboxDrainJob(): Promise<boolean> {
+  try {
+    var q = getQueue();
+    if (!q) {
+      console.warn("[counter.outbox] queue disabled");
+      return false;
+    }
+
+    await q.add("counter.outbox", {}, {
+      ...defaultJobOptions("counter.outbox"),
+      jobId: "counter.outbox-wake-" + Math.floor(Date.now() / 1000),
+    });
+  } catch (error) {
+    console.warn("[counter.outbox] enqueue failed", { error });
     return false;
   }
 

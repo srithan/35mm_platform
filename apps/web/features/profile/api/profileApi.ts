@@ -41,6 +41,49 @@ export interface CurrentUserProfile {
   filmsLoggedCount: number;
 }
 
+export interface ProfileStatsFilm {
+  id: string;
+  tmdbId: number | null;
+  imdbId: string | null;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+}
+
+export interface ProfileStatsGenre {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
+export interface ProfileStatsActivityDay {
+  date: string;
+  count: number;
+}
+
+export interface ProfileStatsDiaryEntry {
+  postId: string;
+  type: "log" | "review";
+  createdAt: string;
+  rating: number | null;
+  film: ProfileStatsFilm;
+}
+
+export interface ProfileStatsSummary {
+  username: string;
+  filmsLoggedCount: number;
+  hoursWatched: number;
+  averageRating: number | null;
+  reviewsWrittenCount: number;
+  reviewLikeCount: number;
+  memberSince: string | null;
+  favoriteFilms: ProfileStatsFilm[];
+  genres: ProfileStatsGenre[];
+  activity: ProfileStatsActivityDay[];
+  recentDiary: ProfileStatsDiaryEntry[];
+  cachedAt: string;
+}
+
 export interface CurrentProfilePatch {
   userId: string;
   username: string;
@@ -54,6 +97,8 @@ export interface CurrentProfilePatch {
   dateOfBirth: string | null;
   role: string | null;
   roleContext: string | null;
+  headline?: string | null;
+  headlineContext?: string | null;
 }
 
 type ProfileUpdateResponse = {
@@ -87,6 +132,18 @@ export async function fetchCurrentUserProfile(token: string | null): Promise<Cur
     token,
   });
   return resolveProfileMediaUrls(profile);
+}
+
+export async function fetchProfileStats(
+  username: string,
+  token?: string | null
+): Promise<ProfileStatsSummary> {
+  return apiRequest<ProfileStatsSummary>(
+    "/v1/profiles/" + encodeURIComponent(username) + "/stats",
+    {
+      token,
+    }
+  );
 }
 
 export async function followUser(
@@ -141,6 +198,7 @@ export interface ModeratedUser {
   userId: string;
   username: string;
   displayName: string;
+  bio: string | null;
   avatarUrl: string | null;
   avatarUrlLg?: string | null;
 }
@@ -164,10 +222,16 @@ export interface ProfileFollowRequest {
 }
 
 export async function fetchMyBlocks(
-  token: string | null
+  token: string | null,
+  params?: { cursor?: string | null; limit?: number }
 ): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params?.limit ?? 50),
+  });
+  if (params?.cursor) query.set("cursor", params.cursor);
+
   return apiRequest<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }>(
-    "/v1/me/blocks?limit=50",
+    "/v1/me/blocks?" + query.toString(),
     {
       token,
     }
@@ -175,10 +239,16 @@ export async function fetchMyBlocks(
 }
 
 export async function fetchMyMutes(
-  token: string | null
+  token: string | null,
+  params?: { cursor?: string | null; limit?: number }
 ): Promise<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }> {
+  var query = new URLSearchParams({
+    limit: String(params?.limit ?? 50),
+  });
+  if (params?.cursor) query.set("cursor", params.cursor);
+
   return apiRequest<{ items: ModeratedUser[]; nextCursor: string | null; hasMore: boolean }>(
-    "/v1/me/mutes?limit=50",
+    "/v1/me/mutes?" + query.toString(),
     {
       token,
     }
@@ -259,6 +329,8 @@ export async function updateCurrentProfile(
     coverUrl: string | null;
     role: string | null;
     roleContext: string | null;
+    headline: string | null;
+    headlineContext: string | null;
   }>,
   token: string | null
 ): Promise<CurrentProfilePatch> {

@@ -134,9 +134,11 @@ struct PostImageViewerView: View {
         Image(systemName: systemImage)
           .font(.system(size: 24, weight: .medium))
 
-        Text(count.compactFormatted)
-          .font(.system(size: 18, weight: .bold, design: .rounded))
-          .monospacedDigit()
+        if count > 0 {
+          Text(count.compactFormatted)
+            .font(.system(size: 18, weight: .bold, design: .rounded))
+            .monospacedDigit()
+        }
       }
       .foregroundStyle(isActive ? Color(red: 1.0, green: 0.02, blue: 0.22) : .white)
       .contentShape(Rectangle())

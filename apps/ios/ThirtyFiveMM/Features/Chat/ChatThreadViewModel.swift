@@ -102,7 +102,7 @@ final class ChatThreadViewModel: ObservableObject {
 
     do {
       let page = try await apiClient.getChatMessages(threadId: thread.id, before: nil, limit: pageLimit)
-      messages = Array(page.items.reversed())
+      messages = sortedUnique(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore
       await refreshReadReceipts()
@@ -129,7 +129,7 @@ final class ChatThreadViewModel: ObservableObject {
 
     do {
       let page = try await apiClient.getChatMessages(threadId: thread.id, before: before, limit: pageLimit)
-      prependOlder(Array(page.items.reversed()))
+      merge(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore
     } catch {
@@ -142,7 +142,7 @@ final class ChatThreadViewModel: ObservableObject {
   func refreshAfterReconnect() async {
     do {
       let page = try await apiClient.getChatMessages(threadId: thread.id, before: nil, limit: pageLimit)
-      merge(Array(page.items.reversed()))
+      merge(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore || hasMore
       await refreshReadReceipts()
@@ -435,10 +435,18 @@ final class ChatThreadViewModel: ObservableObject {
     } else {
       messages.append(message)
     }
-    messages.sort { lhs, rhs in
-      if lhs.createdAt == rhs.createdAt { return lhs.id < rhs.id }
-      return lhs.createdAt < rhs.createdAt
+    sortMessages()
+  }
+
+  private func merge(_ incoming: [ChatMessage]) {
+    for message in incoming {
+      if let index = messages.firstIndex(where: { $0.id == message.id }) {
+        messages[index] = message
+      } else {
+        messages.append(message)
+      }
     }
+    sortMessages()
   }
 
   private func replaceMessage(id: ChatMessageId, with message: ChatMessage) {
@@ -448,15 +456,23 @@ final class ChatThreadViewModel: ObservableObject {
     scheduleReadDispatchForNewestVisibleMessage()
   }
 
-  private func prependOlder(_ older: [ChatMessage]) {
-    let existingIds = Set(messages.map(\.id))
-    messages = older.filter { !existingIds.contains($0.id) } + messages
+  private func sortedUnique(_ incoming: [ChatMessage]) -> [ChatMessage] {
+    var byId: [ChatMessageId: ChatMessage] = [:]
+    for message in incoming {
+      byId[message.id] = message
+    }
+    return byId.values.sorted(by: Self.messageAscending)
   }
 
-  private func merge(_ incoming: [ChatMessage]) {
-    for message in incoming {
-      upsert(message)
+  private func sortMessages() {
+    messages = sortedUnique(messages)
+  }
+
+  private static func messageAscending(lhs: ChatMessage, rhs: ChatMessage) -> Bool {
+    if lhs.createdAt != rhs.createdAt {
+      return lhs.createdAt < rhs.createdAt
     }
+    return lhs.id < rhs.id
   }
 
   private func clearTyping(userId: String) {
@@ -571,7 +587,7 @@ final class ChatThreadViewModel: ObservableObject {
 
     return UploadedChatAttachment(
       contentType: attachment.contentTypeForMessage,
-      mediaUrl: attachment.kind == .image ? presign.variants.full ?? presign.publicUrl : presign.publicUrl,
+      mediaUrl: presign.publicUrl,
       metadata: mediaMetadata(for: attachment)
     )
   }
@@ -709,12 +725,29 @@ final class ChatThreadViewModel: ObservableObject {
     guard attachment.kind == .image else { return nil }
     let baseURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
     guard let baseURL else { return nil }
-    let url = baseURL.appendingPathComponent("chat-\(attachment.id.uuidString)")
+    let url = baseURL.appendingPathComponent("chat-\(attachment.id.uuidString).\(localPreviewFileExtension(for: attachment.contentType))")
     do {
       try attachment.data.write(to: url, options: [.atomic])
       return url.absoluteString
     } catch {
       return nil
+    }
+  }
+
+  private func localPreviewFileExtension(for contentType: String) -> String {
+    switch contentType.lowercased() {
+    case "image/png":
+      return "png"
+    case "image/gif":
+      return "gif"
+    case "image/webp":
+      return "webp"
+    case "image/heic":
+      return "heic"
+    case "image/heif":
+      return "heif"
+    default:
+      return "jpg"
     }
   }
 

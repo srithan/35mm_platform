@@ -1,10 +1,13 @@
 import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
 import { users, profiles, userSettings, type NotificationEmailPreferences } from "@35mm/db/schema";
+import { isReservedUsername } from "@35mm/validators";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { setActivityVisibilityCache } from "../chat/chatRedis.js";
+import { findUsernameLock } from "../../lib/usernameLocks.js";
 
 interface SettingsRecord {
   email: string;
@@ -24,6 +27,10 @@ interface SettingsRecord {
   theme: string | null;
   accentColor: string | null;
   videoAutoplay: boolean;
+  videoDefaultQuality: string | null;
+  videoAlwaysShowCaptions: boolean;
+  videoCaptionStyle: string | null;
+  videoQuietMode: boolean;
 }
 
 const USERNAME_RE = /^[a-zA-Z0-9._]+$/;
@@ -142,6 +149,16 @@ function isValidAccentColor(value: string | null | undefined): value is string {
   return VALID_ACCENT_COLORS.includes(value);
 }
 
+function isValidVideoDefaultQuality(value: string | null | undefined): value is string {
+  if (typeof value !== "string") return false;
+  return ["auto", "data_saver", "standard", "high"].includes(value);
+}
+
+function isValidVideoCaptionStyle(value: string | null | undefined): value is string {
+  if (typeof value !== "string") return false;
+  return ["default", "large", "high_contrast"].includes(value);
+}
+
 function isLegacySettingsSchemaError(err: unknown): boolean {
   if (err == null || typeof err !== "object") return false;
 
@@ -157,6 +174,10 @@ function isLegacySettingsSchemaError(err: unknown): boolean {
   return (
     message.includes("theme") ||
     message.includes("video_autoplay") ||
+    message.includes("video_default_quality") ||
+    message.includes("video_always_show_captions") ||
+    message.includes("video_caption_style") ||
+    message.includes("video_quiet_mode") ||
     message.includes("accent_color") ||
     message.includes("notification_email_preferences")
   );
@@ -188,6 +209,10 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
         theme: userSettings.theme,
         accentColor: userSettings.accentColor,
         videoAutoplay: userSettings.videoAutoplay,
+        videoDefaultQuality: userSettings.videoDefaultQuality,
+        videoAlwaysShowCaptions: userSettings.videoAlwaysShowCaptions,
+        videoCaptionStyle: userSettings.videoCaptionStyle,
+        videoQuietMode: userSettings.videoQuietMode,
       })
       .from(users)
       .innerJoin(profiles, eq(profiles.userId, users.id))
@@ -237,6 +262,10 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
       theme: "auto",
       accentColor: "theme",
       videoAutoplay: true,
+      videoDefaultQuality: "auto",
+      videoAlwaysShowCaptions: false,
+      videoCaptionStyle: "default",
+      videoQuietMode: false,
     };
   }
 }
@@ -268,6 +297,17 @@ function formatSettings(record: SettingsRecord) {
       accentColor: isValidAccentColor(record.accentColor) ? record.accentColor : "theme",
       videoAutoplay: record.videoAutoplay,
     },
+    media: {
+      videoDefaultQuality: isValidVideoDefaultQuality(record.videoDefaultQuality)
+        ? record.videoDefaultQuality
+        : "auto",
+      videoAutoplay: record.videoAutoplay,
+      alwaysShowCaptions: record.videoAlwaysShowCaptions,
+      captionStyle: isValidVideoCaptionStyle(record.videoCaptionStyle)
+        ? record.videoCaptionStyle
+        : "default",
+      quietMode: record.videoQuietMode,
+    },
   } as const;
 }
 
@@ -278,13 +318,20 @@ function ensureBooleanish(value: unknown): boolean | null {
 
 export var settingsRoutes = new Hono();
 
+var settingsWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "settings:write",
+  limit: 30,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
+
 settingsRoutes.get("/", requireAuth, async function (c) {
   var user = c.get("user");
   var record = await fetchSettingsForUser(user.userId);
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/privacy", requireAuth, async function (c) {
+settingsRoutes.patch("/privacy", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();
@@ -328,7 +375,7 @@ settingsRoutes.patch("/privacy", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/notifications", requireAuth, async function (c) {
+settingsRoutes.patch("/notifications", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
 
@@ -403,7 +450,7 @@ settingsRoutes.patch("/notifications", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/profile", requireAuth, async function (c) {
+settingsRoutes.patch("/profile", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();
@@ -436,11 +483,22 @@ settingsRoutes.patch("/profile", requireAuth, async function (c) {
       throw badRequest("Letters, numbers, dots and underscores only");
     }
     if (username !== user.username) {
-      var existing = await db
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(eq(profiles.username, username))
-        .limit(1);
+      if (isReservedUsername(username)) {
+        return c.json({ code: "USERNAME_RESERVED", message: "Username is reserved" }, 409);
+      }
+
+      var [existing, locked] = await Promise.all([
+        db
+          .select({ id: profiles.id })
+          .from(profiles)
+          .where(eq(profiles.username, username))
+          .limit(1),
+        findUsernameLock(db, username),
+      ]);
+
+      if (locked) {
+        return c.json({ code: "USERNAME_RESERVED", message: `Username is ${locked.state}` }, 409);
+      }
 
       if (existing.length > 0) {
         return c.json({ code: "USERNAME_TAKEN", message: "Username is already taken" }, 409);
@@ -465,7 +523,7 @@ settingsRoutes.patch("/profile", requireAuth, async function (c) {
   return c.json(formatSettings(record));
 });
 
-settingsRoutes.patch("/appearance", requireAuth, async function (c) {
+settingsRoutes.patch("/appearance", requireAuth, settingsWriteRateLimit, async function (c) {
   var user = c.get("user");
   var body = await c.req.json();
   var db = getDb();
@@ -513,6 +571,72 @@ settingsRoutes.patch("/appearance", requireAuth, async function (c) {
       if (!isLegacySettingsSchemaError(err)) {
         throw err;
       }
+    }
+  }
+
+  var record = await fetchSettingsForUser(user.userId);
+  return c.json(formatSettings(record));
+});
+
+settingsRoutes.patch("/media", requireAuth, settingsWriteRateLimit, async function (c) {
+  var user = c.get("user");
+  var body = await c.req.json();
+  var db = getDb();
+
+  var updates: Record<string, any> = {};
+
+  if (body.videoDefaultQuality !== undefined) {
+    var videoDefaultQuality = String(body.videoDefaultQuality).trim();
+    if (!isValidVideoDefaultQuality(videoDefaultQuality)) {
+      throw badRequest("Invalid video default quality");
+    }
+    updates.videoDefaultQuality = videoDefaultQuality;
+  }
+
+  if (body.videoAutoplay !== undefined) {
+    var videoAutoplay = ensureBooleanish(body.videoAutoplay);
+    if (videoAutoplay === null) {
+      throw badRequest("videoAutoplay must be true or false");
+    }
+    updates.videoAutoplay = videoAutoplay;
+  }
+
+  if (body.alwaysShowCaptions !== undefined) {
+    var alwaysShowCaptions = ensureBooleanish(body.alwaysShowCaptions);
+    if (alwaysShowCaptions === null) {
+      throw badRequest("alwaysShowCaptions must be true or false");
+    }
+    updates.videoAlwaysShowCaptions = alwaysShowCaptions;
+  }
+
+  if (body.captionStyle !== undefined) {
+    var captionStyle = String(body.captionStyle).trim();
+    if (!isValidVideoCaptionStyle(captionStyle)) {
+      throw badRequest("Invalid video caption style");
+    }
+    updates.videoCaptionStyle = captionStyle;
+  }
+
+  if (body.quietMode !== undefined) {
+    var quietMode = ensureBooleanish(body.quietMode);
+    if (quietMode === null) {
+      throw badRequest("quietMode must be true or false");
+    }
+    updates.videoQuietMode = quietMode;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.updatedAt = new Date();
+    try {
+      await db
+        .update(userSettings)
+        .set(updates)
+        .where(eq(userSettings.userId, user.userId));
+    } catch (err) {
+      if (isLegacySettingsSchemaError(err)) {
+        throw badRequest("Media settings are unavailable until database migrations are applied.");
+      }
+      throw err;
     }
   }
 

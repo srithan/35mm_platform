@@ -1,7 +1,6 @@
 "use client";
 
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
-import { useMuteUserMutation } from "@/features/profile/hooks/useProfile";
 import { useBookmarkToFolderFlow } from "@/features/bookmarks/hooks/useBookmarkToFolderFlow";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -25,7 +24,7 @@ interface CommentCardMoreMenuProps {
   onEdit: () => void;
   onDeleteRequest: () => void;
   onBlockRequest: () => void;
-  onMuteSuccess: (payload: { handle: string; userId: string }) => void;
+  onMuteRequest: () => void;
 }
 
 export function CommentCardMoreMenu({
@@ -39,9 +38,8 @@ export function CommentCardMoreMenu({
   onEdit,
   onDeleteRequest,
   onBlockRequest,
-  onMuteSuccess,
+  onMuteRequest,
 }: CommentCardMoreMenuProps) {
-  const muteUserMutation = useMuteUserMutation();
   const bookmarkFlow = useBookmarkToFolderFlow({
     postId: postId,
     initialBookmarked: postBookmarked,
@@ -89,16 +87,7 @@ export function CommentCardMoreMenu({
                   description: "Hide their posts from your feed",
                   icon: <EyeOff className="w-4 h-4" strokeWidth={1.8} />,
                   dividerBefore: true,
-                  onSelect: () => {
-                    muteUserMutation.mutate(
-                      { userId: authorId, muted: false },
-                      {
-                        onSuccess: () => {
-                          onMuteSuccess({ handle: authorHandle, userId: authorId });
-                        },
-                      }
-                    );
-                  },
+                  onSelect: onMuteRequest,
                 },
                 {
                   id: "block-user",

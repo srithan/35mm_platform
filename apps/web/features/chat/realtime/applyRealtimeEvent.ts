@@ -8,10 +8,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import type { ChatRealtimeEvent } from "./types";
 import { chatQueryKeys } from "../lib/queryKeys";
-import type { ChatMessage, ChatPreview } from "../types";
+import type { ChatMessage } from "../types";
 import { upsertChatMessageSorted } from "../lib/sortChatMessages";
 import type { ChatFolder, PaginatedConversations, PaginatedMessages } from "../api/types";
 import { formatRelativeShort } from "../lib/formatChatTime";
+import { patchConversationPreviewInPages } from "../lib/patchConversationPreview";
 
 function emptyMessagesPage(): PaginatedMessages {
   return { items: [], nextCursor: null, hasMore: false };
@@ -58,19 +59,6 @@ function patchAllInfinitePages(
     pages: prev.pages.map(function (page) {
       return patchMessagesPage(page, patchItems);
     }),
-  };
-}
-
-function patchConversationList(
-  prev: PaginatedConversations | undefined,
-  patchItem: (item: ChatPreview) => ChatPreview
-): PaginatedConversations | undefined {
-  if (!prev) {
-    return prev;
-  }
-  return {
-    ...prev,
-    items: prev.items.map(patchItem),
   };
 }
 
@@ -144,23 +132,19 @@ export function applyChatRealtimeEvent(
   if (event.type === "conversation.patch") {
     let patched = false;
     (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
-      queryClient.setQueryData<PaginatedConversations>(
+      queryClient.setQueryData<InfiniteData<PaginatedConversations>>(
         chatQueryKeys.conversations(folder),
         function (prev) {
-          return patchConversationList(prev, function (item) {
-            if (item.id !== event.chatId) {
-              return item;
-            }
-            patched = true;
-            return {
-              ...item,
-              lastMessage: event.lastMessage ?? item.lastMessage,
-              lastMessageAt: event.lastMessageAt
-                ? formatRelativeShort(new Date(event.lastMessageAt))
-                : item.lastMessageAt,
-              unread: event.unread ?? item.unread,
-            };
+          const result = patchConversationPreviewInPages(prev, {
+            chatId: event.chatId,
+            lastMessage: event.lastMessage ?? undefined,
+            lastMessageAt: event.lastMessageAt
+              ? formatRelativeShort(new Date(event.lastMessageAt))
+              : undefined,
+            unread: event.unread ?? undefined,
           });
+          patched = patched || result.patched;
+          return result.data;
         }
       );
     });

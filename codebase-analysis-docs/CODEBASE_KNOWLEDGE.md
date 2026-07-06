@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23. Last refreshed for iOS chat core thread alignment on 2026-06-30.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for Studio workspace and username locks on 2026-07-06.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -11,6 +11,7 @@ This is a working knowledge base for onboarding engineers and future AI sessions
 The repository is a pnpm/Turborepo monorepo:
 
 - `apps/web`: Next.js 15 App Router frontend.
+- `apps/studio`: internal Next.js platform/content operations app.
 - `apps/api`: Hono REST API.
 - `apps/worker`: long-running BullMQ worker.
 - `apps/ios`: SwiftUI iOS app.
@@ -29,6 +30,7 @@ See `assets/architecture.mmd` for the Mermaid source.
 ```mermaid
 flowchart LR
   Browser["Browser / Next.js app"]
+  Studio["Studio / internal admin app"]
   NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
   Hono["Hono API\napps/api"]
   Clerk["Clerk auth"]
@@ -41,6 +43,8 @@ flowchart LR
   TMDB["TMDB\ncold-start search/fallback"]
 
   Browser -->|React Query + fetch| Hono
+  Studio -->|admin fetch| Hono
+  Studio -->|direct operational reads/writes| Neon
   Browser -->|server route proxy| NextApi
   NextApi --> TMDB
   Hono --> Clerk
@@ -73,7 +77,7 @@ Runtime flow:
 
 ### Root
 
-- `package.json`: root scripts. `pnpm dev` runs web + API only to avoid idle BullMQ polling against shared Upstash Redis; `pnpm dev:all` adds the worker. Node engine is `>=22.0.0`.
+- `package.json`: root scripts. `pnpm dev` runs web + API only to avoid idle BullMQ polling against shared Upstash Redis; `pnpm dev:all` runs web + Studio + API + worker; `pnpm dev:studio` runs only Studio. Node engine is `>=22.0.0`.
 - `pnpm-workspace.yaml`: workspace boundary.
 - `AGENTS.md`: project-critical rules. Film IDs must be 35mm ULIDs, not TMDB IDs.
 - `README.md`: setup and runtime overview.
@@ -86,11 +90,11 @@ Primary user-facing Next.js app.
 Important files:
 
 - `app/layout.tsx`: global metadata, Clerk provider, Query provider, fonts, analytics, service worker, offline status.
-- `app/providers.tsx`: React Query client and persisted query cache, theme/accent providers, notification realtime provider, chat auth/current-user wiring, notification title/sound side effects, toast host.
-- `middleware.ts`: Clerk route protection. `/landing` is signed-out entry; `/` redirects signed-out users to `/landing`.
+- `app/providers.tsx`: React Query client and persisted query cache, theme/accent providers, notification realtime provider, chat auth/current-user wiring, global new-chat provider, desktop floating chat inbox, notification title/sound side effects, toast host.
+- `middleware.ts`: Clerk route protection. `/landing` redirects to `/`; guest-only auth pages (`/login`, `/signup`, `/forgot`, `/reset`, `/verify`) redirect authenticated sessions in middleware before page render.
 - `app/(shell)/layout.tsx`: authenticated app shell with scroll restore, auth bootstrap, onboarding gate, and `ShellGrid`.
 - `app/(shell)/page.tsx`: home feed, renders `PostComposer` and `InfinitePostList`.
-- `app/api/tmdb/[...path]/route.ts`: TMDB proxy using server-side `TMDB_API_KEY`; used for cold-start/discover/autocomplete surfaces.
+- `app/api/tmdb/[...path]/route.ts`: TMDB proxy using server-side `TMDB_API_KEY`; used for cold-start/discover/autocomplete surfaces; protected by Upstash Redis REST response cache plus IP rate limit.
 - `app/api/notifications/route.ts`: legacy/mock notifications endpoint.
 
 Feature folders:
@@ -101,12 +105,27 @@ Feature folders:
 - `features/lists`: film lists, watchlists, list detail/editor, list entry notes.
 - `features/onboarding`: role/favorite films/genres/follow suggestions flow.
 - `features/discover`: TMDB-backed discovery and search views.
-- `features/settings`: account/privacy/notification/appearance/data-security settings with URL-backed section routes.
+- `features/settings`: account/privacy/notification/appearance/media/data-security settings with URL-backed section routes.
 - `features/bookmarks`: two-column bookmark page, folder management, and post-to-folder flow backed by feed bookmark endpoints.
 - `features/chat`: rich chat frontend with App Router chat pages, remote client backed by `/v1/chat`, optional mock mode for demos/tests, realtime cache application, and bounded persisted cache for inbox/recent messages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
 - `features/title`: title detail pages, largely TMDB/discover oriented.
 - `features/letterboxd-import`: local import parsing/storage UI.
+
+### `apps/studio`
+
+Internal platform/content operations app built with Next.js App Router. It is a separate workspace from the public web app and uses its own Clerk configuration.
+
+Important areas:
+
+- `app/api/studio/usernames/*`: username lock listing and mutation routes.
+- `app/api/catalog/external/*`: external catalog lookup helpers.
+- `components/films/*`: film search, table, detail, and form surfaces.
+- `components/shelves/*`: shelf list/editor/new-shelf flows.
+- `components/layout/*`: Studio shell, sidebar, command palette, mobile nav, and theme controls.
+- `lib/studio/db.ts`: Studio database connection helper.
+- `lib/studio/usernameLocks.ts`: migration-missing detection helper for username lock operations.
+- `lib/data/*`: local operational data helpers used by current Studio surfaces.
 
 ### `apps/ios`
 
@@ -118,6 +137,9 @@ Important files:
 - `ThirtyFiveMM/App/AppConstants.swift`: API base URL, Clerk publishable key, and optional Ably API key loaded from `ThirtyFiveMM.xcconfig` / Info.plist.
 - `ThirtyFiveMM/Core/Auth/AuthManager.swift` and `ThirtyFiveMM/App/RootView.swift`: Clerk session restoration, API bootstrap/onboarding gate, and retry/sign-out recovery when Clerk is signed in but app bootstrap is unavailable.
 - `ThirtyFiveMM/Core/Networking/APIClient.swift`: async/await REST client with Clerk bearer auth, standard `{code,message}` errors, and typed `KEYSPACES_UNAVAILABLE` mapping.
+- `ThirtyFiveMM/Core/Networking/APIEndpoint.swift` and `ThirtyFiveMM/Core/PostInteracting.swift`: typed native endpoints and interaction protocol for feed likes, reposts, bookmarks, poll votes, comments, onboarding, and chat-adjacent app flows.
+- `ThirtyFiveMM/Core/Models/FeedPost.swift`: native Codable mirror of feed post payloads, including canonical film refs, media/link previews, viewer interaction flags, and ranking/image poll state.
+- `ThirtyFiveMM/Features/Feed/FeedViewModel.swift`, `PostDetailViewModel.swift`, and `PostCard.swift`: native home/detail post interaction state with optimistic likes/reposts/bookmarks/poll votes, comment navigation, rich text, media grids, link previews, and web-aligned poll result UI.
 - `ThirtyFiveMM/Core/Models/Chat.swift`: native Codable mirror of shared chat contracts. Message IDs are opaque TIMEUUID strings.
 - `ThirtyFiveMM/Features/Chat/ChatAPIClient.swift`: every `/v1/chat` endpoint, including `before` cursor message paging, reactions, read state, archive/mute/delete, typing, and presence.
 - `ThirtyFiveMM/Features/Chat/ChatRealtimeClient.swift`: optional Ably transport for `user:{userId}:inbox` and `thread:{threadId}` lifecycle subscriptions, with noop fallback when Ably config is missing.
@@ -125,7 +147,7 @@ Important files:
 - `ThirtyFiveMM/Features/Chat/ChatComposerModels.swift`: local composer, staged attachment, and optimistic delivery-state models for native chat writes.
 - `ThirtyFiveMM/Features/Chat/ChatMediaUploadClient.swift`: native wrapper for the existing media presign flow, `POST /v1/media/presign` plus direct R2 PUT, used by chat image/file attachments.
 - `ThirtyFiveMM/Features/Chat/ChatInboxViewModel.swift`: native inbox state coordinator for cursor paging, refresh/reconnect reconciliation, in-place `thread.updated` realtime row updates, visible-row presence batching, visible-thread typing TTLs, swipe mutations, profile search, and DM thread creation.
-- `ThirtyFiveMM/Features/Chat/ChatInboxView.swift`: SwiftUI Messages tab inbox with DM/group rows, skeleton/error/empty states, archived/default views, native swipe actions, unread badges, presence dots, typing previews, and minimal DM compose flow.
+- `ThirtyFiveMM/Features/Chat/ChatInboxView.swift`: SwiftUI native messages inbox module with DM/group rows, skeleton/error/empty states, archived/default views, native swipe actions, unread badges, presence dots, typing previews, and minimal DM compose flow. It is mounted from the app shell header as a `NavigationStack` push, not as a bottom-tab destination.
 - `ThirtyFiveMM/Features/Chat/ChatThreadViewModel.swift`: native thread coordinator for newest-at-bottom display, `before` pagination, Ably message/reaction/read/typing updates, read receipt summaries, reaction toggles, optimistic send/retry, edit/delete, throttled typing, foreground-only read dispatch, reconnect reconciliation, reply highlighting, and non-disruptive new-message state while scrolled up.
 - `ThirtyFiveMM/Features/Chat/ChatThreadView.swift`: SwiftUI thread screen with grouped bubbles, date separators, deleted/edited/reply rendering, image/GIF/file/link content, reaction pills/picker, read receipts, typing bubbles, skeleton/error/empty states, full-screen chat image viewer, growing composer, photo/file pickers, staged attachment previews, reply/edit bars, and sender-only message actions.
 - `ThirtyFiveMMTests/ChatDecodingTests.swift`: fixture decoding coverage for text/image/reply/reaction/deleted messages plus DM/group inbox pages.
@@ -138,11 +160,11 @@ Important files:
 
 - `src/index.ts`: bootstraps env, DB, CORS, error handling, and route mounts.
 - `src/lib/middleware.ts`: Clerk auth, local user bootstrap, watchlist bootstrap, `requireAuth`.
-- `src/lib/db.ts`: singleton Drizzle DB access.
+- `src/lib/db.ts`: singleton Drizzle DB access; `getDb()` uses Neon HTTP, while `getWriteDb()` uses the pooled Neon driver for transaction-capable multi-table write paths.
 - `src/lib/cursor.ts`: base64 JSON `(createdAt,id)` cursor encoding.
 - `src/lib/ulid.ts`: local ULID generator and validator.
 - `src/lib/feedCache.ts`: Upstash-backed feed page cache and index-based invalidation.
-- `src/lib/rateLimit.ts`: Redis fixed-window rate limiting; allowed requests avoid per-request `TTL` reads and only fetch TTL for blocked responses.
+- `src/lib/rateLimit.ts`: Redis fixed-window rate limiting; allowed requests avoid per-request `TTL` reads and only fetch TTL for blocked responses. Missing Redis, missing identity, or Redis command failure fails closed with `503` unless `RATE_LIMIT_DISABLED=true` or tests disable limiting.
 - `src/lib/moderation.ts`: block/mute filters and feed item purge helpers.
 - `src/lib/notifications.ts`: preference-aware, moderation-aware notification creation and bundling.
 - `src/lib/filmLists.ts`: watchlist bootstrap and film ID resolution from existing ULID, TMDB metadata, or catalog metadata.
@@ -183,7 +205,7 @@ Important files:
 - `src/index.ts`: exits early when `WORKER_ENABLED=false`; otherwise resolves Redis URL, creates BullMQ `Worker` and `QueueEvents`, and dispatches jobs by name.
 - `src/jobs/mediaProcess.ts`: pulls originals from R2; generates post thumb/feed/full WebP variants and blurhash; generates avatar sm/lg and cover default variants; optionally uploads post media to Cloudflare Images; updates `posts.media` / `posts.media_urls` or profile variant JSONB fields.
 - `src/jobs/notificationPublish.ts`: reads notification details and publishes Ably `notification.new` to `user:{recipientId}:notifications`.
-- `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes `follow_suggestions` plus Redis cache.
+- `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes UUID-backed `follow_suggestions` rows plus Redis cache.
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
 - `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
@@ -235,16 +257,26 @@ erDiagram
   chat_threads ||--o{ chat_member_state : has
   users ||--o{ chat_member_state : configures
   chat_threads ||--|| chat_thread_meta : summarizes
+  username_locks {
+    string username PK
+    string state
+    string owner
+    string reason
+    timestamp created_at
+    timestamp updated_at
+  }
 ```
 
 Current Drizzle schema highlights:
 
 - `users`: UUID primary key, Clerk ID, email, age verification, account status.
-- `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count.
+- `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count, follower count, unsorted bookmark count, and following count.
+- `username_locks`: Studio-managed lowercase username lock/reservation table with `locked | reserved` state, owner/reason metadata, timestamps, and DB checks for lowercase usernames plus allowed state values. API username availability and profile updates consult this table before allowing a username.
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
 - `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview.
-- `bookmark_folders`: per-user bookmark folders.
-- `post_bookmarks`: current bookmark table. The older `post_saves` rename appears completed in code; `folder_id` optionally points at `bookmark_folders` and falls back to unsorted on folder delete.
+- `bookmark_folders`: per-user bookmark folders with denormalized `item_count` per folder.
+- `post_bookmarks`: current bookmark table. The older `post_saves` rename appears completed in code; `folder_id` optionally points at `bookmark_folders` and falls back to unsorted on folder delete. User-first indexes support per-user bookmark cursor listing and folder-filtered bookmark pages.
+- Folder counts are written synchronously in bookmark add/move/remove handlers with bounded updates to `bookmark_folders.item_count`; `/v1/feed/bookmarks/folders` avoids heavy `GROUP BY` scans and uses denormalized `profiles.unsorted_bookmark_count` for unsorted count.
 - `post_polls`, `poll_options`, `poll_votes`: ranking/image polls, results visibility, end time, votes.
 - `follows`: composite PK `(follower_id, following_id)`, status `pending | accepted`.
 - `comments`: post/user/parent, body, like count, soft delete, edit timestamp. App code enforces nesting rules.
@@ -252,10 +284,10 @@ Current Drizzle schema highlights:
 - `feed_items`: materialized feed rows for fanout/backfill.
 - `post_edits`: post body/headline edit history.
 - `user_blocks`, `user_mutes`: moderation relationship tables.
-- `film_lists`, `film_list_entries`, `film_list_likes`: custom lists and one private watchlist per user.
-- `follow_suggestions`: suggestion table populated by worker.
-- `user_settings`: privacy, notification, theme/accent/autoplay settings.
-- `chat_threads`, `chat_participants`, `chat_member_state`, `chat_thread_meta`: Postgres chat metadata, membership, per-user read/archive/mute/delete state, and last-message summaries.
+- `film_lists`, `film_list_entries`, `film_list_likes`: custom lists and one private watchlist per user. `film_list_entries` has a list-entry cursor pagination index on `(list_id, COALESCE(position, -1), added_at, id)` for `/v1/lists/:listId` keyset scans.
+- `follow_suggestions`: suggestion table populated by worker. `user_id` and `suggested_user_id` are UUID FKs to `users.id`, with `(user_id, score desc, suggested_user_id)` for bounded top-suggestion reads.
+- `user_settings`: privacy, notification, theme/accent, and media playback settings.
+- `chat_threads`, `chat_participants`, `chat_member_state`, `chat_thread_meta`: Postgres chat metadata, membership, per-user read/archive/mute/delete state plus activity timestamps, and last-message summaries. `chat_threads` now stores deterministic DM pair identity (`dm_member_low`, `dm_member_high`) with a partial unique pair index.
 - AWS Keyspaces `thirtyFiveMM.messages`: message body/media/reply/reaction rows, partitioned by `(thread_id, bucket)` and clustered by descending `message_id` TIMEUUID.
 - AWS Keyspaces `thirtyFiveMM.message_edits`: edit history partitioned by `(thread_id, message_id)` and clustered by descending `edit_id` TIMEUUID.
 - AWS Keyspaces `thirtyFiveMM.message_reactions`: sharded reaction fact table partitioned by `(thread_id, bucket, message_id, emoji, shard)` to avoid hot collection updates on viral messages.
@@ -266,7 +298,9 @@ Important data invariants:
 - `packages/validators` enforces ULID shape for post film IDs, list film IDs, and favorite film IDs in many write paths.
 - The database itself uses `text` for film/list IDs, so app-layer validation is currently the real guard.
 - Pagination is cursor-based using base64 encoded `(createdAt,id)` or route-specific cursor objects.
-- Denormalized counters exist on posts, comments, lists, and polls. Hot API action paths enqueue `counter.increment` after writing fact rows; the worker batches short-window deltas before updating counter columns.
+- Denormalized counters exist on posts, comments, lists, polls, and profile activity/follow counts. Hot API action paths write durable `counter_jobs` rows in the same transaction as fact-row changes; the worker drains those rows and updates both base counters and `counter_job_deltas` aggregates so feed overlays stay on active keys only. BullMQ `counter.outbox` only wakes the worker and is not the durability boundary.
+- Post interactions invalidate only bounded feed caches: the actor viewer cache, the post owner's viewer cache, and the post owner's profile-feed cache. Follower-wide interaction invalidation is intentionally avoided; follower feeds rely on short TTLs plus async counter/rescore jobs.
+- Transaction-capable write units currently use `getWriteDb().transaction(...)` for post+poll+own-feed-item create, poll votes, post/comment/list interaction facts plus counter outbox rows, follow/unfollow/accept plus profile counter outbox rows, onboarding profile+follow writes, user/profile/settings creation, block+follow cleanup+mute, repost fact+repost-post+own-feed-item create, repost delete+soft-delete, list clone (first chunk + queue enqueue), and chat thread Postgres metadata creation.
 
 ## Shared Contracts and Validation
 
@@ -292,7 +326,7 @@ Key schemas/utilities:
 - Rich text schema and helpers: `parseRichTextBody`, `richTextBodyToVisibleText`, `richTextMentionIds`, `validateRichTextBody`.
 - `createPostSchema`: validates body, film ULID, media, poll rules, and poll option constraints.
 - Notification schemas.
-- Username and profile update schemas.
+- Username and profile update schemas, plus the shared reserved-username list and `isReservedUsername` helper used by auth/settings APIs.
 - Settings update schemas.
 - Onboarding schemas.
 - Film list/watchlist schemas.
@@ -317,7 +351,7 @@ Query key conventions:
 Shell and navigation:
 
 - Root layout wraps everything with Clerk, React Query, theme/accent providers, service worker registration, offline status, analytics, speed insights.
-- Middleware protects all non-public routes.
+- Middleware protects all non-public routes and prevents authenticated users from rendering guest-only auth pages.
 - Shell layout adds auth bootstrap, onboarding gate, scroll restoration, skip link, and the shared `ShellGrid`.
 - Home route renders composer and infinite feed.
 
@@ -365,10 +399,10 @@ API:
 
 - `GET /v1/feed`: home feed, optional auth, Redis cache, rate limit.
 - `POST /v1/feed`: create post, auth, rate limit, media process job, mention notifications.
-- `GET /v1/feed/posts/:postId`: detail.
+- `GET /v1/feed/posts/:postId`: viewer-specific detail, served with `Cache-Control: no-store` because it includes interaction flags and bookmark folder state. Detail/action payload counters include pending `counter_job_deltas` for that one post, avoiding stale UI while the worker catches up without live fact-table counts. Feed/profile/bookmark pages apply the same pending-delta overlay in one grouped query for the visible page.
 - `GET /v1/feed/profiles/:username/posts`: profile feed.
 - `GET /v1/feed/bookmarks`: viewer bookmarks, optionally filtered by folder.
-- `GET/POST/PATCH/DELETE /v1/feed/bookmarks/folders`: folder list/create/rename/delete.
+- `GET/POST/PATCH/DELETE /v1/feed/bookmarks/folders`: folder list/create/rename/delete. Folder totals now come from denormalized `bookmark_folders.item_count` to avoid full-history per-folder aggregation in the list path. Folder creation, rename, move between folders, and delete semantics keep counts aligned with `post_bookmarks` rows.
 - `PATCH/DELETE /v1/feed/posts/:postId`: edit/soft-delete.
 - Likes/reposts/bookmarks endpoints, including `PATCH /v1/feed/posts/:postId/bookmarks` for moving an existing bookmark between folders.
 - Poll voting endpoint.
@@ -378,7 +412,8 @@ How it works:
 
 - Home/profile feed queries use cursor pagination and moderation filters.
 - Feed cache keys include viewer/cursor/limit; profile feed keys include username and viewer.
-- Writes invalidate viewer/profile/guest feed cache indexes.
+- Author writes invalidate author/profile/guest feed cache indexes. They do not load every follower for cache invalidation. Engagement writes invalidate only bounded actor viewer, post-owner viewer, and post-owner profile-feed caches; other viewers see denormalized counter changes through short feed TTLs and `feed.rescore`.
+- The shared web API client also uses `cache: "no-store"` for app API calls so browser cache cannot resurrect stale viewer-specific interaction state after likes/bookmarks.
 - Auth home feed reads materialized `feed_items` and merges live recent posts from followed high-follower accounts, ordered by score + post ID.
 - Feed score formula is `1000 * exp(-ageHours / 36) + 120 * ln(1 + likes + comments*3 + reposts*4)`, using denormalized post counters only.
 - Auth home feed cursors encode score, post ID, and ranking timestamp. Guest/profile/bookmark/comment feeds keep chronological cursors.
@@ -390,8 +425,8 @@ How it works:
 
 Known gaps:
 
-- Post like/comment/repost/bookmark counters, comment likes, poll vote counters, and film list like/entry counters are async via `counter.increment`.
-- `feed.fanout` worker materializes new posts into accepted followers' `feed_items` below `FEED_HIGH_FOLLOWER_THRESHOLD` (default `10000`) in cursor-paginated batches (`FEED_FANOUT_BATCH_SIZE`, default `500`).
+- Post like/comment/repost/bookmark counters, comment likes, poll vote counters, profile films/follower/following counters, and film list like/entry counters are async via `counter.increment`.
+- `feed.fanout` reads `profiles.follower_count` and materializes new posts into followers' `feed_items` below `FEED_HIGH_FOLLOWER_THRESHOLD` (default `10000`) in cursor-paginated batches (`FEED_FANOUT_BATCH_SIZE`, default `500`).
 - High-follower authors skip write fanout; home feed pulls their recent posts live and interleaves by score + post ID.
 - Follow creation backfills recent posts into `feed_items` for normal public accounts, but skips high-follower accounts because live merge handles them.
 - `feed_items.score` is populated on feed row writes/backfills/fanout and refreshed later by `feed.rescore`.
@@ -447,8 +482,9 @@ Business purpose: user identity, social graph, privacy, and moderation.
 Profiles:
 
 - Public profile route includes display fields, media URLs, role/headline, private status, counts, unified `followState`, incoming request state, and block/mute state.
+- Profile stats route `/v1/profiles/:username/stats` backs the web Stats tab with real DB data: visible film count, runtime hours, average rating, review counts/likes, favorite films, genre breakdown, last-12-month activity, and recent diary rows. It enforces profile privacy, block state, and per-post visibility server-side.
 - Profile media URLs are resolved through R2/public URL helpers.
-- Profile edit APIs exist in both `/v1/profiles/me` and settings profile endpoints. Switching a profile from private to public bulk-approves pending requests and creates approval notifications in a single SQL statement because the Neon HTTP driver does not support interactive transactions.
+- Profile edit APIs exist in both `/v1/profiles/me` and settings profile endpoints. Edit Profile writes role/headline metadata through `/v1/profiles/me` so the displayed profile/post byline follows role changes. Switching a profile from private to public now writes a `profile_follow_approval_outbox` row in the same DB transaction as visibility, and `counter.outbox` drains pending approval rows in bounded `profile.followApproval` batches.
 
 Follows:
 
@@ -463,7 +499,7 @@ Blocks/mutes:
 
 - Blocking inserts `user_blocks`, deletes both follow directions, inserts a mute, purges feed items between users, and invalidates caches.
 - Mutes filter feed/profile surfaces without removing follows.
-- Settings privacy panel can list/unblock/unmute via `/v1/me/blocks` and `/v1/me/mutes`.
+- Settings privacy subroutes `/settings/privacy/blocked` and `/settings/privacy/muted` list profile picture, display name, username, and bio from `/v1/me/blocks` and `/v1/me/mutes`, with unblock/unmute actions.
 
 ### Notifications
 
@@ -474,6 +510,8 @@ How it works:
 - API creates notifications through `createNotification`.
 - Preferences and moderation checks decide whether to skip.
 - Bundlable unread notifications for the same recipient/type/entity are merged with `bundle_count` and up to three recent `actor_ids`.
+- Write path uses `notifications_unread_bundle_lookup_idx` on
+  `(recipient_id, type, entity_type, entity_id, created_at) WHERE is_read = false` for bundle lookup.
 - Chat reaction notifications use `type=chat_reaction`, `entityType=chat_thread`, and route back to the conversation thread.
 - Publish jobs are delayed/enqueued through BullMQ; removing likes/reposts can remove pending publish jobs.
 - Worker reads notification and actor profiles, then publishes an Ably event to `user:{recipientId}:notifications`.
@@ -489,6 +527,7 @@ API:
 Frontend:
 
 - Notification dropdown/content fetches paginated notifications.
+- Read-all marks unread rows up to a fixed DB cutoff in bounded batches and returns only the aggregate `updatedCount`.
 - `FollowRequestsTray` renders incoming private-account requests above the activity feed and contributes its total to the notification badge.
 - Realtime provider is dynamically imported and can use Ably or noop transport.
 - Title badge and sound player are installed globally.
@@ -546,28 +585,31 @@ API:
 - Resolve TMDB film payloads into canonical `films` rows.
 - Submit role/headline/favorite film IDs/genre IDs/follow IDs.
 - Suggestions endpoint and worker-backed friend-of-friend suggestions.
+  `GET /v1/suggestions/users` reads a Redis-cached per-user ID list or the indexed `follow_suggestions` table; empty rows enqueue `compute-suggestions`.
+- Onboarding follow suggestions use a bounded active-public-profile seed query, exclude already-followed/blocked/muted accounts, and avoid live follower-count aggregation on the read path.
 
 Worker:
 
-- `compute-suggestions` reads accepted follows, computes follows-of-follows candidates, stores rows in `follow_suggestions`, and caches IDs in Redis.
+- `compute-suggestions` reads accepted follows, computes follows-of-follows candidates, stores UUID user IDs in `follow_suggestions`, and caches IDs in Redis.
 
 ### Settings
 
-Business purpose: account preferences, privacy, notifications, appearance.
+Business purpose: account preferences, privacy, notifications, appearance, media playback.
 
 How it works:
 
-- `GET /v1/me/settings` returns profile/privacy/notification/appearance grouped settings.
+- `GET /v1/me/settings` returns profile/privacy/notification/appearance/media grouped settings.
 - Privacy update writes both `profiles.is_private` and `user_settings`.
 - Notifications update booleans used by notification creation.
-- Appearance supports theme, accent color, and video autoplay.
-- API contains fallback logic for legacy DBs missing theme/autoplay/accent columns.
+- Appearance supports theme and accent color.
+- Media supports video autoplay, default quality, always-show-captions, caption display style, and quiet mode via `PATCH /v1/me/settings/media`.
+- API contains fallback logic for legacy DBs missing theme/autoplay/accent/media columns.
 
 Frontend:
 
 - Settings hooks use React Query with optimistic cache patching.
-- Settings UI includes account, privacy, notification, appearance, and data/security panels. `/settings` redirects to `/settings/account`; tabs link to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, and `/settings/data-security`.
-- Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved.
+- Settings UI includes account, privacy, notification, appearance, media, and data/security panels. `/settings` renders a mobile settings index and the desktop account settings layout; section links go to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, and `/settings/data-security`. Mobile section pages use a back control instead of the old tab bar. Privacy has nested `/settings/privacy/blocked` and `/settings/privacy/muted` screens with a compact header that shows a back control plus `Blocked` or `Muted`.
+- Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved. The modal includes show/hide password controls and a local strength indicator for the new password.
 
 ### Discovery, Title Pages, Short Films, Festivals, Communities
 
@@ -590,11 +632,13 @@ Detailed backend reference: `docs/chat-backend.md`
 Current state:
 
 - The frontend chat feature is substantial: conversation list, conversation UI, composer, replies, reactions, GIFs, archive/delete flows, realtime cache event handling, mock store, and remote client abstraction.
-- The web route tree contains `/chat` and `/chat/[chatId]`. Chat URLs render lowercase thread IDs, while route params are normalized back to canonical uppercase IDs before API/cache use.
+- The web route tree contains `/chat` and `/chat/[chatId]`. Chat URLs render lowercase thread IDs, while route params are normalized back to canonical uppercase IDs before API/cache use. Desktop signed-in sessions also mount `FloatingChatInbox` globally from `app/providers.tsx` outside `/chat`, giving users an Instagram-style bottom-right searchable inbox with activity status, compact new-message contact search, clickable profile identity in thread headers, and inline thread composer without leaving the current route.
+- Desktop new-message compose is ephemeral until recipient selection: `NewChatProvider` inserts a selected New Message row into `ChatList`, swaps `ChatConversation` header for `NewChatRecipientBar`, and only calls `POST /v1/chat/threads` after the user selects a contact.
 - The remote chat client is aligned to the current backend routes and is the default; mock mode requires `NEXT_PUBLIC_CHAT_API_MODE=mock`.
 - Chat uses React Query for server state. Conversation lists and the latest bounded message page are persisted in `localStorage` for faster reload/offline read access. Infinite/older-history message pages are not persisted, and persisted query cache is cleared on sign-out or user switch.
 - Chat UI maps backend profile avatar URLs into chat list/header/message avatars, renders skeleton headers while thread metadata resolves, supports own-message edits through the chat edit route, and opens image/GIF message media with the shared `ImageViewer`.
-- The desktop site header Messages nav item shows an unread badge based on inbox/request preview unread counts and refreshes through chat realtime conversation invalidation.
+- Chat sends optimistically patch both message caches and cached conversation previews, moving the active row to the top immediately; realtime inbox patches use the same row-ordering helper before background invalidation/refetch.
+- The desktop site header Messages nav item and floating chat pill show unread state based on inbox/request preview unread counts and refresh through chat realtime conversation invalidation.
 - Active chat threads render live typing bubbles from `typing.update` and seen indicators from `message.read`; composer input posts typing state through the chat typing route with frontend throttling/idle cleanup. Read receipt snapshots use stale React Query reads without an interval; typing snapshot fallback is development-only when realtime is not configured.
 - The API is authenticated and exposes:
   - `GET /v1/chat/inbox`
@@ -616,9 +660,9 @@ Current state:
   - `POST /v1/chat/presence/batch`
 - Persistence is wired with Postgres metadata tables plus AWS Keyspaces message/edit tables.
 - Redis stores unread counts, typing state, 65 second online presence, 35 day last-seen presence markers, and cached `showActivityStatus` privacy flags. Chat unread/presence reads batch via `MGET`; typing membership uses a short-lived sorted set instead of scanning `chat:typing:*` keys.
-- API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. First-time reaction adds also create `chat_reaction` notifications for the original message sender, increment that sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
-- The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patches current messages and inbox unread rows, and sends throttled presence heartbeats while signed in. Chat headers batch-read active thread member presence and render online, active-ago, and offline state; presence query cache is not persisted, and the API enforces `showActivityStatus` privacy server-side.
-- The iOS Messages tab now has a native inbox and core thread experience backed by the same chat contract: cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
+- API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. Message sends update `chat_thread_meta` and upsert `chat_member_state.last_message_at` for active participants; first-time reaction notifications update thread metadata and recipient member activity. Inbox preview responses display and sort by the latest available member/thread activity timestamp, and migration `0034_chat_member_activity_backfill` repairs existing stale member activity rows. First-time reaction adds also create `chat_reaction` notifications for the original message sender, increment that sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
+- The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patches current messages and inbox unread rows, and sends throttled presence heartbeats while signed in. The active thread can come from the `/chat/[chatId]` route or the floating desktop inbox; route thread wins when both exist. Chat headers batch-read active thread member presence and render online, active-ago, and offline state; presence query cache is not persisted, and the API enforces `showActivityStatus` privacy server-side.
+- The iOS messages module has a native inbox and core thread experience backed by the same chat contract. Messages is not mounted in the bottom tab bar; `MainTabView` pushes it from the header message icon using each tab's `NavigationStack`, while the header avatar opens a left profile sidebar populated from `/v1/me`. The module supports cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
 - Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.
 
 ## Backend API Surface
@@ -631,6 +675,7 @@ Public or optional-auth:
 - `GET /poster-proxy`
 - `GET /v1/usernames/:username/available`
 - `GET /v1/profiles/:username`
+- `GET /v1/profiles/:username/stats`
 - `GET /v1/feed`
 - `GET /v1/feed/posts/:postId`
 - `GET /v1/feed/profiles/:username/posts`
@@ -682,8 +727,9 @@ Implemented or partially implemented:
 
 - `media.process`: implemented for post media and profile avatar/cover variants.
 - `notification.publish`: implemented when `ABLY_API_KEY` exists.
-- `compute-suggestions`: implemented.
-- `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries.
+- `compute-suggestions`: implemented; stores UUID-backed follow suggestion rows and refreshes Redis suggestion caches.
+- `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries for legacy/direct jobs.
+- `counter.outbox`: durable DB drain for `counter_jobs` and `profile_follow_approval_outbox`. API counter-touching mutations write `counter_jobs` rows in the same DB transaction as fact changes; follow-approval flips write `profile_follow_approval_outbox` in the visibility transaction. Worker drains both tables with row locks, applies batched counter updates in bounded time-budget loops, and deletes processed rows. `backlog` is returned from each run for observability. If a full batch drains and backlog remains, worker self-enqueues follow-up `counter.outbox` work. Repeatable worker schedule still drains pending rows if an API wake enqueue failed.
 - `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.
 - `feed.rescore`: implemented periodic pass for recent materialized feed rows; recomputes score from post denormalized counters and invalidates touched viewer caches.
 - `chat.deliver`: implemented for new-message and inbox realtime publish.
@@ -695,6 +741,8 @@ Implemented or partially implemented:
 Important operational detail:
 
 - API can derive Redis protocol URL from Upstash REST URL/token, but BullMQ works best with `UPSTASH_REDIS_URL`.
+- Rate limiting uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is absent or unreachable. Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, and media presign have user-keyed route-family limiters. Public email unsubscribe POST is IP-limited.
+- `DATABASE_POOL_MAX` controls pooled Neon transaction DB max connections for `createPooledDb()`; default is `10`.
 - Worker reads env from `apps/api/.env` in dev by package script. Root `pnpm dev` does not start the worker; use `pnpm dev:worker` or `pnpm dev:all` only when queue jobs are needed.
 - `WORKER_ENABLED=false` exits the worker before opening Redis connections, useful for quota-sensitive local Upstash sessions.
 - Chat Keyspaces needs `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `KEYSPACES_ENDPOINT`; AWS Keyspaces Cassandra driver traffic uses SigV4 auth on port 9142. Pool/timeout knobs: `KEYSPACES_CORE_CONNECTIONS`, `KEYSPACES_MAX_REQUESTS_PER_CONNECTION`, `KEYSPACES_CONNECT_TIMEOUT_MS`, `KEYSPACES_DEFAULT_TIMEOUT_MS`, `KEYSPACES_READ_TIMEOUT_MS`, `KEYSPACES_WRITE_TIMEOUT_MS`, `KEYSPACES_HEARTBEAT_MS`.
@@ -703,6 +751,7 @@ Important operational detail:
 - Feed rescore config: `FEED_RESCORE_MAX_AGE_HOURS` default `72`; `FEED_RESCORE_BATCH_SIZE` default `500`, worker cap `2000`. Run periodically, for example every few minutes, instead of recomputing scores on every read.
 - Counter reconciliation safety net: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<posts|comments|post_polls|poll_options|film_lists|all> --id=<optional-id>`.
 - `COUNTER_BATCH_WINDOW_MS` can tune worker counter coalescing; default is 50ms.
+- `COUNTER_OUTBOX_LOOP_BUDGET_MS` controls outbox drain batching runtime in one run; default is 750ms.
 
 ## Caching, Rate Limits, and Performance
 
@@ -713,6 +762,7 @@ Caching:
 - Profile feed key includes username, viewer, cursor, limit.
 - Index sets track cache keys by viewer and author for targeted invalidation.
 - Cache auto-disables when Upstash REST env is missing.
+- Profile stats cache namespace is `profile-stats:v1`; only public guest stats for public profiles are cached. Authenticated stats stay uncached because viewer relationship changes affect visibility. Author post mutations, post-owner interactions, and profile edits invalidate this cache, and stats scans use `posts_user_type_created_at_idx`.
 
 Rate limits:
 

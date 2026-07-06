@@ -21,9 +21,7 @@ export default function LegalLayout({
           <BrandLogo
             href="/"
             className="text-[17px] font-semibold tracking-[-0.02em] text-fg"
-          >
-            35mm
-          </BrandLogo>
+          />
           <Link
             href="/"
             className="text-[13px] font-medium text-fg-muted no-underline transition-colors hover:text-fg"

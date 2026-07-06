@@ -28,3 +28,7 @@ export function forbidden(message: string): ApiError {
 export function conflict(message: string): ApiError {
   return new ApiError(409, "CONFLICT", message);
 }
+
+export function serviceUnavailable(code: string, message: string): ApiError {
+  return new ApiError(503, code, message);
+}

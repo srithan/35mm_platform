@@ -40,6 +40,13 @@ const DEFAULT_SETTINGS: UserSettings = {
     accentColor: "theme",
     videoAutoplay: true,
   },
+  media: {
+    videoDefaultQuality: "auto",
+    videoAutoplay: true,
+    alwaysShowCaptions: false,
+    captionStyle: "default",
+    quietMode: false,
+  },
 };
 
 let settingsStore: UserSettings = clone(DEFAULT_SETTINGS);

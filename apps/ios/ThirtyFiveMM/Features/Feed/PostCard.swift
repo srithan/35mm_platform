@@ -32,7 +32,7 @@ struct PostCard: View {
       HStack(alignment: .top, spacing: 12) {
         avatar
 
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
           authorRow
           filmBadge
           headline
@@ -135,12 +135,12 @@ struct PostCard: View {
       } label: {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           Text(authorName)
-            .font(.body.weight(.semibold))
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
             .lineLimit(1)
 
           Text("@\(post.author.username)")
-            .font(.subheadline)
+            .font(.footnote)
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
@@ -247,7 +247,7 @@ struct PostCard: View {
   @ViewBuilder
   private var pollView: some View {
     if let poll = post.poll {
-      PollView(poll: poll)
+      PollView(postId: post.id, poll: poll, interactor: interactor)
     }
   }
 
@@ -256,19 +256,28 @@ struct PostCard: View {
       ActionButton(
         systemImage: post.isLiked ? "heart.fill" : "heart",
         count: post.likeCount,
-        isActive: post.isLiked
+        isActive: post.isLiked,
+        activeColor: Color(red: 1.0, green: 0.02, blue: 0.22),
+        accessibilityLabel: post.isLiked ? "Unlike post" : "Like post"
       ) {
         Task { await interactor.toggleLike(postId: post.id) }
       }
 
-      ActionButton(systemImage: "bubble.left", count: post.commentCount, isActive: false) {
-        // TODO: Open post detail/comments in Stage 3.
+      ActionButton(
+        systemImage: "bubble.right",
+        count: post.commentCount,
+        isActive: false,
+        accessibilityLabel: "Open comments"
+      ) {
+        onOpenPost()
       }
 
       ActionButton(
-        systemImage: "arrow.triangle.2.circlepath",
+        systemImage: "arrow.2.squarepath",
         count: post.repostCount,
-        isActive: post.isReposted
+        isActive: post.isReposted,
+        activeColor: Color(red: 0.0, green: 0.55, blue: 0.28),
+        accessibilityLabel: post.isReposted ? "Undo repost" : "Repost"
       ) {
         Task { await interactor.toggleRepost(postId: post.id) }
       }
@@ -276,7 +285,8 @@ struct PostCard: View {
       ActionButton(
         systemImage: post.isBookmarked ? "bookmark.fill" : "bookmark",
         count: post.bookmarkCount,
-        isActive: post.isBookmarked
+        isActive: post.isBookmarked,
+        accessibilityLabel: post.isBookmarked ? "Remove bookmark" : "Bookmark post"
       ) {
         Task { await interactor.toggleBookmark(postId: post.id) }
       }
@@ -326,25 +336,30 @@ private struct ActionButton: View {
   let systemImage: String
   let count: Int
   let isActive: Bool
+  var activeColor: Color = .accentColor
+  let accessibilityLabel: String
   let action: () -> Void
 
   var body: some View {
     Button(action: action) {
-      HStack(spacing: 5) {
+      HStack(spacing: 6) {
         Image(systemName: systemImage)
-          .font(.system(size: 16, weight: .semibold))
-          .symbolRenderingMode(.hierarchical)
-          .frame(width: 20)
+          .font(.system(size: 17, weight: .medium))
+          .symbolRenderingMode(.monochrome)
+          .frame(width: 22, height: 22)
 
-        Text(count.compactFormatted)
-          .font(.caption)
-          .monospacedDigit()
+        if count > 0 {
+          Text(count.compactFormatted)
+            .font(.caption.weight(.medium))
+            .monospacedDigit()
+        }
       }
-      .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+      .foregroundStyle(isActive ? activeColor : Color.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(accessibilityLabel)
   }
 }
 
@@ -527,70 +542,387 @@ private struct LinkPreviewCard: View {
 }
 
 private struct PollView: View {
+  let postId: String
   let poll: Poll
+  let interactor: any PostInteracting
 
-  private var hasVoted: Bool {
-    poll.userVotedOptionId != nil
+  private var selectedOptionId: String? {
+    poll.selectedOptionIds.first
   }
 
-  private var isOpen: Bool {
-    guard let endsAt = poll.endsAt else { return true }
-    return endsAt > Date()
+  private var canVote: Bool {
+    !poll.hasVoted && !poll.isEnded
+  }
+
+  private var winningPercent: Double {
+    poll.options.compactMap(\.percent).max() ?? 0
+  }
+
+  private var hasUniqueWinner: Bool {
+    guard winningPercent > 0 else { return false }
+    return poll.options.filter { ($0.percent ?? 0) == winningPercent }.count == 1
+  }
+
+  private enum PollPalette {
+    static let gradientText = Color(red: 0.06, green: 0.06, blue: 0.06)
+    static let winnerStart = Color(red: 10.0 / 255.0, green: 228.0 / 255.0, blue: 72.0 / 255.0)
+    static let winnerEnd = Color(red: 171.0 / 255.0, green: 1.0, blue: 132.0 / 255.0)
+    static let barStart = Color.primary.opacity(0.16)
+    static let barEnd = Color.primary.opacity(0.07)
+
+    static let winnerGradient = LinearGradient(
+      colors: [winnerStart, winnerEnd],
+      startPoint: UnitPoint(x: 0.12, y: 0.18),
+      endPoint: UnitPoint(x: 0.82, y: 0.78)
+    )
+
+    static let barGradient = LinearGradient(
+      colors: [barStart, barEnd],
+      startPoint: UnitPoint(x: 0.12, y: 0.18),
+      endPoint: UnitPoint(x: 0.82, y: 0.78)
+    )
   }
 
   var body: some View {
+    Group {
+      if poll.type == .image {
+        imagePoll
+      } else {
+        textPoll
+      }
+    }
+    .padding(.top, 4)
+  }
+
+  private var textPoll: some View {
     VStack(alignment: .leading, spacing: 8) {
       ForEach(poll.options) { option in
-        Button {
-          if !hasVoted && isOpen {
-            // TODO: Submit poll vote in Stage 3.
-          }
-        } label: {
-          pollOption(option)
+        if poll.resultsVisible {
+          resultRow(for: option)
+        } else {
+          voteButton(for: option)
         }
-        .buttonStyle(.plain)
-        .disabled(hasVoted || !isOpen)
       }
 
-      Text("\(poll.totalVotes.compactFormatted) votes")
-        .font(.caption)
+      footer
+        .padding(.top, 2)
+    }
+  }
+
+  private var imagePoll: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        HStack(spacing: 8) {
+          Image(systemName: "chart.bar.xaxis")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 28, height: 28)
+            .background(Color(.systemBackground), in: Circle())
+
+          Text("Poll")
+            .font(.subheadline.weight(.semibold))
+        }
+
+        Spacer()
+
+        if !canVote {
+          Text(voteCountText)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+        }
+      }
+
+      LazyVGrid(columns: imagePollColumns, spacing: 8) {
+        ForEach(poll.options) { option in
+          imageOption(for: option)
+        }
+      }
+
+      Divider()
+
+      footer
+    }
+    .padding(12)
+    .background(Color(.secondarySystemBackground).opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+    )
+  }
+
+  private var imagePollColumns: [GridItem] {
+    [
+      GridItem(.flexible(), spacing: 8),
+      GridItem(.flexible(), spacing: 8),
+    ]
+  }
+
+  private func voteButton(for option: PollOption) -> some View {
+    let isSelected = option.id == selectedOptionId
+
+    return Button {
+      submitVote(option.id)
+    } label: {
+      Text(option.displayLabel)
+        .font(.subheadline.weight(isSelected ? .semibold : .medium))
+        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        .lineLimit(2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(isSelected ? Color.accentColor.opacity(0.08) : Color(.systemBackground), in: Capsule())
+        .overlay(
+          Capsule()
+            .stroke(isSelected ? Color.accentColor : Color(.separator).opacity(0.65), lineWidth: 1.5)
+        )
+    }
+    .buttonStyle(.plain)
+    .allowsHitTesting(canVote)
+    .accessibilityLabel("Vote for \(option.displayLabel)")
+  }
+
+  private func resultRow(for option: PollOption) -> some View {
+    let percent = option.percent ?? 0
+    let isSelected = option.id == selectedOptionId
+    let isWinner = isWinning(option)
+
+    return ZStack(alignment: .leading) {
+      Capsule()
+        .fill(Color(.secondarySystemBackground))
+
+      GeometryReader { proxy in
+        Capsule()
+          .fill(resultFillStyle(isWinner: isWinner))
+          .frame(width: proxy.size.width * CGFloat(percent / 100))
+          .animation(.easeOut(duration: 0.45), value: percent)
+      }
+
+      HStack {
+        HStack(spacing: 7) {
+          if isSelected {
+            Image(systemName: "checkmark.circle.fill")
+              .font(.system(size: 17, weight: .semibold))
+              .foregroundStyle(isWinner ? PollPalette.gradientText : Color.accentColor)
+          }
+
+          Text(option.displayLabel)
+            .font(.subheadline.weight(isWinner ? .semibold : .regular))
+            .foregroundStyle(isWinner && percent > 64 ? PollPalette.gradientText : Color.primary)
+            .lineLimit(1)
+        }
+
+        Spacer()
+
+        Text(formatPercent(percent))
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(isWinner && percent > 88 ? PollPalette.gradientText : Color.secondary)
+          .monospacedDigit()
+      }
+      .padding(.horizontal, 12)
+      .padding(.vertical, 9)
+    }
+    .frame(minHeight: 40)
+  }
+
+  private func imageOption(for option: PollOption) -> some View {
+    let percent = option.percent ?? 0
+    let isSelected = option.id == selectedOptionId
+    let isWinner = isWinning(option)
+
+    return Button {
+      submitVote(option.id)
+    } label: {
+      VStack(spacing: 0) {
+        imageTile(for: option, percent: percent, isSelected: isSelected, isWinner: isWinner)
+
+        Text(option.displayLabel)
+          .font(.caption.weight(.medium))
+          .foregroundStyle(isWinner && poll.resultsVisible ? PollPalette.gradientText : Color.primary)
+          .lineLimit(1)
+          .frame(maxWidth: .infinity)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 8)
+          .background {
+            if isWinner && poll.resultsVisible {
+              PollPalette.winnerGradient
+            } else {
+              Color(.systemBackground)
+            }
+          }
+      }
+      .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+          .stroke(isSelected ? Color.accentColor : Color(.separator).opacity(0.55), lineWidth: isSelected ? 2 : 1)
+      )
+    }
+    .buttonStyle(.plain)
+    .allowsHitTesting(canVote)
+    .accessibilityLabel("Vote for \(option.displayLabel)")
+  }
+
+  private func imageTile(
+    for option: PollOption,
+    percent: Double,
+    isSelected: Bool,
+    isWinner: Bool
+  ) -> some View {
+    Color(.tertiarySystemFill)
+      .aspectRatio(1, contentMode: .fit)
+      .overlay {
+        optionImage(option)
+          .scaledToFill()
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .clipped()
+      }
+      .overlay {
+        if canVote {
+          LinearGradient(
+            colors: [.clear, .black.opacity(0.28)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+        }
+      }
+      .overlay {
+        if isSelected {
+          Image(systemName: "checkmark.circle.fill")
+            .font(.system(size: poll.resultsVisible ? 24 : 36, weight: .bold))
+            .foregroundStyle(.white, Color.accentColor)
+            .shadow(color: .black.opacity(0.22), radius: 8, y: 2)
+        }
+      }
+      .overlay(alignment: .bottomTrailing) {
+        if poll.resultsVisible {
+          pollResultBadge(percent: percent, isWinner: isWinner)
+            .padding(7)
+        }
+      }
+  }
+
+  private func pollResultBadge(percent: Double, isWinner: Bool) -> some View {
+    VStack(spacing: 1) {
+      Text(formatPercent(percent))
+        .font(.caption.weight(.bold))
+        .monospacedDigit()
+
+      if isWinner {
+        Text("Winner")
+          .font(.system(size: 8, weight: .bold))
+          .textCase(.uppercase)
+      }
+    }
+    .foregroundStyle(isWinner ? PollPalette.gradientText : Color.white)
+    .padding(.horizontal, 7)
+    .padding(.vertical, 5)
+    .background {
+      if isWinner {
+        PollPalette.winnerGradient
+          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+      } else {
+        Color.black.opacity(0.68)
+          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func optionImage(_ option: PollOption) -> some View {
+    if let imageUrl = option.imageUrl, let url = URL(string: imageUrl) {
+      KFImage(url)
+        .placeholder {
+          imagePlaceholder
+        }
+        .resizable()
+        .scaledToFill()
+    } else {
+      imagePlaceholder
+    }
+  }
+
+  private var imagePlaceholder: some View {
+    ZStack {
+      Color(.tertiarySystemFill)
+
+      Image(systemName: "photo")
+        .font(.system(size: 30, weight: .light))
         .foregroundStyle(.secondary)
     }
   }
 
-  private func pollOption(_ option: PollOption) -> some View {
-    let percentage = poll.totalVotes == 0 ? 0 : Double(option.voteCount) / Double(poll.totalVotes)
-
-    return ZStack(alignment: .leading) {
-      RoundedRectangle(cornerRadius: 8)
-        .fill(Color(.secondarySystemBackground))
-
-      if hasVoted {
-        GeometryReader { proxy in
-          RoundedRectangle(cornerRadius: 8)
-            .fill(Color.accentColor.opacity(0.18))
-            .frame(width: proxy.size.width * percentage)
-        }
-      }
-
-      HStack {
-        Text(option.label)
-          .font(.subheadline.weight(.medium))
-          .foregroundStyle(.primary)
-          .lineLimit(2)
-
-        Spacer()
-
-        if hasVoted {
-          Text("\(Int((percentage * 100).rounded()))%")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
-        }
-      }
-      .padding(.horizontal, 12)
-      .padding(.vertical, 10)
+  private var footer: some View {
+    TimelineView(.periodic(from: Date(), by: pollCountdownInterval)) { context in
+      Text(footerText(now: context.date))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
-    .frame(minHeight: 42)
+  }
+
+  private var voteCountText: String {
+    "\(poll.totalVotes.compactFormatted) vote\(poll.totalVotes == 1 ? "" : "s")"
+  }
+
+  private var pollCountdownInterval: TimeInterval {
+    guard let endsAt = poll.endsAt else { return 60 }
+    let remaining = max(0, endsAt.timeIntervalSinceNow)
+    if remaining < 120 { return 10 }
+    if remaining < 3600 { return 30 }
+    return 60
+  }
+
+  private func footerText(now: Date) -> String {
+    var parts = [voteCountText]
+    let timeLabel = timeRemainingText(now: now)
+    if !timeLabel.isEmpty {
+      parts.append(timeLabel)
+    }
+    if poll.hasVoted {
+      parts.append("Your vote")
+    }
+    return parts.joined(separator: " · ")
+  }
+
+  private func timeRemainingText(now: Date) -> String {
+    if poll.isEnded {
+      return "Final results"
+    }
+
+    guard let endsAt = poll.endsAt else { return "" }
+    let remaining = max(0, endsAt.timeIntervalSince(now))
+    if remaining < 60 {
+      return "Less than a minute left"
+    }
+    if remaining < 3600 {
+      let minutes = Int(ceil(remaining / 60))
+      return "\(minutes) minute\(minutes == 1 ? "" : "s") left"
+    }
+    if remaining < 86_400 {
+      let hours = Int(ceil(remaining / 3600))
+      return "\(hours) hour\(hours == 1 ? "" : "s") left"
+    }
+
+    let days = Int(ceil(remaining / 86_400))
+    return "\(days) day\(days == 1 ? "" : "s") left"
+  }
+
+  private func submitVote(_ optionId: String) {
+    guard canVote else { return }
+
+    Task {
+      await interactor.votePoll(postId: postId, optionIds: [optionId])
+    }
+  }
+
+  private func isWinning(_ option: PollOption) -> Bool {
+    poll.resultsVisible && hasUniqueWinner && (option.percent ?? 0) == winningPercent && winningPercent > 0
+  }
+
+  private func resultFillStyle(isWinner: Bool) -> AnyShapeStyle {
+    isWinner ? AnyShapeStyle(PollPalette.winnerGradient) : AnyShapeStyle(PollPalette.barGradient)
+  }
+
+  private func formatPercent(_ percent: Double) -> String {
+    "\(Int(percent.rounded()))%"
   }
 }

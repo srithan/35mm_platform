@@ -1,32 +1,38 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { BrandLogo } from "@/components/Logo";
 
 type LandingHeroProps = {
-  authPanel: ReactNode;
-  authRef: React.RefObject<HTMLDivElement>;
+  onJoin: () => void;
+  onLogin: () => void;
 };
 
-export function LandingHero({ authPanel, authRef }: LandingHeroProps) {
+export function LandingHero({ onJoin, onLogin }: LandingHeroProps) {
   return (
     <section className="landing-hero" aria-label="Introduction">
       <div className="landing-hero__canvas">
         <div className="landing-hero__copy">
-          <h1 className="landing-hero__title">The social network for film.</h1>
+          <BrandLogo
+            href="/"
+            className="landing-hero__brand"
+            markClassName="landing-hero__brand-mark"
+            ariaLabel="35mm Home"
+          />
+          <p className="landing-hero__intro">Introducing 35mm. A social network for cinema.</p>
           <p className="landing-hero__lead">
-            35mm is where directors, critics, programmers, and obsessive viewers log what they watch, rate
-            films, and talk about cinema with people they follow.
+            Follow your favorite filmmakers and friends to discover the films they are watching, rating,
+            reviewing, and arguing about.
           </p>
-          <p className="landing-hero__detail">
-            Post a review with the film attached. Follow a DP whose work you steal from. Build a profile from
-            your diary and favourites. Your feed is assembled from those relationships — not an algorithm
-            guessing what you want to see.
-          </p>
-        </div>
 
-        <aside ref={authRef} className="landing-hero__auth">
-          {authPanel}
-        </aside>
+          <div className="landing-hero__actions" aria-label="Account actions">
+            <button type="button" onClick={onJoin} className="landing-hero__button landing-hero__button--primary">
+              Join the cult
+            </button>
+            <button type="button" onClick={onLogin} className="landing-hero__button landing-hero__button--secondary">
+              Login
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );

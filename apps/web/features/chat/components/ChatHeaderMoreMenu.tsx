@@ -81,7 +81,7 @@ export function ChatHeaderMoreMenu({
             return !v;
           });
         }}
-        className="p-2 rounded-xl text-fg-muted hover:text-fg hover:bg-hover transition-colors"
+        className="p-2 rounded-xl text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)] transition-colors"
         aria-label="Chat options"
         aria-expanded={open}
         aria-haspopup="menu"

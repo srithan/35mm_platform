@@ -112,6 +112,12 @@ export var posts = pgTable(
   function (table) {
     return {
       userCreatedAtIdx: index("posts_user_created_at_idx").on(table.userId, table.createdAt),
+      userTypeCreatedAtIdx: index("posts_user_type_created_at_idx").on(
+        table.userId,
+        table.type,
+        table.createdAt,
+        table.id
+      ),
       createdAtIdx: index("posts_created_at_idx").on(table.createdAt),
     };
   }
@@ -183,6 +189,17 @@ export var postBookmarks = pgTable(
     return {
       postUserIdx: uniqueIndex("post_bookmarks_post_user_idx").on(table.postId, table.userId),
       folderIdx: index("post_bookmarks_folder_id_idx").on(table.folderId),
+      userCreatedPostIdx: index("post_bookmarks_user_created_post_idx").on(
+        table.userId,
+        table.createdAt,
+        table.postId
+      ),
+      userFolderCreatedPostIdx: index("post_bookmarks_user_folder_created_post_idx").on(
+        table.userId,
+        table.folderId,
+        table.createdAt,
+        table.postId
+      ),
     };
   }
 );

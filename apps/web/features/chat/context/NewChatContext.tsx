@@ -9,24 +9,53 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/constants/routes";
+import { useIsDesktopMd } from "@/lib/hooks/useIsDesktopMd";
 import { useCreateConversation } from "../hooks/useChatQueries";
 import { NewChatModal } from "../components/NewChatModal";
 import type { ProfileConnectionUser } from "@/features/profile/api/profileApi";
 
 type NewChatContextValue = {
-  openNewChat: () => void;
+  draftOpen: boolean;
+  recipientQuery: string;
+  openNewChat: (opts?: { presentation?: "draft" | "modal" }) => void;
+  closeNewChatDraft: () => void;
+  setRecipientQuery: (query: string) => void;
+  startConversationWithContact: (contact: ProfileConnectionUser) => void;
+  isCreatingConversation: boolean;
+  createErrorMessage: string | null;
 };
 
 const NewChatContext = createContext<NewChatContextValue | null>(null);
 
 export function NewChatProvider({ children }: { children: ReactNode }) {
   var [open, setOpen] = useState(false);
+  var [draftOpen, setDraftOpen] = useState(false);
+  var [recipientQuery, setRecipientQuery] = useState("");
+  var isDesktop = useIsDesktopMd();
   var router = useRouter();
   var createMutation = useCreateConversation();
 
-  var openNewChat = useCallback(function () {
-    setOpen(true);
+  var closeNewChatDraft = useCallback(function () {
+    setDraftOpen(false);
+    setRecipientQuery("");
   }, []);
+
+  var openNewChat = useCallback(
+    function (opts?: { presentation?: "draft" | "modal" }) {
+      var presentation =
+        opts?.presentation ?? (isDesktop === true ? "draft" : "modal");
+      if (presentation === "draft") {
+        setOpen(false);
+        setDraftOpen(true);
+        setRecipientQuery("");
+        return;
+      }
+      setDraftOpen(false);
+      setRecipientQuery("");
+      setOpen(true);
+    },
+    [isDesktop]
+  );
 
   var handleSelect = useCallback(
     function (contact: ProfileConnectionUser) {
@@ -42,6 +71,8 @@ export function NewChatProvider({ children }: { children: ReactNode }) {
         {
           onSuccess: function (thread) {
             setOpen(false);
+            setDraftOpen(false);
+            setRecipientQuery("");
             router.push(ROUTES.CHAT_WITH(thread.id));
           },
         }
@@ -51,7 +82,20 @@ export function NewChatProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <NewChatContext.Provider value={{ openNewChat: openNewChat }}>
+    <NewChatContext.Provider
+      value={{
+        draftOpen: draftOpen,
+        recipientQuery: recipientQuery,
+        openNewChat: openNewChat,
+        closeNewChatDraft: closeNewChatDraft,
+        setRecipientQuery: setRecipientQuery,
+        startConversationWithContact: handleSelect,
+        isCreatingConversation: createMutation.isPending,
+        createErrorMessage: createMutation.isError
+          ? "Could not start this conversation. Try again."
+          : null,
+      }}
+    >
       {children}
       <NewChatModal
         open={open}

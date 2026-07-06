@@ -59,7 +59,7 @@ export function NewChatModal({
             setSearch(event.target.value);
           }}
           placeholder="Search by name or @username"
-          className="w-full rounded-xl border border-border bg-sunken px-3 py-2.5 font-sans text-[16px] md:text-sm text-fg outline-none placeholder:text-fg-muted focus-visible:ring-2 focus-visible:ring-[#007AFF]/25"
+          className="w-full rounded-xl border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-3 py-2.5 font-sans text-[16px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)] md:text-sm"
           aria-label="Search people"
           disabled={isSubmitting}
         />
@@ -82,7 +82,7 @@ export function NewChatModal({
               onClick={function () {
                 refetch();
               }}
-              className="text-[13px] font-semibold text-[#007AFF]"
+              className="text-[13px] font-semibold text-[var(--chat-accent)]"
             >
               Try again
             </button>
@@ -101,7 +101,7 @@ export function NewChatModal({
               <Link
                 href={ROUTES.SUGGESTIONS_PEOPLE}
                 onClick={onClose}
-                className="inline-block mt-4 text-[13px] font-semibold text-[#007AFF] no-underline hover:opacity-80"
+                className="inline-block mt-4 text-[13px] font-semibold text-[var(--chat-accent)] no-underline hover:opacity-80"
               >
                 Find people to follow
               </Link>

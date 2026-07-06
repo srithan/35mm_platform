@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { Webhook } from "svix";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { users, profiles, userSettings } from "@35mm/db/schema";
-import { getDb } from "../../lib/db.js";
+import { getDb, getWriteDb } from "../../lib/db.js";
 
 export var webhookRoutes = new Hono();
 
@@ -45,37 +45,65 @@ webhookRoutes.post("/clerk", async function (c) {
     var displayName = (firstName + " " + lastName).trim() || "User";
     var username = (data.username ?? clerkId) as string;
 
-    var inserted = await db
-      .insert(users)
-      .values({
-        clerkUserId: clerkId,
-        email: email,
-        ageVerifiedAt: new Date(),
-        status: "active",
-      })
-      .returning({ id: users.id })
-      .onConflictDoNothing();
+    await getWriteDb().transaction(async function (tx) {
+      var inserted = await tx
+        .insert(users)
+        .values({
+          clerkUserId: clerkId,
+          email: email,
+          ageVerifiedAt: new Date(),
+          status: "active",
+        })
+        .returning({ id: users.id })
+        .onConflictDoNothing();
 
-    if (inserted.length > 0) {
-      var userId = inserted[0].id;
+      var userId = inserted[0]?.id ?? null;
+      if (!userId) {
+        var existingUsers = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.clerkUserId, clerkId))
+          .limit(1);
+        userId = existingUsers[0]?.id ?? null;
+      }
 
-      await db.insert(profiles).values({
-        userId: userId,
-        username: username.toLowerCase(),
-        displayName: displayName,
-        avatarUrl: null,
-        bio: null,
-        coverUrl: null,
-        location: null,
-        website: null,
-        role: null,
-        roleContext: null,
-      });
+      if (!userId) return;
 
-      await db.execute(
-        sql`insert into "user_settings" ("user_id") values (${userId}) on conflict ("user_id") do nothing`
-      );
-    }
+      var existingProfiles = await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(eq(profiles.userId, userId))
+        .limit(1);
+
+      if (existingProfiles.length === 0) {
+        var fallbackUsername = clerkId.toLowerCase();
+        var stableUsername = "u" + userId.replace(/-/g, "").slice(0, 16);
+        var usernameCandidates = Array.from(new Set([username.toLowerCase(), fallbackUsername, stableUsername]));
+
+        for (var usernameCandidate of usernameCandidates) {
+          var insertedProfile = await tx
+            .insert(profiles)
+            .values({
+              userId: userId,
+              username: usernameCandidate,
+              displayName: displayName,
+              avatarUrl: null,
+              bio: null,
+              coverUrl: null,
+              location: null,
+              website: null,
+              role: null,
+              roleContext: null,
+            })
+            .returning({ id: profiles.id })
+            .onConflictDoNothing();
+
+          if (insertedProfile.length > 0) break;
+        }
+      }
+
+      await tx.insert(userSettings).values({ userId }).onConflictDoNothing();
+    });
   }
 
   if (event.type === "user.updated") {

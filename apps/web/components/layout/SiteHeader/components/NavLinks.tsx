@@ -11,9 +11,22 @@ import styles from "../SiteHeader.module.css";
 type NavLinksProps = {
   isActive: (href: string) => boolean;
   profileHref: string;
+  useSkeuomorphicActive: boolean;
 };
 
-export function NavLinks({ isActive, profileHref }: NavLinksProps) {
+function navItemClass(active: boolean, useSkeuomorphicActive: boolean): string {
+  return cn(
+    styles.navItem,
+    active && styles.active,
+    active && useSkeuomorphicActive && styles.activeSkeuomorphic
+  );
+}
+
+export function NavLinks({
+  isActive,
+  profileHref,
+  useSkeuomorphicActive,
+}: NavLinksProps) {
   const chatUnreadCount = useChatUnreadBadgeCount();
   const chatUnreadLabel = formatChatUnreadBadgeCount(chatUnreadCount);
   const hasChatUnread = chatUnreadCount > 0;
@@ -23,7 +36,7 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
       <div className={styles.navItems}>
         <Link
           href={ROUTES.HOME}
-          className={cn(styles.navItem, isActive(ROUTES.HOME) && styles.active)}
+          className={navItemClass(isActive(ROUTES.HOME), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.HOME) ? "page" : undefined}
         >
           <span className={styles.navItemIcon}>
@@ -46,7 +59,7 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
 
         <Link
           href={ROUTES.DISCOVER}
-          className={cn(styles.navItem, isActive(ROUTES.DISCOVER) && styles.active)}
+          className={navItemClass(isActive(ROUTES.DISCOVER), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.DISCOVER) ? "page" : undefined}
         >
           <span className={styles.navItemIcon}>
@@ -70,7 +83,7 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
 
         <Link
           href={ROUTES.SHORT_FILMS}
-          className={cn(styles.navItem, isActive(ROUTES.SHORT_FILMS) && styles.active)}
+          className={navItemClass(isActive(ROUTES.SHORT_FILMS), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.SHORT_FILMS) ? "page" : undefined}
         >
           <span className={styles.navItemIcon}>
@@ -95,7 +108,7 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
 
         <Link
           href={ROUTES.CHAT}
-          className={cn(styles.navItem, isActive(ROUTES.CHAT) && styles.active)}
+          className={navItemClass(isActive(ROUTES.CHAT), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.CHAT) ? "page" : undefined}
           aria-label={
             hasChatUnread
@@ -124,7 +137,7 @@ export function NavLinks({ isActive, profileHref }: NavLinksProps) {
 
         <Link
           href={profileHref}
-          className={cn(styles.navItem, isActive(profileHref) && styles.active)}
+          className={navItemClass(isActive(profileHref), useSkeuomorphicActive)}
           aria-current={isActive(profileHref) ? "page" : undefined}
         >
           <span className={styles.navItemIcon}>

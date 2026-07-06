@@ -97,9 +97,7 @@ export function MobileHeader({
           <BrandLogo
             href={ROUTES.HOME}
             className="px-3 py-1 shrink-0 text-[20.5px] font-semibold tracking-wide text-fg"
-          >
-            35<span className="text-accent">mm</span>
-          </BrandLogo>
+          />
         )}
       </div>
 

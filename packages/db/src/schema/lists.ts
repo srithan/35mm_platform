@@ -75,7 +75,12 @@ export var filmListEntries = pgTable(
   },
   function (table) {
     return {
-      listPositionIdx: index("film_list_entries_list_position_idx").on(table.listId, table.position),
+      listPositionIdx: index("film_list_entries_list_position_idx").on(
+        table.listId,
+        sql`coalesce(${table.position}, -1)`,
+        table.addedAt,
+        table.id
+      ),
       filmListIdx: index("film_list_entries_film_list_idx").on(table.filmId, table.listId),
       listFilmUniqueIdx: uniqueIndex("film_list_entries_list_film_idx").on(table.listId, table.filmId),
     };

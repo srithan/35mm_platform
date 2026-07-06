@@ -555,6 +555,7 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                         <button
                           type="button"
                           onClick={followAll}
+                          disabled={(suggestionsQuery.data ?? []).length === 0}
                           className="text-[12px] font-semibold text-fg underline underline-offset-2"
                         >
                           Follow all
@@ -566,6 +567,27 @@ export function OnboardingModal({ onCompleted }: OnboardingModalProps) {
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Loading suggestions...
                           </div>
+                        ) : null}
+                        {suggestionsQuery.isError ? (
+                          <div className="px-2 py-3 text-[13px] text-[#8a3d34]">
+                            <p>Could not load suggestions.</p>
+                            <button
+                              type="button"
+                              onClick={function () {
+                                void suggestionsQuery.refetch();
+                              }}
+                              className="mt-2 text-[12px] font-semibold text-fg underline underline-offset-2"
+                            >
+                              Try again
+                            </button>
+                          </div>
+                        ) : null}
+                        {!suggestionsQuery.isLoading &&
+                        !suggestionsQuery.isError &&
+                        (suggestionsQuery.data ?? []).length === 0 ? (
+                          <p className="px-2 py-3 text-[13px] text-[#777]">
+                            No accounts available yet.
+                          </p>
                         ) : null}
                         {suggestionsQuery.data?.map(function (person) {
                           var selected = followUserIds.includes(person.id);

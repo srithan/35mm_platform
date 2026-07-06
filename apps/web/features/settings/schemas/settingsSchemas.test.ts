@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appearanceSettingsSchema,
   changePasswordSchema,
+  mediaSettingsSchema,
   notificationSettingsSchema,
   privacySettingsSchema,
   profileSettingsSchema,
@@ -65,6 +66,16 @@ describe("settings schemas", () => {
         theme: "dark",
         accentColor: "warm-red",
         videoAutoplay: true,
+      }).success
+    ).toBe(true);
+
+    expect(
+      mediaSettingsSchema.safeParse({
+        videoDefaultQuality: "auto",
+        videoAutoplay: true,
+        alwaysShowCaptions: false,
+        captionStyle: "default",
+        quietMode: false,
       }).success
     ).toBe(true);
   });

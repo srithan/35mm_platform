@@ -189,8 +189,8 @@ export function ChatMobileHeader({
             className={cn(
               "p-2 rounded-xl transition-colors",
               threadSearchOpen || threadSearchQuery.trim()
-                ? "text-[#007AFF] bg-[#007AFF]/12 dark:bg-[#007AFF]/20"
-                : "text-fg-muted hover:text-fg hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
+                ? "text-[var(--chat-accent)] bg-[var(--chat-accent-bg-strong)]"
+                : "text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
             )}
             aria-label="Search in conversation"
             aria-expanded={threadSearchOpen}
@@ -219,7 +219,7 @@ export function ChatMobileHeader({
       ) : null}
       {toast ? (
         <div
-          className="px-3 py-2 text-center text-[12px] font-medium text-[#007AFF] bg-[#007AFF]/[0.08] border-t border-[#007AFF]/15"
+          className="px-3 py-2 text-center text-[12px] font-medium text-[var(--chat-accent)] bg-[var(--chat-accent-bg)] border-t border-[var(--chat-accent-border)]"
           role="status"
         >
           {toast}

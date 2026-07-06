@@ -6,8 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { clerkSignIn } from "@/features/auth/lib/auth-client";
@@ -42,7 +42,7 @@ export function LoginForm() {
   var [formError, setFormError] = useState<string | null>(null);
 
   var form = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: standardSchemaResolver(loginSchema),
     defaultValues: { identifier: "", password: "" },
   });
 

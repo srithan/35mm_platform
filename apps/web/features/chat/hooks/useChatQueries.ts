@@ -23,6 +23,11 @@ import {
 } from "../config/runtimeConfig";
 import { chatQueryKeys } from "../lib/queryKeys";
 import { sortChatMessages, upsertChatMessageSorted } from "../lib/sortChatMessages";
+import { formatRelativeShort } from "../lib/formatChatTime";
+import {
+  patchConversationPreviewInPages,
+  type ConversationPreviewPatch,
+} from "../lib/patchConversationPreview";
 import {
   buildOptimisticChatMessage,
   createOptimisticMessageId,
@@ -65,16 +70,35 @@ function patchNewestInfinitePage(
   };
 }
 
-function findConversationInPage(
-  page: PaginatedConversations | undefined,
+function flattenConversationPages(
+  pages: InfiniteData<PaginatedConversations> | undefined
+): ChatPreview[] {
+  if (!pages || pages.pages.length === 0) {
+    return [];
+  }
+  const result: ChatPreview[] = [];
+  for (var index = 0; index < pages.pages.length; index++) {
+    result.push(...pages.pages[index].items);
+  }
+  return result;
+}
+
+function findConversationInPages(
+  pages: InfiniteData<PaginatedConversations> | undefined,
   chatId: string | null
 ): ChatPreview | undefined {
-  if (!chatId || !page) {
+  if (!chatId || !pages) {
     return undefined;
   }
-  return page.items.find(function (item) {
-    return item.id === chatId;
-  });
+  for (var pageIndex = 0; pageIndex < pages.pages.length; pageIndex++) {
+    const row = pages.pages[pageIndex].items.find(function (item) {
+      return item.id === chatId;
+    });
+    if (row) {
+      return row;
+    }
+  }
+  return undefined;
 }
 
 export function useConversations(opts: {
@@ -82,17 +106,24 @@ export function useConversations(opts: {
   enabled?: boolean;
 }) {
   const folder = opts.folder;
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: chatQueryKeys.conversations(folder),
-    queryFn: function () {
+    queryFn: function ({ pageParam }) {
       return client().listConversations({
         folder: folder,
         limit: CHAT_PAGE_LIMITS.conversations,
-        cursor: null,
+        cursor: pageParam,
       });
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: function (lastPage) {
+      if (!lastPage.hasMore) {
+        return undefined;
+      }
+      return lastPage.nextCursor ?? undefined;
+    },
     select: function (data) {
-      return data.items;
+      return flattenConversationPages(data);
     },
     staleTime: CHAT_QUERY_POLICY.staleTimeMs,
     gcTime: CHAT_QUERY_POLICY.gcTimeMs,
@@ -125,10 +156,10 @@ export function useConversationRow(chatId: string | null): {
         return undefined;
       }
       for (var folder of ["inbox", "archived", "requests"] as ChatFolder[]) {
-        var page = queryClient.getQueryData<PaginatedConversations>(
+        var page = queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
           chatQueryKeys.conversations(folder)
         );
-        var row = findConversationInPage(page, chatId);
+        var row = findConversationInPages(page, chatId);
         if (row) {
           return row;
         }
@@ -263,6 +294,56 @@ function invalidateAllConversationLists(queryClient: ReturnType<typeof useQueryC
       queryKey: chatQueryKeys.conversations(folder),
     });
   });
+}
+
+function previewFromSendPayload(payload: ChatSendPayload): string {
+  if (payload.text.trim()) {
+    return payload.text.trim();
+  }
+  if (payload.gifUrl) {
+    return "GIF";
+  }
+  if (payload.imageDataUrl) {
+    return "Photo";
+  }
+  if (payload.file) {
+    return payload.file.name || "File";
+  }
+  return "Message";
+}
+
+function previewFromMessage(message: ChatMessage): string {
+  if (message.text.trim()) {
+    return message.text.trim();
+  }
+  if (message.media?.type === "gif") {
+    return "GIF";
+  }
+  if (message.media?.type === "image") {
+    return "Photo";
+  }
+  if (message.file) {
+    return message.file.name || "File";
+  }
+  return "Message";
+}
+
+function patchConversationPreviewCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  patch: ConversationPreviewPatch
+): boolean {
+  let patched = false;
+  (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+    queryClient.setQueryData<InfiniteData<PaginatedConversations>>(
+      chatQueryKeys.conversations(folder),
+      function (prev) {
+        const result = patchConversationPreviewInPages(prev, patch);
+        patched = patched || result.patched;
+        return result.data;
+      }
+    );
+  });
+  return patched;
 }
 
 function applyViewerReaction(
@@ -443,10 +524,26 @@ export function useSendMessage() {
       const previous = queryClient.getQueryData<PaginatedMessages>(
         chatQueryKeys.messages(args.chatId)
       );
+      const previousConversations = {
+        inbox: queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
+          chatQueryKeys.conversations("inbox")
+        ),
+        archived: queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
+          chatQueryKeys.conversations("archived")
+        ),
+        requests: queryClient.getQueryData<InfiniteData<PaginatedConversations>>(
+          chatQueryKeys.conversations("requests")
+        ),
+      };
       const optimisticId = createOptimisticMessageId();
       const optimistic = buildOptimisticChatMessage(args, optimisticId);
       void queryClient.cancelQueries({
         queryKey: chatQueryKeys.messages(args.chatId),
+      });
+      (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+        void queryClient.cancelQueries({
+          queryKey: chatQueryKeys.conversations(folder),
+        });
       });
       queryClient.setQueryData<PaginatedMessages>(
         chatQueryKeys.messages(args.chatId),
@@ -456,9 +553,27 @@ export function useSendMessage() {
           });
         }
       );
-      return { previous: previous, optimisticId: optimisticId };
+      patchConversationPreviewCaches(queryClient, {
+        chatId: args.chatId,
+        lastMessage: previewFromSendPayload(args),
+        lastMessageAt: formatRelativeShort(new Date(optimistic.createdAt)),
+        unread: 0,
+      });
+      return {
+        previous: previous,
+        previousConversations: previousConversations,
+        optimisticId: optimisticId,
+      };
     },
     onError: function (_error, args, context) {
+      if (context?.previousConversations) {
+        (["inbox", "archived", "requests"] as ChatFolder[]).forEach(function (folder) {
+          queryClient.setQueryData(
+            chatQueryKeys.conversations(folder),
+            context.previousConversations[folder]
+          );
+        });
+      }
       if (context?.previous) {
         queryClient.setQueryData(
           chatQueryKeys.messages(args.chatId),
@@ -491,6 +606,12 @@ export function useSendMessage() {
           });
         }
       );
+      patchConversationPreviewCaches(queryClient, {
+        chatId: args.chatId,
+        lastMessage: previewFromMessage(result.message),
+        lastMessageAt: formatRelativeShort(new Date(result.message.createdAt)),
+        unread: 0,
+      });
       queryClient.setQueryData<InfiniteData<PaginatedMessages>>(
         chatQueryKeys.messagesInfinite(args.chatId),
         function (prev) {

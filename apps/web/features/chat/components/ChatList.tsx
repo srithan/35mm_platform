@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/constants/routes";
 import { Icon } from "@/components/Icon/Icon";
@@ -36,6 +36,7 @@ interface ChatListProps {
    */
   conversationFilter?: "active" | "archived" | "requests";
   onConversationFilterChange?: (filter: "active" | "archived") => void;
+  draftSelected?: boolean;
 }
 
 function ChatListSkeleton({ collapsed }: { collapsed: boolean }) {
@@ -72,6 +73,7 @@ export function ChatList({
   searchQuery = "",
   conversationFilter: conversationFilterProp,
   onConversationFilterChange,
+  draftSelected = false,
 }: ChatListProps) {
   const pathname = usePathname() ?? "";
   const routeId = pathname.replace("/chat/", "").split("/")[0] || null;
@@ -80,13 +82,28 @@ export function ChatList({
   const [internalInboxFilter, setInternalInboxFilter] = useState<
     "active" | "archived"
   >("active");
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const listLoadMoreRef = useRef<HTMLDivElement>(null);
   const uiFolder =
     conversationFilterProp !== undefined
       ? conversationFilterProp
       : internalInboxFilter;
-  const { data: chats, isLoading, isError, refetch } =
-    useConversationsByUiFilter(uiFolder);
-  const { openNewChat } = useNewChat();
+  const listQuery = useConversationsByUiFilter(uiFolder);
+  const chats = listQuery.data ?? [];
+  const isLoading = listQuery.isLoading;
+  const isError = listQuery.isError;
+  const refetch = listQuery.refetch;
+  const canLoadMoreConversations = listQuery.hasNextPage;
+  const isLoadingMoreConversations = listQuery.isFetchingNextPage;
+
+  const loadMoreConversations = useCallback(function (): void {
+    if (!listQuery.hasNextPage || listQuery.isFetchingNextPage) {
+      return;
+    }
+    void listQuery.fetchNextPage();
+  }, [listQuery]);
+
+  const { openNewChat, closeNewChatDraft } = useNewChat();
   const { currentUserId } = useChatRealtime();
   const syncedSelectedIdRef = useRef<string | null | undefined>(undefined);
   const [presenceNow, setPresenceNow] = useState(Date.now());
@@ -116,6 +133,38 @@ export function ChatList({
   );
 
   const effectiveSearch = showHeader ? headerListSearch : searchQuery;
+
+  useEffect(
+    function () {
+      if (effectiveSearch.trim() || !listQuery.hasNextPage) {
+        return;
+      }
+      const container = listScrollRef.current;
+      const sentinel = listLoadMoreRef.current;
+      if (!container || !sentinel) {
+        return;
+      }
+      const observer = new IntersectionObserver(
+        function (entries) {
+          const entry = entries[0];
+          if (!entry || !entry.isIntersecting) {
+            return;
+          }
+          loadMoreConversations();
+        },
+        {
+          root: container,
+          rootMargin: "0px 0px 180px 0px",
+          threshold: 0,
+        }
+      );
+      observer.observe(sentinel);
+      return function () {
+        observer.disconnect();
+      };
+    },
+    [effectiveSearch, listQuery.hasNextPage, listQuery.isFetchingNextPage, loadMoreConversations]
+  );
 
   const inboxSegment: "active" | "archived" | "requests" = uiFolder;
 
@@ -232,8 +281,8 @@ export function ChatList({
                     className={cn(
                       "flex-1 rounded-[10px] py-2 text-[12px] font-semibold transition-colors",
                       inboxSegment === "active"
-                        ? "bg-elevated text-fg shadow-sm"
-                        : "text-fg-muted hover:text-fg"
+                        ? "bg-active text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                        : "text-fg-muted hover:bg-hover hover:text-fg"
                     )}
                   >
                     Inbox
@@ -248,8 +297,8 @@ export function ChatList({
                     className={cn(
                       "flex-1 rounded-[10px] py-2 text-[12px] font-semibold transition-colors",
                       inboxSegment === "archived"
-                        ? "bg-elevated text-fg shadow-sm"
-                        : "text-fg-muted hover:text-fg"
+                        ? "bg-active text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                        : "text-fg-muted hover:bg-hover hover:text-fg"
                     )}
                   >
                     Archived
@@ -272,7 +321,7 @@ export function ChatList({
         </div>
       ) : null}
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto">
         {isLoading ? (
           <ChatListSkeleton collapsed={collapsed} />
         ) : isError ? (
@@ -283,12 +332,12 @@ export function ChatList({
               onClick={function () {
                 refetch();
               }}
-              className="text-[13px] font-semibold text-[#007AFF]"
+              className="text-[13px] font-semibold text-[var(--chat-accent)]"
             >
               Retry
             </button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : !draftSelected && filtered.length === 0 ? (
           <div className="px-4 py-12 text-center text-[13px] text-fg-muted">
             {effectiveSearch.trim()
               ? "No matches."
@@ -301,16 +350,69 @@ export function ChatList({
                       <p>No messages yet.</p>
                       <button
                         type="button"
-                        onClick={openNewChat}
-                        className="inline-flex items-center justify-center rounded-full bg-[#007AFF] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
+                        onClick={function () {
+                          openNewChat();
+                        }}
+                        className="inline-flex items-center justify-center rounded-full bg-[image:var(--chat-own-bubble)] px-4 py-2 text-[13px] font-semibold text-[var(--chat-own-fg)] hover:brightness-[0.96]"
                       >
-                        New message
-                      </button>
-                    </div>
+                    New message
+                  </button>
+                </div>
                   )}
+            {canLoadMoreConversations ? (
+              <div className={cn("mt-4", collapsed ? "px-2" : "") }>
+                <button
+                  type="button"
+                  onClick={loadMoreConversations}
+                  disabled={isLoadingMoreConversations}
+                  className="w-full rounded-full border border-border bg-bg px-3 py-2 text-[12px] font-semibold text-fg disabled:opacity-60"
+                >
+                  {isLoadingMoreConversations
+                    ? "Loading older conversations..."
+                    : "Load older conversations"}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : (
-          filtered.map(function (chat) {
+          <>
+          {draftSelected && inboxSegment === "active" ? (
+            <button
+              type="button"
+              onClick={function () {
+                openNewChat({ presentation: "draft" });
+              }}
+              className={cn(
+                "w-full flex items-center border-b border-black/[0.04] bg-[image:var(--chat-own-bubble)] text-[var(--chat-own-fg)] transition-colors cursor-pointer",
+                collapsed
+                  ? "justify-center py-3 px-2"
+                  : "items-start gap-3 px-4 py-4 text-left"
+              )}
+            >
+              <div className="relative shrink-0">
+                <div
+                  className={cn(
+                    "flex h-11 w-11 items-center justify-center rounded-full bg-[var(--chat-own-overlay)] text-[var(--chat-own-fg)] shadow-sm",
+                    collapsed && "h-10 w-10"
+                  )}
+                  aria-hidden
+                >
+                  <Icon name="user" className="h-6 w-6" strokeWidth={2} />
+                </div>
+              </div>
+              {!collapsed ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[15px] font-semibold tracking-[-0.01em]">
+                    New Message
+                  </span>
+                  <span className="truncate text-[13px] text-[var(--chat-own-fg-muted)]">
+                    Choose someone to message
+                  </span>
+                </div>
+              ) : null}
+            </button>
+          ) : null}
+          {filtered.map(function (chat) {
             const href = ROUTES.CHAT_WITH(chat.id);
             const isActive = activeId === chat.id;
             const targetIds = getChatPresenceTargetIds(chat.members, currentUserId);
@@ -326,9 +428,10 @@ export function ChatList({
               <Link
                 key={chat.id}
                 href={href}
+                onClick={closeNewChatDraft}
                 className={cn(
                   "w-full flex items-center border-b border-black/[0.04] dark:border-white/[0.06] transition-colors hover:bg-hover cursor-pointer no-underline text-inherit",
-                  isActive && "bg-white/80 dark:bg-white/[0.04]",
+                  isActive && "bg-[var(--color-bg-active)] hover:bg-[var(--color-bg-active)]",
                   collapsed
                     ? "justify-center py-3 px-2"
                     : "items-start gap-3 px-4 py-3 text-left"
@@ -339,8 +442,7 @@ export function ChatList({
                     initial={chat.name.charAt(0)}
                     src={chat.avatarUrl}
                     className={cn(
-                      "w-11 h-11 text-[15px] shadow-sm ring-1 ring-black/[0.04]",
-                      isActive && "ring-2 ring-[#007AFF] ring-offset-2 ring-offset-bg"
+                      "w-11 h-11 text-[15px] shadow-sm ring-1 ring-black/[0.04]"
                     )}
                     loading="eager"
                   />
@@ -359,7 +461,7 @@ export function ChatList({
                       </span>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         {chat.unread !== undefined && chat.unread > 0 ? (
-                          <span className="text-[10px] font-semibold min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#007AFF] text-white tabular-nums">
+                          <span className="text-[10px] font-semibold min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--chat-accent)] text-[var(--chat-own-fg)] tabular-nums">
                             {chat.unread > 99 ? "99+" : chat.unread}
                           </span>
                         ) : null}
@@ -375,7 +477,23 @@ export function ChatList({
                 ) : null}
               </Link>
             );
-          })
+          })}
+          <div ref={listLoadMoreRef} />
+          {canLoadMoreConversations ? (
+            <div className="px-4 py-3">
+              <button
+                type="button"
+                onClick={loadMoreConversations}
+                disabled={isLoadingMoreConversations}
+                className="w-full rounded-full border border-border bg-bg px-3 py-2 text-[12px] font-semibold text-fg disabled:opacity-60"
+              >
+                {isLoadingMoreConversations
+                  ? "Loading older conversations..."
+                  : "Load older conversations"}
+              </button>
+            </div>
+          ) : null}
+          </>
         )}
       </div>
     </div>

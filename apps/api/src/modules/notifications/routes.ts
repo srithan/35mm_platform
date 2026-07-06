@@ -13,6 +13,7 @@ import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.j
 import { getDb } from "../../lib/db.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 import { requireAuth } from "../../lib/middleware.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import {
   markAllNotificationsRead,
   markNotificationRead,
@@ -21,6 +22,13 @@ import {
 import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
 export var notificationsRoutes = new Hono();
+
+var notificationWriteRateLimit = createRateLimitMiddleware({
+  keyPrefix: "notifications:write",
+  limit: 120,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
 
 interface RawNotificationRow {
   id: string;
@@ -542,7 +550,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
   return c.json(page);
 });
 
-notificationsRoutes.patch("/me/notifications/:notificationId/read", requireAuth, async function (c) {
+notificationsRoutes.patch("/me/notifications/:notificationId/read", requireAuth, notificationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var input = notificationIdSchema.parse({
     notificationId: c.req.param("notificationId"),
@@ -556,7 +564,7 @@ notificationsRoutes.patch("/me/notifications/:notificationId/read", requireAuth,
   return c.json({ ok: true, updated: true });
 });
 
-notificationsRoutes.patch("/me/notifications/:notificationId/unread", requireAuth, async function (c) {
+notificationsRoutes.patch("/me/notifications/:notificationId/unread", requireAuth, notificationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var input = notificationIdSchema.parse({
     notificationId: c.req.param("notificationId"),
@@ -570,7 +578,7 @@ notificationsRoutes.patch("/me/notifications/:notificationId/unread", requireAut
   return c.json({ ok: true, updated: true });
 });
 
-notificationsRoutes.post("/me/notifications/read-all", requireAuth, async function (c) {
+notificationsRoutes.post("/me/notifications/read-all", requireAuth, notificationWriteRateLimit, async function (c) {
   var user = c.get("user");
   var updated = await markAllNotificationsRead(user.userId);
 

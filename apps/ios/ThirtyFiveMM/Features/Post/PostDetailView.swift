@@ -48,6 +48,7 @@ private struct PostDetailContent: View {
       }
       .navigationTitle("@\(viewModel.post.author.username)'s post")
       .navigationBarTitleDisplayMode(.inline)
+      .toolbar(.visible, for: .navigationBar)
 
       if let error = viewModel.error, !viewModel.commentTree.isEmpty {
         PostDetailErrorBanner(message: error) {

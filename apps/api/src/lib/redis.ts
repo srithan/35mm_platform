@@ -25,16 +25,21 @@ export type RedisClient = {
 
 var globalForRedis = globalThis as typeof globalThis & {
   __thirtyFiveMmRedisClient?: RedisClient | null;
+  __thirtyFiveMmRedisConfigKey?: string;
 };
 
 var redisClient: RedisClient | null | undefined = globalForRedis.__thirtyFiveMmRedisClient;
+var redisConfigKey: string | undefined = globalForRedis.__thirtyFiveMmRedisConfigKey;
+
+function currentConfigKey(): string {
+  var env = loadEnv();
+  return env.UPSTASH_REDIS_REST_URL.trim() + "|" + env.UPSTASH_REDIS_REST_TOKEN.trim();
+}
 
 function configured(): boolean {
-  var env = loadEnv();
-  return (
-    env.UPSTASH_REDIS_REST_URL.trim().length > 0 &&
-    env.UPSTASH_REDIS_REST_TOKEN.trim().length > 0
-  );
+  var key = currentConfigKey();
+  var parts = key.split("|");
+  return parts[0].length > 0 && parts[1].length > 0;
 }
 
 function buildClient(): RedisClient {
@@ -143,7 +148,10 @@ function buildClient(): RedisClient {
 }
 
 export function getRedisClient(): RedisClient | null {
-  if (redisClient !== undefined) return redisClient;
+  var nextConfigKey = currentConfigKey();
+  if (redisClient !== undefined && redisConfigKey === nextConfigKey) return redisClient;
+  redisConfigKey = nextConfigKey;
+  globalForRedis.__thirtyFiveMmRedisConfigKey = redisConfigKey;
   if (!configured()) {
     redisClient = null;
     globalForRedis.__thirtyFiveMmRedisClient = redisClient;

@@ -48,12 +48,6 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
       return;
     }
 
-    var redis = getRedisClient();
-    if (!redis) {
-      await next();
-      return;
-    }
-
     var identifier = await config.identify(c);
     var blockedResponse = await applyRateLimit(c, {
       keyPrefix: config.keyPrefix,
@@ -71,15 +65,42 @@ export function identifyByIp(c: Context): string | null {
   return ipFromRequest(c);
 }
 
+export function identifyByUserId(c: Context): string | null {
+  var user = c.get("user") as { userId?: string } | undefined;
+  return typeof user?.userId === "string" ? user.userId : null;
+}
+
 export async function applyRateLimit(
   c: Context,
   input: RateLimitCheckInput
 ): Promise<Response | null> {
   if (rateLimitingDisabled()) return null;
-  if (!input.identifier) return null;
+  if (!input.identifier) {
+    console.error("[rate-limit] missing identifier", {
+      keyPrefix: input.keyPrefix,
+    });
+    return c.json(
+      {
+        code: "RATE_LIMIT_IDENTITY_UNAVAILABLE",
+        message: "Rate limit identity is unavailable.",
+      },
+      503
+    );
+  }
 
   var redis = getRedisClient();
-  if (!redis) return null;
+  if (!redis) {
+    console.error("[rate-limit] redis unavailable", {
+      keyPrefix: input.keyPrefix,
+    });
+    return c.json(
+      {
+        code: "RATE_LIMIT_UNAVAILABLE",
+        message: "Rate limiting is unavailable. Please retry later.",
+      },
+      503
+    );
+  }
 
   var key =
     "rate-limit:v1:" +
@@ -87,26 +108,40 @@ export async function applyRateLimit(
     ":" +
     encodeURIComponent(input.identifier.trim().toLowerCase());
 
-  var current = await redis.incr(key);
-  if (current === 1) {
-    await redis.expire(key, input.windowSeconds);
-  }
+  try {
+    var current = await redis.incr(key);
+    if (current === 1) {
+      await redis.expire(key, input.windowSeconds);
+    }
 
-  var remaining = Math.max(input.limit - current, 0);
+    var remaining = Math.max(input.limit - current, 0);
 
-  c.header("X-RateLimit-Limit", String(input.limit));
-  c.header("X-RateLimit-Remaining", String(remaining));
+    c.header("X-RateLimit-Limit", String(input.limit));
+    c.header("X-RateLimit-Remaining", String(remaining));
 
-  if (current > input.limit) {
-    var ttl = await redis.ttl(key);
-    var retryAfter = ttl > 0 ? ttl : input.windowSeconds;
-    c.header("Retry-After", String(retryAfter));
+    if (current > input.limit) {
+      var ttl = await redis.ttl(key);
+      var retryAfter = ttl > 0 ? ttl : input.windowSeconds;
+      c.header("Retry-After", String(retryAfter));
+      return c.json(
+        {
+          code: "RATE_LIMITED",
+          message: "Too many requests. Please retry later.",
+        },
+        429
+      );
+    }
+  } catch (error) {
+    console.error("[rate-limit] redis check failed", {
+      keyPrefix: input.keyPrefix,
+      error,
+    });
     return c.json(
       {
-        code: "RATE_LIMITED",
-        message: "Too many requests. Please retry later.",
+        code: "RATE_LIMIT_UNAVAILABLE",
+        message: "Rate limiting is unavailable. Please retry later.",
       },
-      429
+      503
     );
   }
 

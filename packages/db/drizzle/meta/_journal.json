@@ -145,8 +145,127 @@
     {
       "idx": 20,
       "version": "7",
+      "when": 1782772788251,
+      "tag": "0019_notification_email_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
       "when": 1782864000000,
       "tag": "0020_chat_reaction_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1783125600000,
+      "tag": "0021_media_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1783125600001,
+      "tag": "0022_profile_follow_counters",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1783125600002,
+      "tag": "0023_counter_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1783125600003,
+      "tag": "0024_bookmark_user_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784000000000,
+      "tag": "0025_counter_job_deltas",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1784000000001,
+      "tag": "0026_film_list_entry_sort_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1784000000002,
+      "tag": "0027_chat_member_state_last_message_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1784000000003,
+      "tag": "0028_chat_dm_pair_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1784000000004,
+      "tag": "0029_bookmark_folder_item_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1784000000005,
+      "tag": "0030_profile_unsorted_bookmark_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1784000000006,
+      "tag": "0031_notifications_unread_bundle_lookup_idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784000000007,
+      "tag": "0032_profile_follow_approval_outbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1784000000008,
+      "tag": "0033_profile_stats_posts_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1784000000009,
+      "tag": "0034_chat_member_activity_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1784000000010,
+      "tag": "0035_follow_suggestions_uuid_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1784000000011,
+      "tag": "0036_username_locks",
       "breakpoints": true
     }
   ]

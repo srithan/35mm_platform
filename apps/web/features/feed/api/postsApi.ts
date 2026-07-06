@@ -124,8 +124,8 @@ export async function bookmarkPost(
   postId: string,
   token: string | null,
   folderId?: string | null
-): Promise<{ folderId: string | null }> {
-  return apiRequest<{ ok: true; folderId: string | null }>(
+): Promise<{ folderId: string | null; isBookmarked?: boolean; bookmarkCount?: number }> {
+  return apiRequest<{ ok: true; folderId: string | null; isBookmarked?: boolean; bookmarkCount?: number }>(
     `/v1/feed/posts/${encodeURIComponent(postId)}/bookmarks`,
     {
       method: "POST",
@@ -135,8 +135,11 @@ export async function bookmarkPost(
   );
 }
 
-export async function unbookmarkPost(postId: string, token: string | null): Promise<void> {
-  await apiRequest<{ ok: true }>(`/v1/feed/posts/${encodeURIComponent(postId)}/bookmarks`, {
+export async function unbookmarkPost(
+  postId: string,
+  token: string | null
+): Promise<{ isBookmarked?: boolean; bookmarkCount?: number }> {
+  return apiRequest<{ ok: true; isBookmarked?: boolean; bookmarkCount?: number }>(`/v1/feed/posts/${encodeURIComponent(postId)}/bookmarks`, {
     method: "DELETE",
     token,
   });

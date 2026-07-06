@@ -45,6 +45,7 @@ export async function apiRequest<T>(
       method: options.method ?? "GET",
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      cache: "no-store",
     });
   } catch (error) {
     throw toNetworkError(error);

@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MoreVertical, UserPlus, VolumeX, CircleSlash, Flag } from "lucide-react";
+import {
+  Flag,
+  Loader2,
+  MessageCircle,
+  MoreVertical,
+  UserPlus,
+  VolumeX,
+  CircleSlash,
+} from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/Icon/Icon";
@@ -27,9 +35,13 @@ interface ProfileHeaderProps {
   showFollowButton?: boolean;
   isOwnProfile?: boolean;
   isMutedByViewer?: boolean;
+  onMessageClick?: () => void;
+  isMessageActionPending?: boolean;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
+  role?: string | null;
+  roleContext?: string | null;
   isPrivate?: boolean;
   followerCount: number;
   followingCount: number;
@@ -50,15 +62,19 @@ export function ProfileHeader({
   location: initialLocation = "",
   website: initialWebsite = "",
   dateOfBirth: initialDateOfBirth = "",
+  role: initialRole = null,
+  roleContext: initialRoleContext = null,
 	  followerCount,
 	  followingCount,
 	  filmsLoggedCount,
 	  followState,
-	  isPrivate = false,
+  isPrivate = false,
   hasIncomingFollowRequest = false,
   showFollowButton = true,
   avatarUrl: initialAvatarUrl = null,
   onAvatarUrlChange,
+  onMessageClick,
+  isMessageActionPending = false,
 }: ProfileHeaderProps) {
   const { getToken, isLoaded } = useAuth();
   const queryClient = useQueryClient();
@@ -79,6 +95,8 @@ export function ProfileHeader({
     location: initialLocation,
     website: initialWebsite,
     dateOfBirth: initialDateOfBirth ?? "",
+    role: initialRole ?? "Cinephile",
+    roleContext: initialRoleContext ?? "",
   });
   const followToggleMutation = useFollowToggle(username);
   const blockMutation = useBlockUserMutation();
@@ -127,10 +145,22 @@ export function ProfileHeader({
       location: initialLocation ?? "",
       website: initialWebsite ?? "",
       dateOfBirth: initialDateOfBirth ?? "",
+      role: initialRole ?? "Cinephile",
+      roleContext: initialRoleContext ?? "",
     });
     setProfileImage(initialAvatarUrl);
     onAvatarUrlChange?.(initialAvatarUrl);
-  }, [initialDisplayName, username, initialBio, initialLocation, initialWebsite, initialDateOfBirth, initialAvatarUrl]);
+  }, [
+    initialDisplayName,
+    username,
+    initialBio,
+    initialLocation,
+    initialWebsite,
+    initialDateOfBirth,
+    initialRole,
+    initialRoleContext,
+    initialAvatarUrl,
+  ]);
 
   useEffect(() => {
     setIsMutedByViewer(initialIsMutedByViewer);
@@ -204,7 +234,27 @@ export function ProfileHeader({
     </Button>
   ) : (
     <>
-      <Button variant="ghost" size="sm">Message</Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        aria-label={
+          isMessageActionPending
+            ? "Opening message with " + profileData.displayName
+            : "Message " + profileData.displayName
+        }
+        className="h-9 border-border-strong bg-elevated px-4 text-[13px] font-bold text-fg shadow-[0_1px_0_rgb(15_23_42/4%)] hover:border-fg-muted hover:bg-hover"
+        disabled={Boolean(isMessageActionPending)}
+        onClick={function () {
+          onMessageClick?.();
+        }}
+      >
+        {isMessageActionPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+        ) : (
+          <MessageCircle className="h-4 w-4" strokeWidth={2} />
+        )}
+        <span>{isMessageActionPending ? "Opening" : "Message"}</span>
+      </Button>
 	      {hasIncomingFollowRequestAction ? (
 	        <>
 	          <span className="inline-flex items-center text-[12px] font-medium text-fg-muted">
@@ -445,6 +495,8 @@ export function ProfileHeader({
         initialData={{
           displayName: profileData.displayName,
           dateOfBirth: profileData.dateOfBirth,
+          role: profileData.role,
+          roleContext: profileData.roleContext,
           bio: profileData.bio,
           location: profileData.location,
           website: profileData.website,

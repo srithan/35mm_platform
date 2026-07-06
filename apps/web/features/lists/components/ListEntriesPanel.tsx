@@ -11,6 +11,9 @@ type ListEntriesPanelProps = {
   list: FilmListDetail;
   isOwner: boolean;
   isLoading?: boolean;
+  hasMoreEntries?: boolean;
+  isLoadingMoreEntries?: boolean;
+  onLoadMoreEntries?: () => void;
   onAddFilm?: (film: FilmResult) => void;
   onEditNote?: (entry: FilmListEntry) => void;
   onMoveEntry?: (entryIndex: number, direction: -1 | 1) => void;
@@ -22,6 +25,9 @@ export function ListEntriesPanel({
   list,
   isOwner,
   isLoading = false,
+  hasMoreEntries,
+  isLoadingMoreEntries,
+  onLoadMoreEntries,
   onAddFilm,
   onEditNote,
   onMoveEntry,
@@ -110,6 +116,18 @@ export function ListEntriesPanel({
               </div>
             );
           })}
+          {hasMoreEntries ? (
+            <button
+              type="button"
+              disabled={isLoadingMoreEntries}
+              onClick={function () {
+                if (!isLoadingMoreEntries) onLoadMoreEntries?.();
+              }}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-[12px] font-medium text-fg-muted transition-colors hover:bg-hover/30 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoadingMoreEntries ? "Loading more films..." : "Load more films"}
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-sunken/40 px-4 py-8 text-center text-[13px] text-fg-muted">

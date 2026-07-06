@@ -11,6 +11,7 @@ import { useIsDesktopMd } from "@/lib/hooks/useIsDesktopMd";
 
 interface ChatDetailPageProps {
   chatId: string;
+  discardDraftIfNoMessages?: boolean;
 }
 
 function fallbackChat(chatId: string): ChatPreview {
@@ -27,7 +28,10 @@ function fallbackChat(chatId: string): ChatPreview {
   };
 }
 
-export function ChatDetailPage({ chatId }: ChatDetailPageProps) {
+export function ChatDetailPage({
+  chatId,
+  discardDraftIfNoMessages = false,
+}: ChatDetailPageProps) {
   const isDesktop = useIsDesktopMd();
   const [threadSearch, setThreadSearch] = useState("");
   const [threadSearchPanelOpen, setThreadSearchPanelOpen] = useState(false);
@@ -56,7 +60,10 @@ export function ChatDetailPage({ chatId }: ChatDetailPageProps) {
   if (isDesktop) {
     return (
       <div className="h-full">
-        <ChatContent selectedId={chat.id} />
+        <ChatContent
+          selectedId={chat.id}
+          discardDraftIfNoMessages={discardDraftIfNoMessages}
+        />
       </div>
     );
   }
@@ -89,6 +96,7 @@ export function ChatDetailPage({ chatId }: ChatDetailPageProps) {
           conversationLoading={conversationLoading}
           hideHeader
           fixedInputOnMobile
+          discardDraftIfNoMessages={discardDraftIfNoMessages}
           threadSearchQuery={threadSearch}
           onThreadSearchQueryChange={setThreadSearch}
         />

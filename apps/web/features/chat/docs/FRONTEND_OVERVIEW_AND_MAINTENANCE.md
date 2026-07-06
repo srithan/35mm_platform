@@ -25,7 +25,8 @@ This document is for **frontend engineers** and **maintainers** of the 35mm chat
 
 The chat module provides:
 
-- **Desktop:** split view — conversation list + active thread (`ChatContent`), or full thread on `/chat/[chatId]`.
+- **Desktop:** split view — conversation list + active thread (`ChatContent`), full thread on `/chat/[chatId]`, plus a global bottom-right floating inbox for signed-in users to read and reply without leaving the current route.
+- **Desktop new message:** **`NewChatProvider`** owns an ephemeral draft state. Clicking **New message** inserts a selected **New Message** row in **`ChatList`** and swaps the thread header for **`NewChatRecipientBar`**. No conversation is persisted until a contact is selected and **`useCreateConversation`** succeeds.
 - **Mobile:** list + tabs (**All / Requests / Archived**) on `/chat`, and thread view with **`ChatMobileHeader`** + **`ChatConversation`** on `/chat/[chatId]`.
 - **Behaviors:** send text, replies, reactions, GIFs (Tenor), lightweight file/image payloads in mock, archive/unarchive, delete message (own), delete conversation, in-thread search, jump-to-quoted message, read receipts (mock), message-request row (**`isPendingRequest`**).
 
@@ -72,7 +73,7 @@ The chat module provides:
 | `features/chat/hooks/` | **`useChatQueries.ts`**, **`chatQueryDefaults.ts`** |
 | `features/chat/lib/` | **`queryKeys.ts`**, **`formatChatTime.ts`** |
 | `features/chat/realtime/` | Transport interface, noop impl, **`applyChatRealtimeEvent`**, provider |
-| `features/chat/context/` | **`ChatSidebarContext`** — shared desktop rail collapse |
+| `features/chat/context/` | **`ChatSidebarContext`** — shared desktop rail collapse; **`NewChatContext`** — desktop draft compose and mobile modal state |
 | `features/chat/components/` | All React UI for chat |
 | `features/chat/types.ts` | Shared **ChatPreview**, **ChatMessage**, **ChatSendPayload**, etc. |
 | `features/chat/index.ts` | Public re-exports for app-level wiring |
@@ -115,7 +116,7 @@ The chat module provides:
 | **`useChatUnreadBadgeCount()`** | Sums unread counts from inbox + request previews for the desktop site header Messages badge. |
 | **`useChatMessages(chatId)`** | Initial message window (`direction: before`, no cursor). |
 | **`useChatMessagesInfinite(chatId)`** | Infinite query for older pages (UI can adopt later). |
-| **`useSendMessage`** | Idempotency key on send; invalidates messages + all conversation folders. |
+| **`useSendMessage`** | Idempotency key on send; optimistically patches messages and cached conversation previews, moves the active row to the top, then invalidates conversation folders for server reconciliation. |
 | **`useEditMessage`** | Calls the backend edit route, patches message caches, and invalidates conversation folders. |
 | **`useToggleReaction`**, **`useDeleteMessage`** | Message-level mutations; deletes remove messages from local caches immediately. |
 | **`useMarkConversationRead`** | Clears unread (mock); invalidates lists. |
@@ -142,10 +143,12 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 
 | Component | Responsibility |
 | --------- | -------------- |
-| **`ChatContent`** | Grid: **`ChatList`** + **`ChatConversation`**. Resolves selected thread metadata through **`useConversationRow(selectedId)`**. |
-| **`ChatList`** | Folders (desktop), search, collapse, links to **`ROUTES.CHAT_WITH(id)`**, avatar URLs, loading skeleton rows. Data from **`useConversationsByUiFilter`**. |
+| **`ChatContent`** | Grid: **`ChatList`** + **`ChatConversation`**. Resolves selected thread metadata through **`useConversationRow(selectedId)`** unless desktop new-message draft is active. |
+| **`FloatingChatInbox`** | Global desktop inbox mounted from **`app/providers.tsx`** and hidden on `/chat`. Shows a collapsed unread pill, expands into searchable Inbox/Archived rows with activity dots and row archive/delete menus, includes compact new-message contact search backed by **`useChatContactCandidates`** + **`useCreateConversation`**, links thread header identity to profiles with active-status indicators, and embeds **`ChatConversation`** for inline replies without routing. |
+| **`ChatList`** | Folders (desktop), search, collapse, desktop **New Message** draft row, links to **`ROUTES.CHAT_WITH(id)`**, avatar URLs, loading skeleton rows. Data from **`useConversationsByUiFilter`**. |
 | **`ChatPageMobile`** | Top search, tabs, embeds **`ChatList`** with `showHeader={false}` and `conversationFilter` from tab. |
 | **`ChatConversation`** | Thread header (desktop), header skeleton, scroll region, **`ChatMessageList`**, **`ChatComposer`**, typing publishes, mutations, delete/archive dialogs. |
+| **`NewChatRecipientBar`** | Desktop new-message header with **To:** recipient search, bounded contact suggestions from **`useChatContactCandidates`**, and **`useCreateConversation`** on selection. |
 | **`ChatMessageList`** | Text bubbles, standalone attachment media/cards, avatars, reactions toolbar, anchored inline more menu, copy feedback, image lightbox, day separators, jump highlight, typing bubble, and seen indicators. |
 | **`ChatComposer`** | Textarea, attachments, Tenor, emoji panel, reply strip, composer-based edit mode, typing input callbacks. |
 | **`ChatHeaderMoreMenu`** | Thread-level menu (portaled, fixed position). |
@@ -163,6 +166,8 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 
 - List folder (desktop) when not controlled by parent.
 - Composer focus, reply target, thread search open/query, header toasts, dialog open flags.
+- New-message draft: **`NewChatProvider`** keeps `draftOpen` + `recipientQuery`; it is UI-only and intentionally not cached or persisted.
+- Floating inbox: local `open` + `selectedId`; selected thread is lifted to **`app/providers.tsx`** so **`ChatRealtimeProvider`** can subscribe to the thread while the user stays off `/chat`.
 - **`ChatContent`:** reads sidebar collapse from **`useChatSidebar()`** (provider in **`app/providers.tsx`**).
 
 **URL:** `chatId` from route drives **`selectedId`** on desktop detail layout.
@@ -171,7 +176,9 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 
 ## 8. Theming and polish
 
-- Uses app tokens: **`bg-bg`**, **`text-fg`**, **`border-border`**, **`bg-elevated`**, **`bg-sunken`**, **`bg-hover`**, iMessage blue **`#007AFF`** / **`#0A84FF`** for sent bubbles.
+- Uses app tokens: **`bg-bg`**, **`text-fg`**, **`border-border`**, **`bg-elevated`**, **`bg-sunken`**, and **`bg-hover`** for neutral chrome.
+- Chat-specific color uses dedicated CSS tokens from **`app/globals.css`**: **`--chat-accent`**, **`--chat-accent-bg`**, **`--chat-accent-border`**, **`--chat-accent-ring`**, **`--chat-own-bubble`**, and **`--chat-own-fg`**. Light/dark resolve those tokens to Messenger-style blue, while Matrix, Oppenheimer, and Barbie override them to stay theme-native.
+- Floating chat chrome and chat search fields use dedicated CSS tokens from **`app/globals.css`**: **`--chat-floating-bg`**, **`--chat-floating-border`**, **`--chat-search-bg`**, **`--chat-search-border`**, and **`--chat-focus-ring`**. Keep new floating-chat/search surfaces on those tokens so dark, Matrix, Oppenheimer, and Barbie themes stay legible.
 - **`select-none`** on list chrome and headers; inputs use **`select-text`**.
 - Menus: prefer **solid `bg-elevated`** (avoid heavy backdrop blur on small dropdowns).
 
@@ -180,9 +187,9 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 ## 9. Realtime layer
 
 - **`ChatRealtimeProvider`** wraps the app (inside **`QueryClientProvider`**).
-- When **`NEXT_PUBLIC_ABLY_API_KEY`** and a signed-in user are available, the provider subscribes to Ably **`user:{userId}:inbox`** and the active **`thread:{threadId}`** route channel.
+- When **`NEXT_PUBLIC_ABLY_API_KEY`** and a signed-in user are available, the provider subscribes to Ably **`user:{userId}:inbox`** and the active **`thread:{threadId}`** channel. The active thread is the route thread when on `/chat/[chatId]`, otherwise the selected floating-inbox thread.
 - If Ably is not configured in the web app, the provider falls back to **noop**.
-- API/worker events are translated into **`ChatRealtimeEvent`** shapes — **`applyChatRealtimeEvent`** patches message caches, inbox preview rows, and unread counts, then invalidates conversation lists. The API is the latency path for new message, typing, read receipt, and small-conversation inbox events; worker jobs remain fallback/asynchronous paths for failures, large inbox fanout, and message updates. The provider also keeps ephemeral typing/read receipt state for **`useChatTypingUsers`** and **`useChatReadReceipt`**, and sends throttled presence heartbeats while signed in. Chat headers and visible list rows batch-read member presence for online, active-ago, and offline labels/dots; presence cache is not persisted. Read receipt snapshots use stale React Query reads without an interval, typing snapshot fallback is development-only when realtime is not configured, and the desktop site header Messages badge reads conversation caches so inbox updates can surface while users are elsewhere in the app.
+- API/worker events are translated into **`ChatRealtimeEvent`** shapes — **`applyChatRealtimeEvent`** patches message caches, inbox preview rows, unread counts, and cached row ordering, then invalidates conversation lists. The API is the latency path for new message, typing, read receipt, and small-conversation inbox events; worker jobs remain fallback/asynchronous paths for failures, large inbox fanout, and message updates. The provider also keeps ephemeral typing/read receipt state for **`useChatTypingUsers`** and **`useChatReadReceipt`**, and sends throttled presence heartbeats while signed in. Chat headers and visible list rows batch-read member presence for online, active-ago, and offline labels/dots; presence cache is not persisted. Read receipt snapshots use stale React Query reads without an interval, typing snapshot fallback is development-only when realtime is not configured, and the desktop site header Messages badge reads conversation caches so inbox updates can surface while users are elsewhere in the app.
 
 **Dev-only:** **`useChatRealtime().emitDevEvent`** (if exposed in dev) can simulate events.
 
