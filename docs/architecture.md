@@ -1,7 +1,7 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-07-04
+> Last updated: 2026-07-06
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
 
@@ -15,6 +15,7 @@ Target scale: 35M+ users. Architecture decisions should preserve cursor paginati
 35mm_platform/
 ├── apps/
 │   ├── web/       Next.js 15 App Router web app
+│   ├── studio/    Next.js internal admin/content operations app
 │   ├── api/       Hono REST API
 │   ├── worker/    BullMQ background worker
 │   └── ios/       SwiftUI iOS app
@@ -31,6 +32,7 @@ Target scale: 35M+ users. Architecture decisions should preserve cursor paginati
 Deploy targets:
 
 - `apps/web`: Vercel.
+- `apps/studio`: internal Next.js admin deployment, isolated from the public web app.
 - `apps/api`: Vercel or dedicated Node host.
 - `apps/worker`: long-running Node process.
 - `packages/db`: not deployed directly; consumed by API and worker.
@@ -39,8 +41,9 @@ Root commands:
 
 ```bash
 pnpm dev        # web + API only; avoids idle BullMQ polling against shared Upstash Redis
-pnpm dev:all    # web + API + worker
+pnpm dev:all    # web + Studio + API + worker
 pnpm dev:web
+pnpm dev:studio
 pnpm dev:api
 pnpm dev:worker
 pnpm build
@@ -78,6 +81,20 @@ Design conventions:
 - Shell layout is a left nav, center content, and right rail.
 - Server state belongs in React Query. Do not mirror DB-backed state in Zustand.
 - Query key factories live in feature folders. Do not use ad hoc query strings.
+
+### Studio: `apps/studio`
+
+| Concern | Choice |
+|---|---|
+| Framework | Next.js App Router |
+| Purpose | Internal platform/content operations |
+| Auth | Dedicated Clerk app configuration |
+| Server state | TanStack Query |
+| Client/UI state | Zustand and local component state |
+| Forms | React Hook Form + Zod through standard-schema resolver |
+| Styling | Tailwind CSS with shadcn-style primitives |
+
+Studio is a separate internal workspace from the public web app. It exposes operational surfaces for films, shelves, users, username locks, infrastructure, queues, moderation, and API reference pages. Username lock routes rely on the shared Drizzle schema and require the `0036_username_locks` migration in environments where lock management is enabled.
 
 ### API: `apps/api`
 
@@ -169,6 +186,7 @@ Current implementation:
 ```mermaid
 flowchart LR
   Browser["Browser / Next.js app"]
+  Studio["Studio / internal admin app"]
   NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
   Hono["Hono API\napps/api"]
   Clerk["Clerk auth"]
@@ -180,6 +198,8 @@ flowchart LR
   TMDB["TMDB\nfallback metadata"]
 
   Browser -->|React Query fetch| Hono
+  Studio -->|admin fetch| Hono
+  Studio -->|direct operational reads/writes| Neon
   Browser -->|server route proxy| NextApi
   NextApi --> TMDB
   Hono --> Clerk
@@ -232,6 +252,14 @@ Source of truth: `packages/db/src/schema/*`.
 - Favorite film IDs and genre IDs arrays.
 - Private account flag.
 - Denormalized `films_logged_count`.
+
+`username_locks`
+
+- Text primary key `username`, stored lowercase.
+- `state`: `locked | reserved`.
+- `owner`, `reason`, and timestamps for Studio-managed operational context.
+- Check constraints enforce lowercase usernames and the allowed state set.
+- API username availability and profile rename paths consult this table in addition to existing profile usernames and the shared reserved-name list.
 
 `user_settings`
 
@@ -984,6 +1012,16 @@ NEXT_PUBLIC_ABLY_API_KEY=
 NEXT_PUBLIC_CHAT_API_MODE=
 NEXT_PUBLIC_CHAT_API_URL=
 NEXT_PUBLIC_TENOR_API_KEY=
+```
+
+Studio:
+
+```env
+NEXT_PUBLIC_TMDB_API_KEY=
+NEXT_PUBLIC_OMDB_API_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+DATABASE_URL=
 ```
 
 iOS xcconfig:

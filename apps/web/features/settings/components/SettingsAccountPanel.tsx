@@ -7,7 +7,7 @@ import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import { cn } from "@/lib/utils/cn";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import {
   profileSettingsSchema,
   type ProfileSettingsFormValues,
@@ -48,7 +48,7 @@ export function SettingsAccountPanel({
     handleSubmit,
     formState: { errors, isDirty, isValid, isSubmitting },
   } = useForm<ProfileSettingsFormValues>({
-    resolver: zodResolver(profileSettingsSchema),
+    resolver: standardSchemaResolver(profileSettingsSchema),
     defaultValues: initialValues,
     mode: "onChange",
   });
@@ -66,7 +66,8 @@ export function SettingsAccountPanel({
   const usernameValue = watch("username");
   const normalizedInitialUsername = initialValues.username.trim().toLowerCase();
   const normalizedUsername = usernameValue.trim().toLowerCase();
-  const usernameMessageId = "settings-username-status";
+  const usernameFieldId = "settings-profile-handle";
+  const usernameMessageId = "settings-profile-handle-status";
   const usernameError = errors.username?.message;
   const usernameChanged = normalizedUsername !== normalizedInitialUsername;
   const canSaveUsername =
@@ -158,7 +159,7 @@ export function SettingsAccountPanel({
           <div className="border-b border-border py-4 last:border-b-0 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-start sm:gap-5">
             <label
               className="block text-[12.5px] font-medium text-fg-light sm:pt-3"
-              htmlFor="settings-username"
+              htmlFor={usernameFieldId}
             >
               Username
             </label>
@@ -192,11 +193,17 @@ export function SettingsAccountPanel({
                   35mm/
                 </span>
                 <input
-                  id="settings-username"
+                  id={usernameFieldId}
                   type="text"
                   value={usernameValue}
                   placeholder="username"
-                  autoComplete="username"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
                   onChange={(event) =>
                     setValue("username", event.target.value, {
                       shouldDirty: true,

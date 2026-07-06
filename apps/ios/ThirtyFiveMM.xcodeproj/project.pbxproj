@@ -66,6 +66,15 @@
 		A00000000000000000000039 /* ChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003A /* ChatThreadView.swift */; };
 		A0000000000000000000003A /* ChatMediaUploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003B /* ChatMediaUploadClient.swift */; };
 		A0000000000000000000003B /* ChatComposerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003C /* ChatComposerModels.swift */; };
+		A0000000000000000000003C /* NotificationsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003D /* NotificationsViewModel.swift */; };
+		A0000000000000000000003D /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003E /* NotificationsView.swift */; };
+		A00000000000000000000040 /* BookmarkFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000040 /* BookmarkFolder.swift */; };
+		A00000000000000000000041 /* BookmarksViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000041 /* BookmarksViewModel.swift */; };
+		A00000000000000000000042 /* BookmarksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000042 /* BookmarksView.swift */; };
+		A00000000000000000000043 /* SettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000043 /* SettingsModels.swift */; };
+		A00000000000000000000044 /* SettingsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* SettingsAPI.swift */; };
+		A00000000000000000000045 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* SettingsViewModel.swift */; };
+		A00000000000000000000046 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -139,6 +148,15 @@
 		B0000000000000000000003A /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadView.swift; sourceTree = "<group>"; };
 		B0000000000000000000003B /* ChatMediaUploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMediaUploadClient.swift; sourceTree = "<group>"; };
 		B0000000000000000000003C /* ChatComposerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposerModels.swift; sourceTree = "<group>"; };
+		B0000000000000000000003D /* NotificationsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsViewModel.swift; sourceTree = "<group>"; };
+		B0000000000000000000003E /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		B00000000000000000000040 /* BookmarkFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFolder.swift; sourceTree = "<group>"; };
+		B00000000000000000000041 /* BookmarksViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksViewModel.swift; sourceTree = "<group>"; };
+		B00000000000000000000042 /* BookmarksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksView.swift; sourceTree = "<group>"; };
+		B00000000000000000000043 /* SettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModels.swift; sourceTree = "<group>"; };
+		B00000000000000000000044 /* SettingsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAPI.swift; sourceTree = "<group>"; };
+		B00000000000000000000045 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		B00000000000000000000046 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -243,6 +261,7 @@
 				B00000000000000000000027 /* CommentNode.swift */,
 				B00000000000000000000031 /* Chat.swift */,
 				B00000000000000000000012 /* PaginatedResponse.swift */,
+				B00000000000000000000040 /* BookmarkFolder.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -264,8 +283,11 @@
 				D0000000000000000000000B /* Auth */,
 				D0000000000000000000000C /* Onboarding */,
 				D00000000000000000000013 /* Feed */,
+				D00000000000000000000018 /* Bookmarks */,
 				D00000000000000000000014 /* Post */,
 				D00000000000000000000015 /* Chat */,
+				D00000000000000000000017 /* Notifications */,
+				D00000000000000000000019 /* Settings */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -355,6 +377,35 @@
 				B0000000000000000000003A /* ChatThreadView.swift */,
 			);
 			path = Chat;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000017 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				B0000000000000000000003D /* NotificationsViewModel.swift */,
+				B0000000000000000000003E /* NotificationsView.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000018 /* Bookmarks */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000041 /* BookmarksViewModel.swift */,
+				B00000000000000000000042 /* BookmarksView.swift */,
+			);
+			path = Bookmarks;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000019 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000043 /* SettingsModels.swift */,
+				B00000000000000000000044 /* SettingsAPI.swift */,
+				B00000000000000000000045 /* SettingsViewModel.swift */,
+				B00000000000000000000046 /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		D00000000000000000000016 /* ThirtyFiveMMTests */ = {
@@ -530,6 +581,15 @@
 				A00000000000000000000036 /* ChatInboxView.swift in Sources */,
 				A00000000000000000000038 /* ChatThreadViewModel.swift in Sources */,
 				A00000000000000000000039 /* ChatThreadView.swift in Sources */,
+				A0000000000000000000003C /* NotificationsViewModel.swift in Sources */,
+				A0000000000000000000003D /* NotificationsView.swift in Sources */,
+				A00000000000000000000040 /* BookmarkFolder.swift in Sources */,
+				A00000000000000000000041 /* BookmarksViewModel.swift in Sources */,
+				A00000000000000000000042 /* BookmarksView.swift in Sources */,
+				A00000000000000000000043 /* SettingsModels.swift in Sources */,
+				A00000000000000000000044 /* SettingsAPI.swift in Sources */,
+				A00000000000000000000045 /* SettingsViewModel.swift in Sources */,
+				A00000000000000000000046 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

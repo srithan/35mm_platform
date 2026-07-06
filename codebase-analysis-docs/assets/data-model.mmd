@@ -33,3 +33,11 @@ erDiagram
   chat_threads ||--o{ chat_member_state : has
   users ||--o{ chat_member_state : configures
   chat_threads ||--|| chat_thread_meta : summarizes
+  username_locks {
+    string username PK
+    string state
+    string owner
+    string reason
+    timestamp created_at
+    timestamp updated_at
+  }

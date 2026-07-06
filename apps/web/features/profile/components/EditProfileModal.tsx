@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
 import { Avatar } from "@/components/Avatar";
@@ -213,7 +213,7 @@ export function EditProfileModal({
     control,
     formState: { errors, isDirty, isSubmitting, isValid },
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
+    resolver: standardSchemaResolver(profileSchema),
     defaultValues: normalizeInitialValues(initialData),
     mode: "onChange",
   });

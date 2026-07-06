@@ -40,7 +40,8 @@ struct MainTabView: View {
         ProfileSidebar(
           profile: profile,
           profileLoadError: profileLoadError,
-          width: sidebarWidth
+          width: sidebarWidth,
+          onItemTapped: handleProfileSidebarItem
         )
         .offset(x: isShowingProfileSidebar ? 0 : -sidebarWidth)
         .allowsHitTesting(isShowingProfileSidebar)
@@ -101,7 +102,7 @@ struct MainTabView: View {
             openMessages(in: .activity)
           }
         ) {
-          AppTabPlaceholder(message: "Notifications - coming soon")
+          NotificationsView(apiClient: env.apiClient)
         }
         .navigationDestination(for: AppRoute.self) { route in
           destination(for: route)
@@ -140,11 +141,32 @@ struct MainTabView: View {
     case .messages:
       if let currentUserId {
         ChatInboxView(apiClient: env.apiClient, currentUserId: currentUserId)
-          .toolbar(.hidden, for: .tabBar)
       } else {
         ProgressView()
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
+    case .sidebarItem(let item):
+      sidebarDestination(for: item)
+    }
+  }
+
+  @ViewBuilder
+  private func sidebarDestination(for item: ProfileSidebarItem) -> some View {
+    switch item {
+    case .bookmarks:
+      BookmarksView(apiClient: env.apiClient)
+    case .settings:
+      SettingsView(apiClient: env.apiClient, authManager: env.authManager, profile: profile)
+    case .notifications:
+      NotificationsView(apiClient: env.apiClient)
+    case .messages:
+      if let currentUserId {
+        ChatInboxView(apiClient: env.apiClient, currentUserId: currentUserId)
+      } else {
+        SidebarPageView(item: item, profile: profile)
+      }
+    case .profile, .discover, .shortFilms, .lists, .diary, .drafts, .help:
+      SidebarPageView(item: item, profile: profile)
     }
   }
 
@@ -180,6 +202,39 @@ struct MainTabView: View {
       activityPath.append(.messages)
     case .create:
       break
+    }
+  }
+
+  private func handleProfileSidebarItem(_ item: ProfileSidebarItem) {
+    switch item {
+    case .messages:
+      openMessages(in: selectedTab == .create ? .home : selectedTab)
+    case .notifications:
+      closeProfileSidebar()
+      selectedTab = .activity
+      showTabBar()
+    case .profile, .discover, .shortFilms, .bookmarks, .lists, .diary, .drafts, .settings, .help:
+      pushSidebarItem(item)
+    }
+  }
+
+  private func showTabBar() {
+    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+      isTabBarVisible = true
+    }
+  }
+
+  private func pushSidebarItem(_ item: ProfileSidebarItem) {
+    closeProfileSidebar()
+
+    switch selectedTab {
+    case .home:
+      homePath.append(.sidebarItem(item))
+    case .activity:
+      activityPath.append(.sidebarItem(item))
+    case .create:
+      selectedTab = .home
+      homePath.append(.sidebarItem(item))
     }
   }
 
@@ -224,6 +279,219 @@ private enum AppHeaderTitle: Equatable {
 
 private enum AppRoute: Hashable {
   case messages
+  case sidebarItem(ProfileSidebarItem)
+}
+
+private enum ProfileSidebarItem: String, CaseIterable, Identifiable {
+  case profile
+  case discover
+  case shortFilms
+  case bookmarks
+  case lists
+  case diary
+  case drafts
+  case messages
+  case notifications
+  case settings
+  case help
+
+  var id: String { rawValue }
+
+  static let primaryItems: [ProfileSidebarItem] = [
+    .profile,
+    .discover,
+    .shortFilms,
+    .bookmarks,
+    .lists,
+    .diary,
+    .drafts
+  ]
+
+  static let secondaryItems: [ProfileSidebarItem] = [
+    .messages,
+    .notifications,
+    .settings,
+    .help
+  ]
+
+  var title: String {
+    switch self {
+    case .profile:
+      return "Profile"
+    case .discover:
+      return "Discover"
+    case .shortFilms:
+      return "Short Films"
+    case .bookmarks:
+      return "Bookmarks"
+    case .lists:
+      return "Lists"
+    case .diary:
+      return "Diary"
+    case .drafts:
+      return "Drafts"
+    case .messages:
+      return "Chat"
+    case .notifications:
+      return "Notifications"
+    case .settings:
+      return "Settings and privacy"
+    case .help:
+      return "Help"
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .profile:
+      return "person"
+    case .discover:
+      return "sparkles"
+    case .shortFilms:
+      return "play.rectangle"
+    case .bookmarks:
+      return "bookmark"
+    case .lists:
+      return "rectangle.on.rectangle"
+    case .diary:
+      return "calendar"
+    case .drafts:
+      return "doc.text"
+    case .messages:
+      return "bubble.left.and.bubble.right"
+    case .notifications:
+      return "bell"
+    case .settings:
+      return "gearshape"
+    case .help:
+      return "questionmark.circle"
+    }
+  }
+}
+
+private struct SidebarPageView: View {
+  let item: ProfileSidebarItem
+  let profile: UserProfile?
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 22) {
+        HStack(spacing: 14) {
+          Image(systemName: item.systemImage)
+            .font(.system(size: 22, weight: .bold))
+            .foregroundStyle(Color(.label))
+            .frame(width: 46, height: 46)
+            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+          VStack(alignment: .leading, spacing: 4) {
+            Text(item.title)
+              .font(.system(size: 28, weight: .black, design: .rounded))
+              .foregroundStyle(Color(.label))
+              .lineLimit(1)
+              .minimumScaleFactor(0.78)
+
+            if let subtitle {
+              Text(subtitle)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(.secondaryLabel))
+                .lineLimit(2)
+            }
+          }
+        }
+
+        content
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(22)
+    }
+    .background(Color(.systemBackground))
+    .navigationTitle(item.title)
+    .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private var subtitle: String? {
+    switch item {
+    case .profile:
+      return profileHandle
+    case .discover:
+      return "Explore films, people, and conversations."
+    case .shortFilms:
+      return "Browse shorts and filmmaker uploads."
+    case .lists:
+      return "Your film lists."
+    case .diary:
+      return "Your logged watches."
+    case .drafts:
+      return "Posts you have not published."
+    case .help:
+      return "Support and product help."
+    case .messages:
+      return "Sign in to use chat."
+    case .bookmarks, .notifications, .settings:
+      return nil
+    }
+  }
+
+  @ViewBuilder
+  private var content: some View {
+    switch item {
+    case .profile:
+      profileContent
+    default:
+      EmptyStateCard(title: item.title, systemImage: item.systemImage)
+    }
+  }
+
+  private var profileHandle: String? {
+    guard let username = profile?.username, !username.isEmpty else {
+      return nil
+    }
+
+    return "@\(username)"
+  }
+
+  private var profileContent: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(profile?.displayName ?? profile?.username ?? "Profile")
+        .font(.system(size: 20, weight: .black, design: .rounded))
+        .foregroundStyle(Color(.label))
+
+      if let roleContext = profile?.roleContext, !roleContext.isEmpty {
+        Text(roleContext)
+          .font(.system(size: 15, weight: .semibold, design: .rounded))
+          .foregroundStyle(Color(.secondaryLabel))
+      }
+
+      if let filmsLoggedCount = profile?.filmsLoggedCount {
+        Text("\(filmsLoggedCount.compactFormatted) films logged")
+          .font(.system(size: 15, weight: .semibold, design: .rounded))
+          .foregroundStyle(Color(.secondaryLabel))
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(18)
+    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+  }
+}
+
+private struct EmptyStateCard: View {
+  let title: String
+  let systemImage: String
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Image(systemName: systemImage)
+        .font(.system(size: 26, weight: .bold))
+        .foregroundStyle(Color(.secondaryLabel))
+
+      Text(title)
+        .font(.system(size: 18, weight: .black, design: .rounded))
+        .foregroundStyle(Color(.label))
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(18)
+    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+  }
 }
 
 private struct AppTabRootScreen<Content: View>: View {
@@ -369,6 +637,7 @@ private struct ProfileSidebar: View {
   let profile: UserProfile?
   let profileLoadError: String?
   let width: CGFloat
+  let onItemTapped: (ProfileSidebarItem) -> Void
 
   private var displayName: String {
     let trimmed = profile?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -434,14 +703,14 @@ private struct ProfileSidebar: View {
       .padding(.bottom, 22)
 
       VStack(alignment: .leading, spacing: 0) {
-        ProfileSidebarRow(systemImage: "person", title: "Profile")
-        ProfileSidebarRow(systemImage: "seal", title: "Premium")
-        ProfileSidebarRow(systemImage: "bookmark", title: "History")
-        ProfileSidebarRow(systemImage: "person.2", title: "Communities")
-        ProfileSidebarRow(systemImage: "arrow.down.to.line", title: "Offline")
-        ProfileSidebarRow(systemImage: "rectangle.on.rectangle", title: "Lists")
-        ProfileSidebarRow(systemImage: "mic.circle", title: "Spaces")
-        ProfileSidebarRow(systemImage: "paperplane", title: "Creator Studio")
+        ForEach(ProfileSidebarItem.primaryItems) { item in
+          Button {
+            onItemTapped(item)
+          } label: {
+            ProfileSidebarRow(systemImage: item.systemImage, title: item.title)
+          }
+          .buttonStyle(.plain)
+        }
       }
       .padding(.horizontal, 22)
 
@@ -450,8 +719,14 @@ private struct ProfileSidebar: View {
         .padding(.vertical, 18)
 
       VStack(alignment: .leading, spacing: 0) {
-        ProfileSidebarRow(systemImage: "gearshape", title: "Settings and privacy", size: .compact)
-        ProfileSidebarRow(systemImage: "questionmark.circle", title: "Help Center", size: .compact)
+        ForEach(ProfileSidebarItem.secondaryItems) { item in
+          Button {
+            onItemTapped(item)
+          } label: {
+            ProfileSidebarRow(systemImage: item.systemImage, title: item.title, size: .compact)
+          }
+          .buttonStyle(.plain)
+        }
       }
       .padding(.horizontal, 22)
 

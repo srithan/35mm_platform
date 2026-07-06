@@ -56,6 +56,38 @@ extension APIEndpoint {
     return APIEndpoint(path: "/v1/feed", method: .get, queryItems: queryItems)
   }
 
+  static func getBookmarks(cursor: String?, limit: Int, folderId: String?) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    if let folderId {
+      queryItems.append(URLQueryItem(name: "folderId", value: folderId))
+    }
+
+    return APIEndpoint(path: "/v1/feed/bookmarks", method: .get, queryItems: queryItems)
+  }
+
+  static func getBookmarkFolders() -> APIEndpoint {
+    APIEndpoint(path: "/v1/feed/bookmarks/folders", method: .get)
+  }
+
+  static func createBookmarkFolder(name: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/feed/bookmarks/folders", method: .post, body: BookmarkFolderNameRequest(name: name))
+  }
+
+  static func updateBookmarkFolder(folderId: String, name: String) -> APIEndpoint {
+    APIEndpoint(
+      path: "/v1/feed/bookmarks/folders/\(folderId)",
+      method: .patch,
+      body: BookmarkFolderNameRequest(name: name)
+    )
+  }
+
+  static func deleteBookmarkFolder(folderId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/feed/bookmarks/folders/\(folderId)", method: .delete)
+  }
+
   static func getPost(_ postId: String) -> APIEndpoint {
     APIEndpoint(path: "/v1/feed/posts/\(postId)", method: .get)
   }
@@ -82,6 +114,14 @@ extension APIEndpoint {
 
   static func unbookmarkPost(_ postId: String) -> APIEndpoint {
     APIEndpoint(path: "/v1/feed/posts/\(postId)/bookmarks", method: .delete)
+  }
+
+  static func assignBookmark(postId: String, folderId: String?) -> APIEndpoint {
+    APIEndpoint(
+      path: "/v1/feed/posts/\(postId)/bookmarks",
+      method: .patch,
+      body: BookmarkFolderAssignRequest(folderId: folderId)
+    )
   }
 
   static func votePoll(postId: String, optionIds: [String]) -> APIEndpoint {
@@ -120,6 +160,47 @@ extension APIEndpoint {
   static func unlikeComment(postId: String, commentId: String) -> APIEndpoint {
     APIEndpoint(path: "/v1/feed/posts/\(postId)/comments/\(commentId)/likes", method: .delete)
   }
+
+  static func getNotifications(cursor: String?, limit: Int, unreadOnly: Bool) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    if unreadOnly {
+      queryItems.append(URLQueryItem(name: "unreadOnly", value: "true"))
+    }
+
+    return APIEndpoint(path: "/v1/me/notifications", method: .get, queryItems: queryItems)
+  }
+
+  static func markNotificationRead(_ notificationId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/me/notifications/\(notificationId)/read", method: .patch)
+  }
+
+  static func markNotificationUnread(_ notificationId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/me/notifications/\(notificationId)/unread", method: .patch)
+  }
+
+  static func markAllNotificationsRead() -> APIEndpoint {
+    APIEndpoint(path: "/v1/me/notifications/read-all", method: .post)
+  }
+
+  static func getFollowRequests(cursor: String?, limit: Int) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+
+    return APIEndpoint(path: "/v1/follows/requests/received", method: .get, queryItems: queryItems)
+  }
+
+  static func acceptFollowRequest(_ requesterId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/follows/\(requesterId)/accept", method: .post)
+  }
+
+  static func declineFollowRequest(_ requesterId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/follows/\(requesterId)/request", method: .delete)
+  }
 }
 
 struct AnyEncodable: Encodable {
@@ -141,6 +222,14 @@ private struct CreateCommentRequest: Encodable {
 
 private struct VotePollRequest: Encodable {
   let optionIds: [String]
+}
+
+private struct BookmarkFolderNameRequest: Encodable {
+  let name: String
+}
+
+private struct BookmarkFolderAssignRequest: Encodable {
+  let folderId: String?
 }
 
 struct SubmitOnboardingRequest: Encodable {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -107,7 +107,7 @@ export function SettingsMediaPanel({
     reset,
     getValues,
   } = useForm<MediaSettingsFormValues>({
-    resolver: zodResolver(mediaSettingsSchema),
+    resolver: standardSchemaResolver(mediaSettingsSchema),
     defaultValues: initialValues,
   });
 

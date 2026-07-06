@@ -599,6 +599,22 @@ async function getThreadPreview(threadId: string, viewerId: string): Promise<Cha
   };
 }
 
+async function restoreDeletedThreadForMembers(threadId: string, userIds: string[]): Promise<void> {
+  var uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueUserIds.length === 0) return;
+  await getDb()
+    .insert(chatMemberState)
+    .values(
+      uniqueUserIds.map(function (userId) {
+        return { threadId, userId, deletedAt: null };
+      })
+    )
+    .onConflictDoUpdate({
+      target: [chatMemberState.threadId, chatMemberState.userId],
+      set: { deletedAt: null },
+    });
+}
+
 async function fetchMessage(threadId: string, bucket: number, messageId: string): Promise<MessageRow | null> {
   var client = tryGetKeyspacesClient();
   if (!client) throw apiError(503, "KEYSPACES_UNAVAILABLE", "Keyspaces unavailable");
@@ -772,6 +788,7 @@ chatRoutes.post("/threads", createThreadRateLimit, async function (c) {
       )
       .limit(1);
     if (existingDmByPairRows.length > 0) {
+      await restoreDeletedThreadForMembers(existingDmByPairRows[0].threadId, [viewer.userId]);
       return c.json(await getThreadPreview(existingDmByPairRows[0].threadId, viewer.userId), 200);
     }
   }
@@ -861,7 +878,11 @@ chatRoutes.post("/threads", createThreadRateLimit, async function (c) {
       )
       .limit(1);
     if (conflictingDmRows.length === 0) throw error;
+    await restoreDeletedThreadForMembers(conflictingDmRows[0].id, [viewer.userId]);
     return c.json(await getThreadPreview(conflictingDmRows[0].id, viewer.userId), 200);
+  }
+  if (!isNewThread) {
+    await restoreDeletedThreadForMembers(threadId, [viewer.userId]);
   }
   return c.json(await getThreadPreview(threadId, viewer.userId), isNewThread ? 201 : 200);
 });
@@ -990,12 +1011,13 @@ chatRoutes.post("/threads/:threadId/messages", sendMessageRateLimit, async funct
             threadId,
             userId: member.userId,
             lastMessageAt: now,
+            deletedAt: null,
           };
         })
       )
       .onConflictDoUpdate({
         target: [chatMemberState.threadId, chatMemberState.userId],
-        set: { lastMessageAt: now },
+        set: { lastMessageAt: now, deletedAt: null },
       });
   }
   for (var member of activeMembers) {

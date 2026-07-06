@@ -1,41 +1,41 @@
 import { Hono } from "hono";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { profiles } from "@35mm/db/schema";
+import { isReservedUsername, usernameSchema } from "@35mm/validators";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { badRequest } from "../../lib/errors.js";
 import { resolveProfileAvatarUrl } from "../media/url.js";
+import { findUsernameLock } from "../../lib/usernameLocks.js";
 
 export var authRoutes = new Hono();
 
-var USERNAME_RE = /^[a-zA-Z0-9._]+$/;
-var RESERVED_USERNAMES = new Set([
-  "admin", "api", "help", "support", "about", "terms", "privacy",
-  "settings", "notifications", "bookmarks", "discover", "new", "login",
-  "signup", "forgot", "reset", "verify", "onboarding", "landing",
-]);
-
 authRoutes.get("/usernames/:username/available", async function (c) {
-  var username = c.req.param("username").toLowerCase().trim();
+  var parsed = usernameSchema.safeParse(c.req.param("username"));
 
-  if (username.length < 2) {
-    return c.json({ available: false, reason: "Username must be at least 2 characters" });
+  if (!parsed.success) {
+    return c.json({ available: false, reason: parsed.error.issues[0]?.message ?? "Invalid username" });
   }
 
-  if (!USERNAME_RE.test(username)) {
-    return c.json({ available: false, reason: "Letters, numbers, dots and underscores only" });
-  }
+  var username = parsed.data;
 
-  if (RESERVED_USERNAMES.has(username)) {
+  if (isReservedUsername(username)) {
     return c.json({ available: false, reason: "This username is reserved" });
   }
 
   var db = getDb();
-  var existing = await db
-    .select({ id: profiles.id })
-    .from(profiles)
-    .where(eq(profiles.username, username))
-    .limit(1);
+  var [existing, locked] = await Promise.all([
+    db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.username, username))
+      .limit(1),
+    findUsernameLock(db, username),
+  ]);
+
+  if (locked) {
+    return c.json({ available: false, reason: `This username is ${locked.state}` });
+  }
 
   if (existing.length > 0) {
     return c.json({ available: false, reason: "Username is already taken" });

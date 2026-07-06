@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/Button";
 import { Dialog } from "@/components/Dialog/Dialog";
@@ -37,7 +37,7 @@ export function ChangePasswordDialog({ open, onClose }: ChangePasswordDialogProp
     watch,
     formState: { errors, isSubmitting, isValid },
   } = useForm<ChangePasswordFormValues>({
-    resolver: zodResolver(changePasswordSchema),
+    resolver: standardSchemaResolver(changePasswordSchema),
     defaultValues: {
       currentPassword: "",
       newPassword: "",

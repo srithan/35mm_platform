@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23. Last refreshed for settings media preferences on 2026-07-04.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for Studio workspace and username locks on 2026-07-06.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -11,6 +11,7 @@ This is a working knowledge base for onboarding engineers and future AI sessions
 The repository is a pnpm/Turborepo monorepo:
 
 - `apps/web`: Next.js 15 App Router frontend.
+- `apps/studio`: internal Next.js platform/content operations app.
 - `apps/api`: Hono REST API.
 - `apps/worker`: long-running BullMQ worker.
 - `apps/ios`: SwiftUI iOS app.
@@ -29,6 +30,7 @@ See `assets/architecture.mmd` for the Mermaid source.
 ```mermaid
 flowchart LR
   Browser["Browser / Next.js app"]
+  Studio["Studio / internal admin app"]
   NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
   Hono["Hono API\napps/api"]
   Clerk["Clerk auth"]
@@ -41,6 +43,8 @@ flowchart LR
   TMDB["TMDB\ncold-start search/fallback"]
 
   Browser -->|React Query + fetch| Hono
+  Studio -->|admin fetch| Hono
+  Studio -->|direct operational reads/writes| Neon
   Browser -->|server route proxy| NextApi
   NextApi --> TMDB
   Hono --> Clerk
@@ -73,7 +77,7 @@ Runtime flow:
 
 ### Root
 
-- `package.json`: root scripts. `pnpm dev` runs web + API only to avoid idle BullMQ polling against shared Upstash Redis; `pnpm dev:all` adds the worker. Node engine is `>=22.0.0`.
+- `package.json`: root scripts. `pnpm dev` runs web + API only to avoid idle BullMQ polling against shared Upstash Redis; `pnpm dev:all` runs web + Studio + API + worker; `pnpm dev:studio` runs only Studio. Node engine is `>=22.0.0`.
 - `pnpm-workspace.yaml`: workspace boundary.
 - `AGENTS.md`: project-critical rules. Film IDs must be 35mm ULIDs, not TMDB IDs.
 - `README.md`: setup and runtime overview.
@@ -107,6 +111,21 @@ Feature folders:
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
 - `features/title`: title detail pages, largely TMDB/discover oriented.
 - `features/letterboxd-import`: local import parsing/storage UI.
+
+### `apps/studio`
+
+Internal platform/content operations app built with Next.js App Router. It is a separate workspace from the public web app and uses its own Clerk configuration.
+
+Important areas:
+
+- `app/api/studio/usernames/*`: username lock listing and mutation routes.
+- `app/api/catalog/external/*`: external catalog lookup helpers.
+- `components/films/*`: film search, table, detail, and form surfaces.
+- `components/shelves/*`: shelf list/editor/new-shelf flows.
+- `components/layout/*`: Studio shell, sidebar, command palette, mobile nav, and theme controls.
+- `lib/studio/db.ts`: Studio database connection helper.
+- `lib/studio/usernameLocks.ts`: migration-missing detection helper for username lock operations.
+- `lib/data/*`: local operational data helpers used by current Studio surfaces.
 
 ### `apps/ios`
 
@@ -238,12 +257,21 @@ erDiagram
   chat_threads ||--o{ chat_member_state : has
   users ||--o{ chat_member_state : configures
   chat_threads ||--|| chat_thread_meta : summarizes
+  username_locks {
+    string username PK
+    string state
+    string owner
+    string reason
+    timestamp created_at
+    timestamp updated_at
+  }
 ```
 
 Current Drizzle schema highlights:
 
 - `users`: UUID primary key, Clerk ID, email, age verification, account status.
 - `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count, follower count, unsorted bookmark count, and following count.
+- `username_locks`: Studio-managed lowercase username lock/reservation table with `locked | reserved` state, owner/reason metadata, timestamps, and DB checks for lowercase usernames plus allowed state values. API username availability and profile updates consult this table before allowing a username.
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
 - `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview.
 - `bookmark_folders`: per-user bookmark folders with denormalized `item_count` per folder.
@@ -298,7 +326,7 @@ Key schemas/utilities:
 - Rich text schema and helpers: `parseRichTextBody`, `richTextBodyToVisibleText`, `richTextMentionIds`, `validateRichTextBody`.
 - `createPostSchema`: validates body, film ULID, media, poll rules, and poll option constraints.
 - Notification schemas.
-- Username and profile update schemas.
+- Username and profile update schemas, plus the shared reserved-username list and `isReservedUsername` helper used by auth/settings APIs.
 - Settings update schemas.
 - Onboarding schemas.
 - Film list/watchlist schemas.

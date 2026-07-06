@@ -9,7 +9,7 @@ import {
 } from "./SettingsFormPrimitives";
 import { AccentColorPicker } from "./AccentColorPicker";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import {
   appearanceSettingsSchema,
   type AppearanceSettingsFormValues,
@@ -39,7 +39,7 @@ export function SettingsAppearancePanel({
     getValues,
     formState: { isSubmitting },
   } = useForm<AppearanceSettingsFormValues>({
-    resolver: zodResolver(appearanceSettingsSchema),
+    resolver: standardSchemaResolver(appearanceSettingsSchema),
     defaultValues: initialValues,
   });
 

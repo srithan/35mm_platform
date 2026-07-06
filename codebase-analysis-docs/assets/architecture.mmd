@@ -1,5 +1,6 @@
 flowchart LR
   Browser["Browser / Next.js app"]
+  Studio["Studio / internal admin app"]
   NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
   Hono["Hono API\napps/api"]
   Clerk["Clerk auth"]
@@ -12,6 +13,8 @@ flowchart LR
   TMDB["TMDB\ncold-start search/fallback"]
 
   Browser -->|React Query + fetch| Hono
+  Studio -->|admin fetch| Hono
+  Studio -->|direct operational reads/writes| Neon
   Browser -->|server route proxy| NextApi
   NextApi --> TMDB
   Hono --> Clerk

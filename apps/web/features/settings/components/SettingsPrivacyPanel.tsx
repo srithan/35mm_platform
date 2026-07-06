@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { ROUTES } from "@/lib/constants/routes";
 import { SettingsRow, SettingsSection, SettingsToggle } from "./SettingsFormPrimitives";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import {
   privacySettingsSchema,
   type PrivacySettingsFormValues,
@@ -34,7 +34,7 @@ export function SettingsPrivacyPanel({
     handleSubmit,
     formState: { isDirty, isSubmitting },
   } = useForm<PrivacySettingsFormValues>({
-    resolver: zodResolver(privacySettingsSchema),
+    resolver: standardSchemaResolver(privacySettingsSchema),
     defaultValues: initialValues,
   });
 

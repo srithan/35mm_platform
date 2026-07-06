@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { clerkSignUp } from "@/features/auth/lib/auth-client";
@@ -51,7 +51,7 @@ export function SignupForm() {
   var [formError, setFormError] = useState<string | null>(null);
 
   var form = useForm<SignupValues>({
-    resolver: zodResolver(signupSchema),
+    resolver: standardSchemaResolver(signupSchema),
     defaultValues: {
       fullName: "",
       username: "",

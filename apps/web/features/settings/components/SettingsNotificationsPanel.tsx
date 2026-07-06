@@ -5,7 +5,7 @@ import { Button } from "@/components/Button";
 import { SettingsToggle } from "./SettingsFormPrimitives";
 import { Bell, ChevronDown, Mail, Smartphone } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import {
   notificationSettingsSchema,
   type NotificationSettingsFormValues,
@@ -76,7 +76,7 @@ export function SettingsNotificationsPanel({
     handleSubmit,
     formState: { isDirty, isSubmitting },
   } = useForm<NotificationSettingsFormValues>({
-    resolver: zodResolver(notificationSettingsSchema),
+    resolver: standardSchemaResolver(notificationSettingsSchema),
     defaultValues: initialValues,
   });
 

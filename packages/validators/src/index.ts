@@ -351,6 +351,34 @@ export var usernameSchema = z
     return v.toLowerCase();
   });
 
+export var RESERVED_USERNAMES = [
+  "admin",
+  "api",
+  "help",
+  "support",
+  "about",
+  "terms",
+  "privacy",
+  "settings",
+  "notifications",
+  "bookmarks",
+  "discover",
+  "new",
+  "login",
+  "signup",
+  "forgot",
+  "reset",
+  "verify",
+  "onboarding",
+  "landing",
+] as const;
+
+var RESERVED_USERNAME_SET = new Set<string>(RESERVED_USERNAMES);
+
+export function isReservedUsername(username: string): boolean {
+  return RESERVED_USERNAME_SET.has(username.toLowerCase().trim());
+}
+
 export var updateProfileSchema = z.object({
   displayName: z.string().trim().min(1).max(100).optional(),
   bio: z.string().max(500).optional(),

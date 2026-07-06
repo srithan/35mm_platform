@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import { ArrowLeft, ArrowRight, KeyRound, Mail } from "lucide-react";
 import { AuthCard } from "@/features/auth/components/AuthCard";
 import { clerkForgotPassword, clerkVerifyResetCode } from "@/features/auth/lib/auth-client";
@@ -36,12 +36,12 @@ export function ForgotPasswordPage() {
   var [formError, setFormError] = useState<string | null>(null);
 
   var emailForm = useForm<EmailValues>({
-    resolver: zodResolver(emailSchema),
+    resolver: standardSchemaResolver(emailSchema),
     defaultValues: { email: "" },
   });
 
   var codeForm = useForm<CodeValues>({
-    resolver: zodResolver(codeSchema),
+    resolver: standardSchemaResolver(codeSchema),
     defaultValues: { code: "" },
   });
 

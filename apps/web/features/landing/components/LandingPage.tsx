@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import * as z from "zod/v4";
 import {
   ArrowRight,
   Clapperboard,
@@ -352,12 +352,12 @@ export function LandingPage({ children }: LandingPageProps) {
   const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const signupForm = useForm<SignupValues>({
-    resolver: zodResolver(signupSchema),
+    resolver: standardSchemaResolver(signupSchema),
     defaultValues: { fullName: "", username: "", email: "", password: "" },
   });
 
   const loginForm = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: standardSchemaResolver(loginSchema),
     defaultValues: { identifier: "", password: "" },
   });
 

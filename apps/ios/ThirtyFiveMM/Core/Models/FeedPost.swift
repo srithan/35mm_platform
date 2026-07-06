@@ -17,6 +17,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
   let isLiked: Bool
   let isReposted: Bool
   let isBookmarked: Bool
+  let bookmarkFolderId: String?
   let filmRating: Int?
   let media: [PostMedia]?
   let mediaUrls: [String]?
@@ -42,6 +43,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     case isLiked
     case isReposted
     case isBookmarked
+    case bookmarkFolderId
     case filmRating
     case media
     case mediaUrls
@@ -68,6 +70,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     isLiked: Bool,
     isReposted: Bool,
     isBookmarked: Bool,
+    bookmarkFolderId: String? = nil,
     filmRating: Int?,
     media: [PostMedia]?,
     mediaUrls: [String]?,
@@ -92,6 +95,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     self.isLiked = isLiked
     self.isReposted = isReposted
     self.isBookmarked = isBookmarked
+    self.bookmarkFolderId = bookmarkFolderId
     self.filmRating = filmRating
     self.media = media
     self.mediaUrls = mediaUrls
@@ -120,6 +124,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
     isLiked = try container.decodeIfPresent(Bool.self, forKey: .isLiked) ?? false
     isReposted = try container.decodeIfPresent(Bool.self, forKey: .isReposted) ?? false
     isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked) ?? false
+    bookmarkFolderId = try container.decodeIfPresent(String.self, forKey: .bookmarkFolderId)
     filmRating = try container.decodeIfPresent(Int.self, forKey: .filmRating)
     media = try container.decodeIfPresent([PostMedia].self, forKey: .media)
     mediaUrls = try container.decodeIfPresent([String].self, forKey: .mediaUrls)
@@ -143,9 +148,43 @@ struct FeedPost: Codable, Identifiable, Hashable {
   }
 
   func toggledBookmark() -> FeedPost {
-    copy(
+    movedBookmark(
+      to: isBookmarked ? nil : bookmarkFolderId,
       isBookmarked: !isBookmarked,
       bookmarkCount: max(bookmarkCount + (isBookmarked ? -1 : 1), 0)
+    )
+  }
+
+  func movedBookmark(to folderId: String?) -> FeedPost {
+    movedBookmark(to: folderId, isBookmarked: isBookmarked, bookmarkCount: bookmarkCount)
+  }
+
+  private func movedBookmark(to folderId: String?, isBookmarked: Bool, bookmarkCount: Int) -> FeedPost {
+    FeedPost(
+      id: id,
+      type: type,
+      headline: headline,
+      body: body,
+      createdAt: createdAt,
+      editedAt: editedAt,
+      isRepost: isRepost,
+      repostOfId: repostOfId,
+      visibility: visibility,
+      likeCount: likeCount,
+      commentCount: commentCount,
+      repostCount: repostCount,
+      bookmarkCount: bookmarkCount,
+      isLiked: isLiked,
+      isReposted: isReposted,
+      isBookmarked: isBookmarked,
+      bookmarkFolderId: folderId,
+      filmRating: filmRating,
+      media: media,
+      mediaUrls: mediaUrls,
+      linkPreview: linkPreview,
+      film: film,
+      author: author,
+      poll: poll
     )
   }
 
@@ -183,6 +222,7 @@ struct FeedPost: Codable, Identifiable, Hashable {
       isLiked: isLiked ?? self.isLiked,
       isReposted: isReposted ?? self.isReposted,
       isBookmarked: isBookmarked ?? self.isBookmarked,
+      bookmarkFolderId: bookmarkFolderId,
       filmRating: filmRating,
       media: media,
       mediaUrls: mediaUrls,

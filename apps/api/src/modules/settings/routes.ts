@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
 import { users, profiles, userSettings, type NotificationEmailPreferences } from "@35mm/db/schema";
+import { isReservedUsername } from "@35mm/validators";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
 import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { setActivityVisibilityCache } from "../chat/chatRedis.js";
+import { findUsernameLock } from "../../lib/usernameLocks.js";
 
 interface SettingsRecord {
   email: string;
@@ -481,11 +483,22 @@ settingsRoutes.patch("/profile", requireAuth, settingsWriteRateLimit, async func
       throw badRequest("Letters, numbers, dots and underscores only");
     }
     if (username !== user.username) {
-      var existing = await db
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(eq(profiles.username, username))
-        .limit(1);
+      if (isReservedUsername(username)) {
+        return c.json({ code: "USERNAME_RESERVED", message: "Username is reserved" }, 409);
+      }
+
+      var [existing, locked] = await Promise.all([
+        db
+          .select({ id: profiles.id })
+          .from(profiles)
+          .where(eq(profiles.username, username))
+          .limit(1),
+        findUsernameLock(db, username),
+      ]);
+
+      if (locked) {
+        return c.json({ code: "USERNAME_RESERVED", message: `Username is ${locked.state}` }, 409);
+      }
 
       if (existing.length > 0) {
         return c.json({ code: "USERNAME_TAKEN", message: "Username is already taken" }, 409);
