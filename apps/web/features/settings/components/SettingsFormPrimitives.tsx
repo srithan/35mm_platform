@@ -174,6 +174,7 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
       { id: "auto", label: "Auto", enabled: true, selectableId: "auto" },
       { id: "light", label: "Light", enabled: true, selectableId: "light" },
       { id: "dark", label: "Dark", enabled: true, selectableId: "dark" },
+      { id: "matinee", label: "Matinee", enabled: true, selectableId: "matinee" },
       { id: "matrix", label: "Matrix", enabled: true, selectableId: "matrix" },
       { id: "grain", label: "35mm Grain", enabled: false },
       {
@@ -253,6 +254,19 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
                   <div className="h-2.5 bg-fg/10 rounded w-full mb-1.5" />
                   <div className="h-1.5 bg-fg/5 rounded w-4/5" />
                 </div>
+              </div>
+            ) : opt.id === "matinee" ? (
+              <div className="relative flex-1 bg-[#f7f2e9] flex flex-col w-full">
+                <div className="h-2.5 bg-[#efe7d8] flex items-center px-1.5 gap-1 border-b border-[#ddd3bf]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#c2473a]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#55504a]/80" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white border border-[#ddd3bf]" />
+                </div>
+                <div className="relative flex-1 p-1.5">
+                  <div className="h-2.5 bg-[#1c1a17] rounded-sm w-full mb-1.5" />
+                  <div className="h-1.5 bg-[#c2473a]/70 rounded-sm w-4/5" />
+                </div>
+                <div className="absolute bottom-1.5 right-1.5 h-3 w-5 rounded-sm bg-white border border-[#ddd3bf]" />
               </div>
             ) : opt.id === "grain" ? (
               <div className="relative flex-1 bg-[#15120f] flex flex-col w-full">

@@ -12,12 +12,12 @@ export function TitleCastCard(props: TitleCastCardProps) {
     <Link
       href={ROUTES.PERSON(person.id)}
       className={cn(
-        "w-[4.5rem] sm:w-20 flex-shrink-0 text-center group outline-none",
+        "w-full min-w-0 text-center group outline-none",
         "rounded-lg focus-visible:ring-2 focus-visible:ring-fg/25 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         props.className
       )}
     >
-      <div className="mx-auto mb-2 flex h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem] items-center justify-center overflow-hidden rounded-full border border-border bg-sunken/80 transition group-hover:border-border-strong group-hover:shadow-md">
+      <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-border bg-sunken/80 transition group-hover:border-border-strong group-hover:shadow-md sm:h-[4.5rem] sm:w-[4.5rem]">
         {person.profile_path ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

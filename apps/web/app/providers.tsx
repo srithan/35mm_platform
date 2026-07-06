@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { useAuth } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { FlashToastHost } from "@/components/FlashToast";
 import { ChatInputFocusProvider } from "@/components/layout/ChatInputFocusContext";
 import { ChatSidebarProvider } from "@/features/chat/context/ChatSidebarContext";
@@ -85,6 +85,25 @@ const FloatingChatInbox = dynamic(
   }
 );
 
+function ChatProviderShell({
+  children,
+  onActiveChatIdChange,
+}: {
+  children: React.ReactNode;
+  onActiveChatIdChange: (chatId: string | null) => void;
+}) {
+  return (
+    <ChatSidebarProvider>
+      <NewChatProvider>
+        <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
+        <Suspense fallback={null}>
+          <FloatingChatInbox onActiveChatIdChange={onActiveChatIdChange} />
+        </Suspense>
+      </NewChatProvider>
+    </ChatSidebarProvider>
+  );
+}
+
 function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { getToken, isLoaded: isUserLoaded, isSignedIn } = useAuth();
@@ -153,27 +172,32 @@ function ProvidersWithCurrentUser({ children }: { children: React.ReactNode }) {
     [currentUserQuery.data?.userId, isSignedIn, isUserLoaded, queryClient]
   );
 
+  const chatShell = (
+    <ChatProviderShell onActiveChatIdChange={setFloatingChatId}>
+      {children}
+    </ChatProviderShell>
+  );
+
   return (
-    <NotificationRealtimeProvider
-      enabled={isNotificationRealtimeReady}
-      userId={isUserLoaded ? notificationUserId : null}
-    >
-      <NotificationTitleBadge />
-      <NotificationSoundPlayer />
-      <FlashToastHost />
-      <ChatRealtimeProvider
-        enabled={isChatRealtimeReady}
-        userId={isUserLoaded ? chatRealtimeUserId : null}
-        activeThreadId={floatingChatId}
+    <Suspense fallback={chatShell}>
+      <NotificationRealtimeProvider
+        enabled={isNotificationRealtimeReady}
+        userId={isUserLoaded ? notificationUserId : null}
       >
-        <ChatSidebarProvider>
-          <NewChatProvider>
-            <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
-            <FloatingChatInbox onActiveChatIdChange={setFloatingChatId} />
-          </NewChatProvider>
-        </ChatSidebarProvider>
-      </ChatRealtimeProvider>
-    </NotificationRealtimeProvider>
+        <NotificationTitleBadge />
+        <NotificationSoundPlayer />
+        <FlashToastHost />
+        <Suspense fallback={chatShell}>
+          <ChatRealtimeProvider
+            enabled={isChatRealtimeReady}
+            userId={isUserLoaded ? chatRealtimeUserId : null}
+            activeThreadId={floatingChatId}
+          >
+            {chatShell}
+          </ChatRealtimeProvider>
+        </Suspense>
+      </NotificationRealtimeProvider>
+    </Suspense>
   );
 }
 

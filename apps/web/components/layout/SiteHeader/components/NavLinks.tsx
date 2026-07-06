@@ -121,7 +121,6 @@ export function NavLinks({
               name="chat"
               className="h-5 w-5"
               strokeWidth={1.9}
-              filled={isActive(ROUTES.CHAT)}
             />
             {hasChatUnread ? (
               <span

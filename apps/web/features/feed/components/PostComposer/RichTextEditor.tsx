@@ -95,7 +95,7 @@ function createMentionSuggestion(getToken: () => Promise<string | null>) {
         root.innerHTML = "";
         root.setAttribute("role", "listbox");
         root.className =
-          "z-[calc(var(--z-composer)+10)] min-w-[240px] overflow-hidden rounded-lg border border-border bg-elevated py-1 shadow-xl";
+          "z-[calc(var(--z-composer)+10)] min-w-[240px] overflow-hidden rounded-lg border border-[var(--composer-border)] bg-[var(--composer-bg)] py-1 shadow-xl";
         if (items.length === 0) {
           var empty = document.createElement("div");
           empty.className = "px-3 py-2 text-[13px] text-fg-muted";

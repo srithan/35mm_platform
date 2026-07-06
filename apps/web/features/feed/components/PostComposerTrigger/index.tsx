@@ -55,8 +55,8 @@ function TriggerTool({ label, icon }: { label: string; icon?: React.ReactNode })
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1",
-        "text-[10.5px] font-medium text-fg-muted bg-elevated"
+        "inline-flex items-center gap-1.5 rounded-[var(--composer-radius)] border border-[var(--composer-border)] px-2 py-1",
+        "bg-[var(--composer-chip-bg)] text-[10.5px] font-medium text-fg-muted"
       )}
       aria-hidden
     >
@@ -76,15 +76,15 @@ export function PostComposerTrigger({
   }, [user.name]);
 
   return (
-    <div className="PostComposerTrigger pb-4 rounded-lg">
+    <div className="PostComposerTrigger rounded-[var(--composer-radius)] pb-4">
       <button
         type="button"
         onClick={onOpen}
         className={cn(
-          "w-full bg-elevated border-0 border-b border-border text-left cursor-pointer",
-          "transition-[border-color] duration-150 ease-out rounded-lg pt-2",
-          "hover:border-border",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-fg/10"
+          "w-full cursor-pointer border-0 border-b border-[var(--composer-border)] bg-[var(--composer-bg)] text-left",
+          "rounded-[var(--composer-radius)] pt-2 transition-[border-color,box-shadow] duration-150 ease-out",
+          "hover:border-[var(--border-strong)]",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
         )}
         aria-label="Create new post"
       >
@@ -97,14 +97,14 @@ export function PostComposerTrigger({
             className="w-9 h-9"
           />
 
-          <div className="flex-1 min-w-0 h-[46px] rounded-full bg-sunken px-5 flex items-center">
+          <div className="flex h-[46px] min-w-0 flex-1 items-center rounded-[var(--composer-control-radius)] bg-[var(--composer-field-bg)] px-5">
             <span className="block truncate text-left text-[15px] font-normal text-fg-muted select-none">
               {prompt}
             </span>
           </div>
 
           <span
-            className="flex-shrink-0 bg-fg text-bg text-[12.5px] font-semibold px-4 py-2 rounded-lg pointer-events-none select-none tracking-wide"
+            className="pointer-events-none flex-shrink-0 select-none rounded-[var(--composer-control-radius)] bg-[var(--composer-primary)] px-4 py-2 text-[12.5px] font-semibold tracking-wide text-[var(--composer-primary-fg)]"
             aria-hidden
           >
             Post

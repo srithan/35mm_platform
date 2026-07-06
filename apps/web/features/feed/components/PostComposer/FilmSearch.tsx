@@ -208,7 +208,7 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
     ? createPortal(
         <div
           ref={panelRef}
-          className="fixed mt-0.5 bg-elevated border border-border rounded-md shadow-lg z-[22050] overflow-y-auto"
+          className="fixed mt-0.5 bg-[var(--composer-bg)] border border-[var(--composer-border)] rounded-md shadow-lg z-[22050] overflow-y-auto"
           style={{
             top: panelStyle.top,
             left: panelStyle.left,
@@ -275,7 +275,7 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
 
   return (
     <div ref={wrapperRef} className="relative mb-3">
-      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-sunken px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-fg-muted/50 focus-within:bg-elevated focus-within:shadow-sm">
+      <div className="flex items-center gap-2.5 rounded-xl border border-[var(--composer-border)] bg-[var(--composer-field-bg)] px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-fg-muted/50 focus-within:bg-[var(--composer-bg)] focus-within:shadow-sm">
         <Search
           className="h-3.5 w-3.5 shrink-0 text-fg-faint"
           strokeWidth={1.6}

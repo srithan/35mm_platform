@@ -884,7 +884,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     auth: 'Bearer required',
     status: 'Live',
     summary: 'Updates theme and autoplay preferences.',
-    body: 'theme? auto|light|dark|matrix|oppenheimer-bw|barbie, videoAutoplay?.',
+    body: 'theme? auto|light|dark|matinee|matrix|oppenheimer-bw|barbie, videoAutoplay?.',
     response: 'Full settings object.',
     source: 'apps/api/src/modules/settings/routes.ts',
   },

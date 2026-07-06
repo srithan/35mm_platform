@@ -96,7 +96,7 @@ function FloatingChatPill({
             className="h-5 w-5 shrink-0 object-contain"
           />
           {unreadCount > 0 ? (
-            <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff3045] px-1 text-[10px] font-bold text-white ring-2 ring-bg tabular-nums">
+            <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--chat-unread-badge)] px-1 text-[10px] font-bold text-[var(--chat-unread-badge-fg)] ring-2 ring-bg tabular-nums">
               {formatUnread(unreadCount)}
             </span>
           ) : null}
@@ -119,7 +119,7 @@ function FloatingChatPill({
             );
           })
         ) : (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-elevated text-fg-muted">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--chat-search-bg)] text-fg-muted">
             <MessageCircle className="h-4 w-4" strokeWidth={2} />
           </span>
         )}
@@ -202,7 +202,7 @@ function FloatingChatRowMoreMenu({
           <div
             ref={menuRef}
             role="menu"
-            className="fixed z-[300] min-w-[164px] rounded-2xl border border-border bg-elevated py-1.5 text-fg shadow-[0_14px_44px_rgba(0,0,0,0.16)]"
+            className="fixed z-[300] min-w-[164px] rounded-[var(--chat-control-radius)] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] py-1.5 text-fg shadow-[0_14px_44px_rgba(0,0,0,0.16)]"
             style={{ top: pos.top, left: pos.left }}
           >
             <button
@@ -550,7 +550,7 @@ export function FloatingChatInbox({
 
   return (
     <section
-      className="fixed bottom-5 right-5 z-40 hidden h-[min(512px,calc(100dvh-5rem))] w-[372px] overflow-hidden rounded-[20px] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] shadow-[0_18px_64px_rgba(0,0,0,0.22)] md:flex md:flex-col"
+      className="fixed bottom-5 right-5 z-40 hidden h-[min(512px,calc(100dvh-5rem))] w-[372px] overflow-hidden rounded-[var(--chat-floating-radius)] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] shadow-[0_18px_64px_rgba(0,0,0,0.22)] md:flex md:flex-col"
       data-floating-chat-panel
       aria-label="Floating messages"
     >
@@ -571,7 +571,7 @@ export function FloatingChatInbox({
             {selectedChat?.username ? (
               <Link
                 href={ROUTES.PROFILE(selectedChat.username.replace(/^@/, ""))}
-                className="flex min-w-0 items-center gap-2 rounded-xl py-1 pr-2 hover:bg-hover"
+                className="flex min-w-0 items-center gap-2 rounded-[var(--chat-control-radius)] py-1 pr-2 hover:bg-hover"
               >
                 <span className="relative shrink-0">
                   <Avatar
@@ -646,7 +646,7 @@ export function FloatingChatInbox({
               Messages
             </h2>
             {unreadCount > 0 ? (
-              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#ff3045] px-1.5 text-[12px] font-bold text-white tabular-nums">
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--chat-unread-badge)] px-1.5 text-[12px] font-bold text-[var(--chat-unread-badge-fg)] tabular-nums">
                 {formatUnread(unreadCount)}
               </span>
             ) : null}
@@ -704,7 +704,7 @@ export function FloatingChatInbox({
                 setComposeSearch(event.target.value);
               }}
               placeholder="Search by name or @username"
-              className="w-full rounded-xl border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-3 py-2 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)]"
+              className="w-full rounded-[var(--chat-control-radius)] border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-3 py-2 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)]"
               aria-label="Search people"
               disabled={createConversationMutation.isPending}
             />
@@ -773,7 +773,7 @@ export function FloatingChatInbox({
                             }
                           );
                         }}
-                        className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-hover disabled:opacity-60"
+                        className="flex w-full items-center gap-3 rounded-[var(--chat-control-radius)] px-2.5 py-2 text-left transition-colors hover:bg-hover disabled:opacity-60"
                       >
                         <Avatar
                           initial={(contact.displayName || contact.username).charAt(0)}
@@ -821,7 +821,7 @@ export function FloatingChatInbox({
                 setListSearch(event.target.value);
               }}
               placeholder="Search messages"
-              className="w-full rounded-full border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-4 py-2.5 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)]"
+              className="w-full rounded-[var(--chat-pill-radius)] border border-[var(--chat-search-border)] bg-[var(--chat-search-bg)] px-4 py-2.5 text-[14px] text-fg outline-none placeholder:text-fg-muted focus-visible:border-[var(--chat-search-border-focus)] focus-visible:bg-[var(--chat-search-bg-focus)] focus-visible:ring-2 focus-visible:ring-[var(--chat-focus-ring)]"
               aria-label="Search chats"
             />
             <div

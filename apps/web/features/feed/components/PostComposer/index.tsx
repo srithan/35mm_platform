@@ -1016,7 +1016,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 "border-[var(--color-border)] bg-bg py-2 pl-[calc(52px+env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]",
                 fixedMobileToolbar && "bg-bg/95 shadow-[0_-1px_0_rgba(0,0,0,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-bg/80"
               )
-            : "border-border bg-elevated px-4 py-2.5 pl-[52px]"
+            : "border-[var(--composer-border)] bg-[var(--composer-bg)] px-4 py-2.5 pl-[52px]"
         )}
       >
         <div className="flex items-center gap-0.5 relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0">
@@ -1184,8 +1184,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 className={cn(
                   "relative flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border transition-all duration-200 overflow-hidden shadow-sm",
                   postToFeed
-                    ? "border-transparent bg-fg"
-                    : "border-fg/20 bg-elevated group-hover:border-fg/40 group-hover:bg-hover"
+                    ? "border-transparent bg-[var(--composer-primary)]"
+                    : "border-fg/20 bg-[var(--composer-bg)] group-hover:border-fg/40 group-hover:bg-hover"
                 )}
               >
                 <input
@@ -1200,7 +1200,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                     postToFeed ? "scale-100" : "scale-0"
                   )}
                 >
-                  <Icon name="check" className="w-[11px] h-[11px] text-bg" strokeWidth={4} />
+                  <Icon name="check" className="w-[11px] h-[11px] text-[var(--composer-primary-fg)]" strokeWidth={4} />
                 </div>
               </div>
               <span className={cn(
@@ -1220,7 +1220,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 "text-[13px] font-medium px-5 py-1.5 rounded-full transition-all active:scale-[0.97]",
                 !canPost || createPostMutation.isPending || updatePostMutation.isPending
                   ? "bg-sunken-2 text-fg-faint cursor-not-allowed"
-                  : "bg-fg text-bg hover:opacity-90 shadow-sm"
+                  : "bg-[var(--composer-primary)] text-[var(--composer-primary-fg)] hover:bg-[var(--composer-primary-hover)] shadow-sm"
               )}
             >
               {createPostMutation.isPending || updatePostMutation.isPending
@@ -1248,13 +1248,13 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         "transition-shadow duration-200",
         isFullPage &&
           "flex flex-col flex-1 min-h-0 overflow-hidden bg-bg rounded-none border-0 shadow-none",
-        !isModal && !isFullPage && "bg-elevated rounded-2xl border border-border",
+        !isModal && !isFullPage && "rounded-[var(--composer-radius)] border border-[var(--composer-border)] bg-[var(--composer-bg)]",
         !isModal &&
           !isFullPage &&
           (isFocused
             ? "shadow-[0_4px_24px_rgba(0,0,0,0.08)] ring-1 ring-border"
             : "shadow-sm hover:shadow-md"),
-        isModal && "bg-elevated"
+        isModal && "bg-[var(--composer-bg)]"
       )}
     >
       {/* Mode tabs */}
@@ -1279,9 +1279,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   "flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
           )}
         >
-        <div className="relative inline-grid w-max max-w-full grid-cols-3 gap-1 rounded-full border border-border bg-sunken px-1.5 py-1">
+        <div className="relative inline-grid w-max max-w-full grid-cols-3 gap-1 rounded-[var(--composer-control-radius)] border border-[var(--composer-border)] bg-[var(--composer-field-bg)] px-1.5 py-1">
           <div
-            className="pointer-events-none absolute inset-y-1 left-1.5 z-0 rounded-full border border-border bg-elevated shadow-sm transition-transform duration-200 ease-out"
+            className="pointer-events-none absolute inset-y-1 left-1.5 z-0 rounded-[var(--composer-control-radius)] border border-[var(--composer-border)] bg-[var(--composer-bg)] shadow-sm transition-transform duration-200 ease-out"
             style={{
               width: "calc((100% - 1.25rem) / 3)",
               transform: "translateX(calc(" + modeTabIndex + " * (100% + 0.25rem)))",

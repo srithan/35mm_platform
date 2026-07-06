@@ -1,13 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { HeroCard } from "./HeroCard";
 import { FilmShelf } from "./FilmShelf";
 import { SearchResultsView } from "./SearchResultsView";
 import { EmptyState } from "@/components/EmptyState";
 import {
+  MoodGridAisles,
+  RankedFilmAisle,
+  SprocketDivider,
+  StreamingNowAisle,
+  TicketDivider,
+  type StreamingProviderId,
+} from "./DiscoverAisles";
+import {
   usePopular,
   useNowPlaying,
   useSearchMulti,
+  useStreamingNow,
+  useTopRated,
   useTrending,
 } from "../hooks/useDiscoverData";
 import type { TMDBMovie } from "@/lib/tmdb/types";
@@ -60,6 +71,8 @@ export function ExploreTabContent({
   activeFilterCount,
   onClearFilters,
 }: ExploreTabContentProps) {
+  const [streamingProviderId, setStreamingProviderId] =
+    useState<StreamingProviderId>(null);
   const { movies: popular, loading: popularLoading } = usePopular(
     genreId,
     moodId,
@@ -71,6 +84,9 @@ export function ExploreTabContent({
     exploreFilters
   );
   const { movies: trending, loading: trendingLoading } = useTrending();
+  const { movies: topRated, loading: topRatedLoading } = useTopRated();
+  const { movies: streamingNow, loading: streamingNowLoading } =
+    useStreamingNow(streamingProviderId);
   const usesTv = discoverUsesTvMedia(exploreFilters.typeId);
   const recentShelfTitle = usesTv ? "Recently aired" : "Now playing";
   const { movies: searchResults, loading: searchLoading } = useSearchMulti(searchQuery);
@@ -94,12 +110,16 @@ export function ExploreTabContent({
   const trendingFilms = trending.slice(0, 14);
   const popularFilms = popularFiltered.slice(0, 14);
   const newAndNear = uniqueFilms(nowPlayingFiltered).slice(0, 14);
+  const rankedFilms = uniqueFilms(topRated).slice(0, 10);
+  const streamingFilms = uniqueFilms(streamingNow).slice(0, 8);
 
   const isSearchActive = searchQuery.trim().length > 0;
   const hasAnyShelf =
     Boolean(editorPick) ||
     Boolean(featuredRelease) ||
     trendingFilms.length > 0 ||
+    rankedFilms.length > 0 ||
+    streamingFilms.length > 0 ||
     popularFilms.length > 0 ||
     newAndNear.length > 0 ||
     sciFiDramaMystery.length > 0 ||
@@ -108,6 +128,7 @@ export function ExploreTabContent({
   const showPopularSkeleton = popularLoading && popular.length === 0;
   const showNowPlayingSkeleton = nowPlayingLoading && nowPlaying.length === 0;
   const showTrendingSkeleton = trendingLoading && trending.length === 0;
+  const showTopRatedSkeleton = topRatedLoading && topRated.length === 0;
 
   return (
     <div className="w-full pb-8 pt-5">
@@ -140,10 +161,25 @@ export function ExploreTabContent({
             <DiscoverHeroSkeleton />
           ) : null}
 
+          <SprocketDivider />
+
+          {streamingFilms.length > 0 || streamingNowLoading ? (
+            <StreamingNowAisle
+              films={streamingFilms}
+              loading={streamingNowLoading}
+              activeProviderId={streamingProviderId}
+              onProviderChange={setStreamingProviderId}
+              onFilmClick={onOpenDetail}
+            />
+          ) : null}
+
+          <TicketDivider className="my-10" />
+
           {trendingFilms.length > 0 ? (
-            <div className="mt-8">
+            <div>
               <FilmShelf
-                title="Trending this week"
+                title="Trending across 35mm"
+                subtitle="Updated weekly"
                 films={trendingFilms}
                 onFilmClick={onOpenDetail}
               />
@@ -157,27 +193,29 @@ export function ExploreTabContent({
             </div>
           ) : null}
 
-          {popularFilms.length > 0 ? (
+          {rankedFilms.length > 0 ? (
             <div className="mt-8">
-              <FilmShelf
-                title="Popular films"
-                films={popularFilms}
+              <RankedFilmAisle
+                films={rankedFilms}
                 onFilmClick={onOpenDetail}
               />
             </div>
-          ) : showPopularSkeleton ? (
+          ) : showTopRatedSkeleton ? (
             <div className="mt-8">
               <DiscoverShelfSkeleton
-                titleWidth="w-32"
-                cardCount={7}
+                titleWidth="w-44"
+                cardCount={6}
               />
             </div>
           ) : null}
 
+          <TicketDivider className="my-10" />
+
           {newAndNear.length > 0 ? (
-            <div className="mt-8">
+            <div>
               <FilmShelf
                 title={recentShelfTitle}
+                subtitle="Fresh releases"
                 films={newAndNear}
                 onFilmClick={onOpenDetail}
               />
@@ -186,6 +224,25 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-36"
+                cardCount={7}
+              />
+            </div>
+          ) : null}
+
+          {popularFilms.length > 0 ? (
+            <div className="mt-8">
+              <FilmShelf
+                eyebrow="Catalog"
+                title="Popular films"
+                subtitle="Most watched"
+                films={popularFilms}
+                onFilmClick={onOpenDetail}
+              />
+            </div>
+          ) : showPopularSkeleton ? (
+            <div className="mt-8">
+              <DiscoverShelfSkeleton
+                titleWidth="w-32"
                 cardCount={7}
               />
             </div>
@@ -205,11 +262,16 @@ export function ExploreTabContent({
             </div>
           ) : null}
 
-          {sciFiDramaMystery.length > 0 ? (
+          {sciFiDramaMystery.length > 0 || adventureFantasyHistory.length > 0 ? (
             <div className="mt-8">
-              <FilmShelf
-                title="Sci-fi, drama & mystery"
-                films={sciFiDramaMystery}
+              <MoodGridAisles
+                groups={[
+                  { title: "Sci-fi, drama & mystery", films: sciFiDramaMystery },
+                  {
+                    title: "Adventure, fantasy & history",
+                    films: adventureFantasyHistory,
+                  },
+                ]}
                 onFilmClick={onOpenDetail}
               />
             </div>
@@ -217,23 +279,6 @@ export function ExploreTabContent({
             <div className="mt-8">
               <DiscoverShelfSkeleton
                 titleWidth="w-44"
-                cardCount={7}
-              />
-            </div>
-          ) : null}
-
-          {adventureFantasyHistory.length > 0 ? (
-            <div className="mt-8">
-              <FilmShelf
-                title="Adventure, fantasy & history"
-                films={adventureFantasyHistory}
-                onFilmClick={onOpenDetail}
-              />
-            </div>
-          ) : showPopularSkeleton || showNowPlayingSkeleton ? (
-            <div className="mt-8">
-              <DiscoverShelfSkeleton
-                titleWidth="w-48"
                 cardCount={7}
               />
             </div>

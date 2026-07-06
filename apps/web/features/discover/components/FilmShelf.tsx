@@ -9,12 +9,16 @@ import { useWatchlistMutation } from "@/features/lists/hooks/useLists";
 
 interface FilmShelfProps {
   title: string;
+  eyebrow?: string;
+  subtitle?: string;
   films: TMDBMovie[];
   onFilmClick: (film: TMDBMovie) => void;
 }
 
 export function FilmShelf({
   title,
+  eyebrow,
+  subtitle,
   films,
   onFilmClick,
 }: FilmShelfProps) {
@@ -23,13 +27,20 @@ export function FilmShelf({
 
   return (
     <section>
-      <div className="mb-4 flex items-center gap-2.5">
-        <span className="h-5 w-1 rounded-full bg-accent" aria-hidden />
+      <div className="mb-4 flex items-baseline justify-between gap-2.5">
         <div className="min-w-0">
-          <h3 className="text-[17px] font-semibold leading-none tracking-tight text-fg">
+          {eyebrow ? (
+            <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h3 className="font-display text-2xl font-semibold leading-none text-fg">
             {title}
           </h3>
         </div>
+        <span className="hidden font-mono text-[11px] text-fg-muted sm:inline">
+          {subtitle ?? "Browse"}
+        </span>
       </div>
       <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 md:-mx-6 md:px-6 lg:-mx-2 lg:px-2">
         <div className="flex items-start gap-3 pb-2 md:gap-4">
@@ -43,7 +54,7 @@ export function FilmShelf({
               key={film.id}
               className="group w-[116px] flex-shrink-0 text-left sm:w-[132px] lg:w-[148px]"
             >
-              <div className="relative mb-2 aspect-[2/3] overflow-hidden rounded-xl bg-[var(--discover-placeholder)] shadow-sm ring-1 ring-black/5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md">
+              <div className="relative mb-2 aspect-[2/3] overflow-hidden rounded-sm bg-[var(--discover-placeholder)] shadow-sm ring-1 ring-black/5 transition-all duration-300 group-hover:-translate-y-1.5 group-hover:-rotate-[0.4deg] group-hover:shadow-[0_18px_30px_-18px_rgba(28,26,23,0.45)]">
                 <button type="button" onClick={() => onFilmClick(film)} className="block h-full w-full">
                   <LazyImage
                     src={posterUrl(film.poster_path)}

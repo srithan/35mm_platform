@@ -76,7 +76,7 @@ Node engine: `>=22.0.0`.
 
 Design conventions:
 
-- Default experience is light mode. Additional themes exist through `data-theme`.
+- Default experience is light mode. Additional themes exist through `data-theme`, including Matinee for warm editorial film surfaces, shared elevated panels/dropdowns, composer, and floating chat surfaces.
 - Main feed column max width is 640px.
 - Shell layout is a left nav, center content, and right rail.
 - Server state belongs in React Query. Do not mirror DB-backed state in Zustand.
@@ -265,7 +265,7 @@ Source of truth: `packages/db/src/schema/*`.
 
 - Privacy preferences.
 - Notification preferences.
-- Theme and accent color.
+- Theme and accent color. Theme values currently accepted by settings are `auto`, `light`, `dark`, `matinee`, `matrix`, `oppenheimer-bw`, and `barbie`.
 - Media playback preferences: video autoplay, default quality, captions default, caption display style, and quiet mode.
 
 ### Film Catalog
@@ -631,7 +631,8 @@ Feature ownership:
   Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
   Onboarding follow suggestions are a bounded seed query over active public profiles, exclude already-followed/blocked/muted accounts, and rank by denormalized profile activity rather than live follower-count aggregation.
-- `features/discover`: TMDB-backed browsing and search.
+- `features/discover`: TMDB-backed browsing and search, with hero/aisle presentation, provider-filtered streaming rows through the TMDB proxy, and semantic theme tokens.
+- `app/(shell)/person/[id]`: TMDB-backed cast/crew profile display, cached by Next revalidation and used for metadata/display only.
 - `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
 - `features/chat`: rich frontend, remote backend client, optional mock mode, chat route pages, realtime cache application, and bounded persisted React Query cache for inbox/recent messages.
 - `features/title`: title pages.

@@ -24,6 +24,7 @@
     --color-bg-active: var(--neutral-50);
     /* Feed post/comment card hover (on --color-bg) */
     --color-card-hover: #fafafa;
+    --color-focus-ring: color-mix(in srgb, var(--fg) 40%, transparent);
 
     /* ── Semantic UI: Text ── */
     --color-text: var(--neutral-900);
@@ -54,6 +55,18 @@
     --color-repost-bg: rgba(90, 158, 122, 0.08);
     --color-success: #27ae60;
     --color-warning: #e67e22;
+
+    /* ── Domain: Composer ── */
+    --composer-bg: var(--elevated);
+    --composer-field-bg: var(--sunken);
+    --composer-chip-bg: var(--elevated);
+    --composer-border: var(--border);
+    --composer-primary: var(--fg);
+    --composer-primary-hover: var(--fg-2);
+    --composer-primary-fg: var(--bg);
+    --composer-backdrop: rgba(0, 0, 0, 0.4);
+    --composer-radius: 1rem;
+    --composer-control-radius: 9999px;
 
     /* ── Domain: Polls ── */
     --color-shockingly-green: #0ae448;
@@ -148,6 +161,11 @@
     --chat-search-border: color-mix(in srgb, var(--fg) 8%, transparent);
     --chat-search-border-focus: color-mix(in srgb, var(--chat-accent) 38%, var(--chat-search-border));
     --chat-focus-ring: color-mix(in srgb, var(--chat-accent) 18%, transparent);
+    --chat-unread-badge: #ff3045;
+    --chat-unread-badge-fg: #ffffff;
+    --chat-floating-radius: 1.25rem;
+    --chat-control-radius: 0.75rem;
+    --chat-pill-radius: 9999px;
 
     /* Fallback until SiteHeader measures real height (see ResizeObserver in SiteHeader.tsx) */
     --site-header-sticky-offset: 4.5rem;
@@ -257,6 +275,119 @@
     --discover-tab-active: var(--color-accent);
 
     color-scheme: dark;
+}
+
+/* ── Matinee Theme ── */
+[data-theme="matinee"] {
+    --neutral-50: #f7f2e9;
+    --neutral-100: #efe7d8;
+    --neutral-200: #e7ddcb;
+    --neutral-300: #ddd3bf;
+    --neutral-400: #c9bda5;
+    --neutral-500: #8b8378;
+    --neutral-600: #55504a;
+    --neutral-700: #3f3a34;
+    --neutral-800: #1c1a17;
+    --neutral-900: #1c1a17;
+
+    --color-bg: #f7f2e9;
+    --color-bg-elevated: #efe7d8;
+    --color-bg-sunken: #e9dfce;
+    --color-bg-sunken-2: #e2d6c3;
+    --color-bg-hover: #e9dfce;
+    --color-bg-active: #e2d6c3;
+    --color-card-hover: #e9dfce;
+    --color-focus-ring: rgba(194, 71, 58, 0.4);
+
+    --color-text: #1c1a17;
+    --color-text-secondary: #55504a;
+    --color-text-tertiary: #8b8378;
+
+    --color-border: #ddd3bf;
+    --color-border-strong: #c9bda5;
+
+    --color-skeleton: #e9dfce;
+    --color-skeleton-strong: #ddd3bf;
+
+    --color-accent: #c2473a;
+    --color-accent-hover: #9c372c;
+    --color-social-accent: #c2473a;
+    --color-social-accent-hover: #9c372c;
+    --color-social-accent-bg: rgba(194, 71, 58, 0.1);
+
+    --switch-track-off: #efe7d8;
+    --switch-track-off-border: #ddd3bf;
+    --switch-thumb-off: #ffffff;
+    --switch-thumb-off-border: rgba(28, 26, 23, 0.14);
+    --switch-thumb-on: #ffffff;
+    --switch-track-on: #c2473a;
+
+    --chat-accent: #c2473a;
+    --chat-accent-hover: #9c372c;
+    --chat-accent-bg: rgba(194, 71, 58, 0.1);
+    --chat-accent-bg-strong: rgba(194, 71, 58, 0.16);
+    --chat-accent-border: color-mix(in srgb, #c2473a 38%, #ddd3bf);
+    --chat-accent-ring: rgba(194, 71, 58, 0.28);
+    --chat-own-bubble: linear-gradient(135deg, #c2473a 0%, #9c372c 100%);
+    --chat-own-fg: #ffffff;
+    --chat-own-fg-muted: rgba(255, 255, 255, 0.72);
+    --chat-own-overlay: rgba(255, 255, 255, 0.12);
+    --chat-own-overlay-hover: rgba(255, 255, 255, 0.18);
+    --chat-floating-bg: #f7f2e9;
+    --chat-floating-border: #ddd3bf;
+    --chat-search-bg: #efe7d8;
+    --chat-search-bg-focus: #f7f2e9;
+    --chat-search-border: #ddd3bf;
+    --chat-search-border-focus: rgba(194, 71, 58, 0.4);
+    --chat-focus-ring: rgba(194, 71, 58, 0.18);
+    --chat-unread-badge: #c2473a;
+    --chat-unread-badge-fg: #ffffff;
+    --chat-floating-radius: 0.125rem;
+    --chat-control-radius: 0.125rem;
+    --chat-pill-radius: 9999px;
+
+    --color-like: #c2473a;
+    --color-like-bg: rgba(194, 71, 58, 0.08);
+    --color-repost: #4d7c5f;
+    --color-repost-bg: rgba(77, 124, 95, 0.1);
+    --color-success: #4d7c5f;
+    --color-warning: #b8861a;
+
+    --composer-bg: #f7f2e9;
+    --composer-field-bg: #efe7d8;
+    --composer-chip-bg: #efe7d8;
+    --composer-border: #ddd3bf;
+    --composer-primary: #c2473a;
+    --composer-primary-hover: #9c372c;
+    --composer-primary-fg: #ffffff;
+    --composer-backdrop: rgba(28, 26, 23, 0.42);
+    --composer-radius: 0.125rem;
+    --composer-control-radius: 9999px;
+
+    --color-film-red: #c2473a;
+    --color-unread-badge: #c2473a;
+    --color-film-gold: #c2473a;
+    --color-film-gold-hover: #9c372c;
+    --color-poster-bg-from: #1c1a17;
+    --color-poster-bg-to: #3f2b22;
+    --color-poster-stroke: #ddd3bf;
+    --color-cover-end: #1c1a17;
+
+    --color-heat-1: #efe7d8;
+    --color-heat-2: #e0a898;
+    --color-heat-3: #c2473a;
+
+    --discover-hero-bg: #ffffff;
+    --discover-shelf-bg: #efe7d8;
+    --discover-placeholder: #efe7d8;
+    --discover-tab-active: #c2473a;
+
+    --landing-cream: #f7f2e9;
+    --landing-dark: #1c1a17;
+    --landing-red: #c2473a;
+    --landing-red-light: #9c372c;
+
+    color-scheme: light;
 }
 
 /* ── Matrix Theme ── */
@@ -650,7 +781,7 @@
     }
 
     a:where([href]):focus-visible {
-        outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+        outline: 2px solid var(--color-focus-ring);
         outline-offset: 3px;
     }
 
@@ -662,7 +793,7 @@
 
     button:focus-visible,
     [role="button"]:focus-visible {
-        outline: 2px solid color-mix(in srgb, var(--fg) 40%, transparent);
+        outline: 2px solid var(--color-focus-ring);
         outline-offset: 3px;
     }
 

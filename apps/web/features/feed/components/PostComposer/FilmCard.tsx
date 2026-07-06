@@ -59,7 +59,7 @@ export function FilmCard({
     : null;
 
   return (
-    <div className="border border-border rounded-[6px] overflow-hidden bg-elevated mb-3">
+    <div className="border border-[var(--composer-border)] rounded-[6px] overflow-hidden bg-[var(--composer-field-bg)] mb-3">
       <div className="flex items-stretch">
         <div
           className="self-stretch aspect-[2/3] flex-shrink-0 overflow-hidden"
@@ -132,7 +132,7 @@ export function FilmCard({
                 />
                 <div
                   className={cn(
-                    "absolute top-0.5 left-0.5 w-3 h-3 bg-elevated rounded-full shadow transition-transform duration-200",
+                    "absolute top-0.5 left-0.5 w-3 h-3 bg-[var(--composer-bg)] rounded-full shadow transition-transform duration-200",
                     isRewatch && "translate-x-4"
                   )}
                 />

@@ -32,7 +32,7 @@ export function LogNoteField(props: LogNoteFieldProps) {
       className={cn(
         "overflow-hidden rounded-xl border border-border bg-sunken transition-[border-color,background-color,box-shadow] duration-150",
         props.editable !== false
-          ? "focus-within:border-fg-muted/50 focus-within:bg-elevated focus-within:shadow-sm"
+          ? "focus-within:border-fg-muted/50 focus-within:bg-[var(--composer-bg)] focus-within:shadow-sm"
           : "border-border/70 bg-sunken/70"
       )}
     >

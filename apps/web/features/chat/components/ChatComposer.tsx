@@ -307,7 +307,7 @@ export function ChatComposer({
       />
 
       {isEditing ? (
-        <div className="flex items-start gap-2 rounded-xl border border-[var(--chat-accent-border)] bg-[var(--chat-accent-bg)] px-3 py-2">
+        <div className="flex items-start gap-2 rounded-[var(--chat-control-radius)] border border-[var(--chat-accent-border)] bg-[var(--chat-accent-bg)] px-3 py-2">
           <div className="flex-1 min-w-0 border-l-2 border-[var(--chat-accent)] pl-2.5">
             <p className="text-[11px] font-semibold text-[var(--chat-accent)] uppercase tracking-wide">
               Editing message
@@ -326,7 +326,7 @@ export function ChatComposer({
           </button>
         </div>
       ) : replyingTo ? (
-        <div className="flex items-start gap-2 rounded-xl border border-border bg-sunken px-3 py-2">
+        <div className="flex items-start gap-2 rounded-[var(--chat-control-radius)] border border-border bg-sunken px-3 py-2">
           <div className="flex-1 min-w-0 border-l-2 border-[var(--chat-accent)] pl-2.5">
             <p className="text-[11px] font-semibold text-[var(--chat-accent)] uppercase tracking-wide">
               Replying to {replyingTo.isOwn ? "you" : "them"}
@@ -347,7 +347,7 @@ export function ChatComposer({
       ) : null}
 
       {pending ? (
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-elevated/90 px-2 py-1.5">
+        <div className="flex items-center gap-2 rounded-[var(--chat-control-radius)] border border-[var(--chat-floating-border)] bg-[var(--chat-search-bg-focus)] px-2 py-1.5">
           {pending.kind === "gif" || pending.kind === "image" ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -383,7 +383,7 @@ export function ChatComposer({
 
       <div
         className={cn(
-          "relative flex items-end gap-1 rounded-[23px] bg-elevated/95 border border-border pl-1 pr-1 py-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--fg)_8%,transparent)] focus-within:ring-2 focus-within:ring-[var(--chat-accent-ring)] focus-within:border-[var(--chat-accent-border)] transition-shadow"
+          "relative flex items-end gap-1 rounded-[var(--chat-pill-radius)] border border-[var(--chat-search-border)] bg-[var(--chat-search-bg-focus)] py-1 pl-1 pr-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--fg)_8%,transparent)] transition-shadow focus-within:border-[var(--chat-accent-border)] focus-within:ring-2 focus-within:ring-[var(--chat-accent-ring)]"
         )}
       >
         <div className="flex items-center shrink-0 pl-0.5">
@@ -431,7 +431,7 @@ export function ChatComposer({
             {attachOpen ? (
               <div
                 data-chat-attach-menu
-                className="absolute bottom-full mb-2 left-0 min-w-[200px] py-1 rounded-xl border border-border bg-elevated/95 backdrop-blur-md shadow-lg z-50"
+                className="absolute bottom-full left-0 z-50 mb-2 min-w-[200px] rounded-[var(--chat-control-radius)] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] py-1 shadow-lg backdrop-blur-md"
               >
                 <button
                   type="button"

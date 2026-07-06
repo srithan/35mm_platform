@@ -31,9 +31,9 @@ function WatchProviderLogo(props: {
   );
 
   const className =
-    "rounded-lg bg-sunken/70 p-1.5 transition " +
+    "rounded-lg bg-sunken/70 p-1.5 transition-colors " +
     (props.link
-      ? "hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-film-gold/60"
+      ? "hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-film-gold/60"
       : "");
 
   if (!props.link) {

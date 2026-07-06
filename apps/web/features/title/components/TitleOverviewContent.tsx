@@ -42,7 +42,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
       {d.overview ? (
         <section>
           <TitleSectionTitle className="mb-3">About</TitleSectionTitle>
-          <p className="text-[15px] leading-[1.75] text-fg/88">{d.overview}</p>
+          <p className="max-w-3xl text-[15px] leading-[1.75] text-fg-muted">{d.overview}</p>
         </section>
       ) : null}
 
@@ -59,7 +59,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
       {d.credits?.cast && d.credits.cast.length > 0 ? (
         <section>
           <TitleSectionTitle className="mb-3">Cast</TitleSectionTitle>
-          <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="grid grid-cols-4 gap-4 pb-1 sm:grid-cols-6 md:grid-cols-8">
             {d.credits.cast.slice(0, 18).map(function (person) {
               return <TitleCastCard key={person.id} person={person} />;
             })}
@@ -75,7 +75,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
         <section>
           <TitleSectionTitle className="mb-3">Trailers &amp; videos</TitleSectionTitle>
           {props.playingKey ? (
-            <div className="mb-4 aspect-video w-full max-w-3xl overflow-hidden rounded-xl bg-black/[0.06]">
+            <div className="mb-4 aspect-video w-full max-w-3xl overflow-hidden rounded-sm border border-fg/85 bg-black/[0.06]">
               <iframe
                 title="Selected video"
                 className="h-full w-full border-0 outline-none"
@@ -99,11 +99,11 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
                       props.onSelectVideoKey(v.key);
                     }}
                     className={cn(
-                      "w-28 shrink-0 overflow-hidden rounded-lg text-left",
-                      "bg-elevated shadow-sm transition-shadow",
+                      "w-28 shrink-0 overflow-hidden rounded-sm text-left",
+                      "border border-border bg-elevated shadow-sm transition-[background-color,border-color,box-shadow]",
                       props.playingKey === v.key
                         ? "ring-2 ring-film-gold/50"
-                        : "hover:shadow"
+                        : "hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--accent)_8%,var(--elevated))] hover:shadow"
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -131,7 +131,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
       {props.recommendations.length > 0 ? (
         <section aria-label="Related titles from TMDB">
           <TitleSectionTitle className="mb-1">More like this</TitleSectionTitle>
-          <p className="mb-4 text-[13px] text-fg/55">From TMDB recommendations</p>
+          <p className="mb-4 font-mono text-[11px] text-fg-muted">Matched on tone and catalog metadata</p>
           <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-4">
             {props.recommendations.slice(0, 8).map(function (item) {
               return (
@@ -145,7 +145,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
                     })}
                     className="group block"
                   >
-                    <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-sunken">
+                    <div className="relative aspect-[2/3] w-full overflow-hidden rounded-sm bg-sunken transition-transform duration-300 group-hover:-translate-y-1">
                       {item.poster_path ? (
                         <LazyImage
                           src={posterUrl(item.poster_path, "w185") || ""}

@@ -139,26 +139,31 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
   }
 
   return (
-    <div className="mx-auto w-full max-w-[640px] px-4 py-6 md:px-6">
-      <div className="flex gap-3">
-        {posters.map(function (src, i) {
-          return (
-            <div key={i} className="relative z-[3] -mr-2 w-14 shrink-0 last:mr-0">
-              <FilmPoster src={src} alt="" size="list" />
-            </div>
-          );
-        })}
-      </div>
+    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 md:px-6 lg:px-10">
+      <div className="border-b border-border pb-6">
+        <div className="flex gap-3">
+          {posters.map(function (src, i) {
+            return (
+              <div key={i} className="relative z-[3] -mr-2 w-14 shrink-0 last:mr-0">
+                <FilmPoster src={src} alt="" size="list" className="shadow-sm" />
+              </div>
+            );
+          })}
+        </div>
 
-      <h1 className="mt-4 font-display text-[1.6rem] font-semibold leading-tight text-fg">{list.title}</h1>
-      <p className="mt-2 text-[13px] text-fg-muted">
-        by{" "}
-        <UsernameLink username={list.owner.username} displayName={list.owner.displayName} />
-      </p>
-      {list.description ? (
-        <p className="mt-3 text-[14px] leading-relaxed text-fg-light">{list.description}</p>
-      ) : null}
-      <p className="mt-3 text-[12px] text-fg-muted">{formatListMeta(list)}</p>
+        <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+          {list.isRanked ? "Community ranked" : list.type === "watchlist" ? "Watchlist" : "Film list"}
+        </p>
+        <h1 className="mt-2 font-display text-5xl font-semibold leading-none text-fg">{list.title}</h1>
+        <p className="mt-3 text-[13px] text-fg-muted">
+          by{" "}
+          <UsernameLink username={list.owner.username} displayName={list.owner.displayName} />
+        </p>
+        {list.description ? (
+          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-muted">{list.description}</p>
+        ) : null}
+        <p className="mt-3 font-mono text-[12px] text-fg-muted">{formatListMeta(list)}</p>
+      </div>
 
       {list.tags.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -230,7 +235,7 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
         </Link>
       </div>
 
-      <div className="mt-8 rounded-xl border border-border bg-bg p-4 md:p-5">
+      <div className="mt-8 border-y border-border">
         <ListEntriesPanel
           list={list}
           isOwner={isOwner}

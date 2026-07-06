@@ -97,15 +97,18 @@ export function DiscoverContent() {
 
   return (
     <div className="min-h-full w-full bg-bg md:max-w-none md:mx-0">
-      <div className="w-full px-4 pb-10 pt-safe lg:pt-0">
-        <header className="flex flex-col gap-4 border-b border-border py-4 md:flex-row md:items-end md:justify-between">
+      <div className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-safe sm:px-6 lg:px-10 lg:pt-0">
+        <header className="flex flex-col gap-5 border-b border-border py-8 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
-            <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-fg md:text-[26px]">
+            <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+              This week&apos;s program
+            </p>
+            <h1 className="font-display text-5xl font-semibold leading-none text-fg md:text-6xl">
               Discover
             </h1>
-            <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-fg-muted">
-              Start with the films. Refine the mood, era, language, and type when
-              you want the search to get more personal.
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-muted">
+              Curated by your circle, current releases, and catalog paths that still need a
+              permanent 35mm home.
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:min-w-[440px]">

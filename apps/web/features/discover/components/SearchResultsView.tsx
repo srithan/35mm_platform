@@ -47,7 +47,7 @@ export function SearchResultsView({
             }}
             className="text-left group"
           >
-            <div className="rounded-xl overflow-hidden bg-[var(--discover-placeholder)] shadow-md aspect-[2/3] mb-2">
+            <div className="mb-2 aspect-[2/3] overflow-hidden rounded-sm bg-[var(--discover-placeholder)] shadow-md transition-transform duration-300 group-hover:-translate-y-1">
               <LazyImage
                 src={posterUrl(film.poster_path)}
                 alt={film.title || film.name || "Unknown"}

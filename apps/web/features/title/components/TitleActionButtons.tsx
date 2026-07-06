@@ -14,16 +14,16 @@ import {
 
 const btnIcon = "h-[18px] w-[18px] shrink-0";
 const btnBase =
-  "inline-flex w-full min-h-[2.75rem] items-center justify-center gap-2 rounded-xl px-4 text-[13px] font-semibold transition-[transform,background-color,box-shadow,border-color,opacity] sm:w-auto active:scale-[0.99] " +
+  "inline-flex w-full min-h-[2.75rem] items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold transition-[transform,background-color,box-shadow,border-color,opacity] sm:w-auto active:scale-[0.99] " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg/25";
 
 const primary =
-  "border border-transparent bg-fg text-bg shadow-sm hover:opacity-95";
+  "border border-transparent bg-fg text-bg shadow-sm hover:bg-[color-mix(in_srgb,var(--fg)_88%,var(--accent)_12%)] hover:shadow-md";
 const secondary =
   "border border-border bg-elevated text-fg shadow-sm " +
-  "hover:border-border-strong hover:bg-sunken/60 dark:hover:bg-sunken/50";
+  "hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--accent)_8%,var(--elevated))] hover:shadow-md";
 const accent =
-  "border border-transparent bg-accent text-white shadow-sm hover:opacity-95";
+  "border border-transparent bg-accent text-white shadow-sm hover:bg-[var(--color-accent-hover)] hover:shadow-md";
 
 type TitleActionButtonsProps = {
   detail: TMDBMovie;

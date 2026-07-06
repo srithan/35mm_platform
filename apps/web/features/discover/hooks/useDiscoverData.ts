@@ -117,6 +117,30 @@ export function useTopRated() {
   return { movies: query.data?.results ?? [], loading: query.isLoading };
 }
 
+export function useStreamingNow(providerId: number | null) {
+  const query = useQuery({
+    queryKey: discoverKeys.streamingNow(providerId),
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: "1",
+        sort_by: "popularity.desc",
+        watch_region: "US",
+        with_watch_monetization_types: "flatrate",
+        include_adult: "false",
+      });
+      if (providerId != null) {
+        params.set("with_watch_providers", String(providerId));
+      }
+      return fetchJson<{ results: TMDBMovie[] }>(
+        `/api/tmdb/discover/movie?${params.toString()}`
+      );
+    },
+    staleTime: DISCOVER_STALE_TIME_MS,
+  });
+
+  return { movies: query.data?.results ?? [], loading: query.isLoading };
+}
+
 export function useSearchMulti(query: string) {
   const debouncedQuery = useDebouncedValue(query, 400);
   const normalizedQuery = debouncedQuery.trim();

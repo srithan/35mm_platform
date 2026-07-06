@@ -45,22 +45,22 @@ export function ListEntriesPanel({
       {isLoading ? (
         <div className="text-[12px] text-fg-muted">Loading films...</div>
       ) : list.entries.length > 0 ? (
-        <div className="space-y-2">
+        <div className="divide-y divide-border">
           {list.entries.map(function (entry, index) {
             return (
               <div
                 key={entry.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-elevated p-2.5 transition-colors hover:bg-hover/40"
+                className="group flex items-center gap-4 px-2 py-4 transition-colors hover:bg-hover/70"
               >
-                <div className="w-8 text-center font-mono text-[11px] text-fg-muted">
-                  {list.isRanked ? index + 1 : ""}
+                <div className="w-16 shrink-0 text-center font-display text-5xl italic leading-none text-fg opacity-20 transition-opacity group-hover:opacity-35">
+                  {list.isRanked ? String(index + 1).padStart(2, "0") : ""}
                 </div>
-                <div className="w-10 shrink-0">
+                <div className="w-12 shrink-0">
                   <FilmPoster src={entry.film.posterUrl} alt={entry.film.title} size="sm" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] font-semibold text-fg">{entry.film.title}</div>
-                  <div className="text-[11px] text-fg-muted">{entry.film.year ?? ""}</div>
+                  <div className="font-mono text-[11px] text-fg-muted">{entry.film.year ?? ""}</div>
                   {entry.note ? (
                     <div className="mt-1 text-[12px] leading-relaxed text-fg-light">{entry.note}</div>
                   ) : null}
@@ -123,7 +123,7 @@ export function ListEntriesPanel({
               onClick={function () {
                 if (!isLoadingMoreEntries) onLoadMoreEntries?.();
               }}
-              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-[12px] font-medium text-fg-muted transition-colors hover:bg-hover/30 disabled:cursor-not-allowed disabled:opacity-60"
+              className="my-4 w-full rounded-full border border-border bg-bg px-3 py-2 text-[12px] font-medium text-fg-muted transition-colors hover:bg-hover/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoadingMoreEntries ? "Loading more films..." : "Load more films"}
             </button>

@@ -49,6 +49,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     [profileRailDisabled, setProfileRailDisabled]
   );
   const isTitlePage = Boolean(pathname?.startsWith("/title/"));
+  const isPersonPage = Boolean(pathname?.startsWith("/person/"));
   const isShortFilmsSection =
     pathname === ROUTES.SHORT_FILMS ||
     Boolean(pathname?.startsWith("/short-films/"));
@@ -69,6 +70,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     isSettingsSection ||
     isChatSection ||
     isShortFilmsSection ||
+    isPersonPage ||
     isTitlePage;
 
   /** Home keeps a fixed 640px center column inside a lg+ three-column strip; shell var stays aligned. */

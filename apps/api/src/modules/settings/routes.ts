@@ -37,7 +37,7 @@ const USERNAME_RE = /^[a-zA-Z0-9._]+$/;
 
 function isValidTheme(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
-  return ["auto", "light", "dark", "matrix", "oppenheimer-bw", "barbie"].includes(value);
+  return ["auto", "light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"].includes(value);
 }
 
 var VALID_ACCENT_COLORS = [

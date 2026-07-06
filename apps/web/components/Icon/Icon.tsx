@@ -167,7 +167,7 @@ function IconChatGlyph({
     >
       <path
         d="M15.7405 19.6443L15.4875 19.4743H15.1828H5.83333C3.40097 19.4743 1.5 17.592 1.5 15.3557V5.11858C1.5 2.88229 3.40097 1 5.83333 1H16.5C18.9324 1 20.8333 2.88229 20.8333 5.11858V20.4743V22.9732C20.8324 22.9745 20.8309 22.9764 20.8285 22.9787C20.8184 22.9884 20.7986 23 20.7667 23C20.7436 23 20.7247 22.993 20.7126 22.9849L15.7405 19.6443Z"
-        fill={filled ? "currentColor" : "var(--color-bg-hover)"}
+        fill={filled ? "currentColor" : "none"}
         stroke={filled ? "none" : "currentColor"}
         strokeWidth={filled ? 0 : strokeW}
       />

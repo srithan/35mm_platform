@@ -204,7 +204,7 @@ export function PostComposerModal({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-[var(--composer-backdrop)] backdrop-blur-[2px]"
         onClick={handleClose}
       />
 
@@ -230,9 +230,9 @@ export function PostComposerModal({
               duration: isMobile ? 0.25 : 0.2,
               ease: "easeOut",
             }}
-            className="relative w-full max-w-[580px] mx-auto bg-elevated border border-border overflow-hidden
-              rounded-t-2xl md:rounded-2xl rounded-b-none md:rounded-b-2xl
-              max-h-[92vh] flex flex-col border-b-0 md:border-b shadow-2xl pointer-events-auto will-change-transform"
+            className="relative mx-auto flex max-h-[92vh] w-full max-w-[580px] flex-col overflow-hidden border border-[var(--composer-border)] bg-[var(--composer-bg)]
+              rounded-t-[var(--composer-radius)] rounded-b-none md:rounded-[var(--composer-radius)] md:rounded-b-[var(--composer-radius)]
+              border-b-0 shadow-2xl pointer-events-auto will-change-transform md:border-b"
             style={{ transformOrigin }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -264,10 +264,10 @@ export function PostComposerModal({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute inset-0 z-10 flex items-center justify-center p-4 bg-elevated/95 backdrop-blur-sm"
+                  className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--composer-bg)]/95 p-4 backdrop-blur-sm"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="w-full max-w-[320px] bg-sunken rounded-2xl border border-border flex flex-col items-center justify-center p-6 text-center shadow-xl">
+                  <div className="flex w-full max-w-[320px] flex-col items-center justify-center rounded-[var(--composer-radius)] border border-[var(--composer-border)] bg-[var(--composer-field-bg)] p-6 text-center shadow-xl">
                     <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-film-red">
                       <Icon name="trash-2" className="w-6 h-6" strokeWidth={1.5} />
                     </div>

@@ -154,7 +154,7 @@ export function TitlePageView(props: { media: TitleMedia; id: string }) {
   const metaLine = [yearStr, certification, genreLine].filter(Boolean).join(" · ");
 
   return (
-    <div className="w-full min-h-full bg-gradient-to-b from-sunken/35 via-bg to-bg">
+    <div className="min-h-full w-full bg-bg">
       <TitlePageHero
         detail={detail}
         isTv={isTv}
@@ -162,7 +162,7 @@ export function TitlePageView(props: { media: TitleMedia; id: string }) {
         metaLine={metaLine}
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-24 pt-3 sm:pt-5">
+      <div className="mx-auto max-w-[1300px] px-4 pb-24 pt-6 sm:px-6 lg:px-10">
         <TitleContentTabs
           contentTab={contentTab}
           onSelectOverview={function () {
@@ -171,7 +171,7 @@ export function TitlePageView(props: { media: TitleMedia; id: string }) {
           onSelectReviews={goToReviewsTab}
         />
 
-        <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-[1fr_300px] lg:gap-10 lg:items-start">
+        <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-12">
           <div className="order-2 min-w-0 lg:order-1">
             <div
               id="title-panel-overview"

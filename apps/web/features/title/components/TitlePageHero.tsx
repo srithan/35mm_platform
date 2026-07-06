@@ -50,11 +50,11 @@ export function TitlePageHero(props: TitlePageHeroProps) {
   const metaLine = props.metaLine;
 
   return (
-    <div className="relative w-full min-h-0 overflow-hidden">
-      <div className="relative min-h-[min(72vh,820px)] w-full sm:min-h-[min(58vh,700px)]">
+    <div className="mx-auto w-full max-w-[1300px] px-4 pt-6 sm:px-6 lg:px-10">
+      <div className="relative min-h-[420px] w-full overflow-hidden rounded-sm border border-fg/85 sm:min-h-[460px]">
         <TitleCoverBackButton />
         {heroImgSrc ? (
-          <div className="absolute inset-0 scale-[1.05] will-change-transform sm:scale-100">
+          <div className="absolute inset-0 scale-[1.03] will-change-transform sm:scale-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={heroImgSrc}
@@ -74,15 +74,13 @@ export function TitlePageHero(props: TitlePageHeroProps) {
           aria-hidden
         />
 
-        <div
-          className="relative z-10 flex min-h-[min(72vh,820px)] flex-col justify-end px-4 pb-10 pt-28 sm:min-h-[min(58vh,700px)] sm:px-6 sm:pb-12 sm:pt-32 md:px-10 md:pb-14"
-        >
+        <div className="relative z-10 flex min-h-[420px] flex-col justify-end px-5 pb-8 pt-28 sm:min-h-[460px] sm:px-8">
           <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-7 sm:max-w-6xl sm:flex-row sm:items-end sm:gap-10 md:gap-12">
             <div
               className={cn(
                 "w-[9.5rem] shrink-0 sm:w-[12rem] md:w-[13.25rem]",
-                "relative aspect-[2/3] translate-y-1 overflow-hidden rounded-lg",
-                "shadow-[0_20px_50px_rgba(0,0,0,0.45)] sm:translate-y-2 sm:rounded-xl"
+                "relative aspect-[2/3] translate-y-1 overflow-hidden rounded-sm border-2 border-bg",
+                "shadow-[0_20px_50px_rgba(0,0,0,0.45)] sm:translate-y-2"
               )}
             >
               {d.poster_path ? (
@@ -100,9 +98,9 @@ export function TitlePageHero(props: TitlePageHeroProps) {
               </p>
               <h1
                 className={cn(
-                  "mt-2 text-balance text-3xl font-bold leading-[1.05] tracking-[-0.03em] text-white",
+                  "mt-2 text-balance font-display text-4xl font-semibold leading-[1.02] text-white",
                   "[text-shadow:0_2px_4px_rgba(0,0,0,0.85),0_8px_32px_rgba(0,0,0,0.5)]",
-                  "sm:mt-2.5 sm:text-4xl md:text-[2.65rem] md:leading-[1.03]"
+                  "sm:mt-2.5 sm:text-5xl md:text-[3.35rem] md:leading-none"
                 )}
               >
                 {props.displayTitle}

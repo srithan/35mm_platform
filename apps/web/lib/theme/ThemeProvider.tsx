@@ -7,16 +7,17 @@ export type ThemeOption =
   | "auto"
   | "light"
   | "dark"
+  | "matinee"
   | "matrix"
   | "oppenheimer-bw"
   | "barbie";
-type ResolvedTheme = "light" | "dark" | "matrix" | "oppenheimer-bw" | "barbie";
+type ResolvedTheme = "light" | "dark" | "matinee" | "matrix" | "oppenheimer-bw" | "barbie";
 
 const STORAGE_KEY = "35mm-theme";
-const THEMES: ResolvedTheme[] = ["light", "dark", "matrix", "oppenheimer-bw", "barbie"];
+const THEMES: ResolvedTheme[] = ["light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"];
 
 interface ThemeContextValue {
-  /** User preference: auto | light | dark | matrix | oppenheimer-bw */
+  /** User preference: auto | light | dark | matinee | matrix | oppenheimer-bw | barbie */
   theme: ThemeOption;
   /** Actual applied theme after resolving "auto" */
   resolvedTheme: ResolvedTheme;

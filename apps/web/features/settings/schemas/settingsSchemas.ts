@@ -43,7 +43,7 @@ export const notificationSettingsSchema = z.object({
 });
 
 export const appearanceSettingsSchema = z.object({
-  theme: z.enum(["auto", "light", "dark", "matrix", "oppenheimer-bw", "barbie"]),
+  theme: z.enum(["auto", "light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"]),
   accentColor: z.enum([
     "theme",
     "warm-red",

@@ -84,7 +84,7 @@ export function FormattingToolbar({
 
 export function FloatingFormattingToolbar({ editor }: { editor: Editor | null }) {
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-elevated p-1 shadow-xl">
+    <div className="flex items-center gap-0.5 rounded-lg border border-[var(--composer-border)] bg-[var(--composer-bg)] p-1 shadow-xl">
       {formatButtons.map(function ({ cmd, title, ariaLabel, Icon, strokeWidth }) {
         return (
           <button

@@ -90,7 +90,7 @@ Primary user-facing Next.js app.
 Important files:
 
 - `app/layout.tsx`: global metadata, Clerk provider, Query provider, fonts, analytics, service worker, offline status.
-- `app/providers.tsx`: React Query client and persisted query cache, theme/accent providers, notification realtime provider, chat auth/current-user wiring, global new-chat provider, desktop floating chat inbox, notification title/sound side effects, toast host.
+- `app/providers.tsx`: React Query client and persisted query cache, theme/accent providers, Suspense-backed dynamic notification/chat realtime providers, chat auth/current-user wiring, global new-chat provider, desktop floating chat inbox, notification title/sound side effects, toast host.
 - `middleware.ts`: Clerk route protection. `/landing` redirects to `/`; guest-only auth pages (`/login`, `/signup`, `/forgot`, `/reset`, `/verify`) redirect authenticated sessions in middleware before page render.
 - `app/(shell)/layout.tsx`: authenticated app shell with scroll restore, auth bootstrap, onboarding gate, and `ShellGrid`.
 - `app/(shell)/page.tsx`: home feed, renders `PostComposer` and `InfinitePostList`.
@@ -357,8 +357,8 @@ Shell and navigation:
 
 Design system:
 
-- Default light tokens in `globals.css`; optional themes include dark, matrix, and other cinematic themes.
-- Tailwind aliases map to CSS variables: `bg`, `fg`, `accent`, `border`, `elevated`, `sunken`, social/action/domain tokens.
+- Default light tokens in `globals.css`; optional themes include dark, Matinee, matrix, and other cinematic themes.
+- Tailwind aliases map to CSS variables: `bg`, `fg`, `accent`, `border`, `elevated`, `sunken`, social/action/domain tokens. Matinee maps shared elevated panels/dropdowns plus composer and floating chat CSS variables to its warm editorial palette.
 - Fonts: Playfair variable, DM Serif Display, DM Sans, DM Mono.
 - `--shell-main-max-width` defaults to `640px`, matching feed max-width convention.
 
@@ -601,7 +601,7 @@ How it works:
 - `GET /v1/me/settings` returns profile/privacy/notification/appearance/media grouped settings.
 - Privacy update writes both `profiles.is_private` and `user_settings`.
 - Notifications update booleans used by notification creation.
-- Appearance supports theme and accent color.
+- Appearance supports theme and accent color. Accepted theme values are `auto`, `light`, `dark`, `matinee`, `matrix`, `oppenheimer-bw`, and `barbie`.
 - Media supports video autoplay, default quality, always-show-captions, caption display style, and quiet mode via `PATCH /v1/me/settings/media`.
 - API contains fallback logic for legacy DBs missing theme/autoplay/accent/media columns.
 
@@ -617,7 +617,7 @@ Business purpose: browsing and discovery beyond the social feed.
 
 Current state:
 
-- Discover uses TMDB-backed hooks through the Next `/api/tmdb` proxy and local/static data for some shelves.
+- Discover uses TMDB-backed hooks through the Next `/api/tmdb` proxy, including provider-filtered streaming rows; local/static data remains in some shelves.
 - Title pages live at `/title/[media]/[id]` and are still largely TMDB-oriented.
 - Short films include catalog JSON, watch/upload UI, and upload form, but are out of V1 per architecture.
 - Festivals and communities have rich UI/data mock surfaces but no complete backend wiring.
