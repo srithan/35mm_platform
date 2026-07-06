@@ -342,8 +342,8 @@
     --chat-focus-ring: rgba(194, 71, 58, 0.18);
     --chat-unread-badge: #c2473a;
     --chat-unread-badge-fg: #ffffff;
-    --chat-floating-radius: 0.125rem;
-    --chat-control-radius: 0.125rem;
+    --chat-floating-radius: 1.25rem;
+    --chat-control-radius: 0.75rem;
     --chat-pill-radius: 9999px;
 
     --color-like: #c2473a;
