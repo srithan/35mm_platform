@@ -28,6 +28,7 @@ import { FilmSearch } from "./FilmSearch";
 import { FilmCard } from "./FilmCard";
 import { LogNoteField, LOG_MAX_CHARS, REVIEW_THRESHOLD } from "./LogNoteField";
 import { Icon } from "@/components/Icon/Icon";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { useCreatePost } from "../../hooks/usePostMutations";
 import { useUpdatePost } from "../../hooks/usePostMutations";
 import { fetchLinkPreview, type CreatePostInput } from "../../api/postsApi";
@@ -178,6 +179,13 @@ export type PostComposerHandle = {
   submit: () => void;
 };
 
+export type ComposerPublishState = {
+  canPost: boolean;
+  label: string;
+  isPublishing: boolean;
+  processingLabel: string;
+};
+
 export interface PostComposerProps {
   variant?: "inline" | "modal" | "fullPage";
   onDirtyChange?: (dirty: boolean) => void;
@@ -186,7 +194,7 @@ export interface PostComposerProps {
   quotedPost?: QuotedPost | null;
   /** When `header`, the primary publish control is rendered outside (e.g. nav bar). */
   postPrimaryPlacement?: "toolbar" | "header";
-  onPublishStateChange?: (state: { canPost: boolean; label: string }) => void;
+  onPublishStateChange?: (state: ComposerPublishState) => void;
   editingPost?: EditingPost | null;
   initialMode?: ComposerInitialMode | null;
 }
@@ -240,6 +248,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [isFocused, setIsFocused] = useState(false);
   const [postToFeed, setPostToFeed] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const createPostMutation = useCreatePost();
   const updatePostMutation = useUpdatePost();
   const { getToken } = useAuth();
@@ -447,6 +456,15 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     return "Post";
   }, [editingPost, mode, isReview]);
 
+  const postButtonProcessingLabel = useMemo(() => {
+    if (editingPost) return "Saving...";
+    if (mode === "log") return isReview ? "Reviewing..." : "Logging...";
+    return "Posting...";
+  }, [editingPost, mode, isReview]);
+
+  const isPublishing =
+    isSubmitting || createPostMutation.isPending || updatePostMutation.isPending;
+
   const modeTabIndex = useMemo(function () {
     var index = MODE_TABS.findIndex(function (tab) {
       return tab.id === mode;
@@ -533,8 +551,13 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
-    onPublishStateChange?.({ canPost: canPost, label: postButtonLabel });
-  }, [canPost, postButtonLabel, onPublishStateChange]);
+    onPublishStateChange?.({
+      canPost: canPost,
+      label: postButtonLabel,
+      isPublishing: isPublishing,
+      processingLabel: postButtonProcessingLabel,
+    });
+  }, [canPost, postButtonLabel, postButtonProcessingLabel, isPublishing, onPublishStateChange]);
 
   const isModal = variant === "modal";
   const isFullPage = variant === "fullPage";
@@ -736,9 +759,13 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!canPost || createPostMutation.isPending || updatePostMutation.isPending) return;
+    if (!canPost || isSubmitting || createPostMutation.isPending || updatePostMutation.isPending) {
+      return;
+    }
     setSubmitError(null);
+    setIsSubmitting(true);
 
+    try {
     async function uploadPostMedia(file: File): Promise<{
       type: "image" | "video";
       url: string;
@@ -932,8 +959,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setShowDropZone(false);
     setShowEmojiPicker(false);
     setPostToFeed(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [
     canPost,
+    isSubmitting,
     createPostMutation,
     editingPost,
     discussionHeadline,
@@ -1214,18 +1245,26 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             <button
               type="button"
               data-composer-primary-action
-              disabled={!canPost || createPostMutation.isPending || updatePostMutation.isPending}
+              disabled={!canPost || isPublishing}
+              aria-busy={isPublishing}
               onClick={handleSubmit}
               className={cn(
-                "text-[13px] font-medium px-5 py-1.5 rounded-full transition-all active:scale-[0.97]",
-                !canPost || createPostMutation.isPending || updatePostMutation.isPending
-                  ? "bg-sunken-2 text-fg-faint cursor-not-allowed"
-                  : "bg-[var(--composer-primary)] text-[var(--composer-primary-fg)] hover:bg-[var(--composer-primary-hover)] shadow-sm"
+                "inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 rounded-full px-5 py-1.5 text-[13px] font-medium transition-all disabled:opacity-100",
+                isPublishing && canPost
+                  ? "cursor-wait bg-[var(--composer-primary)] text-[var(--composer-primary-fg)] shadow-sm"
+                  : canPost
+                    ? "bg-[var(--composer-primary)] text-[var(--composer-primary-fg)] shadow-sm hover:bg-[var(--composer-primary-hover)] active:scale-[0.97]"
+                    : "cursor-not-allowed bg-sunken-2 text-fg-faint"
               )}
             >
-              {createPostMutation.isPending || updatePostMutation.isPending
-                ? (editingPost ? "Saving" : "Posting")
-                : postButtonLabel}
+              {isPublishing ? (
+                <>
+                  <ButtonSpinner className="h-3.5 w-3.5" />
+                  <span>{postButtonProcessingLabel}</span>
+                </>
+              ) : (
+                <span>{postButtonLabel}</span>
+              )}
             </button>
           )}
         </div>

@@ -267,7 +267,7 @@ export function PostComposerModal({
                   className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--composer-bg)]/95 p-4 backdrop-blur-sm"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex w-full max-w-[320px] flex-col items-center justify-center rounded-[var(--composer-radius)] border border-[var(--composer-border)] bg-[var(--composer-field-bg)] p-6 text-center shadow-xl">
+                  <div className="flex w-full max-w-[320px] flex-col items-center justify-center rounded-[var(--composer-dialog-radius)] border border-[var(--composer-border)] bg-[var(--composer-field-bg)] p-6 text-center shadow-xl">
                     <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-film-red">
                       <Icon name="trash-2" className="w-6 h-6" strokeWidth={1.5} />
                     </div>

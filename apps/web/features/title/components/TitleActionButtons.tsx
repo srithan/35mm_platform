@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bookmark, BookmarkPlus, Check, ExternalLink, PenLine } from "lucide-react";
+import { Bookmark, BookmarkPlus, Check, ExternalLink, Loader2, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import type { TitleMedia } from "@/lib/title/paths";
@@ -101,6 +101,8 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
     [hydrated, watched, onWatchlist, watchlistFilmId, watchlistMutation, props.detail, persist]
   );
 
+  const isWatchlistPending = watchlistMutation.isPending;
+
   return (
     <div className="flex flex-col gap-2.5">
       <button
@@ -117,20 +119,32 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
         type="button"
         onClick={onToggleWatchlist}
         aria-pressed={onWatchlist}
-        disabled={!hydrated || watched || watchlistMutation.isPending}
+        aria-busy={isWatchlistPending}
+        disabled={!hydrated || watched || isWatchlistPending}
         title={watched ? "Remove “Watched” to add this title to your watchlist again" : undefined}
         className={cn(
           btnBase,
           onWatchlist && !watched ? primary : secondary,
-          watched && "cursor-not-allowed opacity-50"
+          watched && "cursor-not-allowed opacity-50",
+          isWatchlistPending && "cursor-wait opacity-80"
         )}
       >
-        {onWatchlist && !watched ? (
+        {isWatchlistPending ? (
+          <Loader2 className={cn(btnIcon, "animate-spin")} strokeWidth={2.25} aria-hidden />
+        ) : onWatchlist && !watched ? (
           <Bookmark className={btnIcon} strokeWidth={2.25} aria-hidden />
         ) : (
           <BookmarkPlus className={btnIcon} strokeWidth={2.25} aria-hidden />
         )}
-        <span>{onWatchlist && !watched ? "On watchlist" : "Watchlist"}</span>
+        <span>
+          {isWatchlistPending
+            ? onWatchlist
+              ? "Removing..."
+              : "Adding..."
+            : onWatchlist && !watched
+              ? "On watchlist"
+              : "Watchlist"}
+        </span>
       </button>
       <button type="button" onClick={props.onWriteReview} className={cn(btnBase, accent)}>
         <PenLine className={btnIcon} strokeWidth={2.25} />

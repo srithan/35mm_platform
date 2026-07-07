@@ -66,7 +66,12 @@
     --composer-primary-fg: var(--bg);
     --composer-backdrop: rgba(0, 0, 0, 0.4);
     --composer-radius: 1rem;
+    --composer-dialog-radius: var(--composer-radius);
     --composer-control-radius: 9999px;
+    --button-spinner-track: color-mix(in srgb, var(--composer-primary-fg) 18%, var(--composer-primary));
+    --button-spinner-tip: var(--composer-primary-fg);
+    --accent-button-spinner-track: color-mix(in srgb, #ffffff 20%, var(--accent));
+    --accent-button-spinner-tip: #ffffff;
 
     /* ── Domain: Polls ── */
     --color-shockingly-green: #0ae448;
@@ -362,7 +367,12 @@
     --composer-primary-fg: #ffffff;
     --composer-backdrop: rgba(28, 26, 23, 0.42);
     --composer-radius: 0.125rem;
+    --composer-dialog-radius: 1rem;
     --composer-control-radius: 9999px;
+    --button-spinner-track: color-mix(in srgb, #ffffff 18%, var(--composer-primary));
+    --button-spinner-tip: #ffffff;
+    --accent-button-spinner-track: color-mix(in srgb, #ffffff 18%, var(--color-accent));
+    --accent-button-spinner-tip: #ffffff;
 
     --color-film-red: #c2473a;
     --color-unread-badge: #c2473a;
@@ -690,6 +700,11 @@
     --landing-dark: #3d0a2e;
     --landing-red: #ff36af;
     --landing-red-light: #ff5cbe;
+
+    --button-spinner-track: color-mix(in srgb, #ffffff 18%, var(--composer-primary));
+    --button-spinner-tip: #ffffff;
+    --accent-button-spinner-track: color-mix(in srgb, var(--color-text) 16%, var(--accent));
+    --accent-button-spinner-tip: var(--color-text);
 
     color-scheme: light;
 }

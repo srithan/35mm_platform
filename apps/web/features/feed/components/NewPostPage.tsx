@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   PostComposer,
+  type ComposerPublishState,
   type PostComposerHandle,
 } from "@/features/feed/components/PostComposer";
 import { Icon } from "@/components/Icon/Icon";
@@ -17,6 +18,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { cn } from "@/lib/utils/cn";
 import { useScrollLock } from "@/lib/hooks/useScrollLock";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 
 function navigateAwayFromNewPost(router: ReturnType<typeof useRouter>) {
   useComposerModalStore.getState().close();
@@ -35,10 +37,15 @@ export function NewPostPage() {
   const initialMode = useComposerModalStore(function (s) { return s.initialMode; });
   const [isDirty, setIsDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [publishUi, setPublishUi] = useState({ canPost: false, label: "Post" });
+  const [publishUi, setPublishUi] = useState<ComposerPublishState>({
+    canPost: false,
+    label: "Post",
+    isPublishing: false,
+    processingLabel: "Posting...",
+  });
 
-  const onPublishStateChange = useCallback(function (s: { canPost: boolean; label: string }) {
-    setPublishUi(s);
+  const onPublishStateChange = useCallback(function (state: ComposerPublishState) {
+    setPublishUi(state);
   }, []);
 
   const [scrollLockMobile, setScrollLockMobile] = useState(false);
@@ -125,18 +132,28 @@ export function NewPostPage() {
             <div className="flex flex-shrink-0 items-center pr-0.5">
               <button
                 type="button"
-                disabled={!publishUi.canPost}
+                disabled={!publishUi.canPost || publishUi.isPublishing}
+                aria-busy={publishUi.isPublishing}
                 onClick={function () {
                   composerRef.current?.submit();
                 }}
                 className={cn(
-                  "rounded-full px-4 py-1.5 text-[15px] font-bold leading-tight transition-[opacity,transform] active:scale-[0.98]",
-                  publishUi.canPost
-                    ? "bg-accent text-white active:opacity-90"
-                    : "cursor-default bg-accent/18 text-accent/45"
+                  "inline-flex min-w-[4.75rem] items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[15px] font-bold leading-tight transition-[opacity,transform] disabled:opacity-100",
+                  publishUi.isPublishing
+                    ? "cursor-wait bg-accent text-white"
+                    : publishUi.canPost
+                      ? "bg-accent text-white active:scale-[0.98] active:opacity-90"
+                      : "cursor-default bg-accent/18 text-accent/45 disabled:opacity-100"
                 )}
               >
-                {publishUi.label}
+                {publishUi.isPublishing ? (
+                  <>
+                    <ButtonSpinner tone="accent" className="h-4 w-4" />
+                    <span>{publishUi.processingLabel}</span>
+                  </>
+                ) : (
+                  <span>{publishUi.label}</span>
+                )}
               </button>
             </div>
           </div>
