@@ -204,9 +204,9 @@ async function uploadSourceToCloudflareImages(env: WorkerEnv, sourceUrl: string,
   }
 
   var payload = (await response.json()) as {
-    result?: { variants?: string[] };
+    result?: { id?: string; variants?: string[] };
   };
-  return payload.result?.variants?.[0] ?? null;
+  return payload.result?.id ?? imageId;
 }
 
 async function computeBlurhash(buffer: Uint8Array): Promise<string | null> {
@@ -260,19 +260,27 @@ async function processImageMediaItem(env: WorkerEnv, item: PostMedia): Promise<P
   ]);
 
   var sourceUrl = publicUrlForKey(env.R2_PUBLIC_BASE_URL, sourceKey);
-  var uploadedImageUrl = await uploadSourceToCloudflareImages(env, sourceUrl, sourceKey);
+  var uploadedImageId: string | null = null;
+  try {
+    uploadedImageId = await uploadSourceToCloudflareImages(env, sourceUrl, sourceKey);
+  } catch (error) {
+    console.warn("[media-process] Cloudflare Images upload failed; using R2 variants", {
+      key: sourceKey,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   var thumbUrl =
-    uploadedImageUrl && env.CF_IMAGES_ACCOUNT_HASH
-      ? cfImagesDeliveryUrl(env, sourceKey, env.CF_IMAGES_DEFAULT_THUMB_VARIANT) ?? publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.thumb)
+    uploadedImageId && env.CF_IMAGES_ACCOUNT_HASH
+      ? cfImagesDeliveryUrl(env, uploadedImageId, env.CF_IMAGES_DEFAULT_THUMB_VARIANT) ?? publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.thumb)
       : publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.thumb);
   var feedUrl =
-    uploadedImageUrl && env.CF_IMAGES_ACCOUNT_HASH
-      ? cfImagesDeliveryUrl(env, sourceKey, env.CF_IMAGES_DEFAULT_FEED_VARIANT) ?? publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.feed)
+    uploadedImageId && env.CF_IMAGES_ACCOUNT_HASH
+      ? cfImagesDeliveryUrl(env, uploadedImageId, env.CF_IMAGES_DEFAULT_FEED_VARIANT) ?? publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.feed)
       : publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.feed);
   var fullUrl =
-    uploadedImageUrl && env.CF_IMAGES_ACCOUNT_HASH
-      ? cfImagesDeliveryUrl(env, sourceKey, env.CF_IMAGES_DEFAULT_FULL_VARIANT) ?? publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.full)
+    uploadedImageId && env.CF_IMAGES_ACCOUNT_HASH
+      ? cfImagesDeliveryUrl(env, uploadedImageId, env.CF_IMAGES_DEFAULT_FULL_VARIANT) ?? publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.full)
       : publicUrlForKey(env.R2_PUBLIC_BASE_URL, variants.full);
 
   return {

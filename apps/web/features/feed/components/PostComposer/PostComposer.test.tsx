@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { parseStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { PostComposer } from "./index";
 import { postComposerWritePrompt } from "./writePrompt";
+import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 
 const mocks = vi.hoisted(() => ({
   createPostMutateAsync: vi.fn(async () => ({})),
@@ -108,6 +109,8 @@ beforeEach(() => {
   mocks.resolveOnboardingFilmsMock.mockClear();
   mocks.fetchLinkPreviewMock.mockClear();
   mocks.searchMentionSuggestionsMock.mockClear();
+  vi.mocked(presignProfileMediaUpload).mockReset();
+  vi.mocked(uploadToPresignedUrl).mockReset();
 });
 
 function findMentionNode(node: any): any | null {
@@ -180,6 +183,63 @@ describe("PostComposer", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Attached images")).toBeInTheDocument();
     });
+  });
+
+  it("submits uploaded image posts with the original R2 URL until variants are processed", async () => {
+    vi.mocked(presignProfileMediaUpload).mockResolvedValue({
+      uploadUrl: "https://upload.example.com/signed",
+      publicUrl: "https://media.example.com/users/user_1/post_media/photo.jpg",
+      objectKey: "users/user_1/post_media/photo.jpg",
+      contentType: "image/jpeg",
+      expiresInSeconds: 900,
+      variants: {
+        thumb: "https://media.example.com/users/user_1/post_media/photo__thumb.webp",
+        feed: "https://media.example.com/users/user_1/post_media/photo__feed.webp",
+        full: "https://media.example.com/users/user_1/post_media/photo__full.webp",
+      },
+    });
+    vi.mocked(uploadToPresignedUrl).mockResolvedValue(undefined);
+
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+    const textarea = screen.getByPlaceholderText(WRITE_PLACEHOLDER);
+    const file = new File(["image-bytes"], "photo.jpg", { type: "image/jpeg" });
+
+    fireEvent.paste(textarea, {
+      clipboardData: {
+        items: [
+          {
+            kind: "file",
+            type: "image/jpeg",
+            getAsFile: () => file,
+          },
+        ],
+        files: [file],
+        getData: () => "",
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Attached images")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    var input = (mocks.createPostMutateAsync.mock.calls[0] as unknown[])[0] as {
+      media: Array<{ url: string; variants?: Record<string, string> }>;
+      mediaUrls: string[];
+    };
+    expect(input.mediaUrls).toEqual(["https://media.example.com/users/user_1/post_media/photo.jpg"]);
+    expect(input.media[0]).toMatchObject({
+      type: "image",
+      url: "https://media.example.com/users/user_1/post_media/photo.jpg",
+      key: "users/user_1/post_media/photo.jpg",
+    });
+    expect(input.media[0]?.variants).toBeUndefined();
   });
 
   it("opens mention autocomplete and inserts stable mention node", async () => {

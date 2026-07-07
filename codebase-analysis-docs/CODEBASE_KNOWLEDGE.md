@@ -69,7 +69,7 @@ Runtime flow:
 - Drizzle talks to Neon through `@neondatabase/serverless` HTTP.
 - Upstash Redis is used for feed cache, rate limits, BullMQ broker URLs, suggestion cache, chat unread counters, chat typing TTLs, and chat presence TTLs.
 - AWS Keyspaces stores chat message rows and message edit history in `thirtyFiveMM.messages` and `thirtyFiveMM.message_edits`.
-- R2 presigned upload endpoints return deterministic future variant URLs; the worker later creates WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
+- R2 presigned upload endpoints return the original public URL plus deterministic future variant URLs. New post creation stores the original URL/object key until `media.process` creates variants; the worker later writes WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
 - Notification creation writes DB rows and enqueues `notification.publish`; the worker publishes Ably `notification.new` events when `ABLY_API_KEY` exists.
 - Chat send/read-state/typing/edit/reaction routes publish latency-sensitive Ably events directly from the API after durable state is written, with BullMQ worker jobs retained as fallback/asynchronous paths for publish failures, large inbox fanout, and delete/update recovery.
 
@@ -203,7 +203,7 @@ Long-running BullMQ consumer.
 Important files:
 
 - `src/index.ts`: exits early when `WORKER_ENABLED=false`; otherwise resolves Redis URL, creates BullMQ `Worker` and `QueueEvents`, and dispatches jobs by name.
-- `src/jobs/mediaProcess.ts`: pulls originals from R2; generates post thumb/feed/full WebP variants and blurhash; generates avatar sm/lg and cover default variants; optionally uploads post media to Cloudflare Images; updates `posts.media` / `posts.media_urls` or profile variant JSONB fields.
+- `src/jobs/mediaProcess.ts`: pulls originals from R2; generates post thumb/feed/full WebP variants and blurhash; generates avatar sm/lg and cover default variants; optionally uploads post media to Cloudflare Images with R2 fallback; updates `posts.media` / `posts.media_urls` or profile variant JSONB fields.
 - `src/jobs/notificationPublish.ts`: reads notification details and publishes Ably `notification.new` to `user:{recipientId}:notifications`.
 - `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes UUID-backed `follow_suggestions` rows plus Redis cache.
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
@@ -551,6 +551,7 @@ How it works:
   - Post media: `thumb`, `feed`, `full`.
   - Avatar media: `sm`, `lg`.
   - Cover media: `default`.
+- Post creation stores original post media URLs until `media.process` has written optimized variants, avoiding broken reads for future variant objects that do not exist yet.
 - API `GET /v1/media/resolve-url` resolves public media URLs.
 - API `GET /v1/media/oembed` returns link preview/oEmbed data.
 - Worker `media.process` fetches originals, creates WebP variants, writes immutable R2 objects, and updates the owning DB row:

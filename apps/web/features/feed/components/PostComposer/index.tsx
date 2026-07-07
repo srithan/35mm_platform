@@ -797,17 +797,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       var isVideo = presign.contentType.startsWith("video/");
       return {
         type: isVideo ? "video" : "image",
-        url: isVideo ? presign.publicUrl : presign.variants.full || presign.publicUrl,
+        url: presign.publicUrl,
         originalUrl: presign.publicUrl,
         key: presign.objectKey,
-        variants: isVideo
-          ? undefined
-          : {
-              thumb: presign.variants.thumb,
-              feed: presign.variants.feed,
-              full: presign.variants.full,
-            },
-        thumbnailUrl: isVideo ? undefined : presign.variants.thumb,
+        variants: undefined,
+        thumbnailUrl: undefined,
       };
     }
 
@@ -820,7 +814,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         media = await Promise.all(imageFiles.map(uploadPostMedia));
         mediaUrls = media
           .filter((item) => item.type === "image")
-          .map((item) => item.variants?.feed || item.url);
+          .map((item) => item.url);
       } else if (videoFile) {
         var uploadedVideo = await uploadPostMedia(videoFile);
         media = [uploadedVideo];

@@ -778,7 +778,7 @@ Upload path:
 2. API validates content type, content length, media kind, and R2 env.
 3. API returns presigned R2 PUT URL plus deterministic public and variant URLs.
 4. Client uploads directly to R2.
-5. Post/profile update stores resulting public URL/object key.
+5. Post/profile update stores the resulting public original URL and object key. Post creation does not store future variant URLs before the worker has written them, so new image posts render from the original immediately.
 6. Profile avatar/cover updates enqueue `media.process` so the worker can generate profile media variants.
 
 Processing path:
@@ -792,7 +792,7 @@ Processing path:
 4. Worker computes blurhash for post media.
 5. Worker writes variants to R2 with immutable cache headers.
 6. Worker updates `posts.media` / `posts.media_urls` for post media, or `profiles.avatar_variants` / `profiles.cover_variants` for profile media.
-7. Optional Cloudflare Images integration can provide delivery URLs for post media.
+7. Optional Cloudflare Images integration can provide delivery URLs for post media after the worker upload succeeds; otherwise R2 variant URLs remain the delivery path.
 
 Profile media delivery:
 

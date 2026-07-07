@@ -32,8 +32,8 @@ Before values are estimated from code review + earlier behavior where feed cards
 
 ## Observations
 
-- Feed now consistently uses `media[].variants.feed` URLs (WebP) for card display.
-- Full-screen viewer uses `variants.full` (not feed thumbnail).
+- Feed uses processed `media[].variants.feed` URLs (WebP) when present and falls back to original media URLs while async processing is pending.
+- Full-screen viewer uses `variants.full` when present, falling back to the original instead of the feed thumbnail.
 - Blurhash placeholder appears immediately; image fades in when loaded.
 - SW no longer pretends to cache cross-origin `/v1/*`; nav/static/image caches remain valid and measurable.
 

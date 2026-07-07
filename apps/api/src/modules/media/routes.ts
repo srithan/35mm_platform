@@ -5,7 +5,6 @@ import { requireAuth } from "../../lib/middleware.js";
 import { loadEnv } from "../../lib/env.js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { buildCfImagesVariantUrl } from "./cfImages.js";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "./url.js";
 import { createRateLimitMiddleware } from "../../lib/rateLimit.js";
 
@@ -206,18 +205,6 @@ function mediaVariantsForKey(
       thumb: publicUrl,
       feed: publicUrl,
       full: publicUrl,
-    };
-  }
-
-  var cfThumb = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_THUMB_VARIANT);
-  var cfFeed = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_FEED_VARIANT);
-  var cfFull = buildCfImagesVariantUrl(key, loadEnv().CF_IMAGES_DEFAULT_FULL_VARIANT);
-
-  if (cfThumb && cfFeed && cfFull) {
-    return {
-      thumb: cfThumb,
-      feed: cfFeed,
-      full: cfFull,
     };
   }
 
