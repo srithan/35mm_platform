@@ -27,6 +27,21 @@ erDiagram
   film_lists ||--o{ film_list_likes : receives
   users ||--o{ user_blocks : blocker
   users ||--o{ user_mutes : muter
+  users ||--o{ contribution_submissions : submits
+  films ||--o| catalog_titles : legacy_bridge
+  catalog_titles ||--o{ catalog_title_relations : relates_from
+  catalog_titles ||--o{ catalog_title_relations : relates_to
+  catalog_titles ||--o{ catalog_title_genres : tagged
+  catalog_genres ||--o{ catalog_title_genres : classifies
+  catalog_titles ||--o{ catalog_credits : has
+  catalog_people ||--o{ catalog_credits : credited
+  catalog_titles ||--o{ catalog_title_companies : company_role
+  catalog_companies ||--o{ catalog_title_companies : works_on
+  catalog_awards ||--o{ catalog_award_events : hosts
+  catalog_award_events ||--o{ catalog_award_nominations : includes
+  catalog_edits ||--o{ catalog_revisions : records
+  catalog_edits ||--o{ catalog_sources : cites
+  catalog_edits ||--o{ catalog_index_jobs : indexes
   users ||--o{ chat_threads : creates
   chat_threads ||--o{ chat_participants : has
   users ||--o{ chat_participants : joins
@@ -40,4 +55,81 @@ erDiagram
     string reason
     timestamp created_at
     timestamp updated_at
+  }
+  contribution_submissions {
+    string id PK
+    string user_id FK
+    string kind
+    string status
+    string title
+    string summary
+    json payload
+    string idempotency_key
+    boolean is_deleted
+    timestamp created_at
+    timestamp updated_at
+  }
+  catalog_titles {
+    string id PK
+    string legacy_film_id FK
+    string type
+    string lifecycle
+    string status
+    string primary_title
+    string slug
+    int start_year
+    string parent_title_id FK
+    timestamp updated_at
+  }
+  catalog_people {
+    string id PK
+    string primary_name
+    string slug
+    string status
+    timestamp updated_at
+  }
+  catalog_credits {
+    string id PK
+    string title_id FK
+    string person_id FK
+    string department
+    string job
+    int billing_order
+  }
+  catalog_genres {
+    string id PK
+    string slug
+    string name
+    boolean is_active
+  }
+  catalog_title_genres {
+    string title_id FK
+    string genre_id FK
+    int sort_order
+  }
+  catalog_edits {
+    string id PK
+    string source
+    string status
+    string actor_user_id FK
+    string summary
+    string idempotency_key
+    timestamp created_at
+  }
+  catalog_revisions {
+    string id PK
+    string edit_id FK
+    string entity_type
+    string entity_id
+    string action
+    json before_data
+    json after_data
+  }
+  catalog_index_jobs {
+    string id PK
+    string edit_id FK
+    string status
+    json payload
+    int attempt_count
+    timestamp processed_at
   }

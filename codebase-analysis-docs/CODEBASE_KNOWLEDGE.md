@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23. Last refreshed for Studio workspace and username locks on 2026-07-06.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for catalog core schema on 2026-07-07.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -21,7 +21,7 @@ The repository is a pnpm/Turborepo monorepo:
 - `packages/ui`: small shared UI primitive package.
 - `packages/config`: shared TypeScript config.
 
-Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Short films, festivals, communities, Meilisearch, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
+Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, the new `catalog_` database core, catalog mutation APIs/helpers, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, contribution submissions, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Catalog read/search APIs, Studio/contribution rewiring, Meilisearch, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
 
 ## High-Level Architecture
 
@@ -107,6 +107,7 @@ Feature folders:
 - `features/discover`: TMDB-backed discovery and search views.
 - `features/settings`: account/privacy/notification/appearance/media/data-security settings with URL-backed section routes.
 - `features/bookmarks`: two-column bookmark page, folder management, and post-to-folder flow backed by feed bookmark endpoints.
+- `features/contribute`: contributor hub, config-driven contribution forms, Zod preflight validation, idempotent submit client, and personal submission tracker backed by `/v1/contributions/submissions`.
 - `features/chat`: rich chat frontend with App Router chat pages, remote client backed by `/v1/chat`, optional mock mode for demos/tests, realtime cache application, and bounded persisted cache for inbox/recent messages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
 - `features/title`: title detail pages, largely TMDB/discover oriented.
@@ -170,7 +171,10 @@ Important files:
 - `src/lib/filmLists.ts`: watchlist bootstrap and film ID resolution from existing ULID, TMDB metadata, or catalog metadata.
 - `src/lib/jobs.ts`: BullMQ producer for media, notification, counter, feed, and chat jobs.
 - `src/lib/keyspaces.ts`: Cassandra driver client for AWS Keyspaces using SigV4 IAM auth, warmed connection pools, prepared statements by default, and `chat-read`/`chat-write` execution profiles.
+- `src/modules/catalog/mutations.ts`: production catalog mutation helper for stage/apply/reject/revert/merge/batch. It uses shared validators, pooled Drizzle transactions, transaction-local `SET LOCAL lock_timeout`, deterministic current-row locks, advisory-lock idempotency, same-transaction `catalog_index_jobs`, field-level supersede detection, and structured catalog mutation/metric logs.
+- `src/modules/catalog/routes.ts`: `/v1/catalog` mutation routes for titles, people, credits, media, approve/reject/revert, and title history. Public mutation routes derive source server-side from Clerk Studio role, rate-limit write requests, and ignore client-supplied `source`; workflow actions require existing Studio Clerk catalog-write roles.
 - `src/modules/chat/routes.ts`: authenticated chat inbox, thread creation, message read/write/edit/delete, reactions, read receipts, archive/mute/delete, typing, and presence routes.
+- `src/modules/contributions/routes.ts`: authenticated contribution submission queue routes. `POST /submissions` requires `Idempotency-Key`, validates with shared Zod schemas, applies user rate limiting, and writes review-state rows. `GET /submissions` returns cursor-paged viewer submissions.
 - `src/modules/chat/chatRedis.ts`: unread counters, sorted-set typing indicators, and presence over Upstash Redis REST. Inbox unread and presence batch endpoints use Redis `MGET`.
 - `src/modules/chat/chatUtils.ts`: chat message bucket and preview helpers.
 
@@ -192,6 +196,15 @@ Mounted routes:
 - `/v1/lists*`
 - `/v1/me/settings*`
 - `/v1/media*`
+- `/v1/contributions/submissions`
+- `/v1/catalog/titles`
+- `/v1/catalog/people`
+- `/v1/catalog/credits`
+- `/v1/catalog/media`
+- `/v1/catalog/edits/:id/approve`
+- `/v1/catalog/edits/:id/reject`
+- `/v1/catalog/edits/:id/revert`
+- `/v1/catalog/titles/:id/history`
 - `/v1/users/*`
 - `/v1/feed*`
 - `/v1/chat*`
@@ -208,6 +221,7 @@ Important files:
 - `src/workers/suggestionWorker.ts`: computes friend-of-friend suggestions and writes UUID-backed `follow_suggestions` rows plus Redis cache.
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
 - `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
+- `src/jobs/catalogIndex.ts`: drains `catalog_index_jobs` through the partial unprocessed index with `FOR UPDATE SKIP LOCKED`, enqueues idempotent BullMQ `catalog.index` jobs, marks rows processed, samples pending-review queue depth outside the mutation path, and emits index-job lag logs. The `catalog.index` handler logs unconfigured search target until Meilisearch document writes are wired.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
 - `src/jobs/chatDeliver.ts`: fetches Keyspaces message rows and publishes new-message + inbox update events.
 - `src/jobs/chatMessageUpdated.ts`: publishes edit/delete/reaction updates from Keyspaces message rows.
@@ -251,6 +265,20 @@ erDiagram
   film_lists ||--o{ film_list_likes : receives
   users ||--o{ user_blocks : blocker
   users ||--o{ user_mutes : muter
+  users ||--o{ contribution_submissions : submits
+  films ||--o| catalog_titles : legacy_bridge
+  catalog_titles ||--o{ catalog_title_relations : relates_from
+  catalog_titles ||--o{ catalog_title_relations : relates_to
+  catalog_titles ||--o{ catalog_title_genres : tagged
+  catalog_genres ||--o{ catalog_title_genres : classifies
+  catalog_titles ||--o{ catalog_credits : has
+  catalog_people ||--o{ catalog_credits : credited
+  catalog_titles ||--o{ catalog_title_companies : company_role
+  catalog_companies ||--o{ catalog_title_companies : works_on
+  catalog_awards ||--o{ catalog_award_events : hosts
+  catalog_award_events ||--o{ catalog_award_nominations : includes
+  catalog_edits ||--o{ catalog_revisions : records
+  catalog_edits ||--o{ catalog_sources : cites
   users ||--o{ chat_threads : creates
   chat_threads ||--o{ chat_participants : has
   users ||--o{ chat_participants : joins
@@ -265,6 +293,75 @@ erDiagram
     timestamp created_at
     timestamp updated_at
   }
+  contribution_submissions {
+    string id PK
+    string user_id FK
+    string kind
+    string status
+    string title
+    string summary
+    json payload
+    string idempotency_key
+    boolean is_deleted
+    timestamp created_at
+    timestamp updated_at
+  }
+  catalog_titles {
+    string id PK
+    string legacy_film_id FK
+    string type
+    string lifecycle
+    string status
+    string primary_title
+    string slug
+    int start_year
+    string parent_title_id FK
+    timestamp updated_at
+  }
+  catalog_people {
+    string id PK
+    string primary_name
+    string slug
+    string status
+    timestamp updated_at
+  }
+  catalog_credits {
+    string id PK
+    string title_id FK
+    string person_id FK
+    string department
+    string job
+    int billing_order
+  }
+  catalog_genres {
+    string id PK
+    string slug
+    string name
+    boolean is_active
+  }
+  catalog_title_genres {
+    string title_id FK
+    string genre_id FK
+    int sort_order
+  }
+  catalog_edits {
+    string id PK
+    string source
+    string status
+    string actor_user_id FK
+    string summary
+    string idempotency_key
+    timestamp created_at
+  }
+  catalog_revisions {
+    string id PK
+    string edit_id FK
+    string entity_type
+    string entity_id
+    string action
+    json before_data
+    json after_data
+  }
 ```
 
 Current Drizzle schema highlights:
@@ -273,6 +370,17 @@ Current Drizzle schema highlights:
 - `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count, follower count, unsorted bookmark count, and following count.
 - `username_locks`: Studio-managed lowercase username lock/reservation table with `locked | reserved` state, owner/reason metadata, timestamps, and DB checks for lowercase usernames plus allowed state values. API username availability and profile updates consult this table before allowing a username.
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
+- `catalog_titles`: long-term IMDb-like title records for movies, short films, documentaries, TV/web series, seasons, episodes, specials, videos, and other title types. It bridges to existing `films` through nullable unique `legacy_film_id`, stores lifecycle/status/title/release/runtime/language/country facts, hierarchy fields, lock/merge metadata, and current-state read indexes.
+- `catalog_people`: cast/crew profile records with primary/sort names, slug, biography, birth/death facts, professions, verification, lock/merge metadata, and person-list indexes.
+- `catalog_companies`: studios, production companies, distributors, networks, streamers, sales agents, festivals, schools, collectives, and other organizations.
+- `catalog_credits`: normalized title/person credits by department, job, character, credited-as name, billing order, episode scope, and status. Title pages use `(title_id, department, billing_order, id)`; person pages use `(person_id, title_id, id)`.
+- `catalog_title_relations` and `catalog_title_companies`: non-hierarchical title graph edges plus title/company roles for sequels/remakes/adaptations and production/distribution/network/streaming relationships. Series/season/episode hierarchy is canonical on `catalog_titles.parent_title_id`, `season_number`, `episode_number`, and `absolute_episode_number`.
+- `catalog_genres`, `catalog_title_genres`: first-class genre taxonomy and title/genre join table for Discover filtering, faceting, and search indexing. `catalog_titles.facts` genre values are import/display fallback only.
+- `catalog_awards`, `catalog_award_events`, `catalog_award_nominations`: award/festival organizations, yearly events, and nominations/wins/selections tied to titles, people, or companies.
+- `catalog_media_assets`, `catalog_external_ids`, `catalog_aliases`: polymorphic current-state media, external identifiers, and alternate/localized/search names for catalog entities.
+- `catalog_edits`, `catalog_revisions`, `catalog_sources`: append-only catalog edit groups, per-entity before/after snapshots, changed field lists, public visibility flags, revert links, idempotency keys, archive-ready revision pointers, and citations. Rollback creates a new edit/revision instead of mutating history. Pending-review moderation queues use a partial `(status, created_at, id)` index.
+- `catalog_index_jobs`: transactional outbox for catalog search/index work. Rows are written in the same transaction as applied/reverted edits; relay workers poll the partial `processed_at IS NULL` index. Processed rows can remain as an operational log without slowing the hot poll path.
+- `contribution_submissions`: authenticated review queue for public catalog contributions. Kinds cover missing titles, title edits, credits, person updates, media, awards/events, duplicate titles, merge people, and split person. Rows store JSONB payloads, moderation status, title/summary, optional entity reference, soft-delete flag, and a unique per-user idempotency key.
 - `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview.
 - `bookmark_folders`: per-user bookmark folders with denormalized `item_count` per folder.
 - `post_bookmarks`: current bookmark table. The older `post_saves` rename appears completed in code; `folder_id` optionally points at `bookmark_folders` and falls back to unsorted on folder delete. User-first indexes support per-user bookmark cursor listing and folder-filtered bookmark pages.
@@ -295,8 +403,13 @@ Current Drizzle schema highlights:
 Important data invariants:
 
 - Film identity must be the 35mm ULID in app/API payloads. TMDB is metadata/fallback only.
+- Long-term title identity should move to `catalog_titles.id`; current social APIs still use `films.id` until migration/backfill work is complete.
+- Existing contributor submission UI still writes to the legacy review queue, but the API catalog mutation path now exists for typed writes that update current-state `catalog_` tables and write `catalog_edits`, `catalog_revisions`, `catalog_sources`, and `catalog_index_jobs` in the same transaction.
+- Public catalog mutation endpoints do not trust client-supplied source/trust claims: Studio catalog writers become `studio`; other authenticated users become `contribution`.
+- Pending-review catalog edits stage proposed revisions and sources without touching current-state tables. Only `applied` edits mutate live catalog rows and write `catalog_index_jobs`.
 - `packages/validators` enforces ULID shape for post film IDs, list film IDs, and favorite film IDs in many write paths.
 - The database itself uses `text` for film/list IDs, so app-layer validation is currently the real guard.
+- Catalog rollback must be additive: create a new `catalog_edits` row and new `catalog_revisions` rows that restore previous data. Do not delete or rewrite revision history.
 - Pagination is cursor-based using base64 encoded `(createdAt,id)` or route-specific cursor objects.
 - Denormalized counters exist on posts, comments, lists, polls, and profile activity/follow counts. Hot API action paths write durable `counter_jobs` rows in the same transaction as fact-row changes; the worker drains those rows and updates both base counters and `counter_job_deltas` aggregates so feed overlays stay on active keys only. BullMQ `counter.outbox` only wakes the worker and is not the durability boundary.
 - Post interactions invalidate only bounded feed caches: the actor viewer cache, the post owner's viewer cache, and the post owner's profile-feed cache. Follower-wide interaction invalidation is intentionally avoided; follower feeds rely on short TTLs plus async counter/rescore jobs.
@@ -330,6 +443,7 @@ Key schemas/utilities:
 - Settings update schemas.
 - Onboarding schemas.
 - Film list/watchlist schemas.
+- Contribution submission schemas and contribution kind/status enums.
 - Chat thread, inbox cursor, message cursor, send/edit message, reaction, and typing schemas.
 
 Rich text bodies use a sentinel prefix `__35MM_RICH_TEXT_V1__` followed by TipTap-like JSON. Mentions carry user IDs and are used to create mention notifications.
@@ -451,11 +565,14 @@ Business purpose: keep 35mm film identity canonical while allowing cold-start TM
 How it works:
 
 - `films.id` is a text ULID generated by `createUlid`.
+- `catalog_titles` is the new long-term title database. `films` remains the active social FK bridge for posts, lists, watchlists, onboarding, and profile stats.
 - TMDB imports are deduped by `tmdb_id`.
 - Catalog films are deduped by source/title/year.
 - Onboarding can resolve up to five TMDB films into 35mm film IDs.
 - List/watchlist write APIs can accept an existing `filmId`, TMDB film payload, or catalog film payload, then resolve to a canonical film ID.
 - Each user gets one private watchlist list, keyed by a unique partial index on `(user_id)` where `type='watchlist' and is_deleted=false`.
+- Letterboxd exports do not include TMDB/IMDb IDs. Import resolution should dedupe unique Letterboxd film slugs first, resolve/crawl them asynchronously through BullMQ, cache `letterboxd` and resolved `tmdb` external IDs in `catalog_external_ids`, and fall back to fuzzy title/year matching only for unresolved slugs.
+- Letterboxd/import writes should use `catalog_edits.source='import'` plus normal `catalog_revisions` and `catalog_sources`, so bad matches can be publicly inspected and reverted.
 
 API:
 
@@ -471,7 +588,8 @@ API:
 
 Known gaps:
 
-- There is no general `/v1/films/search` route yet.
+- There is no general catalog read/search API or `/v1/films/search` route yet. Mutation routes exist under `/v1/catalog`.
+- Studio and Contributions are UI scaffolding until they are rewired to typed catalog mutation APIs.
 - Discover/title surfaces still use TMDB proxy and local mock/static data in places.
 - DB does not enforce ULID format for `films.id`.
 
@@ -731,6 +849,8 @@ Implemented or partially implemented:
 - `compute-suggestions`: implemented; stores UUID-backed follow suggestion rows and refreshes Redis suggestion caches.
 - `counter.increment`: implemented with 50ms default in-worker batching and BullMQ retries for legacy/direct jobs.
 - `counter.outbox`: durable DB drain for `counter_jobs` and `profile_follow_approval_outbox`. API counter-touching mutations write `counter_jobs` rows in the same DB transaction as fact changes; follow-approval flips write `profile_follow_approval_outbox` in the visibility transaction. Worker drains both tables with row locks, applies batched counter updates in bounded time-budget loops, and deletes processed rows. `backlog` is returned from each run for observability. If a full batch drains and backlog remains, worker self-enqueues follow-up `counter.outbox` work. Repeatable worker schedule still drains pending rows if an API wake enqueue failed.
+- `catalog.index.outbox`: implemented as the durable catalog index relay from Postgres outbox to BullMQ; also samples `catalog.pending_queue_depth` outside the mutation path.
+- `catalog.index`: implemented as a BullMQ handler with explicit unconfigured-search logging; real Meilisearch writes remain unwired.
 - `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.
 - `feed.rescore`: implemented periodic pass for recent materialized feed rows; recomputes score from post denormalized counters and invalidates touched viewer caches.
 - `chat.deliver`: implemented for new-message and inbox realtime publish.
@@ -742,7 +862,7 @@ Implemented or partially implemented:
 Important operational detail:
 
 - API can derive Redis protocol URL from Upstash REST URL/token, but BullMQ works best with `UPSTASH_REDIS_URL`.
-- Rate limiting uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is absent or unreachable. Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, and media presign have user-keyed route-family limiters. Public email unsubscribe POST is IP-limited.
+- Rate limiting uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is absent or unreachable. Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, media presign, and contribution submissions have user-keyed route-family limiters. Public email unsubscribe POST is IP-limited.
 - `DATABASE_POOL_MAX` controls pooled Neon transaction DB max connections for `createPooledDb()`; default is `10`.
 - Worker reads env from `apps/api/.env` in dev by package script. Root `pnpm dev` does not start the worker; use `pnpm dev:worker` or `pnpm dev:all` only when queue jobs are needed.
 - `WORKER_ENABLED=false` exits the worker before opening Redis connections, useful for quota-sensitive local Upstash sessions.
@@ -833,7 +953,8 @@ Stale or superseded items in `docs/architecture.md` / older agent notes:
 
 Still true gaps:
 
-- No general films API/search module.
+- No general catalog read/search module.
+- Studio and Contributions do not yet write through the new catalog mutation/revision pipeline.
 - Meilisearch is not wired.
 - Notification digest email is not implemented.
 - Cloudflare Stream is not wired.

@@ -20,6 +20,8 @@ type SupportedJobName =
   | "feed.rescore"
   | "counter.increment"
   | "counter.outbox"
+  | "catalog.index"
+  | "catalog.index.outbox"
   | "notification.publish"
   | "notification.digest"
   | "compute-suggestions";

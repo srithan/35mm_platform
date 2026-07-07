@@ -18,6 +18,7 @@ import { runChatDeliverJob } from "./jobs/chatDeliver.js";
 import { runChatMessageUpdatedJob } from "./jobs/chatMessageUpdated.js";
 import { runChatReadReceiptJob } from "./jobs/chatReadReceipt.js";
 import { runChatTypingJob } from "./jobs/chatTyping.js";
+import { runCatalogIndexJob, runCatalogIndexOutboxJob } from "./jobs/catalogIndex.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
@@ -125,6 +126,14 @@ async function handleJob(job: Job, queue: Queue): Promise<unknown> {
     return result;
   }
 
+  if (job.name === "catalog.index.outbox") {
+    return runCatalogIndexOutboxJob(job.data, queue);
+  }
+
+  if (job.name === "catalog.index") {
+    return runCatalogIndexJob(job.data);
+  }
+
   if (job.name === "notification.publish") {
     await runNotificationPublishJob(job.data as { notificationId: string });
     return { ok: true, stub: true };
@@ -217,6 +226,21 @@ async function main() {
     jobId: "counter.outbox-repeat",
     repeat: {
       every: 30_000,
+    },
+    attempts: 6,
+    backoff: {
+      type: "exponential",
+      delay: 1_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 1000,
+  });
+
+  var catalogIndexIntervalSeconds = Number(process.env.CATALOG_INDEX_OUTBOX_INTERVAL_SECONDS ?? "30");
+  await schedulerQueue.add("catalog.index.outbox", {}, {
+    jobId: "catalog.index.outbox-repeat",
+    repeat: {
+      every: Math.max(5, catalogIndexIntervalSeconds) * 1000,
     },
     attempts: 6,
     backoff: {

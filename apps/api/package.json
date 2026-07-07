@@ -10,6 +10,7 @@
     "dev": "node --watch --env-file=.env --import tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "backfill:catalog-films": "node --env-file=.env --import tsx src/scripts/backfillFilmsToCatalog.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit"

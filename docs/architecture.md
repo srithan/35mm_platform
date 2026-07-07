@@ -1,9 +1,11 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-07-06
+> Last updated: 2026-07-07
 
-35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, and creator-friendly media workflows.
+Catalog documentation lives in `docs/catalog/`; start with `docs/catalog/spec.md`.
+
+35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, creator-friendly media workflows, and an IMDb-like catalog database for titles, people, companies, awards, media, sources, and public revision history.
 
 Target scale: 35M+ users. Architecture decisions should preserve cursor pagination, denormalized read counters, async side effects, cacheable media reads, and native-client-friendly REST contracts.
 
@@ -164,10 +166,11 @@ These rules are non-negotiable:
 
 - The 35mm database is primary.
 - TMDB is a cold-start metadata source and autocomplete fallback only.
-- `films.id` is the canonical film ID and must be a 35mm ULID-shaped string.
+- `catalog_titles.id` is the long-term canonical catalog title ID for IMDb-like title data.
+- `films.id` remains the current social-product film FK and compatibility bridge while catalog APIs migrate to `catalog_titles`.
 - `tmdb_id` and `imdb_id` are unique indexes, never primary keys.
-- App URLs and API contracts must use the 35mm film ID, not TMDB IDs.
-- `FilmRef.id` in frontend/API types is the 35mm ULID.
+- App URLs and API contracts must use 35mm IDs, not TMDB IDs.
+- `FilmRef.id` in current frontend/API social contracts is the 35mm film ULID.
 - `tmdbId` may exist only as optional metadata.
 - Do not reintroduce inline film JSON as post identity.
 
@@ -176,6 +179,8 @@ Current implementation:
 - `packages/db/src/schema/films.ts` defines the canonical `films` table.
 - `posts.film_id` references `films.id`.
 - Onboarding and list APIs can resolve TMDB/catalog metadata into canonical `films` rows.
+- Public contributor forms write to `contribution_submissions` for moderation instead of mutating `films` or title/person identity directly.
+- `packages/db/src/schema/catalog.ts` defines the new catalog database tables using a `catalog_` table prefix. This is the foundation for direct Studio/contributor catalog edits, public revision history, sources, and rollback.
 - Validators enforce ULID shape on many film write paths.
 - The DB column is `text`, so the ULID guarantee is currently app-layer validation, not a DB check constraint.
 
@@ -261,6 +266,14 @@ Source of truth: `packages/db/src/schema/*`.
 - Check constraints enforce lowercase usernames and the allowed state set.
 - API username availability and profile rename paths consult this table in addition to existing profile usernames and the shared reserved-name list.
 
+`contribution_submissions`
+
+- UUID primary key, authenticated user, contribution kind, moderation status, title/summary, optional entity reference, and JSONB payload.
+- Kind enum: `add_title | edit_title | credits | person_update | media | awards_events | duplicate_titles | merge_people | split_person`.
+- Status enum: `pending | in_review | approved | rejected`.
+- Public submit path requires an `Idempotency-Key`, uses user-scoped rate limiting, and stores review-state rows. It does not directly mutate `films`, credits, people, media, or event records.
+- Indexed by `(user_id, created_at, id)` for per-user cursor history, `(status, created_at, id)` for moderation queues, entity lookup, and unique `(user_id, idempotency_key)`.
+
 `user_settings`
 
 - Privacy preferences.
@@ -278,6 +291,82 @@ Source of truth: `packages/db/src/schema/*`.
 - Source enum: `35mm | tmdb_import | user_contributed`.
 - Optional contributor user ID.
 - Verification flag and timestamps.
+
+`catalog_titles`
+
+- Long-term source for movies, short films, documentaries, TV/web series, seasons, episodes, specials, videos, and other title records.
+- Text primary key, `legacy_film_id` bridge to `films.id`, type/lifecycle/status enums, canonical title fields, sort title, slug, synopsis, runtime/release fields, language/country arrays, JSONB facts, parent/season/episode fields, lock/merge metadata, creator/updater user FKs, and timestamps.
+- Indexed for title pages, series episode lookup, type/year browsing, sort-title browsing, and incremental sync by updated timestamp.
+
+`catalog_people`
+
+- Cast/crew/person records with primary/sort names, slug, biography, birth/death facts, professions, verification, lock/merge metadata, actor/updater FKs, and timestamps.
+- Indexed by slug, sort name, and updated timestamp.
+
+`catalog_companies`
+
+- Studios, production companies, distributors, networks, streamers, sales agents, schools, collectives, festivals, and other organizations.
+- Stores type, name/sort name/slug, country, lifecycle years, official URL, verification, merge metadata, and timestamps.
+
+`catalog_credits`
+
+- Normalized title/person credits by department, job, character, credited-as name, billing order, episode scope, years, status, and actor/updater FKs.
+- Indexed by `(title_id, department, billing_order, id)` for title pages and `(person_id, title_id, id)` for person filmographies.
+
+`catalog_title_relations`
+
+- Title graph edges for non-hierarchical relations: sequel/prequel, remake, spin-off, adaptation, alternate versions, compilations, and related titles.
+- Series, season, and episode hierarchy is canonical on `catalog_titles.parent_title_id`, `season_number`, `episode_number`, and `absolute_episode_number`. Do not model that hierarchy in `catalog_title_relations`.
+
+`catalog_genres`, `catalog_title_genres`
+
+- First-class genre taxonomy plus title/genre join table for Discover filtering, faceting, and search indexing.
+- Genres in `catalog_titles.facts` are display/import fallback only. Production filtering should use `catalog_title_genres`.
+
+`catalog_title_companies`
+
+- Joins titles to companies by role: studio, production, distribution, network, streaming, sales, rights holder, or other.
+
+`catalog_awards`, `catalog_award_events`, `catalog_award_nominations`
+
+- Award/festival organizations, yearly events, and nominations/wins/selections tied to titles, people, or companies.
+- Event/category/title/person/company indexes support award pages and title/person award sections.
+
+`catalog_media_assets`
+
+- Posters, backdrops, stills, headshots, logos, trailers, clips, featurettes, and external videos.
+- Polymorphic `entity_type/entity_id` target, storage/source metadata, rights/attribution, JSONB media metadata, primary flags, status, and cursor-friendly update indexes.
+
+`catalog_external_ids`
+
+- IMDb, TMDB, Wikidata, Letterboxd, TVDB, official site, YouTube/Vimeo, Wikipedia, and other external identifiers.
+- Indexed by provider/external ID for import/dedupe and by entity for detail hydration.
+
+`catalog_aliases`
+
+- Original, localized, alternate, working, festival, legal, and search aliases for titles, people, companies, awards, and other catalog entities.
+
+`catalog_edits`, `catalog_revisions`, `catalog_sources`
+
+- `catalog_edits` groups one Studio, contribution, import, or system change with actor, summary, idempotency key, public visibility, revert links, and cursor indexes. Pending-review queues use a partial `(status, created_at, id)` index filtered to `status='pending_review'`.
+- `catalog_revisions` stores per-entity before/after JSONB snapshots, changed fields, action, and public visibility. It is archive-ready through `storage_tier`, `archive_object_key`, `archive_sha256`, and `archived_at`; recent history stays hot in Postgres and old JSON can move to R2 later while retaining a lightweight pointer.
+- `catalog_sources` stores citation URLs/archive URLs/notes attached to edits or specific entities.
+
+`catalog_index_jobs`
+
+- Transactional outbox for catalog search/index work created in the same transaction as applied/reverted catalog edits.
+- Relay workers poll the partial `processed_at IS NULL` index, then push to BullMQ/Meilisearch. Processed rows may stay in Postgres as operational history because the hot poll path only scans unprocessed jobs.
+
+Catalog write pattern:
+
+1. Studio or Contributions submits typed catalog mutation.
+2. API validates payload, authorization/trust, idempotency key, source requirements, and conflict/dedupe rules.
+3. Pending-review edits write `catalog_edits`, proposed `catalog_revisions.after_data`, and `catalog_sources`, but do not mutate current-state tables or enqueue indexing.
+4. Applied edits lock target rows, update normalized current-state tables, write revisions/sources, and insert `catalog_index_jobs` in the same transaction.
+5. Rollback creates a new `catalog_edits` row that restores selected `after_data`/`before_data`; existing revisions remain public audit history.
+6. The Hono catalog mutation layer lives in `apps/api/src/modules/catalog`. It uses shared Zod validators, shared response DTOs, transaction-local `SET LOCAL lock_timeout`, deterministic row locking, advisory-lock idempotency protection, and structured catalog mutation/metric logs.
+7. Public catalog mutation routes derive source/trust server-side: Studio catalog writers stage as `studio`, other authenticated users stage as `contribution`, and client-supplied `source` is ignored.
+8. `apps/worker/src/jobs/catalogIndex.ts` drains `catalog_index_jobs` into BullMQ `catalog.index` jobs through the partial unprocessed index and samples pending-review queue depth out of band. Meilisearch document writes still require search backend wiring.
 
 ### Posts and Interactions
 
@@ -552,6 +641,22 @@ Media:
 - `GET /v1/media/resolve-url`
 - `GET /v1/media/oembed`
 
+Contributions:
+
+- `GET /v1/contributions/submissions`
+- `POST /v1/contributions/submissions`
+
+Catalog:
+
+- `POST /v1/catalog/titles`
+- `POST /v1/catalog/people`
+- `POST /v1/catalog/credits`
+- `POST /v1/catalog/media`
+- `POST /v1/catalog/edits/:id/approve`
+- `POST /v1/catalog/edits/:id/reject`
+- `POST /v1/catalog/edits/:id/revert`
+- `GET /v1/catalog/titles/:id/history`
+
 Suggestions:
 
 - `GET /v1/suggestions/users`
@@ -609,6 +714,7 @@ Important app routes:
 - `/discover`: discovery.
 - `/notifications`: notifications.
 - `/bookmarks`: two-column bookmarks surface with folder navigation, create/rename/delete folder controls, folder-filtered saved posts, and loading skeletons.
+- `/contribute`, `/contribute/:slug`, `/contribute/submissions`: contributor hub, validated catalog contribution forms, and cursor-paged personal submission history.
 - `/settings`: mobile settings index listing the main settings sections; desktop renders the account settings layout.
 - `/settings/account`, `/settings/privacy`, `/settings/privacy/blocked`, `/settings/privacy/muted`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, `/settings/data-security`: settings sections with URL-backed navigation. Mobile section pages use a back control instead of a tab bar. Blocked/muted privacy subroutes keep the Privacy tab active on desktop and show a compact header with a back control plus `Blocked` or `Muted`.
 - `/list/:listId`: list detail.
@@ -634,6 +740,7 @@ Feature ownership:
 - `features/discover`: TMDB-backed browsing and search, with hero/aisle presentation, provider-filtered streaming rows through the TMDB proxy, and semantic theme tokens.
 - `app/(shell)/person/[id]`: TMDB-backed cast/crew profile display, cached by Next revalidation and used for metadata/display only.
 - `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
+- `features/contribute`: contributor hub, config-driven Zod-validated forms, API client/hooks, and submissions tracker backed by `/v1/contributions/submissions`.
 - `features/chat`: rich frontend, remote backend client, optional mock mode, chat route pages, realtime cache application, and bounded persisted React Query cache for inbox/recent messages.
 - `features/title`: title pages.
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: future or mock-heavy product surfaces.
@@ -732,9 +839,24 @@ List behavior:
 - Entries have optional notes and positions.
 - Lists can be liked, cloned, reordered, soft-deleted.
 
+Contributor behavior:
+
+- Contributor forms support add-title, edit-title, credits, person update, media, awards/events, duplicate-title, merge-person, and split-person submissions through a review queue.
+- This review queue is legacy scaffolding. Target contribution behavior should write through the same catalog mutation pipeline as Studio, producing `catalog_edits`, `catalog_revisions`, and `catalog_sources` directly.
+- Read/write volume assumption at 1M+ DAU: catalog edits are low-frequency authenticated writes relative to feed/social actions. They must remain rate-limited and idempotent, with hot read paths served from normalized current-state catalog tables and public edit/history pages cursor-paged by indexed `(entity_type, entity_id, created_at, id)` or `(actor_user_id, created_at, id)` paths.
+
 Current gap:
 
-- There is no general films API module or Meilisearch-backed film search yet.
+- The catalog mutation API exists for title/person/credit/media staging plus approve/reject/revert/history. General catalog read/search APIs and Meilisearch-backed search are not wired.
+- Existing Studio and Contributions UIs are not authoritative; they must be rewired to the catalog mutation APIs after those APIs are implemented.
+
+Letterboxd import behavior:
+
+- Letterboxd exports do not include TMDB or IMDb IDs; they include title, release year, rating/log metadata, and Letterboxd URLs.
+- `watched.csv` URLs can point at film pages; `diary.csv` URLs may point at per-entry diary pages. Import resolution must dedupe unique Letterboxd slugs before network work.
+- Preferred path: resolve each unique Letterboxd film slug once, cache it permanently in `catalog_external_ids` with `provider='letterboxd'`, then link the resolved TMDB ID through `catalog_external_ids` with `provider='tmdb'`.
+- Fallback path: fuzzy title/year matching against local catalog and TMDB only when slug resolution fails, with low-confidence matches routed to review.
+- Resolution fetches must run through BullMQ, not inline in import requests. The write path should create `catalog_edits` with `source='import'`, plus normal revisions and sources, so bad auto-matches are revertible like Studio/contributor edits.
 
 ---
 
@@ -864,6 +986,8 @@ Implemented:
   Writes UUID-backed `follow_suggestions` rows and refreshes the Redis cached ID list.
 - `counter.increment`: batched denormalized counter deltas for hot social/list/poll counters.
 - `counter.outbox`: durable `counter_jobs` and `profile_follow_approval_outbox` drain, now run with bounded time budget loops and emit `backlog` + `followUp` metrics in worker result payloads.
+- `catalog.index.outbox`: durable catalog indexing relay. It locks unprocessed `catalog_index_jobs` rows with `FOR UPDATE SKIP LOCKED`, enqueues idempotent `catalog.index` BullMQ jobs, records `processed_at`, emits index-job lag logs, and samples `catalog.pending_queue_depth` outside the mutation path.
+- `catalog.index`: receives catalog index payloads. It logs an explicit unconfigured search target until Meilisearch host/token and document mapping are wired.
 - `counter_job_deltas`: aggregates active `counter_jobs` deltas by `(target_table, target_id, counter_name)` to keep feed overlays bounded to active keys.
 - `feed.fanout`: materializes new posts into accepted followers' `feed_items` below the high-follower threshold; skips high-follower authors for live read merge.
 - `feed.rescore`: recomputes scores for recent materialized `feed_items` from denormalized post counters and invalidates touched viewer caches.
@@ -878,7 +1002,7 @@ Transaction-capable DB writes:
 Rate limiting:
 
 - `apps/api/src/lib/rateLimit.ts` uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is missing or command checks fail.
-- Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, and media presign have route-family rate limiters. Public email unsubscribe POST is IP-limited. `RATE_LIMIT_DISABLED=true` remains the explicit local/test escape hatch.
+- Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, media presign, and contribution submissions have route-family rate limiters. Public email unsubscribe POST is IP-limited. `RATE_LIMIT_DISABLED=true` remains the explicit local/test escape hatch.
 
 Stub or incomplete:
 
@@ -1074,13 +1198,15 @@ pnpm typecheck
 
 Highest priority architecture gaps:
 
-1. Add general films API and catalog search.
-2. Wire Meilisearch for films/users/posts.
-3. Add DB-level checks for ULID-shaped text IDs where practical.
-4. Finish notification digest and Resend integration.
-5. Wire Cloudflare Stream if production video is in scope.
-6. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
-7. Validate migrations against current Drizzle schema in real environments.
+1. Build general catalog read/search APIs over the `catalog_` tables.
+2. Rewire Studio and Contributions to typed catalog mutations instead of local/request-style scaffolding.
+3. Wire Meilisearch document writes for titles/people/companies plus users/posts.
+4. Run and validate the `films` to `catalog_titles` backfill in real environments while keeping `films` as the social FK bridge.
+5. Add DB-level checks for ULID-shaped text IDs where practical.
+6. Finish notification digest and Resend integration.
+7. Wire Cloudflare Stream if production video is in scope.
+8. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
+9. Validate migrations against current Drizzle schema in real environments.
 
 Post-V1 or gated surfaces:
 

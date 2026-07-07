@@ -220,6 +220,107 @@ export interface WatchlistStatus {
   entryId: string | null;
 }
 
+export type CatalogEditStatus =
+  | "pending_review"
+  | "applied"
+  | "rejected"
+  | "reverted"
+  | "superseded";
+
+export type CatalogEditSource = "studio" | "contribution" | "import" | "system";
+
+export type CatalogEntityType =
+  | "title"
+  | "person"
+  | "credit"
+  | "company"
+  | "title_company"
+  | "award"
+  | "award_event"
+  | "award_nomination"
+  | "media_asset"
+  | "external_id"
+  | "alias"
+  | "title_relation"
+  | "source";
+
+export type CatalogRevisionAction =
+  | "create"
+  | "update"
+  | "delete"
+  | "restore"
+  | "merge"
+  | "split";
+
+export interface CatalogEntityRef {
+  entityType: CatalogEntityType;
+  entityId: string;
+}
+
+export interface CatalogEditDto {
+  id: string;
+  status: CatalogEditStatus;
+  source: CatalogEditSource;
+  summary: string;
+  publicVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogEditMutationResult {
+  edit: CatalogEditDto;
+  outcome: "created" | "applied" | "existing";
+}
+
+export interface CatalogEditWorkflowResult {
+  edit: CatalogEditDto;
+}
+
+export interface CatalogHistoryPage {
+  items: CatalogEditDto[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export type ContributionKind =
+  | "add_title"
+  | "edit_title"
+  | "credits"
+  | "person_update"
+  | "media"
+  | "awards_events"
+  | "duplicate_titles"
+  | "merge_people"
+  | "split_person";
+
+export type ContributionStatus =
+  | "pending"
+  | "in_review"
+  | "approved"
+  | "rejected";
+
+export interface ContributionSubmission {
+  id: string;
+  userId: string;
+  kind: ContributionKind;
+  title: string;
+  summary: string;
+  entityType: string | null;
+  entityId: string | null;
+  payload: Record<string, unknown>;
+  status: ContributionStatus;
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+}
+
+export interface ContributionSubmissionPage {
+  items: ContributionSubmission[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export type ChatThreadType = "dm" | "group";
 export type ChatMessageContentType = "text" | "image" | "gif" | "file" | "link";
 

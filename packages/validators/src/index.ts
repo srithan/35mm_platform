@@ -362,6 +362,7 @@ export var RESERVED_USERNAMES = [
   "settings",
   "notifications",
   "bookmarks",
+  "contribute",
   "discover",
   "new",
   "login",
@@ -520,6 +521,466 @@ export var watchlistFilmSchema = z.object({
   catalogFilm: resolveCatalogFilmSchema.optional(),
 });
 
+export var contributionKindSchema = z.enum([
+  "add_title",
+  "edit_title",
+  "credits",
+  "person_update",
+  "media",
+  "awards_events",
+  "duplicate_titles",
+  "merge_people",
+  "split_person",
+]);
+
+export var contributionStatusSchema = z.enum([
+  "pending",
+  "in_review",
+  "approved",
+  "rejected",
+]);
+
+var contributionSourceListSchema = z
+  .array(z.string().trim().min(1).max(1000))
+  .min(1, "At least one source is required")
+  .max(20, "Use 20 sources or fewer");
+
+var contributionOptionalSourceListSchema = z
+  .array(z.string().trim().min(1).max(1000))
+  .max(20, "Use 20 sources or fewer")
+  .default([]);
+
+var contributionCommentsSchema = z.string().trim().max(2000).optional();
+
+var addTitleContributionPayloadSchema = z.object({
+  titleType: z.enum(["film", "show", "episode"]),
+  originalTitle: z.string().trim().min(1, "Original title is required").max(240),
+  displayTitle: z.string().trim().max(240).optional(),
+  releaseYear: z.number().int().min(1888).max(2200),
+  durationMinutes: z.number().int().min(1).max(2000).optional(),
+  imdbUrl: z.string().trim().max(500).optional(),
+  countries: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  languages: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  genres: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  synopsis: z.string().trim().min(20, "Synopsis needs at least 20 characters").max(1000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var editTitleContributionPayloadSchema = z.object({
+  targetTitle: z.string().trim().min(1, "Film, show, or episode is required").max(500),
+  changeAreas: z
+    .array(z.enum(["title", "release", "runtime", "countries", "languages", "genres", "synopsis", "credits", "relations", "awards"]))
+    .min(1, "Select at least one change area")
+    .max(10),
+  requestedChanges: z.string().trim().min(20, "Describe requested changes").max(5000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var creditsContributionPayloadSchema = z.object({
+  targetTitle: z.string().trim().min(1, "Title is required").max(500),
+  action: z.enum(["add", "edit", "remove"]),
+  personName: z.string().trim().min(1, "Person name is required").max(160),
+  personUrlOrId: z.string().trim().max(500).optional(),
+  job: z.string().trim().min(1, "Credit or job is required").max(160),
+  characterName: z.string().trim().max(160).optional(),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var personUpdateContributionPayloadSchema = z.object({
+  personUrlOrId: z.string().trim().min(1, "Person page or ID is required").max(500),
+  changeType: z.enum(["name", "primary_job", "biography", "image", "duplicate", "other"]),
+  requestedChanges: z.string().trim().min(10, "Describe requested changes").max(4000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var mediaContributionPayloadSchema = z.object({
+  target: z.string().trim().min(1, "Target film/person is required").max(500),
+  mediaType: z.enum(["image", "trailer"]),
+  action: z.enum(["add", "edit", "remove"]),
+  mediaUrl: z.string().trim().min(1, "Media URL or existing asset reference is required").max(1000),
+  rightsNote: z.string().trim().min(10, "Rights note is required").max(1200),
+  sourceUrls: contributionOptionalSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var awardsEventsContributionPayloadSchema = z.object({
+  eventType: z.enum(["award", "festival"]),
+  originalName: z.string().trim().min(1, "Original name is required").max(240),
+  englishName: z.string().trim().max(240).optional(),
+  officialUrl: z.string().trim().min(1, "Official verification URL is required").max(1000),
+  startYear: z.number().int().min(1800).max(2200).optional(),
+  endYear: z.number().int().min(1800).max(2200).optional(),
+  requestedChanges: z.string().trim().min(10, "Describe requested addition or change").max(4000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var duplicateTitlesContributionPayloadSchema = z.object({
+  primaryTitle: z.string().trim().min(1, "Canonical title is required").max(500),
+  duplicateTitle: z.string().trim().min(1, "Duplicate title is required").max(500),
+  reason: z.string().trim().min(10, "Explain why these are duplicates").max(3000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var mergePeopleContributionPayloadSchema = z.object({
+  primaryPerson: z.string().trim().min(1, "Canonical person is required").max(500),
+  duplicatePeople: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1, "Add at least one duplicate person")
+    .max(20),
+  reason: z.string().trim().min(10, "Explain why these pages should merge").max(3000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+var splitPersonContributionPayloadSchema = z.object({
+  sourcePerson: z.string().trim().min(1, "Person page is required").max(500),
+  creditsToMove: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1, "List at least one credit to move")
+    .max(100),
+  reason: z.string().trim().min(10, "Explain why this page should split").max(3000),
+  sourceUrls: contributionSourceListSchema,
+  comments: contributionCommentsSchema,
+});
+
+export var contributionSubmissionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("add_title"), payload: addTitleContributionPayloadSchema }),
+  z.object({ kind: z.literal("edit_title"), payload: editTitleContributionPayloadSchema }),
+  z.object({ kind: z.literal("credits"), payload: creditsContributionPayloadSchema }),
+  z.object({ kind: z.literal("person_update"), payload: personUpdateContributionPayloadSchema }),
+  z.object({ kind: z.literal("media"), payload: mediaContributionPayloadSchema }),
+  z.object({ kind: z.literal("awards_events"), payload: awardsEventsContributionPayloadSchema }),
+  z.object({ kind: z.literal("duplicate_titles"), payload: duplicateTitlesContributionPayloadSchema }),
+  z.object({ kind: z.literal("merge_people"), payload: mergePeopleContributionPayloadSchema }),
+  z.object({ kind: z.literal("split_person"), payload: splitPersonContributionPayloadSchema }),
+]);
+
+export var catalogEditStatusSchema = z.enum([
+  "pending_review",
+  "applied",
+  "rejected",
+  "reverted",
+  "superseded",
+]);
+
+export var catalogEditSourceSchema = z.enum([
+  "studio",
+  "contribution",
+  "import",
+  "system",
+]);
+
+export var catalogEntityTypeSchema = z.enum([
+  "title",
+  "person",
+  "credit",
+  "company",
+  "title_company",
+  "award",
+  "award_event",
+  "award_nomination",
+  "media_asset",
+  "external_id",
+  "alias",
+  "title_relation",
+  "source",
+]);
+
+export var catalogRevisionActionSchema = z.enum([
+  "create",
+  "update",
+  "delete",
+  "restore",
+  "merge",
+  "split",
+]);
+
+export var catalogTitleTypeSchema = z.enum([
+  "movie",
+  "short_film",
+  "documentary",
+  "tv_series",
+  "web_series",
+  "tv_season",
+  "tv_episode",
+  "tv_special",
+  "video",
+  "other",
+]);
+
+export var catalogTitleLifecycleSchema = z.enum([
+  "unknown",
+  "announced",
+  "in_production",
+  "released",
+  "ended",
+  "canceled",
+]);
+
+export var catalogEntityStatusSchema = z.enum(["active", "merged", "deleted", "locked"]);
+
+export var catalogCreditDepartmentSchema = z.enum([
+  "cast",
+  "directing",
+  "writing",
+  "production",
+  "camera",
+  "editing",
+  "sound",
+  "music",
+  "art",
+  "costume",
+  "makeup",
+  "visual_effects",
+  "stunts",
+  "animation",
+  "crew",
+  "other",
+]);
+
+export var catalogMediaTypeSchema = z.enum([
+  "poster",
+  "backdrop",
+  "still",
+  "headshot",
+  "logo",
+  "trailer",
+  "clip",
+  "featurette",
+  "external_video",
+]);
+
+export var catalogMediaSourceSchema = z.enum([
+  "r2",
+  "cloudflare_images",
+  "external_url",
+  "youtube",
+  "vimeo",
+  "tmdb",
+  "imdb",
+  "official",
+  "other",
+]);
+
+export var catalogExternalProviderSchema = z.enum([
+  "imdb",
+  "tmdb",
+  "wikidata",
+  "letterboxd",
+  "thetvdb",
+  "official_site",
+  "youtube",
+  "vimeo",
+  "instagram",
+  "wikipedia",
+  "other",
+]);
+
+var catalogOptionalDateSchema = z.string().trim().regex(/^\d{4}(-\d{2})?(-\d{2})?$/).nullable().optional();
+var catalogStringArraySchema = z.array(z.string().trim().min(1).max(80)).max(50);
+var catalogFactsSchema = z.object({
+  genres: catalogStringArraySchema.optional(),
+  moods: catalogStringArraySchema.optional(),
+  plots: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
+  keywords: catalogStringArraySchema.optional(),
+  contentWarnings: catalogStringArraySchema.optional(),
+}).passthrough();
+
+export var catalogTitleDataSchema = z.object({
+  legacyFilmId: z.string().trim().regex(ULID_RE).nullable().optional(),
+  type: catalogTitleTypeSchema.optional(),
+  lifecycle: catalogTitleLifecycleSchema.optional(),
+  status: catalogEntityStatusSchema.optional(),
+  primaryTitle: z.string().trim().min(1).max(500).optional(),
+  originalTitle: z.string().trim().min(1).max(500).nullable().optional(),
+  sortTitle: z.string().trim().min(1).max(500).optional(),
+  slug: z.string().trim().min(1).max(220).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  synopsis: z.string().trim().max(10000).nullable().optional(),
+  startYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  endYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  releaseDate: catalogOptionalDateSchema,
+  runtimeMinutes: z.number().int().min(1).max(6000).nullable().optional(),
+  primaryLanguage: z.string().trim().min(2).max(20).nullable().optional(),
+  primaryCountry: z.string().trim().min(2).max(20).nullable().optional(),
+  originCountries: catalogStringArraySchema.optional(),
+  spokenLanguages: catalogStringArraySchema.optional(),
+  facts: catalogFactsSchema.optional(),
+  parentTitleId: z.string().trim().regex(ULID_RE).nullable().optional(),
+  seasonNumber: z.number().int().min(0).max(10000).nullable().optional(),
+  episodeNumber: z.number().int().min(0).max(10000).nullable().optional(),
+  absoluteEpisodeNumber: z.number().int().min(0).max(100000).nullable().optional(),
+  isAdult: z.boolean().optional(),
+  isVerified: z.boolean().optional(),
+}).strict();
+
+export var catalogPersonDataSchema = z.object({
+  status: catalogEntityStatusSchema.optional(),
+  primaryName: z.string().trim().min(1).max(500).optional(),
+  sortName: z.string().trim().min(1).max(500).optional(),
+  slug: z.string().trim().min(1).max(220).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  biography: z.string().trim().max(20000).nullable().optional(),
+  birthDate: catalogOptionalDateSchema,
+  deathDate: catalogOptionalDateSchema,
+  birthPlace: z.string().trim().max(500).nullable().optional(),
+  deathPlace: z.string().trim().max(500).nullable().optional(),
+  primaryProfessions: catalogStringArraySchema.optional(),
+  gender: z.string().trim().max(80).nullable().optional(),
+  isVerified: z.boolean().optional(),
+}).strict();
+
+export var catalogCreditDataSchema = z.object({
+  titleId: z.string().trim().regex(ULID_RE).optional(),
+  personId: z.string().trim().regex(ULID_RE).optional(),
+  department: catalogCreditDepartmentSchema.optional(),
+  job: z.string().trim().min(1).max(200).optional(),
+  characterName: z.string().trim().max(500).nullable().optional(),
+  creditedAs: z.string().trim().max(500).nullable().optional(),
+  billingOrder: z.number().int().min(0).max(100000).optional(),
+  episodeCount: z.number().int().min(0).max(100000).nullable().optional(),
+  startYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  endYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  notes: z.string().trim().max(5000).nullable().optional(),
+  status: catalogEntityStatusSchema.optional(),
+}).strict();
+
+var catalogMediaMetadataSchema = z.object({
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  durationSeconds: z.number().int().positive().optional(),
+  blurhash: z.string().trim().max(200).optional(),
+  variants: z.record(z.string().trim().min(1).max(80), z.string().trim().min(1).max(1000)).optional(),
+}).passthrough();
+
+export var catalogMediaAssetDataSchema = z.object({
+  entityType: catalogEntityTypeSchema.optional(),
+  entityId: z.string().trim().min(1).max(80).optional(),
+  type: catalogMediaTypeSchema.optional(),
+  source: catalogMediaSourceSchema.optional(),
+  url: z.string().trim().min(1).max(2000).optional(),
+  storageKey: z.string().trim().max(1000).nullable().optional(),
+  title: z.string().trim().max(500).nullable().optional(),
+  caption: z.string().trim().max(1000).nullable().optional(),
+  language: z.string().trim().max(20).nullable().optional(),
+  region: z.string().trim().max(20).nullable().optional(),
+  rightsNote: z.string().trim().max(1000).nullable().optional(),
+  attribution: z.string().trim().max(1000).nullable().optional(),
+  metadata: catalogMediaMetadataSchema.optional(),
+  sortOrder: z.number().int().min(0).max(100000).optional(),
+  isPrimary: z.boolean().optional(),
+  status: catalogEntityStatusSchema.optional(),
+}).strict();
+
+export var catalogExternalIdDataSchema = z.object({
+  entityType: catalogEntityTypeSchema.optional(),
+  entityId: z.string().trim().min(1).max(80).optional(),
+  provider: catalogExternalProviderSchema.optional(),
+  externalId: z.string().trim().min(1).max(500).optional(),
+  url: z.string().trim().max(2000).nullable().optional(),
+  isPrimary: z.boolean().optional(),
+  status: catalogEntityStatusSchema.optional(),
+}).strict();
+
+export var catalogSourceInputSchema = z.object({
+  entityType: catalogEntityTypeSchema.optional().nullable(),
+  entityId: z.string().trim().min(1).max(80).optional().nullable(),
+  url: z.string().trim().min(1).max(2000),
+  title: z.string().trim().max(500).optional().nullable(),
+  publisher: z.string().trim().max(300).optional().nullable(),
+  accessedAt: z.string().datetime().optional().nullable(),
+  archiveUrl: z.string().trim().max(2000).optional().nullable(),
+  note: z.string().trim().max(2000).optional().nullable(),
+}).strict();
+
+var catalogOperationBaseSchema = z.object({
+  action: z.enum(["create", "update", "delete"]),
+  entityId: z.string().trim().regex(ULID_RE).optional(),
+  publicVisible: z.boolean().default(true).optional(),
+});
+
+export var catalogOperationSchema = z.discriminatedUnion("entityType", [
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("title"),
+    data: catalogTitleDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("person"),
+    data: catalogPersonDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("credit"),
+    data: catalogCreditDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("media_asset"),
+    data: catalogMediaAssetDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("external_id"),
+    data: catalogExternalIdDataSchema,
+  }),
+]).superRefine(function (operation, ctx) {
+  if (operation.action !== "create" && !operation.entityId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["entityId"],
+      message: "entityId is required for update/delete operations",
+    });
+  }
+  if (operation.action === "create" && Object.keys(operation.data).length === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["data"],
+      message: "create operation needs data",
+    });
+  }
+  if (operation.action === "update" && Object.keys(operation.data).length === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["data"],
+      message: "update operation needs at least one field",
+    });
+  }
+});
+
+export var stageCatalogEditSchema = z.object({
+  source: catalogEditSourceSchema,
+  summary: z.string().trim().min(1).max(500),
+  rationale: z.string().trim().max(5000).optional().nullable(),
+  idempotencyKey: z.string().trim().min(8).max(200).optional().nullable(),
+  publicVisible: z.boolean().default(true),
+  sourceSnapshotAt: z.string().datetime().optional().nullable(),
+  operations: z.array(catalogOperationSchema).min(1).max(100),
+  sources: z.array(catalogSourceInputSchema).max(20).default([]),
+}).strict();
+
+export var catalogWorkflowPayloadSchema = z.object({
+  rationale: z.string().trim().max(5000).optional(),
+}).strict().default({});
+
+export var catalogMergeEntitiesSchema = z.object({
+  entityType: z.enum(["title", "person", "company"]),
+  duplicateEntityId: z.string().trim().regex(ULID_RE),
+  canonicalEntityId: z.string().trim().regex(ULID_RE),
+  actorUserId: z.string().uuid().nullable().optional(),
+  source: z.enum(["studio", "system"]),
+  summary: z.string().trim().min(1).max(500),
+  rationale: z.string().trim().max(5000).optional().nullable(),
+  idempotencyKey: z.string().trim().min(8).max(200).optional().nullable(),
+  publicVisible: z.boolean().default(true),
+  sources: z.array(catalogSourceInputSchema).max(20).default([]),
+}).strict();
+
+export var catalogHistoryQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
@@ -551,3 +1012,12 @@ export type NotificationIdInput = z.infer<typeof notificationIdSchema>;
 export type BookmarkFolderNameInput = z.infer<typeof bookmarkFolderNameSchema>;
 export type BookmarkFolderAssignInput = z.infer<typeof bookmarkFolderAssignSchema>;
 export type BookmarkPostInput = z.infer<typeof bookmarkPostSchema>;
+export type ContributionKindInput = z.infer<typeof contributionKindSchema>;
+export type ContributionStatusInput = z.infer<typeof contributionStatusSchema>;
+export type ContributionSubmissionInput = z.infer<typeof contributionSubmissionSchema>;
+export type StageCatalogEditInput = z.infer<typeof stageCatalogEditSchema>;
+export type CatalogOperationInput = z.infer<typeof catalogOperationSchema>;
+export type CatalogSourceInput = z.infer<typeof catalogSourceInputSchema>;
+export type CatalogMergeEntitiesInput = z.infer<typeof catalogMergeEntitiesSchema>;
+export type CatalogWorkflowPayloadInput = z.infer<typeof catalogWorkflowPayloadSchema>;
+export type CatalogHistoryQueryInput = z.infer<typeof catalogHistoryQuerySchema>;

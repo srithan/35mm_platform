@@ -267,6 +267,20 @@
       "when": 1784000000011,
       "tag": "0036_username_locks",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1784000000012,
+      "tag": "0037_contribution_submissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1784000000013,
+      "tag": "0038_catalog_core",
+      "breakpoints": true
     }
   ]
 }

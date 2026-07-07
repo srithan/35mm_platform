@@ -1,3 +1,8 @@
+Use `caveman` skill for all assistant prose by default.
+Default level: full.
+Stop only if user says `stop caveman` or `normal mode`.
+Use normal prose when compression risks ambiguity.
+
 # 35mm - Agent Context
 
 Social film platform: Letterboxd x Twitter for cinema.

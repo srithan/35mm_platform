@@ -20,6 +20,8 @@ import { userRoutes } from "./modules/users/routes.js";
 import { notificationsRoutes } from "./modules/notifications/routes.js";
 import { listRoutes } from "./modules/lists/routes.js";
 import { emailRoutes } from "./modules/email/routes.js";
+import { contributionRoutes } from "./modules/contributions/routes.js";
+import { catalogRoutes } from "./modules/catalog/routes.js";
 import { isRedisEnabled } from "./lib/redis.js";
 import { isQueueEnabled } from "./lib/jobs.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
@@ -94,6 +96,8 @@ app.route("/v1/lists", listRoutes);
 app.route("/v1/me/settings", settingsRoutes);
 app.route("/v1/media", mediaRoutes);
 app.route("/v1/email", emailRoutes);
+app.route("/v1/contributions", contributionRoutes);
+app.route("/v1/catalog", catalogRoutes);
 app.route("/v1", userRoutes);
 
 app.route("/v1/feed", feedRoutes);
