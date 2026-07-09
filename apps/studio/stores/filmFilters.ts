@@ -3,19 +3,14 @@ import { type FilmType } from '@/lib/types';
 
 interface FilmFiltersState {
   search: string;
-  types: FilmType[];
-  genres: string[];
-  yearMin: number | null;
-  yearMax: number | null;
-  hasPoster: boolean | null;
+  type: FilmType | null;
+  year: number | null;
   viewMode: 'table' | 'grid';
   globalSearch: string;
   selectedIds: string[];
   setSearch: (search: string) => void;
-  setTypes: (types: FilmType[]) => void;
-  setGenres: (genres: string[]) => void;
-  setYearRange: (min: number | null, max: number | null) => void;
-  setHasPoster: (hasPoster: boolean | null) => void;
+  setType: (type: FilmType | null) => void;
+  setYear: (year: number | null) => void;
   setViewMode: (mode: 'table' | 'grid') => void;
   setGlobalSearch: (value: string) => void;
   setSelectedIds: (ids: string[]) => void;
@@ -23,19 +18,14 @@ interface FilmFiltersState {
 
 export const useFilmFilters = create<FilmFiltersState>((set) => ({
   search: '',
-  types: [],
-  genres: [],
-  yearMin: null,
-  yearMax: null,
-  hasPoster: null,
+  type: null,
+  year: null,
   viewMode: 'table',
   globalSearch: '',
   selectedIds: [],
   setSearch: (search) => set({ search }),
-  setTypes: (types) => set({ types }),
-  setGenres: (genres) => set({ genres }),
-  setYearRange: (yearMin, yearMax) => set({ yearMin, yearMax }),
-  setHasPoster: (hasPoster) => set({ hasPoster }),
+  setType: (type) => set({ type }),
+  setYear: (year) => set({ year }),
   setViewMode: (viewMode) => set({ viewMode }),
   setGlobalSearch: (globalSearch) => set({ globalSearch }),
   setSelectedIds: (selectedIds) => set({ selectedIds }),

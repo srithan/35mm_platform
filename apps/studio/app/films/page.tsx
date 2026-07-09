@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LayoutGrid, Plus, Table2, Trash2 } from 'lucide-react';
+import { LayoutGrid, Plus, Table2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { FilmCard } from '@/components/films/FilmCard';
 import { FilmsTable } from '@/components/films/FilmsTable';
@@ -24,34 +24,34 @@ import {
 export default function FilmsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [page, setPage] = useState(0);
+  const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [pageSize, setPageSize] = useState(25);
+  const [deletingFilmId, setDeletingFilmId] = useState<string | null>(null);
 
   const search = useFilmFilters((state) => state.search);
-  const types = useFilmFilters((state) => state.types);
-  const genres = useFilmFilters((state) => state.genres);
-  const yearMin = useFilmFilters((state) => state.yearMin);
-  const yearMax = useFilmFilters((state) => state.yearMax);
-  const hasPoster = useFilmFilters((state) => state.hasPoster);
+  const type = useFilmFilters((state) => state.type);
+  const year = useFilmFilters((state) => state.year);
   const filters = useMemo(
     () => ({
       search,
-      types,
-      genres,
-      yearMin,
-      yearMax,
-      hasPoster,
+      type,
+      year,
     }),
-    [search, types, genres, yearMin, yearMax, hasPoster],
+    [search, type, year],
   );
   const router = useRouter();
 
-  const filmQuery = useFilms(filters, page, pageSize, 'dateAdded', 'desc');
+  useEffect(() => {
+    setCursorStack([null]);
+    setSelectedIds([]);
+  }, [filters, pageSize]);
+
+  const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
+  const filmQuery = useFilms(filters, currentCursor, pageSize);
   const isLoading = filmQuery.isLoading || filmQuery.isFetching;
 
   const films = filmQuery.data?.items || [];
-  const total = filmQuery.data?.total || 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const hasMore = Boolean(filmQuery.data?.hasMore && filmQuery.data.nextCursor);
 
   const toggleSelect = (id: string, value: boolean) => {
     setSelectedIds((current) => {
@@ -77,7 +77,7 @@ export default function FilmsPage() {
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold tracking-tight">Films</h2>
         <p className="text-sm text-muted-foreground">
-          {total} film{total !== 1 ? 's' : ''} in database
+          Catalog titles from 35mm DB
         </p>
       </div>
 
@@ -100,18 +100,6 @@ export default function FilmsPage() {
         {selectedIds.length > 0 ? (
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">{selectedIds.length} selected</span>
-            <Button
-              size="sm"
-              variant="destructive"
-              className="h-8 gap-1.5"
-              onClick={async () => {
-                await filmQuery.bulkDeleteAsync(selectedIds);
-                setSelectedIds([]);
-              }}
-            >
-              <Trash2 className="size-3.5" />
-              Delete
-            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -170,6 +158,7 @@ export default function FilmsPage() {
           films={films}
           isLoading={isLoading}
           selected={selectedIds}
+          deletingId={deletingFilmId}
           onToggleSelect={toggleSelect}
           onSelectAll={(value) => {
             setSelectedIds(value ? films.map((film) => film.id) : []);
@@ -178,7 +167,12 @@ export default function FilmsPage() {
             router.push(`/films/${film.id}/edit`);
           }}
           onDelete={async (film) => {
-            await filmQuery.deleteFilmAsync(film.id);
+            setDeletingFilmId(film.id);
+            try {
+              await filmQuery.deleteFilmAsync(film.id);
+            } finally {
+              setDeletingFilmId(null);
+            }
           }}
           onView={(film) => {
             router.push(`/films/${film.id}`);
@@ -193,7 +187,6 @@ export default function FilmsPage() {
             value={String(pageSize)}
             onValueChange={(value) => {
               setPageSize(Number(value));
-              setPage(0);
             }}
           >
             <SelectTrigger className="h-8 w-20">
@@ -209,18 +202,31 @@ export default function FilmsPage() {
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setPage(Math.max(page - 1, 0))} disabled={page === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => {
+              setCursorStack((current) => current.length > 1 ? current.slice(0, -1) : current);
+              setSelectedIds([]);
+            }}
+            disabled={cursorStack.length === 1}
+          >
             Previous
           </Button>
           <span className="text-sm text-muted-foreground">
-            Page {page + 1} of {totalPages}
+            Page {cursorStack.length}
           </span>
           <Button
             variant="outline"
             size="sm"
             className="h-8"
-            onClick={() => setPage(Math.min(page + 1, totalPages - 1))}
-            disabled={(page + 1) * pageSize >= total}
+            onClick={() => {
+              if (!filmQuery.data?.nextCursor) return;
+              setCursorStack((current) => [...current, filmQuery.data.nextCursor]);
+              setSelectedIds([]);
+            }}
+            disabled={!hasMore}
           >
             Next
           </Button>

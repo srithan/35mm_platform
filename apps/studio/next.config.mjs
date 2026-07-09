@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@35mm/validators'],
+  transpilePackages: ['@35mm/types', '@35mm/validators'],
   images: {
     remotePatterns: [
       {

@@ -1,20 +1,37 @@
+import type {
+  CatalogEntityStatus,
+  CatalogExternalIdRow,
+  CatalogMediaRow,
+  CatalogTitleType,
+} from '@35mm/types';
+
 export const FILM_TYPES = [
-  'feature',
-  'short',
+  'movie',
+  'short_film',
   'documentary',
-  'tv-show',
-  'web-series',
-  'mini-series',
-  'special',
-  'anthology',
-] as const;
+  'tv_series',
+  'web_series',
+  'tv_season',
+  'tv_episode',
+  'tv_special',
+  'video',
+  'other',
+] as const satisfies readonly CatalogTitleType[];
 
 export const FILM_STATUS = [
+  'active',
+  'merged',
+  'deleted',
+  'locked',
+] as const satisfies readonly CatalogEntityStatus[];
+
+export const FILM_LIFECYCLES = [
   'released',
-  'in-production',
-  'post-production',
+  'unknown',
   'announced',
-  'cancelled',
+  'in_production',
+  'ended',
+  'canceled',
 ] as const;
 
 export const CONTENT_WARNINGS = [
@@ -33,12 +50,11 @@ export const SHELF_CADENCE = ['manual', 'daily', 'weekly'] as const;
 
 export type FilmType = (typeof FILM_TYPES)[number];
 export type FilmStatus = (typeof FILM_STATUS)[number];
+export type FilmLifecycle = (typeof FILM_LIFECYCLES)[number];
 export type ContentWarning = (typeof CONTENT_WARNINGS)[number];
 export type ShelfType = (typeof SHELF_TYPES)[number];
 export type ShelfVisibility = (typeof SHELF_VISIBILITY)[number];
 export type ShelfCadence = (typeof SHELF_CADENCE)[number];
-
-export type FilmSource = 'tmdb' | 'omdb' | 'imdb' | 'openlibrary' | 'manual';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -51,43 +67,38 @@ export interface FilmPerson {
 
 export interface Film {
   id: string;
-  ulid: string;
   title: string;
-  originalTitle?: string;
+  originalTitle?: string | null;
+  sortTitle: string;
   slug: string;
   type: FilmType;
   status: FilmStatus;
-  source: FilmSource;
-  imdbId?: string;
-  tmdbId?: number;
+  lifecycle: FilmLifecycle;
+  imdbId?: string | null;
+  tmdbId?: string | null;
   posterUrl?: string;
-  backdropUrl?: string;
   releaseYear?: number;
-  releaseDate?: string;
-  runtimeMinutes?: number;
-  seasonCount?: number;
-  episodeCount?: number;
-  episodeRuntimeMinutes?: number;
+  endYear?: number | null;
+  releaseDate?: string | null;
+  runtimeMinutes?: number | null;
+  primaryLanguage?: string | null;
+  primaryCountry?: string | null;
   languages: string[];
   countries: string[];
   genres: string[];
+  contentWarnings: string[];
   directors: FilmPerson[];
   writers: FilmPerson[];
   cast: FilmPerson[];
-  studios: string[];
-  tagline?: string;
-  shortDescription?: string;
-  synopsis?: string;
-  trailerUrl?: string;
-  images: string[];
-  tags: string[];
-  contentWarnings: ContentWarning[];
-  isShortFilm: boolean;
-  featured: boolean;
-  adminNotes?: string;
-  addedAt: string;
+  synopsis?: string | null;
+  facts: Record<string, unknown>;
+  isAdult: boolean;
+  isVerified: boolean;
+  primaryMedia: CatalogMediaRow | null;
+  externalIds: CatalogExternalIdRow[];
   dateAdded: string;
   updatedAt: string;
+  createdAt: string;
 }
 
 export interface ShelfEntry {
@@ -112,14 +123,12 @@ export interface Shelf {
 
 export interface FilmFilters {
   search: string;
-  types: FilmType[];
-  genres: string[];
-  yearMin?: number | null;
-  yearMax?: number | null;
-  hasPoster: boolean | null;
+  type: FilmType | null;
+  year: number | null;
 }
 
 export interface PaginatedResult<T> {
   items: T[];
-  total: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }

@@ -19,26 +19,19 @@ export function CommandPalette() {
 
   const filmSearch = useFilms(
     {
-      search: '',
-      types: [],
-      genres: [],
-      yearMin: null,
-      yearMax: null,
-      hasPoster: null,
+      search: debounced,
+      type: null,
+      year: null,
     },
-    0,
-    250,
+    null,
+    20,
   );
   const films = filmSearch.data?.items || [];
   const navItems = adminNavGroups.flatMap((group) => group.items);
 
   const matches = useMemo(
     () =>
-      debounced
-        ? films
-            .filter((film) => film.title.toLowerCase().includes(debounced.toLowerCase()))
-            .slice(0, 20)
-        : [],
+      debounced ? films : [],
     [films, debounced],
   );
 

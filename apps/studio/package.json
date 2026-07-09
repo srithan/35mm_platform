@@ -11,6 +11,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@35mm/types": "workspace:*",
     "@35mm/validators": "workspace:*",
     "@base-ui/react": "^1.5.0",
     "@clerk/nextjs": "^7.5.2",

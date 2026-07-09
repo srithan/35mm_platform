@@ -1,37 +1,30 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { type Film } from '@/lib/types';
-import { delay } from '@/lib/utils';
-import * as filmStore from '@/lib/data/filmStore';
+import { useAuth } from '@clerk/nextjs';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { deleteCatalogFilm, getCatalogFilm } from '@/lib/catalog/api';
 
 export function useFilm(id: string | null) {
-  const query = useQuery({
-    queryKey: ['film', id],
-    enabled: Boolean(id),
-    queryFn: async () => {
-      if (!id) {
-        return null;
-      }
-      await delay(170);
-      return filmStore.getFilmById(id) ?? null;
-    },
-  });
-
   const queryClient = useQueryClient();
-
+  const { getToken } = useAuth();
   const [deleted, setDeleted] = useState(false);
 
-  const deleteFilm = useMutation({
-    mutationFn: async (targetId: string) => {
-      await delay(180);
-      filmStore.deleteFilm(targetId);
-      return targetId;
+  const query = useQuery({
+    queryKey: ['catalog', 'titles', id],
+    enabled: Boolean(id),
+    queryFn: () => {
+      if (!id) return null;
+      return getCatalogFilm(id);
     },
+    staleTime: 30_000,
+  });
+
+  const deleteFilm = useMutation({
+    mutationFn: async (targetId: string) => deleteCatalogFilm(targetId, { token: await getToken() }),
     onSuccess: (targetId) => {
-      queryClient.invalidateQueries({ queryKey: ['films'] });
-      queryClient.setQueryData(['film', targetId], null);
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'titles'] });
+      queryClient.setQueryData(['catalog', 'titles', targetId], null);
       setDeleted(true);
     },
   });
@@ -39,6 +32,7 @@ export function useFilm(id: string | null) {
   return {
     ...query,
     deleteFilm: (targetId: string) => deleteFilm.mutate(targetId),
+    deleteFilmAsync: deleteFilm.mutateAsync,
     isDeleting: deleteFilm.isPending,
     deleteError: deleteFilm.error,
     deleted,

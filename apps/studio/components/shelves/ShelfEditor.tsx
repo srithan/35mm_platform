@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { closestCenter, DndContext, DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -12,8 +12,10 @@ import { CSS } from '@dnd-kit/utilities';
 import Image from 'next/image';
 import { type Film, type Shelf, type ShelfType, type ShelfVisibility } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/required-label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +23,8 @@ import { AddShelfFilmPanel } from './AddShelfFilmPanel';
 import { useShelvesQuery } from '@/hooks/useShelves';
 import { useFilms } from '@/hooks/useFilms';
 import { toast } from 'sonner';
-import { Grip, ArrowRightLeft } from 'lucide-react';
+import { slugify } from '@/lib/utils';
+import { ArrowLeft, Grip, Save } from 'lucide-react';
 
 function SortableRow({ id, film, onRemove, index }: { id: string; film: Film; onRemove: (id: string) => void; index: number }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -34,33 +37,34 @@ function SortableRow({ id, film, onRemove, index }: { id: string; film: Film; on
     <li
       ref={setNodeRef}
       style={style}
-      className="grid grid-cols-[40px_40px_1fr_auto] items-center gap-2 rounded border border p-2"
+      className="flex items-center gap-2 rounded-lg border bg-card p-2"
     >
-      <span className="text-sm text-muted-foreground">{index + 1}</span>
+      <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground">{index + 1}</span>
       <button
         {...attributes}
         {...listeners}
-        className="h-6 w-6 rounded border border flex items-center justify-center"
+        className="flex h-7 w-7 items-center justify-center rounded-md border bg-background"
         type="button"
+        aria-label={`Reorder ${film.title}`}
       >
         <Grip className="h-4 w-4" />
       </button>
-      <div className="flex items-center gap-2">
-        <div className="h-10 w-8 overflow-hidden rounded">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="h-11 w-8 shrink-0 overflow-hidden rounded-md bg-muted">
           {film.posterUrl ? (
             <Image src={film.posterUrl} width={32} height={48} alt={film.title} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-xs">No poster</span>
+            <span className="flex h-full items-center justify-center text-[10px] text-muted-foreground">No</span>
           )}
         </div>
-        <div>
-          <p className="text-sm font-medium">{film.title}</p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{film.title}</p>
           <p className="text-xs text-muted-foreground">{film.releaseYear ?? '—'} • {film.type}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="secondary">{film.type}</Badge>
-        <Button size="sm" variant="destructive" onClick={() => onRemove(film.id)}>
+        <Badge variant="secondary" className="hidden sm:inline-flex">{film.type}</Badge>
+        <Button size="sm" variant="destructive" className="h-7" onClick={() => onRemove(film.id)}>
           Remove
         </Button>
       </div>
@@ -72,6 +76,7 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
   const { updateShelfAsync, isBusy, createShelfAsync } = useShelvesQuery();
   const [name, setName] = useState(shelf.displayName);
   const [internalName, setInternalName] = useState(shelf.internalName);
+  const [internalNameTouched, setInternalNameTouched] = useState(Boolean(shelf.id));
   const [description, setDescription] = useState(shelf.description || '');
   const [type, setType] = useState<ShelfType>(shelf.type);
   const [visibility, setVisibility] = useState<ShelfVisibility>(shelf.visibility);
@@ -79,7 +84,7 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
   const [filmIds, setFilmIds] = useState<string[]>(shelf.filmIds);
   const [saving, setSaving] = useState(false);
 
-  const { data } = useFilms({ search: '', types: [], genres: [], yearMin: null, yearMax: null, hasPoster: null }, 0, 200);
+  const { data } = useFilms({ search: '', type: null, year: null }, null, 200);
   const films = data?.items || [];
   const filmLookup = useMemo(() => {
     const map = new Map<string, Film>();
@@ -132,32 +137,94 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
     setFilmIds((current) => current.filter((entry) => entry !== filmId));
   };
 
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (!internalNameTouched) {
+      setInternalName(slugify(value));
+    }
+  };
+
+  const handleEditorKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!(event.metaKey || event.ctrlKey)) return;
+    if (event.key.toLowerCase() === 's' || event.key === 'Enter') {
+      event.preventDefault();
+      void handleSave();
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="mx-auto grid w-full max-w-5xl gap-4" onKeyDown={handleEditorKeyDown}>
+      <Card className="border-primary/15 bg-muted/20">
+        <CardContent className="flex flex-col gap-3 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-md">Shelf</Badge>
+              <Badge variant={visibility === 'active' ? 'default' : 'secondary'} className="rounded-md">{visibility}</Badge>
+              <Badge variant="secondary" className="rounded-md">{filmIds.length}/{maxFilms}</Badge>
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight">{name || 'Untitled shelf'}</h1>
+            <p className="text-sm text-muted-foreground">Build and order shelf films without leaving keyboard flow.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onBack} variant="outline" type="button" className="gap-1.5">
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+            <LoadingButton
+              onClick={handleSave}
+              isLoading={saving || isBusy}
+              loadingText="Saving"
+              type="button"
+            >
+              {saving || isBusy ? null : <Save className="size-4" />}
+              Save shelf
+            </LoadingButton>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            General settings
-            <span className="text-sm text-muted-foreground">{visibility}</span>
-          </CardTitle>
+        <CardHeader className="border-b pb-3">
+          <CardTitle>General settings</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label>Display Name</Label>
-            <Input value={name} onChange={(event) => setName(event.target.value)} />
+        <CardContent className="grid gap-3 pt-4 md:grid-cols-12">
+          <div className="space-y-2 md:col-span-6">
+            <RequiredLabel htmlFor="shelf-display-name">Display name</RequiredLabel>
+            <Input
+              id="shelf-display-name"
+              className="h-10"
+              required
+              aria-required="true"
+              value={name}
+              onChange={(event) => handleNameChange(event.target.value)}
+            />
           </div>
-          <div>
-            <Label>Internal Name</Label>
-            <Input value={internalName} onChange={(event) => setInternalName(event.target.value)} />
+          <div className="space-y-2 md:col-span-6">
+            <RequiredLabel htmlFor="shelf-internal-name">Internal name</RequiredLabel>
+            <Input
+              id="shelf-internal-name"
+              className="h-10"
+              required
+              aria-required="true"
+              value={internalName}
+              onChange={(event) => {
+                setInternalNameTouched(true);
+                setInternalName(event.target.value);
+              }}
+            />
           </div>
-          <div className="md:col-span-2">
-            <Label>Description</Label>
-            <Input value={description} onChange={(event) => setDescription(event.target.value)} />
+          <div className="space-y-2 md:col-span-12">
+            <Label htmlFor="shelf-description">Description</Label>
+            <Input
+              id="shelf-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
           </div>
-          <div>
-            <Label>Shelf Type</Label>
+          <div className="space-y-2 md:col-span-4">
+            <RequiredLabel htmlFor="shelf-type">Shelf type</RequiredLabel>
             <Select value={type} onValueChange={(value) => setType(value as ShelfType)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="shelf-type" className="w-full" aria-required="true">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -167,10 +234,10 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Visibility</Label>
+          <div className="space-y-2 md:col-span-4">
+            <RequiredLabel htmlFor="shelf-visibility">Visibility</RequiredLabel>
             <Select value={visibility} onValueChange={(value) => setVisibility(value as ShelfVisibility)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="shelf-visibility" className="w-full" aria-required="true">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -179,19 +246,29 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Max films</Label>
-            <Input type="number" value={maxFilms} onChange={(event) => setMaxFilms(Number(event.target.value))} />
+          <div className="space-y-2 md:col-span-2">
+            <RequiredLabel htmlFor="shelf-max-films">Max films</RequiredLabel>
+            <Input
+              id="shelf-max-films"
+              type="number"
+              inputMode="numeric"
+              required
+              aria-required="true"
+              value={maxFilms}
+              onChange={(event) => setMaxFilms(Number(event.target.value))}
+            />
           </div>
-          <div>
+          <div className="space-y-2 md:col-span-2">
             <Label>Refresh cadence</Label>
-            <p className="text-sm text-muted-foreground">{shelf.refreshCadence}</p>
+            <div className="flex h-8 items-center rounded-lg border bg-muted/40 px-2 text-sm text-muted-foreground">
+              {shelf.refreshCadence}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b pb-3">
           <CardTitle>Shelf films ({orderedFilms.length}/{maxFilms})</CardTitle>
           <AddShelfFilmPanel
             existingFilmIds={filmIds}
@@ -205,7 +282,7 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
             }}
           />
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {orderedFilms.length === 0 ? <p className="text-sm text-muted-foreground">No films assigned yet.</p> : null}
           <DndContext
             collisionDetection={closestCenter}
@@ -229,14 +306,21 @@ export function ShelfEditor({ shelf, onBack }: { shelf: Shelf; onBack: () => voi
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-2">
-        <Button onClick={onBack} variant="outline" type="button">
+      <div className="sticky bottom-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border bg-background/90 p-2 shadow-lg backdrop-blur">
+        <Button onClick={onBack} variant="outline" type="button" className="gap-1.5">
+          <ArrowLeft className="size-4" />
           Back
         </Button>
-        <Button onClick={handleSave} disabled={saving || isBusy} className="inline-flex items-center gap-2" type="button">
-          {saving ? <ArrowRightLeft className="h-4 w-4" /> : null}
-          Save Shelf
-        </Button>
+        <LoadingButton
+          onClick={handleSave}
+          isLoading={saving || isBusy}
+          loadingText="Saving"
+          aria-keyshortcuts="Meta+S Control+S Meta+Enter Control+Enter"
+          type="button"
+        >
+          {saving || isBusy ? null : <Save className="size-4" />}
+          Save shelf
+        </LoadingButton>
       </div>
     </div>
   );

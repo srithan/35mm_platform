@@ -7,9 +7,10 @@ import { AdminMetricCard, PageIntro } from '@/components/admin/AdminPrimitives';
 import { AppShell } from '@/components/layout/AppShell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/required-label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -192,11 +193,14 @@ export default function UsersPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Username</Label>
+                  <RequiredLabel htmlFor="username-control-input">Username</RequiredLabel>
                   <div className="flex gap-2">
                     <Input
+                      id="username-control-input"
                       placeholder="username"
                       className="h-9"
+                      required
+                      aria-required="true"
                       value={usernameInput}
                       onChange={(event) => {
                         setUsernameInput(event.currentTarget.value);
@@ -210,13 +214,26 @@ export default function UsersPage() {
                         }
                       }}
                     />
-                    <Button className="h-9" variant="outline" onClick={() => void handleCheckUsername()} disabled={checkingUsername || lockingUsername}>
-                      {checkingUsername ? 'Checking' : 'Check'}
-                    </Button>
-                    <Button className="h-9 gap-1.5" onClick={() => void handleLockUsername()} disabled={!usernameStatus?.canLock || lockingUsername}>
-                      <LockKeyhole className="size-3.5" />
-                      {lockingUsername ? 'Locking' : 'Lock'}
-                    </Button>
+                    <LoadingButton
+                      className="h-9"
+                      variant="outline"
+                      onClick={() => void handleCheckUsername()}
+                      disabled={lockingUsername}
+                      isLoading={checkingUsername}
+                      loadingText="Checking"
+                    >
+                      Check
+                    </LoadingButton>
+                    <LoadingButton
+                      className="h-9"
+                      onClick={() => void handleLockUsername()}
+                      disabled={!usernameStatus?.canLock || checkingUsername}
+                      isLoading={lockingUsername}
+                      loadingText="Locking"
+                    >
+                      {lockingUsername ? null : <LockKeyhole className="size-3.5" />}
+                      Lock
+                    </LoadingButton>
                   </div>
                   {usernameStatus ? (
                     <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
@@ -236,9 +253,9 @@ export default function UsersPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>Reservation type</Label>
+                    <RequiredLabel htmlFor="username-reservation-type">Reservation type</RequiredLabel>
                     <Select value={lockType} onValueChange={(value) => setLockType(value === 'reserved' ? 'reserved' : 'locked')}>
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger id="username-reservation-type" className="h-9" aria-required="true">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -248,14 +265,30 @@ export default function UsersPage() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Owner</Label>
-                    <Input placeholder="trust, brand, catalog..." className="h-9" value={lockOwner} onChange={(event) => setLockOwner(event.currentTarget.value)} />
+                    <RequiredLabel htmlFor="username-lock-owner">Owner</RequiredLabel>
+                    <Input
+                      id="username-lock-owner"
+                      placeholder="trust, brand, catalog..."
+                      className="h-9"
+                      required
+                      aria-required="true"
+                      value={lockOwner}
+                      onChange={(event) => setLockOwner(event.currentTarget.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Reason</Label>
-                  <Input placeholder="Why this username should not be publicly available" className="h-9" value={lockReason} onChange={(event) => setLockReason(event.currentTarget.value)} />
+                  <RequiredLabel htmlFor="username-lock-reason">Reason</RequiredLabel>
+                  <Input
+                    id="username-lock-reason"
+                    placeholder="Why this username should not be publicly available"
+                    className="h-9"
+                    required
+                    aria-required="true"
+                    value={lockReason}
+                    onChange={(event) => setLockReason(event.currentTarget.value)}
+                  />
                 </div>
 
                 <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">

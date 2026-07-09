@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type Film } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Pencil, Trash2 } from 'lucide-react';
@@ -10,7 +11,7 @@ import { formatDateLabel } from '@/lib/utils';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export function FilmDetailView({ film, onDelete }: { film: Film; onDelete: () => void }) {
-  const { deleteFilm, isDeleting } = useFilm(film.id);
+  const { deleteFilmAsync, isDeleting } = useFilm(film.id);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
@@ -24,7 +25,8 @@ export function FilmDetailView({ film, onDelete }: { film: Film; onDelete: () =>
             <p>Runtime: {film.runtimeMinutes ? `${film.runtimeMinutes}m` : '—'}</p>
             <p>Type: <Badge variant="secondary">{film.type}</Badge></p>
             {film.imdbId ? <p>IMDb: <a className="text-primary underline-offset-4 hover:underline" href={`https://www.imdb.com/title/${film.imdbId}`} target="_blank">{film.imdbId}</a></p> : null}
-            <p>Added: {formatDateLabel(film.dateAdded)}</p>
+            {film.tmdbId ? <p>TMDB: {film.tmdbId}</p> : null}
+            <p>Updated: {formatDateLabel(film.updatedAt)}</p>
           </div>
         </CardContent>
       </Card>
@@ -42,9 +44,9 @@ export function FilmDetailView({ film, onDelete }: { film: Film; onDelete: () =>
                 Edit
               </Button>
             </Link>
-            <Button variant="outline" onClick={() => navigator.clipboard.writeText(film.ulid)}>
+            <Button variant="outline" onClick={() => navigator.clipboard.writeText(film.id)}>
               <Copy className="mr-2 h-4 w-4" />
-              Copy ULID
+              Copy ID
             </Button>
             <AlertDialog>
               <AlertDialogTrigger
@@ -59,21 +61,23 @@ export function FilmDetailView({ film, onDelete }: { film: Film; onDelete: () =>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete film</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Delete <strong>{film.title}</strong>? This action cannot be undone and also removes it from all shelves.
+                    Delete <strong>{film.title}</strong>? Catalog title status will become deleted.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel render={<Button variant="outline" type="button">Cancel</Button>} />
-                  <Button
+                  <LoadingButton
                     variant="destructive"
-                    disabled={isDeleting}
-                    onClick={() => {
-                      deleteFilm(film.id);
+                    isLoading={isDeleting}
+                    loadingText="Deleting"
+                    onClick={async () => {
+                      await deleteFilmAsync(film.id);
                       onDelete();
                     }}
                   >
+                    {isDeleting ? null : <Trash2 className="size-4" />}
                     Confirm delete
-                  </Button>
+                  </LoadingButton>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -88,36 +92,27 @@ export function FilmDetailView({ film, onDelete }: { film: Film; onDelete: () =>
                 <dd>{film.type}</dd>
                 <dt className="text-muted-foreground">Status</dt>
                 <dd>{film.status}</dd>
+                <dt className="text-muted-foreground">Lifecycle</dt>
+                <dd>{film.lifecycle}</dd>
                 <dt className="text-muted-foreground">Languages</dt>
-                <dd>{film.languages.join(', ') || '—'}</dd>
+                <dd>{film.languages.join(', ') || film.primaryLanguage || '—'}</dd>
                 <dt className="text-muted-foreground">Countries</dt>
-                <dd>{film.countries.join(', ') || '—'}</dd>
+                <dd>{film.countries.join(', ') || film.primaryCountry || '—'}</dd>
+                <dt className="text-muted-foreground">Genres</dt>
+                <dd>{film.genres.join(', ') || '—'}</dd>
               </dl>
             </div>
             <div>
-              <CardTitle>People</CardTitle>
-              <p className="text-sm">Directors: {film.directors.map((person) => person.name).join(', ') || '—'}</p>
-              <p className="text-sm">Writers: {film.writers.map((person) => person.name).join(', ') || '—'}</p>
+              <CardTitle>Catalog flags</CardTitle>
+              <p className="text-sm">Verified: {film.isVerified ? 'Yes' : 'No'}</p>
+              <p className="text-sm">Adult: {film.isAdult ? 'Yes' : 'No'}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent>
             <CardTitle>Synopsis</CardTitle>
-            <p className="mt-2 text-sm text-muted-foreground">{film.synopsis || film.shortDescription || 'No synopsis added yet.'}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <CardTitle>Cast</CardTitle>
-            <ul className="mt-2 text-sm">
-              {film.cast.length === 0 ? <li>No cast entries.</li> : null}
-              {film.cast.map((member, idx) => (
-                <li key={`${member.name}-${idx}`}>
-                  {member.name} {member.character ? `— ${member.character}` : ''}
-                </li>
-              ))}
-            </ul>
+            <p className="mt-2 text-sm text-muted-foreground">{film.synopsis || 'No synopsis added yet.'}</p>
           </CardContent>
         </Card>
       </div>

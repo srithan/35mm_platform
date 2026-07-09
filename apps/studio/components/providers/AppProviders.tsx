@@ -14,7 +14,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <StudioThemeProvider>
         <TooltipProvider>
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster richColors position="top-right" offset="76px" />
         </TooltipProvider>
       </StudioThemeProvider>
     </QueryClientProvider>

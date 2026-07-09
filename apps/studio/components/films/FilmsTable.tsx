@@ -12,7 +12,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -42,6 +42,7 @@ export function FilmsTable({
   onDelete,
   onView,
   selected,
+  deletingId,
   onToggleSelect,
   onSelectAll,
   isLoading = false,
@@ -51,6 +52,7 @@ export function FilmsTable({
   onDelete: (film: Film) => void;
   onView: (film: Film) => void;
   selected: string[];
+  deletingId?: string | null;
   onToggleSelect: (id: string, value: boolean) => void;
   onSelectAll: (value: boolean) => void;
   isLoading?: boolean;
@@ -109,28 +111,19 @@ export function FilmsTable({
       cell: ({ row }) => <Badge variant="secondary">{row.original.type}</Badge>,
     },
     {
-      id: 'directors',
-      header: 'Directors',
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.directors.map((person) => person.name).join(', ') || '—'}
-        </span>
-      ),
-    },
-    {
       accessorKey: 'runtimeMinutes',
       header: 'Runtime',
       enableSorting: true,
       cell: ({ getValue }) => (getValue() ? `${getValue()}m` : '—'),
     },
     {
-      accessorKey: 'source',
-      header: 'Source',
+      accessorKey: 'status',
+      header: 'Status',
       cell: ({ getValue }) => <Badge variant="outline">{String(getValue())}</Badge>,
     },
     {
-      accessorKey: 'dateAdded',
-      header: 'Added',
+      accessorKey: 'updatedAt',
+      header: 'Updated',
       enableSorting: true,
       cell: ({ getValue }) => (
         <span className="text-muted-foreground">{formatDateLabel(getValue() as string)}</span>
@@ -139,37 +132,40 @@ export function FilmsTable({
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="ghost" size="icon-sm" className="size-8">
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">Actions</span>
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onView(row.original)}>
-              <Eye className="size-4" />
-              View
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(row.original)}>
-              <Pencil className="size-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
-              <Trash2 className="size-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+      cell: ({ row }) => {
+        const isDeleting = deletingId === row.original.id;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon-sm" className="size-8" disabled={isDeleting} aria-busy={isDeleting || undefined}>
+                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <MoreHorizontal className="size-4" />}
+                  <span className="sr-only">Actions</span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onView(row.original)} disabled={isDeleting}>
+                <Eye className="size-4" />
+                View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(row.original)} disabled={isDeleting}>
+                <Pencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)} disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                {isDeleting ? 'Deleting' : 'Delete'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'dateAdded', desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'updatedAt', desc: true }]);
 
   const table = useReactTable({
     data: films,
@@ -216,7 +212,11 @@ export function FilmsTable({
             </TableRow>
           ) : null}
           {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id} data-state={selected.includes(row.original.id) ? 'selected' : undefined}>
+            <TableRow
+              key={row.id}
+              data-state={selected.includes(row.original.id) ? 'selected' : undefined}
+              className={deletingId === row.original.id ? 'opacity-60' : undefined}
+            >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

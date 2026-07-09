@@ -26,19 +26,13 @@ export default function ShelvesPage() {
         </Link>
       }
     >
-      <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Shelves</h2>
-        <p className="text-sm text-muted-foreground">
-          {safeShelves.length} shelf{safeShelves.length !== 1 ? 'es' : ''} configured
-        </p>
-      </div>
       <ShelfList
         shelves={safeShelves}
         onDuplicate={(shelf) => {
           router.push(`/shelves/new?from=${shelf.id}`);
         }}
-        onDelete={(shelf) => {
-          void deleteShelfAsync(shelf.id);
+        onDelete={async (shelf) => {
+          await deleteShelfAsync(shelf.id);
         }}
       />
     </AppShell>

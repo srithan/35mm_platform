@@ -21,9 +21,28 @@ export function delay(ms: number): Promise<void> {
 }
 
 export function randomUlid(): string {
-  const now = Date.now().toString(36).padStart(9, '0')
-  const rand = Math.random().toString(36).slice(2, 11)
-  return `${now}${rand}`.padEnd(16, '0').slice(0, 16)
+  const encoding = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+  let time = Date.now()
+  let timePart = ''
+  for (let i = 0; i < 10; i += 1) {
+    timePart = encoding[time % 32] + timePart
+    time = Math.floor(time / 32)
+  }
+
+  const bytes = new Uint8Array(16)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes)
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256)
+    }
+  }
+
+  let randomPart = ''
+  for (let i = 0; i < bytes.length; i += 1) {
+    randomPart += encoding[bytes[i] % 32]
+  }
+  return timePart + randomPart
 }
 
 export function todayIso(): string {
