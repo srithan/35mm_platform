@@ -22,6 +22,7 @@ function isProfileShellPath(pathname: string): boolean {
   switch (match[1]) {
     case "bookmarks":
     case "chat":
+    case "contribute":
     case "discover":
     case "drafts":
     case "for-you":
@@ -57,6 +58,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/settings" || Boolean(pathname?.startsWith("/settings/"));
   const isChatSection =
     pathname === ROUTES.CHAT || Boolean(pathname?.startsWith("/chat/"));
+  const isContributeSection =
+    pathname === ROUTES.CONTRIBUTE || Boolean(pathname?.startsWith("/contribute/"));
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isHomePage = pathname === "/";
   const isProfileUsernamePage =
@@ -65,6 +68,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   const isWideMainContent =
     pathname === "/discover" ||
+    isContributeSection ||
     pathname === ROUTES.BOOKMARKS ||
     pathname === ROUTES.SUGGESTIONS_PEOPLE ||
     isSettingsSection ||
@@ -93,6 +97,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const hasStickyBarBelow =
     pathname === "/discover" ||
     pathname?.startsWith("/profile") ||
+    isContributeSection ||
     (isProfileUsernamePage && isDesktopLg !== true) ||
     isShortFilmsSection ||
     pathname === "/notifications" ||

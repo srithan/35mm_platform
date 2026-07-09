@@ -33,9 +33,10 @@ export async function apiRequest<T>(
     method?: "GET" | "POST" | "PATCH" | "DELETE";
     token?: string | null;
     body?: unknown;
+    headers?: Record<string, string>;
   } = {}
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.token) headers.Authorization = "Bearer " + options.token;
 

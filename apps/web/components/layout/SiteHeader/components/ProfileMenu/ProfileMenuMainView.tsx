@@ -3,6 +3,7 @@ import {
   Bookmark,
   ChevronRight,
   FileText,
+  HandHeart,
   Lock,
   LogOut,
   Palette,
@@ -84,6 +85,17 @@ export function ProfileMenuMainView({
           <FileText size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.profileMenuRowText}>Drafts</span>
+      </Link>
+      <Link
+        href={ROUTES.CONTRIBUTE}
+        className={styles.profileMenuRow}
+        role="menuitem"
+        onClick={onClose}
+      >
+        <span className={styles.profileMenuRowIcon} aria-hidden>
+          <HandHeart size={18} strokeWidth={1.75} />
+        </span>
+        <span className={styles.profileMenuRowText}>Contribute</span>
       </Link>
       <button
         type="button"

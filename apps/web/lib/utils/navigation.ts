@@ -7,6 +7,7 @@ import { ROUTES } from "@/lib/constants/routes";
 const RESERVED_USERNAME_SEGMENTS = new Set([
   "bookmarks",
   "chat",
+  "contribute",
   "discover",
   "drafts",
   "for-you",

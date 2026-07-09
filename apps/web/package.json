@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@35mm/types": "workspace:*",
+        "@35mm/validators": "workspace:*",
         "@clerk/nextjs": "^7.4.1",
         "@hookform/resolvers": "^5.2.2",
         "@paper-design/shaders": "^0.0.71",

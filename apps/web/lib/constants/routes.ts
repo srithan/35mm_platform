@@ -46,6 +46,9 @@ export const ROUTES = {
   SETTINGS_DATA_SECURITY: "/settings/data-security",
   BOOKMARKS: "/bookmarks",
   DRAFTS: "/drafts",
+  CONTRIBUTE: "/contribute",
+  CONTRIBUTE_FORM: (slug: string) => `/contribute/${slug}`,
+  CONTRIBUTE_SUBMISSIONS: "/contribute/submissions",
   DISCOVER_TAB: (tab: string) => `/discover/${tab}`,
   /** Discover search by hashtag (query param; page may narrow results later). */
   DISCOVER_TAG: (tag: string) => `/discover?tag=${encodeURIComponent(tag)}`,

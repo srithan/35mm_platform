@@ -20,6 +20,7 @@ type MobileSidebarIconName =
   | "bell"
   | "user"
   | "bookmark"
+  | "plus"
   | "settings";
 
 interface MobileSidebarItem {
@@ -96,6 +97,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
       { label: "Short films", href: ROUTES.SHORT_FILMS, icon: "frames" },
       { label: "Notifications", href: ROUTES.NOTIFICATIONS, badge: 3, icon: "bell" },
       { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
+      { label: "Contribute", href: ROUTES.CONTRIBUTE, icon: "plus" },
       { label: "Profile", href: profileHref, icon: "user" },
       { label: "Settings", href: ROUTES.SETTINGS, icon: "settings" },
     ],
