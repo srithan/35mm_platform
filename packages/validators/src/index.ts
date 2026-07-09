@@ -682,6 +682,7 @@ export var catalogEntityTypeSchema = z.enum([
   "credit",
   "company",
   "title_company",
+  "title_genre",
   "award",
   "award_event",
   "award_nomination",
@@ -780,6 +781,61 @@ export var catalogExternalProviderSchema = z.enum([
   "instagram",
   "wikipedia",
   "other",
+]);
+
+export var catalogAliasTypeSchema = z.enum([
+  "primary",
+  "original",
+  "localized",
+  "alternative",
+  "working",
+  "festival",
+  "legal",
+  "search",
+]);
+
+export var catalogRelationTypeSchema = z.enum([
+  "sequel",
+  "prequel",
+  "remake",
+  "spin_off",
+  "adaptation",
+  "alternate_version",
+  "compilation",
+  "related",
+]);
+
+export var catalogCompanyTypeSchema = z.enum([
+  "studio",
+  "production_company",
+  "distributor",
+  "network",
+  "streamer",
+  "sales_agent",
+  "festival",
+  "school",
+  "collective",
+  "other",
+]);
+
+export var catalogCompanyRoleSchema = z.enum([
+  "studio",
+  "production",
+  "distribution",
+  "network",
+  "streaming",
+  "sales",
+  "rights_holder",
+  "other",
+]);
+
+export var catalogAwardOutcomeSchema = z.enum([
+  "nominee",
+  "winner",
+  "honoree",
+  "shortlisted",
+  "screened",
+  "official_selection",
 ]);
 
 var catalogOptionalDateSchema = z.string().trim().regex(/^\d{4}(-\d{2})?(-\d{2})?$/).nullable().optional();
@@ -886,6 +942,88 @@ export var catalogExternalIdDataSchema = z.object({
   status: catalogEntityStatusSchema.optional(),
 }).strict();
 
+export var catalogAliasDataSchema = z.object({
+  entityType: catalogEntityTypeSchema.optional(),
+  entityId: z.string().trim().min(1).max(80).optional(),
+  type: catalogAliasTypeSchema.optional(),
+  value: z.string().trim().min(1).max(500).optional(),
+  sortValue: z.string().trim().min(1).max(500).optional(),
+  language: z.string().trim().max(20).nullable().optional(),
+  region: z.string().trim().max(20).nullable().optional(),
+  attributes: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  isPrimary: z.boolean().optional(),
+}).strict();
+
+export var catalogCompanyDataSchema = z.object({
+  status: catalogEntityStatusSchema.optional(),
+  type: catalogCompanyTypeSchema.optional(),
+  name: z.string().trim().min(1).max(500).optional(),
+  sortName: z.string().trim().min(1).max(500).optional(),
+  slug: z.string().trim().min(1).max(220).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  description: z.string().trim().max(20000).nullable().optional(),
+  country: z.string().trim().max(20).nullable().optional(),
+  foundedYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  dissolvedYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  officialUrl: z.string().trim().max(2000).nullable().optional(),
+  isVerified: z.boolean().optional(),
+}).strict();
+
+export var catalogTitleRelationDataSchema = z.object({
+  fromTitleId: z.string().trim().regex(ULID_RE).optional(),
+  toTitleId: z.string().trim().regex(ULID_RE).optional(),
+  type: catalogRelationTypeSchema.optional(),
+  sortOrder: z.number().int().min(0).max(100000).optional(),
+  note: z.string().trim().max(2000).nullable().optional(),
+}).strict();
+
+export var catalogTitleCompanyDataSchema = z.object({
+  titleId: z.string().trim().regex(ULID_RE).optional(),
+  companyId: z.string().trim().regex(ULID_RE).optional(),
+  role: catalogCompanyRoleSchema.optional(),
+  region: z.string().trim().max(20).nullable().optional(),
+  startDate: catalogOptionalDateSchema,
+  endDate: catalogOptionalDateSchema,
+  sortOrder: z.number().int().min(0).max(100000).optional(),
+}).strict();
+
+export var catalogTitleGenreDataSchema = z.object({
+  titleId: z.string().trim().regex(ULID_RE).optional(),
+  genreId: z.string().trim().regex(ULID_RE).optional(),
+  sortOrder: z.number().int().min(0).max(100000).optional(),
+}).strict();
+
+export var catalogAwardDataSchema = z.object({
+  status: catalogEntityStatusSchema.optional(),
+  name: z.string().trim().min(1).max(500).optional(),
+  originalName: z.string().trim().max(500).nullable().optional(),
+  slug: z.string().trim().min(1).max(220).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  description: z.string().trim().max(20000).nullable().optional(),
+  officialUrl: z.string().trim().max(2000).nullable().optional(),
+  country: z.string().trim().max(20).nullable().optional(),
+  firstYear: z.number().int().min(1800).max(2300).nullable().optional(),
+  lastYear: z.number().int().min(1800).max(2300).nullable().optional(),
+}).strict();
+
+export var catalogAwardEventDataSchema = z.object({
+  awardId: z.string().trim().regex(ULID_RE).optional(),
+  name: z.string().trim().min(1).max(500).optional(),
+  year: z.number().int().min(1800).max(2300).optional(),
+  eventDate: catalogOptionalDateSchema,
+  location: z.string().trim().max(500).nullable().optional(),
+  officialUrl: z.string().trim().max(2000).nullable().optional(),
+}).strict();
+
+export var catalogAwardNominationDataSchema = z.object({
+  eventId: z.string().trim().regex(ULID_RE).optional(),
+  categoryName: z.string().trim().min(1).max(500).optional(),
+  outcome: catalogAwardOutcomeSchema.optional(),
+  titleId: z.string().trim().regex(ULID_RE).nullable().optional(),
+  personId: z.string().trim().regex(ULID_RE).nullable().optional(),
+  companyId: z.string().trim().regex(ULID_RE).nullable().optional(),
+  creditedName: z.string().trim().max(500).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(100000).optional(),
+}).strict();
+
 export var catalogSourceInputSchema = z.object({
   entityType: catalogEntityTypeSchema.optional().nullable(),
   entityId: z.string().trim().min(1).max(80).optional().nullable(),
@@ -924,6 +1062,38 @@ export var catalogOperationSchema = z.discriminatedUnion("entityType", [
     entityType: z.literal("external_id"),
     data: catalogExternalIdDataSchema,
   }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("alias"),
+    data: catalogAliasDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("company"),
+    data: catalogCompanyDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("title_relation"),
+    data: catalogTitleRelationDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("title_company"),
+    data: catalogTitleCompanyDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("title_genre"),
+    data: catalogTitleGenreDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("award"),
+    data: catalogAwardDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("award_event"),
+    data: catalogAwardEventDataSchema,
+  }),
+  catalogOperationBaseSchema.extend({
+    entityType: z.literal("award_nomination"),
+    data: catalogAwardNominationDataSchema,
+  }),
 ]).superRefine(function (operation, ctx) {
   if (operation.action !== "create" && !operation.entityId) {
     ctx.addIssue({
@@ -945,6 +1115,16 @@ export var catalogOperationSchema = z.discriminatedUnion("entityType", [
       path: ["data"],
       message: "update operation needs at least one field",
     });
+  }
+  if (operation.entityType === "award_nomination" && operation.action === "create") {
+    var data = operation.data as z.infer<typeof catalogAwardNominationDataSchema>;
+    if (!data.titleId && !data.personId && !data.companyId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["data"],
+        message: "award nomination needs titleId, personId, or companyId",
+      });
+    }
   }
 });
 
@@ -979,6 +1159,66 @@ export var catalogMergeEntitiesSchema = z.object({
 export var catalogHistoryQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export var catalogIdParamSchema = z.object({
+  id: z.string().trim().regex(ULID_RE),
+});
+
+export var catalogReadPageQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export var catalogTitleSearchQuerySchema = catalogReadPageQuerySchema.extend({
+  query: z.string().trim().min(1).max(200).optional(),
+  type: catalogTitleTypeSchema.optional(),
+  year: z.coerce.number().int().min(1800).max(2300).optional(),
+  externalProvider: catalogExternalProviderSchema.optional(),
+  externalId: z.string().trim().min(1).max(500).optional(),
+}).superRefine(function (query, ctx) {
+  if ((query.externalProvider && !query.externalId) || (!query.externalProvider && query.externalId)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["externalId"],
+      message: "externalProvider and externalId must be supplied together",
+    });
+  }
+});
+
+export var catalogPeopleSearchQuerySchema = catalogReadPageQuerySchema.extend({
+  query: z.string().trim().min(1).max(200).optional(),
+});
+
+export var catalogCompanySearchQuerySchema = catalogReadPageQuerySchema.extend({
+  query: z.string().trim().min(1).max(200).optional(),
+});
+
+export var catalogCreditsQuerySchema = catalogReadPageQuerySchema.extend({
+  department: catalogCreditDepartmentSchema.optional(),
+});
+
+export var catalogMediaQuerySchema = catalogReadPageQuerySchema.extend({
+  type: catalogMediaTypeSchema.optional(),
+});
+
+export var catalogCompanyTitlesQuerySchema = catalogReadPageQuerySchema.extend({
+  role: catalogCompanyRoleSchema.optional(),
+});
+
+export var catalogEditQueueQuerySchema = catalogReadPageQuerySchema.extend({
+  status: catalogEditStatusSchema.optional(),
+  entityType: catalogEntityTypeSchema.optional(),
+  entityId: z.string().trim().min(1).max(80).optional(),
+  source: catalogEditSourceSchema.optional(),
+}).superRefine(function (query, ctx) {
+  if (query.entityId && !query.entityType) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["entityType"],
+      message: "entityType is required when entityId is supplied",
+    });
+  }
 });
 
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
@@ -1021,3 +1261,12 @@ export type CatalogSourceInput = z.infer<typeof catalogSourceInputSchema>;
 export type CatalogMergeEntitiesInput = z.infer<typeof catalogMergeEntitiesSchema>;
 export type CatalogWorkflowPayloadInput = z.infer<typeof catalogWorkflowPayloadSchema>;
 export type CatalogHistoryQueryInput = z.infer<typeof catalogHistoryQuerySchema>;
+export type CatalogIdParamInput = z.infer<typeof catalogIdParamSchema>;
+export type CatalogReadPageQueryInput = z.infer<typeof catalogReadPageQuerySchema>;
+export type CatalogTitleSearchQueryInput = z.infer<typeof catalogTitleSearchQuerySchema>;
+export type CatalogPeopleSearchQueryInput = z.infer<typeof catalogPeopleSearchQuerySchema>;
+export type CatalogCompanySearchQueryInput = z.infer<typeof catalogCompanySearchQuerySchema>;
+export type CatalogCreditsQueryInput = z.infer<typeof catalogCreditsQuerySchema>;
+export type CatalogMediaQueryInput = z.infer<typeof catalogMediaQuerySchema>;
+export type CatalogCompanyTitlesQueryInput = z.infer<typeof catalogCompanyTitlesQuerySchema>;
+export type CatalogEditQueueQueryInput = z.infer<typeof catalogEditQueueQuerySchema>;

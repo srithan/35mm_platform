@@ -21,7 +21,7 @@ The repository is a pnpm/Turborepo monorepo:
 - `packages/ui`: small shared UI primitive package.
 - `packages/config`: shared TypeScript config.
 
-Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, the new `catalog_` database core, catalog mutation APIs/helpers, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, contribution submissions, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Catalog read/search APIs, Studio/contribution rewiring, Meilisearch, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
+Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, the new `catalog_` database core, catalog read APIs, catalog mutation APIs/helpers, Studio catalog-title API wiring, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, contribution submissions, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Contribution rewiring, Meilisearch, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
 
 ## High-Level Architecture
 
@@ -67,7 +67,7 @@ Runtime flow:
 - The web app calls `NEXT_PUBLIC_API_URL` through feature API clients under `apps/web/features/*/api`.
 - Hono verifies Clerk bearer tokens with `requireAuth`, bootstraps missing local users/profiles/settings/watchlists, and attaches `c.var.user`.
 - Drizzle talks to Neon through `@neondatabase/serverless` HTTP.
-- Upstash Redis is used for feed cache, rate limits, BullMQ broker URLs, suggestion cache, chat unread counters, chat typing TTLs, and chat presence TTLs.
+- Upstash Redis is used for feed cache, catalog public read cache, rate limits, BullMQ broker URLs, suggestion cache, chat unread counters, chat typing TTLs, and chat presence TTLs.
 - AWS Keyspaces stores chat message rows and message edit history in `thirtyFiveMM.messages` and `thirtyFiveMM.message_edits`.
 - R2 presigned upload endpoints return the original public URL plus deterministic future variant URLs. New post creation stores the original URL/object key until `media.process` creates variants; the worker later writes WebP variants and blurhash for post media, plus avatar/cover variants for profile media.
 - Notification creation writes DB rows and enqueues `notification.publish`; the worker publishes Ably `notification.new` events when `ABLY_API_KEY` exists.
@@ -121,12 +121,13 @@ Important areas:
 
 - `app/api/studio/usernames/*`: username lock listing and mutation routes.
 - `app/api/catalog/external/*`: external catalog lookup helpers.
-- `components/films/*`: film search, table, detail, and form surfaces.
+- `components/films/*`: catalog title search, table, detail, and form surfaces backed by `/v1/catalog`.
 - `components/shelves/*`: shelf list/editor/new-shelf flows.
 - `components/layout/*`: Studio shell, sidebar, command palette, mobile nav, and theme controls.
 - `lib/studio/db.ts`: Studio database connection helper.
 - `lib/studio/usernameLocks.ts`: migration-missing detection helper for username lock operations.
-- `lib/data/*`: local operational data helpers used by current Studio surfaces.
+- `lib/catalog/api.ts`: typed Studio client for Hono catalog read/mutation APIs, including title/media/external-ID edit staging with idempotency keys. Local browser calls on `localhost:3001` use `http://localhost:4000` directly; deployed/no-env browser calls use the Studio `/api/platform/*` server proxy before reaching the platform API. The proxy rejects self-targeting Studio URLs and converts upstream non-JSON failures into JSON diagnostics.
+- `lib/data/*`: external source lookup and remaining local operational helpers for non-catalog-title surfaces.
 
 ### `apps/ios`
 
@@ -159,20 +160,22 @@ Hono REST API.
 
 Important files:
 
-- `src/index.ts`: bootstraps env, DB, CORS, error handling, and route mounts.
-- `src/lib/middleware.ts`: Clerk auth, local user bootstrap, watchlist bootstrap, `requireAuth`.
+- `src/index.ts`: bootstraps env, DB, CORS, error handling, and route mounts. Non-production CORS augments configured origins with `http://localhost:3000` and `http://localhost:3001` so local web and Studio can both call protected API routes.
+- `src/lib/middleware.ts`: Clerk auth, local user bootstrap, watchlist bootstrap, `requireAuth`. API auth accepts the primary Clerk secret plus optional Studio Clerk secrets (`STUDIO_CLERK_SECRET_KEY`, `CLERK_STUDIO_SECRET_KEY`, or comma-separated `CLERK_SECRET_KEYS`) so internal Studio can use a separate Clerk application while preserving bearer-token verification. Verified token metadata is attached to `AuthUser` for Studio role checks before catalog auth falls back across configured Clerk secrets for user metadata.
 - `src/lib/db.ts`: singleton Drizzle DB access; `getDb()` uses Neon HTTP, while `getWriteDb()` uses the pooled Neon driver for transaction-capable multi-table write paths.
 - `src/lib/cursor.ts`: base64 JSON `(createdAt,id)` cursor encoding.
 - `src/lib/ulid.ts`: local ULID generator and validator.
 - `src/lib/feedCache.ts`: Upstash-backed feed page cache and index-based invalidation.
-- `src/lib/rateLimit.ts`: Redis fixed-window rate limiting; allowed requests avoid per-request `TTL` reads and only fetch TTL for blocked responses. Missing Redis, missing identity, or Redis command failure fails closed with `503` unless `RATE_LIMIT_DISABLED=true` or tests disable limiting.
+- `src/modules/catalog/readCache.ts`: Upstash-backed public catalog GET cache with normalized path/query keys, 45-second TTL, and index-based invalidation after applied catalog mutations.
+- `src/lib/rateLimit.ts`: Redis fixed-window rate limiting; allowed requests avoid per-request `TTL` reads and only fetch TTL for blocked responses. Missing identity always fails closed with `503`. Missing/unreachable Redis fails closed in production, while non-production uses a bounded process-local fixed-window fallback unless `RATE_LIMIT_DISABLED=true` or tests disable limiting.
 - `src/lib/moderation.ts`: block/mute filters and feed item purge helpers.
 - `src/lib/notifications.ts`: preference-aware, moderation-aware notification creation and bundling.
 - `src/lib/filmLists.ts`: watchlist bootstrap and film ID resolution from existing ULID, TMDB metadata, or catalog metadata.
 - `src/lib/jobs.ts`: BullMQ producer for media, notification, counter, feed, and chat jobs.
 - `src/lib/keyspaces.ts`: Cassandra driver client for AWS Keyspaces using SigV4 IAM auth, warmed connection pools, prepared statements by default, and `chat-read`/`chat-write` execution profiles.
-- `src/modules/catalog/mutations.ts`: production catalog mutation helper for stage/apply/reject/revert/merge/batch. It uses shared validators, pooled Drizzle transactions, transaction-local `SET LOCAL lock_timeout`, deterministic current-row locks, advisory-lock idempotency, same-transaction `catalog_index_jobs`, field-level supersede detection, and structured catalog mutation/metric logs.
-- `src/modules/catalog/routes.ts`: `/v1/catalog` mutation routes for titles, people, credits, media, approve/reject/revert, and title history. Public mutation routes derive source server-side from Clerk Studio role, rate-limit write requests, and ignore client-supplied `source`; workflow actions require existing Studio Clerk catalog-write roles.
+- `src/modules/catalog/readService.ts`: public catalog read/search service for title/person/company detail, compact search cards, credits, media, external IDs, aliases, relations, awards, company titles, edit queue, and public history. Reads use cursor pagination and DB-backed `sort_title` / `sort_name` prefix search.
+- `src/modules/catalog/mutations.ts`: production catalog mutation helper for stage/apply/reject/revert/merge/batch. It uses shared validators, pooled Drizzle transactions, transaction-local `SET LOCAL lock_timeout`, deterministic current-row locks, advisory-lock idempotency, same-transaction `catalog_index_jobs`, field-level supersede detection, hard-delete restore support for relation-style current-state tables, and structured catalog mutation/metric logs.
+- `src/modules/catalog/routes.ts`: `/v1/catalog` read routes plus mutation routes for titles, people, credits, media, external IDs, aliases, title relations, title companies, title genres, companies, awards/events/nominations, merge, edit queue, approve/reject/revert, and title/person/company history. Public read routes use the catalog read cache. Public mutation routes derive source server-side from Clerk Studio role, rate-limit write requests, require idempotency keys, and ignore client-supplied `source`; workflow actions require existing Studio Clerk catalog-write roles.
 - `src/modules/chat/routes.ts`: authenticated chat inbox, thread creation, message read/write/edit/delete, reactions, read receipts, archive/mute/delete, typing, and presence routes.
 - `src/modules/contributions/routes.ts`: authenticated contribution submission queue routes. `POST /submissions` requires `Idempotency-Key`, validates with shared Zod schemas, applies user rate limiting, and writes review-state rows. `GET /submissions` returns cursor-paged viewer submissions.
 - `src/modules/chat/chatRedis.ts`: unread counters, sorted-set typing indicators, and presence over Upstash Redis REST. Inbox unread and presence batch endpoints use Redis `MGET`.
@@ -197,14 +200,19 @@ Mounted routes:
 - `/v1/me/settings*`
 - `/v1/media*`
 - `/v1/contributions/submissions`
-- `/v1/catalog/titles`
-- `/v1/catalog/people`
-- `/v1/catalog/credits`
-- `/v1/catalog/media`
+- `/v1/catalog/titles` and `/v1/catalog/titles/:id`
+- `/v1/catalog/titles/:id/credits`, `/media`, `/external-ids`, `/aliases`, `/relations`, `/awards`, `/history`
+- `/v1/catalog/people` and `/v1/catalog/people/:id`
+- `/v1/catalog/people/:id/credits`, `/media`, `/external-ids`, `/aliases`, `/history`
+- `/v1/catalog/companies` and `/v1/catalog/companies/:id`
+- `/v1/catalog/companies/:id/titles`, `/external-ids`, `/history`
+- `POST/PATCH/DELETE /v1/catalog/titles`, `/people`, `/credits`, `/media`, `/external-ids`, `/aliases`, `/title-relations`, `/title-companies`, `/title-genres`, `/companies`, `/awards`, `/award-events`, `/award-nominations`
+- `/v1/catalog/merge`
+- `/v1/catalog/edits`
+- `/v1/catalog/edits/:id`
 - `/v1/catalog/edits/:id/approve`
 - `/v1/catalog/edits/:id/reject`
 - `/v1/catalog/edits/:id/revert`
-- `/v1/catalog/titles/:id/history`
 - `/v1/users/*`
 - `/v1/feed*`
 - `/v1/chat*`
@@ -372,12 +380,12 @@ Current Drizzle schema highlights:
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
 - `catalog_titles`: long-term IMDb-like title records for movies, short films, documentaries, TV/web series, seasons, episodes, specials, videos, and other title types. It bridges to existing `films` through nullable unique `legacy_film_id`, stores lifecycle/status/title/release/runtime/language/country facts, hierarchy fields, lock/merge metadata, and current-state read indexes.
 - `catalog_people`: cast/crew profile records with primary/sort names, slug, biography, birth/death facts, professions, verification, lock/merge metadata, and person-list indexes.
-- `catalog_companies`: studios, production companies, distributors, networks, streamers, sales agents, festivals, schools, collectives, and other organizations.
+- `catalog_companies`: studios, production companies, distributors, networks, streamers, sales agents, festivals, schools, collectives, and other organizations. Public company search uses `(sort_name, id)`.
 - `catalog_credits`: normalized title/person credits by department, job, character, credited-as name, billing order, episode scope, and status. Title pages use `(title_id, department, billing_order, id)`; person pages use `(person_id, title_id, id)`.
-- `catalog_title_relations` and `catalog_title_companies`: non-hierarchical title graph edges plus title/company roles for sequels/remakes/adaptations and production/distribution/network/streaming relationships. Series/season/episode hierarchy is canonical on `catalog_titles.parent_title_id`, `season_number`, `episode_number`, and `absolute_episode_number`.
-- `catalog_genres`, `catalog_title_genres`: first-class genre taxonomy and title/genre join table for Discover filtering, faceting, and search indexing. `catalog_titles.facts` genre values are import/display fallback only.
+- `catalog_title_relations` and `catalog_title_companies`: non-hierarchical title graph edges plus title/company roles for sequels/remakes/adaptations and production/distribution/network/streaming relationships. Series/season/episode hierarchy is canonical on `catalog_titles.parent_title_id`, `season_number`, `episode_number`, and `absolute_episode_number`. Public relation reads use `(from_title_id, sort_order, id)`.
+- `catalog_genres`, `catalog_title_genres`: first-class genre taxonomy and title/genre join table for Discover filtering, faceting, and search indexing. `catalog_title_genres` has an `id` primary key and `catalog_entity_type = 'title_genre'` for shared mutation/revision support. `catalog_titles.facts` genre values are import/display fallback only.
 - `catalog_awards`, `catalog_award_events`, `catalog_award_nominations`: award/festival organizations, yearly events, and nominations/wins/selections tied to titles, people, or companies.
-- `catalog_media_assets`, `catalog_external_ids`, `catalog_aliases`: polymorphic current-state media, external identifiers, and alternate/localized/search names for catalog entities.
+- `catalog_media_assets`, `catalog_external_ids`, `catalog_aliases`: polymorphic current-state media, external identifiers, and alternate/localized/search names for catalog entities. Public alias reads use `(entity_type, entity_id, sort_value, id)`.
 - `catalog_edits`, `catalog_revisions`, `catalog_sources`: append-only catalog edit groups, per-entity before/after snapshots, changed field lists, public visibility flags, revert links, idempotency keys, archive-ready revision pointers, and citations. Rollback creates a new edit/revision instead of mutating history. Pending-review moderation queues use a partial `(status, created_at, id)` index.
 - `catalog_index_jobs`: transactional outbox for catalog search/index work. Rows are written in the same transaction as applied/reverted edits; relay workers poll the partial `processed_at IS NULL` index. Processed rows can remain as an operational log without slowing the hot poll path.
 - `contribution_submissions`: authenticated review queue for public catalog contributions. Kinds cover missing titles, title edits, credits, person updates, media, awards/events, duplicate titles, merge people, and split person. Rows store JSONB payloads, moderation status, title/summary, optional entity reference, soft-delete flag, and a unique per-user idempotency key.
@@ -405,6 +413,8 @@ Important data invariants:
 - Film identity must be the 35mm ULID in app/API payloads. TMDB is metadata/fallback only.
 - Long-term title identity should move to `catalog_titles.id`; current social APIs still use `films.id` until migration/backfill work is complete.
 - Existing contributor submission UI still writes to the legacy review queue, but the API catalog mutation path now exists for typed writes that update current-state `catalog_` tables and write `catalog_edits`, `catalog_revisions`, `catalog_sources`, and `catalog_index_jobs` in the same transaction.
+- Public catalog read APIs now expose active title/person/company detail, DB-backed search, credits, media, external IDs, aliases, relations, awards, company title roles, and public revision history.
+- DB-backed catalog read tests now seed real Postgres catalog rows, call Hono `/v1/catalog` routes, assert active-only filtering, merged canonical responses, external ID lookup, cursor stability, invalid cursor `400`, public-history visibility, and `EXPLAIN (FORMAT JSON)` index usage/no sequential scans on hot read paths.
 - Public catalog mutation endpoints do not trust client-supplied source/trust claims: Studio catalog writers become `studio`; other authenticated users become `contribution`.
 - Pending-review catalog edits stage proposed revisions and sources without touching current-state tables. Only `applied` edits mutate live catalog rows and write `catalog_index_jobs`.
 - `packages/validators` enforces ULID shape for post film IDs, list film IDs, and favorite film IDs in many write paths.
@@ -588,8 +598,8 @@ API:
 
 Known gaps:
 
-- There is no general catalog read/search API or `/v1/films/search` route yet. Mutation routes exist under `/v1/catalog`.
-- Studio and Contributions are UI scaffolding until they are rewired to typed catalog mutation APIs.
+- General catalog read/search APIs exist under `/v1/catalog`; `/v1/films/search` is still not a separate social film search route.
+- Studio catalog title list/detail/form/import surfaces use typed catalog mutation APIs. Contributions still need mutation/revision pipeline wiring.
 - Discover/title surfaces still use TMDB proxy and local mock/static data in places.
 - DB does not enforce ULID format for `films.id`.
 
@@ -862,7 +872,7 @@ Implemented or partially implemented:
 Important operational detail:
 
 - API can derive Redis protocol URL from Upstash REST URL/token, but BullMQ works best with `UPSTASH_REDIS_URL`.
-- Rate limiting uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is absent or unreachable. Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, media presign, and contribution submissions have user-keyed route-family limiters. Public email unsubscribe POST is IP-limited.
+- Rate limiting uses Upstash Redis REST and fails closed with `503 RATE_LIMIT_UNAVAILABLE` when Redis is absent or unreachable in production. Non-production uses a bounded process-local fixed-window fallback. Protected mutation routes in feed, follows, lists, onboarding, settings, profiles, users/moderation, notifications, chat, media presign, and contribution submissions have user-keyed route-family limiters. Public email unsubscribe POST is IP-limited.
 - `DATABASE_POOL_MAX` controls pooled Neon transaction DB max connections for `createPooledDb()`; default is `10`.
 - Worker reads env from `apps/api/.env` in dev by package script. Root `pnpm dev` does not start the worker; use `pnpm dev:worker` or `pnpm dev:all` only when queue jobs are needed.
 - `WORKER_ENABLED=false` exits the worker before opening Redis connections, useful for quota-sensitive local Upstash sessions.
@@ -953,8 +963,8 @@ Stale or superseded items in `docs/architecture.md` / older agent notes:
 
 Still true gaps:
 
-- No general catalog read/search module.
-- Studio and Contributions do not yet write through the new catalog mutation/revision pipeline.
+- General catalog read/search module exists over DB current-state tables; Meilisearch is still unwired.
+- Studio catalog title CRUD/import writes through the catalog mutation/revision pipeline; Contributions do not yet write through it.
 - Meilisearch is not wired.
 - Notification digest email is not implemented.
 - Cloudflare Stream is not wired.

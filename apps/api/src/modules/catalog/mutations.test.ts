@@ -115,6 +115,8 @@ describeDb("catalog mutation database behavior", function () {
     `);
     await getWriteDb().execute(sql`delete from "catalog_revisions" where "edit_id" in (select "id" from "catalog_edits" where "summary" like 'test %' or "summary" like 'concurrent %')`);
     await getWriteDb().execute(sql`delete from "catalog_edits" where "summary" like 'test %' or "summary" like 'concurrent %'`);
+    await getWriteDb().execute(sql`delete from "catalog_title_genres" where "title_id" in (select "id" from "catalog_titles" where "primary_title" like 'Catalog Test %' or "primary_title" like 'Concurrent Test %')`);
+    await getWriteDb().execute(sql`delete from "catalog_genres" where "name" like 'Catalog Test Genre %'`);
     await getWriteDb().execute(sql`delete from "catalog_titles" where "primary_title" like 'Catalog Test %' or "primary_title" like 'Concurrent Test %'`);
   });
 
@@ -341,5 +343,110 @@ describeDb("catalog mutation database behavior", function () {
     expect(byId.get(titleA)).toBe(titleC);
     expect(byId.get(titleB)).toBe(titleC);
     expect(byId.get(titleC)).toBeNull();
-  });
+  }, 20000);
+
+  it("creates, updates, deletes, and reverts title_genre rows", async function () {
+    var titleId = createUlid();
+    var genreId = createUlid();
+    var titleGenreId = createUlid();
+    await createAppliedTitle(titleId);
+    await getWriteDb().execute(sql`
+      insert into "catalog_genres" ("id", "slug", "name", "sort_order")
+      values (${genreId}, ${"catalog-test-genre-" + genreId.toLowerCase()}, ${"Catalog Test Genre " + genreId}, 1)
+    `);
+
+    var createEdit = await stageCatalogEdit({
+      actorUserId: null,
+      source: "system",
+      summary: "test title genre create",
+      rationale: null,
+      idempotencyKey: "test-title-genre-create:" + titleGenreId,
+      publicVisible: false,
+      sourceSnapshotAt: new Date().toISOString(),
+      operations: [{
+        entityType: "title_genre",
+        action: "create",
+        entityId: titleGenreId,
+        data: { titleId, genreId, sortOrder: 2 },
+        publicVisible: false,
+      }],
+      sources: [],
+    });
+    expect(createEdit.outcome).toBe("applied");
+
+    var created = await getDb().execute(sql`
+      select "id", "title_id" as "titleId", "genre_id" as "genreId", "sort_order" as "sortOrder"
+      from "catalog_title_genres"
+      where "id" = ${titleGenreId}
+    `);
+    expect(created.rows[0]).toMatchObject({ id: titleGenreId, titleId, genreId, sortOrder: 2 });
+
+    var updateEdit = await stageCatalogEdit({
+      actorUserId: null,
+      source: "system",
+      summary: "test title genre update",
+      rationale: null,
+      idempotencyKey: "test-title-genre-update:" + titleGenreId,
+      publicVisible: false,
+      sourceSnapshotAt: new Date().toISOString(),
+      operations: [{
+        entityType: "title_genre",
+        action: "update",
+        entityId: titleGenreId,
+        data: { sortOrder: 7 },
+        publicVisible: false,
+      }],
+      sources: [],
+    });
+    expect(updateEdit.outcome).toBe("applied");
+
+    var updated = await getDb().execute(sql`
+      select "sort_order" as "sortOrder"
+      from "catalog_title_genres"
+      where "id" = ${titleGenreId}
+    `);
+    expect(updated.rows[0]).toMatchObject({ sortOrder: 7 });
+
+    await revertCatalogEdit(updateEdit.edit.id, null);
+    var revertedUpdate = await getDb().execute(sql`
+      select "sort_order" as "sortOrder"
+      from "catalog_title_genres"
+      where "id" = ${titleGenreId}
+    `);
+    expect(revertedUpdate.rows[0]).toMatchObject({ sortOrder: 2 });
+
+    var deleteEdit = await stageCatalogEdit({
+      actorUserId: null,
+      source: "system",
+      summary: "test title genre delete",
+      rationale: null,
+      idempotencyKey: "test-title-genre-delete:" + titleGenreId,
+      publicVisible: false,
+      sourceSnapshotAt: new Date().toISOString(),
+      operations: [{
+        entityType: "title_genre",
+        action: "delete",
+        entityId: titleGenreId,
+        data: {},
+        publicVisible: false,
+      }],
+      sources: [],
+    });
+    expect(deleteEdit.outcome).toBe("applied");
+
+    var deleted = await getDb().execute(sql`select "id" from "catalog_title_genres" where "id" = ${titleGenreId}`);
+    expect(deleted.rows).toHaveLength(0);
+
+    await revertCatalogEdit(deleteEdit.edit.id, null);
+    var revertedDelete = await getDb().execute(sql`
+      select "id", "sort_order" as "sortOrder"
+      from "catalog_title_genres"
+      where "id" = ${titleGenreId}
+    `);
+    expect(revertedDelete.rows[0]).toMatchObject({ id: titleGenreId, sortOrder: 2 });
+
+    await revertCatalogEdit(createEdit.edit.id, null);
+    var revertedCreate = await getDb().execute(sql`select "id" from "catalog_title_genres" where "id" = ${titleGenreId}`);
+    expect(revertedCreate.rows).toHaveLength(0);
+  }, 20000);
 });

@@ -235,6 +235,7 @@ export type CatalogEntityType =
   | "credit"
   | "company"
   | "title_company"
+  | "title_genre"
   | "award"
   | "award_event"
   | "award_nomination"
@@ -276,11 +277,283 @@ export interface CatalogEditWorkflowResult {
   edit: CatalogEditDto;
 }
 
-export interface CatalogHistoryPage {
-  items: CatalogEditDto[];
+export type CatalogTitleType =
+  | "movie"
+  | "short_film"
+  | "documentary"
+  | "tv_series"
+  | "web_series"
+  | "tv_season"
+  | "tv_episode"
+  | "tv_special"
+  | "video"
+  | "other";
+
+export type CatalogEntityStatus = "active" | "merged" | "deleted" | "locked";
+export type CatalogCreditDepartment =
+  | "cast"
+  | "directing"
+  | "writing"
+  | "production"
+  | "camera"
+  | "editing"
+  | "sound"
+  | "music"
+  | "art"
+  | "costume"
+  | "makeup"
+  | "visual_effects"
+  | "stunts"
+  | "animation"
+  | "crew"
+  | "other";
+export type CatalogMediaType =
+  | "poster"
+  | "backdrop"
+  | "still"
+  | "headshot"
+  | "logo"
+  | "trailer"
+  | "clip"
+  | "featurette"
+  | "external_video";
+export type CatalogExternalProvider =
+  | "imdb"
+  | "tmdb"
+  | "wikidata"
+  | "letterboxd"
+  | "thetvdb"
+  | "official_site"
+  | "youtube"
+  | "vimeo"
+  | "instagram"
+  | "wikipedia"
+  | "other";
+
+export interface CatalogMediaRow {
+  id: string;
+  entityType: CatalogEntityType;
+  entityId: string;
+  type: CatalogMediaType;
+  source: string;
+  url: string;
+  storageKey: string | null;
+  title: string | null;
+  caption: string | null;
+  language: string | null;
+  region: string | null;
+  rightsNote: string | null;
+  attribution: string | null;
+  metadata: Record<string, unknown>;
+  sortOrder: number;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogExternalIdRow {
+  id: string;
+  entityType: CatalogEntityType;
+  entityId: string;
+  provider: CatalogExternalProvider;
+  externalId: string;
+  url: string | null;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogAliasRow {
+  id: string;
+  entityType: CatalogEntityType;
+  entityId: string;
+  type: string;
+  value: string;
+  sortValue: string;
+  language: string | null;
+  region: string | null;
+  attributes: string[];
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogTitleCard {
+  id: string;
+  type: CatalogTitleType;
+  status: CatalogEntityStatus;
+  primaryTitle: string;
+  originalTitle: string | null;
+  sortTitle: string;
+  slug: string;
+  startYear: number | null;
+  endYear: number | null;
+  releaseDate: string | null;
+  runtimeMinutes: number | null;
+  primaryLanguage: string | null;
+  primaryCountry: string | null;
+  isAdult: boolean;
+  isVerified: boolean;
+  primaryMedia: CatalogMediaRow | null;
+}
+
+export interface CatalogTitleDetail extends CatalogTitleCard {
+  lifecycle: string;
+  legacyFilmId: string | null;
+  synopsis: string | null;
+  originCountries: string[];
+  spokenLanguages: string[];
+  facts: Record<string, unknown>;
+  parentTitleId: string | null;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+  absoluteEpisodeNumber: number | null;
+  mergedIntoTitleId: string | null;
+  canonicalTitle: CatalogTitleCard | null;
+  externalIds: CatalogExternalIdRow[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogPersonCard {
+  id: string;
+  status: CatalogEntityStatus;
+  primaryName: string;
+  sortName: string;
+  slug: string;
+  birthDate: string | null;
+  deathDate: string | null;
+  primaryProfessions: string[];
+  isVerified: boolean;
+  primaryMedia: CatalogMediaRow | null;
+}
+
+export interface CatalogPersonDetail extends CatalogPersonCard {
+  biography: string | null;
+  birthPlace: string | null;
+  deathPlace: string | null;
+  gender: string | null;
+  mergedIntoPersonId: string | null;
+  canonicalPerson: CatalogPersonCard | null;
+  externalIds: CatalogExternalIdRow[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogCompanyCard {
+  id: string;
+  status: CatalogEntityStatus;
+  type: string;
+  name: string;
+  sortName: string;
+  slug: string;
+  country: string | null;
+  foundedYear: number | null;
+  dissolvedYear: number | null;
+  isVerified: boolean;
+}
+
+export interface CatalogCompanyDetail extends CatalogCompanyCard {
+  description: string | null;
+  officialUrl: string | null;
+  mergedIntoCompanyId: string | null;
+  canonicalCompany: CatalogCompanyCard | null;
+  externalIds: CatalogExternalIdRow[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogCreditRow {
+  id: string;
+  titleId: string;
+  personId: string;
+  department: CatalogCreditDepartment;
+  job: string;
+  characterName: string | null;
+  creditedAs: string | null;
+  billingOrder: number;
+  episodeCount: number | null;
+  startYear: number | null;
+  endYear: number | null;
+  notes: string | null;
+  title: CatalogTitleCard | null;
+  person: CatalogPersonCard | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogRelationRow {
+  id: string;
+  fromTitleId: string;
+  toTitleId: string;
+  type: string;
+  sortOrder: number;
+  note: string | null;
+  title: CatalogTitleCard;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CatalogAwardRow {
+  id: string;
+  eventId: string;
+  awardId: string;
+  awardName: string;
+  eventName: string;
+  year: number;
+  categoryName: string;
+  outcome: string;
+  creditedName: string | null;
+  sortOrder: number;
+}
+
+export interface CatalogCompanyTitleRow {
+  id: string;
+  companyId: string;
+  titleId: string;
+  role: string;
+  region: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  sortOrder: number;
+  title: CatalogTitleCard;
+}
+
+export interface CatalogEditQueueItem extends CatalogEditDto {
+  rationale: string | null;
+  actorUserId: string | null;
+  idempotencyKey: string | null;
+  revertsEditId: string | null;
+  revertedByEditId: string | null;
+  entities: CatalogEntityRef[];
+}
+
+export interface CatalogHistoryItem extends CatalogEditDto {
+  revisionId: string;
+  entityType: CatalogEntityType;
+  entityId: string;
+  action: CatalogRevisionAction;
+  changedFields: string[];
+  createdAt: string;
+}
+
+export interface CatalogPage<T> {
+  items: T[];
   nextCursor: string | null;
   hasMore: boolean;
 }
+
+export type CatalogTitlePage = CatalogPage<CatalogTitleCard>;
+export type CatalogPersonPage = CatalogPage<CatalogPersonCard>;
+export type CatalogCompanyPage = CatalogPage<CatalogCompanyCard>;
+export type CatalogCreditPage = CatalogPage<CatalogCreditRow>;
+export type CatalogMediaPage = CatalogPage<CatalogMediaRow>;
+export type CatalogAliasPage = CatalogPage<CatalogAliasRow>;
+export type CatalogRelationPage = CatalogPage<CatalogRelationRow>;
+export type CatalogAwardPage = CatalogPage<CatalogAwardRow>;
+export type CatalogCompanyTitlePage = CatalogPage<CatalogCompanyTitleRow>;
+export type CatalogEditQueuePage = CatalogPage<CatalogEditQueueItem>;
+export type CatalogHistoryPage = CatalogPage<CatalogHistoryItem>;
 
 export type ContributionKind =
   | "add_title"

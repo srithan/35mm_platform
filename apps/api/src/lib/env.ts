@@ -17,12 +17,23 @@ function parseCorsOrigins(value: string): string[] {
     });
 }
 
+function withLocalDevCorsOrigins(origins: string[], nodeEnv: string): string[] {
+  if (nodeEnv === "production") return origins;
+
+  var next = new Set(origins);
+  next.add("http://localhost:3000");
+  next.add("http://localhost:3001");
+  return Array.from(next);
+}
+
 export function loadEnv() {
+  var nodeEnv = process.env.NODE_ENV ?? "development";
   var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 
   return {
     DATABASE_URL: requireEnv("DATABASE_URL"),
     CLERK_SECRET_KEY: requireEnv("CLERK_SECRET_KEY"),
+    STUDIO_CLERK_SECRET_KEY: process.env.STUDIO_CLERK_SECRET_KEY ?? "",
     CLERK_PUBLISHABLE_KEY: requireEnv("CLERK_PUBLISHABLE_KEY"),
     CLERK_WEBHOOK_SECRET: requireEnv("CLERK_WEBHOOK_SECRET"),
     R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID ?? "",
@@ -42,9 +53,9 @@ export function loadEnv() {
     ABLY_API_KEY: process.env.ABLY_API_KEY ?? "",
     RATE_LIMIT_DISABLED: (process.env.RATE_LIMIT_DISABLED ?? "").toLowerCase() === "true",
     EMAIL_UNSUBSCRIBE_SECRET: process.env.EMAIL_UNSUBSCRIBE_SECRET ?? "",
-    NODE_ENV: process.env.NODE_ENV ?? "development",
+    NODE_ENV: nodeEnv,
     CORS_ORIGIN: corsOrigin,
-    CORS_ORIGINS: parseCorsOrigins(corsOrigin),
+    CORS_ORIGINS: withLocalDevCorsOrigins(parseCorsOrigins(corsOrigin), nodeEnv),
     PORT: Number(process.env.PORT ?? 4000),
   };
 }

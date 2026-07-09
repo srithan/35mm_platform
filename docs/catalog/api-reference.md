@@ -2,15 +2,51 @@
 
 Base path: `/v1/catalog`
 
-All mutation endpoints require Clerk bearer auth. Public contribution writes are rate-limited by authenticated user. The REST route derives trust server-side:
+Public reads return active current-state catalog entities by default. Detail reads also allow `status = "merged"` and return canonical target metadata from flattened merge pointers. All list endpoints use opaque base64url cursors, `limit + 1`, and no `OFFSET`. Public GET payloads are Redis-cached for 45 seconds under normalized path/query keys and invalidated after applied catalog mutations, reverts, and merges.
+
+Mutation endpoints require Clerk bearer auth, `Idempotency-Key` header or body `idempotencyKey`, and shared Zod validation. Public/studio writes are rate-limited by authenticated user. REST routes derive source server-side:
 
 - Clerk Studio role `owner`, `admin`, `catalog`, `catalog_admin`, or `catalog_editor` stages as `source = "studio"`.
 - Other authenticated users stage as `source = "contribution"`.
-- Client-supplied `source` is ignored by public REST mutation endpoints. `system` and `import` are helper/backfill paths, not public-client claims.
+- Client-supplied `source` is ignored. `system` and `import` remain helper/backfill paths.
 
-## Shared Response
+## Read Endpoints
 
-`stageCatalogEdit` endpoints return:
+Titles:
+
+- `GET /v1/catalog/titles/:id`
+- `GET /v1/catalog/titles?query=&cursor=&limit=&type=&year=&externalProvider=&externalId=`
+- `GET /v1/catalog/titles/:id/credits?cursor=&limit=&department=`
+- `GET /v1/catalog/titles/:id/media?cursor=&limit=&type=`
+- `GET /v1/catalog/titles/:id/external-ids`
+- `GET /v1/catalog/titles/:id/aliases?cursor=&limit=`
+- `GET /v1/catalog/titles/:id/relations?cursor=&limit=`
+- `GET /v1/catalog/titles/:id/awards?cursor=&limit=`
+- `GET /v1/catalog/titles/:id/history?cursor=&limit=`
+
+People:
+
+- `GET /v1/catalog/people/:id`
+- `GET /v1/catalog/people?query=&cursor=&limit=`
+- `GET /v1/catalog/people/:id/credits?cursor=&limit=&department=`
+- `GET /v1/catalog/people/:id/media?cursor=&limit=&type=`
+- `GET /v1/catalog/people/:id/external-ids`
+- `GET /v1/catalog/people/:id/aliases?cursor=&limit=`
+- `GET /v1/catalog/people/:id/history?cursor=&limit=`
+
+Companies:
+
+- `GET /v1/catalog/companies/:id`
+- `GET /v1/catalog/companies?query=&cursor=&limit=`
+- `GET /v1/catalog/companies/:id/titles?cursor=&limit=&role=`
+- `GET /v1/catalog/companies/:id/external-ids`
+- `GET /v1/catalog/companies/:id/history?cursor=&limit=`
+
+Search is DB-backed against indexed `sort_title` / `sort_name` prefix ranges. Meilisearch document writes and relevance ranking are still not wired.
+
+## Mutation Response
+
+Stage endpoints return:
 
 ```json
 {
@@ -30,103 +66,56 @@ All mutation endpoints require Clerk bearer auth. Public contribution writes are
 Status codes:
 
 - `201`: new pending or inline-applied edit.
-- `200`: idempotency retry returning `outcome: "existing"`.
+- `200`: idempotency retry returning `outcome = "existing"`.
 - `400`: malformed payload rejected before transaction.
 - `401`: missing/invalid bearer token.
-- `403`: trusted source or workflow action without Studio catalog write access.
+- `403`: workflow action without Studio catalog write access.
 - `409`: lock timeout, invalid status transition, or write conflict.
 - `429`: rate limited.
 
-Workflow endpoints return:
+Workflow endpoints return `{ "edit": CatalogEditDto }` with no `outcome` wrapper.
 
-```json
-{ "edit": { "id": "01J...", "status": "applied", "source": "studio", "summary": "Fix title", "publicVisible": true, "createdAt": "2026-07-07T00:00:00.000Z", "updatedAt": "2026-07-07T00:00:00.000Z" } }
-```
+## Stage Entities
 
-## Stage Title
+Each entity supports `POST`, `PATCH /:id`, and `DELETE /:id` through the shared stage/apply helper:
 
-`POST /v1/catalog/titles`
+- `/v1/catalog/titles`
+- `/v1/catalog/people`
+- `/v1/catalog/credits`
+- `/v1/catalog/media`
+- `/v1/catalog/external-ids`
+- `/v1/catalog/aliases`
+- `/v1/catalog/title-relations`
+- `/v1/catalog/title-companies`
+- `/v1/catalog/title-genres`
+- `/v1/catalog/companies`
+- `/v1/catalog/awards`
+- `/v1/catalog/award-events`
+- `/v1/catalog/award-nominations`
 
-Body can be a full staged edit:
+Bodies may use full `operations[]` or single-entity `{ action, data, summary, sources }`. `PATCH /:id` forces `action = "update"` and route `:id`; `DELETE /:id` forces `action = "delete"` and route `:id`.
 
-```json
-{
-  "source": "contribution",
-  "summary": "Update title synopsis",
-  "publicVisible": true,
-  "operations": [
-    {
-      "entityType": "title",
-      "action": "update",
-      "entityId": "01J...",
-      "data": { "synopsis": "New synopsis" }
-    }
-  ],
-  "sources": [
-    { "url": "https://example.com/interview", "title": "Interview" }
-  ]
-}
-```
+`/v1/catalog/title-genres` is first-class in the mutation/revision model through `catalog_entity_type = "title_genre"` and `catalog_title_genres.id`.
 
-or a single-entity convenience body:
+## Merge
 
-```json
-{
-  "source": "contribution",
-  "summary": "Add title",
-  "action": "create",
-  "data": {
-    "type": "movie",
-    "primaryTitle": "Example",
-    "sortTitle": "example",
-    "slug": "example"
-  }
-}
-```
+`POST /v1/catalog/merge`
 
-`Idempotency-Key` header is preferred and overrides body `idempotencyKey`.
+Requires Studio catalog write access. Body: `entityType`, `duplicateEntityId`, `canonicalEntityId`, `summary`, optional `rationale`, `publicVisible`, and `sources`. Server forces `source = "studio"` and actor from auth.
 
-## Stage Person
+## Moderation
 
-`POST /v1/catalog/people`
+- `GET /v1/catalog/edits?status=&entityType=&entityId=&source=&cursor=&limit=`
+- `GET /v1/catalog/edits/:id`
+- `POST /v1/catalog/edits/:id/approve`
+- `POST /v1/catalog/edits/:id/reject`
+- `POST /v1/catalog/edits/:id/revert`
 
-Single-entity `data` validates person fields: `primaryName`, `sortName`, `slug`, biography, birth/death facts, professions, gender, verification/status.
+All require Studio catalog write access. Queue pagination is `(created_at, id)` descending. Entity filters use `catalog_revisions`.
 
-## Stage Credit
+## History
 
-`POST /v1/catalog/credits`
-
-Single-entity `data` validates credit fields: `titleId`, `personId`, department, job, character/credited-as names, billing order, episode scope, notes, status.
-
-## Stage Media
-
-`POST /v1/catalog/media`
-
-Single-entity `data` validates media asset fields: entity ref, media type/source, URL/storage key, title/caption, rights/attribution, metadata, sort order, primary flag, status.
-
-## Approve
-
-`POST /v1/catalog/edits/:id/approve`
-
-Requires Studio catalog write access. Calls `applyCatalogEdit`.
-
-## Reject
-
-`POST /v1/catalog/edits/:id/reject`
-
-Requires Studio catalog write access. Pure status transition from `pending_review` to `rejected`.
-
-## Revert
-
-`POST /v1/catalog/edits/:id/revert`
-
-Requires Studio catalog write access. Valid only for `applied` edits.
-
-## Title History
-
-`GET /v1/catalog/titles/:id/history?limit=20&cursor=...`
-
-Returns cursor-paged public edit history for one title:
+History endpoints return public revisions/edits only:
 
 ```json
 {
@@ -136,4 +125,4 @@ Returns cursor-paged public edit history for one title:
 }
 ```
 
-Cursor shape is opaque base64 JSON over revision `(createdAt, id)`, matching the existing `catalog_revisions_entity_created_idx` access path. Pagination is cursor-based; no OFFSET is used.
+Cursor shape is opaque base64url JSON over revision `(createdAt, id)`, matching `catalog_revisions_entity_created_idx`.

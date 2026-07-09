@@ -42,4 +42,37 @@ describe("rate limit fail mode", function () {
       code: "RATE_LIMIT_UNAVAILABLE",
     });
   });
+
+  it("uses a bounded local limiter outside production when Redis is not configured", async function () {
+    stubRequiredEnv();
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+
+    var app = new Hono();
+    app.get(
+      "/limited",
+      createRateLimitMiddleware({
+        keyPrefix: "test-dev-fallback",
+        limit: 1,
+        windowSeconds: 60,
+        identify: function () {
+          return "user_1";
+        },
+      }),
+      function (c) {
+        return c.json({ ok: true });
+      }
+    );
+
+    var first = await app.request("/limited");
+    expect(first.status).toBe(200);
+    expect(first.headers.get("X-RateLimit-Backend")).toBe("memory");
+
+    var second = await app.request("/limited");
+    expect(second.status).toBe(429);
+    await expect(second.json()).resolves.toMatchObject({
+      code: "RATE_LIMITED",
+    });
+  });
 });

@@ -243,5 +243,5 @@ Client status copy:
    - `/v1/catalog/titles/:id/history`
 4. Use one shared serializer/response contract from section 5.
 5. Backfill current `films` to `catalog_titles` through the batched mutation path with `source = "system"` and the conflict rule from section 3.
-6. Rewire Studio to use the mutation API directly.
+6. Keep Studio catalog title UI on the mutation API and extend the same pattern to remaining Studio catalog/list surfaces.
 7. Rewire Contributions to use the mutation API, with trust/risk deciding auto-apply vs review.

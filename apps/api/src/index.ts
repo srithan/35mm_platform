@@ -33,6 +33,12 @@ initDb(env.DATABASE_URL);
 
 var app = new Hono();
 
+function internalErrorMessage(err: unknown): string {
+  if (env.NODE_ENV === "production") return "Something went wrong";
+  if (err instanceof Error && err.message) return err.message;
+  return "Something went wrong";
+}
+
 console.log(
   isRedisEnabled()
     ? "[feed-cache] enabled"
@@ -68,8 +74,19 @@ app.onError(function (err, c) {
 
   console.error("Unhandled error:", err);
   return c.json(
-    { code: "INTERNAL_ERROR", message: "Something went wrong" },
+    { code: "INTERNAL_ERROR", message: internalErrorMessage(err) },
     500
+  );
+});
+
+app.notFound(function (c) {
+  console.warn("[api.not_found]", {
+    method: c.req.method,
+    path: new URL(c.req.url).pathname,
+  });
+  return c.json(
+    { code: "NOT_FOUND", message: c.req.method + " " + new URL(c.req.url).pathname + " not found" },
+    404
   );
 });
 

@@ -17,10 +17,29 @@ type RateLimitCheckInput = {
   identifier: string | null;
 };
 
+type LocalRateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
+var globalForRateLimit = globalThis as typeof globalThis & {
+  __thirtyFiveMmLocalRateLimit?: Map<string, LocalRateLimitEntry>;
+};
+
+var localRateLimitStore =
+  globalForRateLimit.__thirtyFiveMmLocalRateLimit ??
+  new Map<string, LocalRateLimitEntry>();
+
+globalForRateLimit.__thirtyFiveMmLocalRateLimit = localRateLimitStore;
+
 function rateLimitingDisabled(): boolean {
   var env = loadEnv();
   if (env.RATE_LIMIT_DISABLED) return true;
   return env.NODE_ENV === "test";
+}
+
+function localFallbackEnabled(): boolean {
+  return loadEnv().NODE_ENV !== "production";
 }
 
 function ipFromRequest(c: Context): string | null {
@@ -70,6 +89,49 @@ export function identifyByUserId(c: Context): string | null {
   return typeof user?.userId === "string" ? user.userId : null;
 }
 
+function localRateLimitKey(input: RateLimitCheckInput): string {
+  return (
+    "rate-limit:v1:" +
+    input.keyPrefix +
+    ":" +
+    encodeURIComponent((input.identifier ?? "").trim().toLowerCase())
+  );
+}
+
+function applyLocalRateLimit(
+  c: Context,
+  input: RateLimitCheckInput
+): Response | null {
+  var key = localRateLimitKey(input);
+  var now = Date.now();
+  var entry = localRateLimitStore.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: now + input.windowSeconds * 1000 };
+  }
+
+  entry.count += 1;
+  localRateLimitStore.set(key, entry);
+
+  var remaining = Math.max(input.limit - entry.count, 0);
+  c.header("X-RateLimit-Limit", String(input.limit));
+  c.header("X-RateLimit-Remaining", String(remaining));
+  c.header("X-RateLimit-Backend", "memory");
+
+  if (entry.count > input.limit) {
+    var retryAfter = Math.max(Math.ceil((entry.resetAt - now) / 1000), 1);
+    c.header("Retry-After", String(retryAfter));
+    return c.json(
+      {
+        code: "RATE_LIMITED",
+        message: "Too many requests. Please retry later.",
+      },
+      429
+    );
+  }
+
+  return null;
+}
+
 export async function applyRateLimit(
   c: Context,
   input: RateLimitCheckInput
@@ -90,6 +152,12 @@ export async function applyRateLimit(
 
   var redis = getRedisClient();
   if (!redis) {
+    if (localFallbackEnabled()) {
+      console.warn("[rate-limit] redis unavailable; using local memory limiter", {
+        keyPrefix: input.keyPrefix,
+      });
+      return applyLocalRateLimit(c, input);
+    }
     console.error("[rate-limit] redis unavailable", {
       keyPrefix: input.keyPrefix,
     });
@@ -132,6 +200,13 @@ export async function applyRateLimit(
       );
     }
   } catch (error) {
+    if (localFallbackEnabled()) {
+      console.warn("[rate-limit] redis check failed; using local memory limiter", {
+        keyPrefix: input.keyPrefix,
+        error,
+      });
+      return applyLocalRateLimit(c, input);
+    }
     console.error("[rate-limit] redis check failed", {
       keyPrefix: input.keyPrefix,
       error,

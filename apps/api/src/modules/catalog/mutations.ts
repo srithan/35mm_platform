@@ -25,6 +25,7 @@ import { badRequest, conflict, notFound } from "../../lib/errors.js";
 import { getWriteDb } from "../../lib/db.js";
 import { createUlid } from "../../lib/ulid.js";
 import { logCatalogMetric, logCatalogMutation, nowMs } from "./observability.js";
+import { invalidateCatalogReadCaches } from "./readCache.js";
 import { toCatalogEditDto } from "./serializer.js";
 
 type Tx = any;
@@ -46,6 +47,7 @@ type EntityConfig = {
   mergedIntoColumn?: string;
   createdByColumn?: string;
   updatedByColumn?: string;
+  hardDelete?: boolean;
 };
 
 type PreparedOperation = CatalogOperationInput & {
@@ -213,12 +215,134 @@ var ENTITY_CONFIGS: Record<string, EntityConfig> = {
     entityType: "company",
     tableName: "catalog_companies",
     idColumn: "id",
-    columns: {},
-    requiredCreateFields: [],
+    columns: {
+      status: "status",
+      type: "type",
+      name: "name",
+      sortName: "sort_name",
+      slug: "slug",
+      description: "description",
+      country: "country",
+      foundedYear: "founded_year",
+      dissolvedYear: "dissolved_year",
+      officialUrl: "official_url",
+      isVerified: "is_verified",
+    },
+    requiredCreateFields: ["name", "sortName", "slug"],
     statusColumn: "status",
     mergedIntoColumn: "merged_into_company_id",
     createdByColumn: "created_by_user_id",
     updatedByColumn: "updated_by_user_id",
+  },
+  title_relation: {
+    entityType: "title_relation",
+    tableName: "catalog_title_relations",
+    idColumn: "id",
+    columns: {
+      fromTitleId: "from_title_id",
+      toTitleId: "to_title_id",
+      type: "type",
+      sortOrder: "sort_order",
+      note: "note",
+    },
+    requiredCreateFields: ["fromTitleId", "toTitleId", "type"],
+    hardDelete: true,
+  },
+  title_company: {
+    entityType: "title_company",
+    tableName: "catalog_title_companies",
+    idColumn: "id",
+    columns: {
+      titleId: "title_id",
+      companyId: "company_id",
+      role: "role",
+      region: "region",
+      startDate: "start_date",
+      endDate: "end_date",
+      sortOrder: "sort_order",
+    },
+    requiredCreateFields: ["titleId", "companyId", "role"],
+    hardDelete: true,
+  },
+  title_genre: {
+    entityType: "title_genre",
+    tableName: "catalog_title_genres",
+    idColumn: "id",
+    columns: {
+      titleId: "title_id",
+      genreId: "genre_id",
+      sortOrder: "sort_order",
+    },
+    requiredCreateFields: ["titleId", "genreId"],
+    hardDelete: true,
+  },
+  award: {
+    entityType: "award",
+    tableName: "catalog_awards",
+    idColumn: "id",
+    columns: {
+      status: "status",
+      name: "name",
+      originalName: "original_name",
+      slug: "slug",
+      description: "description",
+      officialUrl: "official_url",
+      country: "country",
+      firstYear: "first_year",
+      lastYear: "last_year",
+    },
+    requiredCreateFields: ["name", "slug"],
+    statusColumn: "status",
+  },
+  award_event: {
+    entityType: "award_event",
+    tableName: "catalog_award_events",
+    idColumn: "id",
+    columns: {
+      awardId: "award_id",
+      name: "name",
+      year: "year",
+      eventDate: "event_date",
+      location: "location",
+      officialUrl: "official_url",
+    },
+    requiredCreateFields: ["awardId", "name", "year"],
+    hardDelete: true,
+  },
+  award_nomination: {
+    entityType: "award_nomination",
+    tableName: "catalog_award_nominations",
+    idColumn: "id",
+    columns: {
+      eventId: "event_id",
+      categoryName: "category_name",
+      outcome: "outcome",
+      titleId: "title_id",
+      personId: "person_id",
+      companyId: "company_id",
+      creditedName: "credited_name",
+      sortOrder: "sort_order",
+    },
+    requiredCreateFields: ["eventId", "categoryName", "outcome"],
+    hardDelete: true,
+  },
+  alias: {
+    entityType: "alias",
+    tableName: "catalog_aliases",
+    idColumn: "id",
+    columns: {
+      entityType: "entity_type",
+      entityId: "entity_id",
+      type: "type",
+      value: "value",
+      sortValue: "sort_value",
+      language: "language",
+      region: "region",
+      attributes: "attributes",
+      isPrimary: "is_primary",
+    },
+    requiredCreateFields: ["entityType", "entityId", "type", "value", "sortValue"],
+    hardDelete: true,
   },
 };
 
@@ -447,6 +571,13 @@ async function updateCurrentRow(
   actorUserId: string | null
 ): Promise<void> {
   var config = ENTITY_CONFIGS[operation.entityType];
+  if (operation.action === "delete" && config.hardDelete) {
+    await tx.execute(sql`
+      delete from ${tableSql(config)}
+      where ${columnSql(config.idColumn)} = ${operation.entityId}
+    `);
+    return;
+  }
   var data = dataForWrite(operation, actorUserId);
   data.updatedAt = new Date();
   var values = buildColumnValues(config, data);
@@ -480,12 +611,34 @@ async function restoreRevision(tx: Tx, revision: {
   var config = ENTITY_CONFIGS[revision.entityType];
   if (!config) return;
   if (!revision.beforeData) {
+    if (config.hardDelete) {
+      await updateCurrentRow(tx, {
+        entityType: revision.entityType,
+        entityId: revision.entityId,
+        action: "delete",
+        data: {},
+        publicVisible: true,
+      } as PreparedOperation, actorUserId);
+      return;
+    }
     if (!config.statusColumn) return;
     await updateCurrentRow(tx, {
       entityType: revision.entityType,
       entityId: revision.entityId,
       action: "delete",
       data: {},
+      publicVisible: true,
+    } as PreparedOperation, actorUserId);
+    return;
+  }
+
+  var current = await selectCurrentRow(tx, config, revision.entityId, false);
+  if (!current) {
+    await insertCurrentRow(tx, {
+      entityType: revision.entityType,
+      entityId: revision.entityId,
+      action: "create",
+      data: revision.beforeData,
       publicVisible: true,
     } as PreparedOperation, actorUserId);
     return;
@@ -507,6 +660,8 @@ function mergedAfterData(before: JsonRecord | null, operation: PreparedOperation
     return { id: operation.entityId, ...(operation.data as JsonRecord) };
   }
   if (operation.action === "delete") {
+    var config = ENTITY_CONFIGS[operation.entityType];
+    if (config.hardDelete) return null;
     return { ...(before ?? { id: operation.entityId }), status: "deleted" };
   }
   return { ...(before ?? { id: operation.entityId }), ...(operation.data as JsonRecord) };
@@ -857,6 +1012,9 @@ export async function stageCatalogEdit(
       durationMs: nowMs() - startedAt,
     });
     await emitPostMutationMetrics("stage", result.edit.status);
+    if (result.edit.status === "applied") {
+      await invalidateCatalogReadCaches();
+    }
     return result;
   } catch (error) {
     if (isLockTimeout(error)) {
@@ -891,6 +1049,7 @@ export async function applyCatalogEdit(editId: string, actorUserId: string | nul
       durationMs: nowMs() - startedAt,
     });
     await emitPostMutationMetrics("apply", result.status);
+    await invalidateCatalogReadCaches();
     return result;
   } catch (error) {
     if (isLockTimeout(error)) {
@@ -1041,6 +1200,7 @@ export async function revertCatalogEdit(editId: string, actorUserId: string | nu
       durationMs: nowMs() - startedAt,
     });
     await emitPostMutationMetrics("revert", result.status);
+    await invalidateCatalogReadCaches();
     return result;
   } catch (error) {
     if (isLockTimeout(error)) {
@@ -1079,6 +1239,9 @@ export async function batchStageCatalogEdits(
       results.forEach(function (result, offset) {
         diagnostics.push({ index: start + offset, ok: true, result });
       });
+      if (results.some(function (result) { return result.edit.status === "applied"; })) {
+        await invalidateCatalogReadCaches();
+      }
     } catch (error) {
       var payload = apiErrorPayload(error);
       chunk.forEach(function (_input, offset) {
@@ -1206,6 +1369,7 @@ export async function mergeCatalogEntities(rawInput: CatalogMergeEntitiesInput):
       outcome: result.status,
       durationMs: nowMs() - startedAt,
     });
+    await invalidateCatalogReadCaches();
     return result;
   } catch (error) {
     if (isLockTimeout(error)) {

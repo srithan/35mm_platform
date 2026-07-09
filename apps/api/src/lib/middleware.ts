@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createMiddleware } from "hono/factory";
 import { createClerkClient, verifyToken } from "@clerk/backend";
 import { eq } from "drizzle-orm";
@@ -9,6 +10,10 @@ import { resolveProfileAvatarUrl } from "../modules/media/url.js";
 
 export type AuthUser = {
   clerkUserId: string;
+  clerkSecretKey?: string;
+  clerkAuthSource?: string;
+  publicMetadata?: Record<string, unknown>;
+  unsafeMetadata?: Record<string, unknown>;
   userId: string;
   username: string;
   displayName: string;
@@ -33,6 +38,12 @@ function isApiError(err: unknown): err is ApiError {
   );
 }
 
+function internalErrorMessage(err: unknown): string {
+  if (process.env.NODE_ENV === "production") return "Something went wrong";
+  if (err instanceof Error && err.message) return err.message;
+  return "Something went wrong";
+}
+
 function displayNameForClerkUser(user: {
   firstName: string | null;
   lastName: string | null;
@@ -52,7 +63,45 @@ function emailForClerkUser(user: {
   return primary?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? "";
 }
 
-async function ensureLocalUser(clerkUserId: string) {
+function metadataClaim(value: unknown): Record<string, unknown> | undefined {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function metadataClaimsFromToken(payload: unknown): {
+  publicMetadata?: Record<string, unknown>;
+  unsafeMetadata?: Record<string, unknown>;
+} {
+  var claims = metadataClaim(payload) ?? {};
+  return {
+    publicMetadata: metadataClaim(claims.publicMetadata) ?? metadataClaim(claims.public_metadata),
+    unsafeMetadata: metadataClaim(claims.unsafeMetadata) ?? metadataClaim(claims.unsafe_metadata),
+  };
+}
+
+function clerkSecretKeys(): Array<{ key: string; source: string }> {
+  var seen = new Set<string>();
+  var entries = [
+    { key: process.env.CLERK_SECRET_KEY, source: "platform" },
+    { key: process.env.STUDIO_CLERK_SECRET_KEY, source: "studio" },
+    { key: process.env.CLERK_STUDIO_SECRET_KEY, source: "studio_legacy" },
+    ...(process.env.CLERK_SECRET_KEYS ?? "").split(",").map(function (key, index) {
+      return { key, source: "configured_" + index };
+    }),
+  ];
+  return entries
+    .map(function (entry) {
+      return { key: entry.key?.trim() ?? "", source: entry.source };
+    })
+    .filter(function (entry) {
+      if (!entry.key || seen.has(entry.key)) return false;
+      seen.add(entry.key);
+      return true;
+    });
+}
+
+async function ensureLocalUser(clerkUserId: string, clerkSecretKey: string) {
   var db = getDb();
   var existing = await db
     .select({
@@ -77,15 +126,17 @@ async function ensureLocalUser(clerkUserId: string) {
     };
   }
 
-  var clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
+  var clerk = createClerkClient({ secretKey: clerkSecretKey });
   var clerkUser = await clerk.users.getUser(clerkUserId);
   var username = (clerkUser.username || clerkUserId).toLowerCase();
   var displayName = displayNameForClerkUser(clerkUser);
   var email = emailForClerkUser(clerkUser);
   var userId = await getWriteDb().transaction(async function (tx) {
+    var candidateUserId = randomUUID();
     var rows = await tx
       .insert(users)
       .values({
+        id: candidateUserId,
         clerkUserId: clerkUserId,
         email: email,
         ageVerifiedAt: new Date(),
@@ -123,6 +174,7 @@ async function ensureLocalUser(clerkUserId: string) {
         var insertedProfile = await tx
           .insert(profiles)
           .values({
+            id: randomUUID(),
             userId: localUserId,
             username: usernameCandidate,
             displayName: displayName,
@@ -141,7 +193,7 @@ async function ensureLocalUser(clerkUserId: string) {
       }
     }
 
-    await tx.insert(userSettings).values({ userId: localUserId }).onConflictDoNothing();
+    await tx.insert(userSettings).values({ id: randomUUID(), userId: localUserId }).onConflictDoNothing();
 
     return localUserId;
   });
@@ -178,31 +230,40 @@ async function ensureLocalUser(clerkUserId: string) {
 }
 
 async function verifyAndResolveUser(token: string): Promise<AuthUser | null> {
-  var payload;
-  try {
-    payload = await verifyToken(token, {
-      secretKey: process.env.CLERK_SECRET_KEY!,
-    });
-  } catch (_err) {
-    return null;
+  for (var clerkSecret of clerkSecretKeys()) {
+    var payload;
+    try {
+      payload = await verifyToken(token, {
+        secretKey: clerkSecret.key,
+      });
+    } catch (_err) {
+      continue;
+    }
+
+    var clerkUserId = payload.sub;
+    if (!clerkUserId) return null;
+
+    var row = await ensureLocalUser(clerkUserId, clerkSecret.key);
+    if (row.status === "deactivated" || row.status === "suspended") {
+      return null;
+    }
+
+    var metadata = metadataClaimsFromToken(payload);
+    return {
+      clerkUserId,
+      clerkSecretKey: clerkSecret.key,
+      clerkAuthSource: clerkSecret.source,
+      publicMetadata: metadata.publicMetadata,
+      unsafeMetadata: metadata.unsafeMetadata,
+      userId: row.userId,
+      username: row.username,
+      displayName: row.displayName,
+      avatarUrl: row.avatarUrl,
+      avatarUrlLg: row.avatarUrlLg,
+    };
   }
 
-  var clerkUserId = payload.sub;
-  if (!clerkUserId) return null;
-
-  var row = await ensureLocalUser(clerkUserId);
-  if (row.status === "deactivated" || row.status === "suspended") {
-    return null;
-  }
-
-  return {
-    clerkUserId,
-    userId: row.userId,
-    username: row.username,
-    displayName: row.displayName,
-    avatarUrl: row.avatarUrl,
-    avatarUrlLg: row.avatarUrlLg,
-  };
+  return null;
 }
 
 export async function getOptionalAuthUser(
@@ -241,7 +302,7 @@ export var errorHandler = createMiddleware(async function (c, next) {
     }
     console.error("Unhandled error:", err);
     return c.json(
-      { code: "INTERNAL_ERROR", message: "Something went wrong" },
+      { code: "INTERNAL_ERROR", message: internalErrorMessage(err) },
       500
     );
   }

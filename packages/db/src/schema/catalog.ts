@@ -51,6 +51,7 @@ export var catalogEntityTypeEnum = pgEnum("catalog_entity_type", [
   "credit",
   "company",
   "title_company",
+  "title_genre",
   "award",
   "award_event",
   "award_nomination",
@@ -370,6 +371,7 @@ export var catalogCompanies = pgTable(
   function (table) {
     return {
       slugIdx: uniqueIndex("catalog_companies_slug_idx").on(table.slug),
+      sortNameIdx: index("catalog_companies_sort_name_idx").on(table.sortName, table.id),
       typeSortIdx: index("catalog_companies_type_sort_idx").on(table.type, table.sortName, table.id),
       updatedAtIdx: index("catalog_companies_updated_at_idx").on(table.updatedAt, table.id),
     };
@@ -404,6 +406,7 @@ export var catalogTitleRelations = pgTable(
         table.type
       ),
       fromTypeIdx: index("catalog_title_relations_from_type_idx").on(table.fromTitleId, table.type, table.sortOrder),
+      fromSortIdx: index("catalog_title_relations_from_sort_idx").on(table.fromTitleId, table.sortOrder, table.id),
       toTypeIdx: index("catalog_title_relations_to_type_idx").on(table.toTitleId, table.type, table.sortOrder),
     };
   }
@@ -550,6 +553,7 @@ export var catalogGenres = pgTable(
 export var catalogTitleGenres = pgTable(
   "catalog_title_genres",
   {
+    id: text("id").primaryKey(),
     titleId: text("title_id")
       .notNull()
       .references(function () {
@@ -562,12 +566,13 @@ export var catalogTitleGenres = pgTable(
       }, { onDelete: "cascade" }),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   function (table) {
     return {
       titleGenreIdx: uniqueIndex("catalog_title_genres_title_genre_idx").on(table.titleId, table.genreId),
       genreTitleIdx: index("catalog_title_genres_genre_title_idx").on(table.genreId, table.titleId),
-      titleSortIdx: index("catalog_title_genres_title_sort_idx").on(table.titleId, table.sortOrder, table.genreId),
+      titleSortIdx: index("catalog_title_genres_title_sort_idx").on(table.titleId, table.sortOrder, table.id),
     };
   }
 );
@@ -736,6 +741,7 @@ export var catalogAliases = pgTable(
   function (table) {
     return {
       entityTypeIdx: index("catalog_aliases_entity_type_idx").on(table.entityType, table.entityId, table.type),
+      entitySortIdx: index("catalog_aliases_entity_sort_idx").on(table.entityType, table.entityId, table.sortValue, table.id),
       sortValueIdx: index("catalog_aliases_sort_value_idx").on(table.sortValue, table.id),
       dedupeIdx: uniqueIndex("catalog_aliases_dedupe_idx").on(
         table.entityType,
