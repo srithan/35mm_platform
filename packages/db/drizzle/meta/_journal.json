@@ -302,6 +302,13 @@
       "when": 1784000000016,
       "tag": "0041_catalog_title_genre_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1784000000017,
+      "tag": "0042_feed_item_score_freshness",
+      "breakpoints": true
     }
   ]
 }

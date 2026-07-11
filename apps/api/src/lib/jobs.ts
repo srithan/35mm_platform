@@ -1,7 +1,7 @@
 import { Queue, type JobsOptions } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
-import { loadEnv } from "./env.js";
 import { ApiError, serviceUnavailable } from "./errors.js";
+import { resolveQueueRedisUrl } from "./redisConfig.js";
 
 export const API_QUEUE_NAME = "35mm-jobs";
 
@@ -253,20 +253,7 @@ export async function removeNotificationPublishJob(notificationId: string): Prom
 }
 
 function redisUrl(): string {
-  var env = loadEnv();
-  var direct = env.UPSTASH_REDIS_URL.trim();
-  if (direct) return direct;
-
-  var restUrl = env.UPSTASH_REDIS_REST_URL.trim();
-  var restToken = env.UPSTASH_REDIS_REST_TOKEN.trim();
-  if (!restUrl || !restToken) return "";
-
-  try {
-    var parsed = new URL(restUrl);
-    return `rediss://default:${encodeURIComponent(restToken)}@${parsed.host}:6379`;
-  } catch (_error) {
-    return "";
-  }
+  return resolveQueueRedisUrl();
 }
 
 function connectionFromRedisUrl(url: string): ConnectionOptions {

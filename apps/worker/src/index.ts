@@ -22,23 +22,18 @@ import { runCatalogIndexJob, runCatalogIndexOutboxJob } from "./jobs/catalogInde
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
+import { resolveQueueRedisUrl } from "./lib/redisConfig.js";
 
 var outboxQueue: Queue | null = null;
 
 function requiredRedisUrl(): string {
-  var env = loadWorkerEnv();
-  var direct = env.UPSTASH_REDIS_URL.trim();
-  if (direct) return direct;
-
-  var restUrl = env.UPSTASH_REDIS_REST_URL.trim();
-  var restToken = env.UPSTASH_REDIS_REST_TOKEN.trim();
-  if (!restUrl || !restToken) {
+  var url = resolveQueueRedisUrl();
+  if (!url) {
     throw new Error(
-      "Missing Redis queue config. Set UPSTASH_REDIS_URL or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN"
+      "Missing Redis queue config. Set QUEUE_REDIS_URL"
     );
   }
-  var parsed = new URL(restUrl);
-  return `rediss://default:${encodeURIComponent(restToken)}@${parsed.host}:6379`;
+  return url;
 }
 
 function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
@@ -208,6 +203,23 @@ async function main() {
   var pruneIntervalMinutes = Number.isFinite(env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES)
     ? Math.max(5, env.FEED_ITEMS_PRUNE_INTERVAL_MINUTES)
     : 60;
+  var rescoreIntervalMinutes = Number.isFinite(env.FEED_RESCORE_INTERVAL_MINUTES)
+    ? Math.max(1, env.FEED_RESCORE_INTERVAL_MINUTES)
+    : 5;
+  await schedulerQueue.add("feed.rescore", {}, {
+    jobId: "feed.rescore-repeat",
+    repeat: {
+      every: rescoreIntervalMinutes * 60 * 1000,
+    },
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 500,
+  });
+
   await schedulerQueue.add("feed.pruneFeedItems", {}, {
     jobId: "feed.pruneFeedItems",
     repeat: {

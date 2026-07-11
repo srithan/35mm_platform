@@ -125,7 +125,7 @@ Studio is a separate internal workspace from the public web app. It exposes oper
 | Storage | Cloudflare R2 |
 | Realtime publish | Ably REST for notifications |
 
-Local dev note: BullMQ workers emit continuous blocking Redis commands while idle. Use `pnpm dev:worker` only when testing queued jobs, or set `WORKER_ENABLED=false` to exit before Redis connections are opened.
+Local dev note: BullMQ workers emit continuous blocking Redis commands while idle. Use `pnpm dev:worker` only when testing queued jobs, or set `WORKER_ENABLED=false` to exit before Redis connections are opened. Worker requires explicit `QUEUE_REDIS_URL` (or queue REST credentials) and never falls back to cache Redis, preventing silent producer/consumer queue divergence.
 
 ### iOS: `apps/ios`
 
@@ -149,7 +149,7 @@ Native feed post cards mirror the shared REST feed contract through `Core/Models
 | Clerk | Wired | Web auth, API bearer verification, webhooks |
 | Neon Postgres | Wired | Source-of-truth relational data |
 | Cloudflare R2 | Wired | Originals and processed media variants |
-| Upstash Redis | Wired | Feed cache, rate limits, BullMQ broker, suggestions cache, chat unread/typing/presence |
+| Upstash Redis | Wired | Split Redis databases for feed/catalog/profile/TMDB cache, rate limits, BullMQ broker, suggestions cache, and chat unread/typing/presence |
 | BullMQ | Partially wired | Media processing, notifications, suggestions, async counters, and feed fanout implemented; digest/search jobs partial |
 | Ably | Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions |
 | TMDB | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports |
@@ -1042,7 +1042,7 @@ Implemented:
 - `catalog.index`: receives catalog index payloads. It logs an explicit unconfigured search target until Meilisearch host/token and document mapping are wired.
 - `counter_job_deltas`: aggregates active `counter_jobs` deltas by `(target_table, target_id, counter_name)` to keep feed overlays bounded to active keys.
 - `feed.fanout`: materializes new posts into accepted followers' `feed_items` below the high-follower threshold; skips high-follower authors for live read merge.
-- `feed.rescore`: recomputes scores for recent materialized `feed_items` from denormalized post counters and invalidates touched viewer caches.
+- `feed.rescore`: recomputes stale materialized `feed_items` scores from denormalized post counters, ordered by `feed_items.score_refreshed_at`, and invalidates touched viewer caches. The worker schedules it every `FEED_RESCORE_INTERVAL_MINUTES` minutes.
 - `feed.pruneFeedItems`: deletes materialized feed rows older than the retention window in small indexed batches; `feed.rescore` uses the retention boundary as a lower cutoff so it does not refresh rows about to be pruned. Prune does not target-invalidate viewer caches because feed payload TTL is short and per-viewer invalidation can be more expensive than the old rows being removed.
 
 Transaction-capable DB writes:
@@ -1143,7 +1143,13 @@ R2_SECRET_ACCESS_KEY=
 R2_BUCKET=
 R2_PUBLIC_BASE_URL=
 R2_PRESIGN_TTL_SECONDS=
+RATE_LIMIT_REDIS_URL=
+QUEUE_REDIS_URL=
 UPSTASH_REDIS_URL=
+RATE_LIMIT_REDIS_REST_URL=
+RATE_LIMIT_REDIS_REST_TOKEN=
+QUEUE_REDIS_REST_URL=
+QUEUE_REDIS_REST_TOKEN=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 ABLY_API_KEY=

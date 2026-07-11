@@ -182,14 +182,20 @@ async function buildOverview() {
       {
         name: 'Queue transport',
         owner: 'Upstash Redis',
-        state: envEnabled('UPSTASH_REDIS_URL') ? 'healthy' : 'planned',
-        detail: envEnabled('UPSTASH_REDIS_URL') ? 'Worker queue Redis configured.' : 'Worker queue Redis not configured.',
+        state: envEnabled('QUEUE_REDIS_URL') || envEnabled('UPSTASH_REDIS_URL') ? 'healthy' : 'planned',
+        detail: envEnabled('QUEUE_REDIS_URL') || envEnabled('UPSTASH_REDIS_URL') ? 'Worker queue Redis configured.' : 'Worker queue Redis not configured.',
       },
       {
         name: 'Feed cache',
         owner: 'Upstash REST',
-        state: envEnabled('UPSTASH_REDIS_REST_URL') && envEnabled('UPSTASH_REDIS_REST_TOKEN') ? 'healthy' : 'planned',
-        detail: envEnabled('UPSTASH_REDIS_REST_URL') && envEnabled('UPSTASH_REDIS_REST_TOKEN') ? 'Feed cache REST credentials configured.' : 'Feed cache REST credentials not configured.',
+        state: envEnabled('UPSTASH_REDIS_URL') || (envEnabled('UPSTASH_REDIS_REST_URL') && envEnabled('UPSTASH_REDIS_REST_TOKEN')) ? 'healthy' : 'planned',
+        detail: envEnabled('UPSTASH_REDIS_URL') || (envEnabled('UPSTASH_REDIS_REST_URL') && envEnabled('UPSTASH_REDIS_REST_TOKEN')) ? 'Feed cache Redis configured.' : 'Feed cache Redis not configured.',
+      },
+      {
+        name: 'Rate limiting',
+        owner: 'Upstash Redis',
+        state: envEnabled('RATE_LIMIT_REDIS_URL') || (envEnabled('RATE_LIMIT_REDIS_REST_URL') && envEnabled('RATE_LIMIT_REDIS_REST_TOKEN')) ? 'healthy' : 'planned',
+        detail: envEnabled('RATE_LIMIT_REDIS_URL') || (envEnabled('RATE_LIMIT_REDIS_REST_URL') && envEnabled('RATE_LIMIT_REDIS_REST_TOKEN')) ? 'Rate-limit Redis configured.' : 'Rate-limit Redis not configured.',
       },
       {
         name: 'Realtime',

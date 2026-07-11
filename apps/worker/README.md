@@ -26,6 +26,7 @@ Required env:
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `R2_PUBLIC_BASE_URL`
+- `QUEUE_REDIS_URL` (or queue REST URL/token pair; must match API; worker never falls back to cache Redis)
 - `UPSTASH_REDIS_URL`
 - `WORKER_ENABLED` (optional; default `true`; set `false` to avoid BullMQ polling in local quota-sensitive runs)
 - `ABLY_API_KEY` (required for realtime notification/chat publish)
@@ -40,7 +41,7 @@ Current job handlers:
 
 - `media.process` (real): generate `thumb/feed/full` variants + blurhash
 - `feed.fanout` (real): chunked accepted-follower `feed_items` writes below high-follower threshold
-- `feed.rescore` (real): periodic recent `feed_items.score` refresh from denormalized post counters
+- `feed.rescore` (real): periodic stale `feed_items.score` refresh from denormalized post counters, ordered by `score_refreshed_at`
 - `counter.increment` (real): batched denormalized counter deltas
 - `chat.deliver` (real): fallback/asynchronous publish for new chat messages and inbox badge updates when API direct publish fails or fanout is too large
 - `chat.messageUpdated` (real): publish chat edit/delete/reaction events

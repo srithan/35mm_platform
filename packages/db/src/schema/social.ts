@@ -168,11 +168,16 @@ export var feedItems = pgTable(
         return posts.id;
       }, { onDelete: "cascade" }),
     score: doublePrecision("score"),
+    scoreRefreshedAt: timestamp("score_refreshed_at", { withTimezone: true }).defaultNow().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   function (table) {
     return {
       createdAtIdIdx: index("feed_items_created_at_id_idx").on(table.createdAt, table.id),
+      scoreRefreshedAtIdIdx: index("feed_items_score_refreshed_at_id_idx").on(
+        table.scoreRefreshedAt,
+        table.id
+      ),
       userCreatedAtIdx: index("feed_items_user_id_created_at_idx").on(table.userId, table.createdAt),
       userScorePostIdx: index("feed_items_user_score_post_idx").on(table.userId, table.score, table.postId),
       userPostIdx: uniqueIndex("feed_items_user_post_idx").on(table.userId, table.postId),

@@ -1,7 +1,7 @@
 import { Queue, type JobsOptions } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { WORKER_QUEUE_NAME, type MediaProcessJobPayload } from "./queue.js";
-import { loadWorkerEnv } from "./env.js";
+import { resolveQueueRedisUrl } from "./redisConfig.js";
 
 export const SUGGESTION_JOB_NAME = "compute-suggestions" as const;
 export type SuggestionRefreshPayload = {
@@ -25,19 +25,13 @@ function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
 }
 
 function getRedisUrl(): string {
-  var env = loadWorkerEnv();
-  var direct = env.UPSTASH_REDIS_URL.trim();
-  if (direct) return direct;
-
-  var restUrl = env.UPSTASH_REDIS_REST_URL.trim();
-  var restToken = env.UPSTASH_REDIS_REST_TOKEN.trim();
-  if (!restUrl || !restToken) {
+  var url = resolveQueueRedisUrl();
+  if (!url) {
     throw new Error(
-      "Missing Redis queue config. Set UPSTASH_REDIS_URL or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN"
+      "Missing Redis queue config. Set QUEUE_REDIS_URL"
     );
   }
-  var parsed = new URL(restUrl);
-  return `rediss://default:${encodeURIComponent(restToken)}@${parsed.host}:6379`;
+  return url;
 }
 
 function getQueue() {

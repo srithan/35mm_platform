@@ -1,4 +1,4 @@
-import { loadWorkerEnv } from "./env.js";
+import { resolveCacheRedisRestConfig } from "./redisConfig.js";
 
 const CACHE_NS = "feed-cache:v1";
 const FEED_INDEX_TTL_SECONDS = 10 * 60;
@@ -24,17 +24,14 @@ function viewerIndexKey(viewerId: string | null): string {
 }
 
 function configured(): boolean {
-  var env = loadWorkerEnv();
-  return (
-    env.UPSTASH_REDIS_REST_URL.trim().length > 0 &&
-    env.UPSTASH_REDIS_REST_TOKEN.trim().length > 0
-  );
+  return resolveCacheRedisRestConfig() !== null;
 }
 
 function buildClient(): RedisClient {
-  var env = loadWorkerEnv();
-  var baseUrl = env.UPSTASH_REDIS_REST_URL.replace(/\/+$/, "");
-  var token = env.UPSTASH_REDIS_REST_TOKEN;
+  var config = resolveCacheRedisRestConfig();
+  if (!config) throw new Error("Redis cache config unavailable");
+  var baseUrl = config.baseUrl;
+  var token = config.token;
 
   async function command<T>(...parts: Array<string | number>): Promise<T | null> {
     var path = parts

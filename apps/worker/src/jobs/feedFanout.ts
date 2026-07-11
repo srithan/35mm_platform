@@ -1,7 +1,7 @@
 import { createDb, type Db } from "@35mm/db";
 import { feedItems, follows, posts, profiles } from "@35mm/db/schema";
 import { computeFeedScore } from "@35mm/types";
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, gt, or, sql } from "drizzle-orm";
 import { loadWorkerEnv } from "../lib/env.js";
 import { invalidateViewerFeedCaches } from "../lib/feedCache.js";
 
@@ -22,7 +22,7 @@ export type FeedFanoutJobResult = {
 };
 
 type FollowerCursor = {
-  createdAt: Date;
+  createdAt: string;
   followerId: string;
 };
 
@@ -86,8 +86,11 @@ async function followerPage(database: Db, authorUserId: string, size: number, cu
   if (cursor) {
     filters.push(
       or(
-        gt(follows.createdAt, cursor.createdAt),
-        and(eq(follows.createdAt, cursor.createdAt), gt(follows.followerId, cursor.followerId))
+        sql`${follows.createdAt} > ${cursor.createdAt}::timestamptz`,
+        and(
+          sql`${follows.createdAt} = ${cursor.createdAt}::timestamptz`,
+          gt(follows.followerId, cursor.followerId)
+        )
       )!
     );
   }
@@ -95,7 +98,7 @@ async function followerPage(database: Db, authorUserId: string, size: number, cu
   return database
     .select({
       followerId: follows.followerId,
-      createdAt: follows.createdAt,
+      createdAtCursor: sql<string>`${follows.createdAt}::text`,
     })
     .from(follows)
     .where(and(...filters))
@@ -208,7 +211,7 @@ export async function runFeedFanoutJob(payloadValue: unknown): Promise<FeedFanou
 
     var tail = followersPage[followersPage.length - 1];
     cursor = {
-      createdAt: tail.createdAt,
+      createdAt: tail.createdAtCursor,
       followerId: tail.followerId,
     };
   }

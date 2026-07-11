@@ -109,14 +109,16 @@ Purpose:
 
 Defaults:
 
-- `FEED_RESCORE_MAX_AGE_HOURS=72`
+- `FEED_RESCORE_STALE_AFTER_MINUTES=60`
+- `FEED_RESCORE_INTERVAL_MINUTES=5`
 - `FEED_RESCORE_BATCH_SIZE=500`
 - Batch cap: `2000`
 
 Operational expectation:
 
-- Schedule `feed.rescore` periodically outside request flow, for example every few minutes.
-- The worker handler exists; deploy/cron scheduling is separate infrastructure work.
+- The worker schedules `feed.rescore` on boot.
+- `feed.rescore` walks retained rows by `feed_items.score_refreshed_at`, oldest first, so materialized score decay cannot leave old rows pinned above newer feed rows.
+- `FEED_RESCORE_MAX_AGE_HOURS` is legacy config; score freshness is controlled by `FEED_RESCORE_STALE_AFTER_MINUTES`.
 
 ## Home Feed Read Path
 
@@ -227,9 +229,8 @@ FEED_RESCORE_BATCH_SIZE=500
 Related existing vars:
 
 ```env
+QUEUE_REDIS_URL=
 UPSTASH_REDIS_URL=
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
 COUNTER_BATCH_WINDOW_MS=50
 ```
 

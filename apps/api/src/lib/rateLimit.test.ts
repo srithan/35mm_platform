@@ -17,6 +17,10 @@ describe("rate limit fail mode", function () {
   it("fails closed when Redis is not configured", async function () {
     stubRequiredEnv();
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("RATE_LIMIT_REDIS_URL", "");
+    vi.stubEnv("RATE_LIMIT_REDIS_REST_URL", "");
+    vi.stubEnv("RATE_LIMIT_REDIS_REST_TOKEN", "");
+    vi.stubEnv("UPSTASH_REDIS_URL", "");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
 
@@ -46,6 +50,10 @@ describe("rate limit fail mode", function () {
   it("uses a bounded local limiter outside production when Redis is not configured", async function () {
     stubRequiredEnv();
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("RATE_LIMIT_REDIS_URL", "");
+    vi.stubEnv("RATE_LIMIT_REDIS_REST_URL", "");
+    vi.stubEnv("RATE_LIMIT_REDIS_REST_TOKEN", "");
+    vi.stubEnv("UPSTASH_REDIS_URL", "");
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
 

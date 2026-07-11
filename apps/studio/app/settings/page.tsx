@@ -26,6 +26,8 @@ const envGroups = [
       'CLERK_WEBHOOK_SECRET',
       'R2_ACCOUNT_ID',
       'R2_BUCKET',
+      'RATE_LIMIT_REDIS_URL',
+      'QUEUE_REDIS_URL',
       'UPSTASH_REDIS_URL',
       'ABLY_API_KEY',
       'CORS_ORIGIN',

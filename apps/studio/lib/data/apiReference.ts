@@ -90,7 +90,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     auth: 'Public',
     status: 'Live',
     summary: 'API health check with feed-cache and jobs-queue readiness flags.',
-    response: '{ ok, service: "35mm-api", version, feedCache, jobsQueue }',
+    response: '{ ok, service: "35mm-api", version, feedCache, rateLimitRedis, jobsQueue }',
     notes: 'Use this for uptime checks and dependency drift, not user-session validation.',
     source: 'apps/api/src/routes/health.ts',
   },

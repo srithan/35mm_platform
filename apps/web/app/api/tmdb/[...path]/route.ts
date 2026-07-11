@@ -17,22 +17,83 @@ type CachedTmdbResponse = {
   cachedAt: string;
 };
 
-function redisConfigured(): boolean {
-  return Boolean(
-    process.env.UPSTASH_REDIS_REST_URL?.trim() &&
-      process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
+type RedisRestConfig = {
+  baseUrl: string;
+  token: string;
+};
+
+function protocolUrlToRestConfig(value: string | undefined): RedisRestConfig | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "redis:" && parsed.protocol !== "rediss:") return null;
+    const token = decodeURIComponent(parsed.password || "");
+    if (!parsed.hostname || !token) return null;
+    return {
+      baseUrl: `https://${parsed.hostname}`,
+      token,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function explicitRestConfig(
+  url: string | undefined,
+  token: string | undefined
+): RedisRestConfig | null {
+  const trimmedUrl = url?.trim();
+  const trimmedToken = token?.trim();
+  if (!trimmedUrl || !trimmedToken) return null;
+
+  try {
+    const parsed = new URL(trimmedUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return {
+      baseUrl: trimmedUrl.replace(/\/+$/, ""),
+      token: trimmedToken,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function cacheRedisConfig(): RedisRestConfig | null {
+  return (
+    protocolUrlToRestConfig(process.env.UPSTASH_REDIS_URL) ??
+    explicitRestConfig(process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN)
   );
 }
 
-async function redisCommand<T>(...parts: Array<string | number>): Promise<T | null> {
-  const baseUrl = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/+$/, "") ?? "";
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? "";
-  if (!baseUrl || !token) return null;
+function rateLimitRedisConfig(): RedisRestConfig | null {
+  const direct =
+    protocolUrlToRestConfig(process.env.RATE_LIMIT_REDIS_URL) ??
+    explicitRestConfig(process.env.RATE_LIMIT_REDIS_REST_URL, process.env.RATE_LIMIT_REDIS_REST_TOKEN);
+  if (direct) return direct;
+  if (
+    process.env.RATE_LIMIT_REDIS_URL?.trim() ||
+    process.env.RATE_LIMIT_REDIS_REST_URL?.trim() ||
+    process.env.QUEUE_REDIS_URL?.trim()
+  ) return null;
 
-  const response = await fetch(baseUrl, {
+  return (
+    explicitRestConfig(process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN) ??
+    protocolUrlToRestConfig(process.env.UPSTASH_REDIS_URL)
+  );
+}
+
+async function redisCommand<T>(
+  config: RedisRestConfig | null,
+  ...parts: Array<string | number>
+): Promise<T | null> {
+  if (!config) return null;
+
+  const response = await fetch(config.baseUrl, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${config.token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(parts),
@@ -79,7 +140,8 @@ function isRateLimitingDisabled(): boolean {
 
 async function checkRateLimit(request: NextRequest): Promise<NextResponse | null> {
   if (isRateLimitingDisabled()) return null;
-  if (!redisConfigured()) {
+  const redis = rateLimitRedisConfig();
+  if (!redis) {
     if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
         { error: "TMDB proxy rate limiter is not configured" },
@@ -92,9 +154,9 @@ async function checkRateLimit(request: NextRequest): Promise<NextResponse | null
   const key = `${RATE_LIMIT_NAMESPACE}:${encodeURIComponent(clientIp(request).toLowerCase())}`;
   let current: number | null = null;
   try {
-    current = await redisCommand<number>("incr", key);
+    current = await redisCommand<number>(redis, "incr", key);
     if (current === 1) {
-      await redisCommand("expire", key, RATE_LIMIT_WINDOW_SECONDS);
+      await redisCommand(redis, "expire", key, RATE_LIMIT_WINDOW_SECONDS);
     }
   } catch (err) {
     if (process.env.NODE_ENV === "production") {
@@ -113,7 +175,7 @@ async function checkRateLimit(request: NextRequest): Promise<NextResponse | null
 
   let ttl = RATE_LIMIT_WINDOW_SECONDS;
   try {
-    ttl = (await redisCommand<number>("ttl", key)) ?? RATE_LIMIT_WINDOW_SECONDS;
+    ttl = (await redisCommand<number>(redis, "ttl", key)) ?? RATE_LIMIT_WINDOW_SECONDS;
   } catch (err) {
     console.warn("TMDB rate limit TTL read failed:", err);
   }
@@ -139,9 +201,10 @@ function cacheTtlSeconds(path: string[]): number {
 }
 
 async function getCachedResponse(key: string): Promise<CachedTmdbResponse | null> {
-  if (!redisConfigured()) return null;
+  const redis = cacheRedisConfig();
+  if (!redis) return null;
 
-  const raw = await redisCommand<string>("get", key);
+  const raw = await redisCommand<string>(redis, "get", key);
   const cached = parseRedisValue<CachedTmdbResponse>(raw);
   if (!cached || typeof cached !== "object") return null;
   if (typeof cached.status !== "number") return null;
@@ -154,8 +217,9 @@ async function setCachedResponse(
   value: CachedTmdbResponse,
   ttlSeconds: number
 ): Promise<void> {
-  if (!redisConfigured()) return;
-  await redisCommand("setex", key, ttlSeconds, JSON.stringify(value));
+  const redis = cacheRedisConfig();
+  if (!redis) return;
+  await redisCommand(redis, "setex", key, ttlSeconds, JSON.stringify(value));
 }
 
 function cacheKeyFor(url: URL): string {
@@ -253,7 +317,7 @@ export async function GET(
       console.warn("TMDB cache write skipped:", err);
     }
 
-    return jsonResponse(data, res.status, redisConfigured() ? "MISS" : "BYPASS");
+    return jsonResponse(data, res.status, cacheRedisConfig() ? "MISS" : "BYPASS");
   } catch (err) {
     console.error("TMDB API error:", err);
     return NextResponse.json(

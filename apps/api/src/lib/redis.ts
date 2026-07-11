@@ -1,4 +1,8 @@
-import { loadEnv } from "./env.js";
+import {
+  resolveCacheRedisRestConfig,
+  resolveRateLimitRedisRestConfig,
+  type RedisRestConfig,
+} from "./redisConfig.js";
 
 type UpstashResult<T = unknown> = {
   result?: T;
@@ -26,26 +30,25 @@ export type RedisClient = {
 var globalForRedis = globalThis as typeof globalThis & {
   __thirtyFiveMmRedisClient?: RedisClient | null;
   __thirtyFiveMmRedisConfigKey?: string;
+  __thirtyFiveMmRateLimitRedisClient?: RedisClient | null;
+  __thirtyFiveMmRateLimitRedisConfigKey?: string;
 };
 
 var redisClient: RedisClient | null | undefined = globalForRedis.__thirtyFiveMmRedisClient;
 var redisConfigKey: string | undefined = globalForRedis.__thirtyFiveMmRedisConfigKey;
+var rateLimitRedisClient: RedisClient | null | undefined =
+  globalForRedis.__thirtyFiveMmRateLimitRedisClient;
+var rateLimitRedisConfigKey: string | undefined =
+  globalForRedis.__thirtyFiveMmRateLimitRedisConfigKey;
 
-function currentConfigKey(): string {
-  var env = loadEnv();
-  return env.UPSTASH_REDIS_REST_URL.trim() + "|" + env.UPSTASH_REDIS_REST_TOKEN.trim();
+function configKey(config: RedisRestConfig | null): string {
+  if (!config) return "";
+  return config.baseUrl + "|" + config.token;
 }
 
-function configured(): boolean {
-  var key = currentConfigKey();
-  var parts = key.split("|");
-  return parts[0].length > 0 && parts[1].length > 0;
-}
-
-function buildClient(): RedisClient {
-  var env = loadEnv();
-  var baseUrl = env.UPSTASH_REDIS_REST_URL.replace(/\/+$/, "");
-  var token = env.UPSTASH_REDIS_REST_TOKEN;
+function buildClient(config: RedisRestConfig): RedisClient {
+  var baseUrl = config.baseUrl;
+  var token = config.token;
 
   async function command<T>(...parts: Array<string | number>): Promise<T | null> {
     var path = parts
@@ -148,19 +151,41 @@ function buildClient(): RedisClient {
 }
 
 export function getRedisClient(): RedisClient | null {
-  var nextConfigKey = currentConfigKey();
+  var config = resolveCacheRedisRestConfig();
+  var nextConfigKey = configKey(config);
   if (redisClient !== undefined && redisConfigKey === nextConfigKey) return redisClient;
   redisConfigKey = nextConfigKey;
   globalForRedis.__thirtyFiveMmRedisConfigKey = redisConfigKey;
-  if (!configured()) {
+  if (!config) {
     redisClient = null;
     globalForRedis.__thirtyFiveMmRedisClient = redisClient;
     return redisClient;
   }
 
-  redisClient = buildClient();
+  redisClient = buildClient(config);
   globalForRedis.__thirtyFiveMmRedisClient = redisClient;
   return redisClient;
+}
+
+export function getRateLimitRedisClient(): RedisClient | null {
+  var config = resolveRateLimitRedisRestConfig();
+  var nextConfigKey = configKey(config);
+  if (
+    rateLimitRedisClient !== undefined &&
+    rateLimitRedisConfigKey === nextConfigKey
+  ) return rateLimitRedisClient;
+
+  rateLimitRedisConfigKey = nextConfigKey;
+  globalForRedis.__thirtyFiveMmRateLimitRedisConfigKey = rateLimitRedisConfigKey;
+  if (!config) {
+    rateLimitRedisClient = null;
+    globalForRedis.__thirtyFiveMmRateLimitRedisClient = rateLimitRedisClient;
+    return rateLimitRedisClient;
+  }
+
+  rateLimitRedisClient = buildClient(config);
+  globalForRedis.__thirtyFiveMmRateLimitRedisClient = rateLimitRedisClient;
+  return rateLimitRedisClient;
 }
 
 export function isRedisEnabled(): boolean {

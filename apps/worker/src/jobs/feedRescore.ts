@@ -5,11 +5,12 @@ import {
   feedItemsRetentionBoundary,
   parseFeedItemsRetentionDays,
 } from "@35mm/types";
-import { and, asc, eq, gt, gte, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lte, or, sql } from "drizzle-orm";
 import { loadWorkerEnv } from "../lib/env.js";
 import { invalidateViewerFeedCaches } from "../lib/feedCache.js";
 
 export type FeedRescoreJobPayload = {
+  staleAfterMinutes?: number;
   maxAgeHours?: number;
   limit?: number;
 };
@@ -18,12 +19,12 @@ export type FeedRescoreJobResult = {
   scanned: number;
   updated: number;
   invalidatedViewers: number;
-  maxAgeHours: number;
+  staleAfterMinutes: number;
   limit: number;
 };
 
 type FeedItemCursor = {
-  createdAt: Date;
+  scoreRefreshedAt: string;
   id: string;
 };
 
@@ -36,10 +37,13 @@ function getDb(): Db {
   return db;
 }
 
-function configuredMaxAgeHours(payload: FeedRescoreJobPayload): number {
-  var configured = Number(payload.maxAgeHours ?? loadWorkerEnv().FEED_RESCORE_MAX_AGE_HOURS);
-  if (!Number.isFinite(configured)) return 72;
-  return Math.max(1, Math.min(Math.floor(configured), 24 * 14));
+function configuredStaleAfterMinutes(payload: FeedRescoreJobPayload): number {
+  var configured = Number(payload.staleAfterMinutes ?? loadWorkerEnv().FEED_RESCORE_STALE_AFTER_MINUTES);
+  if (!Number.isFinite(configured) && Number.isFinite(payload.maxAgeHours)) {
+    configured = Number(payload.maxAgeHours) * 60;
+  }
+  if (!Number.isFinite(configured)) return 60;
+  return Math.max(1, Math.min(Math.floor(configured), 24 * 60));
 }
 
 function configuredBatchSize(): number {
@@ -65,21 +69,23 @@ function assertPayload(value: unknown): FeedRescoreJobPayload {
 function feedItemCursorFilter(cursor: FeedItemCursor | null) {
   if (!cursor) return undefined;
   return or(
-    gt(feedItems.createdAt, cursor.createdAt),
-    and(eq(feedItems.createdAt, cursor.createdAt), gt(feedItems.id, cursor.id))
+    sql`${feedItems.scoreRefreshedAt} > ${cursor.scoreRefreshedAt}::timestamptz`,
+    and(
+      sql`${feedItems.scoreRefreshedAt} = ${cursor.scoreRefreshedAt}::timestamptz`,
+      gt(feedItems.id, cursor.id)
+    )
   );
 }
 
 export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedRescoreJobResult> {
   var payload = assertPayload(payloadValue);
   var database = getDb();
-  var maxAgeHours = configuredMaxAgeHours(payload);
+  var staleAfterMinutes = configuredStaleAfterMinutes(payload);
   var batchSize = configuredBatchSize();
   var limit = configuredLimit(payload);
-  var rescoreCutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+  var staleCutoff = new Date(Date.now() - staleAfterMinutes * 60 * 1000);
   var retentionDays = parseFeedItemsRetentionDays(loadWorkerEnv().FEED_ITEMS_RETENTION_DAYS);
   var retentionCutoff = feedItemsRetentionBoundary(new Date(), retentionDays);
-  var cutoff = new Date(Math.max(rescoreCutoff.getTime(), retentionCutoff.getTime()));
 
   var cursor: FeedItemCursor | null = null;
   var scanned = 0;
@@ -89,7 +95,8 @@ export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedResc
   while (scanned < limit) {
     var remaining = limit - scanned;
     var filters = [
-      gte(feedItems.createdAt, cutoff),
+      gte(feedItems.createdAt, retentionCutoff),
+      lte(feedItems.scoreRefreshedAt, staleCutoff),
       eq(posts.isDeleted, false),
     ];
     var cursorFilter = feedItemCursorFilter(cursor);
@@ -99,7 +106,7 @@ export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedResc
       .select({
         id: feedItems.id,
         userId: feedItems.userId,
-        createdAt: feedItems.createdAt,
+        scoreRefreshedAtCursor: sql<string>`${feedItems.scoreRefreshedAt}::text`,
         postCreatedAt: posts.createdAt,
         likeCount: posts.likeCount,
         commentCount: posts.commentCount,
@@ -108,7 +115,7 @@ export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedResc
       .from(feedItems)
       .innerJoin(posts, eq(posts.id, feedItems.postId))
       .where(and(...filters))
-      .orderBy(asc(feedItems.createdAt), asc(feedItems.id))
+      .orderBy(asc(feedItems.scoreRefreshedAt), asc(feedItems.id))
       .limit(Math.min(batchSize, remaining));
 
     if (rows.length === 0) break;
@@ -124,7 +131,7 @@ export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedResc
 
       await database
         .update(feedItems)
-        .set({ score })
+        .set({ score, scoreRefreshedAt: new Date() })
         .where(eq(feedItems.id, row.id));
       touchedViewers.add(row.userId);
       updated += 1;
@@ -135,7 +142,7 @@ export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedResc
 
     var tail = rows[rows.length - 1];
     cursor = {
-      createdAt: tail.createdAt,
+      scoreRefreshedAt: tail.scoreRefreshedAtCursor,
       id: tail.id,
     };
   }
@@ -144,7 +151,7 @@ export async function runFeedRescoreJob(payloadValue: unknown): Promise<FeedResc
     scanned,
     updated,
     invalidatedViewers,
-    maxAgeHours,
+    staleAfterMinutes,
     limit,
   };
 }

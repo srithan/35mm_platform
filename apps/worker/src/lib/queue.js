@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { loadWorkerEnv } from "./env.js";
+import { resolveQueueRedisUrl } from "./redisConfig.js";
 export const WORKER_QUEUE_NAME = "35mm-jobs";
 var queue = null;
 function connectionFromRedisUrl(redisUrl) {
@@ -16,17 +16,11 @@ function connectionFromRedisUrl(redisUrl) {
     };
 }
 function getRedisUrl() {
-    var env = loadWorkerEnv();
-    var direct = env.UPSTASH_REDIS_URL.trim();
-    if (direct)
-        return direct;
-    var restUrl = env.UPSTASH_REDIS_REST_URL.trim();
-    var restToken = env.UPSTASH_REDIS_REST_TOKEN.trim();
-    if (!restUrl || !restToken) {
-        throw new Error("Missing Redis queue config. Set UPSTASH_REDIS_URL or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN");
+    var url = resolveQueueRedisUrl();
+    if (!url) {
+        throw new Error("Missing Redis queue config. Set QUEUE_REDIS_URL");
     }
-    var parsed = new URL(restUrl);
-    return `rediss://default:${encodeURIComponent(restToken)}@${parsed.host}:6379`;
+    return url;
 }
 function getQueue() {
     if (queue)
@@ -60,7 +54,9 @@ function defaultJobOptions(name) {
     };
 }
 export async function enqueueMediaProcessJob(payload) {
-    var jobId = "media.process-" + payload.postId;
+    var jobId = "postId" in payload
+        ? "media.process-" + payload.postId
+        : "media.process-" + payload.kind + "-" + payload.userId + "-" + payload.objectKey;
     await getQueue().add("media.process", payload, {
         ...defaultJobOptions("media.process"),
         jobId,

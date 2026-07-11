@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import type { Context } from "hono";
-import { getRedisClient } from "./redis.js";
+import { getRateLimitRedisClient } from "./redis.js";
 import { loadEnv } from "./env.js";
 
 type RateLimitConfig = {
@@ -150,7 +150,7 @@ export async function applyRateLimit(
     );
   }
 
-  var redis = getRedisClient();
+  var redis = getRateLimitRedisClient();
   if (!redis) {
     if (localFallbackEnabled()) {
       console.warn("[rate-limit] redis unavailable; using local memory limiter", {

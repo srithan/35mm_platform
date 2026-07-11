@@ -1,4 +1,4 @@
-import { loadWorkerEnv } from "./env.js";
+import { resolveCacheRedisRestConfig } from "./redisConfig.js";
 
 type UpstashResult<T = unknown> = {
   result?: T;
@@ -6,17 +6,13 @@ type UpstashResult<T = unknown> = {
 };
 
 function configured(): boolean {
-  var env = loadWorkerEnv();
-  return (
-    env.UPSTASH_REDIS_REST_URL.trim().length > 0 &&
-    env.UPSTASH_REDIS_REST_TOKEN.trim().length > 0
-  );
+  return resolveCacheRedisRestConfig() !== null;
 }
 
 async function command<T>(...parts: Array<string | number>): Promise<T | null> {
-  var env = loadWorkerEnv();
-  if (!configured()) return null;
-  var baseUrl = env.UPSTASH_REDIS_REST_URL.replace(/\/+$/, "");
+  var config = resolveCacheRedisRestConfig();
+  if (!config) return null;
+  var baseUrl = config.baseUrl;
   var path = parts
     .map(function (part) {
       return encodeURIComponent(String(part));
@@ -25,7 +21,7 @@ async function command<T>(...parts: Array<string | number>): Promise<T | null> {
   var response = await fetch(baseUrl + "/" + path, {
     method: "POST",
     headers: {
-      Authorization: "Bearer " + env.UPSTASH_REDIS_REST_TOKEN,
+      Authorization: "Bearer " + config.token,
     },
   });
   if (!response.ok) throw new Error("Redis HTTP " + response.status);

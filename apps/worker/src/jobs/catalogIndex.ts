@@ -17,7 +17,7 @@ type CatalogOutboxRow = {
   id: string;
   edit_id: string | null;
   payload: CatalogIndexJobPayload;
-  created_at: Date;
+  created_at: Date | string;
 };
 
 var db: ReturnType<typeof createPooledDb> | null = null;
@@ -85,7 +85,7 @@ export async function runCatalogIndexOutboxJob(
         removeOnComplete: true,
         removeOnFail: 1000,
       });
-      var lagMs = Date.now() - row.created_at.getTime();
+      var lagMs = Date.now() - new Date(row.created_at).getTime();
       logMetric("catalog.index_job_lag_ms", lagMs, { outboxJobId: row.id });
     }
 

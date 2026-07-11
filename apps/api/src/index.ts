@@ -47,7 +47,7 @@ console.log(
 console.log(
   isQueueEnabled()
     ? "[jobs-queue] enabled"
-    : "[jobs-queue] disabled (missing UPSTASH_REDIS_URL)"
+    : "[jobs-queue] disabled (missing QUEUE_REDIS_URL)"
 );
 void warmKeyspacesClient()
   .then(function (keyspacesClient) {

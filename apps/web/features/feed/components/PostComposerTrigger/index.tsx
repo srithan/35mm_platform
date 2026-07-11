@@ -55,7 +55,7 @@ function TriggerTool({ label, icon }: { label: string; icon?: React.ReactNode })
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-[var(--composer-radius)] border border-[var(--composer-border)] px-2 py-1",
+        "inline-flex items-center gap-1.5 rounded-[var(--composer-control-radius)] border border-[var(--composer-border)] px-2 py-1",
         "bg-[var(--composer-chip-bg)] text-[10.5px] font-medium text-fg-muted"
       )}
       aria-hidden

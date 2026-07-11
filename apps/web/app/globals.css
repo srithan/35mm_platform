@@ -366,8 +366,8 @@
     --composer-primary-hover: #9c372c;
     --composer-primary-fg: #ffffff;
     --composer-backdrop: rgba(28, 26, 23, 0.42);
-    --composer-radius: 0.125rem;
-    --composer-dialog-radius: 1rem;
+    --composer-radius: 1rem;
+    --composer-dialog-radius: var(--composer-radius);
     --composer-control-radius: 9999px;
     --button-spinner-track: color-mix(in srgb, #ffffff 18%, var(--composer-primary));
     --button-spinner-tip: #ffffff;

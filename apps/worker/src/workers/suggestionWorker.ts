@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ulid } from "ulid";
 import { loadWorkerEnv } from "../lib/env.js";
+import { resolveCacheRedisRestConfig } from "../lib/redisConfig.js";
 import type { SuggestionRefreshPayload } from "../lib/suggestionQueue.js";
 
 type RedisClient = {
@@ -43,16 +44,9 @@ function getSuggestionsKey(userId: string): string {
 }
 
 function parseRedisConfig(): { url: string; token: string } | null {
-  var env = loadWorkerEnv();
-  var restUrl = env.UPSTASH_REDIS_REST_URL.trim();
-  var token = env.UPSTASH_REDIS_REST_TOKEN.trim();
-
-  if (!restUrl || !token) return null;
-
-  return {
-    url: restUrl.replace(/\/+$/, ""),
-    token,
-  };
+  var config = resolveCacheRedisRestConfig();
+  if (!config) return null;
+  return { url: config.baseUrl, token: config.token };
 }
 
 async function createRedisClient(): Promise<RedisClient | null> {

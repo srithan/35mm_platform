@@ -63,12 +63,13 @@ It does not target-invalidate viewer feed caches. Feed payload TTL is 60 seconds
 
 ## Rescore Coordination
 
-`feed.rescore` uses the later of:
+`feed.rescore` uses:
 
-- configured rescore age cutoff
-- feed item retention cutoff
+- `feed_items.score_refreshed_at` to process least-recently-refreshed retained rows first
+- `FEED_RESCORE_STALE_AFTER_MINUTES` to avoid rewriting rows whose score was refreshed recently
+- the feed item retention cutoff so rows about to be pruned are not refreshed
 
-This prevents rescore from spending work on rows that are already eligible for pruning. If prune deletes rows while rescore is running, rescore updates by row ID and simply finds fewer rows; no correctness dependency exists between the jobs.
+This keeps score decay from leaving old materialized rows pinned at their original write-time score. If prune deletes rows while rescore is running, rescore updates by row ID and simply finds fewer rows; no correctness dependency exists between the jobs.
 
 ## Cold-Path Fallback
 

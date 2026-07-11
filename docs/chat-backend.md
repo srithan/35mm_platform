@@ -859,7 +859,13 @@ API and worker need:
 
 ```env
 DATABASE_URL=
+RATE_LIMIT_REDIS_URL=
+QUEUE_REDIS_URL=
 UPSTASH_REDIS_URL=
+RATE_LIMIT_REDIS_REST_URL=
+RATE_LIMIT_REDIS_REST_TOKEN=
+QUEUE_REDIS_REST_URL=
+QUEUE_REDIS_REST_TOKEN=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 AWS_REGION=us-east-1
@@ -874,8 +880,10 @@ Notes:
 - `DATABASE_URL` is required for Postgres metadata.
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are IAM access keys for SigV4 auth to Keyspaces.
 - The Keyspaces Cassandra driver uses port `9142`.
-- `UPSTASH_REDIS_URL` is best for BullMQ. The API and worker can derive a Redis protocol URL from Upstash REST URL/token, but direct Redis URL is cleaner operationally.
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are used by REST Redis helpers.
+- `QUEUE_REDIS_URL` is the preferred BullMQ broker URL.
+- `RATE_LIMIT_REDIS_URL` is the preferred rate-limit Redis URL.
+- `UPSTASH_REDIS_URL` is the preferred cache/chat Redis URL.
+- The API and worker can derive REST credentials from Upstash `redis://` or `rediss://` URLs. Legacy `*_REST_URL`/`*_REST_TOKEN` vars remain fallback paths.
 - `ABLY_API_KEY` is optional for persistence but required for realtime delivery.
 
 ## AWS Setup Completed

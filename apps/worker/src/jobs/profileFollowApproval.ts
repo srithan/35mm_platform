@@ -30,7 +30,7 @@ type FollowApprovalPayload = {
 
 type PendingFollowRow = {
   followerId: string;
-  createdAt: Date;
+  createdAtCursor: string;
 };
 
 type FollowApprovalCursor = {
@@ -210,16 +210,19 @@ async function readPendingFollowRows(
     whereCondition = and(
       whereCondition,
       or(
-        lt(follows.createdAt, parsedCursor.createdAt),
-        and(eq(follows.createdAt, parsedCursor.createdAt), lt(follows.followerId, parsedCursor.followerId))
+        sql`${follows.createdAt} < ${parsedCursor.createdAt.toISOString()}::timestamptz`,
+        and(
+          sql`${follows.createdAt} = ${parsedCursor.createdAt.toISOString()}::timestamptz`,
+          lt(follows.followerId, parsedCursor.followerId)
+        )
       )
     );
   }
 
   var rows = await database
     .select({
-    followerId: follows.followerId,
-      createdAt: follows.createdAt,
+      followerId: follows.followerId,
+      createdAtCursor: sql<string>`${follows.createdAt}::text`,
     })
     .from(follows)
     .where(whereCondition)
@@ -235,7 +238,7 @@ async function readPendingFollowRows(
     hasMore,
     nextCursor: hasMore && tail
       ? encodeCursor({
-          createdAt: tail.createdAt.toISOString(),
+          createdAt: tail.createdAtCursor,
           followerId: tail.followerId,
         })
       : null,

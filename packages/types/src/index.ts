@@ -718,6 +718,7 @@ export interface HealthResponse {
   service: string;
   version: string;
   feedCache?: "ok" | "disabled";
+  rateLimitRedis?: "ok" | "disabled";
   jobsQueue?: "ok" | "disabled";
 }
 
