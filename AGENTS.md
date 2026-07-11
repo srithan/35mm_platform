@@ -180,7 +180,7 @@ Graph output from `apps/api` (`graphify-out-api/GRAPH_REPORT.md`) highlights the
 - `createNotification()` and `getUnreadNotificationCount()` - notification DB hotspots.
 - `invalidateViewerFeedCaches()` - feed cache invalidation hotspot.
 
-API graph caveat: the generated API graph is AST-only, but dense enough to be useful: 396 nodes, 977 retained edges, 14 communities. It reported 198 dangling raw endpoints, so verify source before relying on any absent edge.
+API graph caveat: the generated API graph is AST-only, but dense enough to be useful: 749 nodes, 2,036 edges, 31 communities. The 2026-07-11 health check reported no dangling, missing, duplicate, collapsed, or self-loop edges; still verify source for behavioral claims.
 
 ---
 
@@ -191,7 +191,7 @@ Local graph artifacts may exist:
 - `graphify-out-api/` for `apps/api`
 - `graphify-out/` for `apps/web`
 
-The `apps/web` graph is currently sparse and AST-only: 754 nodes but only 21 retained edges, with many dangling endpoints. Use it for rough node discovery only; inspect source directly for frontend dependency or architecture claims.
+The `apps/web` graph is AST-only: 2,939 nodes, 7,526 edges, and 133 communities. The 2026-07-11 health check reported no dangling, missing, duplicate, collapsed, or self-loop edges. Use it for structural discovery, then inspect source directly for behavioral claims.
 
 The `apps/api` graph is more useful. It shows no import cycles and identifies weakly cohesive route communities around `getDb()`, feed cache, jobs, notifications, media/R2, settings, and cursor/error helpers. If a future task asks "how does this API path work?", start with the relevant graph report/query, then verify in source.
 

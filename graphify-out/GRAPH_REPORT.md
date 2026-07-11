@@ -1,12 +1,18 @@
-# Graph Report - apps/web  (2026-06-28)
+# Graph Report - apps/web  (2026-07-11)
 
 ## Corpus Check
-- Large corpus: 557 files · ~209,496 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder.
+- 591 files · ~240,614 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 754 nodes · 21 edges · 733 communities (4 shown, 729 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
+- 2939 nodes · 7526 edges · 133 communities (126 shown, 7 thin omitted)
+- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 6 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `bd7a2b16`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_Search Dropdown Props|Search Dropdown Props]]
@@ -25,7 +31,6 @@
 - [[_COMMUNITY_Forgot Page|Forgot Page]]
 - [[_COMMUNITY_Reset Page|Reset Page]]
 - [[_COMMUNITY_Error|Error]]
-- [[_COMMUNITY_Global Error|Global Error]]
 - [[_COMMUNITY_Landing Route Page|Landing Route Page]]
 - [[_COMMUNITY_Root Layout|Root Layout]]
 - [[_COMMUNITY_Careers Page|Careers Page]]
@@ -34,7 +39,6 @@
 - [[_COMMUNITY_Not Found|Not Found]]
 - [[_COMMUNITY_Onboarding Page|Onboarding Page]]
 - [[_COMMUNITY_Root Page|Root Page]]
-- [[_COMMUNITY_Robots|Robots]]
 - [[_COMMUNITY_Bookmarks Page|Bookmarks Page]]
 - [[_COMMUNITY_Chat Id Page|Chat Id Page]]
 - [[_COMMUNITY_Generate Metadata|Generate Metadata]]
@@ -58,743 +62,590 @@
 - [[_COMMUNITY_Privacy Settings Page|Privacy Settings Page]]
 - [[_COMMUNITY_Generate Metadata|Generate Metadata]]
 - [[_COMMUNITY_Short Film Watch Page|Short Film Watch Page]]
-- [[_COMMUNITY_Short Films Page|Short Films Page]]
 - [[_COMMUNITY_Short Film Upload Page|Short Film Upload Page]]
 - [[_COMMUNITY_Suggestions People Route|Suggestions People Route]]
-- [[_COMMUNITY_Title Loading|Title Loading]]
 - [[_COMMUNITY_Generate Metadata|Generate Metadata]]
 - [[_COMMUNITY_Title Page|Title Page]]
 - [[_COMMUNITY_Generate Metadata|Generate Metadata]]
 - [[_COMMUNITY_Profile Diary Page|Profile Diary Page]]
 - [[_COMMUNITY_Username Layout|Username Layout]]
 - [[_COMMUNITY_Generate Metadata|Generate Metadata]]
-- [[_COMMUNITY_Profile Lists Page|Profile Lists Page]]
-- [[_COMMUNITY_Profile Loading|Profile Loading]]
 - [[_COMMUNITY_Generate Metadata|Generate Metadata]]
-- [[_COMMUNITY_Profile Page|Profile Page]]
-- [[_COMMUNITY_Generate Metadata|Generate Metadata]]
-- [[_COMMUNITY_Post Detail Page|Post Detail Page]]
-- [[_COMMUNITY_Generate Metadata|Generate Metadata]]
-- [[_COMMUNITY_Profile Stats Page|Profile Stats Page]]
-- [[_COMMUNITY_Sitemap|Sitemap]]
 - [[_COMMUNITY_Is Avatar Image Loaded|Is Avatar Image Loaded]]
-- [[_COMMUNITY_Mark Avatar Image Loaded|Mark Avatar Image Loaded]]
-- [[_COMMUNITY_Preload Avatar Image Url|Preload Avatar Image Url]]
 - [[_COMMUNITY_Body Portal|Body Portal]]
-- [[_COMMUNITY_Confirm Dialog Props|Confirm Dialog Props]]
 - [[_COMMUNITY_Build Calendar Days|Build Calendar Days]]
-- [[_COMMUNITY_Calendar Day Cell|Calendar Day Cell]]
-- [[_COMMUNITY_Days In Month|Days In Month]]
-- [[_COMMUNITY_Format Display Date|Format Display Date]]
-- [[_COMMUNITY_Get Month Label|Get Month Label]]
-- [[_COMMUNITY_Get Selectable Bounds|Get Selectable Bounds]]
-- [[_COMMUNITY_Get Year Options|Get Year Options]]
-- [[_COMMUNITY_Is Selectable Iso Date|Is Selectable Iso Date]]
-- [[_COMMUNITY_Pad Two|Pad Two]]
-- [[_COMMUNITY_Parsed Iso Date|Parsed Iso Date]]
-- [[_COMMUNITY_Parse Iso Date|Parse Iso Date]]
-- [[_COMMUNITY_To Iso Date|To Iso Date]]
 - [[_COMMUNITY_Film Card Props|Film Card Props]]
-- [[_COMMUNITY_Film Reel Icon|Film Reel Icon]]
-- [[_COMMUNITY_Discover Filter Chip Classes|Discover Filter Chip Classes]]
-- [[_COMMUNITY_Sidebar Filter Row Base|Sidebar Filter Row Base]]
-- [[_COMMUNITY_Sidebar Filter Toggle Row|Sidebar Filter Toggle Row]]
 - [[_COMMUNITY_Flash Toast|Flash Toast]]
-- [[_COMMUNITY_Flash Toast Host|Flash Toast Host]]
-- [[_COMMUNITY_Flash Toast Tone|Flash Toast Tone]]
-- [[_COMMUNITY_Queue Flash Toast|Queue Flash Toast]]
 - [[_COMMUNITY_Show Global Flash Toast|Show Global Flash Toast]]
-- [[_COMMUNITY_Use Flash Toast|Use Flash Toast]]
 - [[_COMMUNITY_Icon Name|Icon Name]]
-- [[_COMMUNITY_Chat Input Focus Provider|Chat Input Focus Provider]]
 - [[_COMMUNITY_Use Chat Input Focus|Use Chat Input Focus]]
-- [[_COMMUNITY_Filter Sidebar Page Shell|Filter Sidebar Page Shell]]
-- [[_COMMUNITY_Filter Sidebar Page Shell Props|Filter Sidebar Page Shell Props]]
-- [[_COMMUNITY_Filter Sidebar Preset|Filter Sidebar Preset]]
 - [[_COMMUNITY_Mobile Scroll Chrome Listener|Mobile Scroll Chrome Listener]]
 - [[_COMMUNITY_Composer Modal Provider|Composer Modal Provider]]
 - [[_COMMUNITY_Use Composer Modal|Use Composer Modal]]
 - [[_COMMUNITY_Right Panel|Right Panel]]
 - [[_COMMUNITY_Right Panel Switcher|Right Panel Switcher]]
 - [[_COMMUNITY_Header Left|Header Left]]
-- [[_COMMUNITY_New Post Button|New Post Button]]
-- [[_COMMUNITY_Profile Menu Main View|Profile Menu Main View]]
 - [[_COMMUNITY_Profile Menu Privacy View|Profile Menu Privacy View]]
-- [[_COMMUNITY_Use Site Header Dropdowns|Use Site Header Dropdowns]]
 - [[_COMMUNITY_Use Site Header Notifications|Use Site Header Notifications]]
-- [[_COMMUNITY_Use Site Header Sticky Offset|Use Site Header Sticky Offset]]
 - [[_COMMUNITY_Actor Display Name|Actor Display Name]]
-- [[_COMMUNITY_Format Notification Text|Format Notification Text]]
-- [[_COMMUNITY_Relative Notification Time|Relative Notification Time]]
-- [[_COMMUNITY_Site Header|Site Header]]
-- [[_COMMUNITY_Header Notif Row|Header Notif Row]]
-- [[_COMMUNITY_Profile Menu Direction|Profile Menu Direction]]
-- [[_COMMUNITY_Profile Menu View|Profile Menu View]]
-- [[_COMMUNITY_Legal Body|Legal Body]]
-- [[_COMMUNITY_Legal Card|Legal Card]]
-- [[_COMMUNITY_Legal Card Grid|Legal Card Grid]]
-- [[_COMMUNITY_Legal Heading|Legal Heading]]
-- [[_COMMUNITY_Legal Inline Link|Legal Inline Link]]
-- [[_COMMUNITY_Legal Lead|Legal Lead]]
-- [[_COMMUNITY_Legal Link|Legal Link]]
-- [[_COMMUNITY_Legal List|Legal List]]
-- [[_COMMUNITY_Legal Meta|Legal Meta]]
-- [[_COMMUNITY_Legal Page|Legal Page]]
-- [[_COMMUNITY_Legal Section|Legal Section]]
-- [[_COMMUNITY_Legal Title|Legal Title]]
-- [[_COMMUNITY_Brand Logo|Brand Logo]]
-- [[_COMMUNITY_Logo Mark|Logo Mark]]
 - [[_COMMUNITY_Modal Props|Modal Props]]
-- [[_COMMUNITY_Modal Variant|Modal Variant]]
-- [[_COMMUNITY_Portal Dropdown Item|Portal Dropdown Item]]
-- [[_COMMUNITY_Bookmark Button|Bookmark Button]]
 - [[_COMMUNITY_Private Account Lock|Private Account Lock]]
-- [[_COMMUNITY_Mock Search|Mock Search]]
-- [[_COMMUNITY_Mock Search Options|Mock Search Options]]
-- [[_COMMUNITY_Search Bar|Search Bar]]
-- [[_COMMUNITY_Search No Results|Search No Results]]
-- [[_COMMUNITY_Search Result Row|Search Result Row]]
-- [[_COMMUNITY_Search Bar Props|Search Bar Props]]
-- [[_COMMUNITY_Use Search|Use Search]]
-- [[_COMMUNITY_Use Search Options|Use Search Options]]
-- [[_COMMUNITY_Service Worker Registration|Service Worker Registration]]
 - [[_COMMUNITY_Top Sticky Bar Tab|Top Sticky Bar Tab]]
-- [[_COMMUNITY_Top Sticky Bar Tab Action|Top Sticky Bar Tab Action]]
-- [[_COMMUNITY_Top Sticky Bar Tab Link|Top Sticky Bar Tab Link]]
-- [[_COMMUNITY_Top Sticky Bar Tab Passive|Top Sticky Bar Tab Passive]]
 - [[_COMMUNITY_Blur Image Props|Blur Image Props]]
-- [[_COMMUNITY_Auth Bootstrap|Auth Bootstrap]]
-- [[_COMMUNITY_Auth Card|Auth Card]]
-- [[_COMMUNITY_Auth Result|Auth Result]]
-- [[_COMMUNITY_Clerk Forgot Password|Clerk Forgot Password]]
-- [[_COMMUNITY_Clerk Reset Password|Clerk Reset Password]]
-- [[_COMMUNITY_Clerk Sign In|Clerk Sign In]]
-- [[_COMMUNITY_Clerk Sign Up|Clerk Sign Up]]
-- [[_COMMUNITY_Clerk Verify Email|Clerk Verify Email]]
-- [[_COMMUNITY_Clerk Verify Reset Code|Clerk Verify Reset Code]]
-- [[_COMMUNITY_Assign Bookmark Folder|Assign Bookmark Folder]]
-- [[_COMMUNITY_Bookmark Folders Response|Bookmark Folders Response]]
-- [[_COMMUNITY_Bookmarks Page|Bookmarks Page]]
-- [[_COMMUNITY_Create Bookmark Folder|Create Bookmark Folder]]
-- [[_COMMUNITY_Delete Bookmark Folder|Delete Bookmark Folder]]
-- [[_COMMUNITY_Fetch Bookmark Folders|Fetch Bookmark Folders]]
-- [[_COMMUNITY_Fetch Bookmarks|Fetch Bookmarks]]
-- [[_COMMUNITY_Rename Bookmark Folder|Rename Bookmark Folder]]
-- [[_COMMUNITY_Use Assign Bookmark Folder|Use Assign Bookmark Folder]]
-- [[_COMMUNITY_Use Create Bookmark Folder|Use Create Bookmark Folder]]
-- [[_COMMUNITY_Use Delete Bookmark Folder|Use Delete Bookmark Folder]]
-- [[_COMMUNITY_Use Rename Bookmark Folder|Use Rename Bookmark Folder]]
-- [[_COMMUNITY_Use Bookmark Folders|Use Bookmark Folders]]
-- [[_COMMUNITY_Use Bookmarks|Use Bookmarks]]
-- [[_COMMUNITY_Create Folder|Create Folder]]
-- [[_COMMUNITY_Delete Folder|Delete Folder]]
-- [[_COMMUNITY_Folder By Id|Folder By Id]]
-- [[_COMMUNITY_List Folders Snapshot|List Folders Snapshot]]
-- [[_COMMUNITY_List Items Snapshot|List Items Snapshot]]
-- [[_COMMUNITY_List Records For Folder|List Records For Folder]]
-- [[_COMMUNITY_Move Record|Move Record]]
-- [[_COMMUNITY_Remove Record|Remove Record]]
-- [[_COMMUNITY_Rename Folder|Rename Folder]]
-- [[_COMMUNITY_Reset Bookmark Store For Tests|Reset Bookmark Store For Tests]]
-- [[_COMMUNITY_Bookmark Record|Bookmark Record]]
-- [[_COMMUNITY_Bookmark Search Result|Bookmark Search Result]]
-- [[_COMMUNITY_Chat Api Client|Chat Api Client]]
-- [[_COMMUNITY_Folder From Ui Filter|Folder From Ui Filter]]
-- [[_COMMUNITY_Chat Api Error|Chat Api Error]]
-- [[_COMMUNITY_Is Chat Api Error|Is Chat Api Error]]
-- [[_COMMUNITY_Is Retryable Chat Error|Is Retryable Chat Error]]
-- [[_COMMUNITY_Chat Auth Get Token|Chat Auth Get Token]]
-- [[_COMMUNITY_Get Chat Api Client|Get Chat Api Client]]
-- [[_COMMUNITY_Reset Chat Api Client For|Reset Chat Api Client For]]
-- [[_COMMUNITY_Set Chat Api Client For|Set Chat Api Client For]]
-- [[_COMMUNITY_Set Chat Auth Get Token|Set Chat Auth Get Token]]
-- [[_COMMUNITY_Chat Http Json|Chat Http Json]]
-- [[_COMMUNITY_Get Access Token|Get Access Token]]
 - [[_COMMUNITY_Create Mock Chat Client|Create Mock Chat Client]]
-- [[_COMMUNITY_Create Remote Chat Client|Create Remote Chat Client]]
-- [[_COMMUNITY_Chat Folder|Chat Folder]]
-- [[_COMMUNITY_List Conversations Params|List Conversations Params]]
-- [[_COMMUNITY_List Messages Params|List Messages Params]]
-- [[_COMMUNITY_Message Page Direction|Message Page Direction]]
-- [[_COMMUNITY_Chat Composer Reply Target|Chat Composer Reply Target]]
-- [[_COMMUNITY_Chat Content|Chat Content]]
-- [[_COMMUNITY_Chat Detail Page|Chat Detail Page]]
-- [[_COMMUNITY_Chat Header Menu Action|Chat Header Menu Action]]
-- [[_COMMUNITY_Chat Index Route|Chat Index Route]]
-- [[_COMMUNITY_Chat Api Mode|Chat Api Mode]]
-- [[_COMMUNITY_Chat Sidebar Provider|Chat Sidebar Provider]]
-- [[_COMMUNITY_Use Chat Sidebar|Use Chat Sidebar]]
-- [[_COMMUNITY_Get Chat By Id|Get Chat By Id]]
-- [[_COMMUNITY_Chat Query Client Defaults|Chat Query Client Defaults]]
-- [[_COMMUNITY_Use Chat Messages|Use Chat Messages]]
-- [[_COMMUNITY_Use Chat Messages Infinite|Use Chat Messages Infinite]]
-- [[_COMMUNITY_Use Conversation Row|Use Conversation Row]]
 - [[_COMMUNITY_Use Conversations|Use Conversations]]
-- [[_COMMUNITY_Use Conversations By Ui Filter|Use Conversations By Ui Filter]]
-- [[_COMMUNITY_Use Delete Conversation|Use Delete Conversation]]
-- [[_COMMUNITY_Use Delete Message|Use Delete Message]]
-- [[_COMMUNITY_Use Mark Conversation Read|Use Mark Conversation Read]]
-- [[_COMMUNITY_Use Respond To Conversation Request|Use Respond To Conversation Request]]
-- [[_COMMUNITY_Use Send Message|Use Send Message]]
-- [[_COMMUNITY_Use Set Conversation Archived|Use Set Conversation Archived]]
-- [[_COMMUNITY_Use Toggle Reaction|Use Toggle Reaction]]
 - [[_COMMUNITY_Format Day Separator|Format Day Separator]]
-- [[_COMMUNITY_Format Message Time|Format Message Time]]
-- [[_COMMUNITY_Format Relative Short|Format Relative Short]]
-- [[_COMMUNITY_Should Show Day Separator|Should Show Day Separator]]
-- [[_COMMUNITY_Mock Delete Conversation|Mock Delete Conversation]]
-- [[_COMMUNITY_Mock Delete Message|Mock Delete Message]]
-- [[_COMMUNITY_Mock Fetch Conversations|Mock Fetch Conversations]]
-- [[_COMMUNITY_Mock Fetch Messages|Mock Fetch Messages]]
-- [[_COMMUNITY_Mock Mark Conversation Read|Mock Mark Conversation Read]]
-- [[_COMMUNITY_Mock Send Message|Mock Send Message]]
-- [[_COMMUNITY_Mock Set Conversation Archived|Mock Set Conversation Archived]]
-- [[_COMMUNITY_Mock Toggle Reaction|Mock Toggle Reaction]]
 - [[_COMMUNITY_Apply Chat Realtime Event|Apply Chat Realtime Event]]
-- [[_COMMUNITY_Chat Realtime Provider|Chat Realtime Provider]]
-- [[_COMMUNITY_Use Chat Realtime|Use Chat Realtime]]
-- [[_COMMUNITY_Create Noop Chat Realtime Transport|Create Noop Chat Realtime Transport]]
-- [[_COMMUNITY_Chat Realtime Event|Chat Realtime Event]]
-- [[_COMMUNITY_Chat Realtime Transport|Chat Realtime Transport]]
-- [[_COMMUNITY_Chat Realtime Unsubscribe|Chat Realtime Unsubscribe]]
-- [[_COMMUNITY_Chat Message File|Chat Message File]]
-- [[_COMMUNITY_Chat Message Media|Chat Message Media]]
-- [[_COMMUNITY_Chat Send Payload|Chat Send Payload]]
-- [[_COMMUNITY_Fetch Communities|Fetch Communities]]
-- [[_COMMUNITY_Fetch Communities Params|Fetch Communities Params]]
-- [[_COMMUNITY_Fetch Community By Slug|Fetch Community By Slug]]
-- [[_COMMUNITY_Fetch Community Feed|Fetch Community Feed]]
-- [[_COMMUNITY_Fetch Community Feed Params|Fetch Community Feed Params]]
-- [[_COMMUNITY_Use Communities|Use Communities]]
-- [[_COMMUNITY_Use Community|Use Community]]
-- [[_COMMUNITY_Use Community Feed|Use Community Feed]]
-- [[_COMMUNITY_Communities Page|Communities Page]]
-- [[_COMMUNITY_Community Access Type|Community Access Type]]
-- [[_COMMUNITY_Community Avatar|Community Avatar]]
-- [[_COMMUNITY_Community Cover|Community Cover]]
-- [[_COMMUNITY_Community Feed Page|Community Feed Page]]
-- [[_COMMUNITY_Community Moderator|Community Moderator]]
 - [[_COMMUNITY_Discover Explore More Filters|Discover Explore More Filters]]
-- [[_COMMUNITY_Discover Mood Filter Strip|Discover Mood Filter Strip]]
-- [[_COMMUNITY_Discover Hero Skeleton|Discover Hero Skeleton]]
-- [[_COMMUNITY_Discover Page Loading State|Discover Page Loading State]]
-- [[_COMMUNITY_Discover Search Results Skeleton|Discover Search Results Skeleton]]
-- [[_COMMUNITY_Discover Shelf Skeleton|Discover Shelf Skeleton]]
-- [[_COMMUNITY_Discover Tab|Discover Tab]]
-- [[_COMMUNITY_Discover Tabs|Discover Tabs]]
-- [[_COMMUNITY_Search Results View|Search Results View]]
 - [[_COMMUNITY_Topic Grid|Topic Grid]]
-- [[_COMMUNITY_Top Rated Tab Content|Top Rated Tab Content]]
-- [[_COMMUNITY_Use Genres|Use Genres]]
-- [[_COMMUNITY_Use Now Playing|Use Now Playing]]
-- [[_COMMUNITY_Use On The Air T|Use On The Air T]]
-- [[_COMMUNITY_Use Popular|Use Popular]]
-- [[_COMMUNITY_Use Popular T V|Use Popular T V]]
-- [[_COMMUNITY_Use Search Multi|Use Search Multi]]
-- [[_COMMUNITY_Use Top Rated|Use Top Rated]]
-- [[_COMMUNITY_Use Top Rated T V|Use Top Rated T V]]
-- [[_COMMUNITY_Use Trending|Use Trending]]
-- [[_COMMUNITY_Build Discover Explore Url|Build Discover Explore Url]]
-- [[_COMMUNITY_Discover Certification Id|Discover Certification Id]]
-- [[_COMMUNITY_Discover Content Type Id|Discover Content Type Id]]
-- [[_COMMUNITY_Discover Decade Id|Discover Decade Id]]
-- [[_COMMUNITY_Discover Duration Id|Discover Duration Id]]
-- [[_COMMUNITY_Discover Explore Filters State|Discover Explore Filters State]]
-- [[_COMMUNITY_Discover Language Id|Discover Language Id]]
-- [[_COMMUNITY_Discover Rating Preset Id|Discover Rating Preset Id]]
-- [[_COMMUNITY_Discover Recent Sort By|Discover Recent Sort By]]
-- [[_COMMUNITY_Discover Uses Tv Media|Discover Uses Tv Media]]
-- [[_COMMUNITY_Is Explore Filters Default|Is Explore Filters Default]]
-- [[_COMMUNITY_Should Use Discover List|Should Use Discover List]]
-- [[_COMMUNITY_Build Discover With Genres|Build Discover With Genres]]
-- [[_COMMUNITY_Discover Mood Discover Params|Discover Mood Discover Params]]
-- [[_COMMUNITY_Get Mood Discover Params|Get Mood Discover Params]]
 - [[_COMMUNITY_Hero Url|Hero Url]]
-- [[_COMMUNITY_Poster Url|Poster Url]]
-- [[_COMMUNITY_Stars From Vote|Stars From Vote]]
-- [[_COMMUNITY_Year From Date|Year From Date]]
 - [[_COMMUNITY_Adapt Post To Feed Type|Adapt Post To Feed Type]]
-- [[_COMMUNITY_Build Comment Tree|Build Comment Tree]]
-- [[_COMMUNITY_Create Comment|Create Comment]]
-- [[_COMMUNITY_Delete Comment|Delete Comment]]
-- [[_COMMUNITY_Fetch Comments|Fetch Comments]]
-- [[_COMMUNITY_Like Comment|Like Comment]]
-- [[_COMMUNITY_Unlike Comment|Unlike Comment]]
-- [[_COMMUNITY_Update Comment|Update Comment]]
-- [[_COMMUNITY_Fetch Feed|Fetch Feed]]
-- [[_COMMUNITY_Fetch Feed Params|Fetch Feed Params]]
 - [[_COMMUNITY_Api Request|Api Request]]
-- [[_COMMUNITY_Api Request Error|Api Request Error]]
 - [[_COMMUNITY_Mention Suggestion|Mention Suggestion]]
-- [[_COMMUNITY_Search Mention Suggestions|Search Mention Suggestions]]
-- [[_COMMUNITY_Bookmark Post|Bookmark Post]]
 - [[_COMMUNITY_Create Post|Create Post]]
-- [[_COMMUNITY_Create Post Input|Create Post Input]]
-- [[_COMMUNITY_Delete Post|Delete Post]]
 - [[_COMMUNITY_Fetch Link Preview|Fetch Link Preview]]
-- [[_COMMUNITY_Fetch Post|Fetch Post]]
-- [[_COMMUNITY_Like Post|Like Post]]
-- [[_COMMUNITY_Repost Post|Repost Post]]
-- [[_COMMUNITY_Unbookmark Post|Unbookmark Post]]
-- [[_COMMUNITY_Unlike Post|Unlike Post]]
-- [[_COMMUNITY_Unrepost Post|Unrepost Post]]
-- [[_COMMUNITY_Update Post|Update Post]]
-- [[_COMMUNITY_Update Post Input|Update Post Input]]
-- [[_COMMUNITY_Vote Poll|Vote Poll]]
 - [[_COMMUNITY_Comment Card|Comment Card]]
-- [[_COMMUNITY_Comment Card Actions Bar|Comment Card Actions Bar]]
-- [[_COMMUNITY_Comment Card Deleted|Comment Card Deleted]]
-- [[_COMMUNITY_Comment Card Replies|Comment Card Replies]]
-- [[_COMMUNITY_Comment Card Reply Composer|Comment Card Reply Composer]]
-- [[_COMMUNITY_Comment|Comment]]
-- [[_COMMUNITY_Comment Card Props|Comment Card Props]]
-- [[_COMMUNITY_Get Comment Thread Styles|Get Comment Thread Styles]]
-- [[_COMMUNITY_Scroll Restore|Scroll Restore]]
-- [[_COMMUNITY_Feed With Composer|Feed With Composer]]
 - [[_COMMUNITY_Handwritten Welcome|Handwritten Welcome]]
-- [[_COMMUNITY_Liquid Metal Button|Liquid Metal Button]]
 - [[_COMMUNITY_Are Post Card Props Equal|Are Post Card Props Equal]]
 - [[_COMMUNITY_Resolved Post Media|Resolved Post Media]]
-- [[_COMMUNITY_Resolve Post Media|Resolve Post Media]]
-- [[_COMMUNITY_Post Card Attached Film|Post Card Attached Film]]
-- [[_COMMUNITY_Post Card Author Props|Post Card Author Props]]
-- [[_COMMUNITY_Post Card Film Card|Post Card Film Card]]
-- [[_COMMUNITY_Post Card Link Preview|Post Card Link Preview]]
-- [[_COMMUNITY_Post Card Media Item|Post Card Media Item]]
-- [[_COMMUNITY_Post Card Poll|Post Card Poll]]
-- [[_COMMUNITY_Post Card Props|Post Card Props]]
-- [[_COMMUNITY_Post Card Reply Preview|Post Card Reply Preview]]
-- [[_COMMUNITY_Post Variant|Post Variant]]
-- [[_COMMUNITY_Source Post Type|Source Post Type]]
-- [[_COMMUNITY_Emoji Picker|Emoji Picker]]
-- [[_COMMUNITY_Supported Emoji Style|Supported Emoji Style]]
-- [[_COMMUNITY_Rich Text Editor Props|Rich Text Editor Props]]
-- [[_COMMUNITY_Composer Mode|Composer Mode]]
 - [[_COMMUNITY_Composer State|Composer State]]
-- [[_COMMUNITY_Film Result|Film Result]]
-- [[_COMMUNITY_Post Type|Post Type]]
 - [[_COMMUNITY_Post Composer Write Prompt|Post Composer Write Prompt]]
 - [[_COMMUNITY_Post Composer Modal User|Post Composer Modal User]]
-- [[_COMMUNITY_Post Composer Trigger User|Post Composer Trigger User]]
-- [[_COMMUNITY_Post Page Back Button|Post Page Back Button]]
-- [[_COMMUNITY_Reply Composer Panel Props|Reply Composer Panel Props]]
 - [[_COMMUNITY_Mute Undo Toast|Mute Undo Toast]]
 - [[_COMMUNITY_Get Comments For Post|Get Comments For Post]]
 - [[_COMMUNITY_Get Post|Get Post]]
-- [[_COMMUNITY_Mock Post|Mock Post]]
-- [[_COMMUNITY_Use Clamp Text|Use Clamp Text]]
-- [[_COMMUNITY_Use Create Comment|Use Create Comment]]
-- [[_COMMUNITY_Use Delete Comment|Use Delete Comment]]
-- [[_COMMUNITY_Use Like Comment|Use Like Comment]]
-- [[_COMMUNITY_Use Update Comment|Use Update Comment]]
-- [[_COMMUNITY_Use Comments|Use Comments]]
-- [[_COMMUNITY_Use Connection Preferences|Use Connection Preferences]]
-- [[_COMMUNITY_Use Feed|Use Feed]]
-- [[_COMMUNITY_Use Post|Use Post]]
-- [[_COMMUNITY_Use Bookmark Post|Use Bookmark Post]]
-- [[_COMMUNITY_Use Create Post|Use Create Post]]
-- [[_COMMUNITY_Use Delete Post|Use Delete Post]]
-- [[_COMMUNITY_Use Like Post|Use Like Post]]
-- [[_COMMUNITY_Use Repost Post|Use Repost Post]]
-- [[_COMMUNITY_Use Update Post|Use Update Post]]
-- [[_COMMUNITY_Use Vote Poll|Use Vote Poll]]
-- [[_COMMUNITY_Author|Author]]
-- [[_COMMUNITY_Comment|Comment]]
-- [[_COMMUNITY_Comments Result|Comments Result]]
-- [[_COMMUNITY_Feed Page|Feed Page]]
-- [[_COMMUNITY_Film Ref|Film Ref]]
-- [[_COMMUNITY_Post Media|Post Media]]
-- [[_COMMUNITY_Post Media Type|Post Media Type]]
 - [[_COMMUNITY_Apply Optimistic Poll Vote|Apply Optimistic Poll Vote]]
-- [[_COMMUNITY_Compute Poll Percent|Compute Poll Percent]]
-- [[_COMMUNITY_Empty Poll Option|Empty Poll Option]]
-- [[_COMMUNITY_Format Poll Time Remaining|Format Poll Time Remaining]]
-- [[_COMMUNITY_Is Poll Draft Valid|Is Poll Draft Valid]]
-- [[_COMMUNITY_Poll Countdown Interval Ms|Poll Countdown Interval Ms]]
-- [[_COMMUNITY_Poll Draft|Poll Draft]]
-- [[_COMMUNITY_Poll Draft Option|Poll Draft Option]]
-- [[_COMMUNITY_Poll Total Minutes|Poll Total Minutes]]
-- [[_COMMUNITY_Resolve Post Image Urls|Resolve Post Image Urls]]
 - [[_COMMUNITY_Extract Video Previews|Extract Video Previews]]
-- [[_COMMUNITY_Link Preview Input|Link Preview Input]]
-- [[_COMMUNITY_Video Preview|Video Preview]]
-- [[_COMMUNITY_Video Preview From Link Preview|Video Preview From Link Preview]]
-- [[_COMMUNITY_Video Provider|Video Provider]]
-- [[_COMMUNITY_Festivals Tabs|Festivals Tabs]]
-- [[_COMMUNITY_Get Festival By Slug|Get Festival By Slug]]
-- [[_COMMUNITY_Landing Hero|Landing Hero]]
-- [[_COMMUNITY_Landing Reveal|Landing Reveal]]
-- [[_COMMUNITY_Carousel Film|Carousel Film]]
-- [[_COMMUNITY_Fetch Carousel Films|Fetch Carousel Films]]
 - [[_COMMUNITY_Letterboxd Import Dialog|Letterboxd Import Dialog]]
-- [[_COMMUNITY_Complete Letterboxd Import|Complete Letterboxd Import]]
-- [[_COMMUNITY_Dismiss Letterboxd Import Widget|Dismiss Letterboxd Import Widget]]
-- [[_COMMUNITY_Queue Letterboxd Import|Queue Letterboxd Import]]
-- [[_COMMUNITY_Read Letterboxd Import Record|Read Letterboxd Import Record]]
-- [[_COMMUNITY_Reset Letterboxd Import Record|Reset Letterboxd Import Record]]
-- [[_COMMUNITY_Save Letterboxd Import Preview|Save Letterboxd Import Preview]]
-- [[_COMMUNITY_Should Show Letterboxd Import Widget|Should Show Letterboxd Import Widget]]
-- [[_COMMUNITY_Write Letterboxd Import Record|Write Letterboxd Import Record]]
-- [[_COMMUNITY_Format Import Count|Format Import Count]]
-- [[_COMMUNITY_Poster Gradient|Poster Gradient]]
-- [[_COMMUNITY_Parse Letterboxd Export|Parse Letterboxd Export]]
-- [[_COMMUNITY_Letterboxd Film Entry|Letterboxd Film Entry]]
-- [[_COMMUNITY_Letterboxd Import Preview|Letterboxd Import Preview]]
-- [[_COMMUNITY_Letterboxd Import Record|Letterboxd Import Record]]
-- [[_COMMUNITY_Letterboxd Import Stats|Letterboxd Import Stats]]
-- [[_COMMUNITY_Letterboxd Import Status|Letterboxd Import Status]]
-- [[_COMMUNITY_Add Film To List|Add Film To List]]
-- [[_COMMUNITY_Add To Watchlist|Add To Watchlist]]
-- [[_COMMUNITY_Catalog Film Payload|Catalog Film Payload]]
-- [[_COMMUNITY_Clone Film List|Clone Film List]]
-- [[_COMMUNITY_Create Film List|Create Film List]]
-- [[_COMMUNITY_Delete Film List|Delete Film List]]
-- [[_COMMUNITY_Fetch List|Fetch List]]
-- [[_COMMUNITY_Fetch Profile Lists|Fetch Profile Lists]]
-- [[_COMMUNITY_Film List Sort|Film List Sort]]
-- [[_COMMUNITY_Film Result To Film Payload|Film Result To Film Payload]]
-- [[_COMMUNITY_Like Film List|Like Film List]]
-- [[_COMMUNITY_Remove From Watchlist|Remove From Watchlist]]
-- [[_COMMUNITY_Remove List Entry|Remove List Entry]]
-- [[_COMMUNITY_Reorder List Entries|Reorder List Entries]]
-- [[_COMMUNITY_Resolve Film For Lists|Resolve Film For Lists]]
-- [[_COMMUNITY_Short Film To Catalog Payload|Short Film To Catalog Payload]]
-- [[_COMMUNITY_Tmdb Film Payload|Tmdb Film Payload]]
 - [[_COMMUNITY_Tmdb Movie To Film Payload|Tmdb Movie To Film Payload]]
-- [[_COMMUNITY_Unlike Film List|Unlike Film List]]
-- [[_COMMUNITY_Update Film List|Update Film List]]
-- [[_COMMUNITY_Update List Entry|Update List Entry]]
-- [[_COMMUNITY_List Editor Values|List Editor Values]]
-- [[_COMMUNITY_List Entry Note Modal|List Entry Note Modal]]
-- [[_COMMUNITY_Use Film List|Use Film List]]
-- [[_COMMUNITY_Use List Mutations|Use List Mutations]]
-- [[_COMMUNITY_Use Profile Lists|Use Profile Lists]]
-- [[_COMMUNITY_Use Watchlist Mutation|Use Watchlist Mutation]]
-- [[_COMMUNITY_Format List Meta|Format List Meta]]
-- [[_COMMUNITY_Join List Tags|Join List Tags]]
-- [[_COMMUNITY_Parse List Tags|Parse List Tags]]
-- [[_COMMUNITY_Accept Follow Request|Accept Follow Request]]
-- [[_COMMUNITY_Decline Follow Request|Decline Follow Request]]
-- [[_COMMUNITY_Fetch Notifications|Fetch Notifications]]
-- [[_COMMUNITY_Fetch Received Follow Requests|Fetch Received Follow Requests]]
-- [[_COMMUNITY_Mark All Notifications Read|Mark All Notifications Read]]
-- [[_COMMUNITY_Mark Notification Read|Mark Notification Read]]
-- [[_COMMUNITY_Mark Notification Unread|Mark Notification Unread]]
-- [[_COMMUNITY_Received Follow Request|Received Follow Request]]
-- [[_COMMUNITY_Notification Group|Notification Group]]
-- [[_COMMUNITY_Notification Sound Player|Notification Sound Player]]
-- [[_COMMUNITY_Notification Title Badge|Notification Title Badge]]
-- [[_COMMUNITY_Avatar Item|Avatar Item]]
-- [[_COMMUNITY_Notification Action|Notification Action]]
-- [[_COMMUNITY_Notification Record|Notification Record]]
-- [[_COMMUNITY_Notification Text Part|Notification Text Part]]
-- [[_COMMUNITY_Notification User Meta|Notification User Meta]]
-- [[_COMMUNITY_Use Mark All Read|Use Mark All Read]]
 - [[_COMMUNITY_Create Ably Notification Realtime Transport|Create Ably Notification Realtime Transport]]
-- [[_COMMUNITY_Apply Notification Realtime Event|Apply Notification Realtime Event]]
-- [[_COMMUNITY_Create Noop Notification Realtime Transport|Create Noop Notification Realtime Transport]]
-- [[_COMMUNITY_Notification Realtime Provider|Notification Realtime Provider]]
-- [[_COMMUNITY_Notification Realtime Event|Notification Realtime Event]]
-- [[_COMMUNITY_Notification Realtime Transport|Notification Realtime Transport]]
-- [[_COMMUNITY_Notification Realtime Unsubscribe|Notification Realtime Unsubscribe]]
-- [[_COMMUNITY_Get Notification Destination|Get Notification Destination]]
-- [[_COMMUNITY_Emit Notification Sound Event|Emit Notification Sound Event]]
-- [[_COMMUNITY_Fetch Onboarding Status|Fetch Onboarding Status]]
-- [[_COMMUNITY_Fetch Onboarding Suggestions|Fetch Onboarding Suggestions]]
-- [[_COMMUNITY_Onboarding Role|Onboarding Role]]
-- [[_COMMUNITY_Onboarding Status Response|Onboarding Status Response]]
-- [[_COMMUNITY_Onboarding Suggestion User|Onboarding Suggestion User]]
-- [[_COMMUNITY_Resolve Onboarding Films From Tmdb|Resolve Onboarding Films From Tmdb]]
-- [[_COMMUNITY_Resolve Tmdb Film Input|Resolve Tmdb Film Input]]
-- [[_COMMUNITY_Submit Onboarding|Submit Onboarding]]
-- [[_COMMUNITY_Submit Onboarding Input|Submit Onboarding Input]]
-- [[_COMMUNITY_Onboarding Gate|Onboarding Gate]]
-- [[_COMMUNITY_Use Onboarding Status|Use Onboarding Status]]
-- [[_COMMUNITY_Use Onboarding Suggestions|Use Onboarding Suggestions]]
-- [[_COMMUNITY_Use Resolve Onboarding Films|Use Resolve Onboarding Films]]
-- [[_COMMUNITY_Use Submit Onboarding|Use Submit Onboarding]]
-- [[_COMMUNITY_Media Kind|Media Kind]]
-- [[_COMMUNITY_Media Presign Request|Media Presign Request]]
-- [[_COMMUNITY_Media Presign Response|Media Presign Response]]
-- [[_COMMUNITY_Presign Profile Media Upload|Presign Profile Media Upload]]
-- [[_COMMUNITY_Upload To Presigned Url|Upload To Presigned Url]]
-- [[_COMMUNITY_Block User|Block User]]
-- [[_COMMUNITY_Current Profile Patch|Current Profile Patch]]
-- [[_COMMUNITY_Current User Profile|Current User Profile]]
-- [[_COMMUNITY_Fetch Current User Profile|Fetch Current User Profile]]
-- [[_COMMUNITY_Fetch My Blocks|Fetch My Blocks]]
-- [[_COMMUNITY_Fetch My Mutes|Fetch My Mutes]]
-- [[_COMMUNITY_Fetch Profile Connections|Fetch Profile Connections]]
-- [[_COMMUNITY_Fetch Profile Follow Requests|Fetch Profile Follow Requests]]
-- [[_COMMUNITY_Fetch Public Profile|Fetch Public Profile]]
-- [[_COMMUNITY_Fetch Username Availability|Fetch Username Availability]]
-- [[_COMMUNITY_Follow State|Follow State]]
-- [[_COMMUNITY_Follow User|Follow User]]
-- [[_COMMUNITY_Moderated User|Moderated User]]
-- [[_COMMUNITY_Mute User|Mute User]]
-- [[_COMMUNITY_Profile Connection User|Profile Connection User]]
-- [[_COMMUNITY_Profile Follow Request|Profile Follow Request]]
-- [[_COMMUNITY_Public Profile|Public Profile]]
-- [[_COMMUNITY_Unblock User|Unblock User]]
-- [[_COMMUNITY_Unfollow User|Unfollow User]]
-- [[_COMMUNITY_Unmute User|Unmute User]]
-- [[_COMMUNITY_Update Current Profile|Update Current Profile]]
 - [[_COMMUNITY_Diary Row|Diary Row]]
-- [[_COMMUNITY_Favourite Films|Favourite Films]]
-- [[_COMMUNITY_Profile Details|Profile Details]]
-- [[_COMMUNITY_Profile Diary Timeline|Profile Diary Timeline]]
-- [[_COMMUNITY_Profile Mini Header|Profile Mini Header]]
-- [[_COMMUNITY_Profile Scroll Chrome|Profile Scroll Chrome]]
-- [[_COMMUNITY_Profile Tab Content|Profile Tab Content]]
-- [[_COMMUNITY_Profile Username Layout|Profile Username Layout]]
-- [[_COMMUNITY_Stat Box|Stat Box]]
-- [[_COMMUNITY_Initial For Name|Initial For Name]]
-- [[_COMMUNITY_Use Current User Profile|Use Current User Profile]]
-- [[_COMMUNITY_Use Block User Mutation|Use Block User Mutation]]
-- [[_COMMUNITY_Use Follow Toggle|Use Follow Toggle]]
-- [[_COMMUNITY_Use Incoming Follow Requests|Use Incoming Follow Requests]]
-- [[_COMMUNITY_Use Mute User Mutation|Use Mute User Mutation]]
-- [[_COMMUNITY_Use Public Profile|Use Public Profile]]
-- [[_COMMUNITY_Use Update Profile Mutation|Use Update Profile Mutation]]
-- [[_COMMUNITY_Generate Profile Metadata|Generate Profile Metadata]]
-- [[_COMMUNITY_Is Profile Tab Path|Is Profile Tab Path]]
-- [[_COMMUNITY_Profile Tab|Profile Tab]]
-- [[_COMMUNITY_Profile Tab Href|Profile Tab Href]]
-- [[_COMMUNITY_Profile Tab Label|Profile Tab Label]]
-- [[_COMMUNITY_Profile Tab Segment|Profile Tab Segment]]
-- [[_COMMUNITY_Resolve Profile Tab From Pathname|Resolve Profile Tab From Pathname]]
 - [[_COMMUNITY_Adapt Settings For U I|Adapt Settings For U I]]
-- [[_COMMUNITY_Patch Appearance|Patch Appearance]]
-- [[_COMMUNITY_Patch Notifications|Patch Notifications]]
-- [[_COMMUNITY_Patch Privacy|Patch Privacy]]
-- [[_COMMUNITY_Patch Profile|Patch Profile]]
 - [[_COMMUNITY_Get Settings|Get Settings]]
-- [[_COMMUNITY_Update Appearance|Update Appearance]]
-- [[_COMMUNITY_Update Notifications|Update Notifications]]
-- [[_COMMUNITY_Update Privacy|Update Privacy]]
-- [[_COMMUNITY_Update Profile|Update Profile]]
-- [[_COMMUNITY_Settings Tab|Settings Tab]]
 - [[_COMMUNITY_Settings Data Security Panel|Settings Data Security Panel]]
-- [[_COMMUNITY_Settings Section|Settings Section]]
-- [[_COMMUNITY_Settings Right Panel|Settings Right Panel]]
 - [[_COMMUNITY_Read Mock Settings|Read Mock Settings]]
-- [[_COMMUNITY_Reset Mock Settings|Reset Mock Settings]]
-- [[_COMMUNITY_Set Mock Settings Failure|Set Mock Settings Failure]]
-- [[_COMMUNITY_Write Mock Settings|Write Mock Settings]]
-- [[_COMMUNITY_Get Mutation Status|Get Mutation Status]]
-- [[_COMMUNITY_Use Settings Query|Use Settings Query]]
-- [[_COMMUNITY_Use Update Appearance Mutation|Use Update Appearance Mutation]]
-- [[_COMMUNITY_Use Update Notifications Mutation|Use Update Notifications Mutation]]
-- [[_COMMUNITY_Use Update Privacy Mutation|Use Update Privacy Mutation]]
-- [[_COMMUNITY_Use Update Profile Mutation|Use Update Profile Mutation]]
-- [[_COMMUNITY_Appearance Settings Form Values|Appearance Settings Form Values]]
 - [[_COMMUNITY_Change Password Form Values|Change Password Form Values]]
-- [[_COMMUNITY_Notification Settings Form Values|Notification Settings Form Values]]
-- [[_COMMUNITY_Privacy Settings Form Values|Privacy Settings Form Values]]
-- [[_COMMUNITY_Profile Settings Form Values|Profile Settings Form Values]]
-- [[_COMMUNITY_To Form Error Message|To Form Error Message]]
-- [[_COMMUNITY_Notification Settings|Notification Settings]]
-- [[_COMMUNITY_Privacy Settings|Privacy Settings]]
-- [[_COMMUNITY_Profile Settings|Profile Settings]]
-- [[_COMMUNITY_Update Appearance Input|Update Appearance Input]]
-- [[_COMMUNITY_Update Notifications Input|Update Notifications Input]]
-- [[_COMMUNITY_Update Privacy Input|Update Privacy Input]]
-- [[_COMMUNITY_Update Profile Input|Update Profile Input]]
-- [[_COMMUNITY_User Settings|User Settings]]
 - [[_COMMUNITY_Short Films Shelf Row|Short Films Shelf Row]]
-- [[_COMMUNITY_Short Films Upload Strip|Short Films Upload Strip]]
-- [[_COMMUNITY_Short Film Thumb Card|Short Film Thumb Card]]
-- [[_COMMUNITY_Step Film Details|Step Film Details]]
-- [[_COMMUNITY_Step Film File|Step Film File]]
-- [[_COMMUNITY_Short Film Upload Form|Short Film Upload Form]]
-- [[_COMMUNITY_Upload Step|Upload Step]]
-- [[_COMMUNITY_Visibility|Visibility]]
-- [[_COMMUNITY_Short Film Upload Form Api|Short Film Upload Form Api]]
-- [[_COMMUNITY_Use Short Film Upload Form|Use Short Film Upload Form]]
 - [[_COMMUNITY_Get Mock Comments For Short|Get Mock Comments For Short]]
-- [[_COMMUNITY_Director Avatar Src|Director Avatar Src]]
-- [[_COMMUNITY_Get Short Film By Id|Get Short Film By Id]]
 - [[_COMMUNITY_Shelf Featured Gradient|Shelf Featured Gradient]]
-- [[_COMMUNITY_Short Film|Short Film]]
-- [[_COMMUNITY_Short Film Category|Short Film Category]]
-- [[_COMMUNITY_Short Film Shelf|Short Film Shelf]]
-- [[_COMMUNITY_Short Film Shelf Featured|Short Film Shelf Featured]]
-- [[_COMMUNITY_Fetch People Suggestions|Fetch People Suggestions]]
 - [[_COMMUNITY_People Suggestion|People Suggestion]]
-- [[_COMMUNITY_People Suggestion Role|People Suggestion Role]]
-- [[_COMMUNITY_Suggestions Follow Payload|Suggestions Follow Payload]]
-- [[_COMMUNITY_Use People Suggestions|Use People Suggestions]]
-- [[_COMMUNITY_Use Suggestion Follow Mutation|Use Suggestion Follow Mutation]]
-- [[_COMMUNITY_Title Cover Back Button|Title Cover Back Button]]
-- [[_COMMUNITY_Title Page Aside|Title Page Aside]]
 - [[_COMMUNITY_Title Section Title|Title Section Title]]
-- [[_COMMUNITY_Title Error State|Title Error State]]
-- [[_COMMUNITY_Title Page View|Title Page View]]
 - [[_COMMUNITY_Fetch Mock Title Reviews Page|Fetch Mock Title Reviews Page]]
-- [[_COMMUNITY_Get Mock Title Reviews Pool|Get Mock Title Reviews Pool]]
-- [[_COMMUNITY_Get Mock Title Reviews Pool|Get Mock Title Reviews Pool]]
-- [[_COMMUNITY_Get Popular Mock Title Reviews|Get Popular Mock Title Reviews]]
-- [[_COMMUNITY_Mock Title Review|Mock Title Review]]
-- [[_COMMUNITY_Title Page Status|Title Page Status]]
-- [[_COMMUNITY_Use Title Page Data|Use Title Page Data]]
-- [[_COMMUNITY_Read Title Action State|Read Title Action State]]
-- [[_COMMUNITY_Title Action State|Title Action State]]
-- [[_COMMUNITY_Write Title Action State|Write Title Action State]]
-- [[_COMMUNITY_Title Hero Backdrop Url|Title Hero Backdrop Url]]
-- [[_COMMUNITY_Title Hero Image Url|Title Hero Image Url]]
-- [[_COMMUNITY_Title Kind Label|Title Kind Label]]
-- [[_COMMUNITY_Apply Title Review Filters|Apply Title Review Filters]]
-- [[_COMMUNITY_Count Keyword In Reviews|Count Keyword In Reviews]]
-- [[_COMMUNITY_Review Sort Id|Review Sort Id]]
-- [[_COMMUNITY_Review Star Preset|Review Star Preset]]
-- [[_COMMUNITY_Title Review Browse Input|Title Review Browse Input]]
-- [[_COMMUNITY_Sort Videos For Display|Sort Videos For Display]]
-- [[_COMMUNITY_Youtube Thumb|Youtube Thumb]]
-- [[_COMMUNITY_Get Is Authenticated|Get Is Authenticated]]
-- [[_COMMUNITY_Get Mock Portrait Url For|Get Mock Portrait Url For]]
-- [[_COMMUNITY_Use Carousel Scroll|Use Carousel Scroll]]
-- [[_COMMUNITY_Use Debounce|Use Debounce]]
-- [[_COMMUNITY_Use Is Desktop Lg|Use Is Desktop Lg]]
-- [[_COMMUNITY_Use Is Desktop Md|Use Is Desktop Md]]
-- [[_COMMUNITY_Use Online Status|Use Online Status]]
-- [[_COMMUNITY_Use Popover Layer|Use Popover Layer]]
-- [[_COMMUNITY_Use Scroll Lock|Use Scroll Lock]]
-- [[_COMMUNITY_Use Show Cover Back Button|Use Show Cover Back Button]]
-- [[_COMMUNITY_Use Visual Viewport Keyboard Inset|Use Visual Viewport Keyboard Inset]]
-- [[_COMMUNITY_Pop Modal Focus Snapshot|Pop Modal Focus Snapshot]]
-- [[_COMMUNITY_Push Modal Focus Snapshot|Push Modal Focus Snapshot]]
-- [[_COMMUNITY_Reset Modal Focus Stack For|Reset Modal Focus Stack For]]
-- [[_COMMUNITY_Dedupe Place Suggestions|Dedupe Place Suggestions]]
-- [[_COMMUNITY_Format Place Suggestion|Format Place Suggestion]]
-- [[_COMMUNITY_Place Address|Place Address]]
-- [[_COMMUNITY_Place Suggestion|Place Suggestion]]
-- [[_COMMUNITY_Accent Color Provider|Accent Color Provider]]
-- [[_COMMUNITY_Get Accent Color Label|Get Accent Color Label]]
-- [[_COMMUNITY_Is Accent Color Option|Is Accent Color Option]]
-- [[_COMMUNITY_Resolve Accent Color|Resolve Accent Color]]
-- [[_COMMUNITY_Apply Accent Color|Apply Accent Color]]
-- [[_COMMUNITY_Read Stored Accent Color|Read Stored Accent Color]]
-- [[_COMMUNITY_Theme Provider|Theme Provider]]
-- [[_COMMUNITY_Use Theme|Use Theme]]
-- [[_COMMUNITY_Infer Title Media|Infer Title Media]]
-- [[_COMMUNITY_Is Title Media|Is Title Media]]
-- [[_COMMUNITY_Title Media|Title Media]]
-- [[_COMMUNITY_Tmdb Item To Title Path|Tmdb Item To Title Path]]
-- [[_COMMUNITY_Parse Tmdb Json Object|Parse Tmdb Json Object]]
-- [[_COMMUNITY_Fetch Tmdb Title Metadata|Fetch Tmdb Title Metadata]]
-- [[_COMMUNITY_T M D B Content|T M D B Content]]
-- [[_COMMUNITY_T M D B Content|T M D B Content]]
-- [[_COMMUNITY_T M D B Credits|T M D B Credits]]
-- [[_COMMUNITY_T M D B Episode|T M D B Episode]]
-- [[_COMMUNITY_T M D B External|T M D B External]]
-- [[_COMMUNITY_T M D B Genre|T M D B Genre]]
-- [[_COMMUNITY_T M D B Media|T M D B Media]]
-- [[_COMMUNITY_T M D B Paginated|T M D B Paginated]]
-- [[_COMMUNITY_T M D B Person|T M D B Person]]
-- [[_COMMUNITY_T M D B Production|T M D B Production]]
-- [[_COMMUNITY_T M D B Release|T M D B Release]]
-- [[_COMMUNITY_T M D B Release|T M D B Release]]
-- [[_COMMUNITY_T M D B Watch|T M D B Watch]]
-- [[_COMMUNITY_T M D B Watch|T M D B Watch]]
 - [[_COMMUNITY_Carousel Dot Size|Carousel Dot Size]]
-- [[_COMMUNITY_Carousel Dot Style|Carousel Dot Style]]
-- [[_COMMUNITY_Cn|Cn]]
 - [[_COMMUNITY_Format Count|Format Count]]
 - [[_COMMUNITY_Can Decode Image|Can Decode Image]]
-- [[_COMMUNITY_Convert Heic To Jpeg|Convert Heic To Jpeg]]
-- [[_COMMUNITY_Get Cropped Img|Get Cropped Img]]
-- [[_COMMUNITY_Get Radian Angle|Get Radian Angle]]
-- [[_COMMUNITY_Normalize Image Content Type|Normalize Image Content Type]]
-- [[_COMMUNITY_Read Image File As Data|Read Image File As Data]]
-- [[_COMMUNITY_Rotate Size|Rotate Size]]
-- [[_COMMUNITY_Is Route Active|Is Route Active]]
-- [[_COMMUNITY_Is Username Profile Path|Is Username Profile Path]]
-- [[_COMMUNITY_Normalize Media Url|Normalize Media Url]]
-- [[_COMMUNITY_Resolve Media Profile|Resolve Media Profile]]
-- [[_COMMUNITY_Resolve Profile Media Urls|Resolve Profile Media Urls]]
-- [[_COMMUNITY_Resolve Public Media Url|Resolve Public Media Url]]
-- [[_COMMUNITY_Resolve Public Media Urls|Resolve Public Media Urls]]
-- [[_COMMUNITY_Should Resolve Public R2 Url|Should Resolve Public R2 Url]]
-- [[_COMMUNITY_Should Load Remote Image Unoptimized|Should Load Remote Image Unoptimized]]
-- [[_COMMUNITY_Doc From Plain Text|Doc From Plain Text]]
-- [[_COMMUNITY_Extract Mention Ids From Doc|Extract Mention Ids From Doc]]
-- [[_COMMUNITY_Extract Mention Ids From Stored|Extract Mention Ids From Stored]]
-- [[_COMMUNITY_Has Visible Rich Text|Has Visible Rich Text]]
-- [[_COMMUNITY_Is Stored Rich Text|Is Stored Rich Text]]
-- [[_COMMUNITY_Parse Stored Rich Text|Parse Stored Rich Text]]
-- [[_COMMUNITY_Rich Doc To Plain Text|Rich Doc To Plain Text]]
-- [[_COMMUNITY_Rich Text Doc|Rich Text Doc]]
 - [[_COMMUNITY_Rich Text Mark|Rich Text Mark]]
-- [[_COMMUNITY_Rich Text Node|Rich Text Node]]
-- [[_COMMUNITY_Serialize Rich Text Doc|Serialize Rich Text Doc]]
-- [[_COMMUNITY_Stored Rich Text To Plain|Stored Rich Text To Plain]]
-- [[_COMMUNITY_Parse Rich Post Text|Parse Rich Post Text]]
-- [[_COMMUNITY_Rich Text Renderer|Rich Text Renderer]]
 - [[_COMMUNITY_Spawn Particles|Spawn Particles]]
 - [[_COMMUNITY_Spoiler Reveal|Spoiler Reveal]]
-- [[_COMMUNITY_Sync Site Header Sticky Offset|Sync Site Header Sticky Offset]]
-- [[_COMMUNITY_Format Role Context Segment|Format Role Context Segment]]
-- [[_COMMUNITY_Get Role Dot Color|Get Role Dot Color]]
-- [[_COMMUNITY_Profile Custom Headline Pill|Profile Custom Headline Pill]]
-- [[_COMMUNITY_Profile Role Headline Pill|Profile Role Headline Pill]]
-- [[_COMMUNITY_User Role Headline|User Role Headline]]
-- [[_COMMUNITY_Composer Initial Mode|Composer Initial Mode]]
-- [[_COMMUNITY_Editing Post|Editing Post]]
-- [[_COMMUNITY_Quoted Post|Quoted Post]]
-- [[_COMMUNITY_Bind Mobile Bottom Chrome Scroll|Bind Mobile Bottom Chrome Scroll]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `SearchDropdownProps` - 3 edges
-2. `SeedMessageRow` - 3 edges
-3. `ChatMessage` - 3 edges
-4. `TitlePageData` - 3 edges
-5. `SearchResult` - 2 edges
-6. `SearchTrendingPill` - 2 edges
-7. `AppearanceSettings` - 2 edges
-8. `SearchNoResultsProps` - 1 edges
-9. `SearchResultRowProps` - 1 edges
-10. `SearchQuickLink` - 1 edges
+1. `cn()` - 385 edges
+2. `ROUTES` - 77 edges
+3. `apiRequest()` - 57 edges
+4. `useCurrentUserProfile()` - 34 edges
+5. `Avatar()` - 31 edges
+6. `TMDBMovie` - 28 edges
+7. `Button` - 25 edges
+8. `Icon()` - 24 edges
+9. `ChatConversation()` - 24 edges
+10. `initialForName()` - 24 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `AppearanceSettings` --references--> `AccentColorOption`  [EXTRACTED]
-  features/settings/types/settings.ts → lib/theme/accentColors.ts
-- `AppearanceSettings` --references--> `ThemeOption`  [EXTRACTED]
-  features/settings/types/settings.ts → lib/theme/ThemeProvider.tsx
-- `TitlePageData` --references--> `TMDBMovie`  [EXTRACTED]
-  features/title/hooks/useTitlePageData.ts → lib/tmdb/types.ts
-- `TitlePageData` --references--> `TMDBSeasonDetail`  [EXTRACTED]
-  features/title/hooks/useTitlePageData.ts → lib/tmdb/types.ts
-- `TitlePageData` --references--> `TMDBVideo`  [EXTRACTED]
-  features/title/hooks/useTitlePageData.ts → lib/tmdb/types.ts
+- `DatePickerMenu()` --calls--> `cn()`  [EXTRACTED]
+  components/DatePicker/DatePicker.tsx → lib/utils/cn.ts
+- `PlaceholderContent()` --calls--> `cn()`  [EXTRACTED]
+  components/FilmPoster/FilmPoster.tsx → lib/utils/cn.ts
+- `BlurhashPlaceholder()` --calls--> `cn()`  [EXTRACTED]
+  components/LazyR2Image/LazyR2Image.tsx → lib/utils/cn.ts
+- `DropdownMenuItems()` --calls--> `cn()`  [EXTRACTED]
+  components/PortalDropdown/PortalDropdown.tsx → lib/utils/cn.ts
+- `QuickLinkRow()` --calls--> `cn()`  [EXTRACTED]
+  components/SearchBar/SearchDropdown.tsx → lib/utils/cn.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (733 total, 729 thin omitted)
+## Communities (133 total, 7 thin omitted)
 
 ### Community 0 - "Search Dropdown Props"
-Cohesion: 0.33
-Nodes (6): SearchDropdownProps, SearchNoResultsProps, SearchResultRowProps, SearchQuickLink, SearchResult, SearchTrendingPill
+Cohesion: 0.07
+Nodes (39): GET(), ALL_DATA, GLOBAL_SEARCH_DATA, MOCK_DATA, mockSearch(), MockSearchOptions, SearchBar(), createQueryClient() (+31 more)
 
 ### Community 1 - "Paginated Messages"
-Cohesion: 0.33
-Nodes (6): PaginatedMessages, SendMessageResult, SeedMessageRow, ChatMessage, ChatMessageReaction, ChatMessageReplyRef
+Cohesion: 0.09
+Nodes (46): ProvidersWithCurrentUser(), ChatApiClient, folderFromUiFilter(), ChatApiError, getChatErrorMessage(), isChatApiError(), isRetryableChatError(), ChatAuthGetToken (+38 more)
 
 ### Community 2 - "Title Page Data"
-Cohesion: 0.50
-Nodes (4): TitlePageData, TMDBMovie, TMDBSeasonDetail, TMDBVideo
+Cohesion: 0.08
+Nodes (22): Tab, TitleContentTabs(), TitleContentTabsProps, TitleOverviewContent(), TitlePageAside(), Skeleton(), TitleErrorState(), TitlePageLoadingState() (+14 more)
 
 ### Community 3 - "Appearance Settings"
-Cohesion: 0.67
-Nodes (3): AppearanceSettings, AccentColorOption, ThemeOption
+Cohesion: 0.12
+Nodes (28): ProfileMenu(), ProfileMenuProps, ProfileMenuAppearanceView(), ProfileMenuAppearanceViewProps, ProfileMenuMainView(), PROFILE_THEME_OPTIONS, ProfileMenuDirection, ProfileMenuView (+20 more)
+
+### Community 4 - "Bookmark Folder"
+Cohesion: 0.08
+Nodes (18): BookmarkButton(), BookmarkButtonProps, BookmarkFolderPicker(), BookmarkFolderPickerProps, BookmarkFolderSelectState, BookmarkToggleState, LikeToggleState, PostActionsProps (+10 more)
+
+### Community 5 - "Bookmark List Item"
+Cohesion: 0.07
+Nodes (33): metadata, PageProps, metadata, createContributionSubmission(), fetchContributionSubmissions(), arrayValue(), buildSubmission(), ContributionFormPage() (+25 more)
+
+### Community 6 - "Paginated Conversations"
+Cohesion: 0.05
+Nodes (39): dependencies, @35mm/types, @35mm/validators, ably, blurhash, @clerk/nextjs, clsx, emoji-picker-react (+31 more)
+
+### Community 7 - "Community Detail"
+Cohesion: 0.05
+Nodes (44): FilmReelIcon(), FilmReelIconProps, sidebarFilterRowBase(), sidebarFilterToggleRow(), FilterSidebarPageShell(), FilterSidebarPageShellProps, FilterSidebarPreset, PRESET_CLASSES (+36 more)
+
+### Community 8 - "Build Discover Explore Url Args"
+Cohesion: 0.08
+Nodes (39): DiscoverExploreMoreFiltersProps, DiscoverHeroSkeleton(), DiscoverPageLoadingState(), DiscoverSearchResultsSkeleton(), DiscoverShelfSkeleton(), Skeleton(), ExploreTabContent(), ExploreTabContentProps (+31 more)
+
+### Community 9 - "Festival Detail"
+Cohesion: 0.09
+Nodes (25): CatCard(), CatCardProps, CategoriesFeesTab(), CategoriesFeesTabProps, CATEGORY_GROUPS, GROUP_GRIDS, BADGE_LABELS, FestivalDetailContent() (+17 more)
+
+### Community 10 - "G E T"
+Cohesion: 0.09
+Nodes (25): metadata, NotificationGroup(), NotificationGroupProps, activityText(), actorSummary(), colorFromSeed(), extractFollowRequestUserId(), groupNotificationsByDate() (+17 more)
+
+### Community 11 - "G E T"
+Cohesion: 0.06
+Nodes (34): 10. Watch Diary & Stats, 11. Film Festivals, 12. Projects, 1. Authentication, 2. Social Graph, 35mm — Platform Reference Document, 3. Posts (The Feed), 4. Activity Attribution (+26 more)
+
+### Community 12 - "G E T"
+Cohesion: 0.17
+Nodes (18): CachedTmdbResponse, cacheKeyFor(), cacheRedisConfig(), cacheTtlSeconds(), checkRateLimit(), clientIp(), explicitRestConfig(), GET() (+10 more)
+
+### Community 13 - "Forgot Page"
+Cohesion: 0.05
+Nodes (45): metadata, metadata, metadata, metadata, metadata, AuthCard(), CodeValues, EmailValues (+37 more)
+
+### Community 14 - "Reset Page"
+Cohesion: 0.06
+Nodes (32): 10. Realtime (WebSocket / SSE), 11. Performance and scale checklist, 12. Deviating from the default paths, 1. Switching the app from mock to remote, 2. Authentication, 3. Base URL and path prefix, 4.1 List conversations, 4.2 List messages (paginated) (+24 more)
+
+### Community 15 - "Error"
+Cohesion: 0.13
+Nodes (13): Button, ButtonProps, Dialog(), DialogProps, ShareModal(), ShareModalProps, ListEntryNoteModalProps, fetchProfileConnections() (+5 more)
+
+### Community 17 - "Landing Route Page"
+Cohesion: 0.07
+Nodes (26): 10. Testing and mocks, 11.1 Adding a new API operation, 11.2 Changing pagination defaults, 11.3 Adding a new folder or tab, 11.4 Changing REST paths (remote only), 11.5 SSR / metadata, 11.6 Lint and typecheck, 11.7 Dependencies (+18 more)
+
+### Community 18 - "Root Layout"
+Cohesion: 0.07
+Nodes (32): dmMono, dmSans, dmSerifDisplay, metadata, playfair, ChatRealtimeProvider, FloatingChatInbox, NotificationRealtimeProvider (+24 more)
+
+### Community 19 - "Careers Page"
+Cohesion: 0.16
+Nodes (19): metadata, metadata, OPEN_ROLES, HELP_TOPICS, metadata, metadata, metadata, LegalBody() (+11 more)
+
+### Community 20 - "Privacy Page"
+Cohesion: 0.19
+Nodes (20): AblyChatTransportInput, asNumber(), asString(), createAblyChatRealtimeTransport(), fileNameFromMessage(), formatBytes(), isApiChatMessage(), isContentType() (+12 more)
+
+### Community 21 - "Terms Page"
+Cohesion: 0.10
+Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
+
+### Community 22 - "Not Found"
+Cohesion: 0.25
+Nodes (8): NotFound(), ContributionKindPage(), generateMetadata(), PageProps, TitlePage(), isTitleMedia(), fetchTmdbTitleMetadata(), TitleMeta
+
+### Community 23 - "Onboarding Page"
+Cohesion: 0.08
+Nodes (33): metadata, RootPage(), isProfileShellPath(), ShellGrid(), ScrollRestore(), LandingCarousel(), CAROUSEL_FILM_IDS, CarouselFilm (+25 more)
+
+### Community 24 - "Root Page"
+Cohesion: 0.12
+Nodes (16): devDependencies, eslint, eslint-config-next, happy-dom, jsdom, jsx-ast-utils, postcss, tailwindcss (+8 more)
+
+### Community 26 - "Bookmarks Page"
+Cohesion: 0.11
+Nodes (26): metadata, assignBookmarkFolder(), BookmarkFoldersResponse, BookmarksPage, createBookmarkFolder(), deleteBookmarkFolder(), fetchBookmarkFolders(), fetchBookmarks() (+18 more)
+
+### Community 27 - "Chat Id Page"
+Cohesion: 0.09
+Nodes (37): metadata, ChatContent(), ChatContentProps, ChatDetailPage(), ChatDetailPageProps, fallbackChat(), ChatIndexRoute(), ChatList() (+29 more)
+
+### Community 28 - "Generate Metadata"
+Cohesion: 0.22
+Nodes (12): EditProfileField(), EditProfileModal(), EditProfileModalProps, inputStateClassName(), isValidWebsite(), normalizeInitialValues(), normalizeRoleLabel(), normalizeWebsite() (+4 more)
+
+### Community 29 - "Chat Page"
+Cohesion: 0.24
+Nodes (11): BlurhashPlaceholder(), CachedImageState, cacheImageState(), fallbackToCfPublicVariant(), getFreshImageState(), IMAGE_STATE_CACHE, LazyR2Image(), LazyR2ImageProps (+3 more)
+
+### Community 30 - "Discover Loading"
+Cohesion: 0.19
+Nodes (4): cacheFirstMedia(), putMediaResponse(), responseCacheTime(), trimMediaCache()
+
+### Community 31 - "Discover Page"
+Cohesion: 0.15
+Nodes (16): metadata, discoverFilterChipClasses(), DiscoverContent(), DiscoverFilterDrawerProps, exploreFilterCount(), FilterChipGroup(), DiscoverMoodFilterStrip(), DiscoverMoodFilterStripProps (+8 more)
+
+### Community 32 - "Drafts Page"
+Cohesion: 0.09
+Nodes (20): metadata, EmptyState(), EmptyStateProps, fetchPost(), FeedInfiniteData, FeedPageData, formatPostTime(), InfinitePostList() (+12 more)
+
+### Community 33 - "Shell Layout"
+Cohesion: 0.27
+Nodes (8): clampSegmentCount(), getInitialValue(), SegmentStyle, options, WormGroupStyle, WormRadioGroup(), WormRadioGroupProps, WormRadioOption
+
+### Community 34 - "Generate Metadata"
+Cohesion: 0.15
+Nodes (15): ListPageProps, ListCard(), ListDetailContent(), ListDetailContentProps, EMPTY_VALUES, ListEditorModal(), ListEditorModalProps, ListEditorValues (+7 more)
+
+### Community 35 - "List Page"
+Cohesion: 0.18
+Nodes (10): name, packageManager, private, scripts, build, dev, lint, start (+2 more)
+
+### Community 36 - "New Post Route"
+Cohesion: 0.22
+Nodes (6): metadata, ButtonSpinner(), ButtonSpinnerProps, NewPostPage(), ComposerPublishState, PostComposerHandle
+
+### Community 37 - "Notifications Page"
+Cohesion: 0.36
+Nodes (8): BADGE_LABELS, badgeClass(), closedBadgeClass(), FestivalCard(), FestivalCardGrid(), FestivalCardList(), FestivalCardProps, FestivalListItem
+
+### Community 39 - "Generate Metadata"
+Cohesion: 0.13
+Nodes (28): creditDate(), creditHref(), creditRole(), creditTitle(), decadeLabel(), fetchPerson(), filmographyCredits(), groupedCreditsByDecade() (+20 more)
+
+### Community 40 - "Person Page"
+Cohesion: 0.32
+Nodes (4): CreepyButton, CreepyButtonProps, EyeOffset, PupilStyle
+
+### Community 41 - "Account Settings Page"
+Cohesion: 0.06
+Nodes (17): metadata, metadata, metadata, metadata, metadata, metadata, metadata, metadata (+9 more)
+
+### Community 42 - "Appearance Settings Page"
+Cohesion: 0.33
+Nodes (5): config, isGuestOnlyPath(), isGuestOnlyRoute, isPublicRoute, safeRedirectPath()
+
+### Community 43 - "Data Security Settings Page"
+Cohesion: 0.33
+Nodes (5): ALSO_TRENDING_FILMS, EDITOR_PICK, MODAL_DATA, POPULAR_FILMS, RECENTLY_RELEASED
+
+### Community 44 - "Notification Settings Page"
+Cohesion: 0.53
+Nodes (5): cellClassName(), fileIdentity(), gridClassName(), ImageAttachments(), ImageAttachmentsProps
+
+### Community 45 - "Settings Page"
+Cohesion: 0.47
+Nodes (5): ProfileStatsActivityDay, ActivityHeatmap(), isoDateDaysAgo(), levelForCount(), LEVELS
+
+### Community 46 - "Privacy Settings Page"
+Cohesion: 0.60
+Nodes (4): ensureMissingClientReferenceManifests(), exists(), SERVER_APP_DIR, walk()
+
+### Community 47 - "Generate Metadata"
+Cohesion: 0.25
+Nodes (7): generateMetadata(), ShortFilmWatchPage(), ShortFilmWatchPageProps, metadata, ShortFilmsContent(), getShortFilmById(), MOCK_SHORT_FILMS
+
+### Community 48 - "Short Film Watch Page"
+Cohesion: 0.50
+Nodes (3): MOCK_PROFILE_CONNECTIONS, MOCK_TEMPLATE, MockConnection
+
+### Community 50 - "Short Film Upload Page"
+Cohesion: 0.11
+Nodes (28): metadata, ACCEPTED_VIDEO_EXTENSIONS, ACCEPTED_VIDEO_TYPES, CONTENT_RATINGS, FILMMAKER_TIPS, LANGUAGES, SHORT_FILM_GENRES, UPLOAD_STEPS (+20 more)
+
+### Community 51 - "Suggestions People Route"
+Cohesion: 0.08
+Nodes (26): metadata, FOOTER_LINKS_ROW_ONE, FOOTER_LINKS_ROW_TWO, HomeSuggestionsSidebar(), HomeSuggestionsSidebarProps, SKELETON_NAME_WIDTHS, SKELETON_SIGNAL_WIDTHS, SuggestionRow() (+18 more)
+
+### Community 55 - "Generate Metadata"
+Cohesion: 0.10
+Nodes (21): generateMetadata(), ProfileDiaryPageProps, generateMetadata(), ProfileListsPageProps, generateMetadata(), ProfilePageProps, generateMetadata(), ProfileStatsPageProps (+13 more)
+
+### Community 57 - "Username Layout"
+Cohesion: 0.11
+Nodes (14): useShellLayout(), ProfilePopover(), UsernameLinkProps, accessLabel(), CommunityGridCard(), FestivalEmptyState(), FestivalEmptyStateProps, ProfileShellClient() (+6 more)
+
+### Community 63 - "Generate Metadata"
+Cohesion: 0.13
+Nodes (13): fetchComments(), formatPostTime(), getLegacyShape(), LegacyPostShape, PostDetailView(), postToVariant(), PostPageBackButton(), saveScrollPositionForBack() (+5 more)
+
+### Community 68 - "Is Avatar Image Loaded"
+Cohesion: 0.28
+Nodes (11): isAvatarImageLoaded(), loadedAvatarUrls, markAvatarImageLoaded(), normalizeAvatarUrl(), preloadAvatarImageUrl(), preloadingAvatarUrls, AuthBootstrap(), avatarUrlFromProfile() (+3 more)
+
+### Community 71 - "Body Portal"
+Cohesion: 0.07
+Nodes (33): BodyPortal(), ConfirmDialog(), ConfirmDialogProps, Icon(), ChatComposer(), ChatComposerEditTarget, ChatComposerProps, ChatComposerReplyTarget (+25 more)
+
+### Community 73 - "Build Calendar Days"
+Cohesion: 0.23
+Nodes (18): DatePicker(), DatePickerMenu(), DatePickerProps, HeaderMenu, buildCalendarDays(), CalendarDayCell, daysInMonth(), formatDisplayDate() (+10 more)
+
+### Community 85 - "Film Card Props"
+Cohesion: 0.14
+Nodes (8): buildGlowBackground(), FALLBACK_GLOW, FilmCard(), FilmCardProps, luminance(), SHOWCASE_POSTS, ShowcasePost, ShowcasePostRow()
+
+### Community 90 - "Flash Toast"
+Cohesion: 0.11
+Nodes (21): FlashToast(), FlashToastHost(), FlashToastPayload, flashToastSurfaceClass(), FlashToastTone, queueFlashToast(), readQueuedFlashToast(), useFlashToast() (+13 more)
+
+### Community 94 - "Show Global Flash Toast"
+Cohesion: 0.14
+Nodes (24): showGlobalFlashToast(), buildCommentTree(), CommentItem, CommentsEnvelope, createComment(), deleteComment(), likeComment(), unlikeComment() (+16 more)
+
+### Community 96 - "Icon Name"
+Cohesion: 0.17
+Nodes (6): ICON_MAP, IconName, IconProps, FilmCard(), FilmCardProps, StarIcon()
+
+### Community 98 - "Use Chat Input Focus"
+Cohesion: 0.14
+Nodes (36): useChatInputFocus(), ChatConversation(), ChatConversationProps, ChatMobileHeader(), applyViewerReaction(), chatKeys, client(), emptyMessagesPage() (+28 more)
+
+### Community 102 - "Mobile Scroll Chrome Listener"
+Cohesion: 0.22
+Nodes (9): MobileFAB(), MobileScrollChromeListener(), isOwnProfilePath(), MobileTabBar(), useNotificationBellCount(), isRouteActive(), bindMobileBottomChromeScroll(), MobileBottomChromeState (+1 more)
+
+### Community 103 - "Composer Modal Provider"
+Cohesion: 0.11
+Nodes (24): Avatar(), AvatarLoadStatus, AvatarProps, normalizeAvatarSource(), resolveDisplayAvatar(), sizeMap, MobileHeader(), MobileHeaderProps (+16 more)
+
+### Community 104 - "Use Composer Modal"
+Cohesion: 0.12
+Nodes (16): useComposerModal(), NewPostButton(), CommunityComposerTrigger(), CommunityDetailContent(), CommunityPostList(), CommunitySort, LegacyPostShape, useCommunity() (+8 more)
+
+### Community 105 - "Right Panel"
+Cohesion: 0.06
+Nodes (40): FOOTER_LINKS, RightPanel(), RightPanelProps, BrandLogo(), BrandLogoProps, LogoMark(), LogoMarkProps, ChatListSkeleton() (+32 more)
+
+### Community 106 - "Right Panel Switcher"
+Cohesion: 0.11
+Nodes (17): RightPanelSwitcher(), UserCard(), UserCardProps, DIRECTORS, DiscoverRightPanel(), TRENDING, PEOPLE, FeedRightPanel() (+9 more)
+
+### Community 107 - "Header Left"
+Cohesion: 0.17
+Nodes (10): ShellLayoutContext, ShellLayoutContextValue, HeaderLeft(), useSiteHeaderDropdowns(), useSiteHeaderStickyOffset(), SiteHeader(), ProfileMiniHeader(), ProfileScrollChrome() (+2 more)
+
+### Community 110 - "Profile Menu Privacy View"
+Cohesion: 0.36
+Nodes (4): ProfileMenuPrivacyView(), ProfileMenuPrivacyViewProps, Switch(), SwitchProps
+
+### Community 112 - "Use Site Header Notifications"
+Cohesion: 0.17
+Nodes (22): useSiteHeaderNotifications(), acceptFollowRequest(), declineFollowRequest(), fetchNotifications(), FetchNotificationsParams, fetchReceivedFollowRequests(), markAllNotificationsRead(), markNotificationRead() (+14 more)
+
+### Community 114 - "Actor Display Name"
+Cohesion: 0.24
+Nodes (11): NOTIF_KIND_ICON, NotificationDropdown(), NotificationDropdownProps, actorDisplayName(), formatNotificationText(), relativeNotificationTime(), HeaderNotifRow, NotificationDropdownEmpty() (+3 more)
+
+### Community 135 - "Modal Props"
+Cohesion: 0.08
+Nodes (30): AvatarViewer(), AvatarViewerProps, Focusable, FOCUSABLE_SELECTOR, getFocusableInContainer(), isElementHidden(), Modal(), ModalProps (+22 more)
+
+### Community 139 - "Private Account Lock"
+Cohesion: 0.22
+Nodes (11): PrivateAccountLock(), formatDateOfBirth(), ProfileDetails(), websiteHref(), ProfileStats(), formatRoleContextSegment(), getRoleDotColor(), ProfileCustomHeadlinePill() (+3 more)
+
+### Community 149 - "Top Sticky Bar Tab"
+Cohesion: 0.12
+Nodes (14): STYLES_BY_VARIANT, TopStickyBar(), TopStickyBarProps, TopStickyBarTab, TopStickyBarTabAction, TopStickyBarTabBase, TopStickyBarTabLink, TopStickyBarTabPassive (+6 more)
+
+### Community 153 - "Blur Image Props"
+Cohesion: 0.21
+Nodes (13): BlurImage(), BlurImageProps, NativeImageProps, CoverPhoto(), mediaCacheKey(), mediaReadsPublic(), mediaUrlCache, normalizeMediaUrl() (+5 more)
+
+### Community 201 - "Create Mock Chat Client"
+Cohesion: 0.15
+Nodes (30): createMockChatClient(), filterByFolder(), CHAT_AVATARS, MOCK_CHATS, formatRelativeShort(), applyToggleReaction(), avatarStyleForSeed(), clone() (+22 more)
+
+### Community 220 - "Use Conversations"
+Cohesion: 0.36
+Nodes (8): navItemClass(), NavLinks(), NavLinksProps, flattenConversationPages(), useConversations(), formatChatUnreadBadgeCount(), sumUnread(), useChatUnreadBadgeCount()
+
+### Community 229 - "Format Day Separator"
+Cohesion: 0.18
+Nodes (15): BubbleRow(), ChatMessageList(), ChatMessagesSkeleton(), isStandaloneEmojiText(), ReactionPhase, TOP_5_REACTIONS, ChatMessageReactions(), ChatMessageReactionsProps (+7 more)
+
+### Community 241 - "Apply Chat Realtime Event"
+Cohesion: 0.15
+Nodes (27): ChatMessageListProps, patchConversationPreviewInPages(), chatQueryKeys, chatQueryRoot, applyChatRealtimeEvent(), emptyMessagesPage(), invalidateConversationLists(), patchAllInfinitePages() (+19 more)
+
+### Community 265 - "Discover Explore More Filters"
+Cohesion: 0.12
+Nodes (25): DiscoverExploreMoreFilters(), SetExplore, applyRatingPreset(), buildDiscoverExploreUrl(), decadeToReleaseRange(), DISCOVER_CERT_OPTIONS, DISCOVER_DECADE_OPTIONS, DISCOVER_DURATION_OPTIONS (+17 more)
+
+### Community 300 - "Hero Url"
+Cohesion: 0.15
+Nodes (16): LazyImage(), LazyImageProps, FilmShelfProps, HeroCard(), HeroCardProps, heroUrl(), starsFromVote(), formatAirDate() (+8 more)
+
+### Community 304 - "Adapt Post To Feed Type"
+Cohesion: 0.20
+Nodes (18): adaptPostToFeedType(), asNullableString(), asNumber(), asString(), asStringArray(), asUlid(), CommentDto, isRecord() (+10 more)
+
+### Community 314 - "Api Request"
+Cohesion: 0.19
+Nodes (25): apiRequest(), addFilmToList(), addToWatchlist(), CatalogFilmPayload, cloneFilmList(), createFilmList(), deleteFilmList(), fetchList() (+17 more)
+
+### Community 316 - "Mention Suggestion"
+Cohesion: 0.11
+Nodes (20): MentionSuggestion, searchMentionSuggestions(), mocks, ResizeObserverMock, createMentionSuggestion(), editorContentFromValue(), MentionItem, RichTextEditor() (+12 more)
+
+### Community 319 - "Create Post"
+Cohesion: 0.16
+Nodes (31): createPost(), CreatePostInput, deletePost(), likePost(), repostPost(), unbookmarkPost(), unlikePost(), unrepostPost() (+23 more)
+
+### Community 322 - "Fetch Link Preview"
+Cohesion: 0.10
+Nodes (7): fetchLinkPreview(), MODE_TABS, POST_COMPOSER_EMOJI_STYLE, PostComposerProps, ComposerMode, YouTubeEmbed(), YouTubeEmbedProps
+
+### Community 332 - "Comment Card"
+Cohesion: 0.14
+Nodes (24): CommentCard(), CommentCardBody(), CommentCardDeleted(), CommentCardDeletedProps, CommentCardHeader(), CommentCardHeaderProps, CommentCardReplies(), CommentCardRepliesProps (+16 more)
+
+### Community 344 - "Are Post Card Props Equal"
+Cohesion: 0.47
+Nodes (8): areAttachedFilmsEqual(), areFilmCardsEqual(), areLinkPreviewsEqual(), areMediaItemsEqual(), arePollsEqual(), arePostCardPropsEqual(), areReplyPreviewsEqual(), areStringArraysEqual()
+
+### Community 345 - "Resolved Post Media"
+Cohesion: 0.13
+Nodes (24): UsernameLink(), PostCard, getFilmTitleHref(), PostCardAttachments(), PostCardAttachmentsProps, PostCardHeader(), PostCardHeaderProps, PostCardMoreMenuProps (+16 more)
+
+### Community 361 - "Composer State"
+Cohesion: 0.18
+Nodes (11): FilmSearch(), FilmSearchProps, TMDB_GENRE_MAP, TmdbMovieResult, TmdbMovieSearchResponse, ComposerState, FilmResult, PostType (+3 more)
+
+### Community 364 - "Post Composer Write Prompt"
+Cohesion: 0.13
+Nodes (11): mocks, ResizeObserverMock, WRITE_PLACEHOLDER, POST_COMPOSER_WRITE_PROMPTS, postComposerWritePrompt(), promptIndexForName(), MediaKind, MediaPresignRequest (+3 more)
+
+### Community 365 - "Post Composer Modal User"
+Cohesion: 0.33
+Nodes (9): PostComposerModal(), PostComposerModalProps, PostComposerModalUser, useFocusTrap(), useIsMobile(), ComposerInitialMode, ComposerModalState, EditingPost (+1 more)
+
+### Community 369 - "Mute Undo Toast"
+Cohesion: 0.08
+Nodes (34): CommentCardOverlays(), CommentCardOverlaysProps, PostCardOverlays(), MuteUndoToast(), MuteUndoToastProps, blockUser(), CurrentProfilePatch, fetchMyBlocks() (+26 more)
+
+### Community 370 - "Get Comments For Post"
+Cohesion: 0.20
+Nodes (6): MOCK_COMMENTS_BACKROOMS, MOCK_COMMENTS_BY_POST_ID, MOCK_COMMENTS_FEMALE_DIRECTORS_VENOM, MOCK_COMMENTS_PROJECT_HAIL_MARY, MOCK_COMMENTS_SINNERS_TRUEFILM, MOCK_COMMENTS_TAMIL_TELUGU
+
+### Community 371 - "Get Post"
+Cohesion: 0.25
+Nodes (6): EXTENDED_MOCK_POSTS, FEED_DISPLAY_NAMES, MOCK_POSTS, MockPost, PROFILE_DISPLAY_NAMES, PROFILE_FALLBACK_POSTS
+
+### Community 396 - "Apply Optimistic Poll Vote"
+Cohesion: 0.20
+Nodes (15): isValidImageUrl(), PollAttachmentInner(), PollAttachmentProps, PollComposer(), PollComposerProps, applyOptimisticPollVote(), computePollPercent(), emptyPollOption() (+7 more)
+
+### Community 406 - "Extract Video Previews"
+Cohesion: 0.23
+Nodes (13): CommentCardBodyProps, VideoUrlPreview(), VideoUrlPreviewProps, extractDailymotionId(), extractVideoPreviews(), extractVimeoId(), extractYouTubeId(), LinkPreviewInput (+5 more)
+
+### Community 417 - "Letterboxd Import Dialog"
+Cohesion: 0.12
+Nodes (32): headerCopy(), ImportPhase, LetterboxdImportDialog(), LetterboxdImportDialogProps, resolvePhase(), LetterboxdImportWidget(), completeLetterboxdImport(), defaultRecord() (+24 more)
+
+### Community 451 - "Tmdb Movie To Film Payload"
+Cohesion: 0.30
+Nodes (10): tmdbMovieToFilmPayload(), TitleActionButtons(), TitleActionButtonsProps, empty, key(), parse(), readTitleActionState(), TitleActionState (+2 more)
+
+### Community 481 - "Create Ably Notification Realtime Transport"
+Cohesion: 0.15
+Nodes (16): AblyMessageData, AblyNotificationRealtimeTransportInput, ALLOWED_NOTIFICATION_TYPES, createAblyNotificationRealtimeTransport(), applyNotificationRealtimeEvent(), buildNotificationFromEvent(), createNoopNotificationRealtimeTransport(), buildTransport() (+8 more)
+
+### Community 530 - "Diary Row"
+Cohesion: 0.13
+Nodes (11): FilmPoster(), FilmPosterProps, PlaceholderContent(), sizeMap, StarRating(), StarRatingProps, FILMS, ProfileStatsFilm (+3 more)
+
+### Community 554 - "Adapt Settings For U I"
+Cohesion: 0.52
+Nodes (6): adaptSettingsForUI(), clone(), patchAppearance(), patchNotifications(), patchPrivacy(), patchProfile()
+
+### Community 559 - "Get Settings"
+Cohesion: 0.12
+Nodes (26): getSettings(), updateAppearance(), updateMedia(), updateNotifications(), updatePrivacy(), updateProfile(), UsernameAvailabilityResponse, SettingsContent() (+18 more)
+
+### Community 565 - "Settings Data Security Panel"
+Cohesion: 0.12
+Nodes (20): SettingsDataSecurityPanel(), SettingsInput(), SettingsRow(), SettingsSection(), SettingsToggle(), ThemePicker(), CAPTION_STYLE_OPTIONS, MediaSelectRow() (+12 more)
+
+### Community 568 - "Read Mock Settings"
+Cohesion: 0.36
+Nodes (7): clone(), DEFAULT_SETTINGS, delay(), readMockSettings(), resetMockSettings(), settingsStore, writeMockSettings()
+
+### Community 579 - "Change Password Form Values"
+Cohesion: 0.18
+Nodes (16): checkUsernameAvailability(), ChangePasswordDialog(), ChangePasswordDialogProps, SettingsAccountPanel(), SettingsAccountPanelProps, UsernameStatus, appearanceSettingsSchema, ChangePasswordFormValues (+8 more)
+
+### Community 592 - "Short Films Shelf Row"
+Cohesion: 0.31
+Nodes (5): ShortFilmsShelfRow(), ShortFilmsUploadStrip(), ShortFilmThumbCard(), MOCK_SHORT_FILM_SHELVES, ShortFilmShelf
+
+### Community 602 - "Get Mock Comments For Short"
+Cohesion: 0.25
+Nodes (12): ChipId, mockLikeCount(), mockSubscriberCount(), relatedFilmsFor(), seedFromId(), ShortFilmWatchContent(), ShortFilmWatchSidebarRow(), author() (+4 more)
+
+### Community 605 - "Shelf Featured Gradient"
+Cohesion: 0.19
+Nodes (14): buildCategoryShelf(), buildExtraCategoryShelf(), byCategory(), CATEGORY_SHELF_BLUEPRINTS, CategoryShelfBlueprint, EXTRA_CATEGORY_SHELVES, SHELF_GRADIENT_BY_ID, SHELF_GRADIENT_FALLBACKS (+6 more)
+
+### Community 611 - "People Suggestion"
+Cohesion: 0.40
+Nodes (4): PEOPLE_SUGGESTIONS, PeopleSuggestion, PeopleSuggestionRole, SIDEBAR_PEOPLE_SUGGESTIONS
+
+### Community 618 - "Title Section Title"
+Cohesion: 0.09
+Nodes (25): TitleAtAGlance(), TitleAtAGlanceProps, TitleCastCard(), TitleCastCardProps, defaultSeasonNumber(), sortSeasons(), TitleEpisodesPanel(), TitleEpisodesPanelProps (+17 more)
+
+### Community 621 - "Fetch Mock Title Reviews Page"
+Cohesion: 0.09
+Nodes (34): LikeState, TitleReviewCard(), TitleReviewCardProps, mockPageDelay(), SORT_LABELS, starPresets, TitleReviewsSection(), safeSvgId() (+26 more)
+
+### Community 687 - "Carousel Dot Size"
+Cohesion: 0.20
+Nodes (14): ImageViewer(), ImageViewerProps, resolveUrls(), cellClassName(), gridClassName(), PostImageCarousel(), PostImageGallery(), PostImageGrid() (+6 more)
+
+### Community 690 - "Format Count"
+Cohesion: 0.18
+Nodes (14): LikeButton(), LikeButtonProps, ProfilePopoverStat(), fetchProfileStats(), ProfileStatsGenre, GenreBreakdown(), formatAverageRating(), formatDiaryDate() (+6 more)
+
+### Community 691 - "Can Decode Image"
+Cohesion: 0.24
+Nodes (13): authKeys, CoverPhotoProps, ImageCropper(), ImageCropperProps, ProfilePictureUploadProps, canDecodeImage(), convertHeicToJpeg(), createImage() (+5 more)
+
+### Community 715 - "Rich Text Mark"
+Cohesion: 0.18
+Nodes (17): PostCardBodyText(), PostCardBodyTextProps, RichTextMark, RichTextNode, formattedPlainTextNodes(), isHashTagChar(), isUrlBoundary(), isWordChar() (+9 more)
+
+### Community 721 - "Spawn Particles"
+Cohesion: 0.43
+Nodes (4): VideoFeed(), MOCK_VIDEOS, SAMPLE_VIDEOS, spawnParticles()
+
+### Community 722 - "Spoiler Reveal"
+Cohesion: 0.26
+Nodes (12): buildGrainLayout(), buildParticlesFromText(), drawFrame(), drawSoftDot(), fontForTextNode(), FontMetrics, GrainLayout, parseColor() (+4 more)
 
 ## Knowledge Gaps
-- **747 isolated node(s):** `ForgotPage`, `ResetPage`, `CareersPage`, `PrivacyPage`, `TermsPage` (+742 more)
+- **683 isolated node(s):** `extends`, `metadata`, `metadata`, `metadata`, `metadata` (+678 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **729 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **What connects `ForgotPage`, `ResetPage`, `CareersPage` to the rest of the system?**
-  _747 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `cn()` connect `Right Panel` to `Search Dropdown Props`, `Title Page Data`, `Appearance Settings`, `Bookmark Folder`, `Bookmark List Item`, `Modal Props`, `Community Detail`, `Discover Explore More Filters`, `Build Discover Explore Url Args`, `Private Account Lock`, `Apply Optimistic Poll Vote`, `Forgot Page`, `Festival Detail`, `Error`, `Diary Row`, `Careers Page`, `Topic Grid`, `Top Sticky Bar Tab`, `Extract Video Previews`, `Onboarding Page`, `Blur Image Props`, `Bookmarks Page`, `Chat Id Page`, `Generate Metadata`, `Chat Page`, `Discover Page`, `Drafts Page`, `Shell Layout`, `Letterboxd Import Dialog`, `Generate Metadata`, `New Post Route`, `Notifications Page`, `Person Page`, `Account Settings Page`, `Hero Url`, `Notification Settings Page`, `Settings Page`, `Carousel Dot Size`, `Get Settings`, `Format Count`, `Suggestions People Route`, `Can Decode Image`, `Settings Data Security Panel`, `Short Film Upload Page`, `Generate Metadata`, `Username Layout`, `Mention Suggestion`, `Fetch Link Preview`, `Change Password Form Values`, `Tmdb Movie To Film Payload`, `Body Portal`, `Build Calendar Days`, `Rich Text Mark`, `Comment Card`, `Short Films Shelf Row`, `Spoiler Reveal`, `Film Card Props`, `Resolved Post Media`, `Flash Toast`, `Get Mock Comments For Short`, `Use Conversations`, `Icon Name`, `Use Chat Input Focus`, `Format Day Separator`, `Mobile Scroll Chrome Listener`, `Composer Modal Provider`, `Use Composer Modal`, `Composer State`, `Right Panel Switcher`, `Header Left`, `Title Section Title`, `Fetch Mock Title Reviews Page`, `Profile Menu Privacy View`, `Use Site Header Notifications`, `Mute Undo Toast`, `Actor Display Name`?**
+  _High betweenness centrality (0.361) - this node is a cross-community bridge._
+- **Why does `ROUTES` connect `Username Layout` to `Search Dropdown Props`, `Title Page Data`, `Bookmark List Item`, `Festival Detail`, `G E T`, `Forgot Page`, `Diary Row`, `Top Sticky Bar Tab`, `Chat Id Page`, `Generate Metadata`, `Discover Page`, `Generate Metadata`, `New Post Route`, `Notifications Page`, `Generate Metadata`, `Account Settings Page`, `Carousel Dot Size`, `Format Count`, `Suggestions People Route`, `Short Film Upload Page`, `Settings Data Security Panel`, `Generate Metadata`, `Body Portal`, `Rich Text Mark`, `Short Films Shelf Row`, `Resolved Post Media`, `Get Mock Comments For Short`, `Use Conversations`, `Use Chat Input Focus`, `Mobile Scroll Chrome Listener`, `Composer Modal Provider`, `Use Composer Modal`, `Composer State`, `Right Panel Switcher`, `Header Left`, `Title Section Title`, `Fetch Mock Title Reviews Page`, `Actor Display Name`?**
+  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Why does `Avatar()` connect `Composer Modal Provider` to `Use Chat Input Focus`, `Appearance Settings`, `Is Avatar Image Loaded`, `Format Day Separator`, `Fetch Link Preview`, `Body Portal`, `Resolved Post Media`, `Right Panel`, `Use Composer Modal`, `Header Left`, `Comment Card`, `Error`, `Use Site Header Notifications`, `Mute Undo Toast`, `Actor Display Name`, `Username Layout`, `Chat Id Page`, `Generate Metadata`?**
+  _High betweenness centrality (0.012) - this node is a cross-community bridge._
+- **What connects `extends`, `metadata`, `metadata` to the rest of the system?**
+  _683 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Search Dropdown Props` be split into smaller, more focused modules?**
+  _Cohesion score 0.07259528130671507 - nodes in this community are weakly interconnected._
+- **Should `Paginated Messages` be split into smaller, more focused modules?**
+  _Cohesion score 0.08590441621294616 - nodes in this community are weakly interconnected._
+- **Should `Title Page Data` be split into smaller, more focused modules?**
+  _Cohesion score 0.08108108108108109 - nodes in this community are weakly interconnected._
