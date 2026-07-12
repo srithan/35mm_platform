@@ -12,6 +12,7 @@ import {
   postPolls,
   postReposts,
   posts,
+  profiles,
 } from "@35mm/db/schema";
 import { count, eq, sql, type SQL } from "drizzle-orm";
 import { loadWorkerEnv } from "../lib/env.js";
@@ -22,6 +23,7 @@ type CounterScope =
   | "post_polls"
   | "poll_options"
   | "film_lists"
+  | "profiles"
   | "all";
 
 type Args = {
@@ -45,7 +47,7 @@ function parseArgs(argv: string[]): Args {
     }
     if (arg.startsWith("--scope=")) {
       var value = arg.slice("--scope=".length);
-      if (!["posts", "comments", "post_polls", "poll_options", "film_lists", "all"].includes(value)) {
+      if (!["posts", "comments", "post_polls", "poll_options", "film_lists", "profiles", "all"].includes(value)) {
         throw new Error("Invalid --scope value");
       }
       scope = value as CounterScope;
@@ -206,6 +208,40 @@ async function reconcileFilmLists(database: Db, id: string | null, dryRun: boole
   }
 }
 
+async function reconcileProfiles(database: Db, id: string | null, dryRun: boolean): Promise<void> {
+  if (dryRun) {
+    var rows = await database.execute(sql`
+      select
+        profile.user_id,
+        profile.post_count as stored_post_count,
+        (
+          select count(*)::integer
+          from posts post
+          where post.user_id = profile.user_id
+            and post.is_deleted = false
+        ) as actual_post_count
+      from profiles profile
+      where (${id}::uuid is null or profile.user_id = ${id}::uuid)
+      order by profile.user_id
+    `);
+    console.log("[reconcile:counters] profiles", { rows: rows.rows, dryRun: true });
+    return;
+  }
+
+  await database.execute(sql`
+    update profiles profile
+    set post_count = (
+          select count(*)::integer
+          from posts post
+          where post.user_id = profile.user_id
+            and post.is_deleted = false
+        ),
+        updated_at = now()
+    where (${id}::uuid is null or profile.user_id = ${id}::uuid)
+  `);
+  console.log("[reconcile:counters] profiles", { id, dryRun: false });
+}
+
 async function main(): Promise<void> {
   var args = parseArgs(process.argv.slice(2));
   var database = createDb(loadWorkerEnv().DATABASE_URL);
@@ -224,6 +260,9 @@ async function main(): Promise<void> {
   }
   if (args.scope === "all" || args.scope === "film_lists") {
     await reconcileFilmLists(database, args.scope === "film_lists" ? args.id : null, args.dryRun);
+  }
+  if (args.scope === "all" || args.scope === "profiles") {
+    await reconcileProfiles(database, args.scope === "profiles" ? args.id : null, args.dryRun);
   }
 }
 

@@ -2641,9 +2641,17 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         });
     }
 
+    await recordCounterDeltas(tx, {
+      targetTable: "profiles",
+      targetId: user.userId,
+      counterName: "postCount",
+      delta: 1,
+    });
+
     return { postId, postCreatedAt };
   });
   var postId = createdPost.postId;
+  wakeCounterOutbox();
 
   await createMentionNotifications({
     body: input.body,
@@ -3021,14 +3029,31 @@ feedRoutes.delete("/posts/:postId", requireAuth, postEditRateLimit, async functi
   var postId = c.req.param("postId");
   var current = await assertPostOwner(postId, user.userId);
 
-  var db = getDb();
-  await db
-    .update(posts)
-    .set({
-      isDeleted: true,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(posts.id, postId), eq(posts.userId, user.userId)));
+  var deleted = await getWriteDb().transaction(async function (tx) {
+    var deletedRows = await tx
+      .update(posts)
+      .set({
+        isDeleted: true,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(posts.id, postId),
+        eq(posts.userId, user.userId),
+        eq(posts.isDeleted, false)
+      ))
+      .returning({ id: posts.id });
+
+    if (deletedRows.length > 0) {
+      await recordCounterDeltas(tx, {
+        targetTable: "profiles" as const,
+        targetId: user.userId,
+        counterName: "postCount",
+        delta: -1,
+      });
+    }
+    return deletedRows.length > 0;
+  });
+  if (deleted) wakeCounterOutbox();
 
   await invalidateFeedAfterAuthorMutation({
     authorUserId: user.userId,
@@ -3562,12 +3587,20 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, postInteractionRateLimit,
         });
     }
 
-    await recordCounterDeltas(tx, {
-      targetTable: "posts",
-      targetId: postId,
-      counterName: "repostCount",
-      delta: 1,
-    });
+    await recordCounterDeltas(tx, [
+      {
+        targetTable: "posts",
+        targetId: postId,
+        counterName: "repostCount",
+        delta: 1,
+      },
+      ...(repostPostId ? [{
+        targetTable: "profiles" as const,
+        targetId: user.userId,
+        counterName: "postCount" as const,
+        delta: 1,
+      }] : []),
+    ]);
 
     return { created: true, repostPostId };
   });
@@ -3624,7 +3657,7 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, postInteractionRateLimi
       .returning({ postId: postReposts.postId });
 
     if (deletedRows.length > 0) {
-      await tx
+      var deletedRepostRows = await tx
         .update(posts)
         .set({
           isDeleted: true,
@@ -3637,14 +3670,23 @@ feedRoutes.delete("/posts/:postId/reposts", requireAuth, postInteractionRateLimi
             eq(posts.isRepost, true),
             eq(posts.isDeleted, false)
           )
-        );
+        )
+        .returning({ id: posts.id });
 
-      await recordCounterDeltas(tx, {
-        targetTable: "posts",
-        targetId: postId,
-        counterName: "repostCount",
-        delta: -1,
-      });
+      await recordCounterDeltas(tx, [
+        {
+          targetTable: "posts",
+          targetId: postId,
+          counterName: "repostCount",
+          delta: -1,
+        },
+        ...(deletedRepostRows.length > 0 ? [{
+          targetTable: "profiles" as const,
+          targetId: user.userId,
+          counterName: "postCount" as const,
+          delta: -1,
+        }] : []),
+      ]);
     }
 
     return deletedRows;

@@ -27,6 +27,7 @@ import {
 } from "./SettingsModerationListPanel";
 import { SettingsDataSecurityPanel } from "./SettingsDataSecurityPanel";
 import { MyReportsPanel } from "@/features/moderation/components/MyReportsPanel";
+import { MyReportDetailPanel } from "@/features/moderation/components/MyReportDetailPanel";
 import {
   useSettingsQuery,
   useUpdateAppearanceMutation,
@@ -93,6 +94,7 @@ type SettingsContentProps = {
   initialTab?: SettingsTab;
   privacyList?: PrivacyListKind;
   mobileHome?: boolean;
+  reportId?: string;
 };
 
 const PRIVACY_LIST_LABELS: Record<PrivacyListKind, string> = {
@@ -105,6 +107,7 @@ export function SettingsContent({
   initialTab = "Account",
   privacyList,
   mobileHome = false,
+  reportId,
 }: SettingsContentProps) {
   const { theme, setTheme } = useTheme();
   const { isLoaded } = useAuth();
@@ -237,7 +240,9 @@ export function SettingsContent({
         }}
       />
     ),
-    Privacy: privacyList === "reports" ? (
+    Privacy: privacyList === "reports" && reportId ? (
+      <MyReportDetailPanel reportId={reportId} />
+    ) : privacyList === "reports" ? (
       <MyReportsPanel />
     ) : privacyList ? (
       <SettingsModerationListPanel kind={privacyList} />
@@ -284,11 +289,28 @@ export function SettingsContent({
   };
 
   const activeTab = SETTINGS_TABS.find((tab) => tab.id === initialTab) ?? SETTINGS_TABS[0];
-  const privacyListLabel = privacyList ? PRIVACY_LIST_LABELS[privacyList] : null;
+  const isReportDetail = privacyList === "reports" && Boolean(reportId);
+  const privacyListLabel = isReportDetail
+    ? "Your report"
+    : privacyList
+      ? PRIVACY_LIST_LABELS[privacyList]
+      : null;
   const headerTitle = privacyListLabel ?? activeTab.label;
-  const headerDescription = privacyListLabel ? "Privacy controls" : activeTab.description;
-  const mobileBackHref = privacyListLabel ? ROUTES.SETTINGS_PRIVACY : ROUTES.SETTINGS;
-  const mobileBackLabel = privacyListLabel ? "Back to privacy settings" : "Back to settings";
+  const headerDescription = isReportDetail
+    ? "An update from the 35mm safety team"
+    : privacyListLabel
+      ? "Privacy controls"
+      : activeTab.description;
+  const mobileBackHref = isReportDetail
+    ? ROUTES.SETTINGS_PRIVACY_REPORTS
+    : privacyListLabel
+      ? ROUTES.SETTINGS_PRIVACY
+      : ROUTES.SETTINGS;
+  const mobileBackLabel = isReportDetail
+    ? "Back to your reports"
+    : privacyListLabel
+      ? "Back to privacy settings"
+      : "Back to settings";
 
   return (
     <>
@@ -369,7 +391,7 @@ export function SettingsContent({
                   {privacyListLabel ? (
                     <div className="flex min-w-0 items-center gap-2">
                       <Link
-                        href={ROUTES.SETTINGS_PRIVACY}
+                        href={mobileBackHref}
                         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-hover hover:text-fg"
                         aria-label="Back to privacy settings"
                       >

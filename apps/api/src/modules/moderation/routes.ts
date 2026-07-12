@@ -7,6 +7,7 @@ import {
   moderationDismissPayloadSchema,
   moderationQueueQuerySchema,
   moderationReportHistoryQuerySchema,
+  moderationReportParamsSchema,
   moderationStrikeHistoryQuerySchema,
   moderationUserParamsSchema,
 } from "@35mm/validators";
@@ -20,7 +21,7 @@ import {
   getModerationQueue,
   getModerationUserStrikes,
 } from "./adminReadService.js";
-import { createReport, getReportsForUser } from "./reports.js";
+import { createReport, getReportForUser, getReportsForUser } from "./reports.js";
 
 export var moderationRoutes = new Hono();
 
@@ -81,6 +82,19 @@ moderationRoutes.get("/me/reports", requireAuth, async function (c) {
     reporterUserId: user.userId,
     cursor: parsed.data.cursor,
     limit: parsed.data.limit,
+  }));
+});
+
+moderationRoutes.get("/me/reports/:reportId", requireAuth, async function (c) {
+  var parsed = moderationReportParamsSchema.safeParse({
+    reportId: c.req.param("reportId"),
+  });
+  if (!parsed.success) throw badRequest(zodMessage(parsed.error));
+
+  var user = c.get("user") as AuthUser;
+  return c.json(await getReportForUser({
+    reporterUserId: user.userId,
+    reportId: parsed.data.reportId,
   }));
 });
 

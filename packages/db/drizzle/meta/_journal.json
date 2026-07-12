@@ -337,6 +337,13 @@
       "when": 1784000000021,
       "tag": "0046_moderation_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1784000000022,
+      "tag": "0047_profile_post_count",
+      "breakpoints": true
     }
   ]
 }

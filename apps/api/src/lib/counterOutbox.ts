@@ -23,7 +23,7 @@ function validateCounterDelta(payload: CounterIncrementJobPayload): void {
     post_polls: ["totalVotes"],
     poll_options: ["voteCount"],
     film_lists: ["likeCount", "commentCount", "entryCount"],
-    profiles: ["filmsLoggedCount", "followerCount", "followingCount"],
+    profiles: ["filmsLoggedCount", "postCount", "followerCount", "followingCount"],
   };
 
   if (!allowed[payload.targetTable]?.includes(payload.counterName)) {

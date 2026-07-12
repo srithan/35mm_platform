@@ -29,7 +29,7 @@ vi.mock("../../lib/profileStatsCache.js", function () {
 });
 
 import { applyModerationAction } from "./actions.js";
-import { createReport } from "./reports.js";
+import { createReport, getReportForUser } from "./reports.js";
 
 function loadApiEnvForDbTests(): void {
   if (process.env.DATABASE_URL) return;
@@ -65,6 +65,7 @@ async function cleanup(): Promise<void> {
   await db.execute(sql`delete from notifications where source_key like 'moderation:test:%'`);
   await db.execute(sql`delete from moderation_notification_outbox where action_id in (select id from moderation_actions where content_id = ${POST_ID})`);
   await db.execute(sql`delete from reports where content_type = 'post' and content_id = ${POST_ID}`);
+  await db.execute(sql`delete from reports where content_type = 'profile' and content_id = ${AUTHOR_ID}`);
   await db.execute(sql`delete from moderation_actions where content_type = 'post' and content_id = ${POST_ID}`);
   await db.execute(sql`delete from moderation_content_state where content_type = 'post' and content_id = ${POST_ID}`);
   await db.execute(sql`delete from moderation_content_state where content_type = 'profile' and content_id = ${AUTHOR_ID}`);
@@ -109,6 +110,47 @@ describeDb("moderation transaction behavior", function () {
     expect(first.created).toBe(true);
     expect(retry.created).toBe(false);
     expect(retry.report.id).toBe(first.report.id);
+
+    var storedSnapshotRows = await getWriteDb().execute(sql`
+      select content_snapshot from reports where id = ${first.report.id}
+    `);
+    expect(storedSnapshotRows.rows[0]?.content_snapshot).toMatchObject({
+      author_username: "moderation-test-0",
+      author_display_name: "Moderation Test 0",
+      post_type: "text",
+      created_at: expect.any(String),
+    });
+
+    await getWriteDb().execute(sql`
+      update reports
+      set content_snapshot = content_snapshot
+        - 'author_username'
+        - 'author_display_name'
+        - 'author_avatar_url'
+        - 'author_avatar_variants'
+        - 'post_type'
+        - 'created_at'
+      where id = ${first.report.id}
+    `);
+
+    var detail = await getReportForUser({
+      reporterUserId: REPORTER_ONE_ID,
+      reportId: first.report.id,
+    });
+    expect(detail.contentSnapshot).toMatchObject({
+      body: "Moderation DB test post",
+      media: [],
+      visibility: "public",
+      author_username: "moderation-test-0",
+      author_display_name: "Moderation Test 0",
+      post_type: "text",
+      created_at: expect.any(String),
+    });
+    expect(detail.contentSnapshot).not.toHaveProperty("author_id");
+    await expect(getReportForUser({
+      reporterUserId: REPORTER_TWO_ID,
+      reportId: first.report.id,
+    })).rejects.toThrow("Report was not found");
 
     var state = await getWriteDb().execute(sql`
       select report_count from moderation_content_state
@@ -163,6 +205,36 @@ describeDb("moderation transaction behavior", function () {
       where actor_user_id = ${ACTOR_ID} and idempotency_key = ${actionInput.idempotencyKey}
     `);
     expect(Number(actionRows.rows[0]?.count)).toBe(1);
+  });
+
+  it("captures profile bio, social counts, and joined date", async function () {
+    await getWriteDb().execute(sql`
+      update profiles
+      set bio = 'Moderation profile snapshot bio',
+          post_count = 128,
+          follower_count = 12400,
+          following_count = 315
+      where user_id = ${AUTHOR_ID}
+    `);
+    var created = await createReport(REPORTER_TWO_ID, {
+      contentType: "profile",
+      contentId: AUTHOR_ID,
+      reason: "impersonation",
+    });
+    var detail = await getReportForUser({
+      reporterUserId: REPORTER_TWO_ID,
+      reportId: created.report.id,
+    });
+    expect(detail.contentSnapshot).toMatchObject({
+      bio: "Moderation profile snapshot bio",
+      display_name: "Moderation Test 0",
+      username: "moderation-test-0",
+      post_count: 128,
+      follower_count: 12400,
+      following_count: 315,
+      joined_at: expect.any(String),
+    });
+    expect(detail.contentSnapshot).not.toHaveProperty("avatar_variants");
   });
 
   it("allows the same reporter to report again after resolution", async function () {

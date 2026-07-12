@@ -45,6 +45,7 @@ interface RawNotificationRow {
   entityId: string | null;
   entityType: NonNullable<NotificationItem["entity"]>["type"] | null;
   metadata: Record<string, unknown>;
+  sourceKey: string | null;
 }
 
 interface ActorProfile {
@@ -119,6 +120,17 @@ function normalizeActorIds(value: unknown): string[] {
   }
 
   return [];
+}
+
+export function notificationMetadata(row: Pick<RawNotificationRow, "metadata" | "sourceKey" | "type">): Record<string, unknown> {
+  if (row.type !== "report_status_update" || typeof row.metadata.reportId === "string") {
+    return row.metadata;
+  }
+  var prefix = "moderation:reporter:";
+  if (!row.sourceKey?.startsWith(prefix)) return row.metadata;
+  var reportId = row.sourceKey.slice(prefix.length);
+  if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(reportId)) return row.metadata;
+  return { ...row.metadata, reportId };
 }
 
 interface EntityPostRow {
@@ -266,7 +278,7 @@ async function asNotificationItem(
     type: row.type,
     actor: await resolveActor(row),
     entity: await resolveEntity(row, maps),
-    metadata: row.metadata,
+    metadata: notificationMetadata(row),
     isRead: row.isRead,
     actorIds,
     actorProfiles,
@@ -316,6 +328,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
     entityId: string | null;
     entityType: string | null;
     metadata: Record<string, unknown>;
+    sourceKey: string | null;
   }>;
 
   try {
@@ -335,6 +348,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
         entityId: notifications.entityId,
         entityType: notifications.entityType,
         metadata: notifications.metadata,
+        sourceKey: notifications.sourceKey,
       })
       .from(notifications)
       .leftJoin(profiles, eq(profiles.userId, notifications.actorId))
@@ -362,6 +376,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
         entityId: notifications.entityId,
         entityType: notifications.entityType,
         metadata: notifications.metadata,
+        sourceKey: notifications.sourceKey,
       })
       .from(notifications)
       .leftJoin(profiles, eq(profiles.userId, notifications.actorId))

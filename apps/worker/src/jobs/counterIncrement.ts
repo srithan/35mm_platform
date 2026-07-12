@@ -32,6 +32,7 @@ export type CounterName =
   | "voteCount"
   | "entryCount"
   | "filmsLoggedCount"
+  | "postCount"
   | "followerCount"
   | "followingCount";
 
@@ -109,7 +110,7 @@ function assertSupportedCounter(payload: CounterIncrementJobPayload): void {
     post_polls: ["totalVotes"],
     poll_options: ["voteCount"],
     film_lists: ["likeCount", "commentCount", "entryCount"],
-    profiles: ["filmsLoggedCount", "followerCount", "followingCount"],
+    profiles: ["filmsLoggedCount", "postCount", "followerCount", "followingCount"],
   };
 
   if (!allowed[payload.targetTable]?.includes(payload.counterName)) {
@@ -174,6 +175,10 @@ async function applyCounterDelta(
 
   if (payload.targetTable === "profiles" && payload.counterName === "filmsLoggedCount") {
     return database.update(profiles).set({ filmsLoggedCount: positiveDelta(profiles.filmsLoggedCount, delta), updatedAt: now }).where(eq(profiles.userId, payload.targetId));
+  }
+
+  if (payload.targetTable === "profiles" && payload.counterName === "postCount") {
+    return database.update(profiles).set({ postCount: positiveDelta(profiles.postCount, delta), updatedAt: now }).where(eq(profiles.userId, payload.targetId));
   }
 
   if (payload.targetTable === "profiles" && payload.counterName === "followerCount") {

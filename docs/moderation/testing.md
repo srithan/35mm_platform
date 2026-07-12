@@ -22,7 +22,7 @@ Real Postgres moderation suite:
 RUN_MODERATION_DB_TESTS=1 pnpm --filter @35mm/api test -- src/modules/moderation/moderation.db.test.ts
 ```
 
-Requires `DATABASE_URL` pointing at a disposable database migrated through `0046_moderation_notifications.sql`.
+Requires `DATABASE_URL` pointing at a disposable database migrated through `0047_profile_post_count.sql`.
 
 ## Always-On Coverage
 
@@ -67,7 +67,7 @@ DB suite uses reserved UUIDs ending `9101`–`9105`, usernames prefixed `moderat
 
 Before production launch:
 
-- Apply migrations `0043` through `0046` in order.
+- Apply migrations `0043` through `0047` in order.
 - Run DB-gated suite in every migrated environment.
 - Exercise BullMQ retry after cache synchronization failure.
 - Exercise stale outbox lock reclaim after five minutes.
@@ -78,18 +78,25 @@ Before production launch:
 
 ## Latest Local Run
 
-Completed 2026-07-11:
+Completed 2026-07-12:
 
 - Root workspace typecheck: passed.
-- API default suite: 59 passed, 19 skipped.
-- Moderation DB-gated suite: 3 passed against configured migrated Neon database.
+- API default suite: 61 passed, 19 skipped, including legacy notification report-ID recovery.
+- Moderation DB-gated suite: 4 passed against configured migrated Neon database.
 - Worker: 4 passed.
-- Web: 60 passed.
+- Web: 65 passed, including exact report notification routing, legacy fallback,
+  captured rich-text rendering, and PostCard/CommentCard author + timestamp
+  presentation for reporter snapshots.
 - Drizzle schema check: passed.
 - Moderation no-`OFFSET` static guard: passed.
 - Diff whitespace check: passed.
 
-Migrations through `0046_moderation_notifications.sql` were applied to configured Neon database. Post-migration schema/index/enum verification passed, DB-gated moderation tests passed 3/3, test fixtures cleaned to zero rows, and a second migration run completed without pending work.
+Migrations through `0047_profile_post_count.sql` were applied to configured Neon database. Post-migration schema verification passed and DB-gated moderation tests passed 4/4.
+
+The DB-gated dedupe case also verifies reporter-owned detail lookup, captured
+snapshot sanitization, author/timestamp capture, legacy snapshot hydration from
+soft-deleted source rows, profile social-count/joined-date capture, and
+indistinguishable `404` behavior for a different user.
 
 ## Known Test Boundary
 

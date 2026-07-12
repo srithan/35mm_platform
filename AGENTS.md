@@ -310,3 +310,9 @@ Before finishing:
 2. Update the relevant sections.
 3. Run the appropriate build/typecheck/test.
 4. Mention in the final response whether docs were updated or why no doc update was needed.
+
+
+Also refer to files in below given paths to understand codebase graph:
+35mm_platform/graphify-out
+and
+35mm_platform/graphify-out-api

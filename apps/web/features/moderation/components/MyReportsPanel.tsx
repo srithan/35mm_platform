@@ -7,11 +7,14 @@ import {
   FileText,
   Flag,
   MessageSquare,
+  ChevronRight,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/Button";
+import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
+import Link from "next/link";
 import type {
   ModerationContentType,
   ModerationReportStatus,
@@ -21,7 +24,7 @@ import { fetchMyReports } from "../api/reportsApi";
 import { reasonLabel } from "../data/reportReasons";
 import { moderationKeys } from "../hooks/queryKeys";
 
-var CONTENT_TYPE_LABEL: Record<ModerationContentType, string> = {
+export var CONTENT_TYPE_LABEL: Record<ModerationContentType, string> = {
   post: "Post",
   comment: "Comment",
   profile: "Profile",
@@ -39,7 +42,7 @@ interface StatusPresentation {
 }
 
 /** Maps the backend status enum to human copy + a themed, non-hardcoded pill. */
-function statusPresentation(status: ModerationReportStatus): StatusPresentation {
+export function statusPresentation(status: ModerationReportStatus): StatusPresentation {
   if (status === "actioned") {
     return {
       label: "Action taken",
@@ -65,7 +68,7 @@ function statusPresentation(status: ModerationReportStatus): StatusPresentation 
   };
 }
 
-function formatReportedAt(iso: string): string {
+export function formatReportedAt(iso: string): string {
   var when = Date.parse(iso);
   if (Number.isNaN(when)) return "";
   var diff = Date.now() - when;
@@ -85,7 +88,11 @@ function ReportRow({ report }: { report: ReportDto }) {
   var status = statusPresentation(report.status);
 
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border py-4 last:border-b-0">
+    <Link
+      href={ROUTES.SETTINGS_PRIVACY_REPORT(report.id)}
+      className="group flex items-start justify-between gap-4 border-b border-border py-4 no-underline transition-colors last:border-b-0 hover:bg-sunken"
+      aria-label={`View ${CONTENT_TYPE_LABEL[report.contentType].toLowerCase()} report: ${reasonLabel(report.reason)}`}
+    >
       <div className="flex min-w-0 items-start gap-3">
         <span
           className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sunken text-fg-muted"
@@ -108,15 +115,22 @@ function ReportRow({ report }: { report: ReportDto }) {
           ) : null}
         </div>
       </div>
-      <span
-        className={cn(
-          "shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none",
-          status.className
-        )}
-      >
-        {status.label}
-      </span>
-    </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className={cn(
+            "whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none",
+            status.className
+          )}
+        >
+          {status.label}
+        </span>
+        <ChevronRight
+          className="h-4 w-4 text-fg-faint transition-colors group-hover:text-fg-muted"
+          strokeWidth={2}
+          aria-hidden
+        />
+      </div>
+    </Link>
   );
 }
 

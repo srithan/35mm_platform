@@ -1,10 +1,19 @@
 import type { NotificationItem } from "@35mm/types";
 import { ROUTES } from "@/lib/constants/routes";
 
-type NotificationDestinationInput = Pick<NotificationItem, "actor" | "entity" | "type">;
+type NotificationDestinationInput = Pick<NotificationItem, "actor" | "entity" | "metadata" | "type">;
 
 export function getNotificationDestination(item: NotificationDestinationInput): string {
   const entity = item.entity;
+
+  if (item.type === "report_status_update") {
+    const reportId = typeof item.metadata.reportId === "string"
+      ? item.metadata.reportId.trim()
+      : "";
+    return reportId
+      ? ROUTES.SETTINGS_PRIVACY_REPORT(reportId)
+      : ROUTES.SETTINGS_PRIVACY_REPORTS;
+  }
 
   if (
     item.type === "comment" ||

@@ -45,6 +45,7 @@ export var profiles = pgTable(
     headline: text("headline"),
     headlineContext: text("headline_context"),
     filmsLoggedCount: integer("films_logged_count").default(0).notNull(),
+    postCount: integer("post_count").default(0).notNull(),
     strikeCount: integer("strike_count").default(0).notNull(),
     moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
     unsortedBookmarkCount: integer("unsorted_bookmark_count").default(0).notNull(),
@@ -67,6 +68,10 @@ export var profiles = pgTable(
       strikeCountNonnegativeCheck: check(
         "profiles_strike_count_nonnegative_chk",
         sql`${table.strikeCount} >= 0`
+      ),
+      postCountNonnegativeCheck: check(
+        "profiles_post_count_nonnegative_chk",
+        sql`${table.postCount} >= 0`
       ),
       moderationUsernameIdx: index("profiles_moderation_username_user_id_idx").on(
         table.moderationStatus,

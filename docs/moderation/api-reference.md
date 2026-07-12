@@ -60,6 +60,24 @@ Server ignores any client snapshot field.
 
 Requires auth. Returns only caller's reports. Snapshots and reporter identity are absent.
 
+### Report Detail
+
+`GET /v1/me/reports/:reportId`
+
+Requires auth and ownership of the report. Returns reason, caller-supplied details,
+current status, timestamps, and a reporter-safe snapshot of the content captured at
+submission. Author IDs, reporter identity, staff notes, exact enforcement action, and
+other moderation internals are excluded. Missing and non-owned reports both return
+`404`.
+
+Post/comment reporter snapshots include safe author presentation fields and the
+original content creation timestamp so clients can render normal social cards.
+Internal author IDs and avatar variant storage remain excluded.
+
+Profile reporter snapshots include `bio`, `post_count`, `follower_count`,
+`following_count`, and `joined_at` alongside display name, username, and resolved
+avatar URL.
+
 ## Moderation Queue
 
 `GET /v1/admin/moderation/queue?status=&contentType=&reason=&cursor=&limit=`
@@ -161,7 +179,7 @@ Moderation item metadata:
 ```json
 {
   "type": "report_status_update",
-  "metadata": { "outcome": "actioned" }
+  "metadata": { "reportId": "01J...", "outcome": "actioned" }
 }
 ```
 
@@ -184,3 +202,6 @@ Moderation item metadata:
 ```
 
 No moderation notification exposes reporter identity.
+`reportId` routes the recipient to `/settings/privacy/reports/:reportId`. Notification
+reads recover this ID from the durable moderation source key for status notifications
+created before the metadata field was added.

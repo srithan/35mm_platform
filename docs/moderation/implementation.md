@@ -15,6 +15,7 @@ Schema and migrations:
 - `packages/db/drizzle/0044_moderation_enforcement_support.sql`
 - `packages/db/drizzle/0045_moderation_read_status.sql`
 - `packages/db/drizzle/0046_moderation_notifications.sql`
+- `packages/db/drizzle/0047_profile_post_count.sql`
 
 API:
 
@@ -65,7 +66,22 @@ Notifications gained JSONB metadata and nullable unique `source_key`. Account st
 
 `createReport` captures target snapshot and inserts report inside pooled transaction. Conflict does not increment report count; helper fetches existing unresolved row and returns it. New report upserts state count and then queues deterministic per-report automatic-hide work.
 
-Public `ReportDto` excludes snapshot, reporter identity, and resolution internals. Caller history is ordered by `(created_at, id)` descending.
+Public `ReportDto` excludes snapshot, reporter identity, and resolution internals. Caller history is ordered by `(created_at, id)` descending. The owned `GET /v1/me/reports/:reportId` detail uses the report primary key plus reporter ownership predicate and returns a sanitized submission-time snapshot without author IDs or staff-only resolution data.
+
+Post/comment snapshots also persist the original creation timestamp plus author
+username, display name, avatar source/variants, and post type. This extends the
+frozen minimum snapshot contract so reporter detail can reuse `PostCardHeader` /
+`CommentCardHeader` rather than presenting anonymous text. Older reports are
+hydrated from the soft-deleted source row and current profile when these fields
+are absent; newly created reports remain reviewable with the captured values even
+if source content changes later. This adds no schema migration because snapshots
+are JSONB.
+
+Profile snapshots include bio, denormalized post/follower/following counts, and
+profile creation time for a joined-month label. `profiles.post_count` was added
+because report creation cannot run a synchronous post aggregate at scale. The
+existing counter outbox maintains it asynchronously; `0047` backfills existing
+profiles and adds a nonnegative check.
 
 ## Staff Enforcement
 
@@ -121,7 +137,7 @@ Responses expose `moderationStatus` to author/staff clients. Rich mention hydrat
 
 Original notification creation logic moved into `@35mm/db/notification-service` and is bound by both API and worker. Existing API import `createNotification` remains unchanged for callers. Social bundling/preferences/block/mute checks remain in shared service; moderation batch creation is restricted to moderation types.
 
-Ably publishes metadata on `user:{recipientId}:notifications`. Resend uses same email renderer, cooldown, unsubscribe token, and preference JSON. Web realtime/list/dropdown copy supports all three moderation types.
+Ably publishes metadata on `user:{recipientId}:notifications`. Reporter updates include the report ID, allowing both notification surfaces to open the exact owned report detail. Notification reads derive the report ID from existing `moderation:reporter:<reportId>` source keys when older stored metadata lacks it; this avoids a backfill and keeps lookup O(1) per returned row. Resend uses same email renderer, cooldown, unsubscribe token, and preference JSON. Web realtime/list/dropdown copy supports all three moderation types.
 
 ## Scale Assumptions
 

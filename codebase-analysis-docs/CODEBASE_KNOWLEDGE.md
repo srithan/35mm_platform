@@ -102,6 +102,7 @@ Feature folders:
 - `features/feed`: core post composer, feed list, post cards, comments, post mutations, poll UI, rich text, media handling.
 - `features/profile`: public profile, follow state, edit profile, avatar/cover upload, connections, blocks/mutes.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime provider. Freshness comes from realtime plus a 30-second no-Ably fallback invalidator; badge/title/sound components do not each self-poll every 5 seconds.
+- `features/moderation`: report flow, personal report history, and owner-only report detail. Detail presents a plain-language safety outcome, uses `PostCardHeader` / `CommentCardHeader` for captured author and posting-time context, and reuses the feed rich-text renderer instead of exposing stored document JSON. Snapshot cards are intentionally read-only.
 - `features/lists`: film lists, watchlists, list detail/editor, list entry notes.
 - `features/onboarding`: role/favorite films/genres/follow suggestions flow.
 - `features/discover`: TMDB-backed discovery and search views.
@@ -112,6 +113,7 @@ Feature folders:
 - `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: mostly product surfaces using mock/static data or future-oriented code.
 - `features/title`: title detail pages, largely TMDB/discover oriented.
 - `features/letterboxd-import`: local import parsing/storage UI.
+- `PRODUCT.md`: product-register context for user-facing design work; `.impeccable/live/config.json` configures optional local visual iteration without changing runtime behavior.
 
 ### `apps/studio`
 
@@ -184,7 +186,7 @@ Important files:
 - `src/modules/chat/routes.ts`: authenticated chat inbox, thread creation, message read/write/edit/delete, reactions, read receipts, archive/mute/delete, typing, and presence routes.
 - `src/modules/contributions/routes.ts`: authenticated contribution submission queue routes. `POST /submissions` requires `Idempotency-Key`, validates with shared Zod schemas, applies user rate limiting, and writes review-state rows. `GET /submissions` returns cursor-paged viewer submissions.
 - `src/modules/moderation/reports.ts`: transactional report creation, server-side post/comment/profile snapshot capture, unresolved-report dedupe, denormalized content-state count updates, public report serialization, and per-reporter cursor history.
-- `src/modules/moderation/routes.ts`: authenticated `POST /v1/reports` and `GET /v1/me/reports`; creation is limited to 20/hour/user and public DTOs do not expose stored snapshots or reporter identity.
+- `src/modules/moderation/routes.ts`: authenticated `POST /v1/reports`, cursor-paginated `GET /v1/me/reports`, and owner-only `GET /v1/me/reports/:reportId`; creation is limited to 20/hour/user. List DTOs exclude snapshots, while detail returns a reporter-safe submission snapshot without author IDs, reporter identity, staff notes, or exact enforcement internals.
 - `src/modules/moderation/adminReadService.ts`: indexed grouped queue, bounded staff detail pages, and subject-user strike/action history. Queue candidates come from denormalized content state before bounded reason/snapshot hydration.
 - `src/modules/moderation/actions.ts`: advisory-key idempotent, lock-bounded staff action/dismiss transactions covering audit rows, content state, report resolution, strike/account enforcement, and durable notification outbox.
 - `src/modules/chat/chatRedis.ts`: unread counters, sorted-set typing indicators, and presence over Upstash Redis REST. Inbox unread and presence batch endpoints use Redis `MGET`.
@@ -211,6 +213,7 @@ Mounted routes:
 - `/v1/contributions/submissions`
 - `POST /v1/reports`
 - `GET /v1/me/reports`
+- `GET /v1/me/reports/:reportId`
 - `/v1/admin/moderation/queue`
 - `/v1/admin/moderation/content/:contentType/:contentId`
 - `/v1/admin/moderation/content/:contentType/:contentId/action`
@@ -574,7 +577,7 @@ How it works:
 
 Known gaps:
 
-- Post like/comment/repost/bookmark counters, comment likes, poll vote counters, profile films/follower/following counters, and film list like/entry counters are async via `counter.increment`.
+- Post like/comment/repost/bookmark counters, comment likes, poll vote counters, profile films/post/follower/following counters, and film list like/entry counters are async via `counter.increment`. `profiles.post_count` counts non-deleted authored posts and is updated transactionally through durable counter-outbox deltas on post/repost create/delete.
 - `feed.fanout` reads `profiles.follower_count` and materializes new posts into followers' `feed_items` below `FEED_HIGH_FOLLOWER_THRESHOLD` (default `10000`) in cursor-paginated batches (`FEED_FANOUT_BATCH_SIZE`, default `500`).
 - High-follower authors skip write fanout; home feed pulls their recent posts live and interleaves by score + post ID.
 - Follow creation backfills recent posts into `feed_items` for normal public accounts, but skips high-follower accounts because live merge handles them.
@@ -910,7 +913,7 @@ Important operational detail:
 - iOS local config lives in `apps/ios/ThirtyFiveMM.xcconfig`: `API_BASE_URL`, `CLERK_PUBLISHABLE_KEY`, and optional `ABLY_API_KEY`.
 - Feed fanout config: `FEED_HIGH_FOLLOWER_THRESHOLD` default `10000`; `FEED_FANOUT_BATCH_SIZE` default `500`, worker cap `2000`.
 - Feed rescore config: `FEED_RESCORE_STALE_AFTER_MINUTES` default `60`; `FEED_RESCORE_INTERVAL_MINUTES` default `5`; `FEED_RESCORE_BATCH_SIZE` default `500`, worker cap `2000`. The worker schedules it on boot instead of recomputing scores on every read.
-- Counter reconciliation safety net: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<posts|comments|post_polls|poll_options|film_lists|all> --id=<optional-id>`.
+- Counter reconciliation safety net: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<posts|comments|post_polls|poll_options|film_lists|profiles|all> --id=<optional-id>`.
 - `COUNTER_BATCH_WINDOW_MS` can tune worker counter coalescing; default is 50ms.
 - `COUNTER_OUTBOX_LOOP_BUDGET_MS` controls outbox drain batching runtime in one run; default is 750ms.
 

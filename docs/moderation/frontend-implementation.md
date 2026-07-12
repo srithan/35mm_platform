@@ -110,6 +110,20 @@ Wiring / removed stubs:
   - `reviewing` → "Under review"
   - `actioned` → "Action taken" (success tint)
   - `dismissed` → "No violation found" (faint)
+- Each history row links to `/settings/privacy/reports/:reportId`.
+- `MyReportDetailPanel.tsx` calls `GET /v1/me/reports/:reportId` and presents the
+  outcome as a plain-language safety-team update, then shows the captured social
+  object and the reporter's reason/note. Stored rich post/comment documents reuse
+  `RichTextRenderer`, so users see formatted content rather than persistence JSON.
+  Post snapshots reuse `PostCardHeader`; comment snapshots reuse
+  `CommentCardHeader`. Both show captured author identity/avatar and original
+  posting time while remaining read-only (no interaction/action bars on an
+  immutable moderation snapshot).
+  Profile snapshots render a read-only profile card with avatar, display name,
+  username, bio, posts/followers/following counts, and joined month/year.
+  The surface avoids audit-log vocabulary, duplicate status badges, and nested
+  metadata cards; snapshot copy simply says this is how the content appeared when
+  reported.
 
 ### 3. Moderation notifications
 
@@ -119,6 +133,10 @@ Reused the existing Ably/notifications pipeline; no new surface.
   already existed (`NotificationsContent.activityText` and
   `SiteHeader/notificationUtils.formatNotificationText`) from the backend PR —
   left as-is.
+- `report_status_update` destinations use `metadata.reportId` to open the exact
+  report detail. Legacy rows without this metadata are enriched by the API from
+  their durable moderation source key; if neither exists, navigation safely falls
+  back to the caller's report history.
 - Icons (were missing / placeholder):
   - Full-page list: `NotificationItem.tsx` gained an optional `icon` slot;
     `NotificationsContent.moderationIconBadge()` renders a themed 38px badge for

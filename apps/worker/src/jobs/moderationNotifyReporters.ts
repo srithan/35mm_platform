@@ -108,6 +108,7 @@ async function processOutboxRow(row: ClaimedOutboxRow, queue: Queue): Promise<bo
         entityType: action.contentType === "profile" ? "user" as const : action.contentType,
         entityId: action.contentId,
         metadata: {
+          reportId: report.id,
           outcome: row.resolution,
           message: row.resolution === "actioned"
             ? "We reviewed your report and took action."

@@ -44,6 +44,8 @@ export const ROUTES = {
   SETTINGS_PRIVACY_BLOCKED: "/settings/privacy/blocked",
   SETTINGS_PRIVACY_MUTED: "/settings/privacy/muted",
   SETTINGS_PRIVACY_REPORTS: "/settings/privacy/reports",
+  SETTINGS_PRIVACY_REPORT: (reportId: string) =>
+    `/settings/privacy/reports/${encodeURIComponent(reportId)}`,
   SETTINGS_DATA_SECURITY: "/settings/data-security",
   BOOKMARKS: "/bookmarks",
   DRAFTS: "/drafts",

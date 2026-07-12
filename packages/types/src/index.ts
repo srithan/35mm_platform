@@ -326,6 +326,11 @@ export interface ReportPage {
   hasMore: boolean;
 }
 
+/** Reporter-owned detail. Snapshot excludes moderation internals and reporter identity. */
+export interface MyReportDetailDto extends ReportDto {
+  contentSnapshot: ModerationContentSnapshot;
+}
+
 export interface ModerationActionDto {
   id: string;
   reportId: string | null;

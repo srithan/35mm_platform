@@ -2,6 +2,7 @@ import { ApiRequestError, apiRequest } from "@/features/feed/api/http";
 import type {
   ModerationContentType,
   ModerationReportReason,
+  MyReportDetailDto,
   ReportDto,
   ReportPage,
 } from "@35mm/types";
@@ -92,4 +93,14 @@ export async function fetchMyReports(params: {
   return apiRequest<ReportPage>(`/v1/me/reports?${query.toString()}`, {
     token: params.token,
   });
+}
+
+export async function fetchMyReport(params: {
+  reportId: string;
+  token: string | null;
+}): Promise<MyReportDetailDto> {
+  return apiRequest<MyReportDetailDto>(
+    `/v1/me/reports/${encodeURIComponent(params.reportId)}`,
+    { token: params.token }
+  );
 }

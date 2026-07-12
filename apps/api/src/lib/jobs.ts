@@ -89,6 +89,7 @@ export type CounterName =
   | "voteCount"
   | "entryCount"
   | "filmsLoggedCount"
+  | "postCount"
   | "followerCount"
   | "followingCount";
 

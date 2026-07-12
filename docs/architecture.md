@@ -260,7 +260,7 @@ Source of truth: `packages/db/src/schema/*`.
 - Edit Profile can update role/headline metadata through `/v1/profiles/me`; role changes write both role and headline fields so profile and post bylines stay aligned.
 - Favorite film IDs and genre IDs arrays.
 - Private account flag.
-- Denormalized `films_logged_count`, moderation `strike_count`, and `moderation_status`.
+- Denormalized `films_logged_count`, `post_count`, follower/following counts, moderation `strike_count`, and `moderation_status`. `post_count` tracks non-deleted authored posts through the durable async counter outbox; migration `0047_profile_post_count` backfills existing profiles.
 - Public profile detail, stats, search, follower, and following reads exclude hidden/removed profiles. Profile owner and moderation staff retain access; responses expose `moderationStatus` so owner clients can render under-review/removed state.
 
 `username_locks`
@@ -435,7 +435,7 @@ Catalog write pattern:
 
 `reports`
 
-- ULID-shaped text primary key, reporter FK, polymorphic `post | comment | profile` target, reason/details, server-captured JSONB content snapshot, review status, and optional resolved action link.
+- ULID-shaped text primary key, reporter FK, polymorphic `post | comment | profile` target, reason/details, server-captured JSONB content snapshot, review status, and optional resolved action link. Post/comment snapshots include author presentation and original creation time for faithful read-only social-card rendering; author IDs remain staff/internal-only on reporter responses.
 - Partial unique index permits one unresolved (`open | reviewing`) report per reporter/content target while allowing a new report after action or dismissal.
 - Content grouping, open queue, and per-reporter cursor indexes support bounded moderation reads without `OFFSET`.
 
@@ -623,7 +623,9 @@ Profiles, follows, moderation:
   - requires auth, accepts only server-validated post/comment/profile UUID targets, captures content snapshots inside the report transaction, and is limited to 20 reports/hour/user
   - duplicate unresolved reports return the existing `ReportDto` without incrementing `moderation_content_state.report_count` again
 - `GET /v1/me/reports`
-  - returns only the caller's cursor-paginated report history; stored snapshots and reporter identity are not exposed through the public DTO
+  - returns only the caller's cursor-paginated report history; stored snapshots and reporter identity are not exposed through the list DTO
+- `GET /v1/me/reports/:reportId`
+  - owner-only primary-key lookup returning current status and a reporter-safe submission-time snapshot; author IDs, reporter identity, staff notes, and exact enforcement internals remain private
 - `GET /v1/admin/moderation/queue`
   - moderation staff only; grouped by content, sorted by denormalized report count then latest report time, with status/content/reason filters and an opaque four-field keyset cursor
 - `GET /v1/admin/moderation/content/:contentType/:contentId`
@@ -916,7 +918,7 @@ Current feed behavior:
 - Authenticated home feeds that include high-follower live rows cache the final per-viewer merged page with the normal feed payload TTL and also cache the viewer-independent slice: recent rows for each high-follower author, keyed by author ID.
 - `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaults to 45 seconds. This intentionally allows high-follower author scores/counters/profile fields to be up to TTL seconds stale in exchange for sharing one cached author slice across many followers.
 - `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaults to 100 rows per author. Deep pagination beyond the cached slice falls back to a direct per-author DB query for that rare page.
-- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/follower/following counters, and film list like/entry counters.
+- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/post/follower/following counters, and film list like/entry counters. Post create/delete and repost create/delete write the profile `postCount` delta in the same transaction as the post mutation.
 - `counter.outbox`: worker drains pending rows with row locks, batches by target/counter, and now loops until empty or a configured time budget (`COUNTER_OUTBOX_LOOP_BUDGET_MS`) before ending. If a full batch is processed and backlog remains, worker self-enqueues follow-up `counter.outbox` work to keep up with burst writes.
 - Counter jobs are durable through `counter_jobs`: API counter-touching mutations write outbox rows in the same transaction as the fact mutation, then best-effort enqueue `counter.outbox` to wake the worker. The worker deletes processed `counter_jobs` rows and decrements `counter_job_deltas`, and also drains `profile_follow_approval_outbox` rows in the same loop and re-schedules `profile.followApproval` pages when needed. If BullMQ is unavailable, the repeatable `counter.outbox` worker job still drains pending DB rows when the queue returns. Manual reconciliation path: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`.
 

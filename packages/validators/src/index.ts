@@ -140,6 +140,10 @@ export var createReportSchema = z.object({
 
 export var moderationReportHistoryQuerySchema = cursorPaginationSchema;
 
+export var moderationReportParamsSchema = z.object({
+  reportId: z.string().trim().regex(ULID_RE, "reportId must be a ULID"),
+});
+
 export var moderationContentParamsSchema = z.object({
   contentType: moderationContentTypeSchema,
   contentId: z.string().uuid(),
@@ -1308,6 +1312,7 @@ export var catalogEditQueueQuerySchema = catalogReadPageQuerySchema.extend({
 
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
 export type CreateReportInput = z.infer<typeof createReportSchema>;
+export type ModerationReportParamsInput = z.infer<typeof moderationReportParamsSchema>;
 export type ModerationContentParamsInput = z.infer<typeof moderationContentParamsSchema>;
 export type ModerationQueueQueryInput = z.infer<typeof moderationQueueQuerySchema>;
 export type ModerationDetailQueryInput = z.infer<typeof moderationDetailQuerySchema>;
