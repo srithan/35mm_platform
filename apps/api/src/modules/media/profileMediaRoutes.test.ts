@@ -131,6 +131,7 @@ describe("profile media route responses", function () {
           headlineContext: null,
           isPrivate: false,
           filmsLoggedCount: 0,
+          moderationStatus: "visible",
           status: "active",
           createdAt: new Date("2026-06-22T00:00:00.000Z"),
         },

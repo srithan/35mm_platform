@@ -55,6 +55,7 @@ export interface PublicProfile {
   onboardingCompleted: boolean;
   onboardingCompletedAt: string | null;
   isDeactivated: boolean;
+  moderationStatus?: ModerationContentStatus;
   createdAt: string;
 }
 
@@ -96,6 +97,7 @@ export interface FeedPost {
   id: PostId;
   author: PublicUser;
   type: "text" | "discussion" | "log" | "review" | "image";
+  moderationStatus?: ModerationContentStatus;
   headline?: string | null;
   body: string;
   media: Array<{
@@ -275,6 +277,140 @@ export interface CatalogEditMutationResult {
 
 export interface CatalogEditWorkflowResult {
   edit: CatalogEditDto;
+}
+
+export type ModerationContentType = "post" | "comment" | "profile";
+
+export type ModerationReportReason =
+  | "spam"
+  | "harassment"
+  | "hate_speech"
+  | "violence"
+  | "nudity_sexual_content"
+  | "misinformation"
+  | "self_harm"
+  | "impersonation"
+  | "intellectual_property"
+  | "other";
+
+export type ModerationReportStatus = "open" | "reviewing" | "actioned" | "dismissed";
+export type ModerationActorType = "staff" | "system";
+export type ModerationContentStatus = "visible" | "hidden" | "removed";
+export type ModerationAction =
+  | "no_action"
+  | "content_hidden"
+  | "content_removed"
+  | "content_warning_added"
+  | "user_warned"
+  | "user_suspended"
+  | "user_banned"
+  | "escalated";
+
+export type ModerationContentSnapshot = Record<string, unknown>;
+export type ModerationActionMetadata = Record<string, unknown>;
+
+export interface ReportDto {
+  id: string;
+  contentType: ModerationContentType;
+  contentId: string;
+  reason: ModerationReportReason;
+  details: string | null;
+  status: ModerationReportStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReportPage {
+  items: ReportDto[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface ModerationActionDto {
+  id: string;
+  reportId: string | null;
+  contentType: ModerationContentType;
+  contentId: string;
+  actorType: ModerationActorType;
+  actorUserId: string | null;
+  subjectUserId: string | null;
+  action: ModerationAction;
+  reason: string;
+  notes: string | null;
+  metadata: ModerationActionMetadata;
+  createdAt: string;
+}
+
+export interface ModerationQueueItemDto {
+  contentType: ModerationContentType;
+  contentId: string;
+  contentSnapshot: ModerationContentSnapshot;
+  reportCount: number;
+  reasons: Array<{
+    reason: ModerationReportReason;
+    count: number;
+  }>;
+  status: ModerationReportStatus;
+  author: {
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  authorStrikeCount: number;
+  lastReportedAt: string;
+}
+
+export interface ModerationQueuePage {
+  items: ModerationQueueItemDto[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface ModerationReportDetailDto extends ReportDto {
+  reporter: {
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  contentSnapshot: ModerationContentSnapshot;
+  resolvedActionId: string | null;
+}
+
+export interface ModerationContentStateDto {
+  contentType: ModerationContentType;
+  contentId: string;
+  status: ModerationContentStatus;
+  reportCount: number;
+  lastReportedAt: string | null;
+  hiddenAt: string | null;
+  removedAt: string | null;
+  updatedAt: string;
+}
+
+export interface ModerationContentDetailDto {
+  contentType: ModerationContentType;
+  contentId: string;
+  author: {
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    strikeCount: number;
+  };
+  state: ModerationContentStateDto;
+  reports: CatalogPage<ModerationReportDetailDto>;
+  actions: CatalogPage<ModerationActionDto>;
+  strikeHistory: CatalogPage<ModerationActionDto>;
+}
+
+export interface ModerationUserStrikesDto {
+  userId: string;
+  strikeCount: number;
+  items: ModerationActionDto[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export type CatalogTitleType =
@@ -732,7 +868,10 @@ export type NotificationType =
   | "mention"
   | "repost"
   | "film_logged"
-  | "chat_reaction";
+  | "chat_reaction"
+  | "report_status_update"
+  | "content_moderated"
+  | "content_under_review";
 
 export interface NotificationActor {
   id: string;
@@ -758,6 +897,7 @@ export interface NotificationItem {
   type: NotificationType;
   actor: NotificationActor | null;
   entity: NotificationEntity | null;
+  metadata: Record<string, unknown>;
   isRead: boolean;
   actorIds?: string[];
   actorProfiles?: {

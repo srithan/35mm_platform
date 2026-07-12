@@ -8,6 +8,8 @@ type RedisClient = {
   smembers<T = string>(key: string): Promise<T[]>;
   expire(key: string, seconds: number): Promise<void>;
   del(...keys: string[]): Promise<void>;
+  set(key: string, value: unknown): Promise<void>;
+  setex(key: string, seconds: number, value: unknown): Promise<void>;
 };
 
 var redisClient: RedisClient | null | undefined;
@@ -73,6 +75,12 @@ function buildClient(): RedisClient {
       if (keys.length === 0) return;
       await command("del", ...keys);
     },
+    async set(key: string, value: unknown) {
+      await command("set", key, JSON.stringify(value));
+    },
+    async setex(key: string, seconds: number, value: unknown) {
+      await command("setex", key, seconds, JSON.stringify(value));
+    },
   };
 }
 
@@ -117,6 +125,54 @@ export async function invalidateViewerFeedCaches(viewerIds: string[]): Promise<n
     deleted += await deleteKeysFromIndex(viewerIndexKey(unique[i]));
   }
   return deleted;
+}
+
+function authorIndexKey(authorUserId: string): string {
+  return `${CACHE_NS}:idx:author:${normalizePart(authorUserId)}`;
+}
+
+function highFollowerAuthorFeedCacheKey(authorUserId: string): string {
+  return `${CACHE_NS}:home:high-author:${normalizePart(authorUserId)}`;
+}
+
+function profileStatsAuthorIndexKey(authorUserId: string): string {
+  return `profile-stats:v1:idx:author:${normalizePart(authorUserId)}`;
+}
+
+function moderationReadCacheKey(contentType: string, contentId: string): string {
+  return `moderation-read:v1:${contentType}:${encodeURIComponent(contentId)}`;
+}
+
+export async function syncModerationEnforcementCaches(input: {
+  contentType: "post" | "comment" | "profile";
+  contentId: string;
+  authorUserId: string;
+  status: "hidden" | "removed" | "visible";
+}): Promise<boolean> {
+  var redis = getRedisClient();
+  if (!redis) return true;
+  try {
+    await redis.set(moderationReadCacheKey(input.contentType, input.contentId), input.status);
+    await redis.setex(
+      `moderation-read:v1:profile-stats-dirty:${encodeURIComponent(input.authorUserId)}`,
+      180,
+      true
+    );
+    await Promise.all([
+      deleteKeysFromIndex(viewerIndexKey(null)),
+      deleteKeysFromIndex(viewerIndexKey(input.authorUserId)),
+      deleteKeysFromIndex(authorIndexKey(input.authorUserId)),
+      deleteKeysFromIndex(profileStatsAuthorIndexKey(input.authorUserId)),
+      redis.del(highFollowerAuthorFeedCacheKey(input.authorUserId)),
+    ]);
+    return true;
+  } catch (error) {
+    console.error("[moderation-cache] sync-failed", {
+      ...input,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
 }
 
 export async function markViewerFeedCacheIndex(viewerId: string, cacheKey: string): Promise<void> {

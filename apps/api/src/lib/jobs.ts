@@ -36,6 +36,12 @@ type ProfileFollowApprovalJobPayload = {
   cursor: string | null;
 };
 
+export type ModerationAutoHideCheckJobPayload = {
+  reportId: string;
+  contentType: "post" | "comment" | "profile";
+  contentId: string;
+};
+
 type ChatDeliverJobPayload = {
   messageId: string;
   threadId: string;
@@ -101,6 +107,8 @@ type QueueName =
   | "feed.fanout"
   | "list.clone"
   | "profile.followApproval"
+  | "moderation.autoHideCheck"
+  | "moderation.notifyReporters"
   | "chat.deliver"
   | "chat.messageUpdated"
   | "chat.readReceipt"
@@ -382,6 +390,73 @@ export async function enqueueProfileFollowApprovalJob(
       "PROFILE_FOLLOW_APPROVAL_QUEUE_UNAVAILABLE",
       "Profile follow approval queue is unavailable; retry this request"
     );
+  }
+
+  return true;
+}
+
+export async function enqueueModerationAutoHideCheckJob(
+  payload: ModerationAutoHideCheckJobPayload
+): Promise<boolean> {
+  var q = getQueue();
+  if (!q) {
+    console.error("[moderation.autoHideCheck] queue disabled; report saved for retry", payload);
+    throw serviceUnavailable(
+      "MODERATION_QUEUE_UNAVAILABLE",
+      "Moderation queue is unavailable; retry this request"
+    );
+  }
+
+  try {
+    await q.add("moderation.autoHideCheck", payload, {
+      ...defaultJobOptions("moderation.autoHideCheck"),
+      jobId: "moderation.autoHideCheck-" + payload.reportId,
+      attempts: 8,
+      backoff: {
+        type: "exponential",
+        delay: 1_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    });
+  } catch (error) {
+    console.error("[moderation.autoHideCheck] enqueue failed; report saved for retry", {
+      payload,
+      error,
+    });
+    throw serviceUnavailable(
+      "MODERATION_QUEUE_UNAVAILABLE",
+      "Moderation queue is unavailable; retry this request"
+    );
+  }
+
+  return true;
+}
+
+export async function enqueueModerationNotificationOutboxJob(): Promise<boolean> {
+  var q = getQueue();
+  if (!q) {
+    console.warn("[moderation.notifyReporters] queue disabled; durable outbox remains pending");
+    return false;
+  }
+
+  try {
+    await q.add("moderation.notifyReporters", {}, {
+      ...defaultJobOptions("moderation.notifyReporters"),
+      jobId: "moderation.notifyReporters-wake-" + Math.floor(Date.now() / 1000),
+      attempts: 6,
+      backoff: {
+        type: "exponential",
+        delay: 1_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    });
+  } catch (error) {
+    console.warn("[moderation.notifyReporters] wake enqueue failed; durable outbox remains pending", {
+      error,
+    });
+    return false;
   }
 
   return true;

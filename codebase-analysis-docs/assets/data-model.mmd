@@ -28,6 +28,10 @@ erDiagram
   users ||--o{ user_blocks : blocker
   users ||--o{ user_mutes : muter
   users ||--o{ contribution_submissions : submits
+  users ||--o{ reports : files
+  users ||--o{ moderation_actions : performs
+  reports ||--o| moderation_actions : resolved_by
+  moderation_actions ||--o{ moderation_notification_outbox : enqueues
   films ||--o| catalog_titles : legacy_bridge
   catalog_titles ||--o{ catalog_title_relations : relates_from
   catalog_titles ||--o{ catalog_title_relations : relates_to
@@ -68,6 +72,57 @@ erDiagram
     boolean is_deleted
     timestamp created_at
     timestamp updated_at
+  }
+  reports {
+    string id PK
+    string reporter_user_id FK
+    string content_type
+    string content_id
+    string reason
+    string status
+    json content_snapshot
+    string resolved_action_id FK
+    timestamp created_at
+  }
+  moderation_actions {
+    string id PK
+    string report_id FK
+    string content_type
+    string content_id
+    string actor_type
+    string actor_user_id FK
+    string subject_user_id FK
+    string action
+    string idempotency_key
+    timestamp created_at
+  }
+  moderation_content_state {
+    string content_type PK
+    string content_id PK
+    string status
+    int report_count
+    timestamp last_reported_at
+    timestamp updated_at
+  }
+  moderation_notification_outbox {
+    string id PK
+    string action_id FK
+    string resolution
+    string status
+    string report_cursor
+    timestamp processed_at
+  }
+  notifications {
+    string id PK
+    string recipient_id FK
+    string actor_id FK
+    string type
+    string entity_type
+    string entity_id
+    json metadata
+    string source_key
+    boolean is_read
+    timestamp created_at
   }
   catalog_titles {
     string id PK

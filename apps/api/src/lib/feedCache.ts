@@ -162,6 +162,21 @@ export async function setHighFollowerAuthorFeedCache(
   }
 }
 
+export async function invalidateHighFollowerAuthorFeedCache(authorUserId: string): Promise<number> {
+  var redis = getRedisClient();
+  if (!redis) return 0;
+  try {
+    await redis.del(highFollowerAuthorFeedCacheKey(authorUserId));
+    return 1;
+  } catch (error) {
+    console.error("[feed-cache] high-author-invalidate-failed", {
+      authorUserId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return 0;
+  }
+}
+
 async function deleteKeysFromIndex(indexKey: string): Promise<number> {
   var redis = getRedisClient();
   if (!redis) return 0;

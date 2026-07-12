@@ -24,12 +24,14 @@ import type { NotificationItem as ApiNotificationItem, NotificationPage } from "
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { Eye, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
 
 interface NotificationRecordWithCreatedAt extends NotificationRecord {
   createdAt: string;
   destinationHref: string;
   followRequestUserId?: string;
+  icon?: ReactNode;
 }
 
 interface NotificationGroupRecord {
@@ -111,6 +113,26 @@ function extractFollowRequestUserId(item: ApiNotificationItem): string | undefin
 }
 
 function activityText(item: ApiNotificationItem): NotificationTextPart[] {
+  if (item.type === "report_status_update") {
+    return [{
+      type: "text",
+      value: item.metadata.outcome === "actioned"
+        ? "We reviewed your report and took action"
+        : "We reviewed your report and didn’t find a violation",
+    }];
+  }
+
+  if (item.type === "content_under_review") {
+    return [{ type: "text", value: "Your content is under review" }];
+  }
+
+  if (item.type === "content_moderated") {
+    const contentType = typeof item.metadata.contentType === "string" ? item.metadata.contentType : "content";
+    const action = typeof item.metadata.action === "string" ? item.metadata.action.replaceAll("_", " ") : "moderated";
+    const reason = typeof item.metadata.reason === "string" ? item.metadata.reason : "a policy violation";
+    return [{ type: "text", value: `Moderation action for your ${contentType}: ${action}. Reason: ${reason}` }];
+  }
+
   const textParts: NotificationTextPart[] = [
     {
       type: "user",
@@ -159,6 +181,55 @@ function activityText(item: ApiNotificationItem): NotificationTextPart[] {
   }
 
   return textParts;
+}
+
+/**
+ * System (actorless) moderation notifications render a themed icon badge in
+ * place of an actor avatar. Returns undefined for social types so the existing
+ * avatar path is used. All colors reference theme tokens.
+ */
+function moderationIconBadge(item: ApiNotificationItem): ReactNode | undefined {
+  const badgeBase =
+    "flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full";
+
+  if (item.type === "content_moderated") {
+    return (
+      <span
+        className={`${badgeBase} bg-[color-mix(in_srgb,var(--color-warning)_14%,var(--elevated))] text-warning`}
+        aria-hidden
+      >
+        <ShieldAlert className="h-[19px] w-[19px]" strokeWidth={1.9} />
+      </span>
+    );
+  }
+
+  if (item.type === "content_under_review") {
+    return (
+      <span className={`${badgeBase} bg-sunken text-fg-muted`} aria-hidden>
+        <Eye className="h-[19px] w-[19px]" strokeWidth={1.9} />
+      </span>
+    );
+  }
+
+  if (item.type === "report_status_update") {
+    if (item.metadata.outcome === "actioned") {
+      return (
+        <span
+          className={`${badgeBase} bg-[color-mix(in_srgb,var(--color-success)_14%,var(--elevated))] text-success`}
+          aria-hidden
+        >
+          <ShieldCheck className="h-[19px] w-[19px]" strokeWidth={1.9} />
+        </span>
+      );
+    }
+    return (
+      <span className={`${badgeBase} bg-sunken text-fg-muted`} aria-hidden>
+        <Shield className="h-[19px] w-[19px]" strokeWidth={1.9} />
+      </span>
+    );
+  }
+
+  return undefined;
 }
 
 function relativeTime(isoDate: string): string {
@@ -212,6 +283,7 @@ function notificationToRecord(item: ApiNotificationItem): NotificationRecordWith
     destinationHref: getNotificationDestination(item),
     unread: !item.isRead,
     followRequestUserId: extractFollowRequestUserId(item),
+    icon: moderationIconBadge(item),
     avatar: {
       initial: avatarText,
       bg: avatarBg,
@@ -529,6 +601,7 @@ export function NotificationsContent() {
                         avatarColor={item.avatar?.color}
                         avatarUrl={item.avatar?.avatarUrl}
                         avatarStack={item.avatarStack}
+                        icon={item.icon}
                         text={
                           item.contentParts
                             .map(function (part, index) {

@@ -48,6 +48,7 @@ export interface Post {
   visibility?: "public" | "followers_only" | "private";
   editedAt?: string | null;
   isDeleted?: boolean;
+  moderationStatus?: "visible" | "hidden" | "removed";
   /** Discussion-style title. When set, `body` is only the post body (not the title). */
   headline?: string;
   body: string;
@@ -101,6 +102,7 @@ export interface Comment {
   likeCount: number;
   isLiked: boolean;
   isDeleted?: boolean;
+  moderationStatus?: "visible" | "hidden" | "removed";
   editedAt?: string | null;
   createdAt: string;
   replies: Comment[];

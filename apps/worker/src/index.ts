@@ -19,6 +19,8 @@ import { runChatMessageUpdatedJob } from "./jobs/chatMessageUpdated.js";
 import { runChatReadReceiptJob } from "./jobs/chatReadReceipt.js";
 import { runChatTypingJob } from "./jobs/chatTyping.js";
 import { runCatalogIndexJob, runCatalogIndexOutboxJob } from "./jobs/catalogIndex.js";
+import { runModerationAutoHideCheck } from "./jobs/moderationAutoHide.js";
+import { runModerationNotifyReporters } from "./jobs/moderationNotifyReporters.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
@@ -137,6 +139,24 @@ async function handleJob(job: Job, queue: Queue): Promise<unknown> {
   if (job.name === "notification.digest") {
     await runNotificationDigestJob();
     return { ok: true, stub: true };
+  }
+
+  if (job.name === "moderation.autoHideCheck") {
+    return runModerationAutoHideCheck(job.data, queue);
+  }
+
+  if (job.name === "moderation.notifyReporters") {
+    var moderationResult = await runModerationNotifyReporters(job.data, queue);
+    if (moderationResult.followUp) {
+      await queue.add("moderation.notifyReporters", {}, {
+        jobId: "moderation.notifyReporters-followup-" + Date.now(),
+        attempts: 6,
+        backoff: { type: "exponential", delay: 1_000 },
+        removeOnComplete: true,
+        removeOnFail: 1000,
+      });
+    }
+    return moderationResult;
   }
 
   if (job.name === "chat.deliver") {
@@ -259,6 +279,18 @@ async function main() {
       type: "exponential",
       delay: 1_000,
     },
+    removeOnComplete: true,
+    removeOnFail: 1000,
+  });
+
+  var moderationOutboxIntervalSeconds = Number.isFinite(env.MODERATION_NOTIFICATION_OUTBOX_INTERVAL_SECONDS)
+    ? Math.max(5, env.MODERATION_NOTIFICATION_OUTBOX_INTERVAL_SECONDS)
+    : 30;
+  await schedulerQueue.add("moderation.notifyReporters", {}, {
+    jobId: "moderation.notifyReporters-repeat",
+    repeat: { every: moderationOutboxIntervalSeconds * 1000 },
+    attempts: 6,
+    backoff: { type: "exponential", delay: 1_000 },
     removeOnComplete: true,
     removeOnFail: 1000,
   });

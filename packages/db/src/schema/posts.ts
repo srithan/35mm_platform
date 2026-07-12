@@ -16,6 +16,7 @@ import { sql } from "drizzle-orm";
 import { bookmarkFolders } from "./bookmarks.js";
 import { users } from "./users.js";
 import { films } from "./films.js";
+import { moderationContentStatusEnum } from "./moderation.js";
 
 export var postTypeEnum = pgEnum("post_type", [
   "text",
@@ -102,6 +103,7 @@ export var posts = pgTable(
     repostCount: integer("repost_count").default(0).notNull(),
     bookmarkCount: integer("bookmark_count").default(0).notNull(),
     isDeleted: boolean("is_deleted").default(false).notNull(),
+    moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     media: jsonb("media").$type<PostMedia[]>().default(sql`'[]'::jsonb`).notNull(),
     mediaUrls: text("media_urls").array().default(sql`'{}'::text[]`).notNull(),
@@ -119,6 +121,11 @@ export var posts = pgTable(
         table.id
       ),
       createdAtIdx: index("posts_created_at_idx").on(table.createdAt),
+      moderationCreatedAtIdx: index("posts_moderation_created_at_id_idx").on(
+        table.moderationStatus,
+        table.createdAt,
+        table.id
+      ),
     };
   }
 );

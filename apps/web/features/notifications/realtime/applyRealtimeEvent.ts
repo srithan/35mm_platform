@@ -18,6 +18,7 @@ function buildNotificationFromEvent(notificationId: string, event: NotificationR
     bundleCount: event.bundleCount && event.bundleCount >= 1 ? event.bundleCount : 1,
     createdAt: new Date().toISOString(),
     isRead: false,
+    metadata: event.metadata ?? {},
     entity: event.entityId && event.entityType
       ? {
           type: event.entityType,
@@ -51,6 +52,7 @@ export function applyNotificationRealtimeEvent(
               actorIds: event.actorIds ?? item.actorIds ?? [],
               bundleCount: event.bundleCount && event.bundleCount >= 1 ? event.bundleCount : item.bundleCount,
               type: event.notificationType ?? item.type,
+              metadata: event.metadata ?? item.metadata,
             };
           }),
         });

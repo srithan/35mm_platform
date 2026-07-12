@@ -20,6 +20,7 @@ import { AvatarViewer } from "@/components/Avatar/AvatarViewer";
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { ShareModal } from "@/components/ShareModal/ShareModal";
+import { ReportFlow } from "@/features/moderation/components/ReportFlow";
 import { EditProfileModal } from "./EditProfileModal";
 import { ProfileStats } from "./ProfileStats";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
@@ -80,8 +81,9 @@ export function ProfileHeader({
   const queryClient = useQueryClient();
   const [isMutedByViewer, setIsMutedByViewer] = useState(initialIsMutedByViewer);
 	  const [confirmAction, setConfirmAction] = useState<
-	    "block" | "report" | "mute" | "unmute" | null
+	    "block" | "mute" | "unmute" | null
 	  >(null);
+	  const [showReport, setShowReport] = useState(false);
 	  const [confirmCancelRequest, setConfirmCancelRequest] = useState(false);
 	  const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(initialAvatarUrl);
@@ -175,11 +177,6 @@ export function ProfileHeader({
       title: `Block @${username}?`,
       description: `They won't be able to see your posts or interact with you. You can unblock them at any time.`,
       confirmLabel: `Block @${username}`,
-    },
-    report: {
-      title: `Report @${username}?`,
-      description: `If this account is violating our community guidelines, we'll review it and take appropriate action.`,
-      confirmLabel: "Report",
     },
     mute: {
       title: `Mute @${username}?`,
@@ -351,7 +348,7 @@ export function ProfileHeader({
             label: "Report",
             icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
             danger: true,
-            onSelect: () => setConfirmAction("report"),
+            onSelect: () => setShowReport(true),
           },
         ]}
         trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
@@ -455,7 +452,7 @@ export function ProfileHeader({
           description={confirmConfig[confirmAction].description}
           confirmLabel={confirmConfig[confirmAction].confirmLabel}
           cancelLabel="Cancel"
-          variant={confirmAction === "block" || confirmAction === "report" ? "danger" : "default"}
+          variant={confirmAction === "block" ? "danger" : "default"}
         />
       )}
       <ConfirmDialog
@@ -473,6 +470,14 @@ export function ProfileHeader({
         cancelLabel="Cancel"
         variant="danger"
       />
+      <ReportFlow
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        contentType="profile"
+        contentId={userId}
+        targetLabel={`@${username}`}
+      />
+
       <ShareModal
         open={showShareModal}
         onClose={() => setShowShareModal(false)}

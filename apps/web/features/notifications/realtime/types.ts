@@ -11,6 +11,7 @@ export type NotificationRealtimeEvent =
       notificationType?: NotificationType;
       entityId?: string | null;
       entityType?: NotificationEntityType;
+      metadata?: Record<string, unknown>;
     }
   | {
       type: "notification.read";

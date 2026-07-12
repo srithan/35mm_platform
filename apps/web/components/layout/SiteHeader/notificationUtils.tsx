@@ -24,6 +24,23 @@ export function formatNotificationText(row: HeaderNotifRow): ReactNode {
   const isBundle = row.bundleCount > 1;
   const actorLabel = isBundle ? `${actorName} and ${row.bundleCount - 1} others` : actorName;
 
+  if (row.type === "report_status_update") {
+    return row.metadata.outcome === "actioned"
+      ? "We reviewed your report and took action"
+      : "We reviewed your report and didn’t find a violation";
+  }
+
+  if (row.type === "content_under_review") {
+    return "Your content is under review";
+  }
+
+  if (row.type === "content_moderated") {
+    const contentType = typeof row.metadata.contentType === "string" ? row.metadata.contentType : "content";
+    const action = typeof row.metadata.action === "string" ? row.metadata.action.replaceAll("_", " ") : "moderated";
+    const reason = typeof row.metadata.reason === "string" ? row.metadata.reason : "a policy violation";
+    return `Moderation action for your ${contentType}: ${action}. Reason: ${reason}`;
+  }
+
   if (row.type === "follow") {
     return (
       <>

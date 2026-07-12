@@ -1,6 +1,6 @@
 # 35mm Platform Codebase Knowledge
 
-Generated from a direct repository inspection on 2026-06-23. Last refreshed for catalog core schema on 2026-07-07.
+Generated from a direct repository inspection on 2026-06-23. Last refreshed for full content moderation backend on 2026-07-11.
 
 This is a working knowledge base for onboarding engineers and future AI sessions. It reflects the code currently present in the repo, not only the older architecture plan in `docs/architecture.md`.
 
@@ -127,6 +127,10 @@ Important areas:
 - `lib/studio/db.ts`: Studio database connection helper.
 - `lib/studio/usernameLocks.ts`: migration-missing detection helper for username lock operations.
 - `lib/catalog/api.ts`: typed Studio client for Hono catalog read/mutation APIs, including title/media/external-ID edit staging with idempotency keys. Local browser calls on `localhost:3001` use `http://localhost:4000` directly; deployed/no-env browser calls use the Studio `/api/platform/*` server proxy before reaching the platform API. The proxy rejects self-targeting Studio URLs and converts upstream non-JSON failures into JSON diagnostics.
+- `lib/studio/platformClient.ts`: shared base-URL resolver (`resolvePlatformApiUrl`), `platformRequest`, and `PlatformApiError` used by both catalog and moderation clients so they share one proxy contract.
+- `lib/moderation/api.ts` + `lib/moderation/constants.ts`: typed client for `/v1/admin/moderation/*` (queue, content detail with independent `reportCursor`/`actionCursor`/`strikeCursor`, apply, dismiss) plus per-attempt `Idempotency-Key` generation, reason/status/action label maps, snapshot preview/body helpers, and enforcement-action metadata (destructive/duration/strike flags).
+- `hooks/useModerationQueue.ts`, `hooks/useModerationQueueFilters.ts` (nuqs URL-backed status/contentType/reason), `hooks/useModerationContent.ts` (detail + independent load-more + apply/dismiss mutations with `503` same-key retry).
+- `components/moderation/*` and `app/moderation/*`: queue list (grouped rows, filters, cursor pagination) and content detail (per-type snapshot render, staff-only reporter list, author strike context, enforcement action panel with confirm dialog + distinct Dismiss, read-only audit trail). Gated on `moderation` / `moderation_admin` Studio roles (nav hidden + `proxy.ts` redirect; API enforces). `lib/auth/accessControl.ts` carries the `moderation_admin` role and `moderation:admin` permission.
 - `lib/data/*`: external source lookup and remaining local operational helpers for non-catalog-title surfaces.
 
 ### `apps/ios`
@@ -169,15 +173,20 @@ Important files:
 - `src/modules/catalog/readCache.ts`: Upstash-backed public catalog GET cache with normalized path/query keys, 45-second TTL, and index-based invalidation after applied catalog mutations.
 - `src/lib/rateLimit.ts`: Redis fixed-window rate limiting; allowed requests avoid per-request `TTL` reads and only fetch TTL for blocked responses. Missing identity always fails closed with `503`. Missing/unreachable Redis fails closed in production, while non-production uses a bounded process-local fixed-window fallback unless `RATE_LIMIT_DISABLED=true` or tests disable limiting.
 - `src/lib/moderation.ts`: block/mute filters and feed item purge helpers.
-- `src/lib/notifications.ts`: preference-aware, moderation-aware notification creation and bundling.
+- `src/lib/studioAuth.ts`: shared Clerk Studio role normalization/metadata fallback used by catalog and moderation; includes `moderation_admin` plus catalog-write, moderation, and cross-staff reversal predicates.
+- `src/lib/notifications.ts`: API binding for shared preference-aware, moderation-aware notification creation and bundling in `@35mm/db/notification-service`.
 - `src/lib/filmLists.ts`: watchlist bootstrap and film ID resolution from existing ULID, TMDB metadata, or catalog metadata.
-- `src/lib/jobs.ts`: BullMQ producer for media, notification, counter, feed, and chat jobs.
+- `src/lib/jobs.ts`: BullMQ producer for media, notification, counter, feed, moderation, and chat jobs.
 - `src/lib/keyspaces.ts`: Cassandra driver client for AWS Keyspaces using SigV4 IAM auth, warmed connection pools, prepared statements by default, and `chat-read`/`chat-write` execution profiles.
 - `src/modules/catalog/readService.ts`: public catalog read/search service for title/person/company detail, compact search cards, credits, media, external IDs, aliases, relations, awards, company titles, edit queue, and public history. Reads use cursor pagination and DB-backed `sort_title` / `sort_name` prefix search.
 - `src/modules/catalog/mutations.ts`: production catalog mutation helper for stage/apply/reject/revert/merge/batch. It uses shared validators, pooled Drizzle transactions, transaction-local `SET LOCAL lock_timeout`, deterministic current-row locks, advisory-lock idempotency, same-transaction `catalog_index_jobs`, field-level supersede detection, hard-delete restore support for relation-style current-state tables, and structured catalog mutation/metric logs.
 - `src/modules/catalog/routes.ts`: `/v1/catalog` read routes plus mutation routes for titles, people, credits, media, external IDs, aliases, title relations, title companies, title genres, companies, awards/events/nominations, merge, edit queue, approve/reject/revert, and title/person/company history. Public read routes use the catalog read cache. Public mutation routes derive source server-side from Clerk Studio role, rate-limit write requests, require idempotency keys, and ignore client-supplied `source`; workflow actions require existing Studio Clerk catalog-write roles.
 - `src/modules/chat/routes.ts`: authenticated chat inbox, thread creation, message read/write/edit/delete, reactions, read receipts, archive/mute/delete, typing, and presence routes.
 - `src/modules/contributions/routes.ts`: authenticated contribution submission queue routes. `POST /submissions` requires `Idempotency-Key`, validates with shared Zod schemas, applies user rate limiting, and writes review-state rows. `GET /submissions` returns cursor-paged viewer submissions.
+- `src/modules/moderation/reports.ts`: transactional report creation, server-side post/comment/profile snapshot capture, unresolved-report dedupe, denormalized content-state count updates, public report serialization, and per-reporter cursor history.
+- `src/modules/moderation/routes.ts`: authenticated `POST /v1/reports` and `GET /v1/me/reports`; creation is limited to 20/hour/user and public DTOs do not expose stored snapshots or reporter identity.
+- `src/modules/moderation/adminReadService.ts`: indexed grouped queue, bounded staff detail pages, and subject-user strike/action history. Queue candidates come from denormalized content state before bounded reason/snapshot hydration.
+- `src/modules/moderation/actions.ts`: advisory-key idempotent, lock-bounded staff action/dismiss transactions covering audit rows, content state, report resolution, strike/account enforcement, and durable notification outbox.
 - `src/modules/chat/chatRedis.ts`: unread counters, sorted-set typing indicators, and presence over Upstash Redis REST. Inbox unread and presence batch endpoints use Redis `MGET`.
 - `src/modules/chat/chatUtils.ts`: chat message bucket and preview helpers.
 
@@ -200,6 +209,13 @@ Mounted routes:
 - `/v1/me/settings*`
 - `/v1/media*`
 - `/v1/contributions/submissions`
+- `POST /v1/reports`
+- `GET /v1/me/reports`
+- `/v1/admin/moderation/queue`
+- `/v1/admin/moderation/content/:contentType/:contentId`
+- `/v1/admin/moderation/content/:contentType/:contentId/action`
+- `/v1/admin/moderation/content/:contentType/:contentId/dismiss`
+- `/v1/admin/moderation/users/:userId/strikes`
 - `/v1/catalog/titles` and `/v1/catalog/titles/:id`
 - `/v1/catalog/titles/:id/credits`, `/media`, `/external-ids`, `/aliases`, `/relations`, `/awards`, `/history`
 - `/v1/catalog/people` and `/v1/catalog/people/:id`
@@ -236,6 +252,8 @@ Important files:
 - `src/jobs/chatReadReceipt.ts`: publishes thread read receipts.
 - `src/jobs/chatTyping.ts`: publishes typing state.
 - `src/lib/keyspaces.ts`: worker-side AWS Keyspaces client using SigV4 IAM auth, warmed connection pools, prepared statements by default, and `chat-read`/`chat-write` execution profiles.
+- `src/jobs/moderationAutoHide.ts`: idempotent threshold/window/trusted-follower auto-hide transaction, cache synchronization, and under-review notification.
+- `src/jobs/moderationNotifyReporters.ts`: reclaimable durable outbox drain with bounded reporter batches, idempotent notification source keys, author enforcement notices, and reporter outcome notices.
 - `src/scripts/backfillMedia.ts`: idempotent post media backfill runner.
 - `src/scripts/backfillProfileMedia.ts`: idempotent avatar/cover variant backfill runner exposed as `pnpm --filter @35mm/worker backfill:avatars`.
 
@@ -375,7 +393,7 @@ erDiagram
 Current Drizzle schema highlights:
 
 - `users`: UUID primary key, Clerk ID, email, age verification, account status.
-- `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count, follower count, unsorted bookmark count, and following count.
+- `profiles`: username, display name, bio/media, nullable `avatar_variants` / `cover_variants` JSONB, privacy, onboarding fields, favorite film/genre IDs, role/headline, films logged count, moderation strike count, follower count, unsorted bookmark count, and following count.
 - `username_locks`: Studio-managed lowercase username lock/reservation table with `locked | reserved` state, owner/reason metadata, timestamps, and DB checks for lowercase usernames plus allowed state values. API username availability and profile updates consult this table before allowing a username.
 - `films`: text primary key intended to be a 35mm ULID, optional unique `tmdb_id` and `imdb_id`, source enum `35mm | tmdb_import | user_contributed`.
 - `catalog_titles`: long-term IMDb-like title records for movies, short films, documentaries, TV/web series, seasons, episodes, specials, videos, and other title types. It bridges to existing `films` through nullable unique `legacy_film_id`, stores lifecycle/status/title/release/runtime/language/country facts, hierarchy fields, lock/merge metadata, and current-state read indexes.
@@ -400,6 +418,11 @@ Current Drizzle schema highlights:
 - `feed_items`: materialized feed rows for fanout/backfill.
 - `post_edits`: post body/headline edit history.
 - `user_blocks`, `user_mutes`: moderation relationship tables.
+- `reports`: ULID-keyed user reports for post/comment/profile targets, including server-captured JSONB snapshots, reason/details, review status, and resolved-action linkage. Partial uniqueness enforces one unresolved report per reporter/content pair; grouping, queue, and per-reporter indexes are cursor-ready.
+- `moderation_actions`: append-only ULID audit trail for staff/system enforcement with content/actor history indexes, optional source report, internal notes, JSONB metadata, denormalized `subject_user_id` for indexed cross-content strike history, and staff idempotency keys under a unique actor/key index.
+- `moderation_content_state`: denormalized per-content visible/hidden/removed state, report count, and enforcement timestamps keyed by `(content_type, content_id)` so future public reads do not aggregate reports; queue ordering has a report-count/latest-report composite index.
+- `moderation_notification_outbox`: durable notification intent keyed uniquely by action, committed atomically with staff enforcement and scanned through a partial unprocessed index. `report_cursor` advances bounded reporter batches without `OFFSET`.
+- `notifications`: existing notification table now carries moderation notification types, JSONB copy metadata, and nullable unique `source_key` for retry-safe worker creation.
 - `film_lists`, `film_list_entries`, `film_list_likes`: custom lists and one private watchlist per user. `film_list_entries` has a list-entry cursor pagination index on `(list_id, COALESCE(position, -1), added_at, id)` for `/v1/lists/:listId` keyset scans.
 - `follow_suggestions`: suggestion table populated by worker. `user_id` and `suggested_user_id` are UUID FKs to `users.id`, with `(user_id, score desc, suggested_user_id)` for bounded top-suggestion reads.
 - `user_settings`: privacy, notification, theme/accent, and media playback settings.
@@ -438,6 +461,7 @@ Key exports:
 - Notification contracts.
 - Chat inbox/thread/member/message/reaction contracts.
 - Health response.
+- Moderation content/report/action/status types plus `ReportDto`, `ReportPage`, `ModerationActionDto`, and grouped moderation queue contracts.
 
 Current `FeedPost` already uses `bookmarkCount` and `isBookmarked`; the old `saveCount/isSaved` naming has been removed from shared types.
 
@@ -455,6 +479,7 @@ Key schemas/utilities:
 - Film list/watchlist schemas.
 - Contribution submission schemas and contribution kind/status enums.
 - Chat thread, inbox cursor, message cursor, send/edit message, reaction, and typing schemas.
+- Moderation report creation/history, queue filters, content/user params, bounded action metadata, enforcement action, and dismissal schemas.
 
 Rich text bodies use a sentinel prefix `__35MM_RICH_TEXT_V1__` followed by TipTap-like JSON. Mentions carry user IDs and are used to create mention notifications.
 
@@ -643,6 +668,7 @@ How it works:
 - Chat reaction notifications use `type=chat_reaction`, `entityType=chat_thread`, and route back to the conversation thread.
 - Publish jobs are delayed/enqueued through BullMQ; removing likes/reposts can remove pending publish jobs.
 - Worker reads notification and actor profiles, then publishes an Ably event to `user:{recipientId}:notifications`.
+- Moderation notifications use the same shared creation service, `notification.publish`, Ably channel, Resend path, and email unsubscribe preferences. Reporter copy exposes only action/no-violation outcome; author copy includes content type, action, and policy reason without reporter identity.
 
 API:
 
@@ -792,7 +818,7 @@ Current state:
 - API routes publish low-latency chat delivery/read/typing/edit/reaction events through Ably directly after persistence. Message sends update `chat_thread_meta` and upsert `chat_member_state.last_message_at` for active participants; first-time reaction notifications update thread metadata and recipient member activity. Inbox preview responses display and sort by the latest available member/thread activity timestamp, and migration `0034_chat_member_activity_backfill` repairs existing stale member activity rows. First-time reaction adds also create `chat_reaction` notifications for the original message sender, increment that sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch. Worker jobs still publish chat delivery/update/read/typing events as fallback/asynchronous paths, especially for large inbox fanout and delete/update recovery.
 - The web chat realtime provider subscribes through `NEXT_PUBLIC_ABLY_API_KEY` to `thread:{threadId}` and `user:{userId}:inbox`, patches current messages and inbox unread rows, and sends throttled presence heartbeats while signed in. The active thread can come from the `/chat/[chatId]` route or the floating desktop inbox; route thread wins when both exist. Chat headers batch-read active thread member presence and render online, active-ago, and offline state; presence query cache is not persisted, and the API enforces `showActivityStatus` privacy server-side.
 - The iOS messages module has a native inbox and core thread experience backed by the same chat contract. Messages is not mounted in the bottom tab bar; `MainTabView` pushes it from the header message icon using each tab's `NavigationStack`, while the header avatar opens a left profile sidebar populated from `/v1/me`. The module supports cursor-paged inbox reads, realtime `thread.updated` row patching, visible-thread typing subscriptions, batched visible-row presence, archived/default lists, native swipe actions, minimal profile-search DM creation, reverse-display message history with `before` pagination, realtime message/reaction/read/typing patching, read receipts, reaction toggles, optimistic send/retry, image/file attachment uploads through `/v1/media/presign`, sender-only edit/delete, throttled typing dispatch, and foreground-only read dispatch. Native GIF sending, jump-to-unloaded replies, per-member group read receipts, and richer group creation remain staged separately.
-- Remaining frontend gaps are now product-level: durable attachment upload policy, reporting/moderation flows, and richer group management UX.
+- Remaining frontend gaps are now product-level: durable attachment upload policy and richer group management UX. Reporting surfaces, personal report history, moderation notifications, and the Studio review/enforcement console are implemented for posts, comments, and profiles.
 
 ## Backend API Surface
 
@@ -832,6 +858,8 @@ Authenticated:
 - user block/mute list and mutations.
 - feed create/edit/delete/action/comment/poll endpoints.
 - chat inbox/thread/message/read/archive/mute/delete/typing/presence endpoints.
+- report creation and caller-owned report history.
+- moderation-role grouped queue/detail/strike reads and idempotent action/dismiss mutations.
 
 Error contract:
 
@@ -867,6 +895,8 @@ Implemented or partially implemented:
 - `chat.messageUpdated`: implemented for message edit/delete/reaction realtime publish.
 - `chat.readReceipt`: implemented for read receipt realtime publish.
 - `chat.typing`: implemented for typing realtime publish.
+- `moderation.autoHideCheck`: implemented with deterministic per-report job IDs, bounded threshold probe, trusted-follower exemption, append-only system action, transactional denormalized hide, cache synchronization, and idempotent author notification.
+- `moderation.notifyReporters`: implemented as wakeable plus repeat-scheduled durable outbox drain. It claims with `SKIP LOCKED`, batches reporters using `report_cursor`, writes unique-source notifications, and queues existing `notification.publish` jobs in bulk.
 - `notification.digest`: stub.
 
 Important operational detail:
@@ -920,8 +950,11 @@ Test files found:
   - media variants.
   - rich text validators.
   - feed rich mentions.
-- mention notifications e2e.
-- chat bucket/preview utilities.
+  - mention notifications e2e.
+  - chat bucket/preview utilities.
+  - moderation dedupe/action decisions, no-OFFSET guard, and DB-gated transaction workflow.
+- Worker:
+  - moderation auto-hide threshold/window/trusted-follower decisions.
 - Web:
   - modal focus stack.
   - rich text renderer.
@@ -944,7 +977,7 @@ Per-app:
 
 - `apps/web`: `pnpm test`
 - `apps/api`: `pnpm test`, `pnpm typecheck`
-- `apps/worker`: `pnpm typecheck`
+- `apps/worker`: `pnpm typecheck`, `pnpm test`
 
 ## Current Reality vs Architecture Notes
 
@@ -960,6 +993,7 @@ Stale or superseded items in `docs/architecture.md` / older agent notes:
 - Feed items table exists.
 - Post visibility, denormalized post counters, soft delete, and edit history exist.
 - Chat backend persistence, worker realtime jobs, and frontend remote route alignment are implemented.
+- Moderation admin queue/detail/strike reads, transactional action/dismiss enforcement, public read filtering, automatic hiding, reporter notification batching, and author moderation notifications are implemented. Posts/comments/profiles carry indexed denormalized moderation status; direct reads enforce author/staff exceptions, cached feed pages use one batched Redis status check and DB fallback, and profile stats use a short dirty guard longer than cache TTL after enforcement.
 
 Still true gaps:
 

@@ -8,45 +8,9 @@ import type { CatalogOperationInput } from '@35mm/validators';
 import type { Film, FilmFilters } from '@/lib/types';
 import type { FilmFormValues } from '@/lib/schemas';
 import { randomUlid } from '@/lib/utils';
+import { resolvePlatformApiUrl } from '@/lib/studio/platformClient';
 
-function catalogApiUrl(): string {
-  const fallback = '/api/platform';
-
-  const raw = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (typeof window !== 'undefined') {
-    if (raw) {
-      try {
-        const url = new URL(raw);
-        if (url.protocol === 'http:' || url.protocol === 'https:') {
-          return raw.replace(/\/$/u, '');
-        }
-      } catch (_error) {
-        return fallback;
-      }
-    }
-
-    if (window.location.hostname === 'localhost' && window.location.port === '3001') {
-      return 'http://localhost:4000';
-    }
-
-    return fallback;
-  }
-
-  if (!raw) return fallback;
-
-  try {
-    const url = new URL(raw);
-    if (url.protocol === 'http:' || url.protocol === 'https:') {
-      return raw.replace(/\/$/u, '');
-    }
-  } catch (_error) {
-    return fallback;
-  }
-
-  return fallback;
-}
-
-const API_URL = catalogApiUrl();
+const API_URL = resolvePlatformApiUrl();
 
 type CatalogTitlePage = {
   items: CatalogTitleCard[];

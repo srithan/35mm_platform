@@ -8,10 +8,12 @@ import {
   integer,
   jsonb,
   uniqueIndex,
+  index,
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users.js";
+import { moderationContentStatusEnum } from "./moderation.js";
 
 export var profiles = pgTable(
   "profiles",
@@ -43,6 +45,8 @@ export var profiles = pgTable(
     headline: text("headline"),
     headlineContext: text("headline_context"),
     filmsLoggedCount: integer("films_logged_count").default(0).notNull(),
+    strikeCount: integer("strike_count").default(0).notNull(),
+    moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
     unsortedBookmarkCount: integer("unsorted_bookmark_count").default(0).notNull(),
     followerCount: integer("follower_count").default(0).notNull(),
     followingCount: integer("following_count").default(0).notNull(),
@@ -59,6 +63,15 @@ export var profiles = pgTable(
       headlineContextMaxLengthCheck: check(
         "profiles_headline_context_max_25_chk",
         sql`char_length(${table.headlineContext}) <= 25`
+      ),
+      strikeCountNonnegativeCheck: check(
+        "profiles_strike_count_nonnegative_chk",
+        sql`${table.strikeCount} >= 0`
+      ),
+      moderationUsernameIdx: index("profiles_moderation_username_user_id_idx").on(
+        table.moderationStatus,
+        table.username,
+        table.userId
       ),
     };
   }

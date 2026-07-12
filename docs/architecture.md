@@ -1,9 +1,11 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-07-07
+> Last updated: 2026-07-11
 
 Catalog documentation lives in `docs/catalog/`; start with `docs/catalog/spec.md`.
+
+Content moderation documentation lives in `docs/moderation/`; start with `docs/moderation/spec.md`.
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, creator-friendly media workflows, and an IMDb-like catalog database for titles, people, companies, awards, media, sources, and public revision history.
 
@@ -97,6 +99,8 @@ Design conventions:
 | Styling | Tailwind CSS with shadcn-style primitives |
 
 Studio is a separate internal workspace from the public web app. It exposes operational surfaces for catalog titles, shelves, users, username locks, infrastructure, queues, moderation, imports, and API reference pages. Catalog title list/detail/form/import surfaces use the Hono `/v1/catalog` read and mutation APIs, TanStack Query, Clerk bearer tokens for writes, required idempotency keys, and cursor pagination. Local browser sessions on `http://localhost:3001` call the local Hono API at `http://localhost:4000` directly because non-production API CORS allows Studio. Deployed/no-env sessions fall back to the Studio `/api/platform/*` server proxy; that proxy accepts `PLATFORM_API_URL` for deployed/internal API origins, rejects self-targeting Studio URLs, and returns JSON diagnostics for upstream non-JSON errors. Username lock routes rely on the shared Drizzle schema and require the `0036_username_locks` migration in environments where lock management is enabled.
+
+The moderation console (`/moderation` queue + `/moderation/:contentType/:contentId` detail) is a first-class Studio surface gated on the `moderation` / `moderation_admin` Studio roles (nav hidden and `proxy.ts` middleware redirect when absent; the Hono API is the real authority). Its typed client lives in `lib/moderation/api.ts` and shares the base-URL/proxy resolver (`lib/studio/platformClient.ts`) with the catalog client. The queue reads `GET /v1/admin/moderation/queue` with `nuqs` URL-backed status/contentType/reason filters and cursor pagination; the detail reads `GET /v1/admin/moderation/content/:contentType/:contentId` with independent `reportCursor`/`actionCursor`/`strikeCursor` cursors, renders the persisted per-type snapshot (so cases stay reviewable after content is hidden/removed), and applies enforcement via `POST .../action` or the distinct `POST .../dismiss`, each with a per-attempt `Idempotency-Key` (reused on `503` cache-sync retry). Suspend duration is carried in action `metadata.durationMinutes` because the action payload has no top-level duration field.
 
 ### API: `apps/api`
 
@@ -243,7 +247,7 @@ Source of truth: `packages/db/src/schema/*`.
 
 - UUID primary key.
 - Clerk user ID, email, age verification timestamp, account status.
-- Status enum: `active | deactivated | suspended`.
+- Status enum: `active | deactivated | suspended | banned`.
 
 `profiles`
 
@@ -256,7 +260,8 @@ Source of truth: `packages/db/src/schema/*`.
 - Edit Profile can update role/headline metadata through `/v1/profiles/me`; role changes write both role and headline fields so profile and post bylines stay aligned.
 - Favorite film IDs and genre IDs arrays.
 - Private account flag.
-- Denormalized `films_logged_count`.
+- Denormalized `films_logged_count`, moderation `strike_count`, and `moderation_status`.
+- Public profile detail, stats, search, follower, and following reads exclude hidden/removed profiles. Profile owner and moderation staff retain access; responses expose `moderationStatus` so owner clients can render under-review/removed state.
 
 `username_locks`
 
@@ -387,6 +392,7 @@ Catalog write pattern:
 - `reply_to_id`, `is_repost`.
 - Denormalized `like_count`, `comment_count`, `repost_count`, `bookmark_count`.
 - `is_deleted`, `edited_at`.
+- Denormalized `moderation_status` (`visible | hidden | removed`) is updated in the same transaction as staff enforcement. Feed/detail/profile-feed/bookmark/comment-parent reads use it without joining report history or `moderation_content_state`.
 - JSONB `media`, text array `media_urls`, JSONB `link_preview`.
 - Timestamps.
 
@@ -427,14 +433,55 @@ Catalog write pattern:
 - Composite primary keys.
 - Blocking removes follow relationships, inserts mute, and purges feed rows between users.
 
+`reports`
+
+- ULID-shaped text primary key, reporter FK, polymorphic `post | comment | profile` target, reason/details, server-captured JSONB content snapshot, review status, and optional resolved action link.
+- Partial unique index permits one unresolved (`open | reviewing`) report per reporter/content target while allowing a new report after action or dismissal.
+- Content grouping, open queue, and per-reporter cursor indexes support bounded moderation reads without `OFFSET`.
+
+`moderation_actions`
+
+- Append-only ULID audit rows for staff/system decisions, with optional source report, polymorphic content target, actor, denormalized subject user, action/reason, internal notes, metadata, idempotency key, and timestamp.
+- Content and actor history indexes support detail review. `(subject_user_id, created_at, id)` supports cross-content strike/action history without polymorphic scans; unique `(actor_user_id, idempotency_key)` protects irreversible staff retries.
+
+`moderation_content_state`
+
+- Composite `(content_type, content_id)` primary key with denormalized `visible | hidden | removed` status, report count, report/enforcement timestamps, and update timestamp.
+- Keeps moderation review state independent from live report aggregation. `posts`, `comments`, and `profiles` mirror its status in indexed `moderation_status` columns for hot reads; staff and automatic enforcement update state and target row in one transaction.
+- Admin queue ordering uses `(report_count desc, last_reported_at desc, content_type, content_id)` so grouped review reads start from denormalized state instead of globally grouping `reports`.
+
+Moderation read enforcement:
+
+- Direct DB reads apply indexed target/profile status predicates alongside existing privacy, block, mute, and soft-delete predicates. Hidden/removed content is absent for ordinary viewers; target author and moderation staff can still read it.
+- Cached feed pages remain safe after enforcement through one bounded Redis `MGET` over post/profile moderation keys. Redis/filter failure rejects that cache entry and falls back to the indexed DB path; it never returns an unchecked cached page.
+- Enforcement also writes a 180-second per-author profile-stats dirty guard, longer than the 60-second stats TTL. Guest stats bypass cache while guarded, so an invalidation failure cannot expose aggregates from newly hidden content.
+- Staff bypass shared high-follower author slices and query live, preventing staff-only rows from entering public caches. Staff action completion synchronizes the target status key and explicitly invalidates guest, viewer, author, high-follower, and profile-stats caches.
+- At 1M+ DAU, common feed reads stay on existing denormalized rows plus one batched cache lookup. No per-item DB query, live report aggregation, or `OFFSET` scan is added.
+- Read indexes are `posts(moderation_status, created_at, id)`, `comments(post_id, moderation_status, created_at, id)`, and `profiles(moderation_status, username, user_id)`.
+
+`moderation_notification_outbox`
+
+- Durable one-row-per-action notification intent written in the same transaction as enforcement, report resolution, and strike updates.
+- Partial unprocessed index supports `moderation.notifyReporters` claims with `FOR UPDATE SKIP LOCKED`; API queue wake failure cannot lose reporter/author notification intent.
+- `report_cursor` advances through resolved reports in bounded batches. Notification `source_key` uniqueness makes reporter/author creation retry-safe, while failed rows use capped exponential backoff and stale processing locks are reclaimable.
+
+Automatic moderation enforcement:
+
+- `moderation.autoHideCheck` locks current state, checks denormalized total count, probes only the configured threshold number of unresolved reports inside the configured time window, then reads the author's denormalized follower count. It never performs an unbounded count.
+- Defaults: `MODERATION_AUTO_HIDE_THRESHOLD=5`, `MODERATION_AUTO_HIDE_WINDOW_MINUTES=60`, and `MODERATION_AUTO_HIDE_TRUSTED_FOLLOWER_THRESHOLD=50000`.
+- Eligible visible targets receive one append-only system `content_hidden` action and transactional state/target-row updates. Retry against an existing automatic hide reuses that action for cache and notification recovery; other hidden/removed states are no-ops.
+- Dismissing reports restores visibility only when latest enforcement was a system auto-hide. It does not reverse staff enforcement.
+- After commit, worker synchronizes moderation Redis status before acknowledging job, invalidates affected feed/profile caches, and creates idempotent `content_under_review` notification through existing notification pipeline.
+
 ### Comments
 
 `comments`
 
 - UUID primary key.
 - `post_id`, `user_id`, optional `parent_id`.
-- Body, denormalized `like_count`, soft delete, edit timestamp.
+- Body, denormalized `like_count`, soft delete, edit timestamp, and denormalized `moderation_status`.
 - App layer enforces max nesting depth.
+- Comment list and interaction paths exclude hidden/removed comments and moderated authors for ordinary viewers. Comment author and moderation staff retain read access; API comment payloads expose `moderationStatus`.
 
 `comment_likes`
 
@@ -445,8 +492,8 @@ Catalog write pattern:
 `notifications`
 
 - Recipient, optional actor, `actor_ids` bundle array.
-- Type enum: `like | comment | reply | follow | follow_request | follow_request_approved | mention | repost`.
-- Entity ID/type, read state, bundle count, created timestamp.
+- Type enum also includes `film_logged`, `chat_reaction`, `report_status_update`, `content_moderated`, and `content_under_review`.
+- Entity ID/type, JSONB metadata, nullable idempotent `source_key`, read state, bundle count, created timestamp.
 - Unread bundle writes are indexed by partial index `notifications_unread_bundle_lookup_idx` on
   `(recipient_id, type, entity_type, entity_id, created_at)` with `WHERE is_read = false`.
 
@@ -528,7 +575,7 @@ Protected routes use `requireAuth`:
 3. Resolve or create local user/profile/settings.
 4. Ensure private watchlist exists when schema is available.
 5. Attach `c.var.user`.
-6. Reject suspended/deactivated users.
+6. Reject suspended, banned, and deactivated users.
 
 Optional-auth routes call `getOptionalAuthUser`.
 
@@ -572,6 +619,23 @@ Profiles, follows, moderation:
 - `DELETE /v1/users/:userId/mute`
 - `GET /v1/me/blocks`
 - `GET /v1/me/mutes`
+- `POST /v1/reports`
+  - requires auth, accepts only server-validated post/comment/profile UUID targets, captures content snapshots inside the report transaction, and is limited to 20 reports/hour/user
+  - duplicate unresolved reports return the existing `ReportDto` without incrementing `moderation_content_state.report_count` again
+- `GET /v1/me/reports`
+  - returns only the caller's cursor-paginated report history; stored snapshots and reporter identity are not exposed through the public DTO
+- `GET /v1/admin/moderation/queue`
+  - moderation staff only; grouped by content, sorted by denormalized report count then latest report time, with status/content/reason filters and an opaque four-field keyset cursor
+- `GET /v1/admin/moderation/content/:contentType/:contentId`
+  - moderation staff only; returns current state/author plus separately cursor-paginated report, content-action, and subject-action history pages so brigaded targets never produce unbounded responses
+- `POST /v1/admin/moderation/content/:contentType/:contentId/action`
+- `POST /v1/admin/moderation/content/:contentType/:contentId/dismiss`
+  - moderation staff only, 60 mutations/minute/user, and requires `Idempotency-Key`
+  - uses transaction-local lock timeout, advisory idempotency lock, target/state/report locks, append-only action insert, state enforcement, report resolution, optional strike/account suspension, and durable notification outbox insertion in one transaction
+  - dismiss restores content hidden by automatic threshold enforcement, but never reverses an existing staff hide/removal
+  - `moderation` may reverse its own or system enforcement; only `owner | admin | moderation_admin` may reverse another staff actor's stricter content state
+- `GET /v1/admin/moderation/users/:userId/strikes`
+  - moderation staff only; cursor-paginated action history through denormalized `moderation_actions.subject_user_id`
 
 Feed, posts, comments, polls:
 
@@ -1014,6 +1078,8 @@ Rate limiting:
 - Allowed requests avoid per-request `TTL`; `TTL` is fetched only for blocked responses that need `Retry-After`.
 - Disabled in test env or when `RATE_LIMIT_DISABLED=true`.
 - Feed create: 20/min per user.
+- Moderation reports: 20/hour per user.
+- Moderation admin mutations: 60/minute per user.
 - Media presign: 20/min per user.
 - Feed reads also have route-level rate limiting.
 
@@ -1050,6 +1116,8 @@ Transaction-capable DB writes:
 - `packages/db` exposes both `createDb()` for Neon HTTP reads/simple statements and `createPooledDb()` for Neon pooled driver transactions.
 - `apps/api/src/lib/db.ts` exposes `getWriteDb()` for multi-table write paths.
 - Current transaction-converted write units: post+poll+own-feed-item create, poll vote, post/comment/list interaction facts plus counter outbox rows, follow/unfollow/accept plus profile counter outbox rows, private->public follow-approval via `profile_follow_approval_outbox` + `counter.outbox`, onboarding profile+follow writes, user/profile/settings creation, block+follow cleanup+mute, repost fact+repost-post+own-feed-item create, repost delete+soft-delete, list clone (first chunk + queue enqueue), and chat thread Postgres metadata create.
+- Report creation uses `getWriteDb().transaction(...)` for server-side snapshot capture, unresolved-report dedupe, report insertion, and atomic `moderation_content_state` count/timestamp upsert.
+- Moderation action/dismiss writes use one pooled transaction for audit, state, report statuses, strikes/account enforcement, and notification outbox. `user_suspended` sets account/profile state to suspended/hidden; `user_banned` sets account/profile state to banned/removed so profile-backed public reads exclude all authored content without unbounded row updates.
 
 Rate limiting:
 
@@ -1060,6 +1128,8 @@ Stub or incomplete:
 
 - `notification.digest`: logs readiness only.
 - Search indexing jobs are not implemented.
+- API producer enqueues idempotent-per-report `moderation.autoHideCheck` jobs after report commit. Worker handling is added in moderation Stage 5; until then this staged feature must not be deployed independently.
+- API producer wakes `moderation.notification.outbox` after committed staff actions. Durable rows remain pending when Redis is unavailable; Stage 5 adds relay and reporter/author delivery.
 
 ---
 
@@ -1236,6 +1306,8 @@ Current test coverage includes:
 - API media variants.
 - API rich text validators.
 - API feed rich mentions and mention notifications.
+- API moderation dedupe/action decisions, static no-`OFFSET` guard, and `RUN_MODERATION_DB_TESTS` transaction coverage.
+- Worker moderation auto-hide threshold/window/trusted-follower decisions.
 - Web rich text renderer.
 - Web R2 media helpers.
 - Web post media helpers.
@@ -1252,6 +1324,7 @@ pnpm --filter @35mm/web test
 pnpm --filter @35mm/api test
 pnpm --filter @35mm/api typecheck
 pnpm --filter @35mm/worker typecheck
+pnpm --filter @35mm/worker test
 pnpm typecheck
 ```
 
@@ -1265,10 +1338,11 @@ Highest priority architecture gaps:
 2. Wire Meilisearch document writes for titles/people/companies plus users/posts.
 3. Run and validate the `films` to `catalog_titles` backfill in real environments while keeping `films` as the social FK bridge.
 4. Add DB-level checks for ULID-shaped text IDs where practical.
-5. Finish notification digest and Resend integration.
+5. Finish notification digest scheduling; transactional Resend notification email is wired.
 6. Wire Cloudflare Stream if production video is in scope.
 8. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
 9. Validate migrations against current Drizzle schema in real environments.
+10. Define audited appeals, unsuspend, and unban actions if account reinstatement enters scope.
 
 Post-V1 or gated surfaces:
 

@@ -244,7 +244,7 @@ async function verifyAndResolveUser(token: string): Promise<AuthUser | null> {
     if (!clerkUserId) return null;
 
     var row = await ensureLocalUser(clerkUserId, clerkSecret.key);
-    if (row.status === "deactivated" || row.status === "suspended") {
+    if (row.status === "deactivated" || row.status === "suspended" || row.status === "banned") {
       return null;
     }
 

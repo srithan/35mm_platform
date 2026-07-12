@@ -25,6 +25,7 @@ interface CommentCardMoreMenuProps {
   onDeleteRequest: () => void;
   onBlockRequest: () => void;
   onMuteRequest: () => void;
+  onReportRequest: () => void;
 }
 
 export function CommentCardMoreMenu({
@@ -39,6 +40,7 @@ export function CommentCardMoreMenu({
   onDeleteRequest,
   onBlockRequest,
   onMuteRequest,
+  onReportRequest,
 }: CommentCardMoreMenuProps) {
   const bookmarkFlow = useBookmarkToFolderFlow({
     postId: postId,
@@ -106,6 +108,7 @@ export function CommentCardMoreMenu({
             icon: <Flag className="w-4 h-4" strokeWidth={1.8} />,
             danger: true,
             dividerBefore: !canModerateAuthor,
+            onSelect: onReportRequest,
           },
         ]),
   ];

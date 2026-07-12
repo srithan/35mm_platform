@@ -5,6 +5,7 @@ import {
   timestamp,
   boolean,
   integer,
+  jsonb,
   pgEnum,
   uniqueIndex,
   index,
@@ -16,6 +17,7 @@ import {
 import { sql } from "drizzle-orm";
 import { users } from "./users.js";
 import { posts } from "./posts.js";
+import { moderationContentStatusEnum } from "./moderation.js";
 
 export var followStatusEnum = pgEnum("follow_status", [
   "pending",
@@ -33,6 +35,9 @@ export var notificationTypeEnum = pgEnum("notification_type", [
   "repost",
   "film_logged",
   "chat_reaction",
+  "report_status_update",
+  "content_moderated",
+  "content_under_review",
 ]);
 
 export var follows = pgTable(
@@ -84,6 +89,7 @@ export var comments = pgTable(
     body: text("body").notNull(),
     likeCount: integer("like_count").default(0).notNull(),
     isDeleted: boolean("is_deleted").default(false).notNull(),
+    moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -92,6 +98,12 @@ export var comments = pgTable(
     return {
       bodyMaxLengthCheck: check("comments_body_max_100000_chk", sql`char_length(${table.body}) <= 100000`),
       postCreatedAtIdx: index("comments_post_id_created_at_idx").on(table.postId, table.createdAt),
+      postModerationCreatedAtIdx: index("comments_post_moderation_created_at_id_idx").on(
+        table.postId,
+        table.moderationStatus,
+        table.createdAt,
+        table.id
+      ),
       parentIdIdx: index("comments_parent_id_idx").on(table.parentId),
     };
   }
@@ -135,6 +147,8 @@ export var notifications = pgTable(
     type: notificationTypeEnum("type").notNull(),
     entityId: text("entity_id"),
     entityType: text("entity_type"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    sourceKey: text("source_key"),
     isRead: boolean("is_read").default(false).notNull(),
     bundleCount: integer("bundle_count").default(1).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -149,6 +163,7 @@ export var notifications = pgTable(
       unreadBundleLookupIdx: index("notifications_unread_bundle_lookup_idx")
         .on(table.recipientId, table.type, table.entityType, table.entityId, table.createdAt)
         .where(sql`${table.isRead} = false`),
+      sourceKeyIdx: uniqueIndex("notifications_source_key_idx").on(table.sourceKey),
     };
   }
 );

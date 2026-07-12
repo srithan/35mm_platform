@@ -1,12 +1,20 @@
 import { adminNavGroups, type AdminNavItem } from '@/lib/data/admin';
 
-export type StudioRole = 'owner' | 'admin' | 'catalog' | 'moderation' | 'systems' | 'viewer';
+export type StudioRole =
+  | 'owner'
+  | 'admin'
+  | 'catalog'
+  | 'moderation'
+  | 'moderation_admin'
+  | 'systems'
+  | 'viewer';
 
 export type StudioPermission =
   | 'dashboard:view'
   | 'users:view'
   | 'content:view'
   | 'moderation:view'
+  | 'moderation:admin'
   | 'catalog:view'
   | 'catalog:write'
   | 'systems:view'
@@ -17,6 +25,7 @@ export const studioRoleLabels: Record<StudioRole, string> = {
   admin: 'Admin',
   catalog: 'Catalog',
   moderation: 'Moderation',
+  moderation_admin: 'Moderation admin',
   systems: 'Systems',
   viewer: 'Viewer',
 };
@@ -26,6 +35,7 @@ export const studioRoleDescriptions: Record<StudioRole, string> = {
   admin: 'Most operator controls except owner-only org settings.',
   catalog: 'Films, shelves, import, and catalog write workflows.',
   moderation: 'Content and review queues for trust and safety work.',
+  moderation_admin: 'Trust and safety with authority to reverse another staff actor.',
   systems: 'Queues, infrastructure, APIs, and service readiness.',
   viewer: 'Read-only overview access.',
 };
@@ -36,6 +46,7 @@ export const studioRolePermissions: Record<StudioRole, StudioPermission[]> = {
     'users:view',
     'content:view',
     'moderation:view',
+    'moderation:admin',
     'catalog:view',
     'catalog:write',
     'systems:view',
@@ -46,12 +57,14 @@ export const studioRolePermissions: Record<StudioRole, StudioPermission[]> = {
     'users:view',
     'content:view',
     'moderation:view',
+    'moderation:admin',
     'catalog:view',
     'catalog:write',
     'systems:view',
   ],
   catalog: ['dashboard:view', 'catalog:view', 'catalog:write'],
   moderation: ['dashboard:view', 'content:view', 'moderation:view'],
+  moderation_admin: ['dashboard:view', 'content:view', 'moderation:view', 'moderation:admin'],
   systems: ['dashboard:view', 'systems:view'],
   viewer: ['dashboard:view'],
 };
@@ -103,6 +116,9 @@ export function normalizeStudioRole(value: unknown): StudioRole {
   }
   if (role === 'catalog' || role === 'catalog_admin' || role === 'catalog_editor') {
     return 'catalog';
+  }
+  if (role === 'moderation_admin' || role === 'moderator_admin' || role === 'trust_safety_admin') {
+    return 'moderation_admin';
   }
   if (role === 'moderation' || role === 'moderator' || role === 'trust_safety') {
     return 'moderation';

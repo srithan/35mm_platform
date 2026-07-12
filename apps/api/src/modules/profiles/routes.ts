@@ -20,6 +20,11 @@ import {
 import { enqueueCounterOutboxDrainJob, enqueueMediaProcessJob } from "../../lib/jobs.js";
 import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
+import {
+  isModerationProfileStatsDirty,
+  isModerationStaffViewer,
+  moderationReadAccessSql,
+} from "../../lib/moderationRead.js";
 import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
 import {
   getR2ObjectKeyFromUrl,
@@ -91,15 +96,30 @@ async function enqueueProfileMediaProcess(
   }
 }
 
-async function resolveTargetByUsername(username: string) {
+async function resolveTargetByUsername(
+  username: string,
+  viewerUserId: string | null,
+  viewerIsStaff: boolean
+) {
   var db = getDb();
   var rows = await db
-    .select({ userId: profiles.userId })
+    .select({
+      userId: profiles.userId,
+      moderationStatus: profiles.moderationStatus,
+    })
     .from(profiles)
     .where(eq(profiles.username, username))
     .limit(1);
 
   if (rows.length === 0) {
+    throw notFound("Profile not found");
+  }
+
+  if (
+    rows[0].moderationStatus !== "visible" &&
+    rows[0].userId !== viewerUserId &&
+    !viewerIsStaff
+  ) {
     throw notFound("Profile not found");
   }
 
@@ -115,6 +135,7 @@ function followStateFromStatus(viewerUserId: string | null, profileUserId: strin
 
 profileRoutes.get("/search", requireAuth, async function (c) {
   var user = c.get("user");
+  var viewerIsStaff = isModerationStaffViewer(user);
   var q = (c.req.query("q") ?? "").trim().toLowerCase();
   var limitRaw = Number(c.req.query("limit") ?? 8);
   var limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 8) : 8;
@@ -156,6 +177,12 @@ profileRoutes.get("/search", requireAuth, async function (c) {
       and(
         eq(users.status, "active"),
         searchFilter,
+        moderationReadAccessSql(
+          profiles.moderationStatus,
+          profiles.userId,
+          user.userId,
+          viewerIsStaff
+        ),
         notBlockedWithViewerSql(user.userId, profiles.userId)
       )
     )
@@ -199,6 +226,7 @@ profileRoutes.get("/:username", async function (c) {
   var username = c.req.param("username").toLowerCase().trim();
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerIsStaff = isModerationStaffViewer(viewer);
 
   var rows = await db
     .select({
@@ -221,6 +249,7 @@ profileRoutes.get("/:username", async function (c) {
       filmsLoggedCount: profiles.filmsLoggedCount,
       followerCount: profiles.followerCount,
       followingCount: profiles.followingCount,
+      moderationStatus: profiles.moderationStatus,
       status: users.status,
       createdAt: profiles.createdAt,
     })
@@ -234,6 +263,11 @@ profileRoutes.get("/:username", async function (c) {
   }
 
   var row = rows[0];
+  var isOwner = viewer?.userId === row.userId;
+
+  if (row.moderationStatus !== "visible" && !isOwner && !viewerIsStaff) {
+    throw notFound("Profile not found");
+  }
 
   var isMutedByViewer = false;
 
@@ -285,8 +319,6 @@ profileRoutes.get("/:username", async function (c) {
   var isFollowing = followState === "following";
   var hasIncomingFollowRequest = incomingFollowRequestRows.length > 0;
   var hasPendingRequestToViewer = hasIncomingFollowRequest;
-  var isOwner = viewer?.userId === row.userId;
-
   if (row.status === "deactivated") {
     return c.json({
       username: row.username,
@@ -310,6 +342,7 @@ profileRoutes.get("/:username", async function (c) {
 	      hasIncomingFollowRequest,
 	      hasPendingRequestToViewer,
 	      isDeactivated: true,
+	      moderationStatus: row.moderationStatus,
 	    });
 	  }
 
@@ -346,6 +379,7 @@ profileRoutes.get("/:username", async function (c) {
 	      hasPendingRequestToViewer,
 	      isDeactivated: false,
 	      isMutedByViewer,
+	      moderationStatus: row.moderationStatus,
 	      createdAt: row.createdAt.toISOString(),
     });
   }
@@ -374,6 +408,7 @@ profileRoutes.get("/:username", async function (c) {
 	    hasPendingRequestToViewer,
 	    isDeactivated: false,
 	    isMutedByViewer,
+	    moderationStatus: row.moderationStatus,
 	    createdAt: row.createdAt.toISOString(),
   });
 });
@@ -487,6 +522,7 @@ profileRoutes.get("/:username/stats", async function (c) {
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var viewerUserId = viewer?.userId ?? null;
+  var viewerIsStaff = isModerationStaffViewer(viewer);
 
   var profileRows = await db
     .select({
@@ -496,6 +532,7 @@ profileRoutes.get("/:username/stats", async function (c) {
       filmsLoggedCount: profiles.filmsLoggedCount,
       favoriteFilmIds: profiles.favoriteFilmIds,
       createdAt: profiles.createdAt,
+      moderationStatus: profiles.moderationStatus,
       status: users.status,
     })
     .from(profiles)
@@ -508,6 +545,13 @@ profileRoutes.get("/:username/stats", async function (c) {
   }
 
   var profile = profileRows[0];
+  if (
+    profile.moderationStatus !== "visible" &&
+    profile.userId !== viewerUserId &&
+    !viewerIsStaff
+  ) {
+    throw notFound("Profile not found");
+  }
   await assertCanReadProfileStats({
     viewerUserId,
     targetUserId: profile.userId,
@@ -523,7 +567,11 @@ profileRoutes.get("/:username/stats", async function (c) {
     }));
   }
 
-  var canUsePublicGuestCache = viewerUserId === null && !profile.isPrivate;
+  var canUsePublicGuestCache =
+    viewerUserId === null &&
+    !profile.isPrivate &&
+    profile.moderationStatus === "visible" &&
+    !(await isModerationProfileStatsDirty(profile.userId));
   var cacheKey = profileStatsCacheKey({ username: profile.username, viewerId: null });
   if (canUsePublicGuestCache) {
     c.header("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
@@ -538,7 +586,17 @@ profileRoutes.get("/:username/stats", async function (c) {
   }
 
   var visibilitySql = postVisibilityForStatsSql(viewerUserId, profile.userId);
-  var basePostFilters = and(eq(posts.userId, profile.userId), eq(posts.isDeleted, false), visibilitySql);
+  var basePostFilters = and(
+    eq(posts.userId, profile.userId),
+    eq(posts.isDeleted, false),
+    visibilitySql,
+    moderationReadAccessSql(
+      posts.moderationStatus,
+      posts.userId,
+      viewerUserId,
+      viewerIsStaff
+    )
+  );
   var diaryFilter = sql<boolean>`${posts.type} in ('log', 'review')`;
 
   var [aggregateRows, recentDiaryRows, genreResult, activityResult] = await Promise.all([
@@ -1047,8 +1105,13 @@ profileRoutes.get("/:username/followers", async function (c) {
     limit: c.req.query("limit"),
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
-  var followingId = await resolveTargetByUsername(username);
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerIsStaff = isModerationStaffViewer(viewer);
+  var followingId = await resolveTargetByUsername(
+    username,
+    viewer?.userId ?? null,
+    viewerIsStaff
+  );
   var db = getDb();
 
   var cursorFilter = cursor
@@ -1075,6 +1138,12 @@ profileRoutes.get("/:username/followers", async function (c) {
         eq(follows.followingId, followingId),
         eq(follows.status, "accepted"),
         cursorFilter,
+        moderationReadAccessSql(
+          profiles.moderationStatus,
+          profiles.userId,
+          viewer?.userId ?? null,
+          viewerIsStaff
+        ),
         viewer ? notBlockedWithViewerSql(viewer.userId, profiles.userId) : undefined
       )
     )
@@ -1111,8 +1180,13 @@ profileRoutes.get("/:username/following", async function (c) {
     limit: c.req.query("limit"),
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
-  var followerId = await resolveTargetByUsername(username);
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerIsStaff = isModerationStaffViewer(viewer);
+  var followerId = await resolveTargetByUsername(
+    username,
+    viewer?.userId ?? null,
+    viewerIsStaff
+  );
   var db = getDb();
 
   var cursorFilter = cursor
@@ -1139,6 +1213,12 @@ profileRoutes.get("/:username/following", async function (c) {
         eq(follows.followerId, followerId),
         eq(follows.status, "accepted"),
         cursorFilter,
+        moderationReadAccessSql(
+          profiles.moderationStatus,
+          profiles.userId,
+          viewer?.userId ?? null,
+          viewerIsStaff
+        ),
         viewer ? notBlockedWithViewerSql(viewer.userId, profiles.userId) : undefined
       )
     )
@@ -1176,7 +1256,11 @@ profileRoutes.get("/:username/follow-requests", requireAuth, async function (c) 
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
   var viewer = c.get("user");
-  var followingId = await resolveTargetByUsername(username);
+  var followingId = await resolveTargetByUsername(
+    username,
+    viewer.userId,
+    isModerationStaffViewer(viewer)
+  );
   if (viewer.userId !== followingId) {
     throw forbidden("Cannot view follow requests for another account");
   }
@@ -1205,6 +1289,7 @@ profileRoutes.get("/:username/follow-requests", requireAuth, async function (c) 
       and(
         eq(follows.followingId, followingId),
         eq(follows.status, "pending"),
+        eq(profiles.moderationStatus, "visible"),
         cursorFilter
       )
     )

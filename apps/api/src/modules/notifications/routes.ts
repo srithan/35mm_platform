@@ -44,6 +44,7 @@ interface RawNotificationRow {
   actorAvatarVariants: AvatarVariants | null;
   entityId: string | null;
   entityType: NonNullable<NotificationItem["entity"]>["type"] | null;
+  metadata: Record<string, unknown>;
 }
 
 interface ActorProfile {
@@ -265,6 +266,7 @@ async function asNotificationItem(
     type: row.type,
     actor: await resolveActor(row),
     entity: await resolveEntity(row, maps),
+    metadata: row.metadata,
     isRead: row.isRead,
     actorIds,
     actorProfiles,
@@ -313,6 +315,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
     actorAvatarVariants: AvatarVariants | null;
     entityId: string | null;
     entityType: string | null;
+    metadata: Record<string, unknown>;
   }>;
 
   try {
@@ -331,6 +334,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
         actorAvatarVariants: profiles.avatarVariants,
         entityId: notifications.entityId,
         entityType: notifications.entityType,
+        metadata: notifications.metadata,
       })
       .from(notifications)
       .leftJoin(profiles, eq(profiles.userId, notifications.actorId))
@@ -357,6 +361,7 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
         actorAvatarVariants: profiles.avatarVariants,
         entityId: notifications.entityId,
         entityType: notifications.entityType,
+        metadata: notifications.metadata,
       })
       .from(notifications)
       .leftJoin(profiles, eq(profiles.userId, notifications.actorId))

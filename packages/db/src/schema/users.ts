@@ -13,6 +13,7 @@ export var accountStatusEnum = pgEnum("account_status", [
   "active",
   "deactivated",
   "suspended",
+  "banned",
 ]);
 
 export type NotificationEmailPreferenceKey =
@@ -24,7 +25,10 @@ export type NotificationEmailPreferenceKey =
   | "comment"
   | "reply"
   | "mention"
-  | "film_logged";
+  | "film_logged"
+  | "report_status_update"
+  | "content_moderated"
+  | "content_under_review";
 
 export type NotificationEmailPreferenceValue = {
   enabled: boolean;
@@ -50,7 +54,10 @@ export var users = pgTable("users", {
       "comment": { "enabled": true },
       "reply": { "enabled": true },
       "mention": { "enabled": true },
-      "film_logged": { "enabled": false }
+      "film_logged": { "enabled": false },
+      "report_status_update": { "enabled": true },
+      "content_moderated": { "enabled": true },
+      "content_under_review": { "enabled": true }
     }'::jsonb`)
     .notNull(),
   ageVerifiedAt: timestamp("age_verified_at", { withTimezone: true }).notNull(),

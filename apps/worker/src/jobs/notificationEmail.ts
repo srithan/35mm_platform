@@ -35,7 +35,10 @@ type EmailNotificationType =
   | "comment"
   | "reply"
   | "mention"
-  | "film_logged";
+  | "film_logged"
+  | "report_status_update"
+  | "content_moderated"
+  | "content_under_review";
 
 type ActorProfile = {
   userId: string;
@@ -52,6 +55,7 @@ type NotificationEmailInput = {
   entityType: string | null;
   bundleCount: number;
   actorProfiles: ActorProfile[];
+  metadata: Record<string, unknown>;
   db: Db;
 };
 
@@ -95,6 +99,12 @@ function mapNotificationType(type: string): EmailNotificationType | null {
       return "mention";
     case "film_logged":
       return "film_logged";
+    case "report_status_update":
+      return "report_status_update";
+    case "content_moderated":
+      return "content_moderated";
+    case "content_under_review":
+      return "content_under_review";
     default:
       return null;
   }
@@ -112,6 +122,9 @@ function defaultEmailEnabled(type: EmailNotificationType): boolean {
     case "comment":
     case "reply":
     case "mention":
+    case "report_status_update":
+    case "content_moderated":
+    case "content_under_review":
       return true;
   }
 }
@@ -310,6 +323,7 @@ function buildEmailContent(params: {
   bundleCount: number;
   context: NotificationEntityContext | null;
   appBaseUrl: string;
+  metadata: Record<string, unknown>;
 }): NotificationEmailContent {
   var actor = actorSummary(params.actors, params.bundleCount);
   var post = postDescription(params.context);
@@ -379,6 +393,35 @@ function buildEmailContent(params: {
         body: actor + " logged " + (filmTitle || "a film you also logged") + ".",
         actionUrl,
         actionLabel: "View activity",
+      };
+    case "report_status_update": {
+      var actioned = params.metadata.outcome === "actioned";
+      return {
+        subject: "Update on your report",
+        body: actioned
+          ? "We reviewed your report and took action."
+          : "We reviewed your report and did not find a violation.",
+        actionUrl: buildUrl(params.appBaseUrl, "/notifications"),
+        actionLabel: "View update",
+      };
+    }
+    case "content_moderated": {
+      var action = typeof params.metadata.action === "string" ? params.metadata.action.replaceAll("_", " ") : "moderated";
+      var reason = typeof params.metadata.reason === "string" ? params.metadata.reason : "a policy violation";
+      var contentType = typeof params.metadata.contentType === "string" ? params.metadata.contentType : "content";
+      return {
+        subject: "Moderation action for your " + contentType,
+        body: "Moderation action for your " + contentType + ": " + action + ". Reason: " + reason + ".",
+        actionUrl: buildUrl(params.appBaseUrl, "/notifications"),
+        actionLabel: "View details",
+      };
+    }
+    case "content_under_review":
+      return {
+        subject: "Your content is under review",
+        body: "Your content is temporarily hidden while our team reviews it.",
+        actionUrl: buildUrl(params.appBaseUrl, "/notifications"),
+        actionLabel: "View update",
       };
   }
 }
@@ -539,6 +582,7 @@ export async function sendNotificationEmail(input: NotificationEmailInput): Prom
     bundleCount: input.bundleCount,
     context,
     appBaseUrl,
+    metadata: input.metadata,
   });
   var token = createUnsubscribeToken(input.recipientId, emailType, unsubscribeSecret);
   var unsubscribeUrl = buildUrl(apiBaseUrl, "/v1/email/unsubscribe?token=" + encodeURIComponent(token));

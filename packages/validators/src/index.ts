@@ -104,6 +104,91 @@ export var cursorPaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export var moderationContentTypeSchema = z.enum(["post", "comment", "profile"]);
+export var moderationReportReasonSchema = z.enum([
+  "spam",
+  "harassment",
+  "hate_speech",
+  "violence",
+  "nudity_sexual_content",
+  "misinformation",
+  "self_harm",
+  "impersonation",
+  "intellectual_property",
+  "other",
+]);
+export var moderationReportStatusSchema = z.enum(["open", "reviewing", "actioned", "dismissed"]);
+export var moderationActorTypeSchema = z.enum(["staff", "system"]);
+export var moderationContentStatusSchema = z.enum(["visible", "hidden", "removed"]);
+export var moderationActionSchema = z.enum([
+  "no_action",
+  "content_hidden",
+  "content_removed",
+  "content_warning_added",
+  "user_warned",
+  "user_suspended",
+  "user_banned",
+  "escalated",
+]);
+
+export var createReportSchema = z.object({
+  contentType: moderationContentTypeSchema,
+  contentId: z.string().uuid(),
+  reason: moderationReportReasonSchema,
+  details: z.string().trim().min(1).max(2000).optional(),
+}).strict();
+
+export var moderationReportHistoryQuerySchema = cursorPaginationSchema;
+
+export var moderationContentParamsSchema = z.object({
+  contentType: moderationContentTypeSchema,
+  contentId: z.string().uuid(),
+});
+
+export var moderationQueueQuerySchema = cursorPaginationSchema.extend({
+  status: moderationReportStatusSchema.optional(),
+  contentType: moderationContentTypeSchema.optional(),
+  reason: moderationReportReasonSchema.optional(),
+});
+
+export var moderationDetailQuerySchema = z.object({
+  reportCursor: z.string().min(1).optional(),
+  actionCursor: z.string().min(1).optional(),
+  strikeCursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export var moderationStrikeHistoryQuerySchema = cursorPaginationSchema;
+
+var moderationMetadataSchema = z.record(z.string().trim().min(1).max(80), z.unknown())
+  .superRefine(function (value, ctx) {
+    if (Object.keys(value).length > 50) {
+      ctx.addIssue({ code: "custom", message: "metadata must contain at most 50 keys" });
+    }
+    try {
+      if (JSON.stringify(value).length > 10000) {
+        ctx.addIssue({ code: "custom", message: "metadata must be at most 10000 serialized characters" });
+      }
+    } catch (_error) {
+      ctx.addIssue({ code: "custom", message: "metadata must be JSON serializable" });
+    }
+  });
+
+export var moderationActionPayloadSchema = z.object({
+  action: moderationActionSchema,
+  reason: z.string().trim().min(1).max(1000),
+  notes: z.string().trim().min(1).max(5000).optional(),
+  metadata: moderationMetadataSchema.default({}),
+}).strict();
+
+export var moderationDismissPayloadSchema = z.object({
+  notes: z.string().trim().min(1).max(5000).optional(),
+}).strict();
+
+export var moderationUserParamsSchema = z.object({
+  userId: z.string().uuid(),
+});
+
 var postMediaItemSchema = z.object({
   type: z.enum(["image", "video", "film_embed", "none"]),
   url: z.string().min(1).max(1000),
@@ -1222,6 +1307,14 @@ export var catalogEditQueueQuerySchema = catalogReadPageQuerySchema.extend({
 });
 
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
+export type CreateReportInput = z.infer<typeof createReportSchema>;
+export type ModerationContentParamsInput = z.infer<typeof moderationContentParamsSchema>;
+export type ModerationQueueQueryInput = z.infer<typeof moderationQueueQuerySchema>;
+export type ModerationDetailQueryInput = z.infer<typeof moderationDetailQuerySchema>;
+export type ModerationStrikeHistoryQueryInput = z.infer<typeof moderationStrikeHistoryQuerySchema>;
+export type ModerationActionPayloadInput = z.infer<typeof moderationActionPayloadSchema>;
+export type ModerationDismissPayloadInput = z.infer<typeof moderationDismissPayloadSchema>;
+export type ModerationUserParamsInput = z.infer<typeof moderationUserParamsSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type CreateChatThreadInput = z.infer<typeof createChatThreadSchema>;

@@ -154,6 +154,11 @@ export function SettingsPrivacyPanel({
             description="Accounts hidden from your feed without blocking"
             href={ROUTES.SETTINGS_PRIVACY_MUTED}
           />
+          <SettingsRow
+            label="Your reports"
+            description="Track the status of content you've reported"
+            href={ROUTES.SETTINGS_PRIVACY_REPORTS}
+          />
         </div>
       </SettingsSection>
     </div>

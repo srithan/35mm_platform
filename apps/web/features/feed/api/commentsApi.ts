@@ -8,6 +8,7 @@ type CommentItem = {
   parentId: string | null;
   body: string | null;
   isDeleted?: boolean;
+  moderationStatus?: "visible" | "hidden" | "removed";
   likeCount: number;
   isLiked?: boolean;
   editedAt?: string | null;

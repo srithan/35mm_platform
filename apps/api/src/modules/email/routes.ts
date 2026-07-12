@@ -16,7 +16,10 @@ type EmailNotificationType =
   | "comment"
   | "reply"
   | "mention"
-  | "film_logged";
+  | "film_logged"
+  | "report_status_update"
+  | "content_moderated"
+  | "content_under_review";
 
 var EMAIL_NOTIFICATION_TYPES = new Set<string>([
   "like",
@@ -28,6 +31,9 @@ var EMAIL_NOTIFICATION_TYPES = new Set<string>([
   "reply",
   "mention",
   "film_logged",
+  "report_status_update",
+  "content_moderated",
+  "content_under_review",
 ]);
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

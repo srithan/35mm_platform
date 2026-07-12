@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { ShareModal } from "@/components/ShareModal/ShareModal";
+import { ReportFlow } from "@/features/moderation/components/ReportFlow";
 import { ROUTES } from "@/lib/constants/routes";
 import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
 import { useDeletePost } from "../../hooks/usePostMutations";
@@ -96,18 +97,12 @@ export function PostCardOverlays({
         confirmLabel="Mute"
         cancelLabel="Cancel"
       />
-      <ConfirmDialog
-        open={showReportConfirm}
+      <ReportFlow
+        open={showReportConfirm && Boolean(postId)}
         onClose={onCloseReportConfirm}
-        onConfirm={() => {
-          // TODO: wire to actual report API
-          onCloseReportConfirm();
-        }}
-        title="Report this post?"
-        description="If this post is violating our community guidelines, we'll review it and take appropriate action."
-        confirmLabel="Report"
-        cancelLabel="Cancel"
-        variant="danger"
+        contentType="post"
+        contentId={postId ?? ""}
+        targetLabel="this post"
       />
       <ConfirmDialog
         open={showDeleteConfirm}

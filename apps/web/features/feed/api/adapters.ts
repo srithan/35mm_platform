@@ -30,6 +30,10 @@ function asStringArray(value: unknown): string[] {
   });
 }
 
+function asModerationStatus(value: unknown): "visible" | "hidden" | "removed" {
+  return value === "hidden" || value === "removed" ? value : "visible";
+}
+
 function normalizePoll(raw: Record<string, unknown>): Post["poll"] {
   if (!isRecord(raw.poll)) return null;
   var poll = raw.poll;
@@ -222,6 +226,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
         : "public",
     editedAt: asNullableString(root.editedAt),
     isDeleted: Boolean(root.isDeleted),
+    moderationStatus: asModerationStatus(root.moderationStatus),
     author: {
       id: asString(authorRaw.id) || asString(root.userId) || username,
       username,
@@ -300,6 +305,7 @@ type CommentDto = {
   parentId: string | null;
   body: string | null;
   isDeleted?: boolean;
+  moderationStatus?: "visible" | "hidden" | "removed";
   likeCount: number;
   editedAt?: string | null;
   createdAt: string;
@@ -330,6 +336,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
       depth: 0,
       body: raw.body,
       isDeleted: raw.isDeleted,
+      moderationStatus: asModerationStatus(raw.moderationStatus),
       likeCount: raw.likeCount,
       isLiked: Boolean(raw.isLiked),
       editedAt: raw.editedAt ?? null,

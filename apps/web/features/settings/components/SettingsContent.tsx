@@ -26,6 +26,7 @@ import {
   type SettingsModerationListKind,
 } from "./SettingsModerationListPanel";
 import { SettingsDataSecurityPanel } from "./SettingsDataSecurityPanel";
+import { MyReportsPanel } from "@/features/moderation/components/MyReportsPanel";
 import {
   useSettingsQuery,
   useUpdateAppearanceMutation,
@@ -86,15 +87,18 @@ const SETTINGS_TABS = [
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
+type PrivacyListKind = SettingsModerationListKind | "reports";
+
 type SettingsContentProps = {
   initialTab?: SettingsTab;
-  privacyList?: SettingsModerationListKind;
+  privacyList?: PrivacyListKind;
   mobileHome?: boolean;
 };
 
-const PRIVACY_LIST_LABELS: Record<SettingsModerationListKind, string> = {
+const PRIVACY_LIST_LABELS: Record<PrivacyListKind, string> = {
   blocked: "Blocked",
   muted: "Muted",
+  reports: "Your reports",
 };
 
 export function SettingsContent({
@@ -233,7 +237,9 @@ export function SettingsContent({
         }}
       />
     ),
-    Privacy: privacyList ? (
+    Privacy: privacyList === "reports" ? (
+      <MyReportsPanel />
+    ) : privacyList ? (
       <SettingsModerationListPanel kind={privacyList} />
     ) : (
       <SettingsPrivacyPanel

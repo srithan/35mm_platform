@@ -43,6 +43,7 @@ export const ROUTES = {
   SETTINGS_PRIVACY: "/settings/privacy",
   SETTINGS_PRIVACY_BLOCKED: "/settings/privacy/blocked",
   SETTINGS_PRIVACY_MUTED: "/settings/privacy/muted",
+  SETTINGS_PRIVACY_REPORTS: "/settings/privacy/reports",
   SETTINGS_DATA_SECURITY: "/settings/data-security",
   BOOKMARKS: "/bookmarks",
   DRAFTS: "/drafts",

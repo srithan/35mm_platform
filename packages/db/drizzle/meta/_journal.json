@@ -309,6 +309,34 @@
       "when": 1784000000017,
       "tag": "0042_feed_item_score_freshness",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1784000000018,
+      "tag": "0043_content_moderation",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1784000000019,
+      "tag": "0044_moderation_enforcement_support",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1784000000020,
+      "tag": "0045_moderation_read_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1784000000021,
+      "tag": "0046_moderation_notifications",
+      "breakpoints": true
     }
   ]
 }

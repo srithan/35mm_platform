@@ -116,6 +116,7 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
     entityId: string | null;
     entityType: string | null;
     type: string;
+    metadata: Record<string, unknown>;
   }> = [];
 
   try {
@@ -127,6 +128,7 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
         entityId: notifications.entityId,
         entityType: notifications.entityType,
         type: notifications.type,
+        metadata: notifications.metadata,
       })
       .from(notifications)
       .where(eq(notifications.id, notificationId))
@@ -144,6 +146,7 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
         entityId: notifications.entityId,
         entityType: notifications.entityType,
         type: notifications.type,
+        metadata: notifications.metadata,
       })
       .from(notifications)
       .where(eq(notifications.id, notificationId))
@@ -202,6 +205,7 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
     entityType: row.entityType,
     bundleCount: row.bundleCount,
     actorProfiles,
+    metadata: row.metadata,
     db: dbClient,
   }).catch(function (error) {
     console.error("[notification-email] side effect failed", {
@@ -224,6 +228,7 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
         type: row.type,
         entityId: row.entityId,
         entityType: row.entityType,
+        metadata: row.metadata,
       });
       published = true;
     } catch (error) {

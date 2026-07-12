@@ -27,6 +27,7 @@ export interface PublicProfile {
   hasPendingRequestToViewer?: boolean;
   isMutedByViewer?: boolean;
   isDeactivated: boolean;
+  moderationStatus?: "visible" | "hidden" | "removed";
   createdAt?: string;
 }
 

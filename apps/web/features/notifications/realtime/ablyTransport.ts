@@ -9,6 +9,7 @@ type AblyMessageData = {
   type?: unknown;
   entityId?: unknown;
   entityType?: unknown;
+  metadata?: unknown;
 };
 
 const ALLOWED_NOTIFICATION_TYPES: readonly NotificationType[] = [
@@ -22,6 +23,9 @@ const ALLOWED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   "repost",
   "film_logged",
   "chat_reaction",
+  "report_status_update",
+  "content_moderated",
+  "content_under_review",
 ] as const;
 
 function parseActorIds(value: unknown): string[] {
@@ -62,6 +66,12 @@ function parseEntityType(value: unknown): "post" | "comment" | "user" | "film" |
     value === "chat_thread"
   ) return value;
   return undefined;
+}
+
+function parseMetadata(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }
 
 type AblyNotificationRealtimeTransportInput = {
@@ -134,6 +144,7 @@ export function createAblyNotificationRealtimeTransport(
               : undefined,
           entityId: data && typeof data === "object" ? (data as AblyMessageData).entityId : undefined,
           entityType: data && typeof data === "object" ? parseEntityType((data as AblyMessageData).entityType) : undefined,
+          metadata: data && typeof data === "object" ? parseMetadata((data as AblyMessageData).metadata) : undefined,
         };
 
         handler({
@@ -144,6 +155,7 @@ export function createAblyNotificationRealtimeTransport(
           notificationType: payload.notificationType,
           entityId: typeof payload.entityId === "string" ? payload.entityId.trim() || null : undefined,
           entityType: payload.entityType,
+          metadata: payload.metadata,
         });
       }
 

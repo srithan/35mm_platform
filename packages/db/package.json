@@ -11,6 +11,10 @@
     "./schema": {
       "types": "./src/schema/index.ts",
       "default": "./src/schema/index.ts"
+    },
+    "./notification-service": {
+      "types": "./src/notificationService.ts",
+      "default": "./src/notificationService.ts"
     }
   },
   "scripts": {

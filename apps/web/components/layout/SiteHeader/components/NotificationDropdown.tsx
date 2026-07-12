@@ -3,10 +3,13 @@ import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ChevronRight,
+  Eye,
   Heart,
   Film,
   MessageCircle,
   Repeat2,
+  Shield,
+  ShieldAlert,
   Smile,
   UserCheck,
   UserPlus,
@@ -39,6 +42,9 @@ const NOTIF_KIND_ICON = {
   repost: Repeat2,
   film_logged: Film,
   chat_reaction: Smile,
+  report_status_update: Shield,
+  content_moderated: ShieldAlert,
+  content_under_review: Eye,
 } as const;
 
 type NotificationDropdownProps = {

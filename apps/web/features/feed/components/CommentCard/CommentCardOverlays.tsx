@@ -2,6 +2,7 @@
 
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { useBlockUserMutation, useMuteUserMutation } from "@/features/profile/hooks/useProfile";
+import { ReportFlow } from "@/features/moderation/components/ReportFlow";
 import { useDeleteComment } from "../../hooks/useCommentMutations";
 import { MuteUndoToast } from "../shared/MuteUndoToast";
 
@@ -13,10 +14,12 @@ interface CommentCardOverlaysProps {
   showDeleteConfirm: boolean;
   showBlockConfirm: boolean;
   showMuteConfirm: boolean;
+  showReportConfirm: boolean;
   muteToast: { handle: string; userId: string } | null;
   onCloseDeleteConfirm: () => void;
   onCloseBlockConfirm: () => void;
   onCloseMuteConfirm: () => void;
+  onCloseReportConfirm: () => void;
   onMuteSuccess: (payload: { handle: string; userId: string }) => void;
   onClearMuteToast: () => void;
 }
@@ -29,10 +32,12 @@ export function CommentCardOverlays({
   showDeleteConfirm,
   showBlockConfirm,
   showMuteConfirm,
+  showReportConfirm,
   muteToast,
   onCloseDeleteConfirm,
   onCloseBlockConfirm,
   onCloseMuteConfirm,
+  onCloseReportConfirm,
   onMuteSuccess,
   onClearMuteToast,
 }: CommentCardOverlaysProps) {
@@ -89,6 +94,13 @@ export function CommentCardOverlays({
         description="Their posts won't appear in your feed. You can unmute them anytime in Settings."
         confirmLabel="Mute"
         cancelLabel="Cancel"
+      />
+      <ReportFlow
+        open={showReportConfirm}
+        onClose={onCloseReportConfirm}
+        contentType="comment"
+        contentId={commentId}
+        targetLabel="this comment"
       />
       {muteToast ? (
         <MuteUndoToast

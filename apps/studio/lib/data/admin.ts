@@ -18,6 +18,7 @@ import {
   Search,
   Server,
   Shield,
+  ShieldAlert,
   UserRound,
   Users,
   Webhook,
@@ -97,16 +98,6 @@ export interface ContentQueueItem {
   updatedAt: string;
 }
 
-export interface ModerationItem {
-  id: string;
-  subject: string;
-  reporter: string;
-  reason: string;
-  priority: ReviewPriority;
-  age: string;
-  queue: 'posts' | 'profiles' | 'media' | 'webhooks';
-}
-
 export interface QueueJob {
   name: string;
   queue: string;
@@ -131,8 +122,11 @@ export const adminNavGroups: { label: string; items: AdminNavItem[] }[] = [
       { label: 'Overview', href: '/dashboard', icon: Gauge },
       { label: 'Users', href: '/users', icon: Users },
       { label: 'Content', href: '/content', icon: Clapperboard },
-      { label: 'Moderation', href: '/moderation', icon: Shield },
     ],
+  },
+  {
+    label: 'Moderation',
+    items: [{ label: 'Review queue', href: '/moderation', icon: ShieldAlert }],
   },
   {
     label: 'Catalog',
@@ -434,45 +428,6 @@ export const contentQueue: ContentQueueItem[] = [
     state: 'flagged',
     detail: 'Avatar upload failed derivative generation.',
     updatedAt: '3h ago',
-  },
-];
-
-export const moderationQueue: ModerationItem[] = [
-  {
-    id: 'mod_901',
-    subject: 'Spoiler report on review post',
-    reporter: '@nila',
-    reason: 'Unmarked spoiler in first paragraph',
-    priority: 'urgent',
-    age: '18 min',
-    queue: 'posts',
-  },
-  {
-    id: 'mod_902',
-    subject: 'Profile impersonation check',
-    reporter: '@maya',
-    reason: 'Possible duplicate creator account',
-    priority: 'high',
-    age: '41 min',
-    queue: 'profiles',
-  },
-  {
-    id: 'mod_903',
-    subject: 'Webhook retry exceeded',
-    reporter: 'system',
-    reason: 'Clerk webhook failed 3 delivery attempts',
-    priority: 'normal',
-    age: '1h 12m',
-    queue: 'webhooks',
-  },
-  {
-    id: 'mod_904',
-    subject: 'Poster image quality review',
-    reporter: 'system',
-    reason: 'Low-confidence image variant generated',
-    priority: 'low',
-    age: '4h',
-    queue: 'media',
   },
 ];
 

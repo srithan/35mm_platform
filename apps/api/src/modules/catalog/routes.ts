@@ -1,4 +1,3 @@
-import { createClerkClient } from "@clerk/backend";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { CatalogEntityType } from "@35mm/types";
@@ -19,6 +18,7 @@ import {
 import { badRequest, forbidden } from "../../lib/errors.js";
 import { requireAuth, type AuthUser } from "../../lib/middleware.js";
 import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
+import { roleCanWriteCatalog, studioRoleForUser } from "../../lib/studioAuth.js";
 import {
   applyCatalogEdit,
   mergeCatalogEntities,
@@ -53,8 +53,6 @@ import {
 
 export var catalogRoutes = new Hono();
 
-type StudioRole = "owner" | "admin" | "catalog" | "moderation" | "systems" | "viewer";
-
 var catalogWriteRateLimit = createRateLimitMiddleware({
   keyPrefix: "catalog:write",
   limit: 30,
@@ -66,108 +64,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function normalizeStudioRole(value: unknown): StudioRole {
-  if (typeof value !== "string") return "viewer";
-  var role = value.toLowerCase().replace(/^org:/, "").replace(/^studio:/, "");
-  if (role === "owner" || role === "super_admin") return "owner";
-  if (role === "admin") return "admin";
-  if (role === "catalog" || role === "catalog_admin" || role === "catalog_editor") return "catalog";
-  if (role === "moderation" || role === "moderator" || role === "trust_safety") return "moderation";
-  if (role === "systems" || role === "system" || role === "ops" || role === "infrastructure") return "systems";
-  return "viewer";
-}
-
-function roleCanWriteCatalog(role: StudioRole): boolean {
-  return role === "owner" || role === "admin" || role === "catalog";
-}
-
-function configuredClerkSecretKeys(user: AuthUser): Array<{ key: string; source: string }> {
-  var seen = new Set<string>();
-  var entries = [
-    { key: user.clerkSecretKey, source: user.clerkAuthSource ?? "verified" },
-    { key: process.env.STUDIO_CLERK_SECRET_KEY, source: "studio" },
-    { key: process.env.CLERK_STUDIO_SECRET_KEY, source: "studio_legacy" },
-    { key: process.env.CLERK_SECRET_KEY, source: "platform" },
-    ...(process.env.CLERK_SECRET_KEYS ?? "").split(",").map(function (key, index) {
-      return { key, source: "configured_" + index };
-    }),
-  ];
-  return entries
-    .map(function (entry) {
-      return { key: entry.key?.trim() ?? "", source: entry.source };
-    })
-    .filter(function (entry) {
-      if (!entry.key || seen.has(entry.key)) return false;
-      seen.add(entry.key);
-      return true;
-    });
-}
-
-function roleFromMetadata(
-  publicMetadata: Record<string, unknown>,
-  unsafeMetadata: Record<string, unknown>
-): StudioRole {
-  return normalizeStudioRole(
-    publicMetadata.studioRole ??
-      publicMetadata.role ??
-      unsafeMetadata.studioRole ??
-      unsafeMetadata.role
-  );
-}
-
-function logCatalogAuth(
-  user: AuthUser,
-  role: StudioRole,
-  publicMetadata: Record<string, unknown>,
-  unsafeMetadata: Record<string, unknown>,
-  source: "token" | "clerk"
-): void {
-  if (process.env.NODE_ENV === "production") return;
-  console.info("[catalog.auth]", {
-    authSource: user.clerkAuthSource ?? "unknown",
-    role,
-    source,
-    hasPublicStudioRole: typeof publicMetadata.studioRole === "string",
-    hasUnsafeStudioRole: typeof unsafeMetadata.studioRole === "string",
-  });
-}
-
-async function catalogWriteRoleForUser(user: AuthUser): Promise<StudioRole> {
-  var tokenPublicMetadata = isRecord(user.publicMetadata) ? user.publicMetadata : {};
-  var tokenUnsafeMetadata = isRecord(user.unsafeMetadata) ? user.unsafeMetadata : {};
-  var tokenRole = roleFromMetadata(tokenPublicMetadata, tokenUnsafeMetadata);
-  if (roleCanWriteCatalog(tokenRole)) {
-    logCatalogAuth(user, tokenRole, tokenPublicMetadata, tokenUnsafeMetadata, "token");
-    return tokenRole;
-  }
-
-  var lastError: unknown;
-  for (var secret of configuredClerkSecretKeys(user)) {
-    var clerk = createClerkClient({ secretKey: secret.key });
-    try {
-      var clerkUser = await clerk.users.getUser(user.clerkUserId);
-      var publicMetadata = isRecord(clerkUser.publicMetadata) ? clerkUser.publicMetadata : {};
-      var unsafeMetadata = isRecord(clerkUser.unsafeMetadata) ? clerkUser.unsafeMetadata : {};
-      var role = roleFromMetadata(publicMetadata, unsafeMetadata);
-      logCatalogAuth(user, role, publicMetadata, unsafeMetadata, "clerk");
-      return role;
-    } catch (error) {
-      lastError = error;
-      continue;
-    }
-  }
-
-  console.warn("[catalog.auth] clerk user metadata lookup failed", {
-    authSource: user.clerkAuthSource ?? "unknown",
-    clerkUserId: user.clerkUserId,
-    error: lastError,
-  });
-  logCatalogAuth(user, tokenRole, tokenPublicMetadata, tokenUnsafeMetadata, "token");
-  return tokenRole;
-}
-
 async function requireCatalogWriteRole(user: AuthUser): Promise<void> {
-  var role = await catalogWriteRoleForUser(user);
+  var role = await studioRoleForUser(user, "catalog.auth", roleCanWriteCatalog);
   if (!roleCanWriteCatalog(role)) {
     throw forbidden("Catalog moderation requires Studio catalog write access");
   }
@@ -253,7 +151,7 @@ async function stageEntity(
   var body = await c.req.json().catch(function () {
     return {};
   });
-  var role = await catalogWriteRoleForUser(user);
+  var role = await studioRoleForUser(user, "catalog.auth", roleCanWriteCatalog);
   var serverSource: "studio" | "contribution" = roleCanWriteCatalog(role) ? "studio" : "contribution";
   var input = normalizeStageBody(
     entityType,

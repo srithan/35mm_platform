@@ -63,6 +63,12 @@ import {
   notMutedByViewerSql,
 } from "../../lib/moderation.js";
 import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
+import {
+  filterModeratedFeedCachePayload,
+  filterModeratedPostRows,
+  isModerationStaffViewer,
+  moderationReadAccessSql,
+} from "../../lib/moderationRead.js";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { isValidUlid } from "../../lib/ulid.js";
@@ -382,6 +388,7 @@ async function hydrateRichMentions(value: string): Promise<string> {
 	      id: profiles.userId,
 	      username: profiles.username,
 	      isPrivate: profiles.isPrivate,
+	      moderationStatus: profiles.moderationStatus,
 	      status: users.status,
 	    })
     .from(profiles)
@@ -396,7 +403,7 @@ async function hydrateRichMentions(value: string): Promise<string> {
   function walk(node: RichTextNode) {
     if (node.type === "mention" && typeof node.attrs?.id === "string") {
       var row = byId.get(node.attrs.id);
-      if (!row || row.status !== "active") {
+      if (!row || row.status !== "active" || row.moderationStatus !== "visible") {
         node.attrs = { ...node.attrs, deleted: true };
 	      } else {
 	        node.attrs = { ...node.attrs, username: row.username, label: row.username, isPrivate: row.isPrivate, deleted: false };
@@ -419,11 +426,16 @@ function collectMentionIdsFromNode(node: RichTextNode, set: Set<string>) {
 
 function applyMentionMetadataToNode(
   node: RichTextNode,
-  byId: Map<string, { username: string; status: string; isPrivate: boolean }>
+  byId: Map<string, {
+    username: string;
+    status: string;
+    isPrivate: boolean;
+    moderationStatus: "visible" | "hidden" | "removed";
+  }>
 ) {
   if (node.type === "mention" && typeof node.attrs?.id === "string") {
     var row = byId.get(node.attrs.id);
-    if (!row || row.status !== "active") {
+    if (!row || row.status !== "active" || row.moderationStatus !== "visible") {
       node.attrs = { ...node.attrs, deleted: true };
     } else {
       node.attrs = {
@@ -487,6 +499,7 @@ async function hydratePostRichMentionsForRows(
       id: profiles.userId,
       username: profiles.username,
       isPrivate: profiles.isPrivate,
+      moderationStatus: profiles.moderationStatus,
       status: users.status,
     })
     .from(profiles)
@@ -821,7 +834,7 @@ function parseUpdateCommentInput(raw: unknown): { body: string } {
   return { body };
 }
 
-function postVisibilitySql(viewerUserId: string | null) {
+function postVisibilitySql(viewerUserId: string | null, viewerIsStaff = false) {
   var repostSourceAccess = viewerUserId
     ? sql<boolean>`(
         ${posts.isRepost} = false
@@ -831,6 +844,16 @@ function postVisibilitySql(viewerUserId: string | null) {
           from ${posts} source_posts
           inner join ${profiles} source_profiles on source_profiles.user_id = source_posts.user_id
           where source_posts.id = ${posts.replyToId}
+            and (
+              source_posts.moderation_status = 'visible'
+              or source_posts.user_id = ${viewerUserId}
+              or ${viewerIsStaff}
+            )
+            and (
+              source_profiles.moderation_status = 'visible'
+              or source_profiles.user_id = ${viewerUserId}
+              or ${viewerIsStaff}
+            )
             and (
               source_profiles.is_private = false
               or source_posts.user_id = ${viewerUserId}
@@ -852,6 +875,8 @@ function postVisibilitySql(viewerUserId: string | null) {
           from ${posts} source_posts
           inner join ${profiles} source_profiles on source_profiles.user_id = source_posts.user_id
           where source_posts.id = ${posts.replyToId}
+            and source_posts.moderation_status = 'visible'
+            and source_profiles.moderation_status = 'visible'
             and source_profiles.is_private = false
         )
       )`;
@@ -879,22 +904,40 @@ function postVisibilitySql(viewerUserId: string | null) {
   )`;
 }
 
-function profileAccessSql(viewerUserId: string | null) {
+function profileAccessSql(viewerUserId: string | null, viewerIsStaff = false) {
+  var moderationAccess = moderationReadAccessSql(
+    profiles.moderationStatus,
+    profiles.userId,
+    viewerUserId,
+    viewerIsStaff
+  );
   if (!viewerUserId) {
-    return eq(profiles.isPrivate, false);
+    return and(eq(profiles.isPrivate, false), moderationAccess);
   }
 
-  return sql<boolean>`(
-    ${profiles.isPrivate} = false
-    or ${profiles.userId} = ${viewerUserId}
-    or exists (
-      select 1
-      from ${follows}
-      where ${follows.followerId} = ${viewerUserId}
-        and ${follows.followingId} = ${profiles.userId}
-        and ${follows.status} = 'accepted'
-    )
-  )`;
+  return and(
+    sql<boolean>`(
+      ${profiles.isPrivate} = false
+      or ${profiles.userId} = ${viewerUserId}
+      or exists (
+        select 1
+        from ${follows}
+        where ${follows.followerId} = ${viewerUserId}
+          and ${follows.followingId} = ${profiles.userId}
+          and ${follows.status} = 'accepted'
+      )
+    )`,
+    moderationAccess
+  );
+}
+
+function postModerationAccessSql(viewerUserId: string | null, viewerIsStaff = false) {
+  return moderationReadAccessSql(
+    posts.moderationStatus,
+    posts.userId,
+    viewerUserId,
+    viewerIsStaff
+  );
 }
 
 function compositeCursorSql(createdAtColumn: unknown, idColumn: unknown, cursor: { createdAt: Date; id: string } | null) {
@@ -1280,6 +1323,7 @@ async function toPostItem(row: {
   repostCount: number;
   bookmarkCount: number;
   isDeleted: boolean;
+  moderationStatus: "visible" | "hidden" | "removed";
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
@@ -1349,6 +1393,7 @@ async function toPostItem(row: {
     updatedAt: row.updatedAt.toISOString(),
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
     isDeleted: row.isDeleted,
+    moderationStatus: row.moderationStatus,
     author: {
       id: row.authorId,
       username: row.username,
@@ -1426,6 +1471,7 @@ export type CachedHighFollowerAuthorRow = {
   repostCount: number;
   bookmarkCount: number;
   isDeleted: boolean;
+  moderationStatus?: "visible" | "hidden" | "removed";
 };
 
 function compareHomeFeedRows(a: Pick<HomeFeedRow, "cursorScore" | "cursorId">, b: Pick<HomeFeedRow, "cursorScore" | "cursorId">): number {
@@ -1593,6 +1639,7 @@ function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFol
     repostCount: Number(row.repostCount ?? 0),
     bookmarkCount: Number(row.bookmarkCount ?? 0),
     isDeleted: row.isDeleted,
+    moderationStatus: row.moderationStatus,
   };
 }
 
@@ -1603,6 +1650,7 @@ function homeRowFromCachedHighFollowerAuthorRow(
   var createdAt = new Date(row.createdAt);
   return {
     ...row,
+    moderationStatus: row.moderationStatus ?? "visible",
     createdAt,
     updatedAt: new Date(row.updatedAt),
     editedAt: row.editedAt ? new Date(row.editedAt) : null,
@@ -1656,6 +1704,7 @@ export function rankHighFollowerAuthorCacheRows(input: {
 
 async function selectLiveHomeFeedRows(input: {
   viewerUserId: string;
+  viewerIsStaff: boolean;
   authorIds: string[] | null;
   scoreCursor: FeedScoreCursor | null;
   rankingAsOf: Date;
@@ -1680,8 +1729,9 @@ async function selectLiveHomeFeedRows(input: {
   var liveFilters: any[] = [
     authorFilter,
     eq(posts.isDeleted, false),
-    postVisibilitySql(input.viewerUserId),
-    profileAccessSql(input.viewerUserId),
+    postModerationAccessSql(input.viewerUserId, input.viewerIsStaff),
+    postVisibilitySql(input.viewerUserId, input.viewerIsStaff),
+    profileAccessSql(input.viewerUserId, input.viewerIsStaff),
     ...blockFiltersForAuthor(input.viewerUserId, posts.userId),
     notMutedByViewerSql(input.viewerUserId, posts.userId),
   ];
@@ -1727,6 +1777,7 @@ async function selectLiveHomeFeedRows(input: {
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${input.viewerUserId})`,
       isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${input.viewerUserId})`,
       isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${input.viewerUserId})`,
@@ -1739,7 +1790,11 @@ async function selectLiveHomeFeedRows(input: {
     .limit(input.limit);
 }
 
-async function visibleHighFollowerAuthorIds(viewerUserId: string, authorIds: string[]): Promise<string[]> {
+async function visibleHighFollowerAuthorIds(
+  viewerUserId: string,
+  viewerIsStaff: boolean,
+  authorIds: string[]
+): Promise<string[]> {
   if (authorIds.length === 0) return [];
   var db = getDb();
   var rows = await db
@@ -1748,7 +1803,7 @@ async function visibleHighFollowerAuthorIds(viewerUserId: string, authorIds: str
     .where(
       and(
         inArray(profiles.userId, authorIds),
-        profileAccessSql(viewerUserId),
+        profileAccessSql(viewerUserId, viewerIsStaff),
         ...blockFiltersForAuthor(viewerUserId, profiles.userId),
         notMutedByViewerSql(viewerUserId, profiles.userId)
       )
@@ -1770,6 +1825,8 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
   var filters: any[] = [
     eq(posts.userId, input.authorUserId),
     eq(posts.isDeleted, false),
+    eq(posts.moderationStatus, "visible"),
+    eq(profiles.moderationStatus, "visible"),
     ne(posts.visibility, "private"),
   ];
   var cursorFilter = feedScoreCursorSql(liveScore, posts.id, input.scoreCursor);
@@ -1814,6 +1871,7 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       isLiked: sql<boolean>`false`,
       isReposted: sql<boolean>`false`,
       isBookmarked: sql<boolean>`false`,
@@ -1833,6 +1891,8 @@ async function highFollowerAuthorRowsFromCache(input: {
   requestLimit: number;
   cachePostLimit: number;
   ttlSeconds: number;
+  viewerUserId: string;
+  viewerIsStaff: boolean;
 }): Promise<HomeFeedRow[]> {
   var cached = await getHighFollowerAuthorFeedCache(input.authorUserId);
   var cachedRows = cached?.items.filter(isCachedHighFollowerAuthorRow) ?? null;
@@ -1855,6 +1915,21 @@ async function highFollowerAuthorRowsFromCache(input: {
       input.ttlSeconds
     );
   }
+
+  var moderationFilteredRows = await filterModeratedPostRows({
+    rows: cachedRows,
+    viewerUserId: input.viewerUserId,
+    viewerIsStaff: input.viewerIsStaff,
+  });
+  if (!moderationFilteredRows) {
+    return selectHighFollowerAuthorRowsFromDb({
+      authorUserId: input.authorUserId,
+      rankingAsOf: input.rankingAsOf,
+      scoreCursor: input.scoreCursor,
+      limit: input.requestLimit,
+    });
+  }
+  cachedRows = moderationFilteredRows;
 
   var rankedRows = rankHighFollowerAuthorCacheRows({
     rows: cachedRows,
@@ -1881,12 +1956,27 @@ async function highFollowerAuthorRowsFromCache(input: {
 
 async function highFollowerLiveRowsFromAuthorCache(input: {
   viewerUserId: string;
+  viewerIsStaff: boolean;
   authorIds: string[];
   scoreCursor: FeedScoreCursor | null;
   rankingAsOf: Date;
   limit: number;
 }): Promise<HomeFeedRow[]> {
-  var visibleAuthorIds = await visibleHighFollowerAuthorIds(input.viewerUserId, input.authorIds);
+  if (input.viewerIsStaff) {
+    return selectLiveHomeFeedRows({
+      viewerUserId: input.viewerUserId,
+      viewerIsStaff: true,
+      authorIds: input.authorIds,
+      scoreCursor: input.scoreCursor,
+      rankingAsOf: input.rankingAsOf,
+      limit: input.limit,
+    });
+  }
+  var visibleAuthorIds = await visibleHighFollowerAuthorIds(
+    input.viewerUserId,
+    input.viewerIsStaff,
+    input.authorIds
+  );
   var cachePostLimit = feedHighFollowerCachePostLimit();
   var ttlSeconds = feedHighFollowerCacheTtlSeconds();
   var pages = await Promise.all(
@@ -1898,6 +1988,8 @@ async function highFollowerLiveRowsFromAuthorCache(input: {
         requestLimit: input.limit,
         cachePostLimit,
         ttlSeconds,
+        viewerUserId: input.viewerUserId,
+        viewerIsStaff: input.viewerIsStaff,
       });
     })
   );
@@ -1963,6 +2055,7 @@ async function highFollowerFolloweeIds(viewerUserId: string, threshold: number):
       and(
         eq(viewerFollows.followerId, viewerUserId),
         eq(viewerFollows.status, "accepted"),
+        eq(profiles.moderationStatus, "visible"),
         gte(profiles.followerCount, threshold)
       )
     );
@@ -1972,7 +2065,11 @@ async function highFollowerFolloweeIds(viewerUserId: string, threshold: number):
   });
 }
 
-async function getPostById(postId: string, viewerUserId: string | null) {
+async function getPostById(
+  postId: string,
+  viewerUserId: string | null,
+  viewerIsStaff = false
+) {
   var db = getDb();
   var rows = await db
     .select({
@@ -2009,6 +2106,7 @@ async function getPostById(postId: string, viewerUserId: string | null) {
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       isLiked: viewerUserId
         ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
         : sql<boolean>`false`,
@@ -2035,8 +2133,9 @@ async function getPostById(postId: string, viewerUserId: string | null) {
       and(
         eq(posts.id, postId),
         eq(posts.isDeleted, false),
-        postVisibilitySql(viewerUserId),
-        profileAccessSql(viewerUserId)
+        postModerationAccessSql(viewerUserId, viewerIsStaff),
+        postVisibilitySql(viewerUserId, viewerIsStaff),
+        profileAccessSql(viewerUserId, viewerIsStaff)
       )
     )
     .limit(1);
@@ -2063,6 +2162,7 @@ async function assertPostOwner(postId: string, userId: string) {
       id: posts.id,
       userId: posts.userId,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       visibility: posts.visibility,
       body: posts.body,
       headline: posts.headline,
@@ -2082,7 +2182,11 @@ async function assertPostOwner(postId: string, userId: string) {
   return rows[0];
 }
 
-async function assertReadablePost(postId: string, viewerUserId: string | null) {
+async function assertReadablePost(
+  postId: string,
+  viewerUserId: string | null,
+  viewerIsStaff = false
+) {
   if (viewerUserId) {
     var db = getDb();
     var authorRows = await db
@@ -2098,7 +2202,7 @@ async function assertReadablePost(postId: string, viewerUserId: string | null) {
     await assertNoBlockBetween(viewerUserId, authorRows[0].userId);
   }
 
-  var post = await getPostById(postId, viewerUserId);
+  var post = await getPostById(postId, viewerUserId, viewerIsStaff);
   if (!post) throw notFound("Post not found");
   return post;
 }
@@ -2109,6 +2213,15 @@ async function assertReadablePostForInteraction(postId: string, viewerUserId: st
   }
 
   await assertCanInteractWithPost(viewerUserId, postId);
+  var rows = await getDb()
+    .select({ authorUserId: posts.userId, moderationStatus: posts.moderationStatus })
+    .from(posts)
+    .where(eq(posts.id, postId))
+    .limit(1);
+  if (!rows[0]) throw notFound("Post not found");
+  if (rows[0].moderationStatus !== "visible" && rows[0].authorUserId !== viewerUserId) {
+    throw notFound("Post not found");
+  }
 }
 
 feedRoutes.get("/", async function (c) {
@@ -2119,6 +2232,7 @@ feedRoutes.get("/", async function (c) {
 
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerIsStaff = isModerationStaffViewer(viewer);
   var rateLimitResponse = await applyRateLimit(c, {
     keyPrefix: "feed:read",
     limit: 120,
@@ -2151,8 +2265,15 @@ feedRoutes.get("/", async function (c) {
     if (useHomeFeedCache) {
       var cached = await getFeedCache(cacheKey);
       if (cached) {
-        c.header("X-Feed-Cache", "HIT");
-        return c.json(cached);
+        var filteredCached = await filterModeratedFeedCachePayload({
+          payload: cached,
+          viewerUserId: viewer.userId,
+          viewerIsStaff,
+        });
+        if (filteredCached) {
+          c.header("X-Feed-Cache", "HIT");
+          return c.json(filteredCached);
+        }
       }
       c.header("X-Feed-Cache", "MISS");
     } else {
@@ -2163,8 +2284,9 @@ feedRoutes.get("/", async function (c) {
       eq(feedItems.userId, viewer.userId),
       gte(feedItems.createdAt, retentionBoundary),
       eq(posts.isDeleted, false),
-      postVisibilitySql(viewer.userId),
-      profileAccessSql(viewer.userId),
+      postModerationAccessSql(viewer.userId, viewerIsStaff),
+      postVisibilitySql(viewer.userId, viewerIsStaff),
+      profileAccessSql(viewer.userId, viewerIsStaff),
       ...blockFiltersForAuthor(viewer.userId, posts.userId),
       notMutedByViewerSql(viewer.userId, posts.userId),
     ];
@@ -2218,6 +2340,7 @@ feedRoutes.get("/", async function (c) {
           repostCount: posts.repostCount,
           bookmarkCount: posts.bookmarkCount,
           isDeleted: posts.isDeleted,
+          moderationStatus: posts.moderationStatus,
           isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewer.userId})`,
           isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewer.userId})`,
           isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewer.userId})`,
@@ -2234,6 +2357,7 @@ feedRoutes.get("/", async function (c) {
     if (useColdFeedFallback) {
       liveRows = await selectLiveHomeFeedRows({
         viewerUserId: viewer.userId,
+        viewerIsStaff,
         authorIds: null,
         scoreCursor,
         rankingAsOf,
@@ -2242,6 +2366,7 @@ feedRoutes.get("/", async function (c) {
     } else if (highFollowerAuthorIds.length > 0) {
       liveRows = await highFollowerLiveRowsFromAuthorCache({
         viewerUserId: viewer.userId,
+        viewerIsStaff,
         authorIds: highFollowerAuthorIds,
         scoreCursor,
         rankingAsOf,
@@ -2297,8 +2422,15 @@ feedRoutes.get("/", async function (c) {
   });
   var guestCached = await getFeedCache(guestCacheKey);
   if (guestCached) {
-    c.header("X-Feed-Cache", "HIT");
-    return c.json(guestCached);
+    var filteredGuestCached = await filterModeratedFeedCachePayload({
+      payload: guestCached,
+      viewerUserId: null,
+      viewerIsStaff: false,
+    });
+    if (filteredGuestCached) {
+      c.header("X-Feed-Cache", "HIT");
+      return c.json(filteredGuestCached);
+    }
   }
   c.header("X-Feed-Cache", "MISS");
 
@@ -2307,8 +2439,10 @@ feedRoutes.get("/", async function (c) {
   // This is intentional — do not unify without implementing public feed_items writes.
   var guestFilters: any[] = [
     eq(posts.isDeleted, false),
+    eq(posts.moderationStatus, "visible"),
     eq(posts.visibility, "public"),
     eq(profiles.isPrivate, false),
+    eq(profiles.moderationStatus, "visible"),
   ];
   var guestCursorFilter = compositeCursorSql(posts.createdAt, posts.id, guestCursor);
   if (guestCursorFilter) guestFilters.push(guestCursorFilter);
@@ -2350,6 +2484,7 @@ feedRoutes.get("/", async function (c) {
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       isLiked: sql<boolean>`false`,
       isReposted: sql<boolean>`false`,
       isBookmarked: sql<boolean>`false`,
@@ -2565,7 +2700,11 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
 feedRoutes.get("/posts/:postId", async function (c) {
   var postId = c.req.param("postId");
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
-  var post = await assertReadablePost(postId, viewer?.userId ?? null);
+  var post = await assertReadablePost(
+    postId,
+    viewer?.userId ?? null,
+    isModerationStaffViewer(viewer)
+  );
   c.header("Cache-Control", "no-store");
   return c.json(post);
 });
@@ -2579,12 +2718,14 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   var username = c.req.param("username").toLowerCase().trim();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var viewerUserId = viewer?.userId ?? null;
+  var viewerIsStaff = isModerationStaffViewer(viewer);
   var db = getDb();
 
   var profileRows = await db
     .select({
       userId: profiles.userId,
       isPrivate: profiles.isPrivate,
+      moderationStatus: profiles.moderationStatus,
     })
     .from(profiles)
     .where(eq(profiles.username, username))
@@ -2595,6 +2736,14 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   }
 
   var profileRow = profileRows[0];
+
+  if (
+    profileRow.moderationStatus !== "visible" &&
+    profileRow.userId !== viewerUserId &&
+    !viewerIsStaff
+  ) {
+    throw notFound("Profile not found");
+  }
 
   if (viewerUserId && viewerUserId !== profileRow.userId) {
     await assertNoBlockBetween(viewerUserId, profileRow.userId);
@@ -2630,23 +2779,31 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   });
   var cached = await getFeedCache(cacheKey);
   if (cached) {
-    if (!viewerUserId) {
-      var cachedEtag = weakEtag(cached, `profile-posts-${username}`);
+    var filteredCached = await filterModeratedFeedCachePayload({
+      payload: cached,
+      viewerUserId,
+      viewerIsStaff,
+    });
+    if (filteredCached && !viewerUserId) {
+      var cachedEtag = weakEtag(filteredCached, `profile-posts-${username}`);
       c.header("ETag", cachedEtag);
       if (c.req.header("If-None-Match") === cachedEtag) {
         return new Response(null, { status: 304 });
       }
     }
-    c.header("X-Feed-Cache", "HIT");
-    return c.json(cached);
+    if (filteredCached) {
+      c.header("X-Feed-Cache", "HIT");
+      return c.json(filteredCached);
+    }
   }
   c.header("X-Feed-Cache", "MISS");
 
   var filters: any[] = [
     eq(profiles.username, username),
     eq(posts.isDeleted, false),
-    postVisibilitySql(viewerUserId),
-    profileAccessSql(viewerUserId),
+    postModerationAccessSql(viewerUserId, viewerIsStaff),
+    postVisibilitySql(viewerUserId, viewerIsStaff),
+    profileAccessSql(viewerUserId, viewerIsStaff),
   ];
   var cursorFilter = compositeCursorSql(posts.createdAt, posts.id, cursor);
   if (cursorFilter) filters.push(cursorFilter);
@@ -2688,6 +2845,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       isLiked: viewerUserId
         ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
         : sql<boolean>`false`,
@@ -2741,6 +2899,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
 
 feedRoutes.get("/bookmarks", requireAuth, async function (c) {
   var user = c.get("user");
+  var viewerIsStaff = isModerationStaffViewer(user);
   var parsed = cursorPaginationSchema.parse({
     cursor: c.req.query("cursor"),
     limit: c.req.query("limit"),
@@ -2769,8 +2928,9 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
   var filters: any[] = [
     eq(postBookmarks.userId, user.userId),
     eq(posts.isDeleted, false),
-    postVisibilitySql(user.userId),
-    profileAccessSql(user.userId),
+    postModerationAccessSql(user.userId, viewerIsStaff),
+    postVisibilitySql(user.userId, viewerIsStaff),
+    profileAccessSql(user.userId, viewerIsStaff),
     ...blockFiltersForAuthor(user.userId, posts.userId),
     notMutedByViewerSql(user.userId, posts.userId),
   ];
@@ -2819,6 +2979,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
       isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${user.userId})`,
       isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${user.userId})`,
       isBookmarked: sql<boolean>`true`,
@@ -4025,12 +4186,20 @@ feedRoutes.post("/posts/:postId/comments/:commentId/likes", requireAuth, postInt
 
     var db = getDb();
     var commentRows = await db
-      .select({ userId: comments.userId, isDeleted: comments.isDeleted })
+      .select({
+        userId: comments.userId,
+        isDeleted: comments.isDeleted,
+        moderationStatus: comments.moderationStatus,
+      })
       .from(comments)
       .where(and(eq(comments.id, commentId), eq(comments.postId, postId)))
       .limit(1);
 
-    if (commentRows.length === 0 || commentRows[0].isDeleted) {
+    if (
+      commentRows.length === 0 ||
+      commentRows[0].isDeleted ||
+      (commentRows[0].moderationStatus !== "visible" && commentRows[0].userId !== user.userId)
+    ) {
       throw notFound("Comment not found");
     }
 
@@ -4088,12 +4257,20 @@ feedRoutes.delete("/posts/:postId/comments/:commentId/likes", requireAuth, postI
 
   var db = getDb();
   var commentRows = await db
-    .select({ userId: comments.userId, isDeleted: comments.isDeleted })
+    .select({
+      userId: comments.userId,
+      isDeleted: comments.isDeleted,
+      moderationStatus: comments.moderationStatus,
+    })
     .from(comments)
     .where(and(eq(comments.id, commentId), eq(comments.postId, postId)))
     .limit(1);
 
-  if (commentRows.length === 0 || commentRows[0].isDeleted) {
+  if (
+    commentRows.length === 0 ||
+    commentRows[0].isDeleted ||
+    (commentRows[0].moderationStatus !== "visible" && commentRows[0].userId !== user.userId)
+  ) {
     throw notFound("Comment not found");
   }
 
@@ -4223,11 +4400,26 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerIsStaff = isModerationStaffViewer(viewer);
 
-  await assertReadablePost(postId, viewer?.userId ?? null);
+  await assertReadablePost(postId, viewer?.userId ?? null, viewerIsStaff);
 
   var db = getDb();
-  var filters: any[] = [eq(comments.postId, postId)];
+  var filters: any[] = [
+    eq(comments.postId, postId),
+    moderationReadAccessSql(
+      comments.moderationStatus,
+      comments.userId,
+      viewer?.userId ?? null,
+      viewerIsStaff
+    ),
+    moderationReadAccessSql(
+      profiles.moderationStatus,
+      profiles.userId,
+      viewer?.userId ?? null,
+      viewerIsStaff
+    ),
+  ];
   if (viewer) {
     filters.push(...blockFiltersForAuthor(viewer.userId, comments.userId));
   }
@@ -4245,6 +4437,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
       body: comments.body,
       likeCount: comments.likeCount,
       isDeleted: comments.isDeleted,
+      moderationStatus: comments.moderationStatus,
       editedAt: comments.editedAt,
       createdAt: comments.createdAt,
       updatedAt: comments.updatedAt,
@@ -4271,6 +4464,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
         parentId: row.parentId,
         body: row.isDeleted ? null : await hydrateRichMentions(row.body),
         isDeleted: row.isDeleted,
+        moderationStatus: row.moderationStatus,
         likeCount: Number(row.likeCount ?? 0),
         isLiked: Boolean(row.isLiked),
         editedAt: row.editedAt ? row.editedAt.toISOString() : null,
@@ -4351,7 +4545,11 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
     }
 
     var parentRows = await db
-      .select({ isDeleted: comments.isDeleted, userId: comments.userId })
+      .select({
+        isDeleted: comments.isDeleted,
+        userId: comments.userId,
+        moderationStatus: comments.moderationStatus,
+      })
       .from(comments)
       .where(and(eq(comments.id, input.parentId), eq(comments.postId, postId)))
       .limit(1);
@@ -4362,6 +4560,13 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
 
     if (parentRows[0].isDeleted) {
       throw badRequest("Cannot reply to deleted comment");
+    }
+
+    if (
+      parentRows[0].moderationStatus !== "visible" &&
+      parentRows[0].userId !== user.userId
+    ) {
+      throw badRequest("Parent comment not found");
     }
 
     parentCommentOwnerId = parentRows[0].userId;
@@ -4457,6 +4662,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
       parentId: inserted.parentId,
       body: await hydrateRichMentions(inserted.body),
       isDeleted: inserted.isDeleted,
+      moderationStatus: "visible",
       likeCount: Number(inserted.likeCount ?? 0),
       editedAt: inserted.editedAt ? inserted.editedAt.toISOString() : null,
       createdAt: inserted.createdAt.toISOString(),
@@ -4487,6 +4693,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
       id: comments.id,
       userId: comments.userId,
       isDeleted: comments.isDeleted,
+      moderationStatus: comments.moderationStatus,
     })
     .from(comments)
     .where(and(eq(comments.id, commentId), eq(comments.postId, postId)))
@@ -4519,6 +4726,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
       parentId: comments.parentId,
       body: comments.body,
       isDeleted: comments.isDeleted,
+      moderationStatus: comments.moderationStatus,
       likeCount: comments.likeCount,
       editedAt: comments.editedAt,
       createdAt: comments.createdAt,
@@ -4552,6 +4760,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
     parentId: updated.parentId,
     body: await hydrateRichMentions(updated.body),
     isDeleted: updated.isDeleted,
+    moderationStatus: updated.moderationStatus,
     likeCount: Number(updated.likeCount ?? 0),
     editedAt: updated.editedAt ? updated.editedAt.toISOString() : null,
     createdAt: updated.createdAt.toISOString(),

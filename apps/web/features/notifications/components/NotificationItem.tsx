@@ -14,6 +14,8 @@ interface NotificationItemProps {
   avatarColor?: string;
   avatarStack?: AvatarStackItem[];
   avatarUrl?: string | null;
+  /** System notifications (e.g. moderation) render this badge instead of an actor avatar. */
+  icon?: React.ReactNode;
   text: React.ReactNode;
   time: string;
   unread?: boolean;
@@ -29,6 +31,7 @@ export function NotificationItem({
   avatarColor,
   avatarStack,
   avatarUrl,
+  icon,
   text,
   time,
   unread = false,
@@ -94,7 +97,9 @@ export function NotificationItem({
         </>
       ) : (
         <>
-          {avatarUrl ? (
+          {icon ? (
+            <span className="flex-shrink-0">{icon}</span>
+          ) : avatarUrl ? (
             <Avatar
               initial={displayInitial}
               size="md"
