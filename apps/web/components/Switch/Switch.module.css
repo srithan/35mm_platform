@@ -5,7 +5,7 @@
   height: 24px;
   flex-shrink: 0;
   border-radius: 999px;
-  --switch-on: var(--switch-track-on, var(--accent));
+  --switch-on: var(--switch-track-on, var(--color-social-accent));
   --switch-off: var(--switch-track-off, color-mix(in srgb, var(--fg) 24%, var(--bg)));
   --switch-off-border: var(--switch-track-off-border, color-mix(in srgb, var(--fg) 20%, transparent));
   --switch-thumb: var(--switch-thumb-off, color-mix(in srgb, #fff 92%, var(--elevated)));
@@ -18,7 +18,7 @@
 }
 
 .root[data-variant="blue"] {
-  --switch-on: var(--switch-track-on, var(--accent));
+  --switch-on: var(--switch-track-on, var(--color-social-accent));
 }
 
 .root[data-variant="boo"] {

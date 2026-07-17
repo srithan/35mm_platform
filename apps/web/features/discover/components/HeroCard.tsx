@@ -45,7 +45,7 @@ export function HeroCard({
         if (e.key === "Enter") onOpenDetail(film);
       }}
       className={cn(
-        "group grid min-h-[420px] w-full overflow-hidden rounded-sm border border-[var(--fg)] md:grid-cols-5",
+        "group grid min-h-[420px] w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] md:grid-cols-5",
         "cursor-pointer bg-[var(--discover-placeholder)] text-left shadow-sm",
         "transition-shadow hover:shadow-[0_18px_34px_-18px_rgba(28,26,23,0.5)]"
       )}
