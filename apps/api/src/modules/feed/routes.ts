@@ -1282,6 +1282,20 @@ async function hydratePostPollsForRows(
   return result;
 }
 
+export function publicAuthorRoleFields(row: {
+  role: string | null;
+  roleContext: string | null;
+  profileHeadline: string | null;
+  profileHeadlineContext: string | null;
+  filmsLoggedCount: number | null;
+}) {
+  return {
+    role: row.role ?? row.profileHeadline,
+    roleContext: row.roleContext ?? row.profileHeadlineContext,
+    filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
+  };
+}
+
 async function toPostItem(row: {
   id: string;
   type: "text" | "discussion" | "log" | "review" | "image";
@@ -1400,9 +1414,7 @@ async function toPostItem(row: {
       displayName: row.displayName,
       avatarUrl,
       avatarUrlLg,
-      role: row.role ?? row.profileHeadline,
-      roleContext: row.roleContext ?? row.profileHeadlineContext,
-      filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
+      ...publicAuthorRoleFields(row),
     },
     likeCount: Number(row.likeCount ?? 0),
     commentCount: Number(row.commentCount ?? 0),
@@ -4612,6 +4624,11 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
     })
     .from(comments)
     .innerJoin(profiles, eq(profiles.userId, comments.userId))
@@ -4640,6 +4657,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
           displayName: row.displayName,
           avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
           avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
+          ...publicAuthorRoleFields(row),
         },
       };
     })
@@ -4810,6 +4828,11 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.userId))
@@ -4837,6 +4860,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
         displayName: profileRows[0].displayName,
         avatarUrl: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, inserted.userId, profileRows[0].avatarVariants, "sm"),
         avatarUrlLg: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, inserted.userId, profileRows[0].avatarVariants, "lg"),
+        ...publicAuthorRoleFields(profileRows[0]),
       },
     },
     201
@@ -4909,6 +4933,11 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.userId))
@@ -4935,6 +4964,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
       displayName: profileRows[0].displayName,
       avatarUrl: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, updated.userId, profileRows[0].avatarVariants, "sm"),
       avatarUrlLg: await resolveProfileAvatarUrl(profileRows[0].avatarUrl, updated.userId, profileRows[0].avatarVariants, "lg"),
+      ...publicAuthorRoleFields(profileRows[0]),
     },
   });
 });

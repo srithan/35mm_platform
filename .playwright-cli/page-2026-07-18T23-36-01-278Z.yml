@@ -1,0 +1,76 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - region "Introduction" [ref=e4]:
+        - generic [ref=e6]:
+          - link "35mm Home" [ref=e7] [cursor=pointer]:
+            - /url: /
+          - paragraph [ref=e9]: Introducing 35mm. A social network for cinema.
+          - paragraph [ref=e10]: Follow your favorite filmmakers and friends to discover the films they are watching, rating, reviewing, and arguing about.
+          - generic "Account actions" [ref=e11]:
+            - button "Join the cult" [ref=e12] [cursor=pointer]
+            - button "Login" [ref=e13] [cursor=pointer]
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "Films in conversation" [level=2] [ref=e16]
+          - paragraph [ref=e17]: A rotating look at what people in the community are logging and arguing about right now — new releases, repertory screenings, deep cuts, and everything in between.
+          - generic [ref=e20]:
+            - img "12 Angry Men" [ref=e21]
+            - img "Life Is Beautiful" [ref=e22]
+            - img "Schindler's List" [ref=e23]
+            - img "The Godfather Part II" [ref=e24]
+            - img "From Dusk Till Dawn" [ref=e25]
+            - img "The Sixth Sense" [ref=e26]
+            - img "Inception" [ref=e27]
+            - img "Interstellar" [ref=e28]
+            - 'img "Avengers: Infinity War" [ref=e29]'
+            - 'img "The Lord of the Rings: The Fellowship of the Ring" [ref=e30]'
+            - img "Fight Club" [ref=e31]
+            - img "Forrest Gump" [ref=e32]
+            - img "Broken" [ref=e33]
+            - img "The Girl with All the Gifts" [ref=e34]
+            - img "Jurassic World Dominion" [ref=e35]
+            - img "12 Years a Slave" [ref=e36]
+            - img "The Florida Project" [ref=e37]
+            - img "Spirited Away" [ref=e38]
+            - img "Parasite" [ref=e39]
+            - img "Amélie" [ref=e40]
+            - img "Saving Private Ryan" [ref=e41]
+        - region [ref=e43]:
+          - generic [ref=e44]:
+            - paragraph [ref=e45]: What happens next
+            - heading "A public record for the films that stay with you." [level=2] [ref=e46]
+            - paragraph [ref=e47]: "35mm turns watching into a living profile: logs, ratings, reviews, and conversations that travel through the people you actually follow."
+          - generic [ref=e48]:
+            - article [ref=e49]:
+              - generic [ref=e56]:
+                - paragraph [ref=e57]: Logs
+                - heading "Every post can carry a film." [level=3] [ref=e58]
+                - paragraph [ref=e59]: First watches, rewatches, half-star ratings, festival notes, and long reviews all connect back to the title being discussed.
+            - article [ref=e60]:
+              - generic [ref=e65]:
+                - paragraph [ref=e66]: Profiles
+                - heading "Your taste becomes legible." [level=3] [ref=e67]
+                - paragraph [ref=e68]: Favorites, diary entries, ratings, lists, and the films you defend build a profile that says more than a bio ever could.
+            - article [ref=e69]:
+              - generic [ref=e74]:
+                - paragraph [ref=e75]: Feed
+                - heading "The timeline starts with your follows." [level=3] [ref=e76]
+                - paragraph [ref=e77]: Follow filmmakers, critics, friends, programmers, and people with impossible watchlists. Their film activity becomes your home feed.
+        - generic [ref=e78]:
+          - heading "Made for the people who keep cinema moving." [level=2] [ref=e84]
+          - generic [ref=e85]:
+            - paragraph [ref=e86]: Directors and DPs sharing work, influences, and festival notes.
+            - paragraph [ref=e87]: Critics and programmers writing in public without leaving the conversation.
+            - paragraph [ref=e88]: Students, collectors, and casual viewers building a record one film at a time.
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - paragraph [ref=e91]: Start with one film
+            - heading "Claim your username and build the feed from there." [level=2] [ref=e92]
+          - generic [ref=e93]:
+            - button "Join 35mm" [ref=e94] [cursor=pointer]
+            - button "Login" [ref=e97] [cursor=pointer]
+        - paragraph [ref=e99]: © 35mm.in
+  - button "Open Tanstack query devtools" [ref=e150] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e204] [cursor=pointer]
+  - alert [ref=e208]

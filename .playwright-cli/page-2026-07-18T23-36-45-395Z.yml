@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - link "35mm" [ref=e4] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - heading [level=1] [ref=e8]:
+          - text: Welcome
+          - emphasis [ref=e9]: back.
+        - paragraph [ref=e10]: Sign in to your account to continue.
+      - generic [ref=e11]:
+        - textbox "username or email" [ref=e13]
+        - generic [ref=e15]:
+          - textbox "Your password" [ref=e16]
+          - button [ref=e17] [cursor=pointer]
+        - button "Log in" [ref=e21] [cursor=pointer]
+      - paragraph [ref=e24]:
+        - link "Forgot password?" [ref=e25] [cursor=pointer]:
+          - /url: /forgot
+      - paragraph [ref=e27]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=e28] [cursor=pointer]:
+          - /url: /signup
+    - contentinfo [ref=e29]:
+      - link "About" [ref=e30] [cursor=pointer]:
+        - /url: /about
+      - generic [ref=e31]: ·
+      - link "Privacy" [ref=e32] [cursor=pointer]:
+        - /url: /privacy
+      - generic [ref=e33]: ·
+      - link "Terms" [ref=e34] [cursor=pointer]:
+        - /url: /terms
+      - generic [ref=e35]: ·
+      - link "Help" [ref=e36] [cursor=pointer]:
+        - /url: /help
+  - button "Open Tanstack query devtools" [ref=e87] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e141] [cursor=pointer]
+  - alert [ref=e145]

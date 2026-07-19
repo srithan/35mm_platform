@@ -891,6 +891,8 @@ export interface NotificationEntity {
   id: string | null;
   title: string | null;
   thumbnailUrl: string | null;
+  /** Bounded plain-text excerpt for post/comment notification cards. */
+  contentPreview?: string | null;
   /** Owner username for post/comment entities to help link navigation client-side. */
   username?: string | null;
   /** Target post id for comment entities, when available. */

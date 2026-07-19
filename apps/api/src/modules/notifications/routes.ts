@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import {
   comments,
   films,
+  follows,
   notifications,
   posts,
   profiles,
@@ -13,6 +14,7 @@ import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.j
 import { getDb } from "../../lib/db.js";
 import { badRequest, notFound } from "../../lib/errors.js";
 import { requireAuth } from "../../lib/middleware.js";
+import { notBlockedByAuthorSql, notBlockedByViewerSql } from "../../lib/moderation.js";
 import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
 import {
   markAllNotificationsRead,
@@ -135,17 +137,22 @@ export function notificationMetadata(row: Pick<RawNotificationRow, "metadata" | 
 
 interface EntityPostRow {
   id: string;
+  headline: string | null;
+  body: string;
   filmTitle: string | null;
   filmPosterUrl: string | null;
   username: string | null;
+  canReadContent: boolean;
 }
 
 interface EntityCommentRow {
   id: string;
+  body: string;
   postId: string;
   postUsername: string | null;
   postFilmTitle: string | null;
   postFilmPoster: string | null;
+  canReadContent: boolean;
 }
 
 interface EntityUserRow {
@@ -168,6 +175,87 @@ type NotificationEntityMap = {
   users: Map<string, EntityUserRow>;
   films: Map<string, EntityFilmRow>;
 };
+
+var NOTIFICATION_CONTENT_PREVIEW_CHARACTERS = 280;
+var NOTIFICATION_CONTENT_SOURCE_CHARACTERS = 8192;
+var RICH_TEXT_PREFIX = "__35MM_RICH_TEXT_V1__";
+
+function notificationVisibleText(value: string): string {
+  if (!value.startsWith(RICH_TEXT_PREFIX)) return value;
+
+  var serialized = value.slice(RICH_TEXT_PREFIX.length);
+  var tokenPattern = /"(text|label)"\s*:\s*("(?:\\.|[^"\\])*")/g;
+  var parts: string[] = [];
+  var match: RegExpExecArray | null;
+
+  while ((match = tokenPattern.exec(serialized)) != null) {
+    var decoded = JSON.parse(match[2]) as unknown;
+    if (typeof decoded !== "string" || !decoded) continue;
+    parts.push(match[1] === "label" ? "@" + decoded.replace(/^@/, "") : decoded);
+  }
+
+  return parts.join(" ");
+}
+
+export function notificationContentPreview(values: Array<string | null | undefined>): string | null {
+  var content = values
+    .map(function (value) {
+      return value ? notificationVisibleText(value).replace(/\s+/g, " ").trim() : "";
+    })
+    .filter(Boolean)
+    .join(" — ");
+
+  if (!content) return null;
+
+  var characters = Array.from(content);
+  if (characters.length <= NOTIFICATION_CONTENT_PREVIEW_CHARACTERS) return content;
+
+  return characters
+    .slice(0, NOTIFICATION_CONTENT_PREVIEW_CHARACTERS - 1)
+    .join("")
+    .trimEnd() + "…";
+}
+
+function notificationPostContentAccessSql(viewerUserId: string) {
+  return sql<boolean>`(
+    ${posts.isDeleted} = false
+    and ${notBlockedByViewerSql(viewerUserId, posts.userId)}
+    and ${notBlockedByAuthorSql(viewerUserId, posts.userId)}
+    and (
+      ${posts.moderationStatus} = 'visible'
+      or ${posts.userId} = ${viewerUserId}
+    )
+    and (
+      ${profiles.moderationStatus} = 'visible'
+      or ${profiles.userId} = ${viewerUserId}
+    )
+    and (
+      ${profiles.isPrivate} = false
+      or ${profiles.userId} = ${viewerUserId}
+      or exists (
+        select 1
+        from ${follows}
+        where ${follows.followerId} = ${viewerUserId}
+          and ${follows.followingId} = ${profiles.userId}
+          and ${follows.status} = 'accepted'
+      )
+    )
+    and (
+      ${posts.visibility} = 'public'
+      or ${posts.userId} = ${viewerUserId}
+      or (
+        ${posts.visibility} = 'followers_only'
+        and exists (
+          select 1
+          from ${follows}
+          where ${follows.followerId} = ${viewerUserId}
+            and ${follows.followingId} = ${posts.userId}
+            and ${follows.status} = 'accepted'
+        )
+      )
+    )
+  )`;
+}
 
 function toCursor(createdAt: Date, id: string): string {
   return encodeCompositeCursor({ createdAt, id });
@@ -198,6 +286,9 @@ async function resolveEntity(
       id: row.entityId,
       title: rowPost ? rowPost.filmTitle : null,
       thumbnailUrl: rowPost ? rowPost.filmPosterUrl : null,
+      contentPreview: rowPost?.canReadContent
+        ? notificationContentPreview([rowPost.headline, rowPost.body])
+        : null,
       username: rowPost?.username ?? null,
     };
   }
@@ -209,6 +300,9 @@ async function resolveEntity(
       id: row.entityId,
       title: rowComment ? rowComment.postFilmTitle : null,
       thumbnailUrl: rowComment ? rowComment.postFilmPoster : null,
+      contentPreview: rowComment?.canReadContent
+        ? notificationContentPreview([rowComment.body])
+        : null,
       username: rowComment ? rowComment.postUsername : null,
       postId: rowComment ? rowComment.postId : null,
     };
@@ -472,9 +566,12 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
       ? await db
           .select({
             id: posts.id,
+            headline: posts.headline,
+            body: posts.body,
             filmTitle: films.title,
             filmPosterUrl: films.posterUrl,
             username: profiles.username,
+            canReadContent: notificationPostContentAccessSql(user.userId),
           })
           .from(posts)
           .innerJoin(profiles, eq(profiles.userId, posts.userId))
@@ -487,10 +584,19 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
       ? await db
           .select({
             id: comments.id,
+            body: sql<string>`left(${comments.body}, ${NOTIFICATION_CONTENT_SOURCE_CHARACTERS})`,
             postId: comments.postId,
             postFilmTitle: films.title,
             postFilmPoster: films.posterUrl,
             postUsername: profiles.username,
+            canReadContent: sql<boolean>`(
+              ${notificationPostContentAccessSql(user.userId)}
+              and ${comments.isDeleted} = false
+              and (
+                ${comments.moderationStatus} = 'visible'
+                or ${comments.userId} = ${user.userId}
+              )
+            )`,
           })
           .from(comments)
           .innerJoin(posts, eq(comments.postId, posts.id))
