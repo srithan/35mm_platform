@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import ThirtyFiveMM
 
 @MainActor
@@ -22,6 +23,17 @@ struct ProfileFeatureTests {
         "chart.bar.xaxis",
       ]
     )
+  }
+
+  @Test
+  func profileHeaderButtonBordersMatchWebTokens() {
+    let light = UITraitCollection(userInterfaceStyle: .light)
+    let dark = UITraitCollection(userInterfaceStyle: .dark)
+
+    #expect(rgbHex(ProfileDesign.buttonBorderUIColor, traits: light) == 0xEFF3F4)
+    #expect(rgbHex(ProfileDesign.buttonBorderStrongUIColor, traits: light) == 0xDDD9CF)
+    #expect(rgbHex(ProfileDesign.buttonBorderStrongUIColor, traits: dark) == 0x504B44)
+    #expect(alpha(ProfileDesign.buttonBorderUIColor, traits: dark) == 0.08)
   }
 
   @Test
@@ -103,6 +115,17 @@ struct ProfileFeatureTests {
     #expect(profile.followState == .selfProfile)
     #expect(profile.displayByline == "Critic · Frame by Frame")
     #expect(profile.isOwnProfile)
+  }
+
+  @Test
+  func cinephileBylineShowsRoleInsteadOfFilmsLoggedCount() {
+    let profile = makeProfile(
+      role: "Cinephile",
+      roleContext: nil,
+      filmsLoggedCount: 0
+    )
+
+    #expect(profile.displayByline == "Cinephile")
   }
 
   @Test
@@ -366,7 +389,11 @@ struct ProfileFeatureTests {
     )
   }
 
-  private func makeProfile() -> PublicProfile {
+  private func makeProfile(
+    role: String? = "Critic",
+    roleContext: String? = "Frame by Frame",
+    filmsLoggedCount: Int = 1248
+  ) -> PublicProfile {
     PublicProfile(
       userId: "user-1",
       username: "maya.frames",
@@ -378,11 +405,11 @@ struct ProfileFeatureTests {
       location: "Chicago",
       website: "https://maya.example",
       dateOfBirth: "1994-04-12",
-      role: "Critic",
-      roleContext: "Frame by Frame",
+      role: role,
+      roleContext: roleContext,
       headline: "Critic",
       headlineContext: "Frame by Frame",
-      filmsLoggedCount: 1248,
+      filmsLoggedCount: filmsLoggedCount,
       followerCount: 431,
       followingCount: 218,
       followState: .selfProfile,
@@ -394,6 +421,23 @@ struct ProfileFeatureTests {
       moderationStatus: "active",
       createdAt: Date(timeIntervalSince1970: 1_716_205_696)
     )
+  }
+
+  private func rgbHex(_ color: UIColor, traits: UITraitCollection) -> Int {
+    var red: CGFloat = 0
+    var green: CGFloat = 0
+    var blue: CGFloat = 0
+    var alpha: CGFloat = 0
+    color.resolvedColor(with: traits).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+    return Int((red * 255).rounded()) << 16
+      | Int((green * 255).rounded()) << 8
+      | Int((blue * 255).rounded())
+  }
+
+  private func alpha(_ color: UIColor, traits: UITraitCollection) -> CGFloat {
+    var alpha: CGFloat = 0
+    color.resolvedColor(with: traits).getRed(nil, green: nil, blue: nil, alpha: &alpha)
+    return alpha
   }
 
   private func makeList() -> FilmListSummary {

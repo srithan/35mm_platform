@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfileHeaderView: View {
   let profile: PublicProfile
   let isFollowMutationPending: Bool
+  let onOpenAvatar: (() -> Void)?
   let onEdit: () -> Void
   let onFollow: () -> Void
   let onShare: () -> Void
@@ -11,13 +12,7 @@ struct ProfileHeaderView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(alignment: .top, spacing: 12) {
-        ProfileAvatarView(
-          url: profile.avatarUrlLg ?? profile.avatarUrl,
-          displayName: profile.displayName,
-          size: ProfileDesign.avatarSize
-        )
-        .offset(y: -ProfileDesign.avatarOverlap)
-        .padding(.bottom, -ProfileDesign.avatarOverlap)
+        ProfileHeaderAvatarView(profile: profile, onOpen: onOpenAvatar)
 
         Spacer(minLength: 4)
 
@@ -131,7 +126,7 @@ private struct ProfileHeaderCircularButton: View {
       .frame(width: 44, height: 44)
       .background(Color(.systemBackground), in: .circle)
       .overlay {
-        Circle().stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+        Circle().stroke(ProfileDesign.buttonBorder, lineWidth: 1)
       }
       .contentShape(Circle())
       .buttonStyle(.plain)
@@ -155,7 +150,7 @@ private struct ProfileHeaderPillButtonStyle: ButtonStyle {
       .overlay {
         Capsule()
           .stroke(
-            isProminent ? Color.clear : Color(.separator).opacity(0.35),
+            isProminent ? Color.clear : ProfileDesign.buttonBorderStrong,
             lineWidth: 1
           )
       }

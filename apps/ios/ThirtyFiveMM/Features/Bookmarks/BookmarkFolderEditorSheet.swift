@@ -25,52 +25,72 @@ struct BookmarkFolderEditorSheet: View {
   }
 
   var body: some View {
-    NavigationStack {
-      Form {
-        Section("Name") {
-          TextField("Folder name", text: $name)
-            .focused($isNameFocused)
-            .submitLabel(.done)
-            .onSubmit(save)
-            .onChange(of: name) { _, newValue in
-              enforceNameLimit(newValue)
-            }
+    VStack(spacing: 0) {
+      HStack(spacing: 12) {
+        Button("Cancel", action: dismiss.callAsFunction)
+          .buttonStyle(.plain)
+          .disabled(isSaving)
 
-          Text("\(name.count) of \(BookmarksViewModel.folderNameLimit) characters")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+        Spacer(minLength: 0)
+
+        Text(title)
+          .font(.headline)
+
+        Spacer(minLength: 0)
+
+        Button(action: save) {
+          if isSaving {
+            ProgressView()
+              .controlSize(.small)
+              .accessibilityLabel("Saving folder")
+          } else {
+            Text("Save")
+              .bold()
+          }
         }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
+        .disabled(!canSave)
+      }
+      .padding(.horizontal, 16)
+      .frame(minHeight: 54)
+
+      Divider()
+
+      VStack(alignment: .leading, spacing: 10) {
+        Text("Name")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+          .textCase(.uppercase)
+
+        TextField("Folder name", text: $name)
+          .focused($isNameFocused)
+          .submitLabel(.done)
+          .onSubmit(save)
+          .onChange(of: name) { _, newValue in
+            enforceNameLimit(newValue)
+          }
+          .padding(.horizontal, 14)
+          .frame(minHeight: 48)
+          .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: .rect(cornerRadius: 12)
+          )
+
+        Text("\(name.count) of \(BookmarksViewModel.folderNameLimit) characters")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
 
         if let errorMessage {
-          Section {
-            Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-              .font(.footnote)
-              .foregroundStyle(.red)
-          }
-        }
-      }
-      .navigationTitle(title)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel", action: dismiss.callAsFunction)
-            .disabled(isSaving)
+          Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+            .font(.footnote)
+            .foregroundStyle(.red)
         }
 
-        ToolbarItem(placement: .confirmationAction) {
-          Button(action: save) {
-            if isSaving {
-              ProgressView()
-                .accessibilityLabel("Saving folder")
-            } else {
-              Text("Save")
-                .bold()
-            }
-          }
-          .disabled(!canSave)
-        }
       }
+      .padding(16)
     }
+    .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
     .interactiveDismissDisabled(isSaving)
     .task {
       isNameFocused = true

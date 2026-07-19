@@ -32,6 +32,12 @@ struct CommentRow: View {
     ProfileDestination(username: comment.author.username)
   }
 
+  private var authorAccessibilityLabel: String {
+    let identity = "\(authorName), @\(comment.author.username)"
+    guard let role = AuthorRoleLabel.headline(for: comment.author) else { return identity }
+    return "\(identity), \(role)"
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(alignment: .top, spacing: 10) {
@@ -62,7 +68,7 @@ struct CommentRow: View {
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 12)
-    .fullScreenCover(isPresented: $isShowingCommentActions) {
+    .bottomActionSheet(isPresented: $isShowingCommentActions) {
       BottomActionSheet(
         title: "Comment actions",
         actions: commentActions
@@ -91,33 +97,29 @@ struct CommentRow: View {
   }
 
   private var header: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 6) {
-      NavigationLink(value: AppRoute.profile(authorDestination)) {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-          Text(authorName)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .lineLimit(1)
+    HStack(alignment: .top, spacing: 0) {
+      VStack(alignment: .leading, spacing: 1) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+          NavigationLink(value: AppRoute.profile(authorDestination)) {
+            FeedAuthorIdentityLabel(
+              displayName: authorName,
+              username: comment.author.username
+            )
+          }
+          .buttonStyle(.plain)
+          .contentShape(Rectangle())
+          .accessibilityLabel(authorAccessibilityLabel)
+          .accessibilityHint("Opens profile")
+          .layoutPriority(1)
 
-          Text("@\(comment.author.username)")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+          FeedTimestampLabel(timestamp: comment.createdAt.feedRelativeShort)
+
+          Spacer(minLength: 0)
         }
+
+        AuthorRoleLabel(author: comment.author)
+          .accessibilityHidden(true)
       }
-      .buttonStyle(.plain)
-      .frame(minHeight: 44)
-      .contentShape(Rectangle())
-      .accessibilityLabel("\(authorName), @\(comment.author.username)")
-      .accessibilityHint("Opens profile")
-
-      Text("·")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-
-      Text(comment.createdAt.relativeShort)
-        .font(.caption)
-        .foregroundStyle(.secondary)
 
       Spacer(minLength: 8)
 
@@ -126,7 +128,7 @@ struct CommentRow: View {
       } label: {
         Image(systemName: "ellipsis")
           .font(.caption.weight(.semibold))
-          .frame(width: 24, height: 24)
+          .frame(width: 28, height: 28)
           .contentShape(Rectangle())
       }
       .buttonStyle(.plain)

@@ -244,7 +244,7 @@ private struct NotificationRow: View {
             Text(preview)
               .font(.system(size: 13, weight: .medium, design: .rounded))
               .foregroundStyle(Color(.secondaryLabel))
-              .lineLimit(2)
+              .lineLimit(3)
               .padding(.horizontal, 10)
               .padding(.vertical, 8)
               .frame(maxWidth: .infinity, alignment: .leading)
@@ -349,14 +349,14 @@ private struct NotificationRow: View {
   private var previewText: String? {
     guard let entity = item.entity else { return nil }
 
+    if let contentPreview = entity.contentPreview?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !contentPreview.isEmpty
+    {
+      return contentPreview
+    }
+
     switch entity.type {
     case .post, .comment:
-      if let title = entity.title, !title.isEmpty {
-        return "From \(title)"
-      }
-      if let username = entity.username, !username.isEmpty {
-        return "From @\(username)'s post"
-      }
       return nil
     case .film:
       return entity.title
@@ -370,7 +370,11 @@ private struct NotificationRow: View {
   }
 
   private var accessibilityLabel: String {
-    "\(actorSummary)\(actionText), \(item.createdAt.relativeDisplayString)"
+    var label = "\(actorSummary)\(actionText)"
+    if let preview = previewText {
+      label += ", \(preview)"
+    }
+    return "\(label), \(item.createdAt.relativeDisplayString)"
   }
 
   private func entityTitle(defaultValue: String) -> String {
@@ -427,6 +431,8 @@ private struct NotificationAvatarStack: View {
 
       NotificationTypeBadge(type: item.type)
         .offset(x: 2, y: 2)
+        .zIndex(Double(avatars.count + 1))
+        .accessibilityHidden(true)
     }
   }
 

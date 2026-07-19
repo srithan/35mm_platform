@@ -46,6 +46,7 @@ struct NotificationEntity: Codable, Equatable {
   let id: String?
   let title: String?
   let thumbnailUrl: String?
+  let contentPreview: String?
   let username: String?
   let postId: String?
 }

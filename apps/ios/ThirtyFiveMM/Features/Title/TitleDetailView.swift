@@ -247,7 +247,7 @@ struct TitleDetailView: View {
     .task {
       if viewModel.detail == nil { await viewModel.load() }
     }
-    .fullScreenCover(isPresented: $isShowingActions) {
+    .bottomActionSheet(isPresented: $isShowingActions) {
       titleActions
     }
   }

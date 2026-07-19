@@ -59,7 +59,7 @@ struct PostImageViewerView: View {
       .padding(.vertical, 14)
     }
     .statusBarHidden()
-    .fullScreenCover(isPresented: $isShowingActions) {
+    .bottomActionSheet(isPresented: $isShowingActions) {
       BottomActionSheet(
         title: "Image actions",
         sections: [

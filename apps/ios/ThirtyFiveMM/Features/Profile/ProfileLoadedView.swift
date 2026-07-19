@@ -16,15 +16,21 @@ struct ProfileLoadedView: View {
   @State private var editingProfile: PublicProfile?
   @State private var selectedPost: FeedPost?
   @State private var selectedImage: ProfileImageSelection?
+  @State private var selectedProfileMedia: ProfileMediaSelection?
 
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-        ProfileCoverView(url: profile.coverUrl)
+        ProfileCoverPreviewView(
+          url: profile.coverUrl,
+          displayName: profile.displayName,
+          onOpen: coverPreviewAction
+        )
 
         ProfileHeaderView(
           profile: profile,
           isFollowMutationPending: model.isFollowingMutation,
+          onOpenAvatar: avatarPreviewAction,
           onEdit: editProfile,
           onFollow: followTapped,
           onShare: shareProfile,
@@ -64,13 +70,13 @@ struct ProfileLoadedView: View {
     .navigationDestination(item: $selectedPost) { post in
       PostDetailView(post: post)
     }
-    .fullScreenCover(
+    .bottomActionSheet(
       isPresented: $isShowingProfileActions,
       onDismiss: performPendingProfileAction
     ) {
       BottomActionSheet(title: "Profile actions", actions: profileActionRows)
     }
-    .fullScreenCover(isPresented: $isShowingUnfollowConfirmation) {
+    .bottomActionSheet(isPresented: $isShowingUnfollowConfirmation) {
       BottomActionSheet(
         title: "Unfollow @\(profile.username)?",
         actions: [
@@ -81,7 +87,7 @@ struct ProfileLoadedView: View {
         ]
       )
     }
-    .fullScreenCover(isPresented: $isShowingBlockConfirmation) {
+    .bottomActionSheet(isPresented: $isShowingBlockConfirmation) {
       BottomActionSheet(
         title: "Block @\(profile.username)?",
         actions: [
@@ -92,9 +98,13 @@ struct ProfileLoadedView: View {
         ]
       )
     }
-    .sheet(isPresented: $isShowingShareSheet) {
-      ActivityShareSheet(items: [profileURL])
-    }
+    .shareModal(
+      isPresented: $isShowingShareSheet,
+      url: profileURL,
+      title: profileShareTitle,
+      previewContent: profileSharePreview
+    )
+    .profileMediaViewer(selection: $selectedProfileMedia)
     .fullScreenCover(item: $selectedImage) { selection in
       PostImageViewerView(
         destination: selection.destination,
@@ -146,6 +156,37 @@ struct ProfileLoadedView: View {
 
   private var profileURL: URL {
     AppConstants.webBaseURLValue.appending(path: profile.username)
+  }
+
+  private var profileShareTitle: String {
+    "\(profile.displayName) (@\(profile.username)) on 35mm"
+  }
+
+  private var profileSharePreview: SharePreviewContent {
+    SharePreviewContent(
+      type: .user,
+      title: profile.displayName,
+      imageURL: URL(string: profile.avatarUrlLg ?? profile.avatarUrl ?? ""),
+      description: profile.bio
+    )
+  }
+
+  private var avatarURL: URL? {
+    (profile.avatarUrlLg ?? profile.avatarUrl).flatMap(URL.init(string:))
+  }
+
+  private var coverURL: URL? {
+    profile.coverUrl.flatMap(URL.init(string:))
+  }
+
+  private var avatarPreviewAction: (() -> Void)? {
+    guard avatarURL != nil else { return nil }
+    return { openAvatar() }
+  }
+
+  private var coverPreviewAction: (() -> Void)? {
+    guard coverURL != nil else { return nil }
+    return { openCover() }
   }
 
   private var profileActionRows: [BottomActionSheetAction] {
@@ -203,6 +244,26 @@ struct ProfileLoadedView: View {
 
   private func openPost(_ post: FeedPost) {
     selectedPost = post
+  }
+
+  private func openAvatar() {
+    guard let avatarURL else { return }
+    selectedProfileMedia = ProfileMediaSelection(
+      url: avatarURL,
+      accessibilityLabel: "\(profile.displayName)'s profile photo",
+      username: profile.username,
+      isProfilePhoto: true
+    )
+  }
+
+  private func openCover() {
+    guard let coverURL else { return }
+    selectedProfileMedia = ProfileMediaSelection(
+      url: coverURL,
+      accessibilityLabel: "\(profile.displayName)'s cover photo",
+      username: profile.username,
+      isProfilePhoto: false
+    )
   }
 
   private func openImage(_ selection: ProfileImageSelection) {

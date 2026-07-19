@@ -167,7 +167,7 @@ struct CastCrewView: View {
     .task {
       if viewModel.credits.isEmpty { await viewModel.loadInitial() }
     }
-    .fullScreenCover(item: $selectedCredit) { credit in
+    .bottomActionSheet(item: $selectedCredit) { credit in
       BottomActionSheet(
         title: credit.person?.primaryName ?? credit.creditedAs ?? "Credit",
         actions: [

@@ -2,11 +2,11 @@ import SwiftUI
 
 struct BookmarksView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @StateObject private var viewModel: BookmarksViewModel
   @State private var selectedPost: FeedPost?
   @State private var selectedImage: BookmarkImageSelection?
   @State private var moveTarget: FeedPost?
-  @State private var postActionTarget: FeedPost?
   @State private var folderEditorMode: BookmarkFolderEditorMode?
   @State private var queuedFolderEditorMode: BookmarkFolderEditorMode?
   @State private var queuedMoveTarget: FeedPost?
@@ -25,9 +25,11 @@ struct BookmarksView: View {
         filters: viewModel.filters,
         unsortedCount: viewModel.unsortedCount,
         selectedFilter: viewModel.selectedFilter,
+        showsFolderActions: viewModel.selectedFolder != nil,
         onClearSearch: viewModel.clearSearch,
         onSelectFilter: viewModel.selectFilter,
-        onCreateFolder: showCreateFolder
+        onCreateFolder: showCreateFolder,
+        onShowFolderActions: showFolderActions
       )
 
       Divider()
@@ -60,15 +62,14 @@ struct BookmarksView: View {
       BookmarkFolderEditorSheet(mode: mode) { name in
         await saveFolder(mode: mode, name: name)
       }
-      .presentationDetents([.height(300)])
+      .presentationDetents([.height(folderEditorDetentHeight)])
+      .presentationBackground(Color(uiColor: .systemGroupedBackground))
     }
-    .sheet(isPresented: $isShowingFolderActions, onDismiss: finishFolderActionPresentation) {
+    .bottomActionSheet(
+      isPresented: $isShowingFolderActions,
+      onDismiss: finishFolderActionPresentation
+    ) {
       BottomActionSheet(title: viewModel.selectedTitle, actions: folderActions)
-        .presentationBackground(.clear)
-    }
-    .sheet(item: $postActionTarget, onDismiss: finishPostActionPresentation) { post in
-      BottomActionSheet(title: "Saved post", actions: postActions(for: post))
-        .presentationBackground(.clear)
     }
     .confirmationDialog(
       "Delete \(viewModel.selectedFolder?.name ?? "folder")?",
@@ -93,34 +94,16 @@ struct BookmarksView: View {
           Task { await viewModel.loadInitial() }
         }
       } else if viewModel.visiblePosts.isEmpty {
-        VStack(spacing: 0) {
-          BookmarkCollectionHeader(
-            title: viewModel.selectedTitle,
-            count: viewModel.selectedCount,
-            isLoading: viewModel.isLoading,
-            showsActions: viewModel.selectedFolder != nil,
-            onShowActions: showFolderActions
-          )
-
-          BookmarkEmptyView(
-            isSearching: viewModel.isSearching,
-            hasMore: viewModel.hasMore,
-            filter: viewModel.selectedFilter,
-            createFolder: showCreateFolder,
-            searchMore: searchMore
-          )
-        }
+        BookmarkEmptyView(
+          isSearching: viewModel.isSearching,
+          hasMore: viewModel.hasMore,
+          filter: viewModel.selectedFilter,
+          createFolder: showCreateFolder,
+          searchMore: searchMore
+        )
       } else {
         ScrollView {
           LazyVStack(spacing: 0) {
-            BookmarkCollectionHeader(
-              title: viewModel.selectedTitle,
-              count: viewModel.selectedCount,
-              isLoading: viewModel.isLoading,
-              showsActions: viewModel.selectedFolder != nil,
-              onShowActions: showFolderActions
-            )
-
             ForEach(viewModel.visiblePosts) { post in
               BookmarkPostRow(
                 post: post,
@@ -129,7 +112,8 @@ struct BookmarksView: View {
                 isPending: viewModel.pendingPostIDs.contains(post.id),
                 onOpenPost: { selectedPost = post },
                 onOpenImage: { openImage($0, post: post) },
-                onShowActions: { postActionTarget = post }
+                postActions: postActions(for: post),
+                onDismissPostActions: finishPostActionPresentation
               )
               .onAppear {
                 loadMoreIfNeeded(post)
@@ -237,9 +221,14 @@ struct BookmarksView: View {
     return didSave ? nil : (viewModel.error ?? "Could not save folder.")
   }
 
-  private func folderName(for post: FeedPost) -> String {
-    guard let folderId = post.bookmarkFolderId else { return "Unsorted" }
-    return viewModel.folders.first(where: { $0.id == folderId })?.name ?? "Folder"
+  private func folderName(for post: FeedPost) -> String? {
+    guard viewModel.selectedFilter == .all,
+          let folderId = post.bookmarkFolderId else { return nil }
+    return viewModel.folders.first(where: { $0.id == folderId })?.name
+  }
+
+  private var folderEditorDetentHeight: CGFloat {
+    dynamicTypeSize.isAccessibilitySize ? 330 : 230
   }
 
   private func showCreateFolder() {

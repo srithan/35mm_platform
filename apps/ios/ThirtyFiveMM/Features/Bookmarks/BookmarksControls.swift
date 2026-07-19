@@ -5,9 +5,11 @@ struct BookmarksControls: View {
   let filters: [BookmarkFilter]
   let unsortedCount: Int
   let selectedFilter: BookmarkFilter
+  let showsFolderActions: Bool
   let onClearSearch: () -> Void
   let onSelectFilter: (BookmarkFilter) -> Void
   let onCreateFolder: () -> Void
+  let onShowFolderActions: () -> Void
 
   var body: some View {
     VStack(spacing: 8) {
@@ -42,6 +44,16 @@ struct BookmarksControls: View {
           .frame(minWidth: 44, minHeight: 44)
           .background(Color(uiColor: .secondarySystemBackground), in: .circle)
           .accessibilityIdentifier("bookmarks.new-folder")
+
+        if showsFolderActions {
+          Button("Folder actions", systemImage: "ellipsis", action: onShowFolderActions)
+            .labelStyle(.iconOnly)
+            .font(.title3.bold())
+            .foregroundStyle(.primary)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(Color(uiColor: .secondarySystemBackground), in: .circle)
+            .accessibilityIdentifier("bookmarks.folder-actions")
+        }
       }
       .padding(.horizontal)
 

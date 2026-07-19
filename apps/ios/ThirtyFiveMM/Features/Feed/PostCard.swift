@@ -8,9 +8,13 @@ struct PostCard: View {
   var onOpenPost: () -> Void = {}
   var onOpenImage: (PostImageDestination) -> Void = { _ in }
   var truncatesBody = true
+  var postActionSheetTitle = "Post actions"
+  var postActionSheetActions: [BottomActionSheetAction]?
+  var onDismissPostActions: () -> Void = {}
 
   @State private var isExpanded = false
   @State private var isShowingPostActions = false
+  @State private var isShowingShareModal = false
 
   private var authorName: String {
     guard let displayName = post.author.displayName, !displayName.isEmpty else {
@@ -21,11 +25,17 @@ struct PostCard: View {
   }
 
   private var timestamp: String {
-    post.createdAt.relativeShort
+    post.createdAt.feedRelativeShort
   }
 
   private var authorDestination: ProfileDestination {
     ProfileDestination(username: post.author.username)
+  }
+
+  private var authorAccessibilityLabel: String {
+    let identity = "\(authorName), @\(post.author.username)"
+    guard let role = AuthorRoleLabel.headline(for: post.author) else { return identity }
+    return "\(identity), \(role)"
   }
 
   var body: some View {
@@ -38,10 +48,7 @@ struct PostCard: View {
         avatar
 
         VStack(alignment: .leading, spacing: 6) {
-          VStack(alignment: .leading, spacing: 1) {
-            authorRow
-            authorRole
-          }
+          authorRow
           headline
           bodyText
           filmCard
@@ -59,47 +66,71 @@ struct PostCard: View {
     .onTapGesture {
       onOpenPost()
     }
-    .fullScreenCover(isPresented: $isShowingPostActions) {
-      BottomActionSheet(
-        title: "Post actions",
-        sections: [
-          BottomActionSheetSection(actions: [
-            BottomActionSheetAction("Copy link", systemImage: "link") {
-              UIPasteboard.general.string = "https://35mm.app/posts/\(post.id)"
-            },
-          ]),
-          BottomActionSheetSection(actions: [
-            BottomActionSheetAction("Save", systemImage: "bookmark") {
-              Task { await interactor.toggleBookmark(postId: post.id) }
-            },
-            BottomActionSheetAction("Not interested", systemImage: "eye.slash") {
-              // TODO: Wire hide post API when available.
-            },
-          ]),
-          BottomActionSheetSection(actions: [
-            BottomActionSheetAction("Mute", systemImage: "bell.slash") {
-              // TODO: Wire mute author API when available.
-            },
-            BottomActionSheetAction("Restrict", systemImage: "person.crop.circle.badge.exclamationmark") {
-              // TODO: Wire restrict author API when available.
-            },
-            BottomActionSheetAction("Community Notes", systemImage: "note.text") {
-              // TODO: Add notes flow when available.
-            },
-            BottomActionSheetAction("Block", systemImage: "person.fill.xmark", role: .destructive) {
-              // TODO: Wire block author API when available.
-            },
-            BottomActionSheetAction(
-              "Report",
-              systemImage: "exclamationmark.triangle",
-              role: .destructive
-            ) {
-              // TODO: Open report flow when moderation API exists.
-            },
-          ]),
-        ]
-      )
+    .bottomActionSheet(
+      isPresented: $isShowingPostActions,
+      onDismiss: onDismissPostActions
+    ) {
+      postActionSheet
     }
+    .shareModal(
+      isPresented: $isShowingShareModal,
+      url: shareURL,
+      title: "\(post.author.username) on 35mm",
+      previewContent: SharePreviewContent(
+        type: .post,
+        title: post.author.username,
+        imageURL: sharePreviewImageURL,
+        description: shareDescription
+      )
+    )
+  }
+
+  @ViewBuilder
+  private var postActionSheet: some View {
+    if let postActionSheetActions {
+      BottomActionSheet(title: postActionSheetTitle, actions: postActionSheetActions)
+    } else {
+      BottomActionSheet(title: postActionSheetTitle, sections: defaultPostActionSections)
+    }
+  }
+
+  private var defaultPostActionSections: [BottomActionSheetSection] {
+    [
+      BottomActionSheetSection(actions: [
+        BottomActionSheetAction("Share post", systemImage: "square.and.arrow.up") {
+          isShowingShareModal = true
+        },
+      ]),
+      BottomActionSheetSection(actions: [
+        BottomActionSheetAction("Save", systemImage: "bookmark") {
+          Task { await interactor.toggleBookmark(postId: post.id) }
+        },
+        BottomActionSheetAction("Not interested", systemImage: "eye.slash") {
+          // TODO: Wire hide post API when available.
+        },
+      ]),
+      BottomActionSheetSection(actions: [
+        BottomActionSheetAction("Mute", systemImage: "bell.slash") {
+          // TODO: Wire mute author API when available.
+        },
+        BottomActionSheetAction("Restrict", systemImage: "person.crop.circle.badge.exclamationmark") {
+          // TODO: Wire restrict author API when available.
+        },
+        BottomActionSheetAction("Community Notes", systemImage: "note.text") {
+          // TODO: Add notes flow when available.
+        },
+        BottomActionSheetAction("Block", systemImage: "person.fill.xmark", role: .destructive) {
+          // TODO: Wire block author API when available.
+        },
+        BottomActionSheetAction(
+          "Report",
+          systemImage: "exclamationmark.triangle",
+          role: .destructive
+        ) {
+          // TODO: Open report flow when moderation API exists.
+        },
+      ]),
+    ]
   }
 
   private var repostHeader: some View {
@@ -140,41 +171,33 @@ struct PostCard: View {
   }
 
   private var authorRow: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 6) {
-      NavigationLink(value: AppRoute.profile(authorDestination)) {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-          Text(authorName)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .lineLimit(1)
+    HStack(alignment: .top, spacing: 0) {
+      VStack(alignment: .leading, spacing: 1) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+          NavigationLink(value: AppRoute.profile(authorDestination)) {
+            FeedAuthorIdentityLabel(
+              displayName: authorName,
+              username: post.author.username
+            )
+          }
+          .buttonStyle(.plain)
+          .contentShape(Rectangle())
+          .accessibilityLabel(authorAccessibilityLabel)
+          .accessibilityHint("Opens profile")
+          .layoutPriority(1)
 
-          Text("@\(post.author.username)")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+          FeedTimestampLabel(timestamp: timestamp)
+
+          Spacer(minLength: 0)
         }
+
+        AuthorRoleLabel(author: post.author)
+          .accessibilityHidden(true)
+
+        postTypeLabel
       }
-      .buttonStyle(.plain)
-      .frame(minHeight: 44)
-      .contentShape(Rectangle())
-      .accessibilityLabel("\(authorName), @\(post.author.username)")
-      .accessibilityHint("Opens profile")
 
       Spacer(minLength: 8)
-
-      HStack(spacing: 4) {
-        if post.editedAt != nil {
-          Text("edited")
-        }
-
-        Text(timestamp)
-
-        if post.type == .log || post.type == .review {
-          Text("logged")
-        }
-      }
-      .font(.caption)
-      .foregroundStyle(.secondary)
 
       Button {
         isShowingPostActions = true
@@ -191,20 +214,21 @@ struct PostCard: View {
   }
 
   @ViewBuilder
-  private var authorRole: some View {
-    if let role = post.author.role?.trimmingCharacters(in: .whitespacesAndNewlines),
-      !role.isEmpty
-    {
-      HStack(spacing: 6) {
-        Circle()
-          .fill(roleColor(for: role))
-          .frame(width: 5, height: 5)
-
-        Text(roleHeadline(role: role))
-          .font(.caption2.weight(.medium))
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-      }
+  private var postTypeLabel: some View {
+    switch post.type {
+    case .discussion:
+      Label("Discussion", systemImage: "bubble.left.and.bubble.right")
+        .font(.caption2.weight(.semibold))
+        .textCase(.uppercase)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Discussion post")
+    case .log, .review:
+      Text("logged")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Film logged")
+    case .text, .image:
+      EmptyView()
     }
   }
 
@@ -338,12 +362,107 @@ struct PostCard: View {
     }
   }
 
-  private func roleHeadline(role: String) -> String {
-    if role == "Cinephile", let count = post.author.filmsLoggedCount, count > 0 {
+  private var shareURL: URL {
+    AppConstants.webBaseURLValue
+      .appending(path: post.author.username)
+      .appending(path: "post")
+      .appending(path: post.id)
+  }
+
+  private var sharePreviewImageURL: URL? {
+    guard let raw = post.film?.posterUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !raw.isEmpty
+    else {
+      return nil
+    }
+
+    if raw.hasPrefix("/") {
+      return URL(string: "https://image.tmdb.org/t/p/w500\(raw)")
+    }
+
+    return URL(string: raw)
+  }
+
+  private var shareDescription: String? {
+    let body = RichTextParser.parse(post.body).map { String($0.characters) } ?? ""
+    let headline = post.headline?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let combined = [headline, body]
+      .filter { !$0.isEmpty }
+      .joined(separator: headline.isEmpty || body.isEmpty ? "" : " — ")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard !combined.isEmpty else { return nil }
+    return String(combined.prefix(100))
+  }
+
+  private func shouldShowMore(for body: String) -> Bool {
+    let plain =
+      body.hasPrefix(RichTextParser.sentinel)
+      ? String(body.dropFirst(RichTextParser.sentinel.count))
+      : body
+
+    return plain.count > 320 || plain.filter(\.isNewline).count > 5
+  }
+
+  private func shouldClampBody(_ body: String) -> Bool {
+    truncatesBody && !isExpanded && shouldShowMore(for: body)
+  }
+}
+
+struct FeedAuthorIdentityLabel: View {
+  let displayName: String
+  let username: String
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 4) {
+      Text(displayName)
+        .font(.system(size: 13.5, weight: .bold))
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+
+      Text("@\(username)")
+        .font(.system(size: 13.5))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+    }
+  }
+}
+
+struct FeedTimestampLabel: View {
+  let timestamp: String
+  var context: String? = nil
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 2) {
+      Text("· \(timestamp)")
+        .font(.system(size: 12))
+
+      if let context {
+        Text(context)
+          .font(.system(size: 11))
+      }
+    }
+    .foregroundStyle(.secondary)
+    .lineLimit(1)
+    .fixedSize(horizontal: true, vertical: false)
+  }
+}
+
+struct AuthorRoleLabel: View {
+  let author: PostAuthor
+
+  nonisolated static func headline(for author: PostAuthor) -> String? {
+    guard let role = author.role?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !role.isEmpty
+    else {
+      return nil
+    }
+
+    if role == "Cinephile", let count = author.filmsLoggedCount, count > 0 {
       return "\(role) · \(count.compactFormatted) films logged"
     }
 
-    if let context = post.author.roleContext?.trimmingCharacters(in: .whitespacesAndNewlines),
+    if let context = author.roleContext?.trimmingCharacters(in: .whitespacesAndNewlines),
       !context.isEmpty
     {
       return "\(role) · \(context)"
@@ -352,7 +471,26 @@ struct PostCard: View {
     return role
   }
 
-  private func roleColor(for role: String) -> Color {
+  @ViewBuilder
+  var body: some View {
+    if let role = author.role?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !role.isEmpty,
+      let headline = Self.headline(for: author)
+    {
+      HStack(spacing: 6) {
+        Circle()
+          .fill(Self.color(for: role))
+          .frame(width: 5, height: 5)
+
+        Text(headline)
+          .font(.caption2.weight(.medium))
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+    }
+  }
+
+  private static func color(for role: String) -> Color {
     switch role {
     case "Cinephile":
       return Color(red: 194.0 / 255.0, green: 71.0 / 255.0, blue: 58.0 / 255.0)
@@ -371,19 +509,6 @@ struct PostCard: View {
     default:
       return .secondary
     }
-  }
-
-  private func shouldShowMore(for body: String) -> Bool {
-    let plain =
-      body.hasPrefix(RichTextParser.sentinel)
-      ? String(body.dropFirst(RichTextParser.sentinel.count))
-      : body
-
-    return plain.count > 320 || plain.filter(\.isNewline).count > 5
-  }
-
-  private func shouldClampBody(_ body: String) -> Bool {
-    truncatesBody && !isExpanded && shouldShowMore(for: body)
   }
 }
 

@@ -35,9 +35,6 @@ struct PublicProfile: Codable, Identifiable, Equatable {
     let trimmedRole = role?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     let trimmedContext = roleContext?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-    if trimmedRole.caseInsensitiveCompare("Cinephile") == .orderedSame {
-      return "\(filmsLoggedCount.compactFormatted) films logged"
-    }
     if !trimmedContext.isEmpty {
       return "\(trimmedRole) · \(trimmedContext)"
     }

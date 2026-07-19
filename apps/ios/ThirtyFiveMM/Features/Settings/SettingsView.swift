@@ -2,7 +2,6 @@ import SwiftUI
 import UIKit
 
 struct SettingsView: View {
-  @Environment(\.dismiss) private var dismiss
   @StateObject private var viewModel: SettingsViewModel
 
   private let authManager: AuthManager
@@ -24,17 +23,9 @@ struct SettingsView: View {
           .transition(.move(edge: .bottom).combined(with: .opacity))
       }
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color(.systemBackground))
     .navigationTitle("Settings")
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
-        Button("Done") {
-          dismiss()
-        }
-        .font(.system(size: 15, weight: .semibold))
-      }
-    }
     .task {
       await viewModel.loadIfNeeded()
     }
@@ -66,7 +57,7 @@ struct SettingsView: View {
         LazyVStack(spacing: 18) {
           SettingsProfileHeader(profile: profile, settings: settings.profile)
 
-          SettingsSectionCard(title: "Settings") {
+          SettingsSectionCard {
             ForEach(SettingsSectionID.allCases) { section in
               NavigationLink {
                 SettingsSectionDestination(
@@ -134,7 +125,7 @@ private struct SettingsSectionDestination: View {
         SettingsDataSecurityView(viewModel: viewModel, authManager: authManager)
       }
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color(.systemBackground))
     .navigationTitle(section.title)
     .navigationBarTitleDisplayMode(.inline)
   }
@@ -174,8 +165,12 @@ private struct SettingsProfileHeader: View {
       Spacer(minLength: 0)
     }
     .padding(16)
-    .background(Color(.secondarySystemGroupedBackground))
-    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    .background(Color(.systemBackground))
+    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 16, style: .continuous)
+        .stroke(Color(.separator).opacity(0.45), lineWidth: 1)
+    }
   }
 }
 
@@ -211,8 +206,7 @@ private struct SettingsAccountView: View {
             placeholder: "Your display name",
             textContentType: .name
           )
-
-          SettingsDivider()
+          .padding(.bottom, 12)
 
           VStack(alignment: .leading, spacing: 8) {
             SettingsTextFieldRow(
@@ -232,11 +226,10 @@ private struct SettingsAccountView: View {
             }
             .padding(.leading, 2)
           }
+          .padding(.bottom, 12)
           .onChange(of: profile.username) { _, newValue in
             viewModel.checkUsername(newValue)
           }
-
-          SettingsDivider()
 
           SettingsTextFieldRow(
             title: "Email",
@@ -705,7 +698,7 @@ private struct SettingsModerationListView: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 18) {
-        SettingsSectionCard(title: kind.title) {
+        SettingsSectionCard {
           if viewModel.moderationLoadingKinds.contains(kind) {
             HStack(spacing: 10) {
               ProgressView()
@@ -876,8 +869,12 @@ private struct SettingsFooter: View {
         .foregroundStyle(Color.red)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+          RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(Color.red.opacity(0.24), lineWidth: 1)
+        }
     }
     .buttonStyle(.plain)
     .alert("Sign out?", isPresented: $confirmSignOut) {
@@ -934,28 +931,34 @@ private struct ModeratedUserRow: View {
 }
 
 private struct SettingsSectionCard<Content: View>: View {
-  let title: String
+  let title: String?
   let content: Content
 
-  init(title: String, @ViewBuilder content: () -> Content) {
+  init(title: String? = nil, @ViewBuilder content: () -> Content) {
     self.title = title
     self.content = content()
   }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Text(title)
-        .font(.system(size: 13, weight: .black, design: .rounded))
-        .foregroundStyle(Color(.secondaryLabel))
-        .textCase(.uppercase)
-        .padding(.horizontal, 4)
+      if let title {
+        Text(title)
+          .font(.system(size: 13, weight: .black, design: .rounded))
+          .foregroundStyle(Color(.secondaryLabel))
+          .textCase(.uppercase)
+          .padding(.horizontal, 4)
+      }
 
       VStack(spacing: 0) {
         content
       }
-      .padding(12)
-      .background(Color(.secondarySystemGroupedBackground))
-      .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+      .padding(14)
+      .background(Color(.systemBackground))
+      .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+          .stroke(Color(.separator).opacity(0.45), lineWidth: 1)
+      }
     }
   }
 }
@@ -1081,7 +1084,7 @@ private struct SettingsToggleRow: View {
         }
       }
     }
-    .toggleStyle(SwitchToggleStyle(tint: .black))
+    .toggleStyle(SwitchToggleStyle(tint: AuthPalette.socialAccent))
     .frame(minHeight: 52)
   }
 }

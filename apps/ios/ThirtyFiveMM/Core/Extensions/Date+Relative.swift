@@ -38,4 +38,28 @@ extension Date {
 
     return formatted(format)
   }
+
+  var feedRelativeShort: String {
+    feedRelativeShort(relativeTo: Date())
+  }
+
+  func feedRelativeShort(relativeTo now: Date) -> String {
+    let seconds = max(Int(now.timeIntervalSince(self)), 0)
+
+    if seconds < 60 {
+      return "now"
+    }
+
+    let minutes = seconds / 60
+    if minutes < 60 {
+      return "\(minutes)m"
+    }
+
+    let hours = minutes / 60
+    if hours < 24 {
+      return "\(hours)h"
+    }
+
+    return "\(hours / 24)d"
+  }
 }

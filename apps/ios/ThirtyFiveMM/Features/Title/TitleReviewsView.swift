@@ -194,7 +194,7 @@ private struct TitleReviewCard: View {
     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
     .contentShape(RoundedRectangle(cornerRadius: 14))
     .accessibilityElement(children: .contain)
-    .fullScreenCover(isPresented: $isShowingActions) {
+    .bottomActionSheet(isPresented: $isShowingActions) {
       BottomActionSheet(
         title: "Review actions",
         actions: [
