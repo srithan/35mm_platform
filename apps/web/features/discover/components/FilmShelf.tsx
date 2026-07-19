@@ -34,7 +34,7 @@ export function FilmShelf({
               {eyebrow}
             </p>
           ) : null}
-          <h3 className="font-display text-2xl font-semibold leading-none text-fg">
+          <h3 className="font-display text-xl font-semibold leading-none text-fg sm:text-2xl">
             {title}
           </h3>
         </div>

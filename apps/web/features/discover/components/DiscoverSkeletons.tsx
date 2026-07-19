@@ -68,7 +68,7 @@ export function DiscoverHeroSkeleton() {
         <div className="space-y-4">
           <Skeleton className="h-5 w-24 rounded-full bg-white/15" />
           <div className="space-y-3">
-            <Skeleton className="h-10 w-[78%] rounded bg-white/15 md:h-14 md:w-[68%]" />
+            <Skeleton className="h-8 w-[78%] rounded bg-white/15 sm:h-10 md:h-14 md:w-[68%]" />
             <Skeleton className="h-4 w-[56%] rounded bg-white/12" />
             <Skeleton className="h-4 w-[44%] rounded bg-white/12" />
           </div>

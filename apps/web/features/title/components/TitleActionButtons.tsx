@@ -14,7 +14,7 @@ import {
 
 const btnIcon = "h-[18px] w-[18px] shrink-0";
 const btnBase =
-  "inline-flex w-full min-h-[2.75rem] items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold transition-[transform,background-color,box-shadow,border-color,opacity] sm:w-auto active:scale-[0.99] " +
+  "inline-flex min-h-[2.75rem] w-full items-center justify-center gap-2 rounded-full px-3 text-[13px] font-semibold transition-[transform,background-color,box-shadow,border-color,opacity] active:scale-[0.99] sm:px-4 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg/25";
 
 const primary =
@@ -104,7 +104,7 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
   const isWatchlistPending = watchlistMutation.isPending;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:gap-2.5">
       <button
         type="button"
         onClick={onToggleWatched}

@@ -26,6 +26,7 @@ const PROFILE_POPOVER_VIEWPORT_PADDING_X = 12;
 const PROFILE_POPOVER_VIEWPORT_PADDING_Y = 8;
 const PROFILE_POPOVER_DEFAULT_WIDTH = 320;
 const PROFILE_POPOVER_DEFAULT_HEIGHT = 288;
+const PROFILE_POPOVER_CAPABILITY_QUERY = "(hover: hover) and (pointer: fine)";
 
 let lastProfilePopoverScrollAt = 0;
 let scrollGuardRefCount = 0;
@@ -58,6 +59,24 @@ function subscribeProfilePopoverScrollGuard() {
       window.removeEventListener("touchmove", markProfilePopoverScroll, true);
     }
   };
+}
+
+function useProfilePopoverCapability() {
+  const [isCapable, setIsCapable] = useState(false);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+
+    const capability = window.matchMedia(PROFILE_POPOVER_CAPABILITY_QUERY);
+    const syncCapability = () => setIsCapable(capability.matches);
+
+    syncCapability();
+    capability.addEventListener("change", syncCapability);
+
+    return () => capability.removeEventListener("change", syncCapability);
+  }, []);
+
+  return isCapable;
 }
 
 function getPopoverPosition(
@@ -335,6 +354,7 @@ export function UsernameLink({
 }: UsernameLinkProps) {
   const queryClient = useQueryClient();
   const { getToken, isLoaded } = useAuth();
+  const profilePopoverEnabled = useProfilePopoverCapability();
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLAnchorElement | HTMLSpanElement>(null);
@@ -342,8 +362,6 @@ export function UsernameLink({
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringTrigger = useRef(false);
-
-  useEffect(() => subscribeProfilePopoverScrollGuard(), []);
 
   const prefetchProfile = useCallback(function () {
     if (!isLoaded || username.trim().length === 0) {
@@ -360,6 +378,8 @@ export function UsernameLink({
   }, [getToken, isLoaded, queryClient, username]);
 
   const show = useCallback(() => {
+    if (!profilePopoverEnabled) return;
+
     if (hideTimeout.current) {
       clearTimeout(hideTimeout.current);
       hideTimeout.current = null;
@@ -376,7 +396,7 @@ export function UsernameLink({
       );
     }
     setVisible(true);
-  }, []);
+  }, [profilePopoverEnabled]);
 
   const clearShowTimeout = useCallback(() => {
     if (showTimeout.current) {
@@ -386,6 +406,8 @@ export function UsernameLink({
   }, []);
 
   const scheduleShow = useCallback(() => {
+    if (!profilePopoverEnabled) return;
+
     isHoveringTrigger.current = true;
 
     if (isProfilePopoverScrollSuppressed()) {
@@ -403,7 +425,7 @@ export function UsernameLink({
 
       show();
     }, PROFILE_POPOVER_SHOW_DELAY_MS);
-  }, [clearShowTimeout, prefetchProfile, show]);
+  }, [clearShowTimeout, prefetchProfile, profilePopoverEnabled, show]);
 
   const hide = useCallback(() => {
     isHoveringTrigger.current = false;
@@ -417,6 +439,23 @@ export function UsernameLink({
       hideTimeout.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    if (!profilePopoverEnabled) return;
+    return subscribeProfilePopoverScrollGuard();
+  }, [profilePopoverEnabled]);
+
+  useEffect(() => {
+    if (profilePopoverEnabled) return;
+
+    isHoveringTrigger.current = false;
+    clearShowTimeout();
+    if (hideTimeout.current) {
+      clearTimeout(hideTimeout.current);
+      hideTimeout.current = null;
+    }
+    setVisible(false);
+  }, [clearShowTimeout, profilePopoverEnabled]);
 
   useEffect(() => {
     if (!visible) return;
@@ -481,10 +520,10 @@ export function UsernameLink({
 
   const triggerProps = {
     ref: triggerRef as React.RefObject<HTMLAnchorElement & HTMLSpanElement>,
-    onMouseEnter: scheduleShow,
-    onMouseLeave: hide,
-    onFocus: show,
-    onBlur: hide,
+    onMouseEnter: profilePopoverEnabled ? scheduleShow : undefined,
+    onMouseLeave: profilePopoverEnabled ? hide : undefined,
+    onFocus: profilePopoverEnabled ? show : undefined,
+    onBlur: profilePopoverEnabled ? hide : undefined,
     className: cn(className),
   };
 
@@ -499,7 +538,7 @@ export function UsernameLink({
   );
 
   const popover =
-    visible && typeof document !== "undefined"
+    profilePopoverEnabled && visible && typeof document !== "undefined"
       ? createPortal(
           <ProfilePopover
             username={username}

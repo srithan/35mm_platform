@@ -103,7 +103,7 @@ export function DiscoverContent() {
             <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
               This week&apos;s program
             </p>
-            <h1 className="font-display text-5xl font-semibold leading-none text-fg md:text-6xl">
+            <h1 className="font-display text-4xl font-semibold leading-none text-fg sm:text-5xl md:text-6xl">
               Discover
             </h1>
             <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-muted">

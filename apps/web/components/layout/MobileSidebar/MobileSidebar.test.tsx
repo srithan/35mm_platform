@@ -53,6 +53,12 @@ describe("MobileSidebar", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Navigation menu" });
     await waitFor(() => expect(dialog).toHaveFocus());
+    expect(dialog).toHaveClass("scale-100", "opacity-100");
+    expect(dialog).toHaveClass(
+      "transition-[opacity,transform]",
+      "motion-reduce:transform-none",
+      "motion-reduce:transition-none"
+    );
     expect(document.body.style.overflow).toBe("hidden");
     expect(screen.getByText("1,248 followers · 218 following")).toBeInTheDocument();
     expect(screen.queryByText(/films logged/i)).not.toBeInTheDocument();
@@ -85,6 +91,7 @@ describe("MobileSidebar", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
 
     rerender(<MobileSidebar open={false} onClose={onClose} />);
+    expect(dialog).toHaveClass("scale-[0.75]", "opacity-0", "pointer-events-none");
     expect(document.body.style.overflow).toBe("");
   });
 });

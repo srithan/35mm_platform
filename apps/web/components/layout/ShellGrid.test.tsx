@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ShellGrid } from "./ShellGrid";
 
+const mocks = vi.hoisted(() => ({ pathname: "/" }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => mocks.pathname,
 }));
 
 vi.mock("@/components/layout/SiteHeader", () => ({
@@ -54,6 +56,10 @@ vi.mock("@/lib/utils/syncSiteHeaderStickyOffset", () => ({
 }));
 
 describe("ShellGrid mobile sidebar", () => {
+  beforeEach(() => {
+    mocks.pathname = "/";
+  });
+
   it("reveals sidebar beneath a horizontal-only page transform", async () => {
     const user = userEvent.setup();
     const { container } = render(
@@ -63,6 +69,10 @@ describe("ShellGrid mobile sidebar", () => {
     );
     const surface = container.querySelector("[data-mobile-sidebar-surface]");
     expect(surface).not.toBeNull();
+    expect(screen.getByRole("main")).toHaveClass(
+      "pt-[calc(var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))-0.25rem)]"
+    );
+    expect(screen.getByRole("main")).not.toHaveClass("pt-20");
     expect(surface).toHaveClass("transform-none");
     expect(surface).not.toContainElement(screen.getByTestId("mobile-tabbar"));
 
@@ -84,5 +94,18 @@ describe("ShellGrid mobile sidebar", () => {
     expect(screen.getByTestId("mobile-sidebar")).toHaveAttribute("data-open", "false");
     expect(surface).toHaveClass("transform-none");
     expect(pageContent.inert).toBe(false);
+  });
+
+  it("does not render the shared mobile header on the new-post route", () => {
+    mocks.pathname = "/new";
+
+    render(
+      <ShellGrid>
+        <div>New post composer</div>
+      </ShellGrid>
+    );
+
+    expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveClass("pt-0");
   });
 });

@@ -2,13 +2,22 @@ import { cn } from "@/lib/utils/cn";
 
 type ButtonSpinnerProps = {
   className?: string;
-  tone?: "primary" | "accent";
+  tone?: "primary" | "accent" | "composer-publish";
 };
 
 export function ButtonSpinner({ className, tone = "primary" }: ButtonSpinnerProps) {
   const trackVar =
-    tone === "accent" ? "--accent-button-spinner-track" : "--button-spinner-track";
-  const tipVar = tone === "accent" ? "--accent-button-spinner-tip" : "--button-spinner-tip";
+    tone === "accent"
+      ? "--accent-button-spinner-track"
+      : tone === "composer-publish"
+        ? "--composer-publish-spinner-track"
+        : "--button-spinner-track";
+  const tipVar =
+    tone === "accent"
+      ? "--accent-button-spinner-tip"
+      : tone === "composer-publish"
+        ? "--composer-publish-spinner-tip"
+        : "--button-spinner-tip";
 
   return (
     <span

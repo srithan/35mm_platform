@@ -138,17 +138,20 @@ export function NewPostPage() {
                   composerRef.current?.submit();
                 }}
                 className={cn(
-                  "inline-flex min-w-[4.75rem] items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[15px] font-bold leading-tight transition-[opacity,transform] disabled:opacity-100",
+                  "inline-flex h-9 min-w-[4.75rem] items-center justify-center gap-1.5 rounded-full px-4 text-[15px] font-bold leading-none",
+                  "transition-[background-color,box-shadow,transform] duration-150",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--composer-publish-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                  "disabled:opacity-50",
                   publishUi.isPublishing
-                    ? "cursor-wait bg-accent text-white"
+                    ? "cursor-wait bg-[var(--composer-publish-bg)] text-[var(--composer-publish-fg)] shadow-sm"
                     : publishUi.canPost
-                      ? "bg-accent text-white active:scale-[0.98] active:opacity-90"
-                      : "cursor-default bg-accent/18 text-accent/45 disabled:opacity-100"
+                      ? "bg-[var(--composer-publish-bg)] text-[var(--composer-publish-fg)] shadow-sm hover:bg-[var(--composer-publish-bg-hover)] active:scale-[0.97]"
+                      : "cursor-default bg-[var(--composer-publish-bg)] text-[var(--composer-publish-fg)] shadow-none"
                 )}
               >
                 {publishUi.isPublishing ? (
                   <>
-                    <ButtonSpinner tone="accent" className="h-4 w-4" />
+                    <ButtonSpinner tone="composer-publish" className="h-4 w-4" />
                     <span>{publishUi.processingLabel}</span>
                   </>
                 ) : (

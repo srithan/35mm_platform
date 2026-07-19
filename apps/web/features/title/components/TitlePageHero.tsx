@@ -51,7 +51,7 @@ export function TitlePageHero(props: TitlePageHeroProps) {
 
   return (
     <div className="mx-auto w-full max-w-[1300px] px-4 pt-6 sm:px-6 lg:px-10">
-      <div className="relative min-h-[420px] w-full overflow-hidden rounded-sm border border-fg/85 sm:min-h-[460px]">
+      <div className="relative min-h-[300px] w-full overflow-hidden rounded-sm border border-fg/85 sm:min-h-[460px]">
         <TitleCoverBackButton />
         {heroImgSrc ? (
           <div className="absolute inset-0 scale-[1.03] will-change-transform sm:scale-100">
@@ -59,11 +59,11 @@ export function TitlePageHero(props: TitlePageHeroProps) {
             <img
               src={heroImgSrc}
               alt=""
-              className="h-full min-h-[22rem] w-full object-cover object-[center_22%]"
+              className="h-full min-h-[300px] w-full object-cover object-[center_22%] sm:min-h-[22rem]"
             />
           </div>
         ) : (
-          <div className="min-h-[22rem] w-full bg-gradient-to-br from-neutral-900 via-sunken to-neutral-800" />
+          <div className="min-h-[300px] w-full bg-gradient-to-br from-neutral-900 via-sunken to-neutral-800 sm:min-h-[22rem]" />
         )}
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-black/92 via-black/40 to-transparent"
@@ -74,11 +74,11 @@ export function TitlePageHero(props: TitlePageHeroProps) {
           aria-hidden
         />
 
-        <div className="relative z-10 flex min-h-[420px] flex-col justify-end px-5 pb-8 pt-28 sm:min-h-[460px] sm:px-8">
-          <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-7 sm:max-w-6xl sm:flex-row sm:items-end sm:gap-10 md:gap-12">
+        <div className="relative z-10 flex min-h-[300px] flex-col justify-end px-5 pb-5 pt-20 sm:min-h-[460px] sm:px-8 sm:pb-8 sm:pt-28">
+          <div className="mx-auto flex w-full max-w-5xl items-end gap-5 sm:max-w-6xl sm:gap-10 md:gap-12">
             <div
               className={cn(
-                "w-[9.5rem] shrink-0 sm:w-[12rem] md:w-[13.25rem]",
+                "w-24 shrink-0 sm:w-[12rem] md:w-[13.25rem]",
                 "relative aspect-[2/3] translate-y-1 overflow-hidden rounded-sm border-2 border-bg",
                 "shadow-[0_20px_50px_rgba(0,0,0,0.45)] sm:translate-y-2"
               )}
@@ -92,13 +92,13 @@ export function TitlePageHero(props: TitlePageHeroProps) {
                 />
               ) : null}
             </div>
-            <div className="min-w-0 flex-1 pb-0.5 text-center sm:pb-2 sm:text-left">
+            <div className="min-w-0 flex-1 pb-0.5 text-left sm:pb-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/80 sm:text-[11px]">
                 {kind}
               </p>
               <h1
                 className={cn(
-                  "mt-2 text-balance font-display text-4xl font-semibold leading-[1.02] text-white",
+                  "mt-2 text-balance font-display text-3xl font-semibold leading-[1.02] text-white",
                   "[text-shadow:0_2px_4px_rgba(0,0,0,0.85),0_8px_32px_rgba(0,0,0,0.5)]",
                   "sm:mt-2.5 sm:text-5xl md:text-[3.35rem] md:leading-none"
                 )}
@@ -106,11 +106,11 @@ export function TitlePageHero(props: TitlePageHeroProps) {
                 {props.displayTitle}
               </h1>
               {metaLine ? (
-                <p className="mt-3 max-w-2xl text-pretty text-[14px] font-medium leading-relaxed text-white/90 sm:mx-0 sm:mt-3.5 sm:max-w-2xl sm:text-[15px] [text-shadow:0_1px_3px_rgba(0,0,0,0.85)]">
+                <p className="mt-2.5 max-w-2xl text-pretty text-[13px] font-medium leading-relaxed text-white/90 sm:mx-0 sm:mt-3.5 sm:max-w-2xl sm:text-[15px] [text-shadow:0_1px_3px_rgba(0,0,0,0.85)]">
                   {metaLine}
                 </p>
               ) : null}
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 sm:mt-5 sm:justify-start">
+              <div className="mt-3 flex flex-wrap items-center justify-start gap-x-2.5 gap-y-1 sm:mt-5">
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map(function (i) {
                     return (

@@ -162,17 +162,29 @@ export function TitlePageView(props: { media: TitleMedia; id: string }) {
         metaLine={metaLine}
       />
 
-      <div className="mx-auto max-w-[1300px] px-4 pb-24 pt-6 sm:px-6 lg:px-10">
-        <TitleContentTabs
-          contentTab={contentTab}
-          onSelectOverview={function () {
-            setContentTab("overview");
-          }}
-          onSelectReviews={goToReviewsTab}
-        />
+      <div className="mx-auto max-w-[1300px] px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-10">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-x-12">
+          <aside className="flex flex-col gap-6 lg:sticky lg:top-[calc(var(--site-header-sticky-offset,4.5rem)+12px)] lg:col-start-2 lg:row-start-2 lg:mt-10">
+            <TitlePageAside
+              detail={detail}
+              media={media}
+              titleId={id}
+              onWriteReview={goToReviewsTab}
+              watchProvidersUS={watchProvidersUS}
+            />
+          </aside>
 
-        <div className="mt-8 lg:mt-10 lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-12">
-          <div className="order-2 min-w-0 lg:order-1">
+          <div className="lg:col-span-2 lg:row-start-1">
+            <TitleContentTabs
+              contentTab={contentTab}
+              onSelectOverview={function () {
+                setContentTab("overview");
+              }}
+              onSelectReviews={goToReviewsTab}
+            />
+          </div>
+
+          <div className="mt-8 min-w-0 lg:col-start-1 lg:row-start-2 lg:mt-10">
             <div
               id="title-panel-overview"
               role="tabpanel"
@@ -207,16 +219,6 @@ export function TitlePageView(props: { media: TitleMedia; id: string }) {
               {reviewsTabMounted ? <TitleReviewsSection /> : null}
             </div>
           </div>
-
-          <aside className="order-1 mb-8 flex flex-col gap-6 lg:order-2 lg:mb-0 lg:sticky lg:top-[calc(var(--site-header-sticky-offset,4.5rem)+12px)]">
-            <TitlePageAside
-              detail={detail}
-              media={media}
-              titleId={id}
-              onWriteReview={goToReviewsTab}
-              watchProvidersUS={watchProvidersUS}
-            />
-          </aside>
         </div>
       </div>
     </div>

@@ -23,6 +23,8 @@ export function TitleCastCard(props: TitleCastCardProps) {
           <img
             src={posterUrl(person.profile_path, "w185") || ""}
             alt={person.name}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition group-hover:scale-105"
           />
         ) : (

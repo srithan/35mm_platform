@@ -77,6 +77,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const isContributeSection =
     pathname === ROUTES.CONTRIBUTE || Boolean(pathname?.startsWith("/contribute/"));
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
+  const isNewPostPage = pathname === ROUTES.NEW_POST;
   const isHomePage = pathname === "/";
   const isProfileUsernamePage =
     pathname != null ? isProfileShellPath(pathname) : false;
@@ -162,7 +163,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
         <div ref={mobilePageContentRef} className="min-h-screen w-full bg-bg">
           <div className="md:hidden">
-            {!isChatDetailPage ? (
+            <MobileScrollChromeListener />
+            {!isChatDetailPage && !isNewPostPage ? (
               <MobileHeader
                 onProfileClick={openSidebar}
                 title={isChatSection ? "Messages" : undefined}
@@ -200,7 +202,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                   : useProfileRailLayout || useProfileFullWidthLayout
                     ? "w-full max-w-none mx-0"
                     : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
-                isChatSection
+                isNewPostPage
+                  ? "pt-0 md:pt-[var(--site-header-sticky-offset,4.5rem)]"
+                  : isChatSection
                   ? isChatDetailPage
                     ? "pt-0 md:pt-[var(--site-header-sticky-offset,4.5rem)]"
                     : "pt-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))] md:pt-[var(--site-header-sticky-offset,4.5rem)]"
@@ -211,7 +215,10 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                         "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                     )
                   : cn(
-                      "pt-20 md:pt-[var(--site-header-sticky-offset,4.5rem)]",
+                      isHomePage
+                        ? "pt-[calc(var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))-0.25rem)]"
+                        : "pt-20",
+                      "md:pt-[var(--site-header-sticky-offset,4.5rem)]",
                       (useHomeRailLayout || useProfileRailLayout) &&
                         "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                     )
@@ -261,10 +268,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
           <div className="md:hidden">
             {!isChatSection ? (
-              <>
-                <MobileScrollChromeListener />
-                <MobileTabBar sidebarOpen={sidebarOpen} />
-              </>
+              <MobileTabBar sidebarOpen={sidebarOpen} />
             ) : null}
           </div>
         </div>

@@ -81,7 +81,7 @@ export function HeroCard({
             ) : null}
 
             <div>
-              <h2 className="max-w-xl font-display text-[2.35rem] font-semibold leading-[1.02] text-white md:text-[3.4rem]">
+              <h2 className="max-w-xl font-display text-[2rem] font-semibold leading-[1.02] text-white sm:text-[2.35rem] md:text-[3.4rem]">
                 {film.title || film.name}
               </h2>
               <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-white/78">

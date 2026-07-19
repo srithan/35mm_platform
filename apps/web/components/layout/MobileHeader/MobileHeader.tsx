@@ -7,9 +7,11 @@ import { Search } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { BrandLogo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
+import { Icon } from "@/components/Icon/Icon";
 import { cn } from "@/lib/utils/cn";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
+import { useMobileBottomChromeStore } from "@/stores/useMobileBottomChromeStore";
 
 interface MobileHeaderProps {
   /** Called when profile picture is clicked (opens MobileSidebar) */
@@ -35,6 +37,10 @@ export function MobileHeader({
   const { user: clerkUser } = useUser();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
+  const navVisible = useMobileBottomChromeStore(function (state) {
+    return state.navVisible;
+  });
+  const headerVisible = navVisible || sidebarOpen;
   const displayName = currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
   const avatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
   const suppressDefaultAvatar = !currentUser?.avatarUrl &&
@@ -65,16 +71,29 @@ export function MobileHeader({
     };
   }, []);
 
+  useLayoutEffect(function () {
+    const el = headerRef.current;
+    if (!el) return;
+    el.inert = !headerVisible;
+    return function () {
+      el.inert = false;
+    };
+  }, [headerVisible]);
+
   return (
     <header
       ref={headerRef}
       id="mobile-site-nav"
+      aria-hidden={!headerVisible}
       className={cn(
-        "md:hidden fixed top-0 left-0 right-0 z-50 min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-bg/95 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))]",
-        "transition-[transform,border-radius] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        "md:hidden fixed top-0 left-0 right-0 z-50 min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] flex items-center justify-between bg-bg/95 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))]",
+        "transition-[transform,opacity,border-radius] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         sidebarOpen
           ? "translate-x-[var(--mobile-sidebar-width)] rounded-tl-[2rem]"
           : "translate-x-0 rounded-tl-none",
+        headerVisible
+          ? "translate-y-0 opacity-100"
+          : "pointer-events-none -translate-y-full opacity-0",
         !hideBottomBorder && "border-b border-border"
       )}
       role="banner"
@@ -95,7 +114,7 @@ export function MobileHeader({
         />
       </button>
 
-      <div className="min-w-0 flex justify-center overflow-hidden">
+      <div className="absolute left-1/2 flex max-w-[calc(100%_-_12rem)] -translate-x-1/2 justify-center overflow-hidden">
         {title ? (
           <h1 className="font-semibold text-[17px] text-fg truncate">
             {title}
@@ -103,7 +122,7 @@ export function MobileHeader({
         ) : (
           <BrandLogo
             href={ROUTES.HOME}
-            className="px-3 py-1 shrink-0 text-[20.5px] font-semibold tracking-wide text-fg"
+            className="px-3 py-1 shrink-0 text-[27px] text-fg"
           />
         )}
       </div>
@@ -116,6 +135,13 @@ export function MobileHeader({
           aria-label="Search"
         >
           <Search className="h-[22px] w-[22px]" strokeWidth={2} />
+        </Link>
+        <Link
+          href={ROUTES.CHAT}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          aria-label="Chat"
+        >
+          <Icon name="chat" className="h-[22px] w-[22px]" strokeWidth={2} />
         </Link>
       </div>
     </header>

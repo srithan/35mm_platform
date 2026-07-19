@@ -135,7 +135,9 @@ export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean })
       <div
         className={cn(
           "pointer-events-auto mx-auto flex h-[3.25rem] max-w-[480px] items-center justify-between px-1.5",
-          "rounded-full border border-border bg-bg shadow-sm"
+          "rounded-full border border-[color-mix(in_srgb,var(--border-strong)_70%,transparent)]",
+          "bg-[color-mix(in_srgb,var(--elevated)_94%,transparent)] backdrop-blur-xl backdrop-saturate-150",
+          "shadow-[0_12px_32px_-10px_rgba(0,0,0,0.32),0_4px_12px_-6px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.14)]"
         )}
       >
         {tabs.map(function (tab) {

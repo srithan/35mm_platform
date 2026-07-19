@@ -64,6 +64,13 @@
     --composer-primary: var(--fg);
     --composer-primary-hover: var(--fg-2);
     --composer-primary-fg: var(--bg);
+    /* Mobile /new publish action: AA-safe shade of the social blue accent. */
+    --composer-publish-bg: #1771e6;
+    --composer-publish-bg-hover: #1265d1;
+    --composer-publish-fg: #ffffff;
+    --composer-publish-ring: color-mix(in srgb, var(--composer-publish-bg) 38%, transparent);
+    --composer-publish-spinner-track: color-mix(in srgb, var(--composer-publish-fg) 24%, var(--composer-publish-bg));
+    --composer-publish-spinner-tip: var(--composer-publish-fg);
     --composer-backdrop: rgba(0, 0, 0, 0.4);
     --composer-radius: 1rem;
     --composer-dialog-radius: var(--composer-radius);
@@ -370,6 +377,9 @@
     --composer-primary: #c2473a;
     --composer-primary-hover: #9c372c;
     --composer-primary-fg: #ffffff;
+    --composer-publish-bg: #c2473a;
+    --composer-publish-bg-hover: #9c372c;
+    --composer-publish-fg: #ffffff;
     --composer-backdrop: rgba(28, 26, 23, 0.42);
     --composer-radius: 1rem;
     --composer-dialog-radius: var(--composer-radius);
@@ -444,6 +454,9 @@
     /* ── Brand / Accent (Terminal Green) ── */
     --color-accent: #00ff41;
     --color-accent-hover: #33ff67;
+    --composer-publish-bg: #00ff41;
+    --composer-publish-bg-hover: #33ff67;
+    --composer-publish-fg: #001905;
 
     --switch-track-off: #031407;
     --switch-track-off-border: rgba(0, 255, 65, 0.28);
@@ -536,6 +549,9 @@
 
     --color-accent: #d9d9d9;
     --color-accent-hover: #f0f0f0;
+    --composer-publish-bg: #d9d9d9;
+    --composer-publish-bg-hover: #f0f0f0;
+    --composer-publish-fg: #0a0a0a;
 
     --switch-track-off: #191919;
     --switch-track-off-border: rgba(255, 255, 255, 0.18);
@@ -645,6 +661,9 @@
     /* ── Brand / Accent (Hot Pink) ── */
     --color-accent: #ff36af;
     --color-accent-hover: #ff5cbe;
+    --composer-publish-bg: #ff36af;
+    --composer-publish-bg-hover: #ff5cbe;
+    --composer-publish-fg: #3d0a2e;
 
     --switch-track-off: #ffb8e2;
     --switch-track-off-border: rgba(171, 22, 113, 0.24);

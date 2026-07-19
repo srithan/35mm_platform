@@ -59,9 +59,15 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
       {d.credits?.cast && d.credits.cast.length > 0 ? (
         <section>
           <TitleSectionTitle className="mb-3">Cast</TitleSectionTitle>
-          <div className="grid grid-cols-4 gap-4 pb-1 sm:grid-cols-6 md:grid-cols-8">
-            {d.credits.cast.slice(0, 18).map(function (person) {
-              return <TitleCastCard key={person.id} person={person} />;
+          <div className="grid auto-cols-[4.5rem] grid-flow-col grid-rows-2 snap-x snap-proximity gap-x-4 gap-y-5 overflow-x-auto overscroll-x-contain pb-3 pr-4 scrollbar-hide sm:grid-flow-row sm:grid-rows-none sm:grid-cols-6 sm:auto-cols-auto sm:snap-none sm:gap-4 sm:overflow-visible sm:pb-1 sm:pr-0 md:grid-cols-8">
+            {d.credits.cast.map(function (person, index) {
+              return (
+                <TitleCastCard
+                  key={person.id}
+                  person={person}
+                  className={cn("snap-start", index >= 18 && "sm:hidden")}
+                />
+              );
             })}
           </div>
         </section>

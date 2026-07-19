@@ -194,10 +194,12 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
       aria-label="Navigation menu"
       tabIndex={-1}
       className={cn(
-        "md:hidden fixed inset-y-0 left-0 z-0 w-[var(--mobile-sidebar-width)] bg-bg flex flex-col transition-opacity duration-200 ease-out focus:outline-none",
+        "md:hidden fixed inset-y-0 left-0 z-0 w-[var(--mobile-sidebar-width)] origin-left transform-gpu bg-bg flex flex-col transition-[opacity,transform] duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] focus:outline-none",
         "shadow-[8px_0_24px_rgba(0,0,0,0.16)]",
-        "motion-reduce:transition-none",
-        open ? "opacity-100" : "pointer-events-none opacity-0"
+        "motion-reduce:transform-none motion-reduce:transition-none",
+        open
+          ? "scale-100 opacity-100"
+          : "pointer-events-none scale-[0.75] opacity-0"
       )}
       aria-hidden={!open}
     >
