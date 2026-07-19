@@ -40,6 +40,8 @@ export interface CurrentUserProfile {
   role: string | null;
   roleContext: string | null;
   filmsLoggedCount: number;
+  followerCount: number;
+  followingCount: number;
 }
 
 export interface ProfileStatsFilm {

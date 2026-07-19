@@ -20,6 +20,8 @@ interface MobileHeaderProps {
   rightSlot?: React.ReactNode;
   /** Hide bottom border when sticky tabs or search bar is directly below */
   hideBottomBorder?: boolean;
+  /** Move fixed header with page surface while mobile sidebar is revealed. */
+  sidebarOpen?: boolean;
 }
 
 export function MobileHeader({
@@ -27,6 +29,7 @@ export function MobileHeader({
   title,
   rightSlot,
   hideBottomBorder = false,
+  sidebarOpen = false,
 }: MobileHeaderProps) {
   const headerRef = useRef<HTMLElement | null>(null);
   const { user: clerkUser } = useUser();
@@ -68,6 +71,10 @@ export function MobileHeader({
       id="mobile-site-nav"
       className={cn(
         "md:hidden fixed top-0 left-0 right-0 z-50 min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-bg/95 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))]",
+        "transition-[transform,border-radius] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        sidebarOpen
+          ? "translate-x-[var(--mobile-sidebar-width)] rounded-tl-[2rem]"
+          : "translate-x-0 rounded-tl-none",
         !hideBottomBorder && "border-b border-border"
       )}
       role="banner"

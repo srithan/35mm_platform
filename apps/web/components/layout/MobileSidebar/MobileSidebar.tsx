@@ -2,32 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
+import {
+  CalendarDays,
+  CircleHelp,
+  FileText,
+  SquareStack,
+  type LucideIcon,
+} from "lucide-react";
 import { Avatar } from "@/components/Avatar";
-import { useComposerModal } from "@/components/layout/PostComposerModalContext";
-import { Icon } from "@/components/Icon/Icon";
+import { Icon, type IconName } from "@/components/Icon/Icon";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { isRouteActive } from "@/lib/utils/navigation";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 
-type MobileSidebarIconName =
-  | "home"
-  | "search"
-  | "chat"
-  | "frames"
-  | "bell"
-  | "user"
-  | "bookmark"
-  | "plus"
-  | "settings";
-
 interface MobileSidebarItem {
   label: string;
   href: string;
-  icon: MobileSidebarIconName;
-  badge?: number;
+  icon: IconName | LucideIcon;
 }
 
 interface MobileSidebarProps {
@@ -39,15 +33,19 @@ function MobileSidebarSection({
   items,
   onClose,
   isActive,
+  size = "regular",
 }: {
   items: readonly MobileSidebarItem[];
   onClose: () => void;
   isActive: (href: string) => boolean;
+  size?: "regular" | "compact";
 }) {
+  const regular = size === "regular";
   return (
-    <div className="space-y-0.5">
+    <div>
       {items.map((item) => {
         const active = isActive(item.href);
+        const SidebarIcon = item.icon;
         return (
           <Link
             key={item.label + ":" + item.href}
@@ -56,20 +54,26 @@ function MobileSidebarSection({
             data-active={active}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "group flex items-center gap-3 py-3 px-3 rounded-lg text-[15px] font-bold no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/10",
-              active
-                ? "text-fg bg-neutral-100 [&_svg]:text-fg"
-                : "text-fg-muted hover:text-fg hover:bg-border/60"
+              "ios-sidebar-font -mx-2 flex items-center gap-[18px] rounded-xl px-2 text-fg no-underline",
+              "transition-[background-color,opacity] hover:bg-sunken/70 active:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/15",
+              regular ? "h-[50px] text-[19px] font-black" : "h-11 text-base font-black"
             )}
           >
-            <Icon name={item.icon} className="w-5 h-5 flex-shrink-0 text-fg-muted transition-colors group-hover:text-fg group-data-[active]:text-accent" strokeWidth={2} />
-            {item.label}
-            {typeof item.badge === "number" ? (
-              <span className="unread-notification-badge text-[10px] px-1.5 py-0.5 rounded-full font-mono leading-tight ml-auto">
-                <span aria-hidden>{item.badge}</span>
-                <span className="sr-only">{item.badge} unread items</span>
-              </span>
-            ) : null}
+            <span className="flex w-[30px] shrink-0 items-center justify-center" aria-hidden>
+              {typeof SidebarIcon === "string" ? (
+                <Icon
+                  name={SidebarIcon}
+                  className={regular ? "h-[21px] w-[21px]" : "h-[18px] w-[18px]"}
+                  strokeWidth={2}
+                />
+              ) : (
+                <SidebarIcon
+                  className={regular ? "h-[21px] w-[21px]" : "h-[18px] w-[18px]"}
+                  strokeWidth={2.15}
+                />
+              )}
+            </span>
+            <span className="min-w-0 truncate">{item.label}</span>
           </Link>
         );
       })}
@@ -78,9 +82,9 @@ function MobileSidebarSection({
 }
 
 export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
+  const sidebarRef = useRef<HTMLElement | null>(null);
   const pathname = usePathname();
   const { user: clerkUser } = useUser();
-  const { openComposerModal } = useComposerModal();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const profileUsername = currentUser?.username ?? clerkUser?.username ?? null;
@@ -89,19 +93,39 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   const username = profileUsername ?? "profile";
   const avatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
   const initial = initialForName(displayName);
-  const navItems: readonly MobileSidebarItem[] = useMemo(
+  const relationshipSummary = currentUser
+    ? `${currentUser.followerCount.toLocaleString()} followers · ${currentUser.followingCount.toLocaleString()} following`
+    : currentUserQuery.isError
+      ? "Profile unavailable"
+      : null;
+  const primaryItems: readonly MobileSidebarItem[] = useMemo(
     () => [
-      { label: "Your Feed", href: ROUTES.HOME, icon: "home" },
-      { label: "Discover", href: ROUTES.DISCOVER, icon: "search" },
-      { label: "Messages", href: ROUTES.CHAT, icon: "chat" },
-      { label: "Short films", href: ROUTES.SHORT_FILMS, icon: "frames" },
-      { label: "Notifications", href: ROUTES.NOTIFICATIONS, badge: 3, icon: "bell" },
-      { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
-      { label: "Contribute", href: ROUTES.CONTRIBUTE, icon: "plus" },
       { label: "Profile", href: profileHref, icon: "user" },
-      { label: "Settings", href: ROUTES.SETTINGS, icon: "settings" },
+      { label: "Discover", href: ROUTES.DISCOVER, icon: "search" },
+      { label: "Short Films", href: ROUTES.SHORT_FILMS, icon: "frames" },
+      { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
+      {
+        label: "Lists",
+        href: profileUsername ? ROUTES.PROFILE_LISTS(profileUsername) : profileHref,
+        icon: SquareStack,
+      },
+      {
+        label: "Diary",
+        href: profileUsername ? ROUTES.PROFILE_DIARY(profileUsername) : profileHref,
+        icon: CalendarDays,
+      },
+      { label: "Drafts", href: ROUTES.DRAFTS, icon: FileText },
     ],
-    [profileHref]
+    [profileHref, profileUsername]
+  );
+  const secondaryItems: readonly MobileSidebarItem[] = useMemo(
+    () => [
+      { label: "Chat", href: ROUTES.CHAT, icon: "chat" },
+      { label: "Notifications", href: ROUTES.NOTIFICATIONS, icon: "bell" },
+      { label: "Settings and privacy", href: ROUTES.SETTINGS, icon: "settings" },
+      { label: "Help", href: ROUTES.HELP, icon: CircleHelp },
+    ],
+    []
   );
 
   const isActive = useMemo(
@@ -110,100 +134,111 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   );
 
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
     };
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(function () {
+      sidebarRef.current?.focus({ preventScroll: true });
+    });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !sidebarRef.current) return;
+
+      const focusable = Array.from(
+        sidebarRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        sidebarRef.current.focus({ preventScroll: true });
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
 
   return (
-    <>
-      <div
-        role="presentation"
-        aria-hidden
-        onClick={onClose}
-        className={cn(
-          "fixed inset-0 z-[100] bg-fg/25 backdrop-blur-sm transition-opacity duration-300 ease-out",
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-      />
-
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label="Navigation menu"
-        className={cn(
-          "fixed top-0 left-0 bottom-0 z-[101] w-[min(260px,72vw)] max-w-[260px] bg-bg border-r border-border shadow-xl flex flex-col pt-[max(0.75rem,env(safe-area-inset-top))] pb-8 transition-transform duration-300 ease-out",
-          open ? "translate-x-0" : "-translate-x-full pointer-events-none"
-        )}
-        aria-hidden={!open}
-      >
-        <Link
-          href={profileHref}
-          onClick={onClose}
-          className="block px-4 py-4 border-b border-border no-underline text-inherit hover:bg-border/40 transition-colors active:opacity-90"
-        >
-          <div className="flex items-start">
-            <Avatar
-              initial={initial}
-              src={avatarUrl}
-              size="lg"
-              variant="ring"
-              loading="eager"
-            />
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-[17px] text-fg">{displayName}</span>
-              <Icon name="check" className="w-4 h-4 text-accent shrink-0" strokeWidth={3} />
-            </div>
-            <p className="text-[13px] text-fg-muted mt-0.5">@{username}</p>
-            <div className="flex gap-4 mt-2 text-[13px] text-fg-muted">
-              <span>
-                <span className="font-bold text-fg">2,961</span> Following
-              </span>
-              <span>
-                <span className="font-bold text-fg">950</span> Followers
-              </span>
-            </div>
-          </div>
-        </Link>
-
-        <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Mobile navigation">
-          <MobileSidebarSection items={navItems} onClose={onClose} isActive={isActive} />
-        </nav>
-
-        <div className="px-2 pb-2">
-          <button
-            type="button"
-            onClick={function () {
-              onClose();
-              openComposerModal();
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-[15px] font-bold bg-accent text-accent-fg hover:opacity-95 active:opacity-90 transition-opacity"
-          >
-            <Icon name="plus" className="w-5 h-5" strokeWidth={2} />
-            New post
-          </button>
+    <aside
+      ref={sidebarRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Navigation menu"
+      tabIndex={-1}
+      className={cn(
+        "md:hidden fixed inset-y-0 left-0 z-0 w-[var(--mobile-sidebar-width)] bg-bg flex flex-col transition-opacity duration-200 ease-out focus:outline-none",
+        "shadow-[8px_0_24px_rgba(0,0,0,0.16)]",
+        "motion-reduce:transition-none",
+        open ? "opacity-100" : "pointer-events-none opacity-0"
+      )}
+      aria-hidden={!open}
+    >
+      <div className="px-[22px] pb-[22px] pt-[calc(2.25rem+env(safe-area-inset-top,0px))]">
+        <Avatar
+          initial={initial}
+          src={avatarUrl}
+          size="lg"
+          variant="ring"
+          loading="eager"
+        />
+        <div className="ios-sidebar-font mt-[14px] min-w-0">
+          <p className="truncate text-[22px] font-black leading-[1.1] text-fg">{displayName}</p>
+          <p className="mt-1 truncate text-[15px] font-bold leading-tight text-fg-muted">
+            @{username}
+          </p>
+          {relationshipSummary ? (
+            <p className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-fg-muted">
+              {relationshipSummary}
+            </p>
+          ) : null}
         </div>
-      </aside>
-    </>
+      </div>
+
+      <nav
+        className="flex-1 overflow-y-auto px-[22px] pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
+        aria-label="Mobile navigation"
+      >
+        <MobileSidebarSection
+          items={primaryItems}
+          onClose={onClose}
+          isActive={isActive}
+        />
+        <div className="my-[18px] h-px bg-border" aria-hidden />
+        <MobileSidebarSection
+          items={secondaryItems}
+          onClose={onClose}
+          isActive={isActive}
+          size="compact"
+        />
+      </nav>
+    </aside>
   );
 }

@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+  type PanInfo,
+} from "framer-motion";
 import { cn } from "@/lib/utils/cn";
 import { useScrollLock } from "@/lib/hooks/useScrollLock";
 import { popModalFocusSnapshot, pushModalFocusSnapshot } from "@/lib/modal/focusStack";
@@ -73,7 +78,7 @@ function pickInitialFocusTarget(
   return focusables[0] || container;
 }
 
-export type ModalVariant = "centered" | "lightbox" | "bare";
+export type ModalVariant = "centered" | "bottomSheet" | "lightbox" | "bare";
 
 export interface ModalProps {
   open: boolean;
@@ -120,6 +125,8 @@ export interface ModalProps {
 const VARIANT_PANEL: Record<ModalVariant, string> = {
   centered:
     "relative max-h-[calc(100vh-32px)] w-full max-w-3xl overflow-hidden rounded-2xl bg-elevated border border-border shadow-2xl font-sans",
+  bottomSheet:
+    "relative max-h-[min(88dvh,680px)] w-full overflow-hidden rounded-t-[32px] bg-sunken pb-[env(safe-area-inset-bottom)] shadow-2xl font-sans",
   lightbox:
     "relative max-h-[90vh] w-full max-w-[min(96vw,56rem)] overflow-visible rounded-lg border border-white/10 bg-transparent shadow-2xl font-sans",
   bare: "relative w-full max-w-none overflow-visible rounded-none border-0 bg-transparent shadow-none font-sans",
@@ -127,12 +134,15 @@ const VARIANT_PANEL: Record<ModalVariant, string> = {
 
 const VARIANT_CONTAINER: Record<ModalVariant, string> = {
   centered: "fixed inset-0 flex items-center justify-center p-4 pointer-events-auto",
+  bottomSheet: "fixed inset-0 flex items-end justify-center p-0 pointer-events-auto",
   lightbox: "fixed inset-0 flex items-center justify-center p-6 sm:p-10 pointer-events-auto",
   bare: "fixed inset-0 flex items-center justify-center p-0 pointer-events-auto",
 };
 
 const VARIANT_BACKDROP: Record<ModalVariant, string> = {
   centered: "absolute inset-0 bg-black/60 backdrop-blur-sm",
+  bottomSheet:
+    "absolute inset-0 bg-[rgb(15_15_15/0.38)] backdrop-blur-[8px] [-webkit-backdrop-filter:blur(8px)]",
   lightbox: "absolute inset-0 bg-black/85 backdrop-blur-md",
   bare: "absolute inset-0 bg-black/40 backdrop-blur-[2px]",
 };
@@ -142,6 +152,11 @@ const VARIANT_PANEL_MOTION = {
     initial: { opacity: 0, scale: 0.98, y: 6 },
     animate: { opacity: 1, scale: 1, y: 0 },
     exit: { opacity: 0, scale: 0.98, y: 6 },
+  },
+  bottomSheet: {
+    initial: { opacity: 1, scale: 1, y: "105%" },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 1, scale: 1, y: "105%" },
   },
   lightbox: {
     initial: { opacity: 0, scale: 0.96 },
@@ -179,6 +194,7 @@ export function Modal({
   outsidePanel,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  const dragControls = useDragControls();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const hasOutsidePanel = Boolean(outsidePanel);
@@ -340,6 +356,38 @@ export function Modal({
     "aria-labelledby": ariaLabelledBy,
     "aria-describedby": ariaDescribedBy,
   };
+  const isBottomSheet = variant === "bottomSheet";
+  const onBottomSheetDragEnd = function (
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) {
+    if (info.offset.y >= 96 || info.velocity.y >= 700) {
+      onCloseRef.current();
+    }
+  };
+  const bottomSheetDragProps = isBottomSheet
+    ? {
+        drag: "y" as const,
+        dragConstraints: { top: 0, bottom: 0 },
+        dragControls,
+        dragElastic: { top: 0, bottom: 0.45 },
+        dragListener: false,
+        dragMomentum: false,
+        onDragEnd: onBottomSheetDragEnd,
+      }
+    : {};
+  const bottomSheetHandle = isBottomSheet ? (
+    <div
+      aria-hidden
+      data-bottom-sheet-handle
+      className="flex shrink-0 touch-none cursor-grab justify-center pb-3 pt-4 active:cursor-grabbing"
+      onPointerDown={function (event) {
+        dragControls.start(event);
+      }}
+    >
+      <span className="h-[5px] w-10 rounded-full bg-border-strong/90" />
+    </div>
+  ) : null;
 
   if (!animated) {
     return createPortal(
@@ -363,6 +411,7 @@ export function Modal({
             aria-modal={hasOutsidePanel ? undefined : true}
             {...(hasOutsidePanel ? {} : dialogLabelProps)}
             ref={contentRef}
+            data-modal-variant={variant}
             className={cn(panelClassName, "relative z-10")}
             onPointerDown={function (e) {
               e.stopPropagation();
@@ -371,6 +420,7 @@ export function Modal({
               e.stopPropagation();
             }}
           >
+            {bottomSheetHandle}
             {children}
           </div>
           {outsidePanel}
@@ -412,10 +462,16 @@ export function Modal({
             aria-modal={hasOutsidePanel ? undefined : true}
             {...(hasOutsidePanel ? {} : dialogLabelProps)}
             ref={contentRef}
+            data-modal-variant={variant}
             initial={pm.initial}
             animate={pm.animate}
             exit={pm.exit}
-            transition={{ type: "spring", damping: 26, stiffness: 240, mass: 0.9 }}
+            transition={
+              isBottomSheet
+                ? { type: "spring", damping: 30, stiffness: 320, mass: 0.85 }
+                : { type: "spring", damping: 26, stiffness: 240, mass: 0.9 }
+            }
+            {...bottomSheetDragProps}
             className={cn(panelClassName, "relative z-10")}
             onPointerDown={function (e) {
               e.stopPropagation();
@@ -424,6 +480,7 @@ export function Modal({
               e.stopPropagation();
             }}
           >
+            {bottomSheetHandle}
             {children}
           </motion.div>
           {outsidePanel}

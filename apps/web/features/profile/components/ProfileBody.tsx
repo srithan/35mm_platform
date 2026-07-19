@@ -47,7 +47,7 @@ export function ProfileBody(props: {
 
   return (
     <div className="pt-2 md:pl-8 md:pt-5">
-      <div className="mb-6 px-5 sm:px-6 lg:hidden">
+      <div className="mb-6 hidden px-5 sm:px-6 md:block lg:hidden">
         <ProfileDetails
           {...detailsProps}
           followerCount={props.followerCount}

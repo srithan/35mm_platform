@@ -16,6 +16,7 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
+import { useIsDesktopMd } from "@/lib/hooks/useIsDesktopMd";
 
 interface ShareModalProps {
   open: boolean;
@@ -32,6 +33,7 @@ interface ShareModalProps {
 
 export function ShareModal({ open, onClose, url, title, previewContent }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
+  const isDesktopMd = useIsDesktopMd();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url);
@@ -148,8 +150,9 @@ export function ShareModal({ open, onClose, url, title, previewContent }: ShareM
       open={open} 
       onClose={onClose} 
       title="Share" 
-      className="max-w-[440px] !bg-bg/95 backdrop-blur-2xl border-white/5"
-      contentClassName="pt-2 px-6 pb-6"
+      variant={isDesktopMd === true ? "centered" : "bottomSheet"}
+      className="!bg-sunken md:max-w-[440px] md:!bg-bg/95 md:border-white/5 md:backdrop-blur-2xl"
+      contentClassName="px-4 pb-4 pt-2 sm:px-6 sm:pb-6"
     >
       <div className="space-y-6">
         {/* Preview Section - Upgraded */}
@@ -209,7 +212,7 @@ export function ShareModal({ open, onClose, url, title, previewContent }: ShareM
             >
               <div
                 className={cn(
-                  "relative flex h-14 w-14 items-center justify-center rounded-[18px] transition-all duration-300 group-hover:-translate-y-1 active:scale-95 group-focus-visible:ring-2 ring-accent/30",
+                  "relative flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-300 group-hover:-translate-y-1 active:scale-95 group-focus-visible:ring-2 ring-accent/30 sm:h-14 sm:w-14 sm:rounded-[18px]",
                   option.color,
                   option.hoverColor,
                   "text-white shadow-lg shadow-black/10"

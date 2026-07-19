@@ -222,6 +222,8 @@ export function ProfileShellClient(props: { username: string }) {
           dateOfBirth={resolvedProfile.dateOfBirth ?? ""}
           role={resolvedProfile.role}
           roleContext={resolvedProfile.roleContext}
+          headline={resolvedProfile.headline ?? null}
+          headlineContext={resolvedProfile.headlineContext ?? null}
           onMessageClick={handleMessageClick}
           isMessageActionPending={createConversationMutation.isPending}
           followerCount={resolvedProfile.followerCount}

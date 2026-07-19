@@ -897,6 +897,23 @@ body {
     overscroll-behavior: none;
 }
 
+.ios-sidebar-font {
+    font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+
+/* Drawer sheet follows visible viewport, not full feed height, so both left corners stay rounded. */
+@media (max-width: 767px) {
+    .mobile-sidebar-surface-open {
+        clip-path: inset(
+            var(--mobile-sidebar-viewport-top, 0px)
+            0
+            var(--mobile-sidebar-viewport-bottom, 0px)
+            0
+            round 2rem
+        );
+    }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 4px;

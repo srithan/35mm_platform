@@ -20,6 +20,7 @@ export const ROUTES = {
   FESTIVALS_SUBMISSIONS: "/festivals/submissions",
   SUGGESTIONS_PEOPLE: "/suggestions/people",
   CAREERS: "/careers",
+  HELP: "/help",
   /**
    * TMDB-backed title: `movie` or `tv` (numeric id; media disambiguates ID collisions).
    * Films, shorts, docs use `movie`; series / mini-series / web series use `tv`.

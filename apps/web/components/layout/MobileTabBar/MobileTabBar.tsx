@@ -63,7 +63,7 @@ function TabIcon({
   return <User className={className} strokeWidth={strokeWidth} />;
 }
 
-export function MobileTabBar() {
+export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean }) {
   const pathname = usePathname() ?? "";
   const { user: clerkUser } = useUser();
   const currentUserQuery = useCurrentUserProfile();
@@ -123,6 +123,10 @@ export function MobileTabBar() {
         "md:hidden fixed inset-x-0 z-40 px-3",
         "bottom-[max(0.625rem,env(safe-area-inset-bottom,0px))]",
         "pointer-events-none transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+        "motion-reduce:transition-none",
+        sidebarOpen
+          ? "translate-x-[var(--mobile-sidebar-width)]"
+          : "translate-x-0",
         navVisible
           ? "translate-y-0 opacity-100"
           : "translate-y-[calc(100%+1rem)] opacity-0"

@@ -3,7 +3,7 @@
 import { useId, type ReactNode, type RefObject } from "react";
 import { cn } from "@/lib/utils/cn";
 import { X } from "lucide-react";
-import { Modal } from "@/components/Modal/Modal";
+import { Modal, type ModalVariant } from "@/components/Modal/Modal";
 
 interface DialogProps {
   open: boolean;
@@ -14,6 +14,7 @@ interface DialogProps {
   className?: string;
   contentClassName?: string;
   showCloseButton?: boolean;
+  variant?: ModalVariant;
   /** Forwarded to Modal — focus first field in the body, not the header close control. */
   initialFocusRef?: RefObject<HTMLElement | null>;
 }
@@ -27,6 +28,7 @@ export function Dialog({
   className,
   contentClassName,
   showCloseButton = true,
+  variant = "centered",
   initialFocusRef,
 }: DialogProps) {
   const id = useId();
@@ -36,13 +38,16 @@ export function Dialog({
     <Modal
       open={open}
       onClose={onClose}
-      variant="centered"
+      variant={variant}
       ariaLabel={!title ? "Dialog" : undefined}
       ariaLabelledBy={titleId}
       initialFocusRef={initialFocusRef}
       initialFocusWithinSelector="[data-dialog-body]"
       contentClassName={cn(
-        "max-h-[calc(100vh-32px)] w-full max-w-lg overflow-hidden overscroll-contain",
+        "flex w-full max-w-lg flex-col overflow-hidden overscroll-contain",
+        variant === "bottomSheet"
+          ? "max-h-[min(88dvh,680px)]"
+          : "max-h-[calc(100vh-32px)]",
         className
       )}
     >
@@ -73,7 +78,10 @@ export function Dialog({
           )}
         </div>
       )}
-      <div data-dialog-body className={cn("p-5 sm:p-6", contentClassName)}>
+      <div
+        data-dialog-body
+        className={cn("min-h-0 overflow-y-auto p-5 sm:p-6", contentClassName)}
+      >
         {children}
       </div>
     </Modal>
