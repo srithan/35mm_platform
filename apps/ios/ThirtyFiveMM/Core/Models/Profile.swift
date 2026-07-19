@@ -1,19 +1,5 @@
 import Foundation
 
-struct Profile: Codable, Identifiable {
-  let id: String
-  let username: String
-  let displayName: String?
-  let bio: String?
-  let avatarUrl: String?
-  let coverUrl: String?
-  let isPrivate: Bool
-  let followersCount: Int
-  let followingCount: Int
-  let filmsLoggedCount: Int
-  let followState: String?
-}
-
 struct UserProfile: Codable, Identifiable {
   let userId: String
   let username: String
@@ -23,9 +9,24 @@ struct UserProfile: Codable, Identifiable {
   let role: String?
   let roleContext: String?
   let filmsLoggedCount: Int
+  let followerCount: Int
+  let followingCount: Int
 
   var id: String {
     userId
+  }
+
+  init(profile: PublicProfile) {
+    userId = profile.userId
+    username = profile.username
+    displayName = profile.displayName
+    avatarUrl = profile.avatarUrl
+    avatarUrlLg = profile.avatarUrlLg
+    role = profile.role
+    roleContext = profile.roleContext
+    filmsLoggedCount = profile.filmsLoggedCount
+    followerCount = profile.followerCount
+    followingCount = profile.followingCount
   }
 }
 

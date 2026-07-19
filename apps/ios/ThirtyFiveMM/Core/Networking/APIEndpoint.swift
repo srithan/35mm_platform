@@ -56,6 +56,105 @@ extension APIEndpoint {
     return APIEndpoint(path: "/v1/feed", method: .get, queryItems: queryItems)
   }
 
+  static func getCatalogTitles(
+    query: String,
+    type: String?,
+    cursor: String?,
+    limit: Int
+  ) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if !query.isEmpty {
+      queryItems.append(URLQueryItem(name: "query", value: query))
+    }
+    if let type {
+      queryItems.append(URLQueryItem(name: "type", value: type))
+    }
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    return APIEndpoint(path: "/v1/catalog/titles", method: .get, queryItems: queryItems)
+  }
+
+  static func getCatalogTitle(_ titleId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/catalog/titles/\(titleId)", method: .get)
+  }
+
+  static func getCatalogTitleByTMDB(_ tmdbId: Int) -> APIEndpoint {
+    APIEndpoint(
+      path: "/v1/catalog/titles",
+      method: .get,
+      queryItems: [
+        URLQueryItem(name: "externalProvider", value: "tmdb"),
+        URLQueryItem(name: "externalId", value: String(tmdbId)),
+        URLQueryItem(name: "limit", value: "1"),
+      ]
+    )
+  }
+
+  static func getCatalogTitleCredits(
+    _ titleId: String,
+    cursor: String?,
+    limit: Int
+  ) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    return APIEndpoint(
+      path: "/v1/catalog/titles/\(titleId)/credits",
+      method: .get,
+      queryItems: queryItems
+    )
+  }
+
+  static func getCatalogTitleMedia(
+    _ titleId: String,
+    type: String?,
+    cursor: String?,
+    limit: Int
+  ) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let type {
+      queryItems.append(URLQueryItem(name: "type", value: type))
+    }
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    return APIEndpoint(
+      path: "/v1/catalog/titles/\(titleId)/media",
+      method: .get,
+      queryItems: queryItems
+    )
+  }
+
+  static func getFilmReviews(filmId: String, cursor: String?, limit: Int) -> APIEndpoint {
+    var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    return APIEndpoint(
+      path: "/v1/feed/films/\(filmId)/reviews",
+      method: .get,
+      queryItems: queryItems
+    )
+  }
+
+  static func getWatchlistStatus(filmId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/lists/watchlist/films/\(filmId)", method: .get)
+  }
+
+  static func addFilmToWatchlist(filmId: String) -> APIEndpoint {
+    APIEndpoint(
+      path: "/v1/lists/watchlist/films",
+      method: .post,
+      body: WatchlistFilmRequest(filmId: filmId)
+    )
+  }
+
+  static func removeFilmFromWatchlist(filmId: String) -> APIEndpoint {
+    APIEndpoint(path: "/v1/lists/watchlist/films/\(filmId)", method: .delete)
+  }
+
   static func getBookmarks(cursor: String?, limit: Int, folderId: String?) -> APIEndpoint {
     var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
     if let cursor {
@@ -230,6 +329,10 @@ private struct BookmarkFolderNameRequest: Encodable {
 
 private struct BookmarkFolderAssignRequest: Encodable {
   let folderId: String?
+}
+
+private struct WatchlistFilmRequest: Encodable {
+  let filmId: String
 }
 
 struct SubmitOnboardingRequest: Encodable {

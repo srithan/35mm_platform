@@ -75,6 +75,75 @@
 		A00000000000000000000044 /* SettingsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* SettingsAPI.swift */; };
 		A00000000000000000000045 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* SettingsViewModel.swift */; };
 		A00000000000000000000046 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* SettingsView.swift */; };
+		A00000000000000000000047 /* FeedPostDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000047 /* FeedPostDecodingTests.swift */; };
+		A00000000000000000000060 /* Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000060 /* Catalog.swift */; };
+		A00000000000000000000061 /* CatalogAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000061 /* CatalogAPI.swift */; };
+		A00000000000000000000062 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000062 /* DiscoverView.swift */; };
+		A00000000000000000000063 /* TitleDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000063 /* TitleDetailView.swift */; };
+		A00000000000000000000064 /* CastCrewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000064 /* CastCrewView.swift */; };
+		A00000000000000000000065 /* TitleReviewsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000065 /* TitleReviewsView.swift */; };
+		A00000000000000000000070 /* CatalogDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000070 /* CatalogDecodingTests.swift */; };
+		A00000000000000000000071 /* DiscoverViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000071 /* DiscoverViewModelTests.swift */; };
+		A00000000000000000000080 /* PublicProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000080 /* PublicProfile.swift */; };
+		A00000000000000000000081 /* ProfileMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000081 /* ProfileMutation.swift */; };
+		A00000000000000000000082 /* ProfileFollowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000082 /* ProfileFollowState.swift */; };
+		A00000000000000000000083 /* MediaUploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000083 /* MediaUploadClient.swift */; };
+		C20000000000000000000001 /* FilmListSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000001 /* FilmListSummary.swift */; };
+		C20000000000000000000002 /* ProfileStatsSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000002 /* ProfileStatsSummary.swift */; };
+		C20000000000000000000003 /* EditProfileMediaHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000003 /* EditProfileMediaHeader.swift */; };
+		C20000000000000000000004 /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000004 /* EditProfileView.swift */; };
+		C20000000000000000000005 /* EditProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000005 /* EditProfileViewModel.swift */; };
+		C20000000000000000000006 /* ProfileAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000006 /* ProfileAPI.swift */; };
+		C20000000000000000000007 /* ProfileActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000007 /* ProfileActivityView.swift */; };
+		C20000000000000000000008 /* ProfileAvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000008 /* ProfileAvatarView.swift */; };
+		C20000000000000000000009 /* ProfileCountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000009 /* ProfileCountsView.swift */; };
+		C2000000000000000000000A /* ProfileCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000000A /* ProfileCoverView.swift */; };
+		C2000000000000000000000B /* ProfileDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000000B /* ProfileDesign.swift */; };
+		C2000000000000000000000C /* ProfileDiaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000000C /* ProfileDiaryRow.swift */; };
+		C2000000000000000000000D /* ProfileDiarySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000000D /* ProfileDiarySection.swift */; };
+		C2000000000000000000000E /* ProfileDiaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000000E /* ProfileDiaryView.swift */; };
+		C2000000000000000000000F /* ProfileEditDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000000F /* ProfileEditDraft.swift */; };
+		C20000000000000000000010 /* ProfileEditErrorText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000010 /* ProfileEditErrorText.swift */; };
+		C20000000000000000000011 /* ProfileEditField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000011 /* ProfileEditField.swift */; };
+		C20000000000000000000012 /* ProfileErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000012 /* ProfileErrorBanner.swift */; };
+		C20000000000000000000013 /* ProfileFavoriteFilmsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000013 /* ProfileFavoriteFilmsView.swift */; };
+		C20000000000000000000014 /* ProfileGenreBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000014 /* ProfileGenreBreakdownView.swift */; };
+		C20000000000000000000015 /* ProfileHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000015 /* ProfileHeaderView.swift */; };
+		C20000000000000000000016 /* ProfileImageSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000016 /* ProfileImageSelection.swift */; };
+		C20000000000000000000017 /* ProfileListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000017 /* ProfileListRow.swift */; };
+		C20000000000000000000018 /* ProfileListsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000018 /* ProfileListsView.swift */; };
+		C20000000000000000000019 /* ProfileLoadedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000019 /* ProfileLoadedView.swift */; };
+		C2000000000000000000001A /* ProfileMetadataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000001A /* ProfileMetadataView.swift */; };
+		C2000000000000000000001B /* ProfileMetricCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000001B /* ProfileMetricCard.swift */; };
+		C2000000000000000000001C /* ProfilePostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000001C /* ProfilePostsView.swift */; };
+		C2000000000000000000001D /* ProfileRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000001D /* ProfileRole.swift */; };
+		C2000000000000000000001E /* ProfileRoleOptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000001E /* ProfileRoleOptionRow.swift */; };
+		C2000000000000000000001F /* ProfileStatsDiaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000001F /* ProfileStatsDiaryRow.swift */; };
+		C20000000000000000000020 /* ProfileStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000020 /* ProfileStatsView.swift */; };
+		C20000000000000000000021 /* ProfileTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000021 /* ProfileTab.swift */; };
+		C20000000000000000000022 /* ProfileTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000022 /* ProfileTabBar.swift */; };
+		C20000000000000000000023 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000023 /* ProfileView.swift */; };
+		C20000000000000000000024 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000024 /* ProfileViewModel.swift */; };
+		C20000000000000000000025 /* ProfileScreenPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000025 /* ProfileScreenPhase.swift */; };
+		A10000000000000000000001 /* BookmarkServicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* BookmarkServicing.swift */; };
+		A10000000000000000000002 /* BookmarkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* BookmarkService.swift */; };
+		A10000000000000000000003 /* BookmarksControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* BookmarksControls.swift */; };
+		A10000000000000000000004 /* BookmarkFilterChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* BookmarkFilterChip.swift */; };
+		A10000000000000000000005 /* BookmarkCollectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* BookmarkCollectionHeader.swift */; };
+		A10000000000000000000006 /* BookmarkPostRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* BookmarkPostRow.swift */; };
+		A10000000000000000000007 /* BookmarkFolderEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* BookmarkFolderEditorMode.swift */; };
+		A10000000000000000000008 /* BookmarkFolderEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* BookmarkFolderEditorSheet.swift */; };
+		A10000000000000000000009 /* BookmarkMoveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* BookmarkMoveSheet.swift */; };
+		A1000000000000000000000A /* BookmarkEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* BookmarkEmptyView.swift */; };
+		A1000000000000000000000B /* BookmarkFailureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* BookmarkFailureView.swift */; };
+		A1000000000000000000000C /* BookmarkErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* BookmarkErrorBanner.swift */; };
+		A1000000000000000000000D /* BookmarkImageSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* BookmarkImageSelection.swift */; };
+		A1000000000000000000000E /* BookmarksViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* BookmarksViewModelTests.swift */; };
+		C30000000000000000000001 /* ProfileFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000001 /* ProfileFeatureTests.swift */; };
+		C40000000000000000000001 /* ActivityShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000001 /* ActivityShareSheet.swift */; };
+		C40000000000000000000002 /* ProfileAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000002 /* ProfileAction.swift */; };
+		C40000000000000000000003 /* ProfileInlineCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40000000000000000000003 /* ProfileInlineCount.swift */; };
+		A1000000000000000000000F /* BookmarkMoveRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000F /* BookmarkMoveRow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -157,6 +226,75 @@
 		B00000000000000000000044 /* SettingsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAPI.swift; sourceTree = "<group>"; };
 		B00000000000000000000045 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		B00000000000000000000046 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B00000000000000000000047 /* FeedPostDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedPostDecodingTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000060 /* Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalog.swift; sourceTree = "<group>"; };
+		B00000000000000000000061 /* CatalogAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogAPI.swift; sourceTree = "<group>"; };
+		B00000000000000000000062 /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		B00000000000000000000063 /* TitleDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleDetailView.swift; sourceTree = "<group>"; };
+		B00000000000000000000064 /* CastCrewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CastCrewView.swift; sourceTree = "<group>"; };
+		B00000000000000000000065 /* TitleReviewsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleReviewsView.swift; sourceTree = "<group>"; };
+		B00000000000000000000070 /* CatalogDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogDecodingTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000071 /* DiscoverViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverViewModelTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000080 /* PublicProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfile.swift; sourceTree = "<group>"; };
+		B00000000000000000000081 /* ProfileMutation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMutation.swift; sourceTree = "<group>"; };
+		B00000000000000000000082 /* ProfileFollowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFollowState.swift; sourceTree = "<group>"; };
+		B00000000000000000000083 /* MediaUploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaUploadClient.swift; sourceTree = "<group>"; };
+		D20000000000000000000001 /* FilmListSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmListSummary.swift; sourceTree = "<group>"; };
+		D20000000000000000000002 /* ProfileStatsSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatsSummary.swift; sourceTree = "<group>"; };
+		D20000000000000000000003 /* EditProfileMediaHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileMediaHeader.swift; sourceTree = "<group>"; };
+		D20000000000000000000004 /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
+		D20000000000000000000005 /* EditProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileViewModel.swift; sourceTree = "<group>"; };
+		D20000000000000000000006 /* ProfileAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAPI.swift; sourceTree = "<group>"; };
+		D20000000000000000000007 /* ProfileActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileActivityView.swift; sourceTree = "<group>"; };
+		D20000000000000000000008 /* ProfileAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAvatarView.swift; sourceTree = "<group>"; };
+		D20000000000000000000009 /* ProfileCountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCountsView.swift; sourceTree = "<group>"; };
+		D2000000000000000000000A /* ProfileCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCoverView.swift; sourceTree = "<group>"; };
+		D2000000000000000000000B /* ProfileDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDesign.swift; sourceTree = "<group>"; };
+		D2000000000000000000000C /* ProfileDiaryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDiaryRow.swift; sourceTree = "<group>"; };
+		D2000000000000000000000D /* ProfileDiarySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDiarySection.swift; sourceTree = "<group>"; };
+		D2000000000000000000000E /* ProfileDiaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDiaryView.swift; sourceTree = "<group>"; };
+		D2000000000000000000000F /* ProfileEditDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditDraft.swift; sourceTree = "<group>"; };
+		D20000000000000000000010 /* ProfileEditErrorText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditErrorText.swift; sourceTree = "<group>"; };
+		D20000000000000000000011 /* ProfileEditField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditField.swift; sourceTree = "<group>"; };
+		D20000000000000000000012 /* ProfileErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileErrorBanner.swift; sourceTree = "<group>"; };
+		D20000000000000000000013 /* ProfileFavoriteFilmsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFavoriteFilmsView.swift; sourceTree = "<group>"; };
+		D20000000000000000000014 /* ProfileGenreBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGenreBreakdownView.swift; sourceTree = "<group>"; };
+		D20000000000000000000015 /* ProfileHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileHeaderView.swift; sourceTree = "<group>"; };
+		D20000000000000000000016 /* ProfileImageSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageSelection.swift; sourceTree = "<group>"; };
+		D20000000000000000000017 /* ProfileListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListRow.swift; sourceTree = "<group>"; };
+		D20000000000000000000018 /* ProfileListsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListsView.swift; sourceTree = "<group>"; };
+		D20000000000000000000019 /* ProfileLoadedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLoadedView.swift; sourceTree = "<group>"; };
+		D2000000000000000000001A /* ProfileMetadataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMetadataView.swift; sourceTree = "<group>"; };
+		D2000000000000000000001B /* ProfileMetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMetricCard.swift; sourceTree = "<group>"; };
+		D2000000000000000000001C /* ProfilePostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePostsView.swift; sourceTree = "<group>"; };
+		D2000000000000000000001D /* ProfileRole.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRole.swift; sourceTree = "<group>"; };
+		D2000000000000000000001E /* ProfileRoleOptionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRoleOptionRow.swift; sourceTree = "<group>"; };
+		D2000000000000000000001F /* ProfileStatsDiaryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatsDiaryRow.swift; sourceTree = "<group>"; };
+		D20000000000000000000020 /* ProfileStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatsView.swift; sourceTree = "<group>"; };
+		D20000000000000000000021 /* ProfileTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileTab.swift; sourceTree = "<group>"; };
+		D20000000000000000000022 /* ProfileTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileTabBar.swift; sourceTree = "<group>"; };
+		D20000000000000000000023 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		D20000000000000000000024 /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
+		D20000000000000000000025 /* ProfileScreenPhase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileScreenPhase.swift; sourceTree = "<group>"; };
+		B10000000000000000000001 /* BookmarkServicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkServicing.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* BookmarkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkService.swift; sourceTree = "<group>"; };
+		B10000000000000000000003 /* BookmarksControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksControls.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* BookmarkFilterChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFilterChip.swift; sourceTree = "<group>"; };
+		B10000000000000000000005 /* BookmarkCollectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkCollectionHeader.swift; sourceTree = "<group>"; };
+		B10000000000000000000006 /* BookmarkPostRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkPostRow.swift; sourceTree = "<group>"; };
+		B10000000000000000000007 /* BookmarkFolderEditorMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFolderEditorMode.swift; sourceTree = "<group>"; };
+		B10000000000000000000008 /* BookmarkFolderEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFolderEditorSheet.swift; sourceTree = "<group>"; };
+		B10000000000000000000009 /* BookmarkMoveSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkMoveSheet.swift; sourceTree = "<group>"; };
+		B1000000000000000000000A /* BookmarkEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkEmptyView.swift; sourceTree = "<group>"; };
+		B1000000000000000000000B /* BookmarkFailureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFailureView.swift; sourceTree = "<group>"; };
+		B1000000000000000000000C /* BookmarkErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkErrorBanner.swift; sourceTree = "<group>"; };
+		B1000000000000000000000D /* BookmarkImageSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkImageSelection.swift; sourceTree = "<group>"; };
+		B1000000000000000000000E /* BookmarksViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksViewModelTests.swift; sourceTree = "<group>"; };
+		D30000000000000000000001 /* ProfileFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFeatureTests.swift; sourceTree = "<group>"; };
+		D40000000000000000000001 /* ActivityShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityShareSheet.swift; sourceTree = "<group>"; };
+		D40000000000000000000002 /* ProfileAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAction.swift; sourceTree = "<group>"; };
+		D40000000000000000000003 /* ProfileInlineCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileInlineCount.swift; sourceTree = "<group>"; };
+		B1000000000000000000000F /* BookmarkMoveRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkMoveRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -224,6 +362,7 @@
 				D00000000000000000000008 /* Extensions */,
 				B00000000000000000000028 /* PostInteracting.swift */,
 				B00000000000000000000030 /* BottomActionSheet.swift */,
+				D40000000000000000000001 /* ActivityShareSheet.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -235,6 +374,7 @@
 				B00000000000000000000007 /* APIEndpoint.swift */,
 				B00000000000000000000008 /* APIError.swift */,
 				B00000000000000000000009 /* TokenProvider.swift */,
+				B00000000000000000000083 /* MediaUploadClient.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -262,6 +402,12 @@
 				B00000000000000000000031 /* Chat.swift */,
 				B00000000000000000000012 /* PaginatedResponse.swift */,
 				B00000000000000000000040 /* BookmarkFolder.swift */,
+				B00000000000000000000060 /* Catalog.swift */,
+				B00000000000000000000080 /* PublicProfile.swift */,
+				B00000000000000000000081 /* ProfileMutation.swift */,
+				B00000000000000000000082 /* ProfileFollowState.swift */,
+				D20000000000000000000001 /* FilmListSummary.swift */,
+				D20000000000000000000002 /* ProfileStatsSummary.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -288,6 +434,9 @@
 				D00000000000000000000015 /* Chat */,
 				D00000000000000000000017 /* Notifications */,
 				D00000000000000000000019 /* Settings */,
+				D0000000000000000000001A /* Discover */,
+				D0000000000000000000001B /* Title */,
+				D20000000000000000000030 /* Profile */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -391,8 +540,22 @@
 		D00000000000000000000018 /* Bookmarks */ = {
 			isa = PBXGroup;
 			children = (
+				B10000000000000000000001 /* BookmarkServicing.swift */,
+				B10000000000000000000002 /* BookmarkService.swift */,
 				B00000000000000000000041 /* BookmarksViewModel.swift */,
 				B00000000000000000000042 /* BookmarksView.swift */,
+				B10000000000000000000003 /* BookmarksControls.swift */,
+				B10000000000000000000004 /* BookmarkFilterChip.swift */,
+				B10000000000000000000005 /* BookmarkCollectionHeader.swift */,
+				B10000000000000000000006 /* BookmarkPostRow.swift */,
+				B10000000000000000000007 /* BookmarkFolderEditorMode.swift */,
+				B10000000000000000000008 /* BookmarkFolderEditorSheet.swift */,
+				B10000000000000000000009 /* BookmarkMoveSheet.swift */,
+				B1000000000000000000000F /* BookmarkMoveRow.swift */,
+				B1000000000000000000000A /* BookmarkEmptyView.swift */,
+				B1000000000000000000000B /* BookmarkFailureView.swift */,
+				B1000000000000000000000C /* BookmarkErrorBanner.swift */,
+				B1000000000000000000000D /* BookmarkImageSelection.swift */,
 			);
 			path = Bookmarks;
 			sourceTree = "<group>";
@@ -408,10 +571,78 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		D0000000000000000000001A /* Discover */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000061 /* CatalogAPI.swift */,
+				B00000000000000000000062 /* DiscoverView.swift */,
+			);
+			path = Discover;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000001B /* Title */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000063 /* TitleDetailView.swift */,
+				B00000000000000000000064 /* CastCrewView.swift */,
+				B00000000000000000000065 /* TitleReviewsView.swift */,
+			);
+			path = Title;
+			sourceTree = "<group>";
+		};
+		D20000000000000000000030 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				D20000000000000000000003 /* EditProfileMediaHeader.swift */,
+				D20000000000000000000004 /* EditProfileView.swift */,
+				D20000000000000000000005 /* EditProfileViewModel.swift */,
+				D20000000000000000000006 /* ProfileAPI.swift */,
+				D20000000000000000000007 /* ProfileActivityView.swift */,
+				D20000000000000000000008 /* ProfileAvatarView.swift */,
+				D20000000000000000000009 /* ProfileCountsView.swift */,
+				D40000000000000000000003 /* ProfileInlineCount.swift */,
+				D2000000000000000000000A /* ProfileCoverView.swift */,
+				D2000000000000000000000B /* ProfileDesign.swift */,
+				D2000000000000000000000C /* ProfileDiaryRow.swift */,
+				D2000000000000000000000D /* ProfileDiarySection.swift */,
+				D2000000000000000000000E /* ProfileDiaryView.swift */,
+				D2000000000000000000000F /* ProfileEditDraft.swift */,
+				D20000000000000000000010 /* ProfileEditErrorText.swift */,
+				D20000000000000000000011 /* ProfileEditField.swift */,
+				D20000000000000000000012 /* ProfileErrorBanner.swift */,
+				D20000000000000000000013 /* ProfileFavoriteFilmsView.swift */,
+				D20000000000000000000014 /* ProfileGenreBreakdownView.swift */,
+				D20000000000000000000015 /* ProfileHeaderView.swift */,
+				D20000000000000000000016 /* ProfileImageSelection.swift */,
+				D20000000000000000000017 /* ProfileListRow.swift */,
+				D20000000000000000000018 /* ProfileListsView.swift */,
+				D20000000000000000000019 /* ProfileLoadedView.swift */,
+				D2000000000000000000001A /* ProfileMetadataView.swift */,
+				D2000000000000000000001B /* ProfileMetricCard.swift */,
+				D2000000000000000000001C /* ProfilePostsView.swift */,
+				D2000000000000000000001D /* ProfileRole.swift */,
+				D2000000000000000000001E /* ProfileRoleOptionRow.swift */,
+				D2000000000000000000001F /* ProfileStatsDiaryRow.swift */,
+				D20000000000000000000020 /* ProfileStatsView.swift */,
+				D20000000000000000000021 /* ProfileTab.swift */,
+				D20000000000000000000022 /* ProfileTabBar.swift */,
+				D20000000000000000000023 /* ProfileView.swift */,
+				D20000000000000000000024 /* ProfileViewModel.swift */,
+				D20000000000000000000025 /* ProfileScreenPhase.swift */,
+				D40000000000000000000002 /* ProfileAction.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
 		D00000000000000000000016 /* ThirtyFiveMMTests */ = {
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000034 /* ChatDecodingTests.swift */,
+				B00000000000000000000047 /* FeedPostDecodingTests.swift */,
+				B1000000000000000000000E /* BookmarksViewModelTests.swift */,
+				B00000000000000000000070 /* CatalogDecodingTests.swift */,
+				B00000000000000000000071 /* DiscoverViewModelTests.swift */,
+				D30000000000000000000001 /* ProfileFeatureTests.swift */,
 			);
 			path = ThirtyFiveMMTests;
 			sourceTree = "<group>";
@@ -572,6 +803,7 @@
 				A0000000000000000000002C /* PostImageDestination.swift in Sources */,
 				A0000000000000000000002D /* PostImageViewerView.swift in Sources */,
 				A0000000000000000000002F /* BottomActionSheet.swift in Sources */,
+				C40000000000000000000001 /* ActivityShareSheet.swift in Sources */,
 				A00000000000000000000031 /* ChatAPIClient.swift in Sources */,
 				A00000000000000000000032 /* ChatRealtimeClient.swift in Sources */,
 				A00000000000000000000037 /* ChatBlurhash.swift in Sources */,
@@ -586,10 +818,73 @@
 				A00000000000000000000040 /* BookmarkFolder.swift in Sources */,
 				A00000000000000000000041 /* BookmarksViewModel.swift in Sources */,
 				A00000000000000000000042 /* BookmarksView.swift in Sources */,
+				A10000000000000000000001 /* BookmarkServicing.swift in Sources */,
+				A10000000000000000000002 /* BookmarkService.swift in Sources */,
+				A10000000000000000000003 /* BookmarksControls.swift in Sources */,
+				A10000000000000000000004 /* BookmarkFilterChip.swift in Sources */,
+				A10000000000000000000005 /* BookmarkCollectionHeader.swift in Sources */,
+				A10000000000000000000006 /* BookmarkPostRow.swift in Sources */,
+				A10000000000000000000007 /* BookmarkFolderEditorMode.swift in Sources */,
+				A10000000000000000000008 /* BookmarkFolderEditorSheet.swift in Sources */,
+				A10000000000000000000009 /* BookmarkMoveSheet.swift in Sources */,
+				A1000000000000000000000F /* BookmarkMoveRow.swift in Sources */,
+				A1000000000000000000000A /* BookmarkEmptyView.swift in Sources */,
+				A1000000000000000000000B /* BookmarkFailureView.swift in Sources */,
+				A1000000000000000000000C /* BookmarkErrorBanner.swift in Sources */,
+				A1000000000000000000000D /* BookmarkImageSelection.swift in Sources */,
 				A00000000000000000000043 /* SettingsModels.swift in Sources */,
 				A00000000000000000000044 /* SettingsAPI.swift in Sources */,
 				A00000000000000000000045 /* SettingsViewModel.swift in Sources */,
 				A00000000000000000000046 /* SettingsView.swift in Sources */,
+				A00000000000000000000060 /* Catalog.swift in Sources */,
+				A00000000000000000000061 /* CatalogAPI.swift in Sources */,
+				A00000000000000000000062 /* DiscoverView.swift in Sources */,
+				A00000000000000000000063 /* TitleDetailView.swift in Sources */,
+				A00000000000000000000064 /* CastCrewView.swift in Sources */,
+				A00000000000000000000065 /* TitleReviewsView.swift in Sources */,
+				A00000000000000000000080 /* PublicProfile.swift in Sources */,
+				A00000000000000000000081 /* ProfileMutation.swift in Sources */,
+				A00000000000000000000082 /* ProfileFollowState.swift in Sources */,
+				A00000000000000000000083 /* MediaUploadClient.swift in Sources */,
+				C20000000000000000000001 /* FilmListSummary.swift in Sources */,
+				C20000000000000000000002 /* ProfileStatsSummary.swift in Sources */,
+				C20000000000000000000003 /* EditProfileMediaHeader.swift in Sources */,
+				C20000000000000000000004 /* EditProfileView.swift in Sources */,
+				C20000000000000000000005 /* EditProfileViewModel.swift in Sources */,
+				C20000000000000000000006 /* ProfileAPI.swift in Sources */,
+				C20000000000000000000007 /* ProfileActivityView.swift in Sources */,
+				C20000000000000000000008 /* ProfileAvatarView.swift in Sources */,
+				C20000000000000000000009 /* ProfileCountsView.swift in Sources */,
+				C40000000000000000000003 /* ProfileInlineCount.swift in Sources */,
+				C2000000000000000000000A /* ProfileCoverView.swift in Sources */,
+				C2000000000000000000000B /* ProfileDesign.swift in Sources */,
+				C2000000000000000000000C /* ProfileDiaryRow.swift in Sources */,
+				C2000000000000000000000D /* ProfileDiarySection.swift in Sources */,
+				C2000000000000000000000E /* ProfileDiaryView.swift in Sources */,
+				C2000000000000000000000F /* ProfileEditDraft.swift in Sources */,
+				C20000000000000000000010 /* ProfileEditErrorText.swift in Sources */,
+				C20000000000000000000011 /* ProfileEditField.swift in Sources */,
+				C20000000000000000000012 /* ProfileErrorBanner.swift in Sources */,
+				C20000000000000000000013 /* ProfileFavoriteFilmsView.swift in Sources */,
+				C20000000000000000000014 /* ProfileGenreBreakdownView.swift in Sources */,
+				C20000000000000000000015 /* ProfileHeaderView.swift in Sources */,
+				C20000000000000000000016 /* ProfileImageSelection.swift in Sources */,
+				C20000000000000000000017 /* ProfileListRow.swift in Sources */,
+				C20000000000000000000018 /* ProfileListsView.swift in Sources */,
+				C20000000000000000000019 /* ProfileLoadedView.swift in Sources */,
+				C2000000000000000000001A /* ProfileMetadataView.swift in Sources */,
+				C2000000000000000000001B /* ProfileMetricCard.swift in Sources */,
+				C2000000000000000000001C /* ProfilePostsView.swift in Sources */,
+				C2000000000000000000001D /* ProfileRole.swift in Sources */,
+				C2000000000000000000001E /* ProfileRoleOptionRow.swift in Sources */,
+				C2000000000000000000001F /* ProfileStatsDiaryRow.swift in Sources */,
+				C20000000000000000000020 /* ProfileStatsView.swift in Sources */,
+				C20000000000000000000021 /* ProfileTab.swift in Sources */,
+				C20000000000000000000022 /* ProfileTabBar.swift in Sources */,
+				C20000000000000000000023 /* ProfileView.swift in Sources */,
+				C20000000000000000000024 /* ProfileViewModel.swift in Sources */,
+				C20000000000000000000025 /* ProfileScreenPhase.swift in Sources */,
+				C40000000000000000000002 /* ProfileAction.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -598,6 +893,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000033 /* ChatDecodingTests.swift in Sources */,
+				A00000000000000000000047 /* FeedPostDecodingTests.swift in Sources */,
+				A1000000000000000000000E /* BookmarksViewModelTests.swift in Sources */,
+				A00000000000000000000070 /* CatalogDecodingTests.swift in Sources */,
+				A00000000000000000000071 /* DiscoverViewModelTests.swift in Sources */,
+				C30000000000000000000001 /* ProfileFeatureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

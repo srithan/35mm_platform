@@ -135,6 +135,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
   }
 
   var starRating: Double? {
+    if let rating = film?.rating {
+      return rating
+    }
+
     guard let filmRating else { return nil }
     return Double(filmRating) / 2.0
   }
@@ -263,12 +267,18 @@ struct PostAuthor: Codable, Identifiable, Equatable {
   let username: String
   let displayName: String?
   let avatarUrl: String?
+  let role: String?
+  let roleContext: String?
+  let filmsLoggedCount: Int?
 
   enum CodingKeys: String, CodingKey {
     case id
     case username
     case displayName
     case avatarUrl
+    case role
+    case roleContext
+    case filmsLoggedCount
   }
 
   init(from decoder: Decoder) throws {
@@ -277,6 +287,9 @@ struct PostAuthor: Codable, Identifiable, Equatable {
     username = try container.decodeIfPresent(String.self, forKey: .username) ?? "unknown"
     displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
     avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
+    role = try container.decodeIfPresent(String.self, forKey: .role)
+    roleContext = try container.decodeIfPresent(String.self, forKey: .roleContext)
+    filmsLoggedCount = try container.decodeIfPresent(Int.self, forKey: .filmsLoggedCount)
   }
 }
 
@@ -286,6 +299,8 @@ struct FilmRef: Codable, Identifiable, Equatable {
   let year: Int?
   let posterUrl: String?
   let director: String?
+  let genres: [String]
+  let rating: Double?
 
   enum CodingKeys: String, CodingKey {
     case id
@@ -293,6 +308,8 @@ struct FilmRef: Codable, Identifiable, Equatable {
     case year
     case posterUrl
     case director
+    case genres
+    case rating
   }
 
   init(from decoder: Decoder) throws {
@@ -302,6 +319,8 @@ struct FilmRef: Codable, Identifiable, Equatable {
     year = try container.decodeIfPresent(Int.self, forKey: .year)
     posterUrl = try container.decodeIfPresent(String.self, forKey: .posterUrl)
     director = try container.decodeIfPresent(String.self, forKey: .director)
+    genres = try container.decodeIfPresent([String].self, forKey: .genres) ?? []
+    rating = try container.decodeIfPresent(Double.self, forKey: .rating)
   }
 }
 

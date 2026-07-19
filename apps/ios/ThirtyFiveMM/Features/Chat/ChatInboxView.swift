@@ -415,9 +415,18 @@ private struct ChatInboxEmptyView: View {
 
   var body: some View {
     VStack(spacing: 14) {
-      Image(systemName: mode == .inbox ? "bubble.left.and.bubble.right" : "archivebox")
-        .font(.system(size: 42, weight: .semibold))
-        .foregroundStyle(Color(.systemGray2))
+      Group {
+        if mode == .inbox {
+          Image("MessagesIcon")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 40, height: 44)
+        } else {
+          Image(systemName: "archivebox")
+            .font(.system(size: 42, weight: .semibold))
+        }
+      }
+      .foregroundStyle(Color(.systemGray2))
 
       Text(mode == .inbox ? "No messages yet" : "No archived threads")
         .font(.system(size: 22, weight: .bold))

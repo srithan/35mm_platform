@@ -2717,6 +2717,128 @@ feedRoutes.get("/posts/:postId", async function (c) {
   return c.json(post);
 });
 
+feedRoutes.get("/films/:filmId/reviews", async function (c) {
+  var filmId = c.req.param("filmId").trim();
+  if (!isValidUlid(filmId)) throw badRequest("filmId must be a 35mm ULID");
+
+  var parsed = cursorPaginationSchema.parse({
+    cursor: c.req.query("cursor"),
+    limit: c.req.query("limit"),
+  });
+  var cursor = decodeCompositeCursor(parsed.cursor);
+  var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerUserId = viewer?.userId ?? null;
+  var viewerIsStaff = isModerationStaffViewer(viewer);
+  var rateLimitResponse = await applyRateLimit(c, {
+    keyPrefix: "feed:film-reviews:read",
+    limit: 120,
+    windowSeconds: 60,
+    identifier: viewerUserId ?? identifyByIp(c),
+  });
+  if (rateLimitResponse) return rateLimitResponse;
+
+  var filmRows = await getDb()
+    .select({ id: films.id })
+    .from(films)
+    .where(eq(films.id, filmId))
+    .limit(1);
+  if (filmRows.length === 0) throw notFound("Film not found");
+
+  var filters: any[] = [
+    eq(posts.filmId, filmId),
+    eq(posts.type, "review"),
+    eq(posts.isDeleted, false),
+    postModerationAccessSql(viewerUserId, viewerIsStaff),
+    postVisibilitySql(viewerUserId, viewerIsStaff),
+    profileAccessSql(viewerUserId, viewerIsStaff),
+  ];
+  if (viewerUserId) {
+    filters.push(
+      ...blockFiltersForAuthor(viewerUserId, posts.userId),
+      notMutedByViewerSql(viewerUserId, posts.userId)
+    );
+  }
+  var cursorFilter = compositeCursorSql(posts.createdAt, posts.id, cursor);
+  if (cursorFilter) filters.push(cursorFilter);
+
+  var rows = await getDb()
+    .select({
+      cursorCreatedAt: posts.createdAt,
+      cursorId: posts.id,
+      id: posts.id,
+      type: posts.type,
+      headline: posts.headline,
+      body: posts.body,
+      visibility: posts.visibility,
+      filmId: posts.filmId,
+      filmTmdbId: films.tmdbId,
+      filmTitle: films.title,
+      filmYear: films.year,
+      filmPosterUrl: films.posterUrl,
+      filmGenres: films.genres,
+      filmRating: posts.filmRating,
+      media: posts.media,
+      mediaUrls: posts.mediaUrls,
+      linkPreview: posts.linkPreview,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      editedAt: posts.editedAt,
+      authorId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+      isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
+      isLiked: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      isReposted: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      isBookmarked: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+    })
+    .from(posts)
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .innerJoin(films, eq(films.id, posts.filmId))
+    .where(and(...filters))
+    .orderBy(desc(posts.createdAt), desc(posts.id))
+    .limit(parsed.limit + 1);
+
+  var visibleRows = rows.slice(0, parsed.limit);
+  var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
+  var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, viewerUserId);
+  var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
+    return toPostItem(row, viewerUserId, {
+      body: row._preloadedBody,
+      headline: row._preloadedHeadline,
+      poll: row._preloadedPoll,
+    });
+  }));
+  var hasMore = rows.length > parsed.limit;
+  var tail = visibleRows[visibleRows.length - 1];
+  var nextCursor = hasMore && tail
+    ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
+    : null;
+
+  c.header(
+    "Cache-Control",
+    viewerUserId ? "private, no-store" : "public, s-maxage=30, stale-while-revalidate=60"
+  );
+  return c.json({ items, nextCursor, hasMore });
+});
+
 feedRoutes.get("/profiles/:username/posts", async function (c) {
   var parsed = cursorPaginationSchema.parse({
     cursor: c.req.query("cursor"),

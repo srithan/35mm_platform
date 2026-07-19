@@ -3,6 +3,7 @@ import UIKit
 
 struct MainTabView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   @State private var selectedTab: AppTab = .home
   @State private var previousTab: AppTab = .home
   @State private var isTabBarVisible = true
@@ -22,32 +23,32 @@ struct MainTabView: View {
       let sidebarWidth = min(proxy.size.width * 0.78, 320)
 
       ZStack(alignment: .leading) {
-        tabContent
-          .disabled(isShowingProfileSidebar)
-          .offset(x: isShowingProfileSidebar ? min(sidebarWidth * 0.28, 96) : 0)
-          .scaleEffect(isShowingProfileSidebar ? 0.98 : 1, anchor: .trailing)
-
-        if isShowingProfileSidebar {
-          Color.black.opacity(0.18)
-            .ignoresSafeArea()
-            .contentShape(Rectangle())
-            .onTapGesture {
-              closeProfileSidebar()
-            }
-            .transition(.opacity)
-        }
-
         ProfileSidebar(
           profile: profile,
           profileLoadError: profileLoadError,
           width: sidebarWidth,
           onItemTapped: handleProfileSidebarItem
         )
-        .offset(x: isShowingProfileSidebar ? 0 : -sidebarWidth)
+        .opacity(isShowingProfileSidebar ? 1 : 0)
         .allowsHitTesting(isShowingProfileSidebar)
         .accessibilityHidden(!isShowingProfileSidebar)
+
+        tabContent
+          .disabled(isShowingProfileSidebar)
+          .accessibilityHidden(isShowingProfileSidebar)
+          .overlay {
+            Button(action: closeProfileSidebar) {
+              Color.black.opacity(isShowingProfileSidebar ? 0.18 : 0)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(isShowingProfileSidebar)
+            .accessibilityHidden(!isShowingProfileSidebar)
+            .accessibilityLabel("Close navigation menu")
+            .ignoresSafeArea()
+          }
+        .offset(x: isShowingProfileSidebar ? sidebarWidth : 0)
       }
-      .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isShowingProfileSidebar)
     }
     .task {
       await loadProfile()
@@ -79,14 +80,14 @@ struct MainTabView: View {
         }
       }
       .tabItem {
-        Image(systemName: AppTab.home.systemImage)
+        AppTab.home.icon
         Text(AppTab.home.accessibilityLabel)
       }
       .tag(AppTab.home)
 
       Color.clear
         .tabItem {
-          Image(systemName: AppTab.create.systemImage)
+          AppTab.create.icon
           Text(AppTab.create.accessibilityLabel)
         }
         .tag(AppTab.create)
@@ -109,7 +110,7 @@ struct MainTabView: View {
         }
       }
       .tabItem {
-        Image(systemName: AppTab.activity.systemImage)
+        AppTab.activity.icon
         Text(AppTab.activity.accessibilityLabel)
       }
       .badge("")
@@ -147,12 +148,24 @@ struct MainTabView: View {
       }
     case .sidebarItem(let item):
       sidebarDestination(for: item)
+    case .profile(let destination):
+      profileDestination(for: destination)
+    }
+  }
+
+  private func profileDestination(for destination: ProfileDestination) -> some View {
+    ProfileView(username: destination.username, service: env.apiClient) { updated in
+      if profile?.userId == updated.userId {
+        profile = UserProfile(profile: updated)
+      }
     }
   }
 
   @ViewBuilder
   private func sidebarDestination(for item: ProfileSidebarItem) -> some View {
     switch item {
+    case .discover:
+      DiscoverView(apiClient: env.apiClient)
     case .bookmarks:
       BookmarksView(apiClient: env.apiClient)
     case .settings:
@@ -165,7 +178,19 @@ struct MainTabView: View {
       } else {
         SidebarPageView(item: item, profile: profile)
       }
-    case .profile, .discover, .shortFilms, .lists, .diary, .drafts, .help:
+    case .profile:
+      if let username = profile?.username, !username.isEmpty {
+        ProfileView(username: username, service: env.apiClient) { updated in
+          profile = UserProfile(profile: updated)
+        }
+      } else {
+        ContentUnavailableView(
+          "Profile unavailable",
+          systemImage: "person.crop.circle.badge.exclamationmark",
+          description: Text(profileLoadError ?? "Your profile could not be loaded.")
+        )
+      }
+    case .shortFilms, .lists, .diary, .drafts, .help:
       SidebarPageView(item: item, profile: profile)
     }
   }
@@ -179,15 +204,21 @@ struct MainTabView: View {
   }
 
   private func openProfileSidebar() {
-    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+    withAnimation(profileSidebarAnimation) {
       isShowingProfileSidebar = true
     }
   }
 
   private func closeProfileSidebar() {
-    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+    withAnimation(profileSidebarAnimation) {
       isShowingProfileSidebar = false
     }
+  }
+
+  private var profileSidebarAnimation: Animation? {
+    accessibilityReduceMotion
+      ? nil
+      : .timingCurve(0.32, 0.72, 0, 1, duration: 0.3)
   }
 
   private func openMessages(in tab: AppTab) {
@@ -251,9 +282,9 @@ struct MainTabView: View {
 
   private static func configureTabBarAppearance() {
     let appearance = UITabBarAppearance()
-    appearance.configureWithOpaqueBackground()
-    appearance.backgroundColor = .white
-    appearance.shadowColor = UIColor.black.withAlphaComponent(0.08)
+    appearance.configureWithTransparentBackground()
+    appearance.backgroundColor = .clear
+    appearance.shadowColor = .clear
 
     let itemAppearance = UITabBarItemAppearance()
     itemAppearance.normal.iconColor = UIColor.black.withAlphaComponent(0.55)
@@ -277,12 +308,13 @@ private enum AppHeaderTitle: Equatable {
   case text(String)
 }
 
-private enum AppRoute: Hashable {
+enum AppRoute: Hashable {
   case messages
   case sidebarItem(ProfileSidebarItem)
+  case profile(ProfileDestination)
 }
 
-private enum ProfileSidebarItem: String, CaseIterable, Identifiable {
+enum ProfileSidebarItem: String, CaseIterable, Identifiable {
   case profile
   case discover
   case shortFilms
@@ -341,7 +373,7 @@ private enum ProfileSidebarItem: String, CaseIterable, Identifiable {
     }
   }
 
-  var systemImage: String {
+  var systemImage: String? {
     switch self {
     case .profile:
       return "person"
@@ -358,13 +390,26 @@ private enum ProfileSidebarItem: String, CaseIterable, Identifiable {
     case .drafts:
       return "doc.text"
     case .messages:
-      return "bubble.left.and.bubble.right"
+      return nil
     case .notifications:
       return "bell"
     case .settings:
       return "gearshape"
     case .help:
       return "questionmark.circle"
+    }
+  }
+
+  @ViewBuilder
+  func icon(size: CGFloat, weight: Font.Weight = .semibold) -> some View {
+    if let systemImage {
+      Image(systemName: systemImage)
+        .font(.system(size: size, weight: weight))
+    } else {
+      Image("MessagesIcon")
+        .resizable()
+        .scaledToFit()
+        .frame(width: size, height: size)
     }
   }
 }
@@ -377,8 +422,7 @@ private struct SidebarPageView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 22) {
         HStack(spacing: 14) {
-          Image(systemName: item.systemImage)
-            .font(.system(size: 22, weight: .bold))
+          item.icon(size: 22, weight: .bold)
             .foregroundStyle(Color(.label))
             .frame(width: 46, height: 46)
             .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -438,7 +482,7 @@ private struct SidebarPageView: View {
     case .profile:
       profileContent
     default:
-      EmptyStateCard(title: item.title, systemImage: item.systemImage)
+      EmptyStateCard(item: item)
     }
   }
 
@@ -475,16 +519,14 @@ private struct SidebarPageView: View {
 }
 
 private struct EmptyStateCard: View {
-  let title: String
-  let systemImage: String
+  let item: ProfileSidebarItem
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Image(systemName: systemImage)
-        .font(.system(size: 26, weight: .bold))
+      item.icon(size: 26, weight: .bold)
         .foregroundStyle(Color(.secondaryLabel))
 
-      Text(title)
+      Text(item.title)
         .font(.system(size: 18, weight: .black, design: .rounded))
         .foregroundStyle(Color(.label))
     }
@@ -565,8 +607,10 @@ private struct AppHeader: View {
           Spacer()
 
           Button(action: onMessagesTapped) {
-            Image(systemName: "bubble.left.and.bubble.right")
-              .font(.system(size: 21, weight: .bold))
+            Image("MessagesIcon")
+              .resizable()
+              .scaledToFit()
+              .frame(width: 21, height: 23)
               .foregroundStyle(canOpenMessages ? Color(.label) : Color(.tertiaryLabel))
               .frame(width: 42, height: 42)
               .contentShape(Circle())
@@ -652,15 +696,9 @@ private struct ProfileSidebar: View {
     return "@\(value)"
   }
 
-  private var subtitle: String? {
-    if let roleContext = profile?.roleContext?.trimmingCharacters(in: .whitespacesAndNewlines),
-      !roleContext.isEmpty
-    {
-      return roleContext
-    }
-
-    if let filmsLoggedCount = profile?.filmsLoggedCount {
-      return "\(filmsLoggedCount.compactFormatted) films logged"
+  private var relationshipSummary: String? {
+    if let profile {
+      return "\(profile.followerCount.compactFormatted) followers · \(profile.followingCount.compactFormatted) following"
     }
 
     if profileLoadError != nil {
@@ -689,8 +727,8 @@ private struct ProfileSidebar: View {
             .lineLimit(1)
             .minimumScaleFactor(0.82)
 
-          if let subtitle {
-            Text(subtitle)
+          if let relationshipSummary {
+            Text(relationshipSummary)
               .font(.system(size: 14, weight: .semibold, design: .rounded))
               .foregroundStyle(Color(.secondaryLabel))
               .lineLimit(2)
@@ -707,7 +745,7 @@ private struct ProfileSidebar: View {
           Button {
             onItemTapped(item)
           } label: {
-            ProfileSidebarRow(systemImage: item.systemImage, title: item.title)
+            ProfileSidebarRow(item: item)
           }
           .buttonStyle(.plain)
         }
@@ -723,7 +761,7 @@ private struct ProfileSidebar: View {
           Button {
             onItemTapped(item)
           } label: {
-            ProfileSidebarRow(systemImage: item.systemImage, title: item.title, size: .compact)
+            ProfileSidebarRow(item: item, size: .compact)
           }
           .buttonStyle(.plain)
         }
@@ -746,8 +784,7 @@ private struct ProfileSidebarRow: View {
     case compact
   }
 
-  let systemImage: String
-  let title: String
+  let item: ProfileSidebarItem
   var size: Size = .regular
 
   private var fontSize: CGFloat {
@@ -764,12 +801,11 @@ private struct ProfileSidebarRow: View {
 
   var body: some View {
     HStack(spacing: 18) {
-      Image(systemName: systemImage)
-        .font(.system(size: iconSize, weight: .semibold))
+      item.icon(size: iconSize)
         .foregroundStyle(Color(.label))
         .frame(width: 30)
 
-      Text(title)
+      Text(item.title)
         .font(.system(size: fontSize, weight: .black, design: .rounded))
         .foregroundStyle(Color(.label))
         .lineLimit(1)
@@ -796,14 +832,14 @@ private enum AppTab: Hashable, CaseIterable {
   case create
   case activity
 
-  var systemImage: String {
+  var icon: Image {
     switch self {
     case .home:
-      return "house.fill"
+      return Image("FeedTabIcon")
     case .create:
-      return "plus.circle"
+      return Image(systemName: "plus.circle")
     case .activity:
-      return "bell"
+      return Image(systemName: "bell")
     }
   }
 

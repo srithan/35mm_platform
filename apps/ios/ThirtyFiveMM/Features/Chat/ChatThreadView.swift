@@ -1293,8 +1293,10 @@ private struct ChatThreadErrorView: View {
 private struct ChatThreadEmptyView: View {
   var body: some View {
     VStack(spacing: 12) {
-      Image(systemName: "bubble.left.and.bubble.right")
-        .font(.system(size: 42, weight: .semibold))
+      Image("MessagesIcon")
+        .resizable()
+        .scaledToFit()
+        .frame(width: 40, height: 44)
         .foregroundStyle(ChatTheme.accent.opacity(0.72))
       Text("No messages yet")
         .font(.system(size: 22, weight: .bold))

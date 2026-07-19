@@ -1,6 +1,26 @@
 import SwiftUI
 
 struct PostDetailView: View {
+  let post: FeedPost
+  private let apiClient: APIClient?
+
+  init(post: FeedPost, apiClient: APIClient? = nil) {
+    self.post = post
+    self.apiClient = apiClient
+  }
+
+  var body: some View {
+    Group {
+      if let apiClient {
+        PostDetailContent(post: post, apiClient: apiClient)
+      } else {
+        EnvironmentPostDetailContent(post: post)
+      }
+    }
+  }
+}
+
+private struct EnvironmentPostDetailContent: View {
   @EnvironmentObject private var env: AppEnvironment
   let post: FeedPost
 
@@ -12,6 +32,7 @@ struct PostDetailView: View {
 private struct PostDetailContent: View {
   @StateObject private var viewModel: PostDetailViewModel
   @State private var commentText = ""
+  @State private var isCommentComposerExpanded = false
 
   init(post: FeedPost, apiClient: APIClient) {
     _viewModel = StateObject(wrappedValue: PostDetailViewModel(post: post, apiClient: apiClient))
@@ -21,7 +42,7 @@ private struct PostDetailContent: View {
     ZStack(alignment: .top) {
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 0) {
-          PostCard(post: viewModel.post, interactor: viewModel)
+          PostCard(post: viewModel.post, interactor: viewModel, truncatesBody: false)
 
           Divider()
 
@@ -31,17 +52,18 @@ private struct PostDetailContent: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
 
+          CommentInputBar(
+            text: $commentText,
+            isExpanded: $isCommentComposerExpanded,
+            replyingTo: viewModel.replyingTo,
+            postAuthor: viewModel.post.author,
+            isPosting: viewModel.isPostingComment,
+            onSubmit: submitComment,
+            onCancel: cancelComment
+          )
+
           commentsContent
         }
-      }
-      .safeAreaInset(edge: .bottom) {
-        CommentInputBar(
-          text: $commentText,
-          replyingTo: viewModel.replyingTo,
-          isPosting: viewModel.isPostingComment,
-          onSubmit: submitComment,
-          onCancelReply: viewModel.clearReply
-        )
       }
       .task {
         await viewModel.loadComments()
@@ -82,6 +104,7 @@ private struct PostDetailContent: View {
           },
           onReply: { comment in
             viewModel.replyingTo = comment
+            isCommentComposerExpanded = true
           },
           postId: viewModel.post.id
         )
@@ -126,8 +149,15 @@ private struct PostDetailContent: View {
       await viewModel.submitComment(body: draft)
       if viewModel.error == nil {
         commentText = ""
+        isCommentComposerExpanded = false
       }
     }
+  }
+
+  private func cancelComment() {
+    commentText = ""
+    isCommentComposerExpanded = false
+    viewModel.clearReply()
   }
 }
 

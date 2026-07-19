@@ -35,7 +35,7 @@ struct RichTextParser {
       return renderChildren(node.content)
     case "paragraph":
       var text = renderChildren(node.content)
-      text.append(AttributedString("\n\n"))
+      text.append(AttributedString("\n"))
       return text
     case "text":
       return markedText(node.text ?? "", marks: node.marks ?? [])

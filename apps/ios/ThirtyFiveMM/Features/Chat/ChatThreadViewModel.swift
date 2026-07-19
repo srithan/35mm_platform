@@ -580,7 +580,7 @@ final class ChatThreadViewModel: ObservableObject {
       contentType: attachment.contentType,
       contentLength: attachment.byteCount
     )
-    try await ChatPresignedMediaUploader.upload(data: attachment.data, to: presign) { [weak self] progress in
+    try await PresignedMediaUploader.upload(data: attachment.data, to: presign) { [weak self] progress in
       self?.uploadProgressByAttachmentId[attachment.id] = progress
     }
     uploadProgressByAttachmentId.removeValue(forKey: attachment.id)

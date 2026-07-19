@@ -4,6 +4,7 @@ enum AppConstants {
   static let appName = "35mm"
   static let bundleIdentifier = "com.35mm.app"
   static let apiBaseURL = bundleString(for: "APIBaseURL") ?? "https://api.35mm.app"
+  static let webBaseURL = bundleString(for: "WebBaseURL") ?? "https://35mm.in"
   static let ablyAPIKey = bundleString(for: "AblyAPIKey") ?? ""
   static let clerkPublishableKey = bundleString(for: "ClerkPublishableKey") ?? ""
 
@@ -12,6 +13,13 @@ enum AppConstants {
       preconditionFailure("Invalid API base URL: \(apiBaseURL)")
     }
 
+    return url
+  }
+
+  static var webBaseURLValue: URL {
+    guard let url = URL(string: webBaseURL) else {
+      preconditionFailure("Invalid web base URL: \(webBaseURL)")
+    }
     return url
   }
 

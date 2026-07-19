@@ -7,6 +7,7 @@ struct PostCard: View {
   let interactor: any PostInteracting
   var onOpenPost: () -> Void = {}
   var onOpenImage: (PostImageDestination) -> Void = { _ in }
+  var truncatesBody = true
 
   @State private var isExpanded = false
   @State private var isShowingPostActions = false
@@ -23,6 +24,10 @@ struct PostCard: View {
     post.createdAt.relativeShort
   }
 
+  private var authorDestination: ProfileDestination {
+    ProfileDestination(username: post.author.username)
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       if post.isRepost {
@@ -33,10 +38,13 @@ struct PostCard: View {
         avatar
 
         VStack(alignment: .leading, spacing: 6) {
-          authorRow
-          filmBadge
+          VStack(alignment: .leading, spacing: 1) {
+            authorRow
+            authorRole
+          }
           headline
           bodyText
+          filmCard
           mediaGrid
           linkPreview
           pollView
@@ -95,11 +103,12 @@ struct PostCard: View {
   }
 
   private var repostHeader: some View {
-    Button {
-      // TODO: Navigate to reposting profile in Profile stage.
-    } label: {
+    NavigationLink(value: AppRoute.profile(authorDestination)) {
       HStack(spacing: 6) {
-        Image(systemName: "arrow.2.squarepath")
+        Image("PostActionRepost")
+          .resizable()
+          .scaledToFit()
+          .frame(width: 14, height: 14)
         Text("\(post.author.username) reposted")
       }
       .font(.caption)
@@ -107,12 +116,11 @@ struct PostCard: View {
     }
     .buttonStyle(.plain)
     .padding(.leading, 52)
+    .accessibilityLabel("View @\(post.author.username)'s profile")
   }
 
   private var avatar: some View {
-    Button {
-      // TODO: Navigate to author profile in Profile stage.
-    } label: {
+    NavigationLink(value: AppRoute.profile(authorDestination)) {
       KFImage(URL(string: post.author.avatarUrl ?? ""))
         .placeholder {
           Image(systemName: "person.circle.fill")
@@ -126,13 +134,14 @@ struct PostCard: View {
         .background(Circle().fill(Color(.secondarySystemBackground)))
     }
     .buttonStyle(.plain)
+    .frame(minWidth: 44, minHeight: 44, alignment: .top)
+    .contentShape(Circle())
+    .accessibilityLabel("View @\(post.author.username)'s profile")
   }
 
   private var authorRow: some View {
     HStack(alignment: .firstTextBaseline, spacing: 6) {
-      Button {
-        // TODO: Navigate to author profile in Profile stage.
-      } label: {
+      NavigationLink(value: AppRoute.profile(authorDestination)) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           Text(authorName)
             .font(.subheadline.weight(.semibold))
@@ -146,6 +155,10 @@ struct PostCard: View {
         }
       }
       .buttonStyle(.plain)
+      .frame(minHeight: 44)
+      .contentShape(Rectangle())
+      .accessibilityLabel("\(authorName), @\(post.author.username)")
+      .accessibilityHint("Opens profile")
 
       Spacer(minLength: 8)
 
@@ -155,6 +168,10 @@ struct PostCard: View {
         }
 
         Text(timestamp)
+
+        if post.type == .log || post.type == .review {
+          Text("logged")
+        }
       }
       .font(.caption)
       .foregroundStyle(.secondary)
@@ -174,24 +191,28 @@ struct PostCard: View {
   }
 
   @ViewBuilder
-  private var filmBadge: some View {
-    if let film = post.film {
+  private var authorRole: some View {
+    if let role = post.author.role?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !role.isEmpty
+    {
       HStack(spacing: 6) {
-        Image(systemName: "film")
-          .font(.caption)
+        Circle()
+          .fill(roleColor(for: role))
+          .frame(width: 5, height: 5)
 
-        Text(filmTitle(film))
-          .font(.caption.weight(.medium))
+        Text(roleHeadline(role: role))
+          .font(.caption2.weight(.medium))
+          .foregroundStyle(.secondary)
           .lineLimit(1)
-
-        if shouldShowRating, let starRating = post.starRating {
-          StarRatingView(rating: starRating)
-        }
       }
-      .foregroundStyle(.primary)
-      .padding(.horizontal, 10)
-      .padding(.vertical, 6)
-      .background(Color(.secondarySystemBackground), in: Capsule())
+    }
+  }
+
+  @ViewBuilder
+  private var filmCard: some View {
+    if let film = post.film {
+      FilmLogCard(film: film, rating: post.starRating)
+        .padding(.top, 2)
     }
   }
 
@@ -210,10 +231,10 @@ struct PostCard: View {
     if let body = post.body, !body.isEmpty {
       VStack(alignment: .leading, spacing: 4) {
         RichTextView(body: body, font: .body)
-          .lineLimit(isExpanded || !shouldShowMore(for: body) ? nil : 6)
+          .lineLimit(shouldClampBody(body) ? 6 : nil)
           .fixedSize(horizontal: false, vertical: true)
 
-        if shouldShowMore(for: body) && !isExpanded {
+        if truncatesBody && shouldShowMore(for: body) && !isExpanded {
           Button("more") {
             isExpanded = true
           }
@@ -227,10 +248,17 @@ struct PostCard: View {
 
   @ViewBuilder
   private var mediaGrid: some View {
-    let items = Array(mediaItems.prefix(4))
+    let allItems = mediaItems
+    let items = Array(allItems.prefix(4))
     if !items.isEmpty {
       MediaGrid(items: items, postId: post.id) { url in
-        onOpenImage(PostImageDestination(url: url, postId: post.id))
+        onOpenImage(
+          PostImageDestination(
+            urls: allItems.map(\.url),
+            selectedURL: url,
+            postId: post.id
+          )
+        )
       }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .padding(.top, 2)
@@ -254,7 +282,7 @@ struct PostCard: View {
   private var actionBar: some View {
     HStack {
       ActionButton(
-        systemImage: post.isLiked ? "heart.fill" : "heart",
+        assetName: post.isLiked ? "PostActionHeartFilled" : "PostActionHeart",
         count: post.likeCount,
         isActive: post.isLiked,
         activeColor: Color(red: 1.0, green: 0.02, blue: 0.22),
@@ -264,7 +292,7 @@ struct PostCard: View {
       }
 
       ActionButton(
-        systemImage: "bubble.right",
+        assetName: "PostActionComment",
         count: post.commentCount,
         isActive: false,
         accessibilityLabel: "Open comments"
@@ -273,7 +301,7 @@ struct PostCard: View {
       }
 
       ActionButton(
-        systemImage: "arrow.2.squarepath",
+        assetName: "PostActionRepost",
         count: post.repostCount,
         isActive: post.isReposted,
         activeColor: Color(red: 0.0, green: 0.55, blue: 0.28),
@@ -283,7 +311,7 @@ struct PostCard: View {
       }
 
       ActionButton(
-        systemImage: post.isBookmarked ? "bookmark.fill" : "bookmark",
+        assetName: post.isBookmarked ? "PostActionBookmarkFilled" : "PostActionBookmark",
         count: post.bookmarkCount,
         isActive: post.isBookmarked,
         accessibilityLabel: post.isBookmarked ? "Remove bookmark" : "Bookmark post"
@@ -291,11 +319,7 @@ struct PostCard: View {
         Task { await interactor.toggleBookmark(postId: post.id) }
       }
     }
-    .padding(.top, 2)
-  }
-
-  private var shouldShowRating: Bool {
-    (post.type == .log || post.type == .review) && post.starRating != nil
+    .padding(.top, 8)
   }
 
   private var mediaItems: [MediaGridItemData] {
@@ -314,12 +338,39 @@ struct PostCard: View {
     }
   }
 
-  private func filmTitle(_ film: FilmRef) -> String {
-    if let year = film.year {
-      return "\(film.title) (\(year))"
+  private func roleHeadline(role: String) -> String {
+    if role == "Cinephile", let count = post.author.filmsLoggedCount, count > 0 {
+      return "\(role) · \(count.compactFormatted) films logged"
     }
 
-    return film.title
+    if let context = post.author.roleContext?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !context.isEmpty
+    {
+      return "\(role) · \(context)"
+    }
+
+    return role
+  }
+
+  private func roleColor(for role: String) -> Color {
+    switch role {
+    case "Cinephile":
+      return Color(red: 194.0 / 255.0, green: 71.0 / 255.0, blue: 58.0 / 255.0)
+    case "Creator", "Director":
+      return .indigo
+    case "Critic", "Film Critic":
+      return .cyan
+    case "Cinematographer":
+      return .green
+    case "Film Student":
+      return .orange
+    case "Editor":
+      return .purple
+    case "Screenwriter":
+      return .pink
+    default:
+      return .secondary
+    }
   }
 
   private func shouldShowMore(for body: String) -> Bool {
@@ -330,10 +381,259 @@ struct PostCard: View {
 
     return plain.count > 320 || plain.filter(\.isNewline).count > 5
   }
+
+  private func shouldClampBody(_ body: String) -> Bool {
+    truncatesBody && !isExpanded && shouldShowMore(for: body)
+  }
+}
+
+private struct FilmLogCard: View {
+  let film: FilmRef
+  let rating: Double?
+
+  @State private var glowColor = Color(red: 120.0 / 255.0, green: 50.0 / 255.0, blue: 35.0 / 255.0)
+
+  private let cardBackground = Color(red: 13.0 / 255.0, green: 8.0 / 255.0, blue: 6.0 / 255.0)
+  private let foreground = Color(red: 250.0 / 255.0, green: 249.0 / 255.0, blue: 247.0 / 255.0)
+
+  private var posterURL: URL? {
+    guard let raw = film.posterUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+      !raw.isEmpty
+    else {
+      return nil
+    }
+
+    if raw.hasPrefix("/") {
+      return URL(string: "https://image.tmdb.org/t/p/w500\(raw)")
+    }
+
+    return URL(string: raw)
+  }
+
+  private var metadata: String {
+    let year = film.year.map(String.init) ?? ""
+    let genre = film.genres.first?.uppercased() ?? ""
+
+    if !year.isEmpty, !genre.isEmpty {
+      return "\(year)  ·  \(genre)"
+    }
+
+    return year.isEmpty ? genre : year
+  }
+
+  var body: some View {
+    ZStack {
+      cardBackground
+
+      RadialGradient(
+        colors: [glowColor.opacity(0.58), glowColor.opacity(0.24), .clear],
+        center: UnitPoint(x: 0.08, y: 0.62),
+        startRadius: 2,
+        endRadius: 230
+      )
+
+      HStack(spacing: 18) {
+        poster
+
+        VStack(alignment: .leading, spacing: 0) {
+          Text(film.title)
+            .font(.system(.title3, design: .serif, weight: .bold))
+            .foregroundStyle(foreground)
+            .lineLimit(2)
+            .minimumScaleFactor(0.82)
+
+          if !metadata.isEmpty {
+            Text(metadata)
+              .font(.system(size: 11, weight: .medium, design: .monospaced))
+              .tracking(0.8)
+              .foregroundStyle(foreground.opacity(0.42))
+              .lineLimit(1)
+              .padding(.top, 7)
+          }
+
+          if let rating, rating > 0 {
+            FilmCardStarRow(rating: rating)
+              .padding(.top, 9)
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .padding(.horizontal, 20)
+      .padding(.vertical, 16)
+    }
+    .frame(maxWidth: .infinity)
+    .frame(height: 130)
+    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .stroke(Color.white.opacity(0.04), lineWidth: 0.5)
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(accessibilityLabel)
+  }
+
+  @ViewBuilder
+  private var poster: some View {
+    if let posterURL {
+      KFImage(posterURL)
+        .onSuccess { result in
+          updateGlowColor(from: result.image, cacheKey: posterURL.absoluteString)
+        }
+        .placeholder {
+          posterPlaceholder
+        }
+        .resizable()
+        .scaledToFill()
+        .frame(width: 64, height: 90)
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .overlay {
+          RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.6), radius: 10, y: 6)
+        .accessibilityHidden(true)
+    } else {
+      posterPlaceholder
+    }
+  }
+
+  private var posterPlaceholder: some View {
+    ZStack {
+      LinearGradient(
+        colors: [Color(red: 61.0 / 255.0, green: 24.0 / 255.0, blue: 18.0 / 255.0), cardBackground],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+
+      Image(systemName: "film")
+        .font(.system(size: 22, weight: .light))
+        .foregroundStyle(foreground.opacity(0.3))
+    }
+    .frame(width: 64, height: 90)
+    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 5, style: .continuous)
+        .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
+    }
+    .shadow(color: .black.opacity(0.6), radius: 10, y: 6)
+    .accessibilityHidden(true)
+  }
+
+  private var accessibilityLabel: String {
+    let details = [film.year.map(String.init), film.genres.first]
+      .compactMap { $0 }
+      .joined(separator: ", ")
+    let ratingText = rating.map { ", \($0.formatted(.number.precision(.fractionLength(1)))) out of 5 stars" } ?? ""
+
+    if details.isEmpty {
+      return "\(film.title)\(ratingText)"
+    }
+
+    return "\(film.title), \(details)\(ratingText)"
+  }
+
+  private func updateGlowColor(from image: UIImage, cacheKey: String) {
+    if let cached = FilmPosterColorCache.shared.color(for: cacheKey) {
+      glowColor = Color(uiColor: cached)
+      return
+    }
+
+    guard let extracted = FilmPosterColorCache.dominantColor(from: image) else { return }
+    FilmPosterColorCache.shared.insert(extracted, for: cacheKey)
+
+    withAnimation(.easeOut(duration: 0.45)) {
+      glowColor = Color(uiColor: extracted)
+    }
+  }
+}
+
+@MainActor
+private final class FilmPosterColorCache {
+  static let shared = FilmPosterColorCache()
+
+  private let cache = NSCache<NSString, UIColor>()
+
+  private init() {
+    cache.countLimit = 256
+  }
+
+  func color(for key: String) -> UIColor? {
+    cache.object(forKey: key as NSString)
+  }
+
+  func insert(_ color: UIColor, for key: String) {
+    cache.setObject(color, forKey: key as NSString)
+  }
+
+  static func dominantColor(from image: UIImage) -> UIColor? {
+    guard let cgImage = image.cgImage else { return nil }
+
+    let dimension = 16
+    let bytesPerPixel = 4
+    let bytesPerRow = dimension * bytesPerPixel
+    var pixels = [UInt8](repeating: 0, count: dimension * bytesPerRow)
+
+    let didDraw = pixels.withUnsafeMutableBytes { buffer -> Bool in
+      guard let baseAddress = buffer.baseAddress,
+        let context = CGContext(
+          data: baseAddress,
+          width: dimension,
+          height: dimension,
+          bitsPerComponent: 8,
+          bytesPerRow: bytesPerRow,
+          space: CGColorSpaceCreateDeviceRGB(),
+          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )
+      else {
+        return false
+      }
+
+      context.interpolationQuality = .low
+      context.draw(cgImage, in: CGRect(x: 0, y: 0, width: dimension, height: dimension))
+      return true
+    }
+
+    guard didDraw else { return nil }
+
+    var candidates: [(red: Double, green: Double, blue: Double, saturation: Double)] = []
+    candidates.reserveCapacity(dimension * dimension)
+
+    for offset in stride(from: 0, to: pixels.count, by: bytesPerPixel) {
+      guard pixels[offset + 3] > 64 else { continue }
+
+      let red = Double(pixels[offset])
+      let green = Double(pixels[offset + 1])
+      let blue = Double(pixels[offset + 2])
+      let maximum = max(red, green, blue)
+      let minimum = min(red, green, blue)
+      let saturation = maximum == 0 ? 0 : (maximum - minimum) / maximum
+      candidates.append((red, green, blue, saturation))
+    }
+
+    guard !candidates.isEmpty else { return nil }
+
+    candidates.sort { $0.saturation > $1.saturation }
+    let sampleCount = max(1, candidates.count / 4)
+    let samples = candidates.prefix(sampleCount)
+    let divisor = Double(sampleCount)
+    var red = samples.reduce(0) { $0 + $1.red } / divisor
+    var green = samples.reduce(0) { $0 + $1.green } / divisor
+    var blue = samples.reduce(0) { $0 + $1.blue } / divisor
+
+    let luminance = 0.299 * red + 0.587 * green + 0.114 * blue
+    if luminance < 80 {
+      let factor = min(3.5, 80 / max(luminance, 1))
+      red = min(255, red * factor)
+      green = min(255, green * factor)
+      blue = min(255, blue * factor)
+    }
+
+    return UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
+  }
 }
 
 private struct ActionButton: View {
-  let systemImage: String
+  let assetName: String
   let count: Int
   let isActive: Bool
   var activeColor: Color = .accentColor
@@ -343,9 +643,9 @@ private struct ActionButton: View {
   var body: some View {
     Button(action: action) {
       HStack(spacing: 6) {
-        Image(systemName: systemImage)
-          .font(.system(size: 17, weight: .medium))
-          .symbolRenderingMode(.monochrome)
+        Image(assetName)
+          .resizable()
+          .scaledToFit()
           .frame(width: 22, height: 22)
 
         if count > 0 {
@@ -356,6 +656,7 @@ private struct ActionButton: View {
       }
       .foregroundStyle(isActive ? activeColor : Color.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
+      .frame(minHeight: 44)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
@@ -363,18 +664,22 @@ private struct ActionButton: View {
   }
 }
 
-private struct StarRatingView: View {
+private struct FilmCardStarRow: View {
   let rating: Double
 
   var body: some View {
     HStack(spacing: 1) {
       ForEach(0..<5, id: \.self) { index in
         Image(systemName: symbol(for: index))
-          .font(.caption2)
-          .foregroundStyle(.yellow)
+          .font(.system(size: 13, weight: .medium))
+          .foregroundStyle(
+            symbol(for: index) == "star"
+              ? Color(red: 232.0 / 255.0, green: 115.0 / 255.0, blue: 90.0 / 255.0).opacity(0.25)
+              : Color(red: 232.0 / 255.0, green: 115.0 / 255.0, blue: 90.0 / 255.0)
+          )
       }
     }
-    .accessibilityLabel("\(rating, specifier: "%.1f") stars")
+    .accessibilityHidden(true)
   }
 
   private func symbol(for index: Int) -> String {

@@ -1,7 +1,7 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-07-11
+> Last updated: 2026-07-17
 
 Catalog documentation lives in `docs/catalog/`; start with `docs/catalog/spec.md`.
 
@@ -144,7 +144,13 @@ Local dev note: BullMQ workers emit continuous blocking Redis commands while idl
 
 Native auth keeps Clerk session state separate from API bootstrap state. If Clerk has an active session but `/v1/me` or onboarding bootstrap fails, the app shows a retry/sign-out recovery screen instead of routing back to signed-out auth screens.
 
-Native feed post cards mirror the shared REST feed contract through `Core/Models/FeedPost.swift`, `PostInteracting`, and `Features/Feed/PostCard.swift`. Likes, reposts, bookmarks, comments navigation, and poll votes use the same `/v1/feed/posts/:postId/*` endpoints as web. Poll voting is optimistic on-device and relies on the API's idempotent vote fact row plus async `counter.increment` jobs for durable poll totals/options, so the hot request path does not perform synchronous counter updates. The native bottom tab bar currently exposes Home, Create, and Activity; Messages/Profile are not bottom-tab destinations. The app shell header loads the current `/v1/me` profile once, opens a left profile sidebar from the avatar, and pushes the native Messages inbox through each tab's `NavigationStack` from the header message icon.
+Native feed post cards mirror the shared REST feed contract through `Core/Models/FeedPost.swift`, `PostInteracting`, and `Features/Feed/PostCard.swift`. Film-log cards consume canonical film ID, poster, genres, and normalized 0.5-5 rating metadata already present in that payload; poster-derived card color is computed on-device from a 16x16 sample and kept in a bounded memory cache, adding no feed API or database read. Likes, reposts, bookmarks, comments navigation, and poll votes use the same `/v1/feed/posts/:postId/*` endpoints as web. Poll voting is optimistic on-device and relies on the API's idempotent vote fact row plus async `counter.increment` jobs for durable poll totals/options, so the hot request path does not perform synchronous counter updates. Native post detail renders the complete post body, keeps TipTap paragraph breaks at one rendered line break, places the reply trigger/expanded composer inline above the cursor-paged comment list, and gives comments a compact like/reply-count/reply action row backed by the existing optimistic comment-like and create-comment paths. Post and comment author avatars plus display-name/username controls push the shared `ProfileView` through the shell's typed `AppRoute` path; an explicit tap adds one bounded existing profile read and no feed/comment query. This presentation adds no API, query, cache, job, or index. The native bottom tab bar currently exposes Home, Create, and Activity; Messages/Profile are not bottom-tab destinations. The app shell header loads the current `/v1/me` profile once, including denormalized follower/following counts, opens a stationary left profile sidebar from the avatar, and pushes the complete tab/header/bottom-bar surface right by the drawer width with the same horizontal-only 300 ms timing curve and dimming as mobile web. Both native and mobile-web sidebars show those relationship counts beneath the username without another query. The native tab bar keeps a transparent backdrop so it remains part of that moving surface without producing a second full-width rectangle, and the push does not apply clipping or vertical layout modifiers. Reduce Motion disables that spatial animation. Messages remains a `NavigationStack` destination opened from the header message icon.
+
+Native bookmarks live in `Features/Bookmarks` and use the same cursor-paged `/v1/feed/bookmarks` and denormalized `/v1/feed/bookmarks/folders` contracts as web. The SwiftUI surface provides All, Unsorted, and folder pages; folder create/rename/delete; post move/remove actions; app-standard bottom action sheets; optimistic interaction rollback; and localized search across loaded cursor pages. Search never expands into an unbounded fetch: when a loaded page has no match, the user can explicitly scan the next 20-item cursor page. Rapid folder changes use request identity checks so stale responses cannot replace the active folder. Folder and interaction mutations retain existing server authorization and route-family rate limits. This adds no API, database query, cache, worker job, or index; at 1M+ DAU, read volume remains one per-user cursor query plus one denormalized folder-summary query per initial/refresh load.
+
+Native profiles live in `Features/Profile` and mirror the mobile-web information hierarchy with cover/avatar identity, inline relationship counts, bio metadata, and equal-width Posts/Diary/Lists/Stats tabs. Overflow, unfollow, and block choices use the shared app-standard bottom action sheet; system sharing is presented only after the action sheet dismisses to avoid competing presentations. Profile posts and lists use independent 20-item cursor streams; lists and the server-cached stats summary load only when selected. Existing denormalized counts remain read-time inputs, post interactions preserve optimistic rollback, and follow/request/mute/block actions reuse the existing authorized, rate-limited REST mutations. Own-profile editing uses validated PATCH semantics with explicit JSON `null` for field/media removal; avatar and cover changes reuse `/v1/media/presign` plus direct R2 PUT through the shared native presigned uploader. This adds no API route, database query, cache, worker job, schema, or index. At 1M+ DAU, each profile visit is bounded to one profile read plus one cursor page, with optional list/stats reads driven by tab selection.
+
+Native Discover mirrors the web Discover program through the existing cached, IP-rate-limited `/api/tmdb` proxy: popular/featured heroes, provider-filtered streaming, trending, ranked, current-release, popular, mood, TV, and Now Playing shelves use the same upstream paths and ordering. Provider changes refetch only the streaming shelf. TMDB IDs remain discovery metadata, never 35mm identity: opening an item resolves `externalProvider=tmdb&externalId=...` through public `/v1/catalog/titles`, then navigates with the canonical catalog ID; an unlinked item offers an explicit web-title fallback. `Features/Title` remains catalog-backed and provides hero/metadata, lazy reviews, complete cursor-paged cast/crew, live watchlist state, and bottom action sheets. Social reviews resolve only through `catalog_titles.legacy_film_id` to canonical `films.id`; unbridged titles render an explicit unavailable state instead of substituting a TMDB ID.
 
 ### External Services
 
@@ -644,6 +650,9 @@ Feed, posts, comments, polls:
 - `GET /v1/feed`
 - `POST /v1/feed`
 - `GET /v1/feed/posts/:postId`
+- `GET /v1/feed/films/:filmId/reviews`
+  - optional-auth, newest-first cursor page of visible review posts for a canonical `films.id`
+  - protected by per-viewer/IP read limiting, CDN cache headers for guest reads, and partial composite index `posts_film_type_created_at_id_idx`; response uses denormalized counters and performs no live aggregate count
 - `GET /v1/feed/profiles/:username/posts`
 - `GET /v1/feed/bookmarks`
 - `GET /v1/feed/bookmarks/folders`
@@ -807,6 +816,7 @@ Root app:
 - `app/providers.tsx`: QueryClient, theme provider, accent color provider, notification realtime provider, chat realtime provider, global new-chat provider, desktop floating chat inbox, title badge, sound player, toast host.
 - `middleware.ts`: public route definitions, guest-only auth page redirects, and Clerk protection.
 - `app/(shell)/layout.tsx`: authenticated shell, auth bootstrap, onboarding gate, scroll restoration, shared layout grid.
+- `components/layout/ShellGrid.tsx`: owns responsive shell composition. On mobile, opening `MobileSidebar` reveals a fixed underlay by translating route content horizontally (`min(82vw, 320px)`) while `MobileHeader`, `MobileTabBar`, and the fixed scrim receive the same X offset independently. Keeping fixed chrome outside the transformed content wrapper preserves viewport anchoring; open-state clipping uses the current scroll offset plus `100dvh`, keeping both left corners rounded even when the feed is taller than the viewport. The UI moves in sync with no vertical translation or scale. The exposed page is dimmed/inert and closes the menu on tap, while the dialog traps focus and supports Escape. `MobileSidebar` mirrors native iOS hierarchy and styling: static profile identity, regular Profile/Discover/Short Films/Bookmarks/Lists/Diary/Drafts rows, a divider, then compact Chat/Notifications/Settings and privacy/Help rows with rounded system typography and semantic colors.
 
 Route groups:
 
@@ -841,7 +851,7 @@ Next app API routes:
 Feature ownership:
 
 - `features/feed`: composer, feed, post cards, comments, polls, mutations.
-- `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes.
+- `features/profile`: public profile, edit profile, follow state, media upload, connections, blocks/mutes. Mobile profile identity and actions render together in `ProfileHeader`: circular share/overflow controls align beside the cover-overlapping avatar, while full-width message/follow/edit capsules follow the profile details; tablet/desktop placement remains unchanged.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime. Realtime handles normal freshness; no-Ably fallback invalidates notification queries every 30 seconds without duplicate 5-second component polling.
 - `features/lists`: film lists and watchlists.
 - `features/settings`: account, privacy, notifications, appearance, media, data/security settings.
@@ -1139,7 +1149,7 @@ Stub or incomplete:
 
 Current:
 
-- Discover and title surfaces still rely heavily on TMDB proxy and local/static data.
+- Native iOS Discover uses the same server-side TMDB proxy and default shelf composition as web, then resolves selections through the canonical catalog API before native title navigation. Web title and composer paths still rely on TMDB proxy or local/static data in places.
 - Post composer film search uses frontend TMDB-oriented lookup paths in places.
 - SearchBar has mock search behavior.
 
@@ -1180,6 +1190,11 @@ iOS:
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatBlurhash.swift` provides native blurhash placeholder decoding for chat media thumbnails before Kingfisher image fade-in.
 - `apps/ios/ThirtyFiveMM/Features/Chat/ChatMediaUploadClient.swift` and `ChatComposerModels.swift` support the native thread write side: growing composer, optimistic sends with retryable failure state, typed upload via the existing `/v1/media/presign` + direct R2 PUT flow, image/file staged previews, 4000-character enforcement, reply/edit context, sender-only edit/delete UI, throttled typing dispatch, and foreground-only read dispatch.
 - `apps/ios/ThirtyFiveMMTests/ChatDecodingTests.swift` decodes fixture JSON for core chat message and inbox shapes.
+- `apps/ios/ThirtyFiveMM/Core/Models/Catalog.swift`, `Features/Discover/*`, and `Features/Title/*` implement web-parity discovery over the shared cached TMDB proxy, canonical catalog resolution before native title navigation, title detail, cast/crew, review browsing, watchlist actions, and native action sheets.
+- `apps/ios/ThirtyFiveMMTests/CatalogDecodingTests.swift` and `DiscoverViewModelTests.swift` cover catalog contract decoding plus trimmed search, tab caching, shelf deduplication, and isolated streaming-provider refresh behavior.
+- `apps/ios/ThirtyFiveMM/Core/Models/PublicProfile.swift`, `ProfileStatsSummary.swift`, and `FilmListSummary.swift` mirror the existing profile, cached-stats, and list REST contracts for native rendering.
+- `apps/ios/ThirtyFiveMM/Features/Profile/*` implements mobile-web-aligned native profile identity, Posts/Diary/Lists/Stats tabs, cursor paging, lazy list/stats reads, optimistic post actions, relationship/moderation confirmation dialogs, and a validated edit-profile flow with avatar/cover upload and removal. `ProfileHeaderView` matches the mobile web action hierarchy with 44-point circular share/overflow controls beside the overlapping avatar and a full-width follow/edit capsule below profile metadata.
+- `apps/ios/ThirtyFiveMMTests/ProfileFeatureTests.swift` covers profile/stats/list decoding, edit validation and explicit-null encoding, cursor deduplication, lazy tabs, and optimistic rollback.
 - Native GIF sending, jump-to-unloaded-reply pagination, per-member group read receipt UI, and richer group creation remain staged after the core thread experience.
 
 API:
@@ -1288,9 +1303,12 @@ iOS xcconfig:
 
 ```env
 API_BASE_URL=
+WEB_BASE_URL=
 CLERK_PUBLISHABLE_KEY=
 ABLY_API_KEY=
 ```
+
+`WEB_BASE_URL` points native Discover at the same Next deployment that owns `/api/tmdb`; local simulator builds use `http://127.0.0.1:3000`, and release configuration must supply the deployed web origin.
 
 Future:
 

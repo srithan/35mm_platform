@@ -56,6 +56,8 @@ authRoutes.get("/me", requireAuth, async function (c) {
       role: profiles.role,
       roleContext: profiles.roleContext,
       filmsLoggedCount: profiles.filmsLoggedCount,
+      followerCount: profiles.followerCount,
+      followingCount: profiles.followingCount,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.userId))
@@ -80,5 +82,7 @@ authRoutes.get("/me", requireAuth, async function (c) {
     role: row.role,
     roleContext: row.roleContext,
     filmsLoggedCount: row.filmsLoggedCount,
+    followerCount: row.followerCount,
+    followingCount: row.followingCount,
   });
 });

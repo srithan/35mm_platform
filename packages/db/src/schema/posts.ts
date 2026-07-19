@@ -114,6 +114,9 @@ export var posts = pgTable(
   function (table) {
     return {
       userCreatedAtIdx: index("posts_user_created_at_idx").on(table.userId, table.createdAt),
+      filmTypeCreatedAtIdx: index("posts_film_type_created_at_id_idx")
+        .on(table.filmId, table.type, table.createdAt, table.id)
+        .where(sql`${table.isDeleted} = false`),
       userTypeCreatedAtIdx: index("posts_user_type_created_at_idx").on(
         table.userId,
         table.type,

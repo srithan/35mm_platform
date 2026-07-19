@@ -3,61 +3,99 @@ import UIKit
 
 @MainActor
 final class BookmarksViewModel: ObservableObject {
+  static let folderNameLimit = 80
+
   @Published private(set) var posts: [FeedPost] = []
   @Published private(set) var folders: [BookmarkFolder] = []
   @Published private(set) var unsortedCount = 0
   @Published private(set) var isLoading = false
   @Published private(set) var isLoadingMore = false
   @Published private(set) var isRefreshingFolders = false
+  @Published private(set) var isMutatingFolder = false
+  @Published private(set) var pendingPostIDs: Set<String> = []
   @Published private(set) var error: String?
   @Published private(set) var hasMore = true
   @Published var selectedFilter: BookmarkFilter = .all
   @Published var searchText = ""
 
   private var nextCursor: String?
-  private let apiClient: APIClient
-  private let pageLimit = 20
+  private var activeLoadID = UUID()
+  private let service: any BookmarkServicing
+  private let pageLimit: Int
 
   var filters: [BookmarkFilter] {
-    var values: [BookmarkFilter] = [.all, .unsorted]
-    values.append(contentsOf: folders.map { .folder($0) })
-    return values
+    [.all, .unsorted] + folders.map(BookmarkFilter.folder)
   }
 
   var visiblePosts: [FeedPost] {
-    let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let query = normalizedSearchText
     guard !query.isEmpty else { return posts }
 
     return posts.filter { post in
-      searchableText(for: post).contains(query)
+      searchableText(for: post).localizedStandardContains(query)
     }
   }
 
   var selectedFolder: BookmarkFolder? {
     if case .folder(let folder) = selectedFilter {
-      return folder
+      folder
+    } else {
+      nil
     }
-
-    return nil
   }
 
-  init(apiClient: APIClient) {
-    self.apiClient = apiClient
+  var selectedTitle: String {
+    switch selectedFilter {
+    case .all:
+      "All bookmarks"
+    case .unsorted:
+      "Unsorted"
+    case .folder(let folder):
+      folder.name
+    }
+  }
+
+  var selectedCount: Int {
+    switch selectedFilter {
+    case .all:
+      folders.reduce(unsortedCount) { $0 + $1.itemCount }
+    case .unsorted:
+      unsortedCount
+    case .folder(let folder):
+      folder.itemCount
+    }
+  }
+
+  var isSearching: Bool {
+    !normalizedSearchText.isEmpty
+  }
+
+  init(apiClient: APIClient, pageLimit: Int = 20) {
+    self.service = BookmarkService(apiClient: apiClient)
+    self.pageLimit = pageLimit
+  }
+
+  init(service: any BookmarkServicing, pageLimit: Int = 20) {
+    self.service = service
+    self.pageLimit = pageLimit
   }
 
   func loadInitial() async {
-    guard !isLoading else { return }
-
+    let loadID = UUID()
+    let folderId = selectedFilter.folderQueryValue
+    activeLoadID = loadID
     isLoading = true
     error = nil
-    nextCursor = nil
-    hasMore = true
 
     do {
-      let foldersPayload: BookmarkFoldersResponse = try await apiClient.request(.getBookmarkFolders())
-      let bookmarksPayload: PaginatedResponse<FeedPost> = try await apiClient.request(
-        .getBookmarks(cursor: nil, limit: pageLimit, folderId: selectedFilter.folderQueryValue)
+      let foldersPayload = try await service.fetchFolders()
+      let bookmarksPayload = try await service.fetchBookmarks(
+        cursor: nil,
+        limit: pageLimit,
+        folderId: folderId
       )
+      guard activeLoadID == loadID else { return }
+
       folders = foldersPayload.folders
       unsortedCount = foldersPayload.unsortedCount
       posts = bookmarksPayload.items
@@ -65,15 +103,16 @@ final class BookmarksViewModel: ObservableObject {
       hasMore = bookmarksPayload.hasMore
       normalizeSelectedFilter()
     } catch {
+      guard activeLoadID == loadID else { return }
       self.error = error.localizedDescription
       hasMore = false
     }
 
+    guard activeLoadID == loadID else { return }
     isLoading = false
   }
 
   func refresh() async {
-    guard !isLoading else { return }
     await loadInitial()
   }
 
@@ -86,87 +125,115 @@ final class BookmarksViewModel: ObservableObject {
   func loadMore() async {
     guard !isLoadingMore, !isLoading, hasMore else { return }
 
+    let filterID = selectedFilter.id
+    let cursor = nextCursor
     isLoadingMore = true
     error = nil
 
     do {
-      let response: PaginatedResponse<FeedPost> = try await apiClient.request(
-        .getBookmarks(cursor: nextCursor, limit: pageLimit, folderId: selectedFilter.folderQueryValue)
+      let response = try await service.fetchBookmarks(
+        cursor: cursor,
+        limit: pageLimit,
+        folderId: selectedFilter.folderQueryValue
       )
+      guard selectedFilter.id == filterID else {
+        isLoadingMore = false
+        return
+      }
       appendDeduped(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
     } catch {
+      guard selectedFilter.id == filterID else {
+        isLoadingMore = false
+        return
+      }
       self.error = error.localizedDescription
     }
 
     isLoadingMore = false
   }
 
-  func createFolder(name: String) async {
-    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return }
+  @discardableResult
+  func createFolder(name: String) async -> Bool {
+    let trimmed = normalizedFolderName(name)
+    guard !trimmed.isEmpty, !isMutatingFolder else { return false }
+
+    isMutatingFolder = true
+    defer { isMutatingFolder = false }
+    error = nil
 
     do {
-      let response: BookmarkFolderResponse = try await apiClient.request(.createBookmarkFolder(name: trimmed))
-      folders.insert(response.folder, at: 0)
-      selectedFilter = .folder(response.folder)
+      let folder = try await service.createFolder(name: trimmed)
+      folders.insert(folder, at: 0)
+      selectedFilter = .folder(folder)
       await loadInitial()
+      return true
     } catch {
       self.error = error.localizedDescription
+      return false
     }
   }
 
-  func renameSelectedFolder(to name: String) async {
-    guard let folder = selectedFolder else { return }
-    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return }
+  @discardableResult
+  func renameSelectedFolder(to name: String) async -> Bool {
+    guard let folder = selectedFolder, !isMutatingFolder else { return false }
+    let trimmed = normalizedFolderName(name)
+    guard !trimmed.isEmpty else { return false }
+
+    isMutatingFolder = true
+    defer { isMutatingFolder = false }
+    error = nil
 
     do {
-      let response: BookmarkFolderResponse = try await apiClient.request(
-        .updateBookmarkFolder(folderId: folder.id, name: trimmed)
-      )
-      replaceFolder(response.folder)
-      selectedFilter = .folder(response.folder)
+      let updatedFolder = try await service.renameFolder(id: folder.id, name: trimmed)
+      replaceFolder(updatedFolder)
+      selectedFilter = .folder(updatedFolder)
+      return true
     } catch {
       self.error = error.localizedDescription
+      return false
     }
   }
 
-  func deleteSelectedFolder() async {
-    guard let folder = selectedFolder else { return }
+  @discardableResult
+  func deleteSelectedFolder() async -> Bool {
+    guard let folder = selectedFolder, !isMutatingFolder else { return false }
+
+    isMutatingFolder = true
+    defer { isMutatingFolder = false }
+    error = nil
 
     do {
-      try await apiClient.requestVoid(.deleteBookmarkFolder(folderId: folder.id))
+      try await service.deleteFolder(id: folder.id)
       folders.removeAll { $0.id == folder.id }
       selectedFilter = .all
       await loadInitial()
+      return true
     } catch {
       self.error = error.localizedDescription
+      return false
     }
   }
 
   func move(postId: String, to folderId: String?) async {
-    guard let index = posts.firstIndex(where: { $0.id == postId }) else { return }
+    guard !pendingPostIDs.contains(postId),
+          let index = posts.firstIndex(where: { $0.id == postId }) else { return }
 
     let original = posts[index]
     posts[index] = original.movedBookmark(to: folderId)
+    pendingPostIDs.insert(postId)
     error = nil
+    defer { pendingPostIDs.remove(postId) }
 
     do {
-      let _: BookmarkInteractionResponse = try await apiClient.request(
-        .assignBookmark(postId: postId, folderId: folderId)
-      )
+      try await service.assignBookmark(postId: postId, folderId: folderId)
       await refreshFolders()
       if shouldRemovePostAfterMove(folderId: folderId) {
         posts.removeAll { $0.id == postId }
       }
     } catch {
-      if let currentIndex = posts.firstIndex(where: { $0.id == postId }) {
-        posts[currentIndex] = original
-      } else {
-        posts.insert(original, at: min(index, posts.count))
-      }
+      restore(original, at: index)
       self.error = error.localizedDescription
     }
   }
@@ -199,20 +266,21 @@ final class BookmarksViewModel: ObservableObject {
   }
 
   func votePoll(postId: String, optionIds: [String]) async {
-    guard let index = posts.firstIndex(where: { $0.id == postId }) else { return }
+    guard !pendingPostIDs.contains(postId),
+          let index = posts.firstIndex(where: { $0.id == postId }) else { return }
 
     let original = posts[index]
     guard let optimistic = original.votedPoll(optionIds: optionIds) else { return }
 
     posts[index] = optimistic
+    pendingPostIDs.insert(postId)
     error = nil
+    defer { pendingPostIDs.remove(postId) }
 
     do {
-      let _: FeedPost = try await apiClient.request(.votePoll(postId: postId, optionIds: optionIds))
+      try await service.votePoll(postId: postId, optionIds: optionIds)
     } catch {
-      if let currentIndex = posts.firstIndex(where: { $0.id == postId }) {
-        posts[currentIndex] = original
-      }
+      restore(original, at: index)
       self.error = error.localizedDescription
     }
   }
@@ -221,8 +289,24 @@ final class BookmarksViewModel: ObservableObject {
     UIPasteboard.general.string = "https://35mm.app/posts/\(postId)"
   }
 
+  func clearSearch() {
+    searchText = ""
+  }
+
   func clearError() {
     error = nil
+  }
+
+  private var normalizedSearchText: String {
+    searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func normalizedFolderName(_ value: String) -> String {
+    String(
+      value
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .prefix(Self.folderNameLimit)
+    )
   }
 
   private func refreshFolders() async {
@@ -232,7 +316,7 @@ final class BookmarksViewModel: ObservableObject {
     defer { isRefreshingFolders = false }
 
     do {
-      let response: BookmarkFoldersResponse = try await apiClient.request(.getBookmarkFolders())
+      let response = try await service.fetchFolders()
       folders = response.folders
       unsortedCount = response.unsortedCount
       normalizeSelectedFilter()
@@ -247,33 +331,39 @@ final class BookmarksViewModel: ObservableObject {
     endpoint: (FeedPost) -> APIEndpoint,
     removeAfterSuccess: Bool
   ) async {
-    guard let index = posts.firstIndex(where: { $0.id == postId }) else { return }
+    guard !pendingPostIDs.contains(postId),
+          let index = posts.firstIndex(where: { $0.id == postId }) else { return }
 
     let original = posts[index]
     let requestEndpoint = endpoint(original)
     posts[index] = optimistic(original)
+    pendingPostIDs.insert(postId)
     error = nil
+    defer { pendingPostIDs.remove(postId) }
 
     do {
-      let _: BookmarkInteractionResponse = try await apiClient.request(requestEndpoint)
+      try await service.performPostInteraction(requestEndpoint)
       if removeAfterSuccess, original.isBookmarked {
         posts.removeAll { $0.id == postId }
         await refreshFolders()
       }
     } catch {
-      if let currentIndex = posts.firstIndex(where: { $0.id == postId }) {
-        posts[currentIndex] = original
-      } else {
-        posts.insert(original, at: min(index, posts.count))
-      }
+      restore(original, at: index)
       self.error = error.localizedDescription
+    }
+  }
+
+  private func restore(_ post: FeedPost, at originalIndex: Int) {
+    if let currentIndex = posts.firstIndex(where: { $0.id == post.id }) {
+      posts[currentIndex] = post
+    } else {
+      posts.insert(post, at: min(originalIndex, posts.count))
     }
   }
 
   private func appendDeduped(_ newPosts: [FeedPost]) {
     var seen = Set(posts.map(\.id))
-    let filtered = newPosts.filter { seen.insert($0.id).inserted }
-    posts.append(contentsOf: filtered)
+    posts.append(contentsOf: newPosts.filter { seen.insert($0.id).inserted })
   }
 
   private func replaceFolder(_ folder: BookmarkFolder) {
@@ -294,11 +384,11 @@ final class BookmarksViewModel: ObservableObject {
   private func shouldRemovePostAfterMove(folderId: String?) -> Bool {
     switch selectedFilter {
     case .all:
-      return false
+      false
     case .unsorted:
-      return folderId != nil
+      folderId != nil
     case .folder(let folder):
-      return folder.id != folderId
+      folder.id != folderId
     }
   }
 
@@ -313,7 +403,6 @@ final class BookmarksViewModel: ObservableObject {
     ]
     .compactMap { $0 }
     .joined(separator: " ")
-    .lowercased()
   }
 }
 
@@ -327,29 +416,22 @@ enum BookmarkFilter: Identifiable, Hashable {
   var id: String {
     switch self {
     case .all:
-      return "all"
+      "all"
     case .unsorted:
-      return "unsorted"
+      "unsorted"
     case .folder(let folder):
-      return "folder-\(folder.id)"
+      "folder-\(folder.id)"
     }
   }
 
   var folderQueryValue: String? {
     switch self {
     case .all:
-      return nil
+      nil
     case .unsorted:
-      return "none"
+      "none"
     case .folder(let folder):
-      return folder.id
+      folder.id
     }
   }
-}
-
-private struct BookmarkInteractionResponse: Decodable {
-  let ok: Bool?
-  let folderId: String?
-  let isBookmarked: Bool?
-  let bookmarkCount: Int?
 }

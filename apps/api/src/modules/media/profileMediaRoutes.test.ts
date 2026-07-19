@@ -93,6 +93,8 @@ describe("profile media route responses", function () {
           role: null,
           roleContext: null,
           filmsLoggedCount: 0,
+          followerCount: 1_248,
+          followingCount: 218,
         },
       ],
     ]);
@@ -108,6 +110,8 @@ describe("profile media route responses", function () {
       body.avatarUrl,
       "https://media.example.com/users/user_1/avatar/" + rawAvatar
     );
+    expect(body.followerCount).toBe(1_248);
+    expect(body.followingCount).toBe(218);
   });
 
   it("GET /v1/profiles/:username resolves bare avatar and cover filenames before responding", async function () {

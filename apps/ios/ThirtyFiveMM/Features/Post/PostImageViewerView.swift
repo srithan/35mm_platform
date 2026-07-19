@@ -22,6 +22,26 @@ struct PostImageViewerView: View {
   let onShare: () -> Void
 
   @State private var isShowingActions = false
+  @State private var selectedIndex: Int
+
+  init(
+    destination: PostImageDestination,
+    metrics: PostImageViewerMetrics,
+    onClose: @escaping () -> Void,
+    onLike: @escaping () -> Void,
+    onComment: @escaping () -> Void,
+    onRepost: @escaping () -> Void,
+    onShare: @escaping () -> Void
+  ) {
+    self.destination = destination
+    self.metrics = metrics
+    self.onClose = onClose
+    self.onLike = onLike
+    self.onComment = onComment
+    self.onRepost = onRepost
+    self.onShare = onShare
+    _selectedIndex = State(initialValue: destination.initialIndex)
+  }
 
   var body: some View {
     ZStack {
@@ -45,7 +65,7 @@ struct PostImageViewerView: View {
         sections: [
           BottomActionSheetSection(actions: [
             BottomActionSheetAction("Copy link", systemImage: "link") {
-              UIPasteboard.general.string = destination.url
+              UIPasteboard.general.string = currentImageURL
             },
           ]),
           BottomActionSheetSection(actions: [
@@ -62,52 +82,73 @@ struct PostImageViewerView: View {
   }
 
   private var imageSurface: some View {
-    ScrollView([.horizontal, .vertical], showsIndicators: false) {
-      KFImage(URL(string: destination.url))
-        .placeholder {
-          ProgressView()
-            .tint(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .resizable()
-        .scaledToFit()
-        .containerRelativeFrame([.horizontal, .vertical])
+    TabView(selection: $selectedIndex) {
+      ForEach(destination.urls.indices, id: \.self) { index in
+        KFImage(URL(string: destination.urls[index]))
+          .placeholder {
+            ProgressView()
+              .tint(.white)
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+          }
+          .resizable()
+          .scaledToFit()
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .accessibilityLabel("Image \(index + 1) of \(destination.urls.count)")
+          .tag(index)
+      }
     }
-    .scrollBounceBehavior(.basedOnSize)
+    .tabViewStyle(.page(indexDisplayMode: .never))
   }
 
   private var topControls: some View {
-    HStack {
-      circleButton(systemImage: "xmark") {
-        onClose()
-      }
-      .accessibilityLabel("Close image")
+    ZStack {
+      HStack {
+        circleButton(systemImage: "xmark") {
+          onClose()
+        }
+        .accessibilityLabel("Close image")
 
-      Spacer()
+        Spacer()
 
-      circleButton(systemImage: "ellipsis") {
-        isShowingActions = true
+        circleButton(systemImage: "ellipsis") {
+          isShowingActions = true
+        }
+        .accessibilityLabel("Image actions")
       }
-      .accessibilityLabel("Image actions")
+
+      if destination.urls.count > 1 {
+        Text("\(selectedIndex + 1) / \(destination.urls.count)")
+          .font(.subheadline.weight(.semibold))
+          .monospacedDigit()
+          .foregroundStyle(.white)
+          .padding(.horizontal, 12)
+          .padding(.vertical, 7)
+          .background(Color.black.opacity(0.45), in: Capsule())
+          .accessibilityLabel("Image \(selectedIndex + 1) of \(destination.urls.count)")
+      }
     }
+  }
+
+  private var currentImageURL: String {
+    destination.urls[selectedIndex]
   }
 
   private var bottomActions: some View {
     HStack(spacing: 28) {
       viewerAction(
-        systemImage: metrics.isLiked ? "heart.fill" : "heart",
+        image: Image(metrics.isLiked ? "PostActionHeartFilled" : "PostActionHeart"),
         count: metrics.likeCount,
         isActive: metrics.isLiked,
         action: onLike
       )
 
-      viewerAction(systemImage: "bubble.right", count: metrics.commentCount) {
+      viewerAction(image: Image("PostActionComment"), count: metrics.commentCount) {
         onClose()
         onComment()
       }
 
-      viewerAction(systemImage: "arrow.2.squarepath", count: metrics.repostCount, action: onRepost)
-      viewerAction(systemImage: "paperplane", count: metrics.shareCount, action: onShare)
+      viewerAction(image: Image("PostActionRepost"), count: metrics.repostCount, action: onRepost)
+      viewerAction(image: Image(systemName: "paperplane"), count: metrics.shareCount, action: onShare)
     }
     .padding(.bottom, 8)
   }
@@ -124,15 +165,17 @@ struct PostImageViewerView: View {
   }
 
   private func viewerAction(
-    systemImage: String,
+    image: Image,
     count: Int,
     isActive: Bool = false,
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
       HStack(spacing: 8) {
-        Image(systemName: systemImage)
-          .font(.system(size: 24, weight: .medium))
+        image
+          .resizable()
+          .scaledToFit()
+          .frame(width: 24, height: 24)
 
         if count > 0 {
           Text(count.compactFormatted)
