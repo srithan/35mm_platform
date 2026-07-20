@@ -22,6 +22,7 @@ interface PostCardActionsBarProps {
   initialBookmarkFolderId?: string | null;
   initialReposted: boolean;
   onCommentClick?: () => void;
+  onQuote?: () => void;
 }
 
 type BookmarkFolderSelectState = {
@@ -58,6 +59,7 @@ export function PostCardActionsBar({
   initialBookmarkFolderId = null,
   initialReposted,
   onCommentClick,
+  onQuote,
 }: PostCardActionsBarProps) {
   const likeMutation = useLikePost(postId);
   const repostMutation = useRepostPost();
@@ -106,6 +108,7 @@ export function PostCardActionsBar({
       initialBookmarkFolderId={initialBookmarkFolderId}
       initialReposted={initialReposted}
       onCommentClick={onCommentClick}
+      onQuote={onQuote}
       bookmarkFolders={folders}
       bookmarkFoldersLoading={foldersQuery.isLoading}
       creatingBookmarkFolder={createFolderMutation.isPending}

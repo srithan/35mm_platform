@@ -277,6 +277,7 @@ export var createPostSchema = z
       .optional(),
     media: z.array(postMediaItemSchema).max(9).optional(),
     mediaUrls: z.array(z.string().min(1).max(1000)).max(9).optional(),
+    quotedPostId: z.string().uuid().optional(),
     poll: createPostPollSchema.optional(),
   })
   .superRefine(function (post, ctx) {

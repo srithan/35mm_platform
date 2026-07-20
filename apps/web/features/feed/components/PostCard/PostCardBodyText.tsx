@@ -6,7 +6,6 @@ import { isStoredRichText } from "@/lib/utils/richContent";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { ROUTES } from "@/lib/constants/routes";
 import { useRouter } from "next/navigation";
-import type { RefObject } from "react";
 import type { PostVariant } from "./types";
 
 interface PostCardBodyTextProps {
@@ -15,10 +14,7 @@ interface PostCardBodyTextProps {
   cleanedText: string;
   filmRef?: string;
   stopRichLinkBubble: boolean;
-  shouldClamp: boolean;
   postBodyTextClassName: string;
-  bodyRef: RefObject<HTMLParagraphElement>;
-  measureRef: RefObject<HTMLDivElement>;
   truncatedText: string | null;
   isOverflowing: boolean;
   postId?: string;
@@ -31,10 +27,7 @@ export function PostCardBodyText({
   cleanedText,
   filmRef,
   stopRichLinkBubble,
-  shouldClamp,
   postBodyTextClassName,
-  bodyRef,
-  measureRef,
   truncatedText,
   isOverflowing,
   postId,
@@ -62,20 +55,7 @@ export function PostCardBodyText({
           )}
         >
           <div className="relative">
-            {shouldClamp ? (
-              <div
-                ref={measureRef}
-                aria-hidden
-                className={cn(
-                  "pointer-events-none invisible absolute left-0 top-0 -z-10",
-                  postBodyTextClassName
-                )}
-              />
-            ) : null}
-            <p
-              ref={bodyRef}
-              className={cn(postBodyTextClassName, shouldClamp && "overflow-hidden")}
-            >
+            <p className={postBodyTextClassName}>
               {isStoredRichText(cleanedText) && truncatedText == null ? (
                 <RichTextRenderer
                   stored={cleanedText}

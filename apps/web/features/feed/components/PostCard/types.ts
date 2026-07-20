@@ -1,3 +1,5 @@
+import type { QuotedPost } from "../../types/feed";
+
 export type PostVariant = "text" | "film-log" | "image" | "discussion";
 export type SourcePostType = "text" | "discussion" | "log" | "review" | "image";
 
@@ -44,6 +46,23 @@ export interface PostCardReplyPreview {
   username: string;
   text: string;
   time: string;
+}
+
+export interface PostCardRepostContext {
+  activityId: string;
+  repostedAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+  };
+  users: Array<{
+    id: string;
+    username: string;
+    displayName: string;
+  }>;
+  totalCount: number;
+  includesOriginal: boolean;
 }
 
 export interface PostCardPoll {
@@ -103,6 +122,9 @@ export interface PostCardProps {
   bookmarked?: boolean;
   bookmarkFolderId?: string | null;
   reposted?: boolean;
+  repostContext?: PostCardRepostContext | null;
+  quotedPost?: QuotedPost | null;
+  quotedPostUnavailable?: boolean;
   commentCount: number;
   replyPreview?: PostCardReplyPreview;
   replyCount?: number;

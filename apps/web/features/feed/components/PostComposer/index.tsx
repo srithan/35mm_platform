@@ -908,6 +908,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       };
     }
 
+    if (quotedPost?.postId) {
+      input.quotedPostId = quotedPost.postId;
+    }
+
     try {
       if (editingPost) {
         await updatePostMutation.mutateAsync({

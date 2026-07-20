@@ -3,6 +3,7 @@ erDiagram
   users ||--|| user_settings : configures
   users ||--o{ posts : authors
   films ||--o{ posts : referenced_by
+  posts o|--o{ posts : quoted_by
   posts ||--o{ post_likes : receives
   posts ||--o{ post_reposts : receives
   posts ||--o{ post_bookmarks : receives

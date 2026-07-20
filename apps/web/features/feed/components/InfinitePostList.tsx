@@ -16,6 +16,7 @@ import { feedKeys } from "../hooks/queryKeys";
 import type { Post } from "../types/feed";
 import { PostCard } from "./PostCard";
 import { resolvePostImageUrls } from "../utils/postMedia";
+import { deduplicateFeedPosts } from "../utils/repostDeduplication";
 
 type PostVariant = "text" | "film-log" | "image" | "discussion";
 type FeedPageData = Awaited<ReturnType<typeof fetchFeed>>;
@@ -70,7 +71,9 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
     refetch,
   } = useFeed(username);
 
-  const posts = data?.pages.flatMap((page) => page.posts) ?? [];
+  const posts = useMemo(function () {
+    return deduplicateFeedPosts(data?.pages.flatMap((page) => page.posts) ?? []);
+  }, [data?.pages]);
   const filteredPosts = useMemo(
     function () {
       if (!postTypes || postTypes.length === 0) return posts;
@@ -234,6 +237,9 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
         bookmarked: post.isBookmarked,
         bookmarkFolderId: post.bookmarkFolderId,
         reposted: post.isReposted,
+        repostContext: post.repostContext,
+        quotedPost: post.quotedPost,
+        quotedPostUnavailable: post.quotedPostUnavailable,
         commentCount: post.commentCount,
         role: post.author.role,
         roleContext: post.author.roleContext,
@@ -330,7 +336,12 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
           </div>
         ) : (
           postCards.map(function (post) {
-            return <PostCard key={post.postId} {...post} />;
+            return (
+              <PostCard
+                key={post.postId}
+                {...post}
+              />
+            );
           })
         )}
       </div>

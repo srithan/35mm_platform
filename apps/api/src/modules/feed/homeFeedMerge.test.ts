@@ -6,6 +6,8 @@ import {
   parseFeedItemsRetentionDays,
 } from "@35mm/types";
 import {
+  collapseNormalizedPostRows,
+  composeRepostDisplayRow,
   mergeHomeFeedRows,
   rankHighFollowerAuthorCacheRows,
   shouldUseColdFeedFallback,
@@ -133,8 +135,122 @@ function cachedAuthorRow(input: {
     repostCount: input.repostCount ?? 0,
     bookmarkCount: 0,
     isDeleted: false,
+    isRepost: false,
+    replyToId: null,
+    quotedPostId: null,
   };
 }
+
+describe("repost display normalization", function () {
+  it("keeps activity context while rendering source identity and content", function () {
+    var activity = {
+      id: "40000000-0000-4000-8000-000000000001",
+      body: "copied body",
+      headline: null,
+      isRepost: true,
+      replyToId: "50000000-0000-4000-8000-000000000001",
+      quotedPostId: null,
+      createdAt: new Date("2026-07-19T16:00:00.000Z"),
+      authorId: "60000000-0000-4000-8000-000000000001",
+      username: "reposter",
+      displayName: "Reposter",
+      repostCount: 1,
+      cursorId: "activity-cursor",
+    };
+    var source = {
+      id: "50000000-0000-4000-8000-000000000001",
+      body: "original body",
+      headline: "Original headline",
+      isRepost: false,
+      replyToId: null,
+      quotedPostId: null,
+      createdAt: new Date("2026-07-18T16:00:00.000Z"),
+      authorId: "70000000-0000-4000-8000-000000000001",
+      username: "original",
+      displayName: "Original Author",
+      repostCount: 3,
+    };
+
+    var normalized = composeRepostDisplayRow(activity, source);
+
+    expect(normalized.id).toBe(source.id);
+    expect(normalized.body).toBe("original body");
+    expect(normalized.authorId).toBe(source.authorId);
+    expect(normalized.cursorId).toBe("activity-cursor");
+    expect(normalized._repostContext).toEqual({
+      activityId: activity.id,
+      repostedAt: "2026-07-19T16:00:00.000Z",
+      user: {
+        id: activity.authorId,
+        username: "reposter",
+        displayName: "Reposter",
+      },
+      users: [
+        {
+          id: activity.authorId,
+          username: "reposter",
+          displayName: "Reposter",
+        },
+      ],
+      totalCount: 3,
+      includesOriginal: false,
+    });
+  });
+
+  it("collapses original and repost activities into one source row with social proof", function () {
+    var source = {
+      id: "50000000-0000-4000-8000-000000000001",
+      body: "original body",
+      headline: null,
+      isRepost: false,
+      replyToId: null,
+      quotedPostId: null,
+      createdAt: new Date("2026-07-18T16:00:00.000Z"),
+      authorId: "70000000-0000-4000-8000-000000000001",
+      username: "original",
+      displayName: "Original Author",
+      repostCount: 3,
+    };
+    var mayaActivity = {
+      ...source,
+      _repostContext: {
+        activityId: "activity-maya",
+        repostedAt: "2026-07-19T16:00:00.000Z",
+        user: { id: "maya", username: "maya", displayName: "Maya" },
+        users: [{ id: "maya", username: "maya", displayName: "Maya" }],
+        totalCount: 3,
+        includesOriginal: false,
+      },
+    };
+    var tejuActivity = {
+      ...source,
+      _repostContext: {
+        activityId: "activity-teju",
+        repostedAt: "2026-07-19T17:00:00.000Z",
+        user: { id: "teju", username: "teju", displayName: "Teju" },
+        users: [{ id: "teju", username: "teju", displayName: "Teju" }],
+        totalCount: 3,
+        includesOriginal: false,
+      },
+    };
+
+    var collapsed = collapseNormalizedPostRows(
+      [source, mayaActivity, tejuActivity] as Array<
+        typeof source & { _repostContext?: typeof mayaActivity._repostContext }
+      >
+    );
+
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0]._repostContext).toMatchObject({
+      users: [
+        { id: "maya", displayName: "Maya" },
+        { id: "teju", displayName: "Teju" },
+      ],
+      totalCount: 3,
+      includesOriginal: true,
+    });
+  });
+});
 
 describe("high-follower author cache ranking", function () {
   it("computes scores at request time and applies score cursor", function () {

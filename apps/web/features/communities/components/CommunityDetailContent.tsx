@@ -358,6 +358,8 @@ function CommunityPostList({ slug, sortBy }: { slug: string; sortBy: CommunitySo
             imageSrc={legacy.imageSrc}
             imageCaption={legacy.imageCaption}
             media={post.media}
+            quotedPost={post.quotedPost}
+            quotedPostUnavailable={post.quotedPostUnavailable}
             likeCount={post.likeCount}
             liked={post.isLiked}
             commentCount={post.commentCount}

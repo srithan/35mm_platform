@@ -351,6 +351,13 @@
       "when": 1784000000023,
       "tag": "0048_posts_film_reviews_index",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1784000000024,
+      "tag": "0049_post_quotes",
+      "breakpoints": true
     }
   ]
 }

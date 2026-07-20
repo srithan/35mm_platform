@@ -397,7 +397,7 @@ Catalog write pattern:
 - `film_id` FK to `films`, nullable.
 - `film_rating` smallint, nullable.
 - Visibility enum: `public | followers_only | private`.
-- `reply_to_id`, `is_repost`.
+- `reply_to_id`, `is_repost`, plus nullable `quoted_post_id` self-reference (`ON DELETE SET NULL`). Quote reverse lookups use the partial `(quoted_post_id, created_at DESC, id DESC)` index for non-deleted rows.
 - Denormalized `like_count`, `comment_count`, `repost_count`, `bookmark_count`.
 - `is_deleted`, `edited_at`.
 - Denormalized `moderation_status` (`visible | hidden | removed`) is updated in the same transaction as staff enforcement. Feed/detail/profile-feed/bookmark/comment-parent reads use it without joining report history or `moderation_content_state`.
@@ -925,7 +925,10 @@ Current feed behavior:
 - `feed_items` retention defaults to 30 days (`FEED_ITEMS_RETENTION_DAYS`). This keeps the hot materialized table bounded while covering the practical depth of normal social feed pagination; users who page beyond that switch to the cold path.
 - `feed.pruneFeedItems` runs as a repeatable worker job every 60 minutes by default, deleting old `feed_items` in indexed `(created_at, id)` chunks of 5,000 rows, up to 20 chunks per run. It logs pruned rows and distinct touched viewers; it relies on the 60-second feed cache TTL instead of issuing per-viewer Redis invalidations during prune.
 - Authenticated home feed cursors include score, post ID, ranking timestamp, and the materialized row creation time when a row came from `feed_items`. When that materialized cursor anchor reaches the retention boundary, the API bypasses feed cache and reads that page from `posts` for the viewer's own posts plus accepted followees.
-- Reposts are filtered at feed query time against the original author's profile privacy. A repost of a private author's post is visible only when the viewer also follows the original author.
+- Reposts are materialized as activity rows for fan-out, ranking, profile pagination, and idempotent undo, but feed/profile responses normalize each activity to the original post ID, content, author, counters, and viewer interaction flags. Normalized duplicates in a page are collapsed in one bounded in-memory pass, keeping the highest-ranked occurrence and aggregating at most two named reposters plus the denormalized `repost_count`. The nullable `repostContext` carries `users`, `totalCount`, and original-row provenance so clients render “You reposted” for the current viewer, otherwise “x reposted”, “x and y reposted”, or “x, y and n others reposted” above one unchanged original post card. Web also collapses the same source across already-loaded cursor pages, preventing a page boundary from reintroducing the duplicate without another database query.
+- Web feed post previews use one word-safe 400-grapheme cutoff independent of rendered width; short posts therefore remain complete on both desktop and mobile, while genuinely long posts truncate at the same content position and link to the untruncated detail view. Grapheme segmentation prevents emoji splitting. Post cards no longer run per-card layout measurement or `ResizeObserver` work; comment expansion retains its separate line-based behavior.
+- Quote posts are normal authored posts whose `quoted_post_id` points to the canonical source. `createPostSchema` validates the UUID and the API re-authorizes/canonicalizes the source server-side before insert. Feed/detail/profile/bookmark responses expose a bounded, non-recursive `quotedPost` preview (original author, rich text, media, film, link preview, and poll) plus `quotedPostUnavailable`; web renders it inside the quote card and uses a tombstone when the source is deleted or inaccessible.
+- Repost and quote sources for a page share one bounded primary-key `IN` query, followed by the existing batched poll and rich-mention hydration; there is no per-post/N+1 read. Source access checks cover post visibility, deletion/moderation, original-profile privacy/moderation, blocks, and mutes. Cached quote previews are rechecked against moderation read status and tombstoned when access is revoked; cached aggregated repost proof rechecks every named actor and removes hidden identities while preserving a separately visible original. Feed/profile response caches use the `feed-cache:v4` namespace so older repost/quote payload contracts cannot survive deployment.
 - Authenticated home feed cursor ranking timestamps keep score-formula rows stable across pages.
 - Authenticated home feeds that include high-follower live rows cache the final per-viewer merged page with the normal feed payload TTL and also cache the viewer-independent slice: recent rows for each high-follower author, keyed by author ID.
 - `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaults to 45 seconds. This intentionally allows high-follower author scores/counters/profile fields to be up to TTL seconds stale in exchange for sharing one cached author slice across many followers.
@@ -1065,7 +1068,7 @@ Current gap:
 
 Feed cache:
 
-- Namespace: `feed-cache:v1`.
+- Namespace: `feed-cache:v4`.
 - Home feed key includes viewer, cursor, and limit.
 - Profile feed key includes username, viewer, cursor, and limit.
 - Index sets track keys by viewer and author for targeted invalidation.

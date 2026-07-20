@@ -146,6 +146,9 @@ export function PostDetailView({
         likeCount={post.likeCount}
         liked={post.isLiked}
         reposted={post.isReposted}
+        repostContext={post.repostContext}
+        quotedPost={post.quotedPost}
+        quotedPostUnavailable={post.quotedPostUnavailable}
         bookmarked={post.isBookmarked}
         bookmarkFolderId={post.bookmarkFolderId}
         commentCount={post.commentCount}

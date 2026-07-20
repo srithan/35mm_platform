@@ -90,9 +90,32 @@ export interface Post {
   isReposted: boolean;
   isBookmarked: boolean;
   bookmarkFolderId?: string | null;
+  repostContext: {
+    activityId: string;
+    repostedAt: string;
+    user: {
+      id: string;
+      username: string;
+      displayName: string;
+    };
+    users: Array<{
+      id: string;
+      username: string;
+      displayName: string;
+    }>;
+    totalCount: number;
+    includesOriginal: boolean;
+  } | null;
+  quotedPost?: QuotedPost | null;
+  quotedPostUnavailable?: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export type QuotedPost = Pick<
+  Post,
+  "id" | "author" | "type" | "headline" | "body" | "media" | "mediaUrls" | "linkPreview" | "poll" | "film" | "createdAt"
+>;
 
 export interface Comment {
   id: string;

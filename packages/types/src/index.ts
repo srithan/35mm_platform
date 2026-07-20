@@ -97,7 +97,10 @@ export interface FeedPost {
   id: PostId;
   author: PublicUser;
   type: "text" | "discussion" | "log" | "review" | "image";
+  visibility?: "public" | "followers_only" | "private";
   moderationStatus?: ModerationContentStatus;
+  isDeleted?: boolean;
+  editedAt?: string | null;
   headline?: string | null;
   body: string;
   media: Array<{
@@ -115,8 +118,18 @@ export interface FeedPost {
       full?: string;
     };
   }>;
+  mediaUrls?: string[];
+  linkPreview: {
+    url: string;
+    title: string;
+    description: string | null;
+    image: string | null;
+    domain: string;
+    provider: "youtube" | "vimeo" | "link";
+  } | null;
   film: {
     id: string;
+    tmdbId?: number;
     title: string;
     year: number | null;
     posterUrl: string | null;
@@ -152,7 +165,30 @@ export interface FeedPost {
   isReposted: boolean;
   isBookmarked: boolean;
   bookmarkFolderId?: string | null;
+  repostContext: {
+    activityId: PostId;
+    repostedAt: string;
+    user: {
+      id: UserId;
+      username: string;
+      displayName: string;
+    };
+    users: Array<{
+      id: UserId;
+      username: string;
+      displayName: string;
+    }>;
+    totalCount: number;
+    includesOriginal: boolean;
+  } | null;
+  quotedPost: QuotedFeedPost | null;
+  quotedPostUnavailable: boolean;
 }
+
+export type QuotedFeedPost = Pick<
+  FeedPost,
+  "id" | "author" | "type" | "headline" | "body" | "media" | "linkPreview" | "film" | "poll" | "createdAt"
+>;
 
 export interface FeedPage {
   items: FeedPost[];

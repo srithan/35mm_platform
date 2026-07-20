@@ -24,6 +24,8 @@ import {
   FEED_SCORE_RECENCY_WEIGHT,
   FEED_SCORE_REPOST_WEIGHT,
   parseFeedItemsRetentionDays,
+  type FeedPost,
+  type QuotedFeedPost,
 } from "@35mm/types";
 import {
   createPostSchema,
@@ -68,6 +70,7 @@ import {
   filterModeratedPostRows,
   isModerationStaffViewer,
   moderationReadAccessSql,
+  setModerationReadStatus,
 } from "../../lib/moderationRead.js";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
@@ -533,23 +536,280 @@ async function hydratePostRichMentionsForRows(
   return result;
 }
 
-async function hydratePostsForRows<T extends { id: string; body: string; headline: string | null }>(
+type RepostContext = {
+  activityId: string;
+  repostedAt: string;
+  user: RepostContextUser;
+  users: RepostContextUser[];
+  totalCount: number;
+  includesOriginal: boolean;
+};
+
+type RepostContextUser = {
+    id: string;
+    username: string;
+    displayName: string;
+};
+
+type RepostHydrationRow = {
+  id: string;
+  body: string;
+  headline: string | null;
+  isRepost: boolean;
+  replyToId: string | null;
+  quotedPostId: string | null;
+  createdAt: Date;
+  authorId: string;
+  username: string;
+  displayName: string;
+  repostCount: number;
+};
+
+export function composeRepostDisplayRow<
+  TActivity extends RepostHydrationRow,
+  TSource extends RepostHydrationRow,
+>(
+  activity: TActivity,
+  source: TSource
+): Omit<TActivity, keyof TSource> & TSource & { _repostContext: RepostContext } {
+  var repostUser = {
+    id: activity.authorId,
+    username: activity.username,
+    displayName: activity.displayName,
+  };
+  return {
+    ...activity,
+    ...source,
+    _repostContext: {
+      activityId: activity.id,
+      repostedAt: activity.createdAt.toISOString(),
+      user: repostUser,
+      users: [repostUser],
+      totalCount: Math.max(1, Number(source.repostCount ?? 0)),
+      includesOriginal: false,
+    } satisfies RepostContext,
+  } as Omit<TActivity, keyof TSource> & TSource & { _repostContext: RepostContext };
+}
+
+function mergeRepostContexts(
+  first: RepostContext | undefined,
+  second: RepostContext | undefined,
+  totalCount: number,
+  includesOriginal: boolean
+): RepostContext | undefined {
+  var contexts = [first, second].filter(function (value): value is RepostContext {
+    return Boolean(value);
+  });
+  if (contexts.length === 0) return undefined;
+
+  var users: RepostContextUser[] = [];
+  var seenUserIds = new Set<string>();
+  for (var context of contexts) {
+    for (var user of context.users) {
+      if (seenUserIds.has(user.id)) continue;
+      seenUserIds.add(user.id);
+      if (users.length < 2) users.push(user);
+    }
+  }
+  var primary = contexts[0];
+  return {
+    ...primary,
+    user: users[0] ?? primary.user,
+    users: users.length > 0 ? users : [primary.user],
+    totalCount: Math.max(
+      totalCount,
+      users.length,
+      ...contexts.map(function (context) { return context.totalCount; })
+    ),
+    includesOriginal:
+      includesOriginal
+      || contexts.some(function (context) { return context.includesOriginal; }),
+  };
+}
+
+export function collapseNormalizedPostRows<
+  T extends RepostHydrationRow & { _repostContext?: RepostContext },
+>(rows: T[]): T[] {
+  var collapsed: T[] = [];
+  var indexByPostId = new Map<string, number>();
+
+  for (var row of rows) {
+    var existingIndex = indexByPostId.get(row.id);
+    if (existingIndex === undefined) {
+      indexByPostId.set(row.id, collapsed.length);
+      collapsed.push(row);
+      continue;
+    }
+
+    var existing = collapsed[existingIndex];
+    var includesOriginal = !existing._repostContext || !row._repostContext;
+    collapsed[existingIndex] = {
+      ...existing,
+      repostCount: Math.max(existing.repostCount, row.repostCount),
+      _repostContext: mergeRepostContexts(
+        existing._repostContext,
+        row._repostContext,
+        Math.max(existing.repostCount, row.repostCount),
+        includesOriginal
+      ),
+    } as T;
+  }
+
+  return collapsed;
+}
+
+async function selectReferencedPostRows(
+  sourcePostIds: string[],
+  viewerUserId: string | null,
+  viewerIsStaff: boolean
+) {
+  if (sourcePostIds.length === 0) return [];
+
+  var sourceFilters: any[] = [
+    inArray(posts.id, sourcePostIds),
+    eq(posts.isDeleted, false),
+    postModerationAccessSql(viewerUserId, viewerIsStaff),
+    postVisibilitySql(viewerUserId, viewerIsStaff),
+    profileAccessSql(viewerUserId, viewerIsStaff),
+  ];
+  if (viewerUserId) {
+    sourceFilters.push(
+      ...blockFiltersForAuthor(viewerUserId, posts.userId),
+      notMutedByViewerSql(viewerUserId, posts.userId)
+    );
+  }
+
+  var sourceRows = await getDb()
+    .select({
+      id: posts.id,
+      type: posts.type,
+      headline: posts.headline,
+      body: posts.body,
+      visibility: posts.visibility,
+      filmId: posts.filmId,
+      filmTmdbId: films.tmdbId,
+      filmTitle: films.title,
+      filmYear: films.year,
+      filmPosterUrl: films.posterUrl,
+      filmGenres: films.genres,
+      filmRating: posts.filmRating,
+      media: posts.media,
+      mediaUrls: posts.mediaUrls,
+      linkPreview: posts.linkPreview,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      editedAt: posts.editedAt,
+      authorId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+      isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
+      isLiked: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      isReposted: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      isBookmarked: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      bookmarkFolderId: viewerUserId
+        ? sql<string | null>`(
+            select ${postBookmarks.folderId}
+            from ${postBookmarks}
+            where ${postBookmarks.postId} = ${posts.id}
+              and ${postBookmarks.userId} = ${viewerUserId}
+            limit 1
+          )`
+        : sql<string | null>`null`,
+    })
+    .from(posts)
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .leftJoin(films, eq(films.id, posts.filmId))
+    .where(and(...sourceFilters));
+
+  return applyVisiblePostCountersToRows(sourceRows);
+}
+
+async function hydratePostsForRows<T extends RepostHydrationRow>(
   rows: T[],
-  viewerUserId: string | null
-): Promise<Array<T & { _preloadedBody: string; _preloadedHeadline: string | null; _preloadedPoll: FeedPoll | null }>> {
-  var ids = rows.map(function (row) { return row.id; });
+  viewerUserId: string | null,
+  viewerIsStaff = false
+) {
+  var sourcePostIds = Array.from(new Set(rows.flatMap(function (row) {
+    var ids: string[] = [];
+    if (row.isRepost && row.replyToId) ids.push(row.replyToId);
+    if (row.quotedPostId) ids.push(row.quotedPostId);
+    return ids;
+  })));
+  var sourceRows = await selectReferencedPostRows(sourcePostIds, viewerUserId, viewerIsStaff);
+  var sourceRowsById = new Map(sourceRows.map(function (row) {
+    return [row.id, row];
+  }));
+
+  var normalizedRows: Array<T & { _repostContext?: RepostContext }> = [];
+  for (var row of rows) {
+    if (!row.isRepost || !row.replyToId) {
+      normalizedRows.push(row);
+      continue;
+    }
+    var source = sourceRowsById.get(row.replyToId);
+    if (!source) continue;
+    normalizedRows.push(
+      composeRepostDisplayRow(row, source) as unknown as T & {
+        _repostContext: RepostContext;
+      }
+    );
+  }
+  var collapsedRows = collapseNormalizedPostRows(normalizedRows);
+  var rowsToHydrate = collapsedRows.slice();
+  var hydratedIds = new Set(rowsToHydrate.map(function (row) { return row.id; }));
+  for (var normalizedRow of collapsedRows) {
+    if (!normalizedRow.quotedPostId) continue;
+    var quotedSource = sourceRowsById.get(normalizedRow.quotedPostId);
+    if (!quotedSource || hydratedIds.has(quotedSource.id)) continue;
+    hydratedIds.add(quotedSource.id);
+    rowsToHydrate.push(quotedSource as unknown as T);
+  }
+  var ids = rowsToHydrate.map(function (row) { return row.id; });
   var [pollsByPostId, richMentionsByPostId] = await Promise.all([
     hydratePostPollsForRows(ids, viewerUserId),
-    hydratePostRichMentionsForRows(rows),
+    hydratePostRichMentionsForRows(rowsToHydrate),
   ]);
 
-  return rows.map(function (row) {
+  return collapsedRows.map(function (row) {
     var richText = richMentionsByPostId.get(row.id) ?? { body: row.body, headline: row.headline };
     return {
       ...row,
       _preloadedBody: richText.body,
       _preloadedHeadline: richText.headline,
       _preloadedPoll: pollsByPostId.get(row.id) ?? null,
+      _quotedPost: row.quotedPostId && sourceRowsById.has(row.quotedPostId)
+        ? {
+            ...sourceRowsById.get(row.quotedPostId)!,
+            _preloadedBody:
+              richMentionsByPostId.get(row.quotedPostId)?.body
+              ?? sourceRowsById.get(row.quotedPostId)!.body,
+            _preloadedHeadline:
+              richMentionsByPostId.get(row.quotedPostId)?.headline
+              ?? sourceRowsById.get(row.quotedPostId)!.headline,
+            _preloadedPoll: pollsByPostId.get(row.quotedPostId) ?? null,
+          }
+        : null,
     };
   });
 }
@@ -576,6 +836,7 @@ type CreatePostInput = {
   filmId: string | null;
   filmRating: number | null;
   visibility: "public" | "followers_only" | "private";
+  quotedPostId: string | null;
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
@@ -679,6 +940,7 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     filmId,
     filmRating,
     visibility,
+    quotedPostId: parsed.quotedPostId ?? null,
     media: normalizePostMediaList(source.media ?? parsed.media).slice(0, 10),
     mediaUrls: Array.isArray(source.mediaUrls)
       ? source.mediaUrls.filter(function (value): value is string {
@@ -844,6 +1106,7 @@ function postVisibilitySql(viewerUserId: string | null, viewerIsStaff = false) {
           from ${posts} source_posts
           inner join ${profiles} source_profiles on source_profiles.user_id = source_posts.user_id
           where source_posts.id = ${posts.replyToId}
+            and source_posts.is_deleted = false
             and (
               source_posts.moderation_status = 'visible'
               or source_posts.user_id = ${viewerUserId}
@@ -865,6 +1128,20 @@ function postVisibilitySql(viewerUserId: string | null, viewerIsStaff = false) {
                   and source_follows.status = 'accepted'
               )
             )
+            and (
+              source_posts.visibility = 'public'
+              or source_posts.user_id = ${viewerUserId}
+              or (
+                source_posts.visibility = 'followers_only'
+                and exists (
+                  select 1
+                  from ${follows} source_post_follows
+                  where source_post_follows.follower_id = ${viewerUserId}
+                    and source_post_follows.following_id = source_posts.user_id
+                    and source_post_follows.status = 'accepted'
+                )
+              )
+            )
         )
       )`
     : sql<boolean>`(
@@ -875,9 +1152,11 @@ function postVisibilitySql(viewerUserId: string | null, viewerIsStaff = false) {
           from ${posts} source_posts
           inner join ${profiles} source_profiles on source_profiles.user_id = source_posts.user_id
           where source_posts.id = ${posts.replyToId}
+            and source_posts.is_deleted = false
             and source_posts.moderation_status = 'visible'
             and source_profiles.moderation_status = 'visible'
             and source_profiles.is_private = false
+            and source_posts.visibility = 'public'
         )
       )`;
 
@@ -1296,7 +1575,7 @@ export function publicAuthorRoleFields(row: {
   };
 }
 
-async function toPostItem(row: {
+type PostItemRow = {
   id: string;
   type: "text" | "discussion" | "log" | "review" | "image";
   headline: string | null;
@@ -1338,11 +1617,26 @@ async function toPostItem(row: {
   bookmarkCount: number;
   isDeleted: boolean;
   moderationStatus: "visible" | "hidden" | "removed";
+  isRepost: boolean;
+  replyToId: string | null;
+  quotedPostId: string | null;
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
   bookmarkFolderId?: string | null;
-}, viewerUserId: string | null = null, preloaded: PreloadedPoll = {}) {
+  _repostContext?: RepostContext;
+  _quotedPost?: (PostItemRow & {
+    _preloadedBody: string;
+    _preloadedHeadline: string | null;
+    _preloadedPoll: FeedPoll | null;
+  }) | null;
+};
+
+async function toPostItem(
+  row: PostItemRow,
+  viewerUserId: string | null = null,
+  preloaded: PreloadedPoll = {}
+): Promise<FeedPost> {
   var [avatarUrl, avatarUrlLg] = await Promise.all([
     resolveProfileAvatarUrl(row.avatarUrl, row.authorId, row.avatarVariants, "sm"),
     resolveProfileAvatarUrl(row.avatarUrl, row.authorId, row.avatarVariants, "lg"),
@@ -1374,8 +1668,11 @@ async function toPostItem(row: {
       : row.headline;
   var hasPollOverride = preloaded != null && Object.prototype.hasOwnProperty.call(preloaded, "poll");
   var poll = hasPollOverride
-    ? preloaded.poll
+    ? preloaded.poll ?? null
     : await hydratePostPoll(row.id, viewerUserId);
+  var quotedPost = row._quotedPost
+    ? await toQuotedPostItem(row._quotedPost, viewerUserId)
+    : null;
 
   return {
     id: row.id,
@@ -1424,6 +1721,36 @@ async function toPostItem(row: {
     isReposted: Boolean(row.isReposted),
     isBookmarked: Boolean(row.isBookmarked),
     bookmarkFolderId: row.bookmarkFolderId ?? null,
+    repostContext: row._repostContext ?? null,
+    quotedPost,
+    quotedPostUnavailable: Boolean(row.quotedPostId && !quotedPost),
+  };
+}
+
+async function toQuotedPostItem(
+  row: NonNullable<PostItemRow["_quotedPost"]>,
+  viewerUserId: string | null
+): Promise<QuotedFeedPost> {
+  var item = await toPostItem(
+    { ...row, quotedPostId: null, _quotedPost: null },
+    viewerUserId,
+    {
+      body: row._preloadedBody,
+      headline: row._preloadedHeadline,
+      poll: row._preloadedPoll,
+    }
+  );
+  return {
+    id: item.id,
+    author: item.author,
+    type: item.type,
+    headline: item.headline,
+    body: item.body,
+    media: item.media,
+    linkPreview: item.linkPreview,
+    film: item.film,
+    poll: item.poll,
+    createdAt: item.createdAt,
   };
 }
 
@@ -1484,6 +1811,9 @@ export type CachedHighFollowerAuthorRow = {
   bookmarkCount: number;
   isDeleted: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
+  isRepost: boolean;
+  replyToId: string | null;
+  quotedPostId: string | null;
 };
 
 function compareHomeFeedRows(a: Pick<HomeFeedRow, "cursorScore" | "cursorId">, b: Pick<HomeFeedRow, "cursorScore" | "cursorId">): number {
@@ -1652,6 +1982,9 @@ function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFol
     bookmarkCount: Number(row.bookmarkCount ?? 0),
     isDeleted: row.isDeleted,
     moderationStatus: row.moderationStatus,
+    isRepost: row.isRepost,
+    replyToId: row.replyToId,
+    quotedPostId: row.quotedPostId,
   };
 }
 
@@ -1692,6 +2025,9 @@ function isCachedHighFollowerAuthorRow(value: unknown): value is CachedHighFollo
     typeof row.updatedAt === "string" &&
     typeof row.type === "string" &&
     typeof row.body === "string" &&
+    typeof row.isRepost === "boolean" &&
+    (row.replyToId === null || typeof row.replyToId === "string") &&
+    (row.quotedPostId === null || typeof row.quotedPostId === "string") &&
     typeof row.username === "string" &&
     typeof row.displayName === "string"
   );
@@ -1790,6 +2126,9 @@ async function selectLiveHomeFeedRows(input: {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${input.viewerUserId})`,
       isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${input.viewerUserId})`,
       isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${input.viewerUserId})`,
@@ -1884,6 +2223,9 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: sql<boolean>`false`,
       isReposted: sql<boolean>`false`,
       isBookmarked: sql<boolean>`false`,
@@ -2119,6 +2461,9 @@ async function getPostById(
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: viewerUserId
         ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
         : sql<boolean>`false`,
@@ -2153,18 +2498,20 @@ async function getPostById(
     .limit(1);
 
   if (rows.length === 0) return null;
-  var row = rows[0];
-  var visibleCounters = await getVisiblePostCounters(postId, {
-    likeCount: Number(row.likeCount ?? 0),
-    commentCount: Number(row.commentCount ?? 0),
-    repostCount: Number(row.repostCount ?? 0),
-    bookmarkCount: Number(row.bookmarkCount ?? 0),
-  });
+  var rowsWithCounters = await applyVisiblePostCountersToRows(rows);
+  var hydratedRows = await hydratePostsForRows(
+    rowsWithCounters,
+    viewerUserId,
+    viewerIsStaff
+  );
+  var row = hydratedRows[0];
+  if (!row) return null;
 
-  return toPostItem({
-    ...row,
-    ...visibleCounters,
-  }, viewerUserId);
+  return toPostItem(row, viewerUserId, {
+    body: row._preloadedBody,
+    headline: row._preloadedHeadline,
+    poll: row._preloadedPoll,
+  });
 }
 
 async function assertPostOwner(postId: string, userId: string) {
@@ -2234,6 +2581,43 @@ async function assertReadablePostForInteraction(postId: string, viewerUserId: st
   if (rows[0].moderationStatus !== "visible" && rows[0].authorUserId !== viewerUserId) {
     throw notFound("Post not found");
   }
+}
+
+async function resolveReadableQuotedPostId(
+  postId: string,
+  viewerUserId: string,
+  viewerIsStaff = false
+): Promise<string> {
+  var candidateId = postId;
+  var visited = new Set<string>();
+  for (var depth = 0; depth < 16; depth += 1) {
+    if (visited.has(candidateId)) throw badRequest("Invalid repost chain");
+    visited.add(candidateId);
+    var filters: any[] = [
+      eq(posts.id, candidateId),
+      eq(posts.isDeleted, false),
+      postModerationAccessSql(viewerUserId, viewerIsStaff),
+      postVisibilitySql(viewerUserId, viewerIsStaff),
+      profileAccessSql(viewerUserId, viewerIsStaff),
+      ...blockFiltersForAuthor(viewerUserId, posts.userId),
+      notMutedByViewerSql(viewerUserId, posts.userId),
+    ];
+    var rows = await getDb()
+      .select({
+        id: posts.id,
+        isRepost: posts.isRepost,
+        replyToId: posts.replyToId,
+      })
+      .from(posts)
+      .innerJoin(profiles, eq(profiles.userId, posts.userId))
+      .where(and(...filters))
+      .limit(1);
+    var row = rows[0];
+    if (!row) throw notFound("Quoted post not found");
+    if (!row.isRepost || !row.replyToId) return row.id;
+    candidateId = row.replyToId;
+  }
+  throw badRequest("Repost chain is too deep to quote");
 }
 
 feedRoutes.get("/", async function (c) {
@@ -2353,6 +2737,9 @@ feedRoutes.get("/", async function (c) {
           bookmarkCount: posts.bookmarkCount,
           isDeleted: posts.isDeleted,
           moderationStatus: posts.moderationStatus,
+          isRepost: posts.isRepost,
+          replyToId: posts.replyToId,
+          quotedPostId: posts.quotedPostId,
           isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewer.userId})`,
           isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewer.userId})`,
           isBookmarked: sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewer.userId})`,
@@ -2394,7 +2781,11 @@ feedRoutes.get("/", async function (c) {
     var visibleRows = merged.rows.slice(0, parsed.limit);
     var visibleRowsWithInteractions = await applyViewerInteractionFlags(visibleRows, viewer.userId);
     var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRowsWithInteractions);
-    var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, viewer.userId);
+    var visibleRowsWithPreloaded = await hydratePostsForRows(
+      visibleRowsWithCounters,
+      viewer.userId,
+      viewerIsStaff
+    );
     var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
       return toPostItem(
         row,
@@ -2407,7 +2798,10 @@ feedRoutes.get("/", async function (c) {
       );
     }));
 
-    var hasMore = merged.rows.length > parsed.limit || merged.hasMore;
+    var hasMore =
+      merged.rows.length > parsed.limit ||
+      merged.hasMore ||
+      visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
     var tail = visibleRows[visibleRows.length - 1];
     var nextCursor = hasMore && tail
       ? encodeFeedScoreCursor({
@@ -2497,6 +2891,9 @@ feedRoutes.get("/", async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: sql<boolean>`false`,
       isReposted: sql<boolean>`false`,
       isBookmarked: sql<boolean>`false`,
@@ -2510,7 +2907,11 @@ feedRoutes.get("/", async function (c) {
 
   var guestVisibleRows = guestRows.slice(0, parsed.limit);
   var guestVisibleRowsWithCounters = await applyVisiblePostCountersToRows(guestVisibleRows);
-  var guestVisibleRowsWithPreloaded = await hydratePostsForRows(guestVisibleRowsWithCounters, null);
+  var guestVisibleRowsWithPreloaded = await hydratePostsForRows(
+    guestVisibleRowsWithCounters,
+    null,
+    false
+  );
   var guestItems = await Promise.all(guestVisibleRowsWithPreloaded.map(function (row) {
     return toPostItem(
       row,
@@ -2523,7 +2924,9 @@ feedRoutes.get("/", async function (c) {
     );
   }));
 
-  var guestHasMore = guestRows.length > parsed.limit;
+  var guestHasMore =
+    guestRows.length > parsed.limit ||
+    guestVisibleRowsWithPreloaded.length < guestVisibleRowsWithCounters.length;
   var guestTail = guestVisibleRows[guestVisibleRows.length - 1];
   var guestNextCursor = guestHasMore && guestTail
     ? encodeCompositeCursor({ createdAt: guestTail.cursorCreatedAt, id: guestTail.cursorId })
@@ -2583,6 +2986,10 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     }
   }
 
+  var quotedPostId = input.quotedPostId
+    ? await resolveReadableQuotedPostId(input.quotedPostId, user.userId)
+    : null;
+
   var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
   var createdPost = await getWriteDb().transaction(async function (tx) {
     var insertedRows = await tx
@@ -2595,6 +3002,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         filmId: input.filmId ?? null,
         filmRating: input.filmRating,
         visibility: input.visibility,
+        quotedPostId,
         media: normalizedMedia,
         mediaUrls: normalizedMediaUrls,
         linkPreview: input.linkPreview,
@@ -2811,6 +3219,9 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: viewerUserId
         ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
         : sql<boolean>`false`,
@@ -2830,7 +3241,11 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
 
   var visibleRows = rows.slice(0, parsed.limit);
   var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
-  var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, viewerUserId);
+  var visibleRowsWithPreloaded = await hydratePostsForRows(
+    visibleRowsWithCounters,
+    viewerUserId,
+    viewerIsStaff
+  );
   var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
     return toPostItem(row, viewerUserId, {
       body: row._preloadedBody,
@@ -2838,7 +3253,9 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
       poll: row._preloadedPoll,
     });
   }));
-  var hasMore = rows.length > parsed.limit;
+  var hasMore =
+    rows.length > parsed.limit ||
+    visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
   var tail = visibleRows[visibleRows.length - 1];
   var nextCursor = hasMore && tail
     ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
@@ -2988,6 +3405,9 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: viewerUserId
         ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
         : sql<boolean>`false`,
@@ -3007,7 +3427,11 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
 
   var visibleRows = rows.slice(0, parsed.limit);
   var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
-  var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, viewerUserId);
+  var visibleRowsWithPreloaded = await hydratePostsForRows(
+    visibleRowsWithCounters,
+    viewerUserId,
+    viewerIsStaff
+  );
   var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
     return toPostItem(
       row,
@@ -3019,7 +3443,9 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       }
     );
   }));
-  var hasMore = rows.length > parsed.limit;
+  var hasMore =
+    rows.length > parsed.limit ||
+    visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
   var tail = visibleRows[visibleRows.length - 1];
   var nextCursor = hasMore && tail
     ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
@@ -3122,6 +3548,9 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
       isLiked: sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${user.userId})`,
       isReposted: sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${user.userId})`,
       isBookmarked: sql<boolean>`true`,
@@ -3137,7 +3566,11 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
 
   var visibleRows = rows.slice(0, parsed.limit);
   var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
-  var visibleRowsWithPreloaded = await hydratePostsForRows(visibleRowsWithCounters, user.userId);
+  var visibleRowsWithPreloaded = await hydratePostsForRows(
+    visibleRowsWithCounters,
+    user.userId,
+    viewerIsStaff
+  );
   var items = await Promise.all(visibleRowsWithPreloaded.map(function (row) {
     return toPostItem(
       row,
@@ -3149,7 +3582,9 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       }
     );
   }));
-  var hasMore = rows.length > parsed.limit;
+  var hasMore =
+    rows.length > parsed.limit ||
+    visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
   var tail = visibleRows[visibleRows.length - 1];
   var nextCursor = hasMore && tail
     ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
@@ -3187,7 +3622,10 @@ feedRoutes.delete("/posts/:postId", requireAuth, postEditRateLimit, async functi
     }
     return deletedRows.length > 0;
   });
-  if (deleted) wakeCounterOutbox();
+  if (deleted) {
+    wakeCounterOutbox();
+    await setModerationReadStatus("post", postId, "removed");
+  }
 
   await invalidateFeedAfterAuthorMutation({
     authorUserId: user.userId,
@@ -3662,6 +4100,7 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, postInteractionRateLimit,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
+      quotedPostId: posts.quotedPostId,
     })
     .from(posts)
     .where(and(eq(posts.id, postId), eq(posts.isDeleted, false)))
@@ -3696,6 +4135,7 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, postInteractionRateLimit,
         media: sourcePost.media,
         mediaUrls: sourcePost.mediaUrls ?? [],
         linkPreview: sourcePost.linkPreview,
+        quotedPostId: sourcePost.quotedPostId,
         isRepost: true,
         replyToId: postId,
       })

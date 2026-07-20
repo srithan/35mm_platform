@@ -97,6 +97,9 @@ export var posts = pgTable(
     replyToId: uuid("reply_to_id").references(function (): AnyPgColumn {
       return posts.id;
     }, { onDelete: "set null" }),
+    quotedPostId: uuid("quoted_post_id").references(function (): AnyPgColumn {
+      return posts.id;
+    }, { onDelete: "set null" }),
     isRepost: boolean("is_repost").default(false).notNull(),
     likeCount: integer("like_count").default(0).notNull(),
     commentCount: integer("comment_count").default(0).notNull(),
@@ -129,6 +132,9 @@ export var posts = pgTable(
         table.createdAt,
         table.id
       ),
+      quotedPostCreatedAtIdx: index("posts_quoted_post_id_created_at_id_idx")
+        .on(table.quotedPostId, table.createdAt.desc(), table.id.desc())
+        .where(sql`${table.quotedPostId} is not null and ${table.isDeleted} = false`),
     };
   }
 );

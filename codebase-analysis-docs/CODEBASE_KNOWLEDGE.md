@@ -280,6 +280,7 @@ erDiagram
   users ||--|| user_settings : configures
   users ||--o{ posts : authors
   films ||--o{ posts : referenced_by
+  posts o|--o{ posts : quoted_by
   posts ||--o{ post_likes : receives
   posts ||--o{ post_reposts : receives
   posts ||--o{ post_bookmarks : receives
@@ -420,7 +421,7 @@ Current Drizzle schema highlights:
 - `catalog_edits`, `catalog_revisions`, `catalog_sources`: append-only catalog edit groups, per-entity before/after snapshots, changed field lists, public visibility flags, revert links, idempotency keys, archive-ready revision pointers, and citations. Rollback creates a new edit/revision instead of mutating history. Pending-review moderation queues use a partial `(status, created_at, id)` index.
 - `catalog_index_jobs`: transactional outbox for catalog search/index work. Rows are written in the same transaction as applied/reverted edits; relay workers poll the partial `processed_at IS NULL` index. Processed rows can remain as an operational log without slowing the hot poll path.
 - `contribution_submissions`: authenticated review queue for public catalog contributions. Kinds cover missing titles, title edits, credits, person updates, media, awards/events, duplicate titles, merge people, and split person. Rows store JSONB payloads, moderation status, title/summary, optional entity reference, soft-delete flag, and a unique per-user idempotency key.
-- `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview.
+- `posts`: UUID primary key, author, type, headline/body, `film_id` FK to `films`, `film_rating`, visibility, reply/repost flags, nullable `quoted_post_id` self-reference, denormalized counters, soft delete, edit timestamp, JSONB media, media URL array, link preview. Quote reverse lookups have a partial `(quoted_post_id, created_at DESC, id DESC)` index over non-deleted rows.
 - `bookmark_folders`: per-user bookmark folders with denormalized `item_count` per folder.
 - `post_bookmarks`: current bookmark table. The older `post_saves` rename appears completed in code; `folder_id` optionally points at `bookmark_folders` and falls back to unsorted on folder delete. User-first indexes support per-user bookmark cursor listing and folder-filtered bookmark pages.
 - Folder counts are written synchronously in bookmark add/move/remove handlers with bounded updates to `bookmark_folders.item_count`; `/v1/feed/bookmarks/folders` avoids heavy `GROUP BY` scans and uses denormalized `profiles.unsorted_bookmark_count` for unsorted count.
@@ -553,7 +554,7 @@ Business purpose: primary social timeline for film discussion, logs, reviews, me
 
 Frontend:
 
-- `PostComposer` creates posts with text/discussion/log modes, rich text, film selection, media, YouTube/link preview, polls, and editing support.
+- `PostComposer` creates posts with text/discussion/log modes, rich text, film selection, media, YouTube/link preview, polls, quote-source IDs, and editing support.
 - `InfinitePostList` uses `useFeed`, React Query infinite pagination, prefetching, virtualization after larger list sizes, and memoized `PostCard`.
 - `PostCard` is `React.memo` with a custom prop comparator.
 - `CommentSection` loads and mutates comments under each post/detail.
@@ -582,7 +583,9 @@ How it works:
 - Auth home feed cursors encode score, post ID, and ranking timestamp. Guest/profile/bookmark/comment feeds keep chronological cursors.
 - High-follower live-merge auth feeds bypass Redis payload cache; materialized-only auth feeds still use targeted cache invalidation.
 - Posts reference canonical `films.id` through `film_id`.
-- Repost feed rows are filtered at query time against the original author's privacy. Viewers must follow the original private author to see another user's repost of that private author's post.
+- Repost writes create an idempotent `post_reposts` fact plus a soft-deletable activity post used for fan-out/ranking/profile pagination. Read paths batch-load all original posts for the page by primary key, return original post identity/content/author/counters/interactions, then collapse normalized duplicates in one O(page-size) map. Nullable `repostContext` exposes at most two named `users`, denormalized `totalCount`, and original-row provenance; web renders “You reposted” when the current viewer is a reposter, otherwise “x reposted”, “x and y reposted”, or “x, y and n others reposted” above one original card, and performs the same bounded deduplication across loaded cursor pages. No new query or index is required.
+- Web feed post previews truncate only beyond a word-safe 400-grapheme content limit, producing the same cutoff on every viewport and leaving detail views complete. `Intl.Segmenter` keeps multi-code-point emoji intact, with a code-point fallback for older runtimes. This replaces per-card hidden DOM measurement and `ResizeObserver` work; comment cards keep their independent expandable line clamp.
+- Quote creation persists a server-authorized canonical `quoted_post_id`. Feed/detail/profile/bookmark reads expose a bounded, non-recursive `quotedPost` preview with original identity, rich text, media, film, link preview, and poll; web `PostCardQuoteEmbed` renders that source below the quote commentary. Missing/deleted/inaccessible sources become `quotedPostUnavailable` tombstones. Repost and quote sources share one batched primary-key query plus batched rich-mention/poll hydration. Feed cache moderation filtering tombstones newly hidden quote sources and removes hidden identities from aggregated repost proof while preserving a separately visible original. The response-cache namespace is `feed-cache:v4`.
 - API hydrates film, poll, viewer action flags, media variant URLs, author fields, and moderation state into feed payloads.
 - Like/repost/comment/bookmark actions create notifications where appropriate.
 
@@ -934,7 +937,7 @@ Important operational detail:
 
 Caching:
 
-- Feed cache namespace: `feed-cache:v1`.
+- Feed cache namespace: `feed-cache:v4`.
 - Home feed key includes viewer, cursor, limit.
 - Profile feed key includes username, viewer, cursor, limit.
 - Index sets track cache keys by viewer and author for targeted invalidation.

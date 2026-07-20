@@ -1,4 +1,4 @@
-import type { Comment, Post } from "../types/feed";
+import type { Comment, Post, QuotedPost } from "../types/feed";
 
 var ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
@@ -172,6 +172,67 @@ export function adaptPostToFeedType(raw: unknown): Post {
   var media = normalizeMedia(root);
   var mediaUrls = asStringArray(root.mediaUrls);
   var poll = normalizePoll(root);
+  var repostContextRaw = isRecord(root.repostContext) ? root.repostContext : null;
+  var repostUserRaw = repostContextRaw && isRecord(repostContextRaw.user)
+    ? repostContextRaw.user
+    : null;
+  var repostContext: Post["repostContext"] = null;
+  if (repostContextRaw && repostUserRaw) {
+    var primaryRepostUser = {
+      id: asString(repostUserRaw.id),
+      username: asString(repostUserRaw.username),
+      displayName:
+        asString(repostUserRaw.displayName) || asString(repostUserRaw.username),
+    };
+    var repostUsers = (Array.isArray(repostContextRaw.users) ? repostContextRaw.users : [])
+      .filter(isRecord)
+      .map(function (user) {
+        return {
+          id: asString(user.id),
+          username: asString(user.username),
+          displayName: asString(user.displayName) || asString(user.username),
+        };
+      })
+      .filter(function (user) { return user.id.length > 0 && user.username.length > 0; });
+    if (!repostUsers.some(function (user) { return user.id === primaryRepostUser.id; })) {
+      repostUsers.unshift(primaryRepostUser);
+    }
+    repostUsers = repostUsers.filter(function (user, index, users) {
+      return users.findIndex(function (candidate) { return candidate.id === user.id; }) === index;
+    }).slice(0, 2);
+    repostContext = {
+      activityId: asString(repostContextRaw.activityId),
+      repostedAt: asString(repostContextRaw.repostedAt),
+      user: repostUsers[0] ?? primaryRepostUser,
+      users: repostUsers.length > 0 ? repostUsers : [primaryRepostUser],
+      totalCount: Math.max(
+        repostUsers.length,
+        asNumber(repostContextRaw.totalCount, repostUsers.length || 1)
+      ),
+      includesOriginal: Boolean(repostContextRaw.includesOriginal),
+    };
+  }
+  var quotedPost: QuotedPost | null = null;
+  if (isRecord(root.quotedPost)) {
+    var adaptedQuote = adaptPostToFeedType({
+      ...root.quotedPost,
+      quotedPost: null,
+      quotedPostUnavailable: false,
+    });
+    quotedPost = {
+      id: adaptedQuote.id,
+      author: adaptedQuote.author,
+      type: adaptedQuote.type,
+      headline: adaptedQuote.headline,
+      body: adaptedQuote.body,
+      media: adaptedQuote.media,
+      mediaUrls: adaptedQuote.mediaUrls,
+      linkPreview: adaptedQuote.linkPreview,
+      poll: adaptedQuote.poll,
+      film: adaptedQuote.film,
+      createdAt: adaptedQuote.createdAt,
+    };
+  }
 
   var film: Post["film"] = null;
   if (isRecord(root.film)) {
@@ -277,6 +338,9 @@ export function adaptPostToFeedType(raw: unknown): Post {
       root.bookmarkFolderId === undefined || root.bookmarkFolderId === null
         ? null
         : asString(root.bookmarkFolderId),
+    repostContext,
+    quotedPost,
+    quotedPostUnavailable: Boolean(root.quotedPostUnavailable),
     createdAt,
     updatedAt,
     __raw: {

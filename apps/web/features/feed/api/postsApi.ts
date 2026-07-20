@@ -33,6 +33,7 @@ export interface CreatePostInput {
     };
   }>;
   mediaUrls?: string[];
+  quotedPostId?: string;
   linkPreview?: {
     url: string;
     title: string;

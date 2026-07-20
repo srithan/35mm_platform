@@ -82,7 +82,27 @@ type CachedFeedItem = {
   id: string;
   moderationStatus?: ModerationContentStatus;
   author: { id: string };
+  repostContext?: {
+    user?: { id: string; username?: string; displayName?: string };
+    users?: Array<{ id: string; username?: string; displayName?: string }>;
+    totalCount?: number;
+    includesOriginal?: boolean;
+  } | null;
+  quotedPost?: CachedFeedItem | null;
+  quotedPostUnavailable?: boolean;
 };
+
+function cachedRepostUsers(item: CachedFeedItem) {
+  var candidates = item.repostContext?.users?.length
+    ? item.repostContext.users
+    : item.repostContext?.user
+      ? [item.repostContext.user]
+      : [];
+  return candidates.filter(function (user, index, users) {
+    return user.id.length > 0
+      && users.findIndex(function (candidate) { return candidate.id === user.id; }) === index;
+  });
+}
 
 export async function filterModeratedPostRows<T extends {
   id: string;
@@ -138,21 +158,69 @@ export async function filterModeratedFeedCachePayload(input: {
   for (var item of items) {
     keys.push(moderationReadCacheKey("post", item.id));
     keys.push(moderationReadCacheKey("profile", item.author.id));
+    for (var repostUser of cachedRepostUsers(item)) {
+      keys.push(moderationReadCacheKey("profile", repostUser.id));
+    }
+    if (item.quotedPost) {
+      keys.push(moderationReadCacheKey("post", item.quotedPost.id));
+      keys.push(moderationReadCacheKey("profile", item.quotedPost.author.id));
+    }
   }
 
   try {
     var statuses = await redis.mget<ModerationContentStatus>(keys);
     var visibleItems: CachedFeedItem[] = [];
+    var statusIndex = 0;
     for (var index = 0; index < items.length; index += 1) {
       var item = items[index];
-      var postStatus = statuses[index * 2] ?? item.moderationStatus ?? "visible";
-      var profileStatus = statuses[index * 2 + 1] ?? "visible";
+      var postStatus = statuses[statusIndex] ?? item.moderationStatus ?? "visible";
+      statusIndex += 1;
+      var profileStatus = statuses[statusIndex] ?? "visible";
+      statusIndex += 1;
       var effectiveStatus = postStatus !== "visible" ? postStatus : profileStatus;
-      var canSee = effectiveStatus === "visible"
+      var canSeeSource = effectiveStatus === "visible"
         || input.viewerIsStaff
         || input.viewerUserId === item.author.id;
-      if (canSee) {
-        visibleItems.push({ ...item, moderationStatus: effectiveStatus });
+      var repostUsers = cachedRepostUsers(item);
+      var visibleRepostUsers = repostUsers.filter(function (user) {
+        var repostActorStatus = statuses[statusIndex] ?? "visible";
+        statusIndex += 1;
+        return repostActorStatus === "visible"
+          || input.viewerIsStaff
+          || input.viewerUserId === user.id;
+      });
+      var canSeeRepostProvenance = !item.repostContext
+        || visibleRepostUsers.length > 0
+        || item.repostContext.includesOriginal === true;
+      var quotedPost = item.quotedPost ?? null;
+      var quotedPostStatus = quotedPost
+        ? statuses[statusIndex] ?? quotedPost.moderationStatus ?? "visible"
+        : "visible";
+      if (quotedPost) statusIndex += 1;
+      var quotedAuthorStatus = quotedPost
+        ? statuses[statusIndex] ?? "visible"
+        : "visible";
+      if (quotedPost) statusIndex += 1;
+      var quotedEffectiveStatus = quotedPostStatus !== "visible"
+        ? quotedPostStatus
+        : quotedAuthorStatus;
+      var canSeeQuotedPost = !quotedPost || quotedEffectiveStatus === "visible";
+      if (canSeeSource && canSeeRepostProvenance) {
+        var repostContext = item.repostContext && visibleRepostUsers.length > 0
+          ? {
+              ...item.repostContext,
+              user: visibleRepostUsers[0],
+              users: visibleRepostUsers.slice(0, 2),
+            }
+          : null;
+        visibleItems.push({
+          ...item,
+          moderationStatus: effectiveStatus,
+          repostContext,
+          quotedPost: canSeeQuotedPost ? quotedPost : null,
+          quotedPostUnavailable:
+            Boolean(item.quotedPostUnavailable) || Boolean(quotedPost && !canSeeQuotedPost),
+        });
       }
     }
     return {

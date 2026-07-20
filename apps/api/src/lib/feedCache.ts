@@ -2,7 +2,7 @@ import { getRedisClient } from "./redis.js";
 
 const FEED_CACHE_TTL_SECONDS = 60;
 const FEED_INDEX_TTL_SECONDS = 10 * 60;
-const CACHE_NS = "feed-cache:v1";
+const CACHE_NS = "feed-cache:v4";
 const GUEST = "guest";
 
 export type FeedCachePayload = {

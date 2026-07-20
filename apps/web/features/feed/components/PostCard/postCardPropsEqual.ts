@@ -136,6 +136,31 @@ function arePollsEqual(prev?: PostCardProps["poll"], next?: PostCardProps["poll"
   return true;
 }
 
+function areRepostContextsEqual(
+  prev?: PostCardProps["repostContext"],
+  next?: PostCardProps["repostContext"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  if (
+    prev.activityId !== next.activityId ||
+    prev.repostedAt !== next.repostedAt ||
+    prev.totalCount !== next.totalCount ||
+    prev.includesOriginal !== next.includesOriginal ||
+    prev.users.length !== next.users.length
+  ) return false;
+  for (var index = 0; index < prev.users.length; index += 1) {
+    var a = prev.users[index];
+    var b = next.users[index];
+    if (!a || !b) return false;
+    if (a.id !== b.id || a.username !== b.username || a.displayName !== b.displayName) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) {
   return (
     prev.variant === next.variant &&
@@ -170,6 +195,9 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     prev.bookmarked === next.bookmarked &&
     prev.bookmarkFolderId === next.bookmarkFolderId &&
     prev.reposted === next.reposted &&
+    areRepostContextsEqual(prev.repostContext, next.repostContext) &&
+    prev.quotedPost === next.quotedPost &&
+    prev.quotedPostUnavailable === next.quotedPostUnavailable &&
     prev.commentCount === next.commentCount &&
     areReplyPreviewsEqual(prev.replyPreview, next.replyPreview) &&
     prev.replyCount === next.replyCount &&

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
 import { LikeButton } from "./LikeButton";
 import { BookmarkButton } from "./BookmarkButton";
+import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
 import type { BookmarkFolderWithCount } from "@/features/bookmarks/types";
 
 interface BookmarkToggleState {
@@ -49,6 +50,7 @@ interface PostActionsProps {
   likeDisabled?: boolean;
   bookmarkDisabled?: boolean;
   onRepostToggle?: (state: { isReposted: boolean }) => void;
+  onQuote?: () => void;
   hideRepostSaveLabels?: boolean;
   showReplyOption?: boolean;
   hideZeroCounts?: boolean;
@@ -76,13 +78,14 @@ export function PostActions({
   likeDisabled = false,
   bookmarkDisabled = false,
   onRepostToggle,
+  onQuote,
   hideRepostSaveLabels = false,
   showReplyOption = false,
   hideZeroCounts = false,
   useCompactVariant = false,
 }: PostActionsProps) {
   const [reposted, setReposted] = useState(initialReposted);
-  const repostBtnRef = useRef<HTMLButtonElement>(null);
+  const repostBtnRef = useRef<HTMLButtonElement | null>(null);
   const liked = initialLiked;
   const likeCount = likes;
   const bookmarked = initialBookmarked;
@@ -198,19 +201,80 @@ export function PostActions({
           <span className="action-count">{formatCount(comments)}</span>
         )}
       </button>
-      <button
-        ref={repostBtnRef}
-        type="button"
-        onClick={toggleRepost}
-        className={cn("action-btn repost-btn", groupedActionClass, reposted && "reposted")}
-        aria-pressed={reposted}
-        aria-label="Repost"
-      >
-        <Icon name="repost" fill={reposted ? "currentColor" : "none"} strokeWidth={1.6} />
-        {!hideRepostSaveText && (
-          <span className="action-count hidden md:inline">Repost</span>
-        )}
-      </button>
+      {onQuote ? (
+        <PortalDropdown
+          align="start"
+          sideOffset={6}
+          menuLabel="Repost options"
+          menuClassName="min-w-[184px]"
+          items={[
+            {
+              id: "repost",
+              label: reposted ? "Undo repost" : "Repost",
+              icon: (
+                <Icon
+                  name="repost"
+                  fill={reposted ? "currentColor" : "none"}
+                  strokeWidth={1.7}
+                />
+              ),
+              onSelect: toggleRepost,
+            },
+            {
+              id: "quote",
+              label: "Quote",
+              icon: <Icon name="quote" strokeWidth={1.7} />,
+              onSelect: onQuote,
+            },
+          ]}
+          trigger={function ({ ref, isOpen, toggle, onKeyDown, menuId }) {
+            return (
+              <button
+                ref={function (node) {
+                  repostBtnRef.current = node;
+                  ref(node);
+                }}
+                type="button"
+                onClick={toggle}
+                onKeyDown={onKeyDown}
+                className={cn(
+                  "action-btn repost-btn",
+                  groupedActionClass,
+                  reposted && "reposted"
+                )}
+                aria-pressed={reposted}
+                aria-label="Repost"
+                aria-haspopup="menu"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? menuId : undefined}
+              >
+                <Icon
+                  name="repost"
+                  fill={reposted ? "currentColor" : "none"}
+                  strokeWidth={1.6}
+                />
+                {!hideRepostSaveText && (
+                  <span className="action-count hidden md:inline">Repost</span>
+                )}
+              </button>
+            );
+          }}
+        />
+      ) : (
+        <button
+          ref={repostBtnRef}
+          type="button"
+          onClick={toggleRepost}
+          className={cn("action-btn repost-btn", groupedActionClass, reposted && "reposted")}
+          aria-pressed={reposted}
+          aria-label="Repost"
+        >
+          <Icon name="repost" fill={reposted ? "currentColor" : "none"} strokeWidth={1.6} />
+          {!hideRepostSaveText && (
+            <span className="action-count hidden md:inline">Repost</span>
+          )}
+        </button>
+      )}
       {onBookmarkToggle ? (
         <BookmarkButton
           bookmarked={bookmarked}

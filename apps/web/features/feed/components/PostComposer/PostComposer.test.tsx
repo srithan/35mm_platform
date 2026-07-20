@@ -161,6 +161,35 @@ describe("PostComposer", () => {
     expect(storedRichTextToPlainText(input.body)).toBe(`lit ${youtubeUrl}`);
   });
 
+  it("submits the quoted source post id", async () => {
+    const user = userEvent.setup();
+    const quotedPostId = "11111111-1111-4111-8111-111111111112";
+    render(
+      <PostComposer
+        variant="inline"
+        quotedPost={{
+          postId: quotedPostId,
+          displayName: "Original Author",
+          handle: "@original",
+          avatarInitial: "O",
+          text: "Original post body",
+          timestamp: "2m",
+        }}
+      />
+    );
+
+    const editor = screen.getByRole("combobox", { name: WRITE_PLACEHOLDER });
+    await user.click(editor);
+    await user.type(editor, "My take");
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ quotedPostId })
+      );
+    });
+  });
+
   it("accepts pasted clipboard image files", async () => {
     render(<PostComposer variant="inline" />);
     const textarea = screen.getByPlaceholderText(WRITE_PLACEHOLDER);

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils/cn";
 import { isStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { saveScrollPositionForBack } from "../PostPageBackButton";
 import { extractVideoPreviews, videoPreviewFromLinkPreview } from "../../utils/videoPreviews";
-import { useClampText } from "../../hooks/useClampText";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { fetchPost } from "../../api/postsApi";
 import { feedKeys } from "../../hooks/queryKeys";
 import type { PostCardProps } from "./types";
@@ -22,6 +22,9 @@ import { PostCardBodyText } from "./PostCardBodyText";
 import { PostCardAttachments } from "./PostCardAttachments";
 import { PostCardActionsBar } from "./PostCardActionsBar";
 import { PostCardOverlays } from "./PostCardOverlays";
+import { PostCardRepostContext } from "./PostCardRepostContext";
+import { PostCardQuoteEmbed } from "./PostCardQuoteEmbed";
+import { truncatePostPreview } from "../../utils/truncatePostPreview";
 
 function PostCardComponent(props: PostCardProps) {
   const {
@@ -57,6 +60,9 @@ function PostCardComponent(props: PostCardProps) {
     bookmarked: initialBookmarked = false,
     bookmarkFolderId: initialBookmarkFolderId = null,
     reposted: initialReposted = false,
+    repostContext,
+    quotedPost,
+    quotedPostUnavailable = false,
     commentCount,
     replyPreview,
     replyCount,
@@ -73,6 +79,8 @@ function PostCardComponent(props: PostCardProps) {
   const { getToken, isLoaded: isAuthLoaded, userId: authUserId } = useAuth();
   const pathname = usePathname();
   const currentUserQuery = useCurrentUserProfile();
+  const openComposer = useComposerModalStore((state) => state.open);
+  const setQuotedPostOnly = useComposerModalStore((state) => state.setQuotedPostOnly);
   const currentUserId = currentUserQuery.data?.userId;
   const hoverPrefetchDoneRef = useRef(false);
 
@@ -90,14 +98,14 @@ function PostCardComponent(props: PostCardProps) {
   const renderText = isStoredRichText(text) ? text : cleanedText;
   const resolvedMedia = resolvePostMedia(media, mediaUrls, viewerMediaUrls, imageSrc);
   const isPostDetailView = Boolean(postId && pathname === ROUTES.POST(username, postId));
-  const shouldClamp = Boolean(postId) && !isPostDetailView;
+  const shouldTruncatePreview = Boolean(postId) && !isPostDetailView;
   const stopRichLinkBubble = Boolean(postId && !isPostDetailView);
   const isPostAuthor = Boolean(postId && userId && currentUserId && userId === currentUserId);
 
-  const { bodyRef, measureRef, isOverflowing, truncatedText } = useClampText({
-    text: cleanedText,
-    enabled: shouldClamp,
-  });
+  const truncatedText = useMemo(function () {
+    return shouldTruncatePreview ? truncatePostPreview(cleanedText) : null;
+  }, [cleanedText, shouldTruncatePreview]);
+  const isOverflowing = truncatedText !== null;
 
   const linkPreviewVideo = videoPreviewFromLinkPreview(linkPreview);
   const combinedVideoPreviews = poll
@@ -120,13 +128,34 @@ function PostCardComponent(props: PostCardProps) {
     cleanedText.length > 0 &&
     cleanedText.length < 100;
   const postBodyTextClassName = isShortTextOnlyPost
-    ? "text-[28px] leading-[1.45] tracking-[-0.015em] text-fg whitespace-pre-wrap break-words"
+    ? "text-[22px] leading-[1.5] tracking-[-0.015em] text-fg whitespace-pre-wrap break-words sm:text-[28px] sm:leading-[1.45]"
     : "text-[16px] leading-[1.65] text-fg whitespace-pre-wrap break-words";
 
   const navigateToPost = () => {
     if (!postId) return;
     saveScrollPositionForBack();
     router.push(ROUTES.POST(username, postId));
+  };
+
+  const quotePost = () => {
+    if (!postId) return;
+
+    const quotedPost = {
+      postId,
+      displayName: displayName ?? username,
+      handle,
+      avatarInitial,
+      text: displayText,
+      timestamp,
+    };
+
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setQuotedPostOnly(quotedPost);
+      router.push(ROUTES.NEW_POST);
+      return;
+    }
+
+    openComposer(quotedPost);
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -192,6 +221,13 @@ function PostCardComponent(props: PostCardProps) {
         !disableAnimation && animationDelay && `[animation-delay:${animationDelay}ms]`
       )}
     >
+      {repostContext ? (
+        <PostCardRepostContext
+          context={repostContext}
+          viewerUserId={currentUserId ?? authUserId}
+          viewerHasReposted={initialReposted}
+        />
+      ) : null}
       <div className="flex items-start min-w-0">
         <PostCardHeader
           variant={variant}
@@ -228,10 +264,7 @@ function PostCardComponent(props: PostCardProps) {
             cleanedText={renderText}
             filmRef={filmRef}
             stopRichLinkBubble={stopRichLinkBubble}
-            shouldClamp={shouldClamp}
             postBodyTextClassName={postBodyTextClassName}
-            bodyRef={bodyRef}
-            measureRef={measureRef}
             truncatedText={truncatedText}
             isOverflowing={isOverflowing}
             postId={postId}
@@ -276,9 +309,12 @@ function PostCardComponent(props: PostCardProps) {
                 initialBookmarkFolderId={initialBookmarkFolderId}
                 initialReposted={initialReposted}
                 onCommentClick={postId ? navigateToPost : undefined}
+                onQuote={postId ? quotePost : undefined}
               />
             }
           />
+
+          <PostCardQuoteEmbed post={quotedPost} unavailable={quotedPostUnavailable} />
 
           <PostCardActionsBar
             postId={postId}
@@ -289,6 +325,7 @@ function PostCardComponent(props: PostCardProps) {
             initialBookmarkFolderId={initialBookmarkFolderId}
             initialReposted={initialReposted}
             onCommentClick={postId ? navigateToPost : undefined}
+            onQuote={postId ? quotePost : undefined}
           />
         </PostCardHeader>
       </div>
