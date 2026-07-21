@@ -28,7 +28,7 @@ final class FeedViewModel: ObservableObject {
       let response: PaginatedResponse<FeedPost> = try await apiClient.request(
         .getFeed(cursor: nil, limit: pageLimit)
       )
-      posts = response.items
+      posts = FeedPost.deduplicating(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
     } catch {
@@ -69,7 +69,7 @@ final class FeedViewModel: ObservableObject {
       let response: PaginatedResponse<FeedPost> = try await apiClient.request(
         .getFeed(cursor: nil, limit: pageLimit)
       )
-      posts = response.items
+      posts = FeedPost.deduplicating(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
     } catch {
@@ -126,10 +126,12 @@ final class FeedViewModel: ObservableObject {
     error = nil
   }
 
+  func prependCreatedPost(_ post: FeedPost) {
+    posts = FeedPost.deduplicating([post] + posts)
+  }
+
   private func appendDeduped(_ newPosts: [FeedPost]) {
-    var seen = Set(posts.map(\.id))
-    let filtered = newPosts.filter { seen.insert($0.id).inserted }
-    posts.append(contentsOf: filtered)
+    posts = FeedPost.deduplicating(posts + newPosts)
   }
 
   private func toggle(

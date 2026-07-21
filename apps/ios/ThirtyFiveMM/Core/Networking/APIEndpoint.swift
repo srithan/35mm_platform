@@ -191,6 +191,26 @@ extension APIEndpoint {
     APIEndpoint(path: "/v1/feed/posts/\(postId)", method: .get)
   }
 
+  static func createPost(
+    type: PostType,
+    headline: String?,
+    body: String,
+    quotedPostId: String?
+  ) -> APIEndpoint {
+    APIEndpoint(
+      path: "/v1/feed",
+      method: .post,
+      body: CreatePostRequest(
+        type: type.rawValue,
+        headline: headline,
+        body: body,
+        postToFeed: true,
+        visibility: PostVisibility.public.rawValue,
+        quotedPostId: quotedPostId
+      )
+    )
+  }
+
   static func likePost(_ postId: String) -> APIEndpoint {
     APIEndpoint(path: "/v1/feed/posts/\(postId)/likes", method: .post)
   }
@@ -317,6 +337,15 @@ struct AnyEncodable: Encodable {
 private struct CreateCommentRequest: Encodable {
   let body: String
   let parentId: String?
+}
+
+private struct CreatePostRequest: Encodable {
+  let type: String
+  let headline: String?
+  let body: String
+  let postToFeed: Bool
+  let visibility: String
+  let quotedPostId: String?
 }
 
 private struct VotePollRequest: Encodable {

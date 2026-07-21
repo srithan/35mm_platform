@@ -25,6 +25,9 @@ struct FeedPost: Codable, Identifiable, Hashable {
   let film: FilmRef?
   let author: PostAuthor
   let poll: Poll?
+  let repostContext: RepostContext?
+  let quotedPost: QuotedFeedPost?
+  let quotedPostUnavailable: Bool
 
   enum CodingKeys: String, CodingKey {
     case id
@@ -51,6 +54,9 @@ struct FeedPost: Codable, Identifiable, Hashable {
     case film
     case author
     case poll
+    case repostContext
+    case quotedPost
+    case quotedPostUnavailable
   }
 
   init(
@@ -77,7 +83,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
     linkPreview: LinkPreview?,
     film: FilmRef?,
     author: PostAuthor,
-    poll: Poll?
+    poll: Poll?,
+    repostContext: RepostContext? = nil,
+    quotedPost: QuotedFeedPost? = nil,
+    quotedPostUnavailable: Bool = false
   ) {
     self.id = id
     self.type = type
@@ -103,6 +112,9 @@ struct FeedPost: Codable, Identifiable, Hashable {
     self.film = film
     self.author = author
     self.poll = poll
+    self.repostContext = repostContext
+    self.quotedPost = quotedPost
+    self.quotedPostUnavailable = quotedPostUnavailable
   }
 
   init(from decoder: Decoder) throws {
@@ -132,6 +144,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
     film = try container.decodeIfPresent(FilmRef.self, forKey: .film)
     author = try container.decode(PostAuthor.self, forKey: .author)
     poll = try container.decodeIfPresent(Poll.self, forKey: .poll)
+    repostContext = try container.decodeIfPresent(RepostContext.self, forKey: .repostContext)
+    quotedPost = try container.decodeIfPresent(QuotedFeedPost.self, forKey: .quotedPost)
+    quotedPostUnavailable =
+      try container.decodeIfPresent(Bool.self, forKey: .quotedPostUnavailable) ?? false
   }
 
   var starRating: Double? {
@@ -188,7 +204,10 @@ struct FeedPost: Codable, Identifiable, Hashable {
       linkPreview: linkPreview,
       film: film,
       author: author,
-      poll: poll
+      poll: poll,
+      repostContext: repostContext,
+      quotedPost: quotedPost,
+      quotedPostUnavailable: quotedPostUnavailable
     )
   }
 
@@ -233,8 +252,88 @@ struct FeedPost: Codable, Identifiable, Hashable {
       linkPreview: linkPreview,
       film: film,
       author: author,
-      poll: poll ?? self.poll
+      poll: poll ?? self.poll,
+      repostContext: repostContext,
+      quotedPost: quotedPost,
+      quotedPostUnavailable: quotedPostUnavailable
     )
+  }
+
+  func mergingFeedDuplicate(_ other: FeedPost) -> FeedPost {
+    let mergedRepostCount = max(repostCount, other.repostCount)
+    let mergedContext: RepostContext?
+    if let repostContext {
+      let normalized = repostContext.merged(
+        with: other.repostContext,
+        repostCount: mergedRepostCount
+      )
+      mergedContext = RepostContext(
+        activityId: normalized.activityId,
+        repostedAt: normalized.repostedAt,
+        user: normalized.user,
+        users: normalized.users,
+        totalCount: normalized.totalCount,
+        includesOriginal: normalized.includesOriginal || other.repostContext == nil
+      )
+    } else if let otherContext = other.repostContext {
+      let normalized = otherContext.merged(with: nil, repostCount: mergedRepostCount)
+      mergedContext = RepostContext(
+        activityId: normalized.activityId,
+        repostedAt: normalized.repostedAt,
+        user: normalized.user,
+        users: normalized.users,
+        totalCount: normalized.totalCount,
+        includesOriginal: true
+      )
+    } else {
+      mergedContext = nil
+    }
+
+    return FeedPost(
+      id: id,
+      type: type,
+      headline: headline,
+      body: body,
+      createdAt: createdAt,
+      editedAt: editedAt,
+      isRepost: isRepost,
+      repostOfId: repostOfId,
+      visibility: visibility,
+      likeCount: max(likeCount, other.likeCount),
+      commentCount: max(commentCount, other.commentCount),
+      repostCount: mergedRepostCount,
+      bookmarkCount: max(bookmarkCount, other.bookmarkCount),
+      isLiked: isLiked || other.isLiked,
+      isReposted: isReposted || other.isReposted,
+      isBookmarked: isBookmarked || other.isBookmarked,
+      bookmarkFolderId: bookmarkFolderId ?? other.bookmarkFolderId,
+      filmRating: filmRating,
+      media: media,
+      mediaUrls: mediaUrls,
+      linkPreview: linkPreview,
+      film: film,
+      author: author,
+      poll: poll,
+      repostContext: mergedContext,
+      quotedPost: quotedPost ?? other.quotedPost,
+      quotedPostUnavailable: quotedPostUnavailable || other.quotedPostUnavailable
+    )
+  }
+
+  static func deduplicating(_ posts: [FeedPost]) -> [FeedPost] {
+    var result: [FeedPost] = []
+    var indexByPostID: [String: Int] = [:]
+
+    for post in posts {
+      if let existingIndex = indexByPostID[post.id] {
+        result[existingIndex] = result[existingIndex].mergingFeedDuplicate(post)
+      } else {
+        indexByPostID[post.id] = result.count
+        result.append(post)
+      }
+    }
+
+    return result
   }
 }
 

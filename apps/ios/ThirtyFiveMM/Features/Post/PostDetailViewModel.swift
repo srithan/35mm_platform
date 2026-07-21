@@ -207,7 +207,10 @@ final class PostDetailViewModel: ObservableObject {
       linkPreview: post.linkPreview,
       film: post.film,
       author: post.author,
-      poll: post.poll
+      poll: post.poll,
+      repostContext: post.repostContext,
+      quotedPost: post.quotedPost,
+      quotedPostUnavailable: post.quotedPostUnavailable
     )
   }
 

@@ -362,8 +362,7 @@ final class BookmarksViewModel: ObservableObject {
   }
 
   private func appendDeduped(_ newPosts: [FeedPost]) {
-    var seen = Set(posts.map(\.id))
-    posts.append(contentsOf: newPosts.filter { seen.insert($0.id).inserted })
+    posts = FeedPost.deduplicating(posts + newPosts)
   }
 
   private func replaceFolder(_ folder: BookmarkFolder) {

@@ -86,6 +86,37 @@ describe("PostCardQuoteEmbed", function () {
     expect(screen.queryByText(/35MM_RICH_TEXT_V1/)).not.toBeInTheDocument();
   });
 
+  it("uses the portrait pair layout for two quoted images", function () {
+    render(
+      <PostCardQuoteEmbed
+        post={{
+          id: "source-post",
+          type: "image",
+          author: {
+            id: "source-user",
+            username: "original",
+            displayName: "Original Author",
+            avatarUrl: null,
+            isFollowing: false,
+          },
+          body: "Original post body",
+          media: [
+            { type: "image", url: "/first.jpg", altText: "First still" },
+            { type: "image", url: "/second.jpg", altText: "Second still" },
+          ],
+          mediaUrls: ["/first.jpg", "/second.jpg"],
+          linkPreview: null,
+          poll: null,
+          film: null,
+          createdAt: "2026-07-19T16:00:00.000Z",
+        }}
+      />
+    );
+
+    expect(screen.getByAltText("First still").parentElement).toHaveClass("aspect-[4/5]");
+    expect(screen.getByAltText("Second still").parentElement).toHaveClass("aspect-[4/5]");
+  });
+
   it("renders a tombstone when the source is inaccessible", function () {
     render(<PostCardQuoteEmbed unavailable />);
     expect(screen.getByTestId("quoted-post-unavailable")).toHaveTextContent(

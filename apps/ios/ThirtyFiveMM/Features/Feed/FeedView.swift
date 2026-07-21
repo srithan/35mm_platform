@@ -46,7 +46,8 @@ struct FeedView: View {
           commentCount: imageSelection.post.commentCount,
           repostCount: imageSelection.post.repostCount,
           shareCount: imageSelection.post.bookmarkCount,
-          isLiked: imageSelection.post.isLiked
+          isLiked: imageSelection.post.isLiked,
+          isReposted: imageSelection.post.isReposted
         ),
         onClose: {
           clearSelectedImage()
@@ -60,6 +61,9 @@ struct FeedView: View {
         },
         onRepost: {
           Task { await viewModel.toggleRepost(postId: imageSelection.post.id) }
+        },
+        onQuote: {
+          env.presentComposer(quoting: imageSelection.post)
         },
         onShare: {
           UIPasteboard.general.string = "https://35mm.app/posts/\(imageSelection.post.id)"
@@ -75,6 +79,10 @@ struct FeedView: View {
     }
     .task {
       await viewModel.loadInitial()
+    }
+    .onChange(of: env.lastCreatedPost?.id) {
+      guard let createdPost = env.lastCreatedPost else { return }
+      viewModel.prependCreatedPost(createdPost)
     }
     .navigationDestination(item: $selectedPost) { post in
       PostDetailView(post: post)

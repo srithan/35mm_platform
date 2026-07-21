@@ -9,7 +9,9 @@ import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
 import { isStoredRichText } from "@/lib/utils/richContent";
 import { RichPostInline } from "@/lib/utils/richPostText";
 import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
+import { cn } from "@/lib/utils/cn";
 import type { QuotedPost } from "../../types/feed";
+import { postMediaGridCellClassName } from "../postMediaGridLayout";
 
 function formatQuoteTime(iso: string): string {
   var then = Date.parse(iso);
@@ -181,7 +183,12 @@ export function PostCardQuoteEmbed({
             return (
               <div
                 key={`${item.url}-${index}`}
-                className={media.length === 1 ? "relative aspect-video bg-sunken" : "relative aspect-[4/3] bg-sunken"}
+                className={cn(
+                  "relative bg-sunken",
+                  media.length === 1
+                    ? "aspect-video"
+                    : postMediaGridCellClassName(media.length, index)
+                )}
               >
                 {item.type === "video" ? (
                   <video

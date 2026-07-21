@@ -3,6 +3,8 @@ import SwiftUI
 import UIKit
 
 struct PostCard: View {
+  @EnvironmentObject private var env: AppEnvironment
+
   let post: FeedPost
   let interactor: any PostInteracting
   var onOpenPost: () -> Void = {}
@@ -14,6 +16,7 @@ struct PostCard: View {
 
   @State private var isExpanded = false
   @State private var isShowingPostActions = false
+  @State private var isShowingRepostActions = false
   @State private var isShowingShareModal = false
 
   private var authorName: String {
@@ -40,8 +43,12 @@ struct PostCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      if post.isRepost {
-        repostHeader
+      if let repostContext = post.repostContext {
+        PostRepostContextView(
+          context: repostContext,
+          viewerUserId: currentUserId,
+          viewerHasReposted: post.isReposted
+        )
       }
 
       HStack(alignment: .top, spacing: 12) {
@@ -55,6 +62,10 @@ struct PostCard: View {
           mediaGrid
           linkPreview
           pollView
+          QuotedPostCard(
+            post: post.quotedPost,
+            unavailable: post.quotedPostUnavailable
+          )
           actionBar
         }
       }
@@ -71,6 +82,9 @@ struct PostCard: View {
       onDismiss: onDismissPostActions
     ) {
       postActionSheet
+    }
+    .bottomActionSheet(isPresented: $isShowingRepostActions) {
+      BottomActionSheet(title: "Repost options", actions: repostActions)
     }
     .shareModal(
       isPresented: $isShowingShareModal,
@@ -131,23 +145,6 @@ struct PostCard: View {
         },
       ]),
     ]
-  }
-
-  private var repostHeader: some View {
-    NavigationLink(value: AppRoute.profile(authorDestination)) {
-      HStack(spacing: 6) {
-        Image("PostActionRepost")
-          .resizable()
-          .scaledToFit()
-          .frame(width: 14, height: 14)
-        Text("\(post.author.username) reposted")
-      }
-      .font(.caption)
-      .foregroundStyle(.secondary)
-    }
-    .buttonStyle(.plain)
-    .padding(.leading, 52)
-    .accessibilityLabel("View @\(post.author.username)'s profile")
   }
 
   private var avatar: some View {
@@ -275,7 +272,7 @@ struct PostCard: View {
     let allItems = mediaItems
     let items = Array(allItems.prefix(4))
     if !items.isEmpty {
-      MediaGrid(items: items, postId: post.id) { url in
+      PostMediaGrid(items: items) { url in
         onOpenImage(
           PostImageDestination(
             urls: allItems.map(\.url),
@@ -284,8 +281,8 @@ struct PostCard: View {
           )
         )
       }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .padding(.top, 2)
+      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .padding(.top, 2)
     }
   }
 
@@ -329,9 +326,9 @@ struct PostCard: View {
         count: post.repostCount,
         isActive: post.isReposted,
         activeColor: Color(red: 0.0, green: 0.55, blue: 0.28),
-        accessibilityLabel: post.isReposted ? "Undo repost" : "Repost"
+        accessibilityLabel: "Repost options"
       ) {
-        Task { await interactor.toggleRepost(postId: post.id) }
+        isShowingRepostActions = true
       }
 
       ActionButton(
@@ -346,20 +343,29 @@ struct PostCard: View {
     .padding(.top, 8)
   }
 
-  private var mediaItems: [MediaGridItemData] {
-    if let media = post.media, !media.isEmpty {
-      return
-        media
-        .filter { $0.type == nil || $0.type == "image" }
-        .map {
-          MediaGridItemData(url: $0.url, width: $0.width, height: $0.height)
-        }
-        .filter { !$0.url.isEmpty }
-    }
+  private var mediaItems: [PostMediaGridItem] {
+    PostMediaGridItem.imageItems(from: post.media, fallbackURLs: post.mediaUrls)
+  }
 
-    return (post.mediaUrls ?? []).map {
-      MediaGridItemData(url: $0, width: nil, height: nil)
+  private var repostActions: [BottomActionSheetAction] {
+    [
+      BottomActionSheetAction(
+        post.isReposted ? "Undo repost" : "Repost",
+        systemImage: "arrow.2.squarepath"
+      ) {
+        Task { await interactor.toggleRepost(postId: post.id) }
+      },
+      BottomActionSheetAction("Quote", systemImage: "quote.bubble") {
+        env.presentComposer(quoting: post)
+      },
+    ]
+  }
+
+  private var currentUserId: String? {
+    if case .authenticated(let userId) = env.authManager.authState {
+      return userId
     }
+    return nil
   }
 
   private var shareURL: URL {
@@ -818,101 +824,6 @@ private struct FilmCardStarRow: View {
     }
 
     return "star"
-  }
-}
-
-private struct MediaGridItemData: Hashable {
-  let url: String
-  let width: Int?
-  let height: Int?
-
-  var aspectRatio: CGFloat? {
-    guard let width, let height, width > 0, height > 0 else { return nil }
-    return CGFloat(width) / CGFloat(height)
-  }
-}
-
-private struct MediaGrid: View {
-  let items: [MediaGridItemData]
-  let postId: String
-  let onSelectImage: (String) -> Void
-
-  var body: some View {
-    GeometryReader { proxy in
-      let width = proxy.size.width
-      grid(width: width)
-    }
-    .aspectRatio(containerAspectRatio, contentMode: .fit)
-    .frame(maxWidth: .infinity)
-  }
-
-  private var containerAspectRatio: CGFloat {
-    switch items.count {
-    case 1:
-      return min(max(items[0].aspectRatio ?? 4.0 / 3.0, 0.72), 1.8)
-    case 2:
-      return 2.0
-    case 3:
-      return 0.8
-    default:
-      return 1.0
-    }
-  }
-
-  @ViewBuilder
-  private func grid(width: CGFloat) -> some View {
-    let spacing: CGFloat = 2
-    let halfWidth = (width - spacing) / 2
-
-    switch items.count {
-    case 1:
-      mediaImage(items[0].url, width: width, height: width / containerAspectRatio)
-    case 2:
-      HStack(spacing: spacing) {
-        ForEach(items, id: \.self) { item in
-          mediaImage(item.url, width: halfWidth, height: halfWidth)
-        }
-      }
-    case 3:
-      VStack(spacing: spacing) {
-        mediaImage(items[0].url, width: width, height: width * 0.75)
-
-        HStack(spacing: spacing) {
-          mediaImage(items[1].url, width: halfWidth, height: halfWidth)
-          mediaImage(items[2].url, width: halfWidth, height: halfWidth)
-        }
-      }
-    default:
-      VStack(spacing: spacing) {
-        HStack(spacing: spacing) {
-          mediaImage(items[0].url, width: halfWidth, height: halfWidth)
-          mediaImage(items[1].url, width: halfWidth, height: halfWidth)
-        }
-
-        HStack(spacing: spacing) {
-          mediaImage(items[2].url, width: halfWidth, height: halfWidth)
-          mediaImage(items[3].url, width: halfWidth, height: halfWidth)
-        }
-      }
-    }
-  }
-
-  private func mediaImage(_ url: String, width: CGFloat, height: CGFloat) -> some View {
-    Button {
-      onSelectImage(url)
-    } label: {
-      KFImage(URL(string: url))
-        .placeholder {
-          // TODO: Replace with blurhash placeholder when API returns blurhash.
-          Rectangle()
-            .fill(Color(.tertiarySystemFill))
-        }
-        .resizable()
-        .scaledToFill()
-        .frame(width: width, height: height)
-        .clipped()
-    }
-    .buttonStyle(.plain)
   }
 }
 

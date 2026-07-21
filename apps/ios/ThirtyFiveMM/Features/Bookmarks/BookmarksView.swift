@@ -188,7 +188,8 @@ struct BookmarksView: View {
         commentCount: selection.post.commentCount,
         repostCount: selection.post.repostCount,
         shareCount: selection.post.bookmarkCount,
-        isLiked: selection.post.isLiked
+        isLiked: selection.post.isLiked,
+        isReposted: selection.post.isReposted
       ),
       onClose: clearSelectedImage,
       onLike: {
@@ -200,6 +201,9 @@ struct BookmarksView: View {
       },
       onRepost: {
         Task { await viewModel.toggleRepost(postId: selection.post.id) }
+      },
+      onQuote: {
+        env.presentComposer(quoting: selection.post)
       },
       onShare: {
         viewModel.copyLink(postId: selection.post.id)

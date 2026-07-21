@@ -313,8 +313,7 @@ final class ProfileViewModel {
   }
 
   private func appendDedupedPosts(_ newPosts: [FeedPost]) {
-    var seen = Set(posts.map(\.id))
-    posts.append(contentsOf: newPosts.filter { seen.insert($0.id).inserted })
+    posts = FeedPost.deduplicating(posts + newPosts)
   }
 }
 

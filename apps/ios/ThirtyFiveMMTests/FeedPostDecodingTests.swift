@@ -2,6 +2,138 @@ import XCTest
 @testable import ThirtyFiveMM
 
 final class FeedPostDecodingTests: XCTestCase {
+  func testDecodesRepostContextAndQuotedPost() throws {
+    let data = Data(
+      """
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "type": "text",
+        "headline": null,
+        "body": "Quote commentary",
+        "createdAt": "2026-07-19T19:00:00Z",
+        "visibility": "public",
+        "repostCount": 3,
+        "isReposted": true,
+        "author": {
+          "id": "author-1",
+          "username": "critic",
+          "displayName": "Film Critic"
+        },
+        "repostContext": {
+          "activityId": "22222222-2222-4222-8222-222222222222",
+          "repostedAt": "2026-07-19T20:00:00Z",
+          "user": {
+            "id": "viewer-1",
+            "username": "maya",
+            "displayName": "Maya"
+          },
+          "users": [
+            {
+              "id": "viewer-1",
+              "username": "maya",
+              "displayName": "Maya"
+            },
+            {
+              "id": "viewer-2",
+              "username": "teju",
+              "displayName": "Teju"
+            }
+          ],
+          "totalCount": 3,
+          "includesOriginal": true
+        },
+        "quotedPost": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "type": "text",
+          "headline": "Original headline",
+          "body": "Original body",
+          "createdAt": "2026-07-18T19:00:00Z",
+          "author": {
+            "id": "source-author",
+            "username": "source",
+            "displayName": "Source Author"
+          },
+          "media": [
+            { "type": "image", "url": "https://cdn.example.com/first.jpg", "width": 800, "height": 1000 },
+            { "type": "image", "url": "https://cdn.example.com/second.jpg", "width": 800, "height": 1000 }
+          ],
+          "linkPreview": null,
+          "film": null,
+          "poll": null
+        },
+        "quotedPostUnavailable": false
+      }
+      """.utf8
+    )
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    let post = try decoder.decode(FeedPost.self, from: data)
+
+    XCTAssertEqual(post.repostContext?.users.map(\.displayName), ["Maya", "Teju"])
+    XCTAssertEqual(post.repostContext?.totalCount, 3)
+    XCTAssertTrue(post.repostContext?.includesOriginal == true)
+    XCTAssertEqual(post.quotedPost?.id, "33333333-3333-4333-8333-333333333333")
+    XCTAssertEqual(post.quotedPost?.author.username, "source")
+    XCTAssertEqual(
+      PostMediaGridItem.imageItems(from: post.quotedPost?.media).map(\.url),
+      ["https://cdn.example.com/first.jpg", "https://cdn.example.com/second.jpg"]
+    )
+    XCTAssertFalse(post.quotedPostUnavailable)
+  }
+
+  func testDeduplicatesNormalizedRepostRowsAndMergesSocialProof() throws {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    let rows = try decoder.decode(
+      [FeedPost].self,
+      from: Data(
+        """
+        [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "type": "text",
+            "body": "Original",
+            "createdAt": "2026-07-18T19:00:00Z",
+            "visibility": "public",
+            "repostCount": 3,
+            "author": { "id": "author-1", "username": "source" }
+          },
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "type": "text",
+            "body": "Original",
+            "createdAt": "2026-07-18T19:00:00Z",
+            "visibility": "public",
+            "likeCount": 7,
+            "repostCount": 3,
+            "isReposted": true,
+            "author": { "id": "author-1", "username": "source" },
+            "repostContext": {
+              "activityId": "22222222-2222-4222-8222-222222222222",
+              "repostedAt": "2026-07-19T20:00:00Z",
+              "user": { "id": "viewer-1", "username": "maya", "displayName": "Maya" },
+              "users": [
+                { "id": "viewer-1", "username": "maya", "displayName": "Maya" }
+              ],
+              "totalCount": 3,
+              "includesOriginal": false
+            }
+          }
+        ]
+        """.utf8
+      )
+    )
+
+    let deduplicated = FeedPost.deduplicating(rows)
+
+    XCTAssertEqual(deduplicated.count, 1)
+    XCTAssertEqual(deduplicated[0].likeCount, 7)
+    XCTAssertTrue(deduplicated[0].isReposted)
+    XCTAssertEqual(deduplicated[0].repostContext?.users.first?.displayName, "Maya")
+    XCTAssertTrue(deduplicated[0].repostContext?.includesOriginal == true)
+  }
+
   func testDecodesFilmCardAndAuthorPresentationFields() throws {
     let data = Data(
       """

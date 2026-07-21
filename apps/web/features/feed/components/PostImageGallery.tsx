@@ -9,6 +9,7 @@ import {
   carouselNavButtonOnDarkClass,
 } from "@/lib/utils/carouselDots";
 import { BlurImage } from "@/components/ui/BlurImage";
+import { postMediaGridCellClassName } from "./postMediaGridLayout";
 
 const SINGLE_IMAGE_MAX_HEIGHT = 510;
 
@@ -23,22 +24,6 @@ function resolveSingleImageLayout(naturalWidth: number, naturalHeight: number): 
 
 function gridClassName(count: number) {
   return "grid-cols-2 gap-1.5";
-}
-
-function cellClassName(count: number, index: number) {
-  if (count === 2) {
-    return "aspect-[4/5]";
-  }
-  if (count === 4) {
-    return "aspect-[4/3]";
-  }
-  if (count === 3 && index === 0) {
-    return "col-span-2 aspect-[2/1]";
-  }
-  if (count === 3) {
-    return "aspect-square";
-  }
-  return "aspect-[4/3]";
 }
 
 function PostGalleryImage({
@@ -354,7 +339,7 @@ function PostImageGrid({
             type="button"
             className={cn(
               "relative block w-full overflow-hidden rounded bg-sunken text-left",
-              cellClassName(count, idx)
+              postMediaGridCellClassName(count, idx)
             )}
             onClick={function (e) {
               e.stopPropagation();

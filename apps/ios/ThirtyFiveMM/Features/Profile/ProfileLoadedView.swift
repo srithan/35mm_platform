@@ -2,6 +2,8 @@ import SwiftUI
 import UIKit
 
 struct ProfileLoadedView: View {
+  @EnvironmentObject private var env: AppEnvironment
+
   let profile: PublicProfile
   let model: ProfileViewModel
   let service: any ProfileServicing
@@ -113,7 +115,8 @@ struct ProfileLoadedView: View {
           commentCount: selection.post.commentCount,
           repostCount: selection.post.repostCount,
           shareCount: selection.post.bookmarkCount,
-          isLiked: selection.post.isLiked
+          isLiked: selection.post.isLiked,
+          isReposted: selection.post.isReposted
         ),
         onClose: { selectedImage = nil },
         onLike: { Task { await model.toggleLike(postId: selection.post.id) } },
@@ -122,6 +125,9 @@ struct ProfileLoadedView: View {
           selectedPost = selection.post
         },
         onRepost: { Task { await model.toggleRepost(postId: selection.post.id) } },
+        onQuote: {
+          env.presentComposer(quoting: selection.post)
+        },
         onShare: {
           UIPasteboard.general.url = postURL(for: selection.post)
         }

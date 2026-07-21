@@ -8,6 +8,7 @@ struct PostImageViewerMetrics {
   let repostCount: Int
   let shareCount: Int
   let isLiked: Bool
+  let isReposted: Bool
 }
 
 struct PostImageViewerView: View {
@@ -19,9 +20,11 @@ struct PostImageViewerView: View {
   let onLike: () -> Void
   let onComment: () -> Void
   let onRepost: () -> Void
+  let onQuote: (() -> Void)?
   let onShare: () -> Void
 
   @State private var isShowingActions = false
+  @State private var isShowingRepostActions = false
   @State private var selectedIndex: Int
 
   init(
@@ -31,6 +34,7 @@ struct PostImageViewerView: View {
     onLike: @escaping () -> Void,
     onComment: @escaping () -> Void,
     onRepost: @escaping () -> Void,
+    onQuote: (() -> Void)? = nil,
     onShare: @escaping () -> Void
   ) {
     self.destination = destination
@@ -39,6 +43,7 @@ struct PostImageViewerView: View {
     self.onLike = onLike
     self.onComment = onComment
     self.onRepost = onRepost
+    self.onQuote = onQuote
     self.onShare = onShare
     _selectedIndex = State(initialValue: destination.initialIndex)
   }
@@ -76,6 +81,22 @@ struct PostImageViewerView: View {
               // TODO: Open report flow when moderation API exists.
             },
           ]),
+        ]
+      )
+    }
+    .bottomActionSheet(isPresented: $isShowingRepostActions) {
+      BottomActionSheet(
+        title: "Repost options",
+        actions: [
+          BottomActionSheetAction(
+            metrics.isReposted ? "Undo repost" : "Repost",
+            systemImage: "arrow.2.squarepath",
+            action: onRepost
+          ),
+          BottomActionSheetAction("Quote", systemImage: "quote.bubble") {
+            onClose()
+            onQuote?()
+          },
         ]
       )
     }
@@ -147,7 +168,18 @@ struct PostImageViewerView: View {
         onComment()
       }
 
-      viewerAction(image: Image("PostActionRepost"), count: metrics.repostCount, action: onRepost)
+      viewerAction(
+        image: Image("PostActionRepost"),
+        count: metrics.repostCount,
+        isActive: metrics.isReposted,
+        activeColor: Color(red: 0.0, green: 0.7, blue: 0.4)
+      ) {
+        if onQuote == nil {
+          onRepost()
+        } else {
+          isShowingRepostActions = true
+        }
+      }
       viewerAction(image: Image(systemName: "paperplane"), count: metrics.shareCount, action: onShare)
     }
     .padding(.bottom, 8)
@@ -168,6 +200,7 @@ struct PostImageViewerView: View {
     image: Image,
     count: Int,
     isActive: Bool = false,
+    activeColor: Color = Color(red: 1.0, green: 0.02, blue: 0.22),
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
@@ -183,7 +216,7 @@ struct PostImageViewerView: View {
             .monospacedDigit()
         }
       }
-      .foregroundStyle(isActive ? Color(red: 1.0, green: 0.02, blue: 0.22) : .white)
+      .foregroundStyle(isActive ? activeColor : .white)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)

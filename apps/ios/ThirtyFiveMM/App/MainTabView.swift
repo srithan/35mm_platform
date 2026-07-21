@@ -7,7 +7,6 @@ struct MainTabView: View {
   @State private var selectedTab: AppTab = .home
   @State private var previousTab: AppTab = .home
   @State private var isTabBarVisible = true
-  @State private var isShowingComposer = false
   @State private var isShowingProfileSidebar = false
   @State private var homePath: [AppRoute] = []
   @State private var activityPath: [AppRoute] = []
@@ -118,13 +117,16 @@ struct MainTabView: View {
     }
     .tint(.black)
     .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
-    .fullScreenCover(isPresented: $isShowingComposer) {
-      PostComposerView()
+    .fullScreenCover(
+      isPresented: $env.isComposerPresented,
+      onDismiss: env.clearComposer
+    ) {
+      PostComposerView(quotedPost: env.composerQuote)
         .environmentObject(env)
     }
     .onChange(of: selectedTab) { oldValue, newValue in
       if newValue == .create {
-        isShowingComposer = true
+        env.presentComposer()
         selectedTab = oldValue == .create ? previousTab : oldValue
         return
       }
@@ -150,6 +152,8 @@ struct MainTabView: View {
       sidebarDestination(for: item)
     case .profile(let destination):
       profileDestination(for: destination)
+    case .post(let postId):
+      RemotePostDetailView(postId: postId)
     }
   }
 
@@ -312,6 +316,7 @@ enum AppRoute: Hashable {
   case messages
   case sidebarItem(ProfileSidebarItem)
   case profile(ProfileDestination)
+  case post(String)
 }
 
 enum ProfileSidebarItem: String, CaseIterable, Identifiable {
@@ -894,6 +899,17 @@ private enum ComposerPostOption: String, CaseIterable, Identifiable {
       return "film"
     }
   }
+
+  var postType: PostType {
+    switch self {
+    case .post:
+      .text
+    case .review:
+      .review
+    case .log:
+      .log
+    }
+  }
 }
 
 private struct PostComposerView: View {
@@ -905,6 +921,11 @@ private struct PostComposerView: View {
   @State private var bodyText = ""
   @State private var topic = ""
   @State private var selectedOption: ComposerPostOption = .post
+  @State private var isSubmitting = false
+  @State private var isShowingSubmitError = false
+  @State private var submitErrorMessage = ""
+
+  let quotedPost: FeedPost?
 
   private var username: String {
     profile?.username ?? "35mm.user"
@@ -915,7 +936,7 @@ private struct PostComposerView: View {
   }
 
   private var canPost: Bool {
-    !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
   }
 
   var body: some View {
@@ -947,14 +968,19 @@ private struct PostComposerView: View {
     }
     .task {
       await loadProfile()
-      try? await Task.sleep(nanoseconds: 220_000_000)
+      try? await Task.sleep(for: .milliseconds(220))
       isBodyFocused = true
+    }
+    .alert("Couldn't publish post", isPresented: $isShowingSubmitError) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(submitErrorMessage)
     }
   }
 
   private var header: some View {
     ZStack {
-      Text("New thread")
+      Text(quotedPost == nil ? "New thread" : "Quote post")
         .font(.system(size: 17, weight: .bold, design: .rounded))
         .foregroundStyle(.black)
         .lineLimit(1)
@@ -1051,6 +1077,16 @@ private struct PostComposerView: View {
 
           composerTools
 
+          if let quotedPost {
+            QuotedPostCard(
+              post: QuotedFeedPost(post: quotedPost),
+              unavailable: false,
+              isCompact: true
+            )
+            .allowsHitTesting(false)
+            .padding(.top, 8)
+          }
+
           HStack(spacing: 12) {
             Image(systemName: "person.circle.fill")
               .font(.system(size: 17))
@@ -1116,11 +1152,15 @@ private struct PostComposerView: View {
 
       ComposerOptionTabs(selectedOption: $selectedOption)
 
-      Button {
-        // TODO: Submit composer payload when native create-post API is wired.
-        dismiss()
-      } label: {
-        Text(selectedOption.title)
+      Button(action: submitPost) {
+        Group {
+          if isSubmitting {
+            ProgressView()
+              .tint(.white)
+          } else {
+            Text(selectedOption.title)
+          }
+        }
           .font(.system(size: 14, weight: .bold, design: .rounded))
           .foregroundStyle(.white)
           .frame(width: 64, height: 38)
@@ -1141,6 +1181,32 @@ private struct PostComposerView: View {
       profile = try await env.apiClient.request(.getMe())
     } catch {
       profile = nil
+    }
+  }
+
+  private func submitPost() {
+    let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmedTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedBody.isEmpty, !isSubmitting else { return }
+
+    isSubmitting = true
+    Task {
+      defer { isSubmitting = false }
+
+      do {
+        let createdPost: FeedPost = try await env.apiClient.request(
+          .createPost(
+            type: selectedOption.postType,
+            headline: trimmedTopic.isEmpty ? nil : trimmedTopic,
+            body: trimmedBody,
+            quotedPostId: quotedPost?.id
+          )
+        )
+        env.completeComposer(with: createdPost)
+      } catch {
+        submitErrorMessage = error.localizedDescription
+        isShowingSubmitError = true
+      }
     }
   }
 }
