@@ -448,14 +448,14 @@ private struct ChatThreadHeader: View {
       ZStack {
         VStack(spacing: 2) {
           Text(title)
-            .font(.system(size: 18, weight: .black, design: .rounded))
+            .font(.headline)
             .foregroundStyle(Color(.label))
             .lineLimit(1)
             .minimumScaleFactor(0.76)
 
           if let subtitle, !subtitle.isEmpty {
             Text(subtitle)
-              .font(.system(size: 12, weight: .semibold, design: .rounded))
+              .font(.caption)
               .foregroundStyle(Color(.secondaryLabel))
               .lineLimit(1)
           }

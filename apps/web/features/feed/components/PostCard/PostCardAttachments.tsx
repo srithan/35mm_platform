@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { FilmCard } from "@/components/FilmCard";
@@ -10,7 +9,6 @@ import { ROUTES } from "@/lib/constants/routes";
 import { PostImageGallery } from "../PostImageGallery";
 import { VideoUrlPreview } from "../VideoUrlPreview";
 import { RichPostInline } from "@/lib/utils/richPostText";
-import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
 import { cn } from "@/lib/utils/cn";
 import type { VideoPreview } from "../../utils/videoPreviews";
 import type {
@@ -22,6 +20,7 @@ import type {
   PostVariant,
 } from "./types";
 import { PollAttachment } from "./PollAttachment";
+import { LinkPreviewCard } from "../LinkPreviewCard";
 
 interface PostCardAttachmentsProps {
   variant: PostVariant;
@@ -154,39 +153,7 @@ export function PostCardAttachments({
       {poll ? <PollAttachment postId={postId} poll={poll} /> : null}
 
       {shouldRenderLinkPreviewCard && linkPreview ? (
-        <a
-          href={linkPreview.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 block rounded-xl border border-border bg-sunken p-3 no-underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-fg-muted">
-                {linkPreview.domain}
-              </div>
-              <div className="mt-1 text-sm font-semibold text-fg line-clamp-2">
-                {linkPreview.title}
-              </div>
-              {linkPreview.description ? (
-                <div className="mt-1 text-xs text-fg-muted line-clamp-2">
-                  {linkPreview.description}
-                </div>
-              ) : null}
-            </div>
-            {linkPreview.image ? (
-              <Image
-                src={linkPreview.image}
-                alt=""
-                width={72}
-                height={72}
-                className="h-[72px] w-[72px] rounded-md object-cover"
-                unoptimized={shouldLoadRemoteImageUnoptimized(linkPreview.image)}
-              />
-            ) : null}
-          </div>
-        </a>
+        <LinkPreviewCard preview={linkPreview} />
       ) : null}
 
       {replyPreview && (

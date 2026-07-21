@@ -33,6 +33,7 @@ import {
   bookmarkFolderNameSchema,
   bookmarkFolderAssignSchema,
   bookmarkPostSchema,
+  postLinkPreviewSchema,
   richTextBodyToVisibleText,
   richTextMentionIds,
   validateRichTextBody,
@@ -118,6 +119,12 @@ const COMMENT_BODY_MAX_CHARS = 100000;
 const COMMENT_BODY_LENGTH_ERROR = `Comment body must be 1-${COMMENT_BODY_MAX_CHARS} characters`;
 
 export var feedRoutes = new Hono();
+
+export function parseProfilePostFeedKind(value: string | undefined): "all" | "reposts" {
+  if (value == null || value === "all") return "all";
+  if (value === "reposts") return "reposts";
+  throw badRequest("Invalid profile post feed kind");
+}
 
 var createPostRateLimit = createRateLimitMiddleware({
   keyPrefix: "feed:create",
@@ -860,6 +867,7 @@ type CreatePostInput = {
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation: "card_only" | "url_and_card";
   } | null;
   poll: {
     type: "ranking" | "image";
@@ -873,7 +881,11 @@ type CreatePostInput = {
 };
 
 function parseCreatePostInput(raw: unknown): CreatePostInput {
-  var parsed = createPostSchema.parse(raw);
+  var result = createPostSchema.safeParse(raw);
+  if (!result.success) {
+    throw badRequest(result.error.issues[0]?.message ?? "Invalid post");
+  }
+  var parsed = result.data;
   var source = (raw ?? {}) as Record<string, unknown>;
   var visibilityRaw = source.visibility;
   var visibility: CreatePostInput["visibility"] = "public";
@@ -947,32 +959,17 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
           return typeof value === "string" && value.trim().length > 0;
         }).slice(0, 9)
       : [],
-    linkPreview:
-      source.linkPreview && typeof source.linkPreview === "object"
-        ? {
-            url: String((source.linkPreview as Record<string, unknown>).url ?? ""),
-            title: String((source.linkPreview as Record<string, unknown>).title ?? ""),
-            description:
-              (source.linkPreview as Record<string, unknown>).description == null
-                ? null
-                : String((source.linkPreview as Record<string, unknown>).description),
-            image:
-              (source.linkPreview as Record<string, unknown>).image == null
-                ? null
-                : String((source.linkPreview as Record<string, unknown>).image),
-            domain: String((source.linkPreview as Record<string, unknown>).domain ?? ""),
-            provider:
-              (source.linkPreview as Record<string, unknown>).provider === "youtube" ||
-              (source.linkPreview as Record<string, unknown>).provider === "vimeo"
-                ? ((source.linkPreview as Record<string, unknown>).provider as "youtube" | "vimeo")
-                : "link",
-          }
-        : null,
+    linkPreview: parsed.linkPreview ?? null,
     poll,
   };
 }
 
-function parsePatchPostInput(raw: unknown): { headline?: string | null; body?: string; filmId?: string | null } {
+export function parsePatchPostInput(raw: unknown): {
+  headline?: string | null;
+  body?: string;
+  filmId?: string | null;
+  linkPreview?: CreatePostInput["linkPreview"];
+} {
   if (!raw || typeof raw !== "object") {
     throw badRequest("Invalid payload");
   }
@@ -981,11 +978,17 @@ function parsePatchPostInput(raw: unknown): { headline?: string | null; body?: s
   var hasHeadline = Object.prototype.hasOwnProperty.call(source, "headline");
   var hasBody = Object.prototype.hasOwnProperty.call(source, "body");
   var hasFilmId = Object.prototype.hasOwnProperty.call(source, "filmId");
-  if (!hasHeadline && !hasBody && !hasFilmId) {
-    throw badRequest("Provide headline and/or body and/or filmId");
+  var hasLinkPreview = Object.prototype.hasOwnProperty.call(source, "linkPreview");
+  if (!hasHeadline && !hasBody && !hasFilmId && !hasLinkPreview) {
+    throw badRequest("Provide headline, body, filmId, and/or linkPreview");
   }
 
-  var out: { headline?: string | null; body?: string; filmId?: string | null } = {};
+  var out: {
+    headline?: string | null;
+    body?: string;
+    filmId?: string | null;
+    linkPreview?: CreatePostInput["linkPreview"];
+  } = {};
 
   if (hasHeadline) {
     if (source.headline === null) {
@@ -1006,10 +1009,14 @@ function parsePatchPostInput(raw: unknown): { headline?: string | null; body?: s
       throw badRequest("Body must be string");
     }
     var body = source.body.trim();
-    if (body.length < 1 || body.length > 5000) {
-      throw badRequest("Body must be 1-5000 characters");
+    if (body.length < 1 || body.length > 300000) {
+      throw badRequest("Body must be 1-5000 visible characters");
     }
-    out.body = body;
+    try {
+      out.body = validateRichTextBody(body, 5000);
+    } catch (_error) {
+      throw badRequest("Body must be 1-5000 visible characters");
+    }
   }
 
   if (hasFilmId) {
@@ -1023,6 +1030,18 @@ function parsePatchPostInput(raw: unknown): { headline?: string | null; body?: s
       out.filmId = filmId;
     } else {
       throw badRequest("filmId must be a string ULID or null");
+    }
+  }
+
+  if (hasLinkPreview) {
+    if (source.linkPreview === null) {
+      out.linkPreview = null;
+    } else {
+      var linkPreviewResult = postLinkPreviewSchema.safeParse(source.linkPreview);
+      if (!linkPreviewResult.success) {
+        throw badRequest(linkPreviewResult.error.issues[0]?.message ?? "Invalid link preview");
+      }
+      out.linkPreview = linkPreviewResult.data;
     }
   }
 
@@ -1597,6 +1616,7 @@ type PostItemRow = {
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation?: "card_only" | "url_and_card";
   } | null;
   createdAt: Date;
   updatedAt: Date;
@@ -1686,6 +1706,7 @@ async function toPostItem(
       ? {
           ...row.linkPreview,
           image: row.linkPreview.image,
+          presentation: row.linkPreview.presentation ?? "url_and_card",
         }
       : null,
     poll,
@@ -1791,6 +1812,7 @@ export type CachedHighFollowerAuthorRow = {
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation?: "card_only" | "url_and_card";
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -2525,6 +2547,7 @@ async function assertPostOwner(postId: string, userId: string) {
       visibility: posts.visibility,
       body: posts.body,
       headline: posts.headline,
+      linkPreview: posts.linkPreview,
     })
     .from(posts)
     .where(eq(posts.id, postId))
@@ -3274,6 +3297,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     limit: c.req.query("limit"),
   });
   var cursor = decodeCompositeCursor(parsed.cursor);
+  var kind = parseProfilePostFeedKind(c.req.query("kind"));
   var username = c.req.param("username").toLowerCase().trim();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var viewerUserId = viewer?.userId ?? null;
@@ -3335,6 +3359,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     viewerId: viewerUserId,
     cursor: parsed.cursor ?? null,
     limit: parsed.limit,
+    kind,
   });
   var cached = await getFeedCache(cacheKey);
   if (cached) {
@@ -3344,7 +3369,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       viewerIsStaff,
     });
     if (filteredCached && !viewerUserId) {
-      var cachedEtag = weakEtag(filteredCached, `profile-posts-${username}`);
+      var cachedEtag = weakEtag(filteredCached, `profile-${kind}-${username}`);
       c.header("ETag", cachedEtag);
       if (c.req.header("If-None-Match") === cachedEtag) {
         return new Response(null, { status: 304 });
@@ -3366,6 +3391,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   ];
   var cursorFilter = compositeCursorSql(posts.createdAt, posts.id, cursor);
   if (cursorFilter) filters.push(cursorFilter);
+  if (kind === "reposts") filters.push(eq(posts.isRepost, true));
 
   var rows = await db
     .select({
@@ -3452,7 +3478,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     : null;
   var payload = { items, nextCursor, hasMore };
   if (!viewerUserId) {
-    var etag = weakEtag(payload, `profile-posts-${username}`);
+    var etag = weakEtag(payload, `profile-${kind}-${username}`);
     c.header("ETag", etag);
     if (c.req.header("If-None-Match") === etag) {
       return new Response(null, { status: 304 });
@@ -3658,6 +3684,7 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
   var headline = input.headline !== undefined ? input.headline : current.headline;
   var body = input.body !== undefined ? input.body : current.body;
   var filmIdToPersist = input.filmId;
+  var linkPreview = input.linkPreview !== undefined ? input.linkPreview : current.linkPreview;
 
   if (filmIdToPersist !== undefined && filmIdToPersist !== null) {
     var filmRows = await db
@@ -3684,6 +3711,7 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
       headline,
       body,
       ...(filmIdToPersist !== undefined ? { filmId: filmIdToPersist } : {}),
+      linkPreview,
       editedAt: new Date(),
       updatedAt: new Date(),
     })

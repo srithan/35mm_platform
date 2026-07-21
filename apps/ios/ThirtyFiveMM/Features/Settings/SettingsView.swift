@@ -146,18 +146,18 @@ private struct SettingsProfileHeader: View {
 
       VStack(alignment: .leading, spacing: 4) {
         Text(displayName)
-          .font(.system(size: 22, weight: .black, design: .rounded))
+          .font(.title3.weight(.bold))
           .foregroundStyle(Color(.label))
           .lineLimit(1)
           .minimumScaleFactor(0.72)
 
         Text("@\(settings.username)")
-          .font(.system(size: 15, weight: .bold, design: .rounded))
+          .font(.subheadline.weight(.semibold))
           .foregroundStyle(Color(.secondaryLabel))
           .lineLimit(1)
 
         Text(settings.email)
-          .font(.system(size: 13, weight: .semibold, design: .rounded))
+          .font(.footnote.weight(.medium))
           .foregroundStyle(Color(.tertiaryLabel))
           .lineLimit(1)
       }
@@ -221,7 +221,7 @@ private struct SettingsAccountView: View {
             HStack(spacing: 7) {
               usernameStatusIcon
               Text(viewModel.usernameStatus.message)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(usernameStatusColor)
             }
             .padding(.leading, 2)
@@ -499,7 +499,7 @@ private struct SettingsAppearanceView: View {
 
   private let accentColors = [
     ("theme", "Theme", Color(.label)),
-    ("warm-red", "Warm red", Color.red),
+    ("warm-red", "Warm red", DesignSystem.Colors.accent),
     ("crimson", "Crimson", Color.pink),
     ("amber", "Amber", Color.orange),
     ("forest", "Forest", Color.green),
@@ -550,7 +550,7 @@ private struct SettingsAppearanceView: View {
                       }
                     }
                   Text(accent.1)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.footnote.weight(.semibold))
                     .lineLimit(1)
                   Spacer(minLength: 0)
                 }
@@ -703,7 +703,7 @@ private struct SettingsModerationListView: View {
             HStack(spacing: 10) {
               ProgressView()
               Text("Loading \(kind.title.lowercased())...")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color(.secondaryLabel))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -865,7 +865,7 @@ private struct SettingsFooter: View {
       confirmSignOut = true
     } label: {
       Text("Sign out")
-        .font(.system(size: 15, weight: .bold, design: .rounded))
+        .font(.subheadline.weight(.semibold))
         .foregroundStyle(Color.red)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
@@ -901,15 +901,15 @@ private struct ModeratedUserRow: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(user.displayName)
-          .font(.system(size: 15, weight: .bold, design: .rounded))
+          .font(.subheadline.weight(.semibold))
           .lineLimit(1)
         Text("@\(user.username)")
-          .font(.system(size: 13, weight: .semibold, design: .rounded))
+          .font(.footnote.weight(.medium))
           .foregroundStyle(Color(.secondaryLabel))
           .lineLimit(1)
         if let bio = user.bio, !bio.isEmpty {
           Text(bio)
-            .font(.system(size: 12, weight: .regular, design: .rounded))
+            .font(.caption)
             .foregroundStyle(Color(.secondaryLabel))
             .lineLimit(2)
             .padding(.top, 2)
@@ -919,7 +919,7 @@ private struct ModeratedUserRow: View {
       Spacer(minLength: 0)
 
       Button(kind.actionTitle, action: action)
-        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .font(.footnote.weight(.semibold))
         .foregroundStyle(Color(.label))
         .padding(.horizontal, 12)
         .frame(height: 34)
@@ -943,7 +943,7 @@ private struct SettingsSectionCard<Content: View>: View {
     VStack(alignment: .leading, spacing: 10) {
       if let title {
         Text(title)
-          .font(.system(size: 13, weight: .black, design: .rounded))
+          .font(.footnote.weight(.bold))
           .foregroundStyle(Color(.secondaryLabel))
           .textCase(.uppercase)
           .padding(.horizontal, 4)
@@ -1002,11 +1002,11 @@ private struct SettingsNavigationRow: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
-          .font(.system(size: 16, weight: .bold, design: .rounded))
+          .font(.callout.weight(.semibold))
           .foregroundStyle(Color(.label))
           .lineLimit(1)
         Text(subtitle)
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .font(.caption.weight(.medium))
           .foregroundStyle(Color(.secondaryLabel))
           .lineLimit(1)
       }
@@ -1034,12 +1034,12 @@ private struct SettingsActionRow: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
-          .font(.system(size: 16, weight: .bold, design: .rounded))
+          .font(.callout.weight(.semibold))
           .foregroundStyle(isDestructive ? Color.red : Color(.label))
           .lineLimit(1)
           .minimumScaleFactor(0.78)
         Text(subtitle)
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .font(.caption.weight(.medium))
           .foregroundStyle(Color(.secondaryLabel))
           .lineLimit(2)
       }
@@ -1074,11 +1074,11 @@ private struct SettingsToggleRow: View {
     Toggle(isOn: $isOn) {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
-          .font(.system(size: 15, weight: .bold, design: .rounded))
+          .font(.subheadline.weight(.semibold))
           .foregroundStyle(Color(.label))
         if let subtitle {
           Text(subtitle)
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .font(.caption.weight(.medium))
             .foregroundStyle(Color(.secondaryLabel))
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -1101,13 +1101,13 @@ private struct SettingsTextFieldRow: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       Text(title)
-        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .font(.footnote.weight(.semibold))
         .foregroundStyle(Color(.secondaryLabel))
 
       HStack(spacing: 0) {
         if let prefix {
           Text(prefix)
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
+            .font(.subheadline.weight(.medium))
             .foregroundStyle(Color(.secondaryLabel))
             .padding(.horizontal, 11)
             .frame(height: 44)
@@ -1115,7 +1115,7 @@ private struct SettingsTextFieldRow: View {
         }
 
         TextField(placeholder, text: $text)
-          .font(.system(size: 15, weight: .semibold, design: .rounded))
+          .font(.subheadline.weight(.medium))
           .keyboardType(keyboardType)
           .textContentType(textContentType)
           .textInputAutocapitalization(autocapitalization)
@@ -1145,10 +1145,10 @@ private struct SettingsMenuRow: View {
     HStack(alignment: .center, spacing: 12) {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
-          .font(.system(size: 15, weight: .bold, design: .rounded))
+          .font(.subheadline.weight(.semibold))
           .foregroundStyle(Color(.label))
         Text(subtitle)
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .font(.caption.weight(.medium))
           .foregroundStyle(Color(.secondaryLabel))
           .fixedSize(horizontal: false, vertical: true)
       }
@@ -1164,7 +1164,7 @@ private struct SettingsMenuRow: View {
       } label: {
         HStack(spacing: 6) {
           Text(value)
-            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .font(.footnote.weight(.semibold))
           Image(systemName: "chevron.up.chevron.down")
             .font(.system(size: 10, weight: .bold))
         }
@@ -1191,7 +1191,7 @@ private struct SettingsChoiceButton: View {
         Image(systemName: systemImage)
           .font(.system(size: 18, weight: .bold))
         Text(title)
-          .font(.system(size: 13, weight: .bold, design: .rounded))
+          .font(.footnote.weight(.semibold))
           .lineLimit(1)
           .minimumScaleFactor(0.8)
       }
@@ -1217,7 +1217,7 @@ private struct SettingsPrimaryButton: View {
   var body: some View {
     Button(action: action) {
       Text(title)
-        .font(.system(size: 15, weight: .black, design: .rounded))
+        .font(.subheadline.weight(.bold))
         .foregroundStyle(Color.white)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
@@ -1241,7 +1241,7 @@ private struct SettingsLoadingView: View {
     VStack(spacing: 12) {
       ProgressView()
       Text("Loading settings...")
-        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .font(.subheadline.weight(.medium))
         .foregroundStyle(Color(.secondaryLabel))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1258,11 +1258,11 @@ private struct SettingsErrorView: View {
         .font(.system(size: 32, weight: .bold))
         .foregroundStyle(Color.orange)
       Text(message)
-        .font(.system(size: 15, weight: .semibold, design: .rounded))
+        .font(.subheadline.weight(.medium))
         .foregroundStyle(Color(.secondaryLabel))
         .multilineTextAlignment(.center)
       Button("Retry", action: retry)
-        .font(.system(size: 15, weight: .bold, design: .rounded))
+        .font(.subheadline.weight(.semibold))
         .foregroundStyle(Color.white)
         .padding(.horizontal, 20)
         .frame(height: 42)
@@ -1281,10 +1281,10 @@ private struct SettingsInlineError: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       Text(message)
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .font(.footnote.weight(.medium))
         .foregroundStyle(Color.red)
       Button("Retry", action: retry)
-        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .font(.footnote.weight(.semibold))
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.vertical, 4)
@@ -1305,9 +1305,9 @@ private struct SettingsEmptyState: View {
         .background(Color(.systemGray6))
         .clipShape(Circle())
       Text(title)
-        .font(.system(size: 16, weight: .black, design: .rounded))
+        .font(.callout.weight(.bold))
       Text(bodyText)
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .font(.footnote.weight(.medium))
         .foregroundStyle(Color(.secondaryLabel))
         .multilineTextAlignment(.center)
         .lineLimit(3)
@@ -1322,7 +1322,7 @@ private struct SettingsToast: View {
 
   var body: some View {
     Text(message)
-      .font(.system(size: 13, weight: .bold, design: .rounded))
+      .font(.footnote.weight(.semibold))
       .foregroundStyle(Color.white)
       .padding(.horizontal, 15)
       .frame(height: 40)

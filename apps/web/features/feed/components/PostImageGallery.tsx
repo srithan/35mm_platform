@@ -23,6 +23,7 @@ function resolveSingleImageLayout(naturalWidth: number, naturalHeight: number): 
 }
 
 function gridClassName(count: number) {
+  if (count === 4) return "grid-cols-2 gap-0.5";
   return "grid-cols-2 gap-1.5";
 }
 
@@ -338,7 +339,8 @@ function PostImageGrid({
             key={`post-image-${idx}`}
             type="button"
             className={cn(
-              "relative block w-full overflow-hidden rounded bg-sunken text-left",
+              "relative block w-full overflow-hidden bg-sunken text-left",
+              count !== 4 && "rounded",
               postMediaGridCellClassName(count, idx)
             )}
             onClick={function (e) {
@@ -350,10 +352,7 @@ function PostImageGrid({
               url={url}
               alt={imageCaption || "Post image"}
               blurhash={blurhashes?.[idx] ?? null}
-              className={cn(
-                "absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-90",
-                count === 4 && "object-top"
-              )}
+              className="absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-90"
               priority={priority && idx === 0}
             />
           </button>

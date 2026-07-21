@@ -17,6 +17,7 @@ import {
   mentionInlineClassName,
 } from "./richPostText";
 import { SpoilerReveal } from "./SpoilerReveal";
+import { suppressLinkPreviewUrl } from "./linkPreviewPresentation";
 
 function applyMarks(nodes: ReactNode[], marks: RichTextMark[] | undefined, keyBase: string) {
   let out: ReactNode = nodes;
@@ -35,9 +36,25 @@ function stopClick(e: MouseEvent) {
   e.stopPropagation();
 }
 
-function renderNode(node: RichTextNode, key: string, stopLinkPropagation: boolean): ReactNode {
+function plainTextForNode(node: RichTextNode): string {
+  if (node.type === "text") return node.text ?? "";
+  if (node.type === "hardBreak") return "\n";
+  if (node.type === "mention") return "@mention";
+  return (node.content ?? []).map(plainTextForNode).join("");
+}
+
+function renderNode(
+  node: RichTextNode,
+  key: string,
+  stopLinkPropagation: boolean,
+  suppressedUrl?: string
+): ReactNode {
   if (node.type === "text") {
-    const tokens = parseRichPostText(node.text ?? "");
+    const value = suppressedUrl
+      ? suppressLinkPreviewUrl(node.text ?? "", suppressedUrl)
+      : node.text ?? "";
+    if (value.length === 0) return null;
+    const tokens = parseRichPostText(value);
     const nodes = tokensToRichNodes(tokens, {
       stopLinkPropagation,
       segmentKeyPrefix: key,
@@ -78,8 +95,14 @@ function renderNode(node: RichTextNode, key: string, stopLinkPropagation: boolea
 
   if (node.type === "hardBreak") return <br key={key} />;
 
+  if (node.type === "paragraph" && suppressedUrl) {
+    const originalText = plainTextForNode(node);
+    const visibleText = suppressLinkPreviewUrl(originalText, suppressedUrl);
+    if (visibleText !== originalText && visibleText.trim().length === 0) return null;
+  }
+
   const children = (node.content ?? []).map(function (child, index) {
-    return renderNode(child, `${key}-${index}`, stopLinkPropagation);
+    return renderNode(child, `${key}-${index}`, stopLinkPropagation, suppressedUrl);
   });
 
   if (node.type === "paragraph") {
@@ -97,13 +120,19 @@ export function RichTextRenderer(props: {
   stored: string;
   stopLinkPropagation?: boolean;
   className?: string;
+  suppressedUrl?: string;
 }) {
   const doc = parseStoredRichText(props.stored) as RichTextDoc | null;
   if (!doc) return null;
   return (
     <span className={cn("contents", props.className)}>
       {(doc.content ?? []).map(function (node, index) {
-        return renderNode(node, `r-${index}`, props.stopLinkPropagation === true);
+        return renderNode(
+          node,
+          `r-${index}`,
+          props.stopLinkPropagation === true,
+          props.suppressedUrl
+        );
       })}
     </span>
   );

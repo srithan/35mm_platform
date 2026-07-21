@@ -32,6 +32,7 @@ export function CommentCardActionsBar({
     <PostActions
       likes={likeCount}
       comments={replyCount}
+      reposts={0}
       hideZeroCounts
       useCompactVariant
       initialLiked={liked}

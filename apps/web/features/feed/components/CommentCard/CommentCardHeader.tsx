@@ -7,11 +7,17 @@ import type { Comment } from "./types";
 
 interface CommentCardHeaderProps {
   comment: Comment;
+  depth?: number;
   menu: React.ReactNode;
   children: React.ReactNode;
 }
 
-export function CommentCardHeader({ comment, menu, children }: CommentCardHeaderProps) {
+export function CommentCardHeader({
+  comment,
+  depth = 0,
+  menu,
+  children,
+}: CommentCardHeaderProps) {
   return (
     <>
       <UsernameLink
@@ -28,7 +34,7 @@ export function CommentCardHeader({ comment, menu, children }: CommentCardHeader
         <Avatar
           initial={comment.avatarInitial}
           src={comment.avatarUrl}
-          className="h-10 w-10"
+          className={depth > 0 ? "h-8 w-8" : "h-10 w-10"}
         />
       </UsernameLink>
       <div className="flex-1 min-w-0">

@@ -147,6 +147,8 @@ struct ProfileLoadedView: View {
     switch selectedTab {
     case .posts:
       ProfilePostsView(model: model, onOpenPost: openPost, onOpenImage: openImage)
+    case .reposts:
+      ProfileRepostsView(model: model, onOpenPost: openPost, onOpenImage: openImage)
     case .diary:
       ProfileDiaryView(model: model, onOpenPost: openPost)
     case .lists:

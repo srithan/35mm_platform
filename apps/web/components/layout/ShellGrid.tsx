@@ -23,9 +23,9 @@ import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
 import { ShellLayoutContext } from "@/components/layout/ShellLayoutContext";
 
 /** Inlined — imported helpers can go stale in Turbopack client bundles. */
-function isProfileShellPath(pathname: string): boolean {
-  const match = pathname.match(/^\/([^/]+)(?:\/(diary|lists|stats))?\/?$/);
-  if (!match) return false;
+function getProfileShellUsername(pathname: string): string | null {
+  const match = pathname.match(/^\/([^/]+)(?:\/(reposts|diary|lists|stats))?\/?$/);
+  if (!match) return null;
   switch (match[1]) {
     case "bookmarks":
     case "chat":
@@ -40,9 +40,13 @@ function isProfileShellPath(pathname: string): boolean {
     case "title":
     case "person":
     case "profile":
-      return false;
+      return null;
     default:
-      return true;
+      try {
+        return decodeURIComponent(match[1]);
+      } catch {
+        return match[1];
+      }
   }
 }
 
@@ -79,8 +83,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isNewPostPage = pathname === ROUTES.NEW_POST;
   const isHomePage = pathname === "/";
-  const isProfileUsernamePage =
-    pathname != null ? isProfileShellPath(pathname) : false;
+  const profileShellUsername =
+    pathname != null ? getProfileShellUsername(pathname) : null;
+  const isProfileUsernamePage = profileShellUsername != null;
   const isDesktopLg = useIsDesktopLg();
 
   const isWideMainContent =
@@ -170,6 +175,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                 title={isChatSection ? "Messages" : undefined}
                 hideBottomBorder={hasStickyBarBelow || isChatSection}
                 sidebarOpen={sidebarOpen}
+                compactProfileUsername={profileShellUsername ?? undefined}
               />
             ) : null}
           </div>

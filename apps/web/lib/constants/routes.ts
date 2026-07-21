@@ -31,6 +31,7 @@ export const ROUTES = {
   NOTIFICATIONS: "/notifications",
   NOTIFICATIONS_TAB: (tab: string) => `/notifications/${tab}`,
   PROFILE: (username: string) => `/${username}`,
+  PROFILE_REPOSTS: (username: string) => `/${username}/reposts`,
   PROFILE_DIARY: (username: string) => `/${username}/diary`,
   PROFILE_LISTS: (username: string) => `/${username}/lists`,
   LIST: (listId: string) => `/list/${listId}`,

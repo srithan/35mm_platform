@@ -19,4 +19,41 @@ describe("createPostSchema quote relation", function () {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts a validated link preview", function () {
+    var result = createPostSchema.safeParse({
+      type: "text",
+      body: "Read this https://example.com/story",
+      linkPreview: {
+        url: "https://example.com/story",
+        title: "Example story",
+        description: "Story description",
+        image: "https://example.com/story.jpg",
+        domain: "example.com",
+        provider: "link",
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.linkPreview?.presentation).toBe("url_and_card");
+    }
+  });
+
+  it("rejects spoofed link preview domains", function () {
+    var result = createPostSchema.safeParse({
+      type: "text",
+      body: "Read this https://example.com/story",
+      linkPreview: {
+        url: "https://example.com/story",
+        title: "Example story",
+        description: null,
+        image: null,
+        domain: "attacker.example",
+        provider: "link",
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

@@ -79,14 +79,14 @@ struct MainTabView: View {
         }
       }
       .tabItem {
-        AppTab.home.icon
+        AppTab.home.icon(isSelected: selectedTab == .home)
         Text(AppTab.home.accessibilityLabel)
       }
       .tag(AppTab.home)
 
       Color.clear
         .tabItem {
-          AppTab.create.icon
+          AppTab.create.icon(isSelected: false)
           Text(AppTab.create.accessibilityLabel)
         }
         .tag(AppTab.create)
@@ -109,13 +109,12 @@ struct MainTabView: View {
         }
       }
       .tabItem {
-        AppTab.activity.icon
+        AppTab.activity.icon(isSelected: selectedTab == .activity)
         Text(AppTab.activity.accessibilityLabel)
       }
-      .badge("")
       .tag(AppTab.activity)
     }
-    .tint(.black)
+    .tint(Color(.label))
     .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
     .fullScreenCover(
       isPresented: $env.isComposerPresented,
@@ -286,15 +285,14 @@ struct MainTabView: View {
 
   private static func configureTabBarAppearance() {
     let appearance = UITabBarAppearance()
-    appearance.configureWithTransparentBackground()
-    appearance.backgroundColor = .clear
+    appearance.configureWithDefaultBackground()
     appearance.shadowColor = .clear
 
     let itemAppearance = UITabBarItemAppearance()
-    itemAppearance.normal.iconColor = UIColor.black.withAlphaComponent(0.55)
-    itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.black.withAlphaComponent(0.55)]
-    itemAppearance.selected.iconColor = .black
-    itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.black]
+    itemAppearance.normal.iconColor = .secondaryLabel
+    itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.secondaryLabel]
+    itemAppearance.selected.iconColor = .label
+    itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.label]
 
     appearance.stackedLayoutAppearance = itemAppearance
     appearance.inlineLayoutAppearance = itemAppearance
@@ -302,8 +300,8 @@ struct MainTabView: View {
 
     UITabBar.appearance().standardAppearance = appearance
     UITabBar.appearance().scrollEdgeAppearance = appearance
-    UITabBar.appearance().tintColor = .black
-    UITabBar.appearance().unselectedItemTintColor = UIColor.black.withAlphaComponent(0.55)
+    UITabBar.appearance().tintColor = .label
+    UITabBar.appearance().unselectedItemTintColor = .secondaryLabel
   }
 }
 
@@ -434,14 +432,14 @@ private struct SidebarPageView: View {
 
           VStack(alignment: .leading, spacing: 4) {
             Text(item.title)
-              .font(.system(size: 28, weight: .black, design: .rounded))
+              .font(.title2.weight(.bold))
               .foregroundStyle(Color(.label))
               .lineLimit(1)
               .minimumScaleFactor(0.78)
 
             if let subtitle {
               Text(subtitle)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .font(.subheadline)
                 .foregroundStyle(Color(.secondaryLabel))
                 .lineLimit(2)
             }
@@ -502,18 +500,18 @@ private struct SidebarPageView: View {
   private var profileContent: some View {
     VStack(alignment: .leading, spacing: 12) {
       Text(profile?.displayName ?? profile?.username ?? "Profile")
-        .font(.system(size: 20, weight: .black, design: .rounded))
+        .font(.title3.weight(.bold))
         .foregroundStyle(Color(.label))
 
       if let roleContext = profile?.roleContext, !roleContext.isEmpty {
         Text(roleContext)
-          .font(.system(size: 15, weight: .semibold, design: .rounded))
+          .font(.subheadline)
           .foregroundStyle(Color(.secondaryLabel))
       }
 
       if let filmsLoggedCount = profile?.filmsLoggedCount {
         Text("\(filmsLoggedCount.compactFormatted) films logged")
-          .font(.system(size: 15, weight: .semibold, design: .rounded))
+          .font(.subheadline)
           .foregroundStyle(Color(.secondaryLabel))
       }
     }
@@ -528,11 +526,11 @@ private struct EmptyStateCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      item.icon(size: 26, weight: .bold)
+      item.icon(size: 26, weight: .medium)
         .foregroundStyle(Color(.secondaryLabel))
 
       Text(item.title)
-        .font(.system(size: 18, weight: .black, design: .rounded))
+        .font(.appSectionTitle)
         .foregroundStyle(Color(.label))
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -603,7 +601,7 @@ private struct AppHeader: View {
 
         HStack {
           Button(action: onProfileTapped) {
-            HeaderAvatar(url: profile?.avatarUrl ?? profile?.avatarUrlLg, size: 38)
+            HeaderAvatar(url: profile?.avatarUrl ?? profile?.avatarUrlLg, size: DesignSystem.AvatarSize.small)
               .contentShape(Circle())
           }
           .buttonStyle(.plain)
@@ -638,14 +636,14 @@ private struct AppHeader: View {
     switch title {
     case .logo:
       Text(AppConstants.appName)
-        .font(.system(size: 27, weight: .black, design: .serif))
+        .font(.appWordmark)
         .foregroundStyle(Color(.label))
         .lineLimit(1)
         .minimumScaleFactor(0.82)
         .accessibilityAddTraits(.isHeader)
     case .text(let value):
       Text(value)
-        .font(.system(size: 22, weight: .black, design: .rounded))
+        .font(.appScreenTitle)
         .foregroundStyle(Color(.label))
         .lineLimit(1)
         .minimumScaleFactor(0.82)
@@ -716,25 +714,25 @@ private struct ProfileSidebar: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       VStack(alignment: .leading, spacing: 12) {
-        HeaderAvatar(url: profile?.avatarUrl ?? profile?.avatarUrlLg, size: 48)
+        HeaderAvatar(url: profile?.avatarUrl ?? profile?.avatarUrlLg, size: DesignSystem.AvatarSize.large)
           .padding(.bottom, 2)
 
         VStack(alignment: .leading, spacing: 4) {
           Text(displayName)
-            .font(.system(size: 22, weight: .black, design: .rounded))
+            .font(.title3.weight(.bold))
             .foregroundStyle(Color(.label))
             .lineLimit(1)
             .minimumScaleFactor(0.72)
 
           Text(username)
-            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .font(.subheadline)
             .foregroundStyle(Color(.secondaryLabel))
             .lineLimit(1)
             .minimumScaleFactor(0.82)
 
           if let relationshipSummary {
             Text(relationshipSummary)
-              .font(.system(size: 14, weight: .semibold, design: .rounded))
+              .font(.footnote)
               .foregroundStyle(Color(.secondaryLabel))
               .lineLimit(2)
               .padding(.top, 2)
@@ -792,8 +790,8 @@ private struct ProfileSidebarRow: View {
   let item: ProfileSidebarItem
   var size: Size = .regular
 
-  private var fontSize: CGFloat {
-    size == .regular ? 19 : 16
+  private var font: Font {
+    size == .regular ? .appRowLabel : .appRowLabelCompact
   }
 
   private var iconSize: CGFloat {
@@ -806,12 +804,12 @@ private struct ProfileSidebarRow: View {
 
   var body: some View {
     HStack(spacing: 18) {
-      item.icon(size: iconSize)
+      item.icon(size: iconSize, weight: .medium)
         .foregroundStyle(Color(.label))
         .frame(width: 30)
 
       Text(item.title)
-        .font(.system(size: fontSize, weight: .black, design: .rounded))
+        .font(font)
         .foregroundStyle(Color(.label))
         .lineLimit(1)
         .minimumScaleFactor(0.72)
@@ -826,7 +824,7 @@ private struct AppTabPlaceholder: View {
 
   var body: some View {
     Text(message)
-      .font(.system(size: 16, weight: .semibold, design: .rounded))
+      .font(.subheadline.weight(.medium))
       .foregroundStyle(Color(.secondaryLabel))
       .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
@@ -837,14 +835,14 @@ private enum AppTab: Hashable, CaseIterable {
   case create
   case activity
 
-  var icon: Image {
+  func icon(isSelected: Bool) -> Image {
     switch self {
     case .home:
-      return Image("FeedTabIcon")
+      return Image(systemName: isSelected ? "house.fill" : "house")
     case .create:
       return Image(systemName: "plus.circle")
     case .activity:
-      return Image(systemName: "bell")
+      return Image(systemName: isSelected ? "bell.fill" : "bell")
     }
   }
 
@@ -949,7 +947,7 @@ private struct PostComposerView: View {
         Divider()
         composerBody
       }
-      .background(Color.white)
+      .background(Color(.systemBackground))
       .clipShape(
         UnevenRoundedRectangle(
           topLeadingRadius: 24,
@@ -964,7 +962,7 @@ private struct PostComposerView: View {
     }
     .safeAreaInset(edge: .bottom) {
       composerFooter
-        .background(Color.white)
+        .background(Color(.systemBackground))
     }
     .task {
       await loadProfile()
@@ -981,8 +979,8 @@ private struct PostComposerView: View {
   private var header: some View {
     ZStack {
       Text(quotedPost == nil ? "New thread" : "Quote post")
-        .font(.system(size: 17, weight: .bold, design: .rounded))
-        .foregroundStyle(.black)
+        .font(.headline)
+        .foregroundStyle(.primary)
         .lineLimit(1)
         .minimumScaleFactor(0.82)
 
@@ -991,8 +989,8 @@ private struct PostComposerView: View {
           dismiss()
         } label: {
           Text("Cancel")
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(.black)
+            .font(.body)
+            .foregroundStyle(.primary)
             .lineLimit(1)
         }
         .buttonStyle(.plain)
@@ -1004,8 +1002,8 @@ private struct PostComposerView: View {
             selectedOption = .review
           } label: {
             Image(systemName: "doc.text")
-              .font(.system(size: 19, weight: .semibold))
-              .foregroundStyle(.black)
+              .font(.system(size: 19, weight: .medium))
+              .foregroundStyle(.primary)
           }
           .buttonStyle(.plain)
           .accessibilityLabel("Draft options")
@@ -1014,8 +1012,8 @@ private struct PostComposerView: View {
             selectedOption = .post
           } label: {
             Image(systemName: "ellipsis.circle")
-              .font(.system(size: 20, weight: .semibold))
-              .foregroundStyle(.black)
+              .font(.system(size: 20, weight: .medium))
+              .foregroundStyle(.primary)
           }
           .buttonStyle(.plain)
           .accessibilityLabel("More composer actions")
@@ -1044,31 +1042,31 @@ private struct PostComposerView: View {
         VStack(alignment: .leading, spacing: 5) {
           HStack(spacing: 6) {
             Text(username)
-              .font(.system(size: 16, weight: .bold, design: .rounded))
-              .foregroundStyle(.black)
+              .font(.appAuthorName)
+              .foregroundStyle(.primary)
 
             Image(systemName: "chevron.right")
-              .font(.system(size: 12, weight: .bold))
+              .font(.system(size: 12, weight: .semibold))
               .foregroundStyle(Color(.systemGray2))
 
             TextField("Add a topic", text: $topic)
-              .font(.system(size: 16, weight: .semibold, design: .rounded))
-              .foregroundStyle(.black)
+              .font(.subheadline.weight(.medium))
+              .foregroundStyle(.primary)
               .textInputAutocapitalization(.words)
           }
 
           ZStack(alignment: .topLeading) {
             if bodyText.isEmpty {
               Text("What's new?")
-                .font(.system(size: 17, weight: .regular, design: .rounded))
+                .font(.body)
                 .foregroundStyle(Color(.systemGray2))
                 .padding(.top, 7)
                 .padding(.leading, 4)
             }
 
             TextEditor(text: $bodyText)
-              .font(.system(size: 17, weight: .regular, design: .rounded))
-              .foregroundStyle(.black)
+              .font(.body)
+              .foregroundStyle(.primary)
               .scrollContentBackground(.hidden)
               .frame(minHeight: 64, maxHeight: 130)
               .focused($isBodyFocused)
@@ -1093,8 +1091,8 @@ private struct PostComposerView: View {
               .foregroundStyle(Color(.systemGray5))
 
             Text("Add to thread")
-              .font(.system(size: 16, weight: .semibold, design: .rounded))
-              .foregroundStyle(Color(.systemGray4))
+              .font(.subheadline.weight(.medium))
+              .foregroundStyle(Color(.systemGray3))
           }
           .padding(.top, 2)
         }
@@ -1139,9 +1137,9 @@ private struct PostComposerView: View {
     HStack(spacing: 10) {
       HStack(spacing: 6) {
         Image(systemName: "slider.horizontal.3")
-          .font(.system(size: 15, weight: .bold))
+          .font(.system(size: 15, weight: .semibold))
         Text("Post Options")
-          .font(.system(size: 12, weight: .bold, design: .rounded))
+          .font(.caption.weight(.semibold))
           .lineLimit(1)
           .fixedSize(horizontal: true, vertical: false)
       }
@@ -1161,10 +1159,10 @@ private struct PostComposerView: View {
             Text(selectedOption.title)
           }
         }
-          .font(.system(size: 14, weight: .bold, design: .rounded))
-          .foregroundStyle(.white)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(Color(.systemBackground))
           .frame(width: 64, height: 38)
-          .background(canPost ? Color.black : Color(.systemGray3), in: Capsule())
+          .background(canPost ? Color(.label) : Color(.systemGray3), in: Capsule())
       }
       .buttonStyle(.plain)
       .disabled(!canPost)
@@ -1251,13 +1249,13 @@ private struct ComposerOptionTabs: View {
           }
         } label: {
           Image(systemName: option.systemImage)
-            .font(.system(size: 15, weight: .black))
-            .foregroundStyle(selectedOption == option ? .black : Color(.systemGray2))
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(selectedOption == option ? Color(.label) : Color(.systemGray2))
             .frame(width: 36, height: 36)
             .background {
               if selectedOption == option {
                 Capsule()
-                  .fill(.white)
+                  .fill(Color(.systemBackground))
                   .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
               }
             }

@@ -117,6 +117,44 @@ describe("PostCardQuoteEmbed", function () {
     expect(screen.getByAltText("Second still").parentElement).toHaveClass("aspect-[4/5]");
   });
 
+  it("hides a card-only preview URL without removing the source body", function () {
+    const previewUrl = "https://example.com/story";
+    render(
+      <PostCardQuoteEmbed
+        post={{
+          id: "source-post",
+          type: "text",
+          author: {
+            id: "source-user",
+            username: "original",
+            displayName: "Original Author",
+            avatarUrl: null,
+            isFollowing: false,
+          },
+          body: `Worth reading\n${previewUrl}`,
+          media: [],
+          mediaUrls: [],
+          linkPreview: {
+            url: previewUrl,
+            title: "Example story",
+            description: null,
+            image: null,
+            domain: "example.com",
+            provider: "link",
+            presentation: "card_only",
+          },
+          poll: null,
+          film: null,
+          createdAt: "2026-07-19T16:00:00.000Z",
+        }}
+      />
+    );
+
+    expect(screen.getByText("Worth reading")).toBeInTheDocument();
+    expect(screen.queryByText(previewUrl)).not.toBeInTheDocument();
+    expect(screen.getByText("Example story")).toBeInTheDocument();
+  });
+
   it("renders a tombstone when the source is inaccessible", function () {
     render(<PostCardQuoteEmbed unavailable />);
     expect(screen.getByTestId("quoted-post-unavailable")).toHaveTextContent(

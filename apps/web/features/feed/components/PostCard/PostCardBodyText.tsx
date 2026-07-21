@@ -19,6 +19,7 @@ interface PostCardBodyTextProps {
   isOverflowing: boolean;
   postId?: string;
   username: string;
+  suppressedUrl?: string;
 }
 
 export function PostCardBodyText({
@@ -32,6 +33,7 @@ export function PostCardBodyText({
   isOverflowing,
   postId,
   username,
+  suppressedUrl,
 }: PostCardBodyTextProps) {
   const router = useRouter();
 
@@ -60,6 +62,7 @@ export function PostCardBodyText({
                 <RichTextRenderer
                   stored={cleanedText}
                   stopLinkPropagation={stopRichLinkBubble}
+                  suppressedUrl={suppressedUrl}
                 />
               ) : (
                 <RichPostBodyWithFilmRef

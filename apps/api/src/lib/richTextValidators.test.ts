@@ -42,6 +42,37 @@ describe("rich text validation", function () {
     expect(richTextMentionIds(body)).toEqual(["11111111-1111-4111-8111-111111111111"]);
   });
 
+  it("accepts TipTap http link marks", function () {
+    var body = rich({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "https://example.com/story",
+              marks: [
+                {
+                  type: "link",
+                  attrs: {
+                    href: "https://example.com/story",
+                    target: "_blank",
+                    rel: "noopener noreferrer nofollow",
+                    class: null,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(validateRichTextBody(body, 1000)).toBe(body);
+    expect(richTextBodyToVisibleText(body)).toBe("https://example.com/story");
+  });
+
   it("rejects unsupported node/mark/attrs", function () {
     expect(() =>
       validateRichTextBody(

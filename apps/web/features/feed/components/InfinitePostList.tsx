@@ -10,6 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { cn } from "@/lib/utils/cn";
 import { EmptyState } from "@/components/EmptyState";
 import { fetchFeed } from "../api/feedApi";
+import type { ProfileFeedKind } from "../api/feedApi";
 import { useConnectionPreferences } from "../hooks/useConnectionPreferences";
 import { useFeed } from "../hooks/useFeed";
 import { feedKeys } from "../hooks/queryKeys";
@@ -41,6 +42,7 @@ function formatPostTime(iso: string): string {
 
 interface InfinitePostListProps {
   username?: string;
+  profileFeedKind?: ProfileFeedKind;
   emptyState?: React.ComponentProps<typeof EmptyState>;
   postTypes?: Array<Post["type"]>;
   postFilter?: (post: Post) => boolean;
@@ -51,7 +53,13 @@ const SCROLL_FAST_EXIT_THRESHOLD_PX_PER_SEC = 900;
 const SCROLL_RAPID_THRESHOLD_PX_PER_SEC = 2_400;
 const RAPID_SCROLL_EXIT_DELAY_MS = 700;
 
-export function InfinitePostList({ username, emptyState, postTypes, postFilter }: InfinitePostListProps) {
+export function InfinitePostList({
+  username,
+  profileFeedKind = "all",
+  emptyState,
+  postTypes,
+  postFilter,
+}: InfinitePostListProps) {
   const queryClient = useQueryClient();
   const { getToken, isLoaded: isAuthLoaded } = useAuth();
   const connection = useConnectionPreferences();
@@ -69,7 +77,7 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
     isError,
     error,
     refetch,
-  } = useFeed(username);
+  } = useFeed(username, profileFeedKind);
 
   const posts = useMemo(function () {
     return deduplicateFeedPosts(data?.pages.flatMap((page) => page.posts) ?? []);
@@ -93,9 +101,9 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
   );
   const queryKey = useMemo(
     function () {
-      return username ? feedKeys.profile(username) : feedKeys.home();
+      return username ? feedKeys.profile(username, profileFeedKind) : feedKeys.home();
     },
-    [username]
+    [profileFeedKind, username]
   );
   const prefetchInFlightRef = useRef(false);
   const prefetchScrollVelocityRef = useRef(0);
@@ -162,7 +170,12 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
         const prefetchedPage = await queryClient.fetchQuery({
           queryKey: pageRef,
           queryFn: function () {
-            return fetchFeed({ cursor, username, token: token ?? undefined });
+            return fetchFeed({
+              cursor,
+              username,
+              profileFeedKind,
+              token: token ?? undefined,
+            });
           },
           staleTime: 30_000,
           gcTime: 5 * 60_000,
@@ -188,6 +201,7 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
     connection.slow,
     queryKey,
     getToken,
+    profileFeedKind,
     username,
   ]);
 
@@ -233,6 +247,7 @@ export function InfinitePostList({ username, emptyState, postTypes, postFilter }
         imageCaption: image?.altText,
         media: post.media,
         likeCount: post.likeCount,
+        repostCount: post.repostCount,
         liked: post.isLiked,
         bookmarked: post.isBookmarked,
         bookmarkFolderId: post.bookmarkFolderId,

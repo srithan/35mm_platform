@@ -40,6 +40,7 @@ export interface PostCardLinkPreview {
   image: string | null;
   domain: string;
   provider: "youtube" | "vimeo" | "link";
+  presentation: "card_only" | "url_and_card";
 }
 
 export interface PostCardReplyPreview {
@@ -118,6 +119,7 @@ export interface PostCardProps {
   saveData?: boolean;
   linkPreview?: PostCardLinkPreview | null;
   likeCount: number;
+  repostCount: number;
   liked?: boolean;
   bookmarked?: boolean;
   bookmarkFolderId?: string | null;

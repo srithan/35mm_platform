@@ -171,7 +171,7 @@ private struct ChatInboxHeader<ArchiveDestination: View>: View {
     VStack(spacing: 0) {
       ZStack {
         Text(title)
-          .font(.system(size: 22, weight: .black, design: .rounded))
+          .font(.appScreenTitle)
           .foregroundStyle(Color(.label))
           .lineLimit(1)
           .minimumScaleFactor(0.82)

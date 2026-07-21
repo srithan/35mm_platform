@@ -12,6 +12,7 @@ import {
   ReplyComposerTrigger,
 } from "./ReplyComposer/ReplyComposerPanel";
 import type { Comment as FeedComment } from "../types/feed";
+import { rankCommentReplies } from "../utils/commentReplyRanking";
 
 interface CommentSectionProps {
   comments: FeedComment[];
@@ -55,7 +56,7 @@ function toCommentCard(comment: FeedComment): CommentCardType {
     role: comment.author.role,
     roleContext: comment.author.roleContext,
     filmsLoggedCount: comment.author.filmsLoggedCount,
-    replies: comment.replies.map(toCommentCard),
+    replies: rankCommentReplies(comment.replies).map(toCommentCard),
   };
 }
 

@@ -59,12 +59,14 @@ export function profileFeedCacheKey(input: {
   viewerId: string | null;
   cursor: string | null;
   limit: number;
+  kind: "all" | "reposts";
 }): string {
   return [
     CACHE_NS,
     "profile",
     `username:${normalizePart(input.username.toLowerCase())}`,
     `viewer:${viewerIdPart(input.viewerId)}`,
+    `kind:${input.kind}`,
     `cursor:${normalizePart(input.cursor)}`,
     `limit:${normalizePart(input.limit)}`,
   ].join(":");

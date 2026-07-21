@@ -11,6 +11,7 @@ struct ProfileDestination: Hashable {
 }
 
 struct ProfileView: View {
+  @Environment(\.dismiss) private var dismiss
   @State private var model: ProfileViewModel
 
   private let service: any ProfileServicing
@@ -27,40 +28,45 @@ struct ProfileView: View {
   }
 
   var body: some View {
-    Group {
-      switch model.screenPhase {
-      case .loading:
-        ProgressView("Loading profile")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      case .failure(let error):
-        ContentUnavailableView {
-          Label("Couldn't load profile", systemImage: "person.crop.circle.badge.exclamationmark")
-        } description: {
-          Text(error)
-        } actions: {
-          Button("Try again") {
-            Task { await model.load() }
+    VStack(spacing: 0) {
+      ProfileNavigationHeader(onBack: dismiss.callAsFunction)
+
+      Group {
+        switch model.screenPhase {
+        case .loading:
+          ProgressView("Loading profile")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failure(let error):
+          ContentUnavailableView {
+            Label("Couldn't load profile", systemImage: "person.crop.circle.badge.exclamationmark")
+          } description: {
+            Text(error)
+          } actions: {
+            Button("Try again") {
+              Task { await model.load() }
+            }
+            .buttonStyle(.borderedProminent)
           }
-          .buttonStyle(.borderedProminent)
+        case .blocked:
+          ContentUnavailableView(
+            "Profile blocked",
+            systemImage: "person.crop.circle.badge.xmark",
+            description: Text("This account can no longer view or interact with you.")
+          )
+        case .content(let profile):
+          ProfileLoadedView(
+            profile: profile,
+            model: model,
+            service: service,
+            onCurrentProfileUpdated: onCurrentProfileUpdated
+          )
         }
-      case .blocked:
-        ContentUnavailableView(
-          "Profile blocked",
-          systemImage: "person.crop.circle.badge.xmark",
-          description: Text("This account can no longer view or interact with you.")
-        )
-      case .content(let profile):
-        ProfileLoadedView(
-          profile: profile,
-          model: model,
-          service: service,
-          onCurrentProfileUpdated: onCurrentProfileUpdated
-        )
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .background(Color(.systemBackground))
     .navigationTitle("Profile")
-    .navigationBarTitleDisplayMode(.inline)
+    .toolbar(.hidden, for: .navigationBar)
     .task {
       await model.load()
     }

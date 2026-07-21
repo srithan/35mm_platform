@@ -14,10 +14,11 @@ struct ProfileFeatureTests {
 
   @Test
   func profileTabsExposeStableAccessibleLabelsAndSymbols() {
-    #expect(ProfileTab.allCases.map(\.title) == ["Posts", "Diary", "Lists", "Stats"])
+    #expect(ProfileTab.allCases.map(\.title) == ["Posts", "Reposts", "Diary", "Lists", "Stats"])
     #expect(
       ProfileTab.allCases.map(\.systemImage) == [
         "doc.text",
+        "arrow.2.squarepath",
         "film.stack",
         "rectangle.stack",
         "chart.bar.xaxis",
@@ -295,6 +296,38 @@ struct ProfileFeatureTests {
   }
 
   @Test
+  func viewModelExposesOnlyRepostActivityInRepostsTab() async throws {
+    let service = ProfileServiceStub()
+    let original = try makePost(id: "post-1", isLiked: false)
+    let repost = try makePost(id: "post-2", isLiked: false, repostedByUsername: "maya.frames")
+    service.profile = makeProfile()
+    service.postPages[ProfileServiceStub.firstPage] = PaginatedResponse(
+      items: [original],
+      nextCursor: nil,
+      hasMore: false
+    )
+    service.repostPages[ProfileServiceStub.firstPage] = PaginatedResponse(
+      items: [repost],
+      nextCursor: nil,
+      hasMore: false
+    )
+    let model = ProfileViewModel(username: "maya.frames", service: service)
+
+    await model.load()
+    #expect(model.reposts.isEmpty)
+
+    await model.loadTabIfNeeded(.reposts)
+    await model.loadTabIfNeeded(.reposts)
+
+    #expect(model.reposts.map(\.id) == ["post-2"])
+    #expect(service.repostRequests.count == 1)
+
+    await model.toggleRepost(postId: "post-2")
+
+    #expect(model.reposts.isEmpty)
+  }
+
+  @Test
   func viewModelLoadsListsAndStatsOnlyWhenSelected() async {
     let service = ProfileServiceStub()
     service.profile = makeProfile()
@@ -368,8 +401,12 @@ struct ProfileFeatureTests {
     return decoder
   }
 
-  private func makePost(id: String, isLiked: Bool) throws -> FeedPost {
-    let payload: [String: Any] = [
+  private func makePost(
+    id: String,
+    isLiked: Bool,
+    repostedByUsername: String? = nil
+  ) throws -> FeedPost {
+    var payload: [String: Any] = [
       "id": id,
       "type": "text",
       "body": "A precise observation.",
@@ -383,6 +420,22 @@ struct ProfileFeatureTests {
         "displayName": "Maya Frames",
       ],
     ]
+    if let repostedByUsername {
+      payload["isReposted"] = true
+      let repostUser: [String: Any] = [
+        "id": "reposter-1",
+        "username": repostedByUsername,
+        "displayName": "Maya Frames",
+      ]
+      payload["repostContext"] = [
+        "activityId": "activity-\(id)",
+        "repostedAt": "2026-07-17T12:00:00Z",
+        "user": repostUser,
+        "users": [repostUser],
+        "totalCount": 1,
+        "includesOriginal": false,
+      ]
+    }
     return try makeDecoder().decode(
       FeedPost.self,
       from: JSONSerialization.data(withJSONObject: payload)
@@ -501,8 +554,10 @@ private final class ProfileServiceStub: ProfileServicing {
   var profile: PublicProfile?
   var stats: ProfileStatsSummary?
   var postPages: [String: PaginatedResponse<FeedPost>] = [:]
+  var repostPages: [String: PaginatedResponse<FeedPost>] = [:]
   var listPages: [String: PaginatedResponse<FilmListSummary>] = [:]
   var postRequests: [PageRequest] = []
+  var repostRequests: [PageRequest] = []
   var listRequests: [PageRequest] = []
   var statsRequestCount = 0
   var likeError: Error?
@@ -519,6 +574,16 @@ private final class ProfileServiceStub: ProfileServicing {
   ) async throws -> PaginatedResponse<FeedPost> {
     postRequests.append(PageRequest(cursor: cursor, limit: limit))
     return postPages[cursor ?? Self.firstPage]
+      ?? PaginatedResponse(items: [], nextCursor: nil, hasMore: false)
+  }
+
+  func fetchProfileReposts(
+    username: String,
+    cursor: String?,
+    limit: Int
+  ) async throws -> PaginatedResponse<FeedPost> {
+    repostRequests.append(PageRequest(cursor: cursor, limit: limit))
+    return repostPages[cursor ?? Self.firstPage]
       ?? PaginatedResponse(items: [], nextCursor: nil, hasMore: false)
   }
 

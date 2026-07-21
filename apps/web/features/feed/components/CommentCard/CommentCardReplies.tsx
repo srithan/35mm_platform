@@ -2,6 +2,7 @@
 
 import type { Comment, CommentCardProps } from "./types";
 import { CommentCard } from "./CommentCard";
+import { COMMENT_REPLY_PREVIEW_LIMIT } from "../../utils/commentReplyRanking";
 
 interface CommentCardRepliesProps {
   replies: Comment[];
@@ -10,6 +11,7 @@ interface CommentCardRepliesProps {
   postBookmarkFolderId?: string | null;
   depth: number;
   expanded: boolean;
+  onExpand: () => void;
   truncateText?: boolean;
   onReplySubmit?: CommentCardProps["onReplySubmit"];
 }
@@ -21,14 +23,18 @@ export function CommentCardReplies({
   postBookmarkFolderId = null,
   depth,
   expanded,
+  onExpand,
   truncateText = true,
   onReplySubmit,
 }: CommentCardRepliesProps) {
-  if (!expanded) return null;
+  const visibleReplies = expanded
+    ? replies
+    : replies.slice(0, COMMENT_REPLY_PREVIEW_LIMIT);
+  const hiddenReplyCount = replies.length - visibleReplies.length;
 
   return (
     <div className="mt-1.5 -mx-1">
-      {replies.map((reply) => (
+      {visibleReplies.map((reply) => (
         <CommentCard
           key={reply.id}
           comment={reply}
@@ -40,6 +46,15 @@ export function CommentCardReplies({
           onReplySubmit={onReplySubmit}
         />
       ))}
+      {hiddenReplyCount > 0 ? (
+        <button
+          type="button"
+          className="ml-3 mt-1 rounded-md px-2 py-1 text-[12px] font-semibold text-fg-muted transition-colors hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          onClick={onExpand}
+        >
+          Show {hiddenReplyCount} more {hiddenReplyCount === 1 ? "reply" : "replies"}
+        </button>
+      ) : null}
     </div>
   );
 }

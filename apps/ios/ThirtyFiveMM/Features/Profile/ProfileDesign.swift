@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 enum ProfileDesign {
-  static let accent = Color(red: 0.761, green: 0.278, blue: 0.227)
+  static let accent = DesignSystem.Colors.accent
   static let buttonBorderUIColor = UIColor { traits in
     traits.userInterfaceStyle == .dark
       ? UIColor.white.withAlphaComponent(0.08)

@@ -23,6 +23,7 @@ function renderPostActions(options?: {
     <PostActions
       likes={12}
       comments={3}
+      reposts={1_200}
       initialReposted={options?.initialReposted}
       onQuote={options?.onQuote ?? vi.fn()}
       onRepostToggle={options?.onRepostToggle ?? vi.fn()}
@@ -37,6 +38,8 @@ describe("PostActions repost options", function () {
 
   it("opens an anchored Repost and Quote menu on desktop", function () {
     renderPostActions();
+
+    expect(screen.getByText("1.2k")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Repost" }));
 
@@ -70,6 +73,7 @@ describe("PostActions repost options", function () {
       <PostActions
         likes={12}
         comments={3}
+        reposts={1_200}
         initialReposted
         onQuote={onQuote}
         onRepostToggle={onRepostToggle}

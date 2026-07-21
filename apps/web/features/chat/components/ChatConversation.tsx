@@ -90,7 +90,7 @@ export function ChatConversation({
   const editMutation = useEditMessage();
   const deleteMutation = useDeleteMessage();
   const setArchivedMutation = useSetConversationArchived();
-  const deleteConversationMutation = useDeleteConversation();
+  const { mutate: deleteConversation } = useDeleteConversation();
   const { mutate: setTyping } = useSetTyping();
   const { mutate: markConversationRead } = useMarkConversationRead();
   const { openNewChat } = useNewChat();
@@ -165,9 +165,14 @@ export function ChatConversation({
   const typingActiveRef = useRef(false);
   const lastTypingSentAtRef = useRef(0);
   const stopTypingTimeoutRef = useRef<number | null>(null);
-  const hasSentMessageRef = useRef(false);
+  const sentMessageChatIdsRef = useRef(new Set<string>());
+  const messageCountByChatIdRef = useRef(new Map<string, number>());
+  const pendingDraftCleanupByChatIdRef = useRef(new Map<string, number>());
   const displayedMessagesRef = useRef(displayedMessages);
   displayedMessagesRef.current = displayedMessages;
+  if (chatId) {
+    messageCountByChatIdRef.current.set(chatId, messages.length);
+  }
 
   const [jumpFabVisible, setJumpFabVisible] = useState(false);
   const [newBelowCount, setNewBelowCount] = useState(0);
@@ -376,13 +381,6 @@ export function ChatConversation({
 
   useEffect(
     function () {
-      hasSentMessageRef.current = false;
-    },
-    [chatId]
-  );
-
-  useEffect(
-    function () {
       if (!chatId || messages.length === 0) {
         return;
       }
@@ -397,17 +395,34 @@ export function ChatConversation({
 
   useEffect(
     function () {
+      if (!chatId) {
+        return;
+      }
+      const pendingCleanup = pendingDraftCleanupByChatIdRef.current.get(chatId);
+      if (pendingCleanup !== undefined) {
+        window.clearTimeout(pendingCleanup);
+        pendingDraftCleanupByChatIdRef.current.delete(chatId);
+      }
+      if (!discardDraftIfNoMessages) {
+        return;
+      }
+      const draftChatId = chatId;
       return function () {
-        if (!discardDraftIfNoMessages) {
-          return;
-        }
-        if (!chatId || hasSentMessageRef.current || messages.length > 0) {
-          return;
-        }
-        deleteConversationMutation.mutate(chatId);
+        const cleanupId = window.setTimeout(function () {
+          pendingDraftCleanupByChatIdRef.current.delete(draftChatId);
+          const hasSentMessage = sentMessageChatIdsRef.current.has(draftChatId);
+          const messageCount =
+            messageCountByChatIdRef.current.get(draftChatId) ?? 0;
+          sentMessageChatIdsRef.current.delete(draftChatId);
+          messageCountByChatIdRef.current.delete(draftChatId);
+          if (!hasSentMessage && messageCount === 0) {
+            deleteConversation(draftChatId);
+          }
+        }, 0);
+        pendingDraftCleanupByChatIdRef.current.set(draftChatId, cleanupId);
       };
     },
-    [chatId, discardDraftIfNoMessages, messages.length, deleteConversationMutation]
+    [chatId, discardDraftIfNoMessages, deleteConversation]
   );
 
   useEffect(
@@ -832,7 +847,9 @@ export function ChatConversation({
           onSend={function (payload) {
             stickToBottomRef.current = true;
             stopTypingNow(chatId);
-            hasSentMessageRef.current = true;
+            if (chatId) {
+              sentMessageChatIdsRef.current.add(chatId);
+            }
             sendMutation.mutate(
               {
                 chatId: chatId as string,
@@ -875,7 +892,7 @@ export function ChatConversation({
             setDeleteConvoDialogOpen(false);
             return;
           }
-          deleteConversationMutation.mutate(chatId, {
+          deleteConversation(chatId, {
             onSuccess: function () {
               setDeleteConvoDialogOpen(false);
               flashHeaderToast("Conversation deleted.");

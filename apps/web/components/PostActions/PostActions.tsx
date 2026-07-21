@@ -34,6 +34,7 @@ interface LikeToggleState {
 interface PostActionsProps {
   likes: number;
   comments: number;
+  reposts: number;
   initialLiked?: boolean;
   initialBookmarked?: boolean;
   initialBookmarkFolderId?: string | null;
@@ -62,6 +63,7 @@ import { Icon } from "@/components/Icon/Icon";
 export function PostActions({
   likes,
   comments,
+  reposts,
   initialLiked = false,
   initialBookmarked = false,
   initialBookmarkFolderId = null,
@@ -253,8 +255,8 @@ export function PostActions({
                   fill={reposted ? "currentColor" : "none"}
                   strokeWidth={1.6}
                 />
-                {!hideRepostSaveText && (
-                  <span className="action-count hidden md:inline">Repost</span>
+                {(!hideZeroCounts || reposts > 0) && (
+                  <span className="action-count">{formatCount(reposts)}</span>
                 )}
               </button>
             );
@@ -270,8 +272,8 @@ export function PostActions({
           aria-label="Repost"
         >
           <Icon name="repost" fill={reposted ? "currentColor" : "none"} strokeWidth={1.6} />
-          {!hideRepostSaveText && (
-            <span className="action-count hidden md:inline">Repost</span>
+          {(!hideZeroCounts || reposts > 0) && (
+            <span className="action-count">{formatCount(reposts)}</span>
           )}
         </button>
       )}

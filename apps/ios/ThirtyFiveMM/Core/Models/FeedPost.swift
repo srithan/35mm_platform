@@ -424,10 +424,16 @@ struct FilmRef: Codable, Identifiable, Equatable {
 }
 
 struct LinkPreview: Codable, Equatable {
+  enum Presentation: String, Codable {
+    case cardOnly = "card_only"
+    case urlAndCard = "url_and_card"
+  }
+
   let url: String
   let title: String?
   let description: String?
   let imageUrl: String?
+  let presentation: Presentation
 
   enum CodingKeys: String, CodingKey {
     case url
@@ -435,6 +441,7 @@ struct LinkPreview: Codable, Equatable {
     case description
     case imageUrl
     case image
+    case presentation
   }
 
   init(from decoder: Decoder) throws {
@@ -445,6 +452,9 @@ struct LinkPreview: Codable, Equatable {
     imageUrl =
       try container.decodeIfPresent(String.self, forKey: .imageUrl)
       ?? container.decodeIfPresent(String.self, forKey: .image)
+    presentation =
+      try container.decodeIfPresent(Presentation.self, forKey: .presentation)
+      ?? .urlAndCard
   }
 
   func encode(to encoder: Encoder) throws {
@@ -453,6 +463,7 @@ struct LinkPreview: Codable, Equatable {
     try container.encodeIfPresent(title, forKey: .title)
     try container.encodeIfPresent(description, forKey: .description)
     try container.encodeIfPresent(imageUrl, forKey: .imageUrl)
+    try container.encode(presentation, forKey: .presentation)
   }
 }
 

@@ -48,6 +48,16 @@ describe("ProfileTabs", function () {
     expect(mobileLabel(diary)).toHaveClass("max-w-0", "opacity-0");
   });
 
+  it("insets the mobile tab strip and uses a calendar for Diary", function () {
+    render(<ProfileTabs username="CinemaFan" />);
+
+    var list = screen.getByRole("list");
+    var diary = screen.getByRole("link", { name: "Diary" });
+
+    expect(list.parentElement).toHaveClass("px-4", "md:px-0");
+    expect(diary.querySelector(".lucide-calendar-days")).toBeInTheDocument();
+  });
+
   it("marks the route tab active while preserving canonical profile links", function () {
     navigation.pathname = "/cinemafan/lists";
     render(<ProfileTabs username="CinemaFan" />);
@@ -63,6 +73,19 @@ describe("ProfileTabs", function () {
     expect(mobileLabel(screen.getByRole("link", { name: "Lists" }))).toHaveClass(
       "max-w-[7.5rem]",
       "opacity-100"
+    );
+  });
+
+  it("links to the repost-only profile route and marks it active", function () {
+    navigation.pathname = "/cinemafan/reposts";
+    render(<ProfileTabs username="CinemaFan" />);
+
+    var reposts = screen.getByRole("link", { name: "Reposts" });
+    expect(reposts).toHaveAttribute("href", "/cinemafan/reposts");
+    expect(reposts).toHaveAttribute("aria-current", "page");
+    expect(mobileLabel(reposts)).toHaveClass("max-w-[7.5rem]", "opacity-100");
+    expect(screen.getByRole("link", { name: "Posts" })).not.toHaveAttribute(
+      "aria-current"
     );
   });
 });

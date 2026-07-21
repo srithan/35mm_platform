@@ -16,6 +16,7 @@ export {
 
 export type PostId = string;
 export type MessageId = string;
+export type LinkPreviewPresentation = "card_only" | "url_and_card";
 export type OnboardingRole =
   | "cinephile"
   | "creator"
@@ -126,6 +127,7 @@ export interface FeedPost {
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation: LinkPreviewPresentation;
   } | null;
   film: {
     id: string;

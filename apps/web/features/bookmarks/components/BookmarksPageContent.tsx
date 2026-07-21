@@ -451,6 +451,7 @@ function BookmarkPostCard({
       imageCaption={image?.altText}
       media={post.media}
       likeCount={post.likeCount}
+      repostCount={post.repostCount}
       liked={post.isLiked}
       reposted={post.isReposted}
       repostContext={post.repostContext}

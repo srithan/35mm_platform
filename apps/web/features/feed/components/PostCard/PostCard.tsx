@@ -25,6 +25,7 @@ import { PostCardOverlays } from "./PostCardOverlays";
 import { PostCardRepostContext } from "./PostCardRepostContext";
 import { PostCardQuoteEmbed } from "./PostCardQuoteEmbed";
 import { truncatePostPreview } from "../../utils/truncatePostPreview";
+import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
 
 function PostCardComponent(props: PostCardProps) {
   const {
@@ -56,6 +57,7 @@ function PostCardComponent(props: PostCardProps) {
     saveData = false,
     linkPreview,
     likeCount,
+    repostCount,
     liked: initialLiked = false,
     bookmarked: initialBookmarked = false,
     bookmarkFolderId: initialBookmarkFolderId = null,
@@ -93,7 +95,12 @@ function PostCardComponent(props: PostCardProps) {
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [viewerImageIndex, setViewerImageIndex] = useState(0);
 
-  const displayText = storedRichTextToPlainText(text);
+  const suppressedUrl =
+    linkPreview?.presentation === "card_only" ? linkPreview.url : undefined;
+  const sourceDisplayText = storedRichTextToPlainText(text);
+  const displayText = suppressedUrl
+    ? suppressLinkPreviewUrl(sourceDisplayText, suppressedUrl)
+    : sourceDisplayText;
   const { cleanedText, previews } = extractVideoPreviews(displayText);
   const renderText = isStoredRichText(text) ? text : cleanedText;
   const resolvedMedia = resolvePostMedia(media, mediaUrls, viewerMediaUrls, imageSrc);
@@ -269,6 +276,7 @@ function PostCardComponent(props: PostCardProps) {
             isOverflowing={isOverflowing}
             postId={postId}
             username={username}
+            suppressedUrl={suppressedUrl}
           />
 
           <PostCardAttachments
@@ -304,6 +312,7 @@ function PostCardComponent(props: PostCardProps) {
                 postId={postId}
                 likeCount={likeCount}
                 commentCount={commentCount}
+                repostCount={repostCount}
                 initialLiked={initialLiked}
                 initialBookmarked={initialBookmarked}
                 initialBookmarkFolderId={initialBookmarkFolderId}
@@ -320,6 +329,7 @@ function PostCardComponent(props: PostCardProps) {
             postId={postId}
             likeCount={likeCount}
             commentCount={commentCount}
+            repostCount={repostCount}
             initialLiked={initialLiked}
             initialBookmarked={initialBookmarked}
             initialBookmarkFolderId={initialBookmarkFolderId}

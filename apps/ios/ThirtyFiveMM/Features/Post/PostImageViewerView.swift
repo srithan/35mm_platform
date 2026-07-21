@@ -160,19 +160,27 @@ struct PostImageViewerView: View {
         image: Image(metrics.isLiked ? "PostActionHeartFilled" : "PostActionHeart"),
         count: metrics.likeCount,
         isActive: metrics.isLiked,
+        accessibilityLabel: metrics.isLiked ? "Unlike post" : "Like post",
         action: onLike
       )
 
-      viewerAction(image: Image("PostActionComment"), count: metrics.commentCount) {
+      viewerAction(
+        image: Image("PostActionComment"),
+        count: metrics.commentCount,
+        accessibilityLabel: "Open comments"
+      ) {
         onClose()
         onComment()
       }
 
       viewerAction(
-        image: Image("PostActionRepost"),
+        image: Image(metrics.isReposted ? "PostActionRepostFilled" : "PostActionRepost"),
         count: metrics.repostCount,
         isActive: metrics.isReposted,
-        activeColor: Color(red: 0.0, green: 0.7, blue: 0.4)
+        activeColor: DesignSystem.Colors.repost,
+        accessibilityLabel: metrics.isReposted
+          ? "Repost options, reposted"
+          : "Repost options, not reposted"
       ) {
         if onQuote == nil {
           onRepost()
@@ -180,7 +188,12 @@ struct PostImageViewerView: View {
           isShowingRepostActions = true
         }
       }
-      viewerAction(image: Image(systemName: "paperplane"), count: metrics.shareCount, action: onShare)
+      viewerAction(
+        image: Image(systemName: "paperplane"),
+        count: metrics.shareCount,
+        accessibilityLabel: "Share post",
+        action: onShare
+      )
     }
     .padding(.bottom, 8)
   }
@@ -200,7 +213,8 @@ struct PostImageViewerView: View {
     image: Image,
     count: Int,
     isActive: Bool = false,
-    activeColor: Color = Color(red: 1.0, green: 0.02, blue: 0.22),
+    activeColor: Color = DesignSystem.Colors.like,
+    accessibilityLabel: String,
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
@@ -212,7 +226,7 @@ struct PostImageViewerView: View {
 
         if count > 0 {
           Text(count.compactFormatted)
-            .font(.system(size: 18, weight: .bold, design: .rounded))
+            .font(.headline)
             .monospacedDigit()
         }
       }
@@ -220,5 +234,6 @@ struct PostImageViewerView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(accessibilityLabel)
   }
 }

@@ -4,6 +4,7 @@ import Foundation
 protocol ProfileServicing: AnyObject {
   func fetchProfile(username: String) async throws -> PublicProfile
   func fetchProfilePosts(username: String, cursor: String?, limit: Int) async throws -> PaginatedResponse<FeedPost>
+  func fetchProfileReposts(username: String, cursor: String?, limit: Int) async throws -> PaginatedResponse<FeedPost>
   func fetchProfileStats(username: String) async throws -> ProfileStatsSummary
   func fetchProfileLists(username: String, cursor: String?, limit: Int) async throws -> PaginatedResponse<FilmListSummary>
   func updateProfile(_ request: ProfileMutation.UpdateRequest) async throws -> ProfileMutation.PublicProfilePatch
@@ -34,6 +35,14 @@ extension APIClient: ProfileServicing {
     limit: Int
   ) async throws -> PaginatedResponse<FeedPost> {
     try await request(.getProfilePosts(username: username, cursor: cursor, limit: limit))
+  }
+
+  func fetchProfileReposts(
+    username: String,
+    cursor: String?,
+    limit: Int
+  ) async throws -> PaginatedResponse<FeedPost> {
+    try await request(.getProfileReposts(username: username, cursor: cursor, limit: limit))
   }
 
   func fetchProfileStats(username: String) async throws -> ProfileStatsSummary {
@@ -119,6 +128,21 @@ extension APIEndpoint {
 
   static func getProfilePosts(username: String, cursor: String?, limit: Int) -> APIEndpoint {
     var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+    return APIEndpoint(
+      path: "/v1/feed/profiles/\(username)/posts",
+      method: .get,
+      queryItems: queryItems
+    )
+  }
+
+  static func getProfileReposts(username: String, cursor: String?, limit: Int) -> APIEndpoint {
+    var queryItems = [
+      URLQueryItem(name: "limit", value: String(limit)),
+      URLQueryItem(name: "kind", value: "reposts"),
+    ]
     if let cursor {
       queryItems.append(URLQueryItem(name: "cursor", value: cursor))
     }

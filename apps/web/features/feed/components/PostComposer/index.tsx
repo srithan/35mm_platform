@@ -23,7 +23,6 @@ import { FormattingToolbar } from "./FormattingToolbar";
 import { RichTextEditor } from "./RichTextEditor";
 import { EmojiPicker } from "./EmojiPicker";
 import { ImageAttachments } from "./ImageAttachments";
-import { YouTubeEmbed } from "./YouTubeEmbed";
 import { FilmSearch } from "./FilmSearch";
 import { FilmCard } from "./FilmCard";
 import { LogNoteField, LOG_MAX_CHARS, REVIEW_THRESHOLD } from "./LogNoteField";
@@ -46,6 +45,14 @@ import {
 } from "../../utils/pollUtils";
 import { PollComposer } from "./PollComposer";
 import { postComposerWritePrompt } from "./writePrompt";
+import { LinkPreviewCard } from "../LinkPreviewCard";
+import { VideoUrlPreview } from "../VideoUrlPreview";
+import { videoPreviewFromLinkPreview } from "../../utils/videoPreviews";
+import {
+  extractFirstHttpUrl,
+  inferLinkPreviewPresentation,
+  type LinkPreviewPresentation,
+} from "@/lib/utils/linkPreviewPresentation";
 
 const WRITE_MAX_CHARS = 500;
 const POLL_TEXT_MAX_CHARS = 140;
@@ -53,14 +60,6 @@ const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
 const POST_COMPOSER_EMOJI_STYLE = "apple" as const;
 const VIDEO_PREVIEW_CLASS = "mx-auto max-h-[min(42vh,360px)] max-w-full rounded-md object-contain bg-black";
-
-const YOUTUBE_REGEX =
-  /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/;
-
-function extractYouTubeId(text: string): string | null {
-  const match = text.match(YOUTUBE_REGEX);
-  return match ? match[1] : null;
-}
 
 function posterUrlForFilm(film: FilmResult): string | null {
   if (!film.posterPath) return null;
@@ -231,8 +230,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [pollDraft, setPollDraft] = useState<PollDraft | null>(null);
-  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
-  const [youtubeTitle, setYoutubeTitle] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<{
     url: string;
     title: string;
@@ -240,8 +237,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation: LinkPreviewPresentation;
   } | null>(editingPost?.linkPreview ?? null);
+  const [linkPreviewPresentationWasOverridden, setLinkPreviewPresentationWasOverridden] =
+    useState(Boolean(editingPost?.linkPreview));
   const [dismissedPreviewUrl, setDismissedPreviewUrl] = useState<string | null>(null);
+  const [linkPreviewError, setLinkPreviewError] = useState<string | null>(null);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showDropZone, setShowDropZone] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -285,6 +286,14 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const logPlainText = storedRichTextToPlainText(logText);
   const activeText = mode === "discussion" ? discussionPlainText : mode === "log" ? logPlainText : writePlainText;
   const debouncedActiveText = useDebounce(activeText, 500);
+  const composerVideoPreview = useMemo(
+    function () {
+      const preview = videoPreviewFromLinkPreview(linkPreview);
+      if (!preview || dismissedPreviewUrl === preview.url) return null;
+      return preview;
+    },
+    [dismissedPreviewUrl, linkPreview]
+  );
   const hasVisibleQuotedPost = useMemo(() => {
     if (!quotedPost) return false;
     const name = quotedPost.displayName?.trim() ?? "";
@@ -318,33 +327,77 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     [resolvedExistingMediaUrls]
   );
 
-  function extractFirstUrl(value: string): string | null {
-    var match = value.match(/https?:\/\/[^\s]+/i);
-    return match ? match[0] : null;
-  }
-
   useEffect(() => {
     if (pollDraft) {
       setLinkPreview(null);
+      setLinkPreviewPresentationWasOverridden(false);
+      setLinkPreviewError(null);
       return;
     }
-    var url = extractFirstUrl(debouncedActiveText);
+    const url = extractFirstHttpUrl(debouncedActiveText);
     if (!url) {
       setLinkPreview(null);
+      setLinkPreviewPresentationWasOverridden(false);
+      setLinkPreviewError(null);
       return;
     }
     if (dismissedPreviewUrl && dismissedPreviewUrl === url) return;
-    if (linkPreview?.url === url) return;
+    if (linkPreview?.url === url) {
+      if (!linkPreviewPresentationWasOverridden) {
+        const inferredPresentation = inferLinkPreviewPresentation(
+          debouncedActiveText,
+          linkPreview.url
+        );
+        if (inferredPresentation !== linkPreview.presentation) {
+          setLinkPreview({ ...linkPreview, presentation: inferredPresentation });
+        }
+      }
+      return;
+    }
 
+    let cancelled = false;
+    setLinkPreviewError(null);
     void (async () => {
       try {
-        var preview = await fetchLinkPreview(url, await getToken());
-        setLinkPreview(preview);
-      } catch (_err) {
-        // Ignore preview lookup failures
+        const preview = await fetchLinkPreview(url, await getToken());
+        if (cancelled) return;
+        setLinkPreview({
+          ...preview,
+          presentation: inferLinkPreviewPresentation(debouncedActiveText, preview.url),
+        });
+        setLinkPreviewPresentationWasOverridden(false);
+      } catch (error) {
+        if (cancelled) return;
+        console.warn("[post-composer] link preview unavailable", {
+          url,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        setLinkPreview(null);
+        setLinkPreviewPresentationWasOverridden(false);
+        setLinkPreviewError("Preview unavailable. Your link can still be published.");
       }
     })();
-  }, [debouncedActiveText, dismissedPreviewUrl, getToken, linkPreview?.url, pollDraft]);
+
+    return function () {
+      cancelled = true;
+    };
+  }, [
+    debouncedActiveText,
+    dismissedPreviewUrl,
+    getToken,
+    linkPreview,
+    linkPreviewPresentationWasOverridden,
+    pollDraft,
+  ]);
+
+  const handleLinkPreviewPresentationChange = useCallback(function (
+    presentation: LinkPreviewPresentation
+  ) {
+    setLinkPreviewPresentationWasOverridden(true);
+    setLinkPreview(function (current) {
+      return current ? { ...current, presentation } : current;
+    });
+  }, []);
 
   const charCountData = useMemo(() => {
     if (mode === "write") {
@@ -482,8 +535,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       images.length > 0 ||
       videoFile !== null ||
       gifUrl !== null ||
-      pollDraft !== null ||
-      youtubeVideoId !== null,
+      pollDraft !== null,
     [
       writePlainText,
       discussionPlainText,
@@ -494,7 +546,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       videoFile,
       gifUrl,
       pollDraft,
-      youtubeVideoId,
     ]
   );
 
@@ -525,6 +576,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setIsRewatch(false);
     setExistingMediaUrls(existingMediaUrlsForEditingPost(editingPost));
     setLinkPreview(editingPost.linkPreview ?? null);
+    setLinkPreviewPresentationWasOverridden(Boolean(editingPost.linkPreview));
+    setLinkPreviewError(null);
     setDismissedPreviewUrl(null);
 
     if (editingPost.type === "discussion") {
@@ -582,7 +635,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     showDropZone ||
     videoFile != null ||
     gifUrl != null ||
-    youtubeVideoId != null;
+    composerVideoPreview != null;
   const compactComposeBody = (hasComposerMedia || pollDraft !== null) && !isFullPage;
 
   function focusWriteTextarea() {
@@ -663,12 +716,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         return;
       }
 
-      const pasted = e.clipboardData?.getData("text/plain") ?? "";
-      const vid = extractYouTubeId(pasted);
-      if (vid) {
-        setYoutubeVideoId(vid);
-        setYoutubeTitle("YouTube video");
-      }
     },
     [pollDraft]
   );
@@ -751,9 +798,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setExistingMediaUrls([]);
     setVideoFile(null);
     setGifUrl(null);
-    setYoutubeVideoId(null);
-    setYoutubeTitle(null);
     setLinkPreview(null);
+    setLinkPreviewPresentationWasOverridden(false);
     setShowDropZone(false);
     setShowGifPicker(false);
   }, []);
@@ -855,6 +901,28 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         options: pollOptions,
       };
     }
+    let resolvedLinkPreview = pollPayload ? null : linkPreview;
+    const submitUrl = pollPayload ? null : extractFirstHttpUrl(activeText);
+    if (!submitUrl || dismissedPreviewUrl === submitUrl) {
+      resolvedLinkPreview = null;
+    } else if (resolvedLinkPreview?.url !== submitUrl) {
+      try {
+        const fetchedPreview = await fetchLinkPreview(submitUrl, await getToken());
+        resolvedLinkPreview = {
+          ...fetchedPreview,
+          presentation: inferLinkPreviewPresentation(activeText, fetchedPreview.url),
+        };
+        setLinkPreview(resolvedLinkPreview);
+        setLinkPreviewError(null);
+      } catch (error) {
+        console.warn("[post-composer] submit link preview unavailable", {
+          url: submitUrl,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        resolvedLinkPreview = null;
+        setLinkPreviewError("Preview unavailable. Your link will be published without a card.");
+      }
+    }
     if (mode === "discussion") {
       input = {
         type: "discussion",
@@ -862,7 +930,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         body: hasVisibleRichText(discussionText) ? discussionText : discussionHeadline.trim(),
         media,
         mediaUrls,
-        linkPreview,
+        linkPreview: resolvedLinkPreview,
       };
     } else if (mode === "log" && selectedFilm) {
       let resolvedFilmId = selectedFilmUlid;
@@ -896,6 +964,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           genres: selectedFilm.genres,
           rating: starRating > 0 ? starRating : null,
         },
+        linkPreview: resolvedLinkPreview,
       };
     } else {
       input = {
@@ -903,7 +972,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         body: writeText,
         media,
         mediaUrls,
-        linkPreview: pollPayload ? null : linkPreview,
+        linkPreview: resolvedLinkPreview,
         poll: pollPayload,
       };
     }
@@ -919,6 +988,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           body: input.body,
           headline: input.headline ?? null,
           filmId: input.film?.id ?? null,
+          linkPreview: input.linkPreview ?? null,
         });
       } else {
         await createPostMutation.mutateAsync(input);
@@ -950,9 +1020,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setVideoFile(null);
     setGifUrl(null);
     setPollDraft(null);
-    setYoutubeVideoId(null);
-    setYoutubeTitle(null);
     setLinkPreview(null);
+    setLinkPreviewPresentationWasOverridden(false);
+    setLinkPreviewError(null);
     setDismissedPreviewUrl(null);
     setShowDropZone(false);
     setShowEmojiPicker(false);
@@ -984,6 +1054,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     updatePostMutation,
     writeText,
     linkPreview,
+    activeText,
+    dismissedPreviewUrl,
     getToken,
     postToFeed,
   ]);
@@ -1522,45 +1594,29 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   <img src={existingGifMediaUrl} alt="Existing GIF" className="w-full rounded-md object-cover" />
                 </div>
               ) : null}
-              {linkPreview ? (
-                <div className="mt-2 rounded-xl border border-border bg-sunken p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold uppercase tracking-[0.06em] text-fg-muted">
-                        {linkPreview.domain}
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-fg line-clamp-2">{linkPreview.title}</div>
-                      {linkPreview.description ? (
-                        <div className="mt-1 text-xs text-fg-muted line-clamp-2">{linkPreview.description}</div>
-                      ) : null}
-                    </div>
-                    {linkPreview.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={linkPreview.image} alt="" className="h-14 w-14 rounded-md object-cover" />
-                    ) : null}
-                    <button
-                      type="button"
-                      className="text-fg-muted hover:text-fg"
-                      onClick={() => {
-                        setDismissedPreviewUrl(linkPreview.url);
-                        setLinkPreview(null);
-                      }}
-                    >
-                      <Icon name="x" className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {youtubeVideoId && (
-                <YouTubeEmbed
-                  videoId={youtubeVideoId}
-                  title={youtubeTitle}
+              {composerVideoPreview ? (
+                <VideoUrlPreview
+                  preview={composerVideoPreview}
                   onRemove={() => {
-                    setYoutubeVideoId(null);
-                    setYoutubeTitle(null);
+                    setDismissedPreviewUrl(composerVideoPreview.url);
+                    setLinkPreview(null);
+                    setLinkPreviewPresentationWasOverridden(false);
+                    setLinkPreviewError(null);
                   }}
                 />
-              )}
+              ) : linkPreview ? (
+                <LinkPreviewCard
+                  preview={linkPreview}
+                  density="composer"
+                  onPresentationChange={handleLinkPreviewPresentationChange}
+                  onRemove={() => {
+                    setDismissedPreviewUrl(linkPreview.url);
+                    setLinkPreview(null);
+                    setLinkPreviewPresentationWasOverridden(false);
+                    setLinkPreviewError(null);
+                  }}
+                />
+              ) : null}
             </div>
           )}
 
@@ -1655,45 +1711,29 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   <img src={existingGifMediaUrl} alt="Existing GIF" className="w-full rounded-md object-cover" />
                 </div>
               ) : null}
-              {linkPreview ? (
-                <div className="mt-2 rounded-xl border border-border bg-sunken p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold uppercase tracking-[0.06em] text-fg-muted">
-                        {linkPreview.domain}
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-fg line-clamp-2">{linkPreview.title}</div>
-                      {linkPreview.description ? (
-                        <div className="mt-1 text-xs text-fg-muted line-clamp-2">{linkPreview.description}</div>
-                      ) : null}
-                    </div>
-                    {linkPreview.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={linkPreview.image} alt="" className="h-14 w-14 rounded-md object-cover" />
-                    ) : null}
-                    <button
-                      type="button"
-                      className="text-fg-muted hover:text-fg"
-                      onClick={() => {
-                        setDismissedPreviewUrl(linkPreview.url);
-                        setLinkPreview(null);
-                      }}
-                    >
-                      <Icon name="x" className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {youtubeVideoId && (
-                <YouTubeEmbed
-                  videoId={youtubeVideoId}
-                  title={youtubeTitle}
+              {composerVideoPreview ? (
+                <VideoUrlPreview
+                  preview={composerVideoPreview}
                   onRemove={() => {
-                    setYoutubeVideoId(null);
-                    setYoutubeTitle(null);
+                    setDismissedPreviewUrl(composerVideoPreview.url);
+                    setLinkPreview(null);
+                    setLinkPreviewPresentationWasOverridden(false);
+                    setLinkPreviewError(null);
                   }}
                 />
-              )}
+              ) : linkPreview ? (
+                <LinkPreviewCard
+                  preview={linkPreview}
+                  density="composer"
+                  onPresentationChange={handleLinkPreviewPresentationChange}
+                  onRemove={() => {
+                    setDismissedPreviewUrl(linkPreview.url);
+                    setLinkPreview(null);
+                    setLinkPreviewPresentationWasOverridden(false);
+                    setLinkPreviewError(null);
+                  }}
+                />
+              ) : null}
             </div>
           )}
 
@@ -1737,6 +1777,29 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   setActiveField("body");
                 }}
               />
+              {composerVideoPreview ? (
+                <VideoUrlPreview
+                  preview={composerVideoPreview}
+                  onRemove={() => {
+                    setDismissedPreviewUrl(composerVideoPreview.url);
+                    setLinkPreview(null);
+                    setLinkPreviewPresentationWasOverridden(false);
+                    setLinkPreviewError(null);
+                  }}
+                />
+              ) : linkPreview ? (
+                <LinkPreviewCard
+                  preview={linkPreview}
+                  density="composer"
+                  onPresentationChange={handleLinkPreviewPresentationChange}
+                  onRemove={() => {
+                    setDismissedPreviewUrl(linkPreview.url);
+                    setLinkPreview(null);
+                    setLinkPreviewPresentationWasOverridden(false);
+                    setLinkPreviewError(null);
+                  }}
+                />
+              ) : null}
             </div>
           )}
         </div>
@@ -1766,6 +1829,15 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           </div>
         )}
       </div>
+
+      {linkPreviewError ? (
+        <p className={cn(
+          "mx-4 mb-3 text-[12px] text-fg-muted",
+          isFullPage ? "ml-4" : "ml-[52px]"
+        )}>
+          {linkPreviewError}
+        </p>
+      ) : null}
 
       {submitError ? (
         <p className={cn(

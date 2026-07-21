@@ -122,4 +122,23 @@ describe("RichTextRenderer", () => {
 
     expect(container.querySelector("s")).toHaveTextContent("gone");
   });
+
+  it("suppresses only the matching link-preview URL from rich text", () => {
+    const previewUrl = "https://example.com/story";
+    const { container } = render(
+      <RichTextRenderer
+        stored={stored({
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "Worth reading" }] },
+            { type: "paragraph", content: [{ type: "text", text: previewUrl }] },
+          ],
+        })}
+        suppressedUrl={previewUrl}
+      />
+    );
+
+    expect(container).toHaveTextContent("Worth reading");
+    expect(container).not.toHaveTextContent(previewUrl);
+  });
 });

@@ -86,6 +86,26 @@ export function ProfileTabContent({
     );
   }
 
+  if (tab === "reposts") {
+    return (
+      <InfinitePostList
+        username={username}
+        profileFeedKind="reposts"
+        emptyState={
+          isOwnProfile
+            ? {
+                icon: <span className="text-[24px]">&#x21C4;</span>,
+                headline: "You haven't reposted anything yet",
+              }
+            : {
+                icon: <span className="text-[24px]">&#x21C4;</span>,
+                headline: `${displayName ?? username} hasn't reposted anything yet`,
+              }
+        }
+      />
+    );
+  }
+
   if (tab === "diary") {
     return (
       <ProfileDiaryTimeline

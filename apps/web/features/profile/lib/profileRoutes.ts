@@ -1,11 +1,12 @@
-export const PROFILE_TAB_SEGMENTS = ["diary", "lists", "stats"] as const;
+export const PROFILE_TAB_SEGMENTS = ["reposts", "diary", "lists", "stats"] as const;
 
-export type ProfileTab = "posts" | "diary" | "lists" | "stats";
+export type ProfileTab = "posts" | "reposts" | "diary" | "lists" | "stats";
 
 export type ProfileTabSegment = (typeof PROFILE_TAB_SEGMENTS)[number];
 
 const PROFILE_TAB_LABELS: Record<ProfileTab, string> = {
   posts: "Posts",
+  reposts: "Reposts",
   diary: "Diary",
   lists: "Lists",
   stats: "Stats",

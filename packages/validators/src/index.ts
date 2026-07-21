@@ -6,7 +6,18 @@ var RICH_TEXT_PREFIX = "__35MM_RICH_TEXT_V1__";
 type RichTextNode = {
   type: string;
   text?: string;
-  marks?: Array<{ type: "bold" | "italic" | "underline" | "strike" | "spoiler" }>;
+  marks?: Array<
+    | { type: "bold" | "italic" | "underline" | "strike" | "spoiler" }
+    | {
+        type: "link";
+        attrs: {
+          href: string;
+          target?: string | null;
+          rel?: string | null;
+          class?: string | null;
+        };
+      }
+  >;
   attrs?: {
     id?: string;
     label?: string;
@@ -16,9 +27,31 @@ type RichTextNode = {
   content?: RichTextNode[];
 };
 
-var richTextMarkSchema = z.object({
-  type: z.enum(["bold", "italic", "underline", "strike", "spoiler"]),
-});
+function isHttpUrl(value: string): boolean {
+  try {
+    var parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch (_error) {
+    return false;
+  }
+}
+
+var httpUrlSchema = z.string().trim().min(1).max(2048).refine(isHttpUrl, "URL must use http or https");
+
+var richTextMarkSchema = z.union([
+  z.object({
+    type: z.enum(["bold", "italic", "underline", "strike", "spoiler"]),
+  }),
+  z.object({
+    type: z.literal("link"),
+    attrs: z.object({
+      href: httpUrlSchema,
+      target: z.string().max(40).nullable().optional(),
+      rel: z.string().max(120).nullable().optional(),
+      class: z.string().max(200).nullable().optional(),
+    }),
+  }),
+]);
 
 var richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(function () {
   return z.union([
@@ -211,6 +244,32 @@ var postMediaItemSchema = z.object({
     .optional(),
 });
 
+export var postLinkPreviewSchema = z
+  .object({
+    url: httpUrlSchema,
+    title: z.string().trim().min(1).max(500),
+    description: z.string().trim().max(2000).nullable(),
+    image: httpUrlSchema.nullable(),
+    domain: z.string().trim().min(1).max(255),
+    provider: z.enum(["youtube", "vimeo", "link"]),
+    presentation: z.enum(["card_only", "url_and_card"]).default("url_and_card"),
+  })
+  .superRefine(function (preview, ctx) {
+    var expectedDomain: string;
+    try {
+      expectedDomain = new URL(preview.url).hostname.replace(/^www\./, "").toLowerCase();
+    } catch (_error) {
+      return;
+    }
+    if (preview.domain.toLowerCase() !== expectedDomain) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["domain"],
+        message: "Link preview domain must match its URL",
+      });
+    }
+  });
+
 export var createPostPollSchema = z
   .object({
     type: z.enum(["ranking", "image"]),
@@ -277,6 +336,7 @@ export var createPostSchema = z
       .optional(),
     media: z.array(postMediaItemSchema).max(9).optional(),
     mediaUrls: z.array(z.string().min(1).max(1000)).max(9).optional(),
+    linkPreview: postLinkPreviewSchema.nullable().optional(),
     quotedPostId: z.string().uuid().optional(),
     poll: createPostPollSchema.optional(),
   })

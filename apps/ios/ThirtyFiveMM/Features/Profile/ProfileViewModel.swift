@@ -6,11 +6,14 @@ import Observation
 final class ProfileViewModel {
   private(set) var profile: PublicProfile?
   private(set) var posts: [FeedPost] = []
+  private(set) var reposts: [FeedPost] = []
   private(set) var lists: [FilmListSummary] = []
   private(set) var stats: ProfileStatsSummary?
   private(set) var isLoadingProfile = false
   private(set) var isLoadingPosts = false
   private(set) var isLoadingMorePosts = false
+  private(set) var isLoadingReposts = false
+  private(set) var isLoadingMoreReposts = false
   private(set) var isLoadingLists = false
   private(set) var isLoadingMoreLists = false
   private(set) var isLoadingStats = false
@@ -18,6 +21,7 @@ final class ProfileViewModel {
   private(set) var isBlocked = false
   private(set) var loadError: String?
   private(set) var postsError: String?
+  private(set) var repostsError: String?
   private(set) var listsError: String?
   private(set) var statsError: String?
   private(set) var actionError: String?
@@ -27,11 +31,14 @@ final class ProfileViewModel {
   private let service: any ProfileServicing
   private let pageLimit = 20
   private var postsCursor: String?
+  private var repostsCursor: String?
   private var listsCursor: String?
   private var postsHaveMore = true
+  private var repostsHaveMore = true
   private var listsHaveMore = true
   private var hasLoadedLists = false
   private var hasLoadedStats = false
+  private var hasLoadedReposts = false
 
   init(username: String, service: any ProfileServicing) {
     self.username = username.lowercased()
@@ -74,6 +81,9 @@ final class ProfileViewModel {
   }
 
   var canLoadMorePosts: Bool { postsHaveMore && !isLoadingMorePosts && !isLoadingPosts }
+  var canLoadMoreReposts: Bool {
+    repostsHaveMore && !isLoadingMoreReposts && !isLoadingReposts
+  }
   var canLoadMoreLists: Bool { listsHaveMore && !isLoadingMoreLists && !isLoadingLists }
 
   func load() async {
@@ -116,7 +126,11 @@ final class ProfileViewModel {
     }
     isLoadingProfile = false
 
-    await reloadPosts()
+    if selectedTab == .reposts {
+      await reloadReposts()
+    } else {
+      await reloadPosts()
+    }
     if selectedTab == .lists {
       await reloadLists()
     } else if selectedTab == .stats {
@@ -129,6 +143,8 @@ final class ProfileViewModel {
     switch tab {
     case .posts, .diary:
       break
+    case .reposts:
+      await loadRepostsIfNeeded()
     case .lists:
       await loadListsIfNeeded()
     case .stats:
@@ -157,6 +173,27 @@ final class ProfileViewModel {
     isLoadingMorePosts = false
   }
 
+  func loadMoreReposts() async {
+    guard canLoadMoreReposts else { return }
+    isLoadingMoreReposts = true
+    repostsError = nil
+
+    do {
+      let response = try await service.fetchProfileReposts(
+        username: username,
+        cursor: repostsCursor,
+        limit: pageLimit
+      )
+      reposts = FeedPost.deduplicating(reposts + response.items)
+      repostsCursor = response.nextCursor
+      repostsHaveMore = response.hasMore
+    } catch {
+      repostsError = error.localizedDescription
+    }
+
+    isLoadingMoreReposts = false
+  }
+
   func loadMoreLists() async {
     guard canLoadMoreLists else { return }
     isLoadingMoreLists = true
@@ -181,6 +218,11 @@ final class ProfileViewModel {
 
   func retryPosts() async {
     await reloadPosts()
+  }
+
+  func retryReposts() async {
+    hasLoadedReposts = false
+    await loadRepostsIfNeeded()
   }
 
   func retryLists() async {
@@ -274,6 +316,33 @@ final class ProfileViewModel {
     isLoadingPosts = false
   }
 
+  private func loadRepostsIfNeeded() async {
+    guard !hasLoadedReposts else { return }
+    await reloadReposts()
+  }
+
+  private func reloadReposts() async {
+    guard !isLoadingReposts else { return }
+    isLoadingReposts = true
+    repostsError = nil
+
+    do {
+      let response = try await service.fetchProfileReposts(
+        username: username,
+        cursor: nil,
+        limit: pageLimit
+      )
+      reposts = response.items
+      repostsCursor = response.nextCursor
+      repostsHaveMore = response.hasMore
+      hasLoadedReposts = true
+    } catch {
+      repostsError = error.localizedDescription
+    }
+
+    isLoadingReposts = false
+  }
+
   private func loadListsIfNeeded() async {
     guard !hasLoadedLists else { return }
     await reloadLists()
@@ -329,13 +398,18 @@ extension ProfileViewModel: PostInteracting {
   }
 
   func toggleRepost(postId: String) async {
-    await togglePost(
-      postId: postId,
-      optimistic: { $0.toggledRepost() },
-      mutation: { [service] original in
-        try await service.setPostRepost(postId: postId, reposted: !original.isReposted)
+    guard let original = post(withID: postId) else { return }
+    replacePost(original.toggledRepost())
+
+    do {
+      try await service.setPostRepost(postId: postId, reposted: !original.isReposted)
+      if original.isReposted, profile?.isOwnProfile == true {
+        reposts.removeAll { $0.id == postId }
       }
-    )
+    } catch {
+      restorePost(original)
+      actionError = error.localizedDescription
+    }
   }
 
   func toggleBookmark(postId: String) async {
@@ -349,10 +423,9 @@ extension ProfileViewModel: PostInteracting {
   }
 
   func votePoll(postId: String, optionIds: [String]) async {
-    guard let index = posts.firstIndex(where: { $0.id == postId }) else { return }
-    let original = posts[index]
+    guard let original = post(withID: postId) else { return }
     guard let optimistic = original.votedPoll(optionIds: optionIds) else { return }
-    posts[index] = optimistic
+    replacePost(optimistic)
 
     do {
       try await service.votePoll(postId: postId, optionIds: optionIds)
@@ -367,9 +440,8 @@ extension ProfileViewModel: PostInteracting {
     optimistic: (FeedPost) -> FeedPost,
     mutation: (FeedPost) async throws -> Void
   ) async {
-    guard let index = posts.firstIndex(where: { $0.id == postId }) else { return }
-    let original = posts[index]
-    posts[index] = optimistic(original)
+    guard let original = post(withID: postId) else { return }
+    replacePost(optimistic(original))
 
     do {
       try await mutation(original)
@@ -380,7 +452,19 @@ extension ProfileViewModel: PostInteracting {
   }
 
   private func restorePost(_ post: FeedPost) {
-    guard let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
-    posts[index] = post
+    replacePost(post)
+  }
+
+  private func post(withID postId: String) -> FeedPost? {
+    posts.first(where: { $0.id == postId }) ?? reposts.first(where: { $0.id == postId })
+  }
+
+  private func replacePost(_ post: FeedPost) {
+    if let index = posts.firstIndex(where: { $0.id == post.id }) {
+      posts[index] = post
+    }
+    if let index = reposts.firstIndex(where: { $0.id == post.id }) {
+      reposts[index] = post
+    }
   }
 }

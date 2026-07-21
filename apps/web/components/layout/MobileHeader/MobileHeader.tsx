@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLayoutEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
-import { Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { BrandLogo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
@@ -24,6 +25,8 @@ interface MobileHeaderProps {
   hideBottomBorder?: boolean;
   /** Move fixed header with page surface while mobile sidebar is revealed. */
   sidebarOpen?: boolean;
+  /** Profile username shown in compact identity mode while scroll chrome is hidden. */
+  compactProfileUsername?: string;
 }
 
 export function MobileHeader({
@@ -32,16 +35,21 @@ export function MobileHeader({
   rightSlot,
   hideBottomBorder = false,
   sidebarOpen = false,
+  compactProfileUsername,
 }: MobileHeaderProps) {
   const headerRef = useRef<HTMLElement | null>(null);
+  const router = useRouter();
   const { user: clerkUser } = useUser();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const navVisible = useMobileBottomChromeStore(function (state) {
     return state.navVisible;
   });
-  const headerVisible = navVisible || sidebarOpen;
-  const displayName = currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
+  const compactProfileVisible =
+    Boolean(compactProfileUsername) && !navVisible && !sidebarOpen;
+  const headerVisible = navVisible || sidebarOpen || Boolean(compactProfileUsername);
+  const displayName =
+    currentUser?.displayName ?? clerkUser?.fullName ?? clerkUser?.username ?? "Profile";
   const avatarUrl = currentUser?.avatarUrl ?? clerkUser?.imageUrl ?? null;
   const suppressDefaultAvatar = !currentUser?.avatarUrl &&
     !clerkUser?.imageUrl &&
@@ -86,64 +94,85 @@ export function MobileHeader({
       id="mobile-site-nav"
       aria-hidden={!headerVisible}
       className={cn(
-        "md:hidden fixed top-0 left-0 right-0 z-50 min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] flex items-center justify-between bg-bg/95 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))]",
+        "md:hidden fixed top-0 left-0 right-0 z-50 min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] flex items-center justify-between pt-[max(0.75rem,env(safe-area-inset-top))]",
         "transition-[transform,opacity,border-radius] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        compactProfileVisible ? "bg-bg" : "bg-bg/95 backdrop-blur-md",
         sidebarOpen
           ? "translate-x-[var(--mobile-sidebar-width)] rounded-tl-[2rem]"
           : "translate-x-0 rounded-tl-none",
         headerVisible
           ? "translate-y-0 opacity-100"
           : "pointer-events-none -translate-y-full opacity-0",
-        !hideBottomBorder && "border-b border-border"
+        !hideBottomBorder && !compactProfileVisible && "border-b border-border"
       )}
       role="banner"
     >
-      <button
-        type="button"
-        onClick={onProfileClick}
-        className="flex items-center justify-center w-10 h-10 -ml-1 rounded-full active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-        aria-label="Open menu"
-      >
-        <Avatar
-          initial={initialForName(displayName)}
-          src={avatarUrl}
-          size="md"
-          variant="ring"
-          loading="eager"
-          allowDefaultFallback={!suppressDefaultAvatar}
-        />
-      </button>
+      {compactProfileVisible ? (
+        <div className="relative flex min-h-10 w-full items-center justify-center">
+          <button
+            type="button"
+            onClick={function () {
+              router.back();
+            }}
+            className="absolute left-0 flex h-11 w-11 items-center justify-center rounded-full text-fg transition-colors active:bg-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            aria-label="Go back"
+          >
+            <ChevronLeft className="h-7 w-7" strokeWidth={2.2} aria-hidden />
+          </button>
+          <span className="max-w-[calc(100%_-_7rem)] truncate text-[17px] font-semibold tracking-[-0.01em] text-fg">
+            @{compactProfileUsername}
+          </span>
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onProfileClick}
+            className="flex items-center justify-center w-10 h-10 -ml-1 rounded-full active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            aria-label="Open menu"
+          >
+            <Avatar
+              initial={initialForName(displayName)}
+              src={avatarUrl}
+              size="md"
+              variant="ring"
+              loading="eager"
+              allowDefaultFallback={!suppressDefaultAvatar}
+            />
+          </button>
 
-      <div className="absolute left-1/2 flex max-w-[calc(100%_-_12rem)] -translate-x-1/2 justify-center overflow-hidden">
-        {title ? (
-          <h1 className="font-semibold text-[17px] text-fg truncate">
-            {title}
-          </h1>
-        ) : (
-          <BrandLogo
-            href={ROUTES.HOME}
-            className="px-3 py-1 shrink-0 text-[27px] text-fg"
-          />
-        )}
-      </div>
+          <div className="absolute left-1/2 flex max-w-[calc(100%_-_12rem)] -translate-x-1/2 justify-center overflow-hidden">
+            {title ? (
+              <h1 className="font-semibold text-[17px] text-fg truncate">
+                {title}
+              </h1>
+            ) : (
+              <BrandLogo
+                href={ROUTES.HOME}
+                className="px-3 py-1 shrink-0 text-[27px] text-fg"
+              />
+            )}
+          </div>
 
-      <div className="min-w-10 flex items-center justify-end gap-1 shrink-0">
-        {rightSlot}
-        <Link
-          href={ROUTES.DISCOVER}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-          aria-label="Search"
-        >
-          <Search className="h-[22px] w-[22px]" strokeWidth={2} />
-        </Link>
-        <Link
-          href={ROUTES.CHAT}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-          aria-label="Chat"
-        >
-          <Icon name="chat" className="h-[22px] w-[22px]" strokeWidth={2} />
-        </Link>
-      </div>
+          <div className="min-w-10 flex items-center justify-end gap-1 shrink-0">
+            {rightSlot}
+            <Link
+              href={ROUTES.DISCOVER}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              aria-label="Search"
+            >
+              <Search className="h-[22px] w-[22px]" strokeWidth={2} />
+            </Link>
+            <Link
+              href={ROUTES.CHAT}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              aria-label="Chat"
+            >
+              <Icon name="chat" className="h-[22px] w-[22px]" strokeWidth={2} />
+            </Link>
+          </div>
+        </>
+      )}
     </header>
   );
 }

@@ -14,8 +14,18 @@ vi.mock("@/components/layout/SiteHeader", () => ({
 }));
 
 vi.mock("@/components/layout/MobileHeader", () => ({
-  MobileHeader: ({ onProfileClick }: { onProfileClick?: () => void }) => (
-    <button type="button" onClick={onProfileClick}>
+  MobileHeader: ({
+    onProfileClick,
+    compactProfileUsername,
+  }: {
+    onProfileClick?: () => void;
+    compactProfileUsername?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={onProfileClick}
+      data-compact-profile-username={compactProfileUsername}
+    >
       Open menu
     </button>
   ),
@@ -107,5 +117,24 @@ describe("ShellGrid mobile sidebar", () => {
 
     expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("pt-0");
+  });
+
+  it("keeps the reposts tab in the wide profile shell", () => {
+    mocks.pathname = "/teju/reposts";
+
+    render(
+      <ShellGrid>
+        <div>Reposts</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByRole("main")).toHaveClass("w-full", "max-w-none", "mx-0");
+    expect(screen.getByRole("main")).not.toHaveClass(
+      "md:max-w-[var(--shell-main-max-width,640px)]"
+    );
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAttribute(
+      "data-compact-profile-username",
+      "teju"
+    );
   });
 });

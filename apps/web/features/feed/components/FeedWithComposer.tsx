@@ -5,11 +5,19 @@ import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { PostComposerTrigger } from "./PostComposerTrigger";
 import type { PostComposerTriggerUser } from "./PostComposerTrigger";
+import { InlinePostComposer } from "./InlinePostComposer";
 
 interface FeedWithComposerProps {
   user?: PostComposerTriggerUser & { handle?: string };
   children: React.ReactNode;
 }
+
+/**
+ * When true, the feed uses the inline, in-place composer instead of the default
+ * modal-opening trigger. Toggle via `NEXT_PUBLIC_INLINE_POST_COMPOSER`.
+ */
+const USE_INLINE_POST_COMPOSER =
+  process.env.NEXT_PUBLIC_INLINE_POST_COMPOSER === "true";
 
 export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
   const { openComposerModal } = useComposerModal();
@@ -36,11 +44,18 @@ export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
 
   return (
     <>
-      <PostComposerTrigger
-        onOpen={openComposerModal}
-        user={triggerUser}
-        suppressDefaultAvatar={suppressDefaultAvatar}
-      />
+      {USE_INLINE_POST_COMPOSER ? (
+        <InlinePostComposer
+          user={triggerUser}
+          suppressDefaultAvatar={suppressDefaultAvatar}
+        />
+      ) : (
+        <PostComposerTrigger
+          onOpen={openComposerModal}
+          user={triggerUser}
+          suppressDefaultAvatar={suppressDefaultAvatar}
+        />
+      )}
       {children}
     </>
   );

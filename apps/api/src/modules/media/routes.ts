@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { badRequest, unauthorized } from "../../lib/errors.js";
 import { requireAuth } from "../../lib/middleware.js";
@@ -6,7 +6,8 @@ import { loadEnv } from "../../lib/env.js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { isR2ConfiguredPublicUrl, resolvePublicMediaUrl } from "./url.js";
-import { createRateLimitMiddleware } from "../../lib/rateLimit.js";
+import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
+import { getRedisClient } from "../../lib/redis.js";
 
 export var mediaRoutes = new Hono();
 
@@ -19,6 +20,67 @@ var presignRateLimit = createRateLimitMiddleware({
     return typeof user.userId === "string" ? user.userId : null;
   },
 });
+
+var linkPreviewRateLimit = createRateLimitMiddleware({
+  keyPrefix: "media:link-preview",
+  limit: 30,
+  windowSeconds: 60,
+  identify: identifyByUserId,
+});
+
+var LINK_PREVIEW_CACHE_TTL_SECONDS = 6 * 60 * 60;
+
+type LinkPreviewResponse = {
+  url: string;
+  title: string;
+  description: string | null;
+  image: string | null;
+  domain: string;
+  provider: "youtube" | "vimeo" | "link";
+};
+
+function linkPreviewCacheKey(url: string): string {
+  return "link-preview:v1:" + createHash("sha256").update(url).digest("hex");
+}
+
+async function getCachedLinkPreview(url: string): Promise<LinkPreviewResponse | null> {
+  var redis = getRedisClient();
+  if (!redis) return null;
+  var key = linkPreviewCacheKey(url);
+  try {
+    return await redis.get<LinkPreviewResponse>(key);
+  } catch (error) {
+    console.error("[link-preview-cache] read-failed", {
+      key,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+async function setCachedLinkPreview(preview: LinkPreviewResponse): Promise<void> {
+  var redis = getRedisClient();
+  if (!redis) return;
+  var key = linkPreviewCacheKey(preview.url);
+  try {
+    await redis.setex(key, LINK_PREVIEW_CACHE_TTL_SECONDS, preview);
+  } catch (error) {
+    console.error("[link-preview-cache] write-failed", {
+      key,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function normalizePreviewImageUrl(value: string | null, pageUrl: string): string | null {
+  if (!value) return null;
+  try {
+    var parsed = new URL(value, pageUrl);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch (_error) {
+    return null;
+  }
+}
 
 type MediaKind = "avatar" | "cover" | "post_media";
 
@@ -335,7 +397,7 @@ mediaRoutes.get("/resolve-url", async function (c) {
   return c.json({ url: resolvedUrl ?? trimmed });
 });
 
-mediaRoutes.get("/oembed", async function (c) {
+mediaRoutes.get("/oembed", requireAuth, linkPreviewRateLimit, async function (c) {
   var rawUrl = c.req.query("url");
   if (!rawUrl || typeof rawUrl !== "string") {
     throw badRequest("Missing url");
@@ -352,9 +414,16 @@ mediaRoutes.get("/oembed", async function (c) {
     throw badRequest("Invalid url protocol");
   }
 
+  var normalizedUrl = parsed.toString();
+  var cached = await getCachedLinkPreview(normalizedUrl);
+  if (cached) {
+    c.header("X-Link-Preview-Cache", "hit");
+    return c.json(cached);
+  }
+
   var ogsModule = await import("open-graph-scraper");
   var result = await ogsModule.default({
-    url: parsed.toString(),
+    url: normalizedUrl,
     timeout: 8000,
     fetchOptions: {
       headers: {
@@ -363,22 +432,38 @@ mediaRoutes.get("/oembed", async function (c) {
     },
   });
 
+  if (result.error) {
+    var scrapeError = (result.result as unknown as Record<string, unknown>).error;
+    console.warn("[link-preview] publisher-fetch-failed", {
+      url: normalizedUrl,
+      message: typeof scrapeError === "string" ? scrapeError : "Unknown error",
+    });
+    throw badRequest("Could not load link preview");
+  }
+
   var data = result.result;
   var title = data.ogTitle || data.twitterTitle || parsed.hostname;
   var description = data.ogDescription || data.twitterDescription || null;
-  var image = Array.isArray(data.ogImage) && data.ogImage[0]?.url ? data.ogImage[0].url : null;
+  var image =
+    (Array.isArray(data.ogImage) && data.ogImage[0]?.url ? data.ogImage[0].url : null) ??
+    (Array.isArray(data.twitterImage) && data.twitterImage[0]?.url
+      ? data.twitterImage[0].url
+      : null);
 
   var domain = parsed.hostname.replace(/^www\./, "");
   var provider: "youtube" | "vimeo" | "link" = "link";
   if (domain.includes("youtube.com") || domain.includes("youtu.be")) provider = "youtube";
   else if (domain.includes("vimeo.com")) provider = "vimeo";
 
-  return c.json({
-    url: parsed.toString(),
-    title,
-    description,
-    image,
+  var preview: LinkPreviewResponse = {
+    url: normalizedUrl,
+    title: String(title).trim().slice(0, 500) || domain,
+    description: description ? String(description).trim().slice(0, 2000) || null : null,
+    image: normalizePreviewImageUrl(image, normalizedUrl),
     domain,
     provider,
-  });
+  };
+  await setCachedLinkPreview(preview);
+  c.header("X-Link-Preview-Cache", "miss");
+  return c.json(preview);
 });

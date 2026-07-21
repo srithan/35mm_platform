@@ -68,7 +68,13 @@ struct QuotedPostCard: View {
       }
 
       if let body = post.body, !body.isEmpty {
-        RichTextView(body: body, font: .subheadline)
+        RichTextView(
+          body: body,
+          font: .subheadline,
+          suppressingURL: post.linkPreview?.presentation == .cardOnly
+            ? post.linkPreview?.url
+            : nil
+        )
           .lineLimit(4)
       }
 

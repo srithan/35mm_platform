@@ -17,6 +17,7 @@ interface PostCardActionsBarProps {
   postId?: string;
   likeCount: number;
   commentCount: number;
+  repostCount: number;
   initialLiked: boolean;
   initialBookmarked: boolean;
   initialBookmarkFolderId?: string | null;
@@ -54,6 +55,7 @@ export function PostCardActionsBar({
   postId,
   likeCount,
   commentCount,
+  repostCount,
   initialLiked,
   initialBookmarked,
   initialBookmarkFolderId = null,
@@ -101,6 +103,7 @@ export function PostCardActionsBar({
     <PostActions
       likes={likeCount}
       comments={commentCount}
+      reposts={repostCount}
       hideZeroCounts
       useCompactVariant
       initialLiked={initialLiked}

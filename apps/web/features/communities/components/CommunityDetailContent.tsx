@@ -361,6 +361,7 @@ function CommunityPostList({ slug, sortBy }: { slug: string; sortBy: CommunitySo
             quotedPost={post.quotedPost}
             quotedPostUnavailable={post.quotedPostUnavailable}
             likeCount={post.likeCount}
+            repostCount={post.repostCount}
             liked={post.isLiked}
             commentCount={post.commentCount}
             replyPreview={legacy.replyPreview}

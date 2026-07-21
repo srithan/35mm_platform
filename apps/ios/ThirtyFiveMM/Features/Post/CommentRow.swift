@@ -25,7 +25,7 @@ struct CommentRow: View {
   }
 
   private var avatarSize: CGFloat {
-    depth == 0 ? 32 : 28
+    depth == 0 ? 32 : 24
   }
 
   private var authorDestination: ProfileDestination {
@@ -46,6 +46,7 @@ struct CommentRow: View {
         VStack(alignment: .leading, spacing: 6) {
           header
           bodyText
+          videoPreviews
 
           if !isDeleted {
             actionsBar
@@ -158,7 +159,7 @@ struct CommentRow: View {
       }
       .foregroundStyle(
         comment.isLiked
-          ? Color(red: 1.0, green: 0.02, blue: 0.22)
+          ? DesignSystem.Colors.like
           : Color.secondary
       )
       .accessibilityLabel(comment.isLiked ? "Unlike comment" : "Like comment")
@@ -219,6 +220,15 @@ struct CommentRow: View {
     } else {
       RichTextView(body: comment.body, font: .subheadline)
         .fixedSize(horizontal: false, vertical: true)
+    }
+  }
+
+  @ViewBuilder
+  private var videoPreviews: some View {
+    if !isDeleted {
+      ForEach(URLVideoPreview.previews(inStoredText: comment.body)) { preview in
+        VideoURLPreview(preview: preview)
+      }
     }
   }
 

@@ -72,6 +72,7 @@ export type LinkPreview = {
   image: string | null;
   domain: string;
   provider: "youtube" | "vimeo" | "link";
+  presentation?: "card_only" | "url_and_card";
 };
 
 export type PollType = "ranking" | "image";
@@ -117,6 +118,9 @@ export var posts = pgTable(
   function (table) {
     return {
       userCreatedAtIdx: index("posts_user_created_at_idx").on(table.userId, table.createdAt),
+      userRepostCreatedAtIdx: index("posts_user_repost_created_at_id_idx")
+        .on(table.userId, table.createdAt.desc(), table.id.desc())
+        .where(sql`${table.isRepost} = true and ${table.isDeleted} = false`),
       filmTypeCreatedAtIdx: index("posts_film_type_created_at_id_idx")
         .on(table.filmId, table.type, table.createdAt, table.id)
         .where(sql`${table.isDeleted} = false`),

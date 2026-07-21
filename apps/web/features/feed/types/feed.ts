@@ -61,6 +61,7 @@ export interface Post {
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation: "card_only" | "url_and_card";
   } | null;
   poll?: {
     id: string;

@@ -6,9 +6,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
-  Clapperboard,
+  CalendarDays,
   FileText,
   List as ListIcon,
+  Repeat2,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -26,7 +27,8 @@ type TabDefinition = {
 
 export const PROFILE_TABS: TabDefinition[] = [
   { id: "posts", label: "Posts", Icon: FileText },
-  { id: "diary", label: "Diary", count: 0, Icon: Clapperboard },
+  { id: "reposts", label: "Reposts", Icon: Repeat2 },
+  { id: "diary", label: "Diary", count: 0, Icon: CalendarDays },
   { id: "lists", label: "Lists", Icon: ListIcon },
   { id: "stats", label: "Stats", Icon: BarChart2 },
 ];
@@ -45,7 +47,7 @@ export function ProfileTabs(props: { username: string }) {
         "md:top-[var(--site-header-sticky-offset,4.5rem)]"
       )}
     >
-      <div>
+      <div className="px-4 md:px-0">
         <ul className="m-0 flex w-full list-none items-stretch gap-0 p-0">
           {PROFILE_TABS.map(function (t) {
             var isActive = activeTab === t.id;

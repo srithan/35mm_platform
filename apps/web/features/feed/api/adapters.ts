@@ -323,6 +323,8 @@ export function adaptPostToFeedType(raw: unknown): Post {
             root.linkPreview.provider === "youtube" || root.linkPreview.provider === "vimeo"
               ? root.linkPreview.provider
               : "link",
+          presentation:
+            root.linkPreview.presentation === "card_only" ? "card_only" : "url_and_card",
         }
       : null,
     poll,

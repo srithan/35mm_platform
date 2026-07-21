@@ -157,8 +157,48 @@ describe("PostComposer", () => {
       expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(1);
     });
 
-    var input = (mocks.createPostMutateAsync.mock.calls[0] as unknown[])[0] as { body: string };
+    var input = (mocks.createPostMutateAsync.mock.calls[0] as unknown[])[0] as {
+      body: string;
+      linkPreview: {
+        url: string;
+        title: string;
+        presentation: "card_only" | "url_and_card";
+      } | null;
+    };
     expect(storedRichTextToPlainText(input.body)).toBe(`lit ${youtubeUrl}`);
+    expect(input.linkPreview).toMatchObject({
+      url: youtubeUrl,
+      title: "Preview title",
+      presentation: "url_and_card",
+    });
+  });
+
+  it("shows one playable video preview with fetched title for a standalone video URL", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+    const editor = screen.getByRole("combobox", { name: WRITE_PLACEHOLDER });
+    const url = "https://www.youtube.com/watch?v=np8O_0B-Rvc&t=21s";
+
+    await user.click(editor);
+    await user.paste(url);
+
+    const playButton = await screen.findByRole("button", { name: "Play Preview title" });
+    expect(screen.getAllByText("Preview title")).toHaveLength(1);
+    expect(screen.queryByRole("checkbox", { name: "Show URL in post" })).not.toBeInTheDocument();
+
+    expect(playButton).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          linkPreview: expect.objectContaining({
+            url,
+            presentation: "card_only",
+          }),
+        })
+      );
+    });
   });
 
   it("submits the quoted source post id", async () => {
@@ -319,6 +359,43 @@ describe("PostComposer", () => {
       expect(
         screen.getByRole("combobox", { name: WRITE_PLACEHOLDER })
       ).toHaveTextContent("Existing post body");
+    });
+  });
+
+  it("persists a newly added link preview while editing", async () => {
+    const user = userEvent.setup();
+    const youtubeUrl = "https://www.youtube.com/watch?v=qU4bAFjBXUI";
+
+    render(
+      <PostComposer
+        variant="modal"
+        editingPost={{
+          postId: "post_1",
+          userId: "11111111-1111-4111-8111-111111111111",
+          type: "text",
+          body: storedBody(`Edited post ${youtubeUrl}`),
+          linkPreview: null,
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mocks.fetchLinkPreviewMock).toHaveBeenCalledWith(youtubeUrl, "test-token");
+    });
+    expect(await screen.findByText("Preview title")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.updatePostMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post_1",
+          linkPreview: expect.objectContaining({
+            url: youtubeUrl,
+            title: "Preview title",
+          }),
+        })
+      );
     });
   });
 

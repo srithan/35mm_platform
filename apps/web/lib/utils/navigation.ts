@@ -21,10 +21,10 @@ const RESERVED_USERNAME_SEGMENTS = new Set([
 ]);
 
 /** Inline to avoid Turbopack HMR stale exports from shared constants modules. */
-const PROFILE_TAB_SEGMENT_SET = new Set(["diary", "lists", "stats"]);
+const PROFILE_TAB_SEGMENT_SET = new Set(["reposts", "diary", "lists", "stats"]);
 
 /**
- * True when `pathname` is a profile route: `/{username}` or `/{username}/diary|lists|stats`.
+ * True when `pathname` is a profile route: `/{username}` or a known profile tab route.
  */
 export function isUsernameProfilePath(pathname: string): boolean {
   if (!pathname || pathname === "/") return false;

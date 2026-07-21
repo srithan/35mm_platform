@@ -48,4 +48,44 @@ describe("PostCardAttachments", function () {
       "/title/movie/550"
     );
   });
+
+  it("renders image-first editorial link previews", function () {
+    render(
+      <PostCardAttachments
+        variant="text"
+        hasAttachedMedia={false}
+        combinedVideoPreviews={[]}
+        shouldRenderLinkPreviewCard
+        linkPreview={{
+          url: "https://example.com/story",
+          title: "A cinematic link preview",
+          description: "Supporting detail",
+          image: "https://images.example.com/story.jpg",
+          domain: "example.com",
+          provider: "link",
+          presentation: "card_only",
+        }}
+        videoUrls={[]}
+        imageUrls={[]}
+        imageBlurhashes={[]}
+        poll={null}
+        postId="post-1"
+        saveData={false}
+        normalizedViewerMediaUrls={[]}
+        viewerBlurhashes={[]}
+        showImageViewer={false}
+        viewerImageIndex={0}
+        stopRichLinkBubble={false}
+        onImageClick={() => {}}
+        onCloseImageViewer={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "A cinematic link preview — example.com" })).toHaveAttribute(
+      "href",
+      "https://example.com/story"
+    );
+    expect(screen.getByText("example.com")).toBeInTheDocument();
+    expect(screen.queryByText("Supporting detail")).not.toBeInTheDocument();
+  });
 });

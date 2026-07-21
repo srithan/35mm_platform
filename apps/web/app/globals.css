@@ -1075,13 +1075,12 @@ body {
     color: var(--accent);
 }
 
-/* Hide share button and Repost/Save labels on mobile (< 768px) */
+/* Hide share button and Save label on mobile (< 768px). Repost uses a numeric count. */
 @media (max-width: 767px) {
     .action-btn.share-btn {
         display: none !important;
     }
 
-    .action-btn.repost-btn .action-count,
     .action-btn.save-btn .action-count {
         display: none !important;
     }

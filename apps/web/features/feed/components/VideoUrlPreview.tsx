@@ -5,9 +5,10 @@ import type { VideoPreview } from "../utils/videoPreviews";
 
 interface VideoUrlPreviewProps {
   preview: VideoPreview;
+  onRemove?: () => void;
 }
 
-export function VideoUrlPreview({ preview }: VideoUrlPreviewProps) {
+export function VideoUrlPreview({ preview, onRemove }: VideoUrlPreviewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const isYouTube = preview.provider === "youtube";
   const isVimeo = preview.provider === "vimeo";
@@ -18,7 +19,7 @@ export function VideoUrlPreview({ preview }: VideoUrlPreviewProps) {
       ? `https://www.youtube-nocookie.com/embed/${preview.id}?autoplay=1&rel=0&modestbranding=1`
       : `https://player.vimeo.com/video/${preview.id}?autoplay=1&title=0&byline=0&portrait=0`;
     return (
-      <div className="mt-3 block overflow-hidden rounded-[8px] border border-fg/10 bg-black">
+      <div className="relative mt-3 block overflow-hidden rounded-[8px] border border-fg/10 bg-black">
         <div className="relative aspect-video">
           <iframe
             src={embedUrl}
@@ -29,6 +30,16 @@ export function VideoUrlPreview({ preview }: VideoUrlPreviewProps) {
             allowFullScreen
           />
         </div>
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            aria-label="Remove video preview"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">×</span>
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -63,22 +74,41 @@ export function VideoUrlPreview({ preview }: VideoUrlPreviewProps) {
           </svg>
         </div>
       </div>
-      <span className="absolute top-2 right-2 text-[9px] font-medium tracking-widest uppercase text-white/75">
+      <span
+        className={`absolute top-2 text-[9px] font-medium tracking-widest uppercase text-white/75 ${
+          onRemove ? "right-11" : "right-2"
+        }`}
+      >
         {preview.label}
       </span>
+      <p className="absolute inset-x-0 bottom-0 line-clamp-2 px-3 pb-3 text-left text-[13px] font-medium leading-snug text-white [text-shadow:0_1px_10px_rgba(0,0,0,0.55)]">
+        {preview.title}
+      </p>
     </div>
   );
 
   if (isInlinePlayable) {
     return (
-      <button
-        type="button"
-        onClick={() => setIsPlaying(true)}
-        className="block w-full mt-3 rounded-[8px] overflow-hidden border border-border hover:border-border transition-colors"
-        aria-label={`Play ${preview.label} video`}
-      >
-        {media}
-      </button>
+      <div className="relative mt-3">
+        <button
+          type="button"
+          onClick={() => setIsPlaying(true)}
+          className="block w-full overflow-hidden rounded-[8px] border border-border transition-colors hover:border-border"
+          aria-label={`Play ${preview.title}`}
+        >
+          {media}
+        </button>
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            aria-label="Remove video preview"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">×</span>
+          </button>
+        ) : null}
+      </div>
     );
   }
 

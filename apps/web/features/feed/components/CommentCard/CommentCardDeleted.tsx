@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import type { Comment, CommentCardProps } from "./types";
 import { getCommentThreadStyles } from "./types";
@@ -24,6 +25,7 @@ export function CommentCardDeleted({
   truncateText = true,
   onReplySubmit,
 }: CommentCardDeletedProps) {
+  const [repliesExpanded, setRepliesExpanded] = useState(false);
   const hasReplies = comment.replies && comment.replies.length > 0;
   const { containerStyle } = getCommentThreadStyles(depth);
 
@@ -44,7 +46,8 @@ export function CommentCardDeleted({
           postBookmarked={postBookmarked}
           postBookmarkFolderId={postBookmarkFolderId}
           depth={depth}
-          expanded
+          expanded={repliesExpanded}
+          onExpand={() => setRepliesExpanded(true)}
           truncateText={truncateText}
           onReplySubmit={onReplySubmit}
         />

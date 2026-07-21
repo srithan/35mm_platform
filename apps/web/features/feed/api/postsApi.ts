@@ -41,6 +41,7 @@ export interface CreatePostInput {
     image: string | null;
     domain: string;
     provider: "youtube" | "vimeo" | "link";
+    presentation: "card_only" | "url_and_card";
   } | null;
   poll?: {
     type: "ranking" | "image";
@@ -58,6 +59,7 @@ export interface UpdatePostInput {
   body?: string;
   headline?: string | null;
   filmId?: string | null;
+  linkPreview?: CreatePostInput["linkPreview"];
 }
 
 export async function fetchPost(postId: string, token?: string | null): Promise<Post> {

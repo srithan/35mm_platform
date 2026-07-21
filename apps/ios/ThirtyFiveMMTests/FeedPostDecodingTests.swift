@@ -202,6 +202,67 @@ final class FeedPostDecodingTests: XCTestCase {
     XCTAssertEqual(String(rendered.characters), "First\nSecond")
   }
 
+  func testLinkPreviewPresentationDefaultsAndSuppressesStoredURL() throws {
+    let legacyPreview = try JSONDecoder().decode(
+      LinkPreview.self,
+      from: Data(#"{"url":"https://example.com/story"}"#.utf8)
+    )
+    XCTAssertEqual(legacyPreview.presentation, .urlAndCard)
+
+    let preview = try JSONDecoder().decode(
+      LinkPreview.self,
+      from: Data(
+        #"{"url":"https://example.com/story","presentation":"card_only"}"#.utf8
+      )
+    )
+    XCTAssertEqual(preview.presentation, .cardOnly)
+
+    let stored =
+      RichTextParser.sentinel
+      + #"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Worth reading"}]},{"type":"paragraph","content":[{"type":"text","text":"https://example.com/story"}]}]}"#
+    let rendered = try XCTUnwrap(
+      RichTextParser.parse(stored, suppressingURL: preview.url)
+    )
+
+    XCTAssertEqual(String(rendered.characters), "Worth reading")
+  }
+
+  func testExtractsWebParityVideoPreviewsAndDeduplicatesURLs() throws {
+    let previews = URLVideoPreview.previews(
+      in: "Watch https://youtu.be/abc123, then https://vimeo.com/98765 and https://youtu.be/abc123"
+    )
+
+    XCTAssertEqual(previews.map(\.provider), [.youtube, .vimeo])
+    XCTAssertEqual(previews.map(\.videoID), ["abc123", "98765"])
+    XCTAssertEqual(
+      previews.map(\.thumbnailURL.absoluteString),
+      [
+        "https://img.youtube.com/vi/abc123/hqdefault.jpg",
+        "https://vumbnail.com/98765.jpg",
+      ]
+    )
+
+    let dailymotion = try XCTUnwrap(
+      URLVideoPreview.previews(in: "https://www.dailymotion.com/video/x9abc_title").first
+    )
+    XCTAssertEqual(dailymotion.provider, .dailymotion)
+    XCTAssertEqual(dailymotion.videoID, "x9abc")
+  }
+
+  func testLinkPreviewVideoUsesServerThumbnail() throws {
+    let preview = try JSONDecoder().decode(
+      LinkPreview.self,
+      from: Data(
+        #"{"url":"https://www.youtube.com/watch?v=abc123","image":"https://cdn.example.com/custom.jpg"}"#.utf8
+      )
+    )
+
+    let video = try XCTUnwrap(URLVideoPreview(linkPreview: preview))
+
+    XCTAssertEqual(video.provider, .youtube)
+    XCTAssertEqual(video.thumbnailURL.absoluteString, "https://cdn.example.com/custom.jpg")
+  }
+
   func testFeedRelativeTimestampMatchesWebBuckets() {
     let now = Date(timeIntervalSince1970: 2_000_000_000)
 

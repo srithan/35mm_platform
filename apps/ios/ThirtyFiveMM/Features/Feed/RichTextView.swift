@@ -2,15 +2,17 @@ import SwiftUI
 
 struct RichTextView: View {
   private let textBody: String?
+  private let suppressedURL: String?
   var font: Font = .body
 
-  init(body: String?, font: Font = .body) {
+  init(body: String?, font: Font = .body, suppressingURL: String? = nil) {
     textBody = body
+    suppressedURL = suppressingURL
     self.font = font
   }
 
   var body: some View {
-    if let attributedString = RichTextParser.parse(textBody) {
+    if let attributedString = RichTextParser.parse(textBody, suppressingURL: suppressedURL) {
       Text(attributedString)
         .font(font)
         .environment(

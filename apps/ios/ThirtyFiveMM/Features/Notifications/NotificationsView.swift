@@ -50,7 +50,7 @@ struct NotificationsView: View {
           Task { await viewModel.markAllRead() }
         } label: {
           Image(systemName: "checkmark.circle")
-            .font(.system(size: 20, weight: .semibold))
+            .font(.system(.title3, weight: .semibold))
             .frame(width: 36, height: 32)
         }
         .buttonStyle(.plain)
@@ -117,7 +117,7 @@ struct NotificationsView: View {
             }
           } header: {
             Text(group.title)
-              .font(.system(size: 13, weight: .bold, design: .rounded))
+              .font(.footnote.weight(.semibold))
               .foregroundStyle(Color(.secondaryLabel))
               .textCase(nil)
               .padding(.top, 4)
@@ -229,20 +229,20 @@ private struct NotificationRow: View {
         VStack(alignment: .leading, spacing: 7) {
           HStack(alignment: .firstTextBaseline, spacing: 6) {
             notificationText
-              .font(.system(size: 15, weight: .regular, design: .rounded))
+              .font(.subheadline)
               .foregroundStyle(Color(.label))
               .lineSpacing(1)
               .fixedSize(horizontal: false, vertical: true)
 
             Text(item.createdAt.relativeShort)
-              .font(.system(size: 12, weight: .semibold, design: .rounded))
+              .font(.caption)
               .foregroundStyle(Color(.tertiaryLabel))
               .lineLimit(1)
           }
 
           if let preview = previewText {
             Text(preview)
-              .font(.system(size: 13, weight: .medium, design: .rounded))
+              .font(.footnote)
               .foregroundStyle(Color(.secondaryLabel))
               .lineLimit(3)
               .padding(.horizontal, 10)
@@ -253,7 +253,7 @@ private struct NotificationRow: View {
 
           if item.type == .followRequest {
             Text("Respond from requests above")
-              .font(.system(size: 12, weight: .bold, design: .rounded))
+              .font(.caption.weight(.semibold))
               .foregroundStyle(Color(.secondaryLabel))
           }
         }
@@ -471,7 +471,7 @@ private struct NotificationAvatar: View {
           Circle()
             .fill(avatarColor)
           Text(initial)
-            .font(.system(size: size * 0.38, weight: .black, design: .rounded))
+            .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
             .foregroundStyle(.white)
         }
       }
@@ -499,7 +499,7 @@ private struct NotificationTypeBadge: View {
 
   var body: some View {
     Image(systemName: icon)
-      .font(.system(size: 9, weight: .black))
+      .font(.system(size: 9, weight: .bold))
       .foregroundStyle(.white)
       .frame(width: 20, height: 20)
       .background(color, in: Circle())
@@ -573,14 +573,14 @@ private struct FollowRequestsTray: View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
         Label("Follow requests", systemImage: "person.crop.circle.badge.questionmark")
-          .font(.system(size: 15, weight: .black, design: .rounded))
+          .font(.subheadline.weight(.semibold))
           .foregroundStyle(Color(.label))
 
         Spacer()
 
         Text("\(total)")
-          .font(.system(size: 13, weight: .black, design: .rounded))
-          .foregroundStyle(.white)
+          .font(.caption.weight(.bold))
+          .foregroundStyle(Color(.systemBackground))
           .padding(.horizontal, 8)
           .padding(.vertical, 4)
           .background(Color(.label), in: Capsule())
@@ -622,12 +622,12 @@ private struct FollowRequestRow: View {
 
       VStack(alignment: .leading, spacing: 2) {
         Text(displayName)
-          .font(.system(size: 15, weight: .bold, design: .rounded))
+          .font(.subheadline.weight(.semibold))
           .foregroundStyle(Color(.label))
           .lineLimit(1)
 
         Text(subtitle)
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .font(.caption)
           .foregroundStyle(Color(.secondaryLabel))
           .lineLimit(1)
       }
@@ -637,7 +637,7 @@ private struct FollowRequestRow: View {
       HStack(spacing: 6) {
         Button(action: onDecline) {
           Image(systemName: "xmark")
-            .font(.system(size: 12, weight: .black))
+            .font(.system(size: 12, weight: .bold))
             .frame(width: 32, height: 32)
             .background(Color(.systemGray5), in: Circle())
         }
@@ -647,12 +647,12 @@ private struct FollowRequestRow: View {
 
         Button(action: onAccept) {
           Image(systemName: "checkmark")
-            .font(.system(size: 12, weight: .black))
+            .font(.system(size: 12, weight: .bold))
             .frame(width: 32, height: 32)
             .background(Color(.label), in: Circle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.white)
+        .foregroundStyle(Color(.systemBackground))
         .accessibilityLabel("Accept \(displayName)")
       }
     }
@@ -709,11 +709,11 @@ private struct NotificationsEmptyView: View {
         .foregroundStyle(Color(.tertiaryLabel))
 
       Text(filter == .unread ? "No unread notifications" : "No notifications yet")
-        .font(.system(size: 19, weight: .black, design: .rounded))
+        .font(.headline)
         .foregroundStyle(Color(.label))
 
       Text(filter == .unread ? "You are caught up." : "Likes, follows, replies, mentions, and requests will land here.")
-        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .font(.subheadline)
         .foregroundStyle(Color(.secondaryLabel))
         .multilineTextAlignment(.center)
         .padding(.horizontal, 34)
@@ -733,7 +733,7 @@ private struct NotificationsErrorView: View {
         .foregroundStyle(.orange)
 
       Text("Couldn't load notifications")
-        .font(.system(size: 19, weight: .black, design: .rounded))
+        .font(.headline)
 
       Text(message)
         .font(.callout)

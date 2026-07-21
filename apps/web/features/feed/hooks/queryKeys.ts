@@ -1,7 +1,10 @@
+import type { ProfileFeedKind } from "../api/feedApi";
+
 export const feedKeys = {
   all: ["feed"] as const,
   home: () => ["feed", "home"] as const,
-  profile: (username: string) => ["feed", "profile", username] as const,
+  profile: (username: string, kind: ProfileFeedKind = "all") =>
+    ["feed", "profile", username, kind] as const,
   post: (postId: string) => ["feed", "post", postId] as const,
   postForViewer: (postId: string, viewerId: string | null | undefined) =>
     ["feed", "post", postId, "viewer", viewerId ?? "guest"] as const,

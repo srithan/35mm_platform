@@ -6,28 +6,32 @@ import { Film, LockKeyhole } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { ROUTES } from "@/lib/constants/routes";
 import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
-import { isStoredRichText } from "@/lib/utils/richContent";
+import { isStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { RichPostInline } from "@/lib/utils/richPostText";
 import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
 import { cn } from "@/lib/utils/cn";
+import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
 import type { QuotedPost } from "../../types/feed";
 import { postMediaGridCellClassName } from "../postMediaGridLayout";
 
 function formatQuoteTime(iso: string): string {
-  var then = Date.parse(iso);
+  const then = Date.parse(iso);
   if (Number.isNaN(then)) return "now";
-  var diff = Math.max(0, Date.now() - then);
+  const diff = Math.max(0, Date.now() - then);
   if (diff < 60_000) return "now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
   return `${Math.floor(diff / 86_400_000)}d`;
 }
 
-function QuoteText({ text }: { text: string }) {
+function QuoteText({ text, suppressedUrl }: { text: string; suppressedUrl?: string }) {
   return isStoredRichText(text) ? (
-    <RichTextRenderer stored={text} stopLinkPropagation />
+    <RichTextRenderer stored={text} stopLinkPropagation suppressedUrl={suppressedUrl} />
   ) : (
-    <RichPostInline text={text} stopLinkPropagation />
+    <RichPostInline
+      text={suppressedUrl ? suppressLinkPreviewUrl(text, suppressedUrl) : text}
+      stopLinkPropagation
+    />
   );
 }
 
@@ -57,6 +61,12 @@ export function PostCardQuoteEmbed({
     return item.type === "image" || item.type === "video";
   }).slice(0, 4);
   const href = ROUTES.POST(post.author.username, post.id);
+  const suppressedUrl =
+    post.linkPreview?.presentation === "card_only" ? post.linkPreview.url : undefined;
+  const plainBody = storedRichTextToPlainText(post.body);
+  const visibleBody = suppressedUrl
+    ? suppressLinkPreviewUrl(plainBody, suppressedUrl)
+    : plainBody;
 
   const navigate = () => {
     router.push(href);
@@ -103,9 +113,9 @@ export function PostCardQuoteEmbed({
             <QuoteText text={post.headline} />
           </h3>
         ) : null}
-        {post.body ? (
+        {visibleBody ? (
           <div className="mt-1 line-clamp-4 text-[14px] leading-relaxed text-fg">
-            <QuoteText text={post.body} />
+            <QuoteText text={post.body} suppressedUrl={suppressedUrl} />
           </div>
         ) : null}
 

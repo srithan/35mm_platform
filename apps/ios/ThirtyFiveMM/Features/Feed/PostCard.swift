@@ -7,7 +7,7 @@ struct PostCard: View {
 
   let post: FeedPost
   let interactor: any PostInteracting
-  var onOpenPost: () -> Void = {}
+  var onOpenPost: (() -> Void)?
   var onOpenImage: (PostImageDestination) -> Void = { _ in }
   var truncatesBody = true
   var postActionSheetTitle = "Post actions"
@@ -56,6 +56,7 @@ struct PostCard: View {
 
         VStack(alignment: .leading, spacing: 6) {
           authorRow
+          postTypeLabel
           headline
           bodyText
           filmCard
@@ -72,10 +73,18 @@ struct PostCard: View {
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 12)
-    .background(Color(.systemBackground))
-    .contentShape(Rectangle())
-    .onTapGesture {
-      onOpenPost()
+    .background {
+      if let onOpenPost {
+        Button(action: onOpenPost) {
+          Color(.systemBackground)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open post by \(authorName)")
+        .accessibilityHint("Opens post")
+      } else {
+        Color(.systemBackground)
+      }
     }
     .bottomActionSheet(
       isPresented: $isShowingPostActions,
@@ -190,8 +199,6 @@ struct PostCard: View {
 
         AuthorRoleLabel(author: post.author)
           .accessibilityHidden(true)
-
-        postTypeLabel
       }
 
       Spacer(minLength: 8)
@@ -212,20 +219,17 @@ struct PostCard: View {
 
   @ViewBuilder
   private var postTypeLabel: some View {
-    switch post.type {
-    case .discussion:
-      Label("Discussion", systemImage: "bubble.left.and.bubble.right")
-        .font(.caption2.weight(.semibold))
-        .textCase(.uppercase)
+    if post.type == .discussion {
+      Label("DISCUSSION", systemImage: "bubble.left.and.bubble.right")
+        .font(.caption.weight(.semibold))
+        .tracking(0.5)
         .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.quaternary, in: Capsule())
+        .padding(.top, 4)
+        .padding(.bottom, 2)
         .accessibilityLabel("Discussion post")
-    case .log, .review:
-      Text("logged")
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-        .accessibilityLabel("Film logged")
-    case .text, .image:
-      EmptyView()
     }
   }
 
@@ -250,8 +254,10 @@ struct PostCard: View {
   @ViewBuilder
   private var bodyText: some View {
     if let body = post.body, !body.isEmpty {
+      let suppressedURL =
+        post.linkPreview?.presentation == .cardOnly ? post.linkPreview?.url : nil
       VStack(alignment: .leading, spacing: 4) {
-        RichTextView(body: body, font: .body)
+        RichTextView(body: body, font: .body, suppressingURL: suppressedURL)
           .lineLimit(shouldClampBody(body) ? 6 : nil)
           .fixedSize(horizontal: false, vertical: true)
 
@@ -261,7 +267,7 @@ struct PostCard: View {
           }
           .font(.body.weight(.medium))
           .buttonStyle(.plain)
-          .foregroundStyle(.blue)
+          .foregroundStyle(Color.accentColor)
         }
       }
     }
@@ -288,8 +294,15 @@ struct PostCard: View {
 
   @ViewBuilder
   private var linkPreview: some View {
-    if let preview = post.linkPreview, mediaItems.isEmpty {
-      LinkPreviewCard(preview: preview)
+    if !hasAttachedMedia, post.poll == nil {
+      let previews = videoPreviews
+      ForEach(previews) { preview in
+        VideoURLPreview(preview: preview)
+      }
+
+      if previews.isEmpty, let preview = post.linkPreview {
+        LinkPreviewCard(preview: preview)
+      }
     }
   }
 
@@ -306,7 +319,7 @@ struct PostCard: View {
         assetName: post.isLiked ? "PostActionHeartFilled" : "PostActionHeart",
         count: post.likeCount,
         isActive: post.isLiked,
-        activeColor: Color(red: 1.0, green: 0.02, blue: 0.22),
+        activeColor: DesignSystem.Colors.like,
         accessibilityLabel: post.isLiked ? "Unlike post" : "Like post"
       ) {
         Task { await interactor.toggleLike(postId: post.id) }
@@ -318,15 +331,17 @@ struct PostCard: View {
         isActive: false,
         accessibilityLabel: "Open comments"
       ) {
-        onOpenPost()
+        onOpenPost?()
       }
 
       ActionButton(
-        assetName: "PostActionRepost",
+        assetName: post.isReposted ? "PostActionRepostFilled" : "PostActionRepost",
         count: post.repostCount,
         isActive: post.isReposted,
-        activeColor: Color(red: 0.0, green: 0.55, blue: 0.28),
-        accessibilityLabel: "Repost options"
+        activeColor: DesignSystem.Colors.repost,
+        accessibilityLabel: post.isReposted
+          ? "Repost options, reposted"
+          : "Repost options, not reposted"
       ) {
         isShowingRepostActions = true
       }
@@ -345,6 +360,31 @@ struct PostCard: View {
 
   private var mediaItems: [PostMediaGridItem] {
     PostMediaGridItem.imageItems(from: post.media, fallbackURLs: post.mediaUrls)
+  }
+
+  private var hasAttachedMedia: Bool {
+    if let media = post.media, !media.isEmpty {
+      return true
+    }
+
+    return post.mediaUrls?.isEmpty == false
+  }
+
+  private var videoPreviews: [URLVideoPreview] {
+    let suppressedURL =
+      post.linkPreview?.presentation == .cardOnly ? post.linkPreview?.url : nil
+    let bodyPreviews = URLVideoPreview.previews(
+      inStoredText: post.body,
+      suppressingURL: suppressedURL
+    )
+
+    guard let linkPreview = post.linkPreview,
+      let linkVideo = URLVideoPreview(linkPreview: linkPreview)
+    else {
+      return bodyPreviews
+    }
+
+    return [linkVideo] + bodyPreviews.filter { $0.url != linkVideo.url }
   }
 
   private var repostActions: [BottomActionSheetAction] {
@@ -422,12 +462,12 @@ struct FeedAuthorIdentityLabel: View {
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 4) {
       Text(displayName)
-        .font(.system(size: 13.5, weight: .bold))
+        .font(.appAuthorName)
         .foregroundStyle(.primary)
         .lineLimit(1)
 
       Text("@\(username)")
-        .font(.system(size: 13.5))
+        .font(.appAuthorHandle)
         .foregroundStyle(.secondary)
         .lineLimit(1)
     }
@@ -441,11 +481,11 @@ struct FeedTimestampLabel: View {
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 2) {
       Text("· \(timestamp)")
-        .font(.system(size: 12))
+        .font(.appMetadata)
 
       if let context {
         Text(context)
-          .font(.system(size: 11))
+          .font(.caption2)
       }
     }
     .foregroundStyle(.secondary)
@@ -499,7 +539,7 @@ struct AuthorRoleLabel: View {
   private static func color(for role: String) -> Color {
     switch role {
     case "Cinephile":
-      return Color(red: 194.0 / 255.0, green: 71.0 / 255.0, blue: 58.0 / 255.0)
+      return DesignSystem.Colors.accent
     case "Creator", "Director":
       return .indigo
     case "Critic", "Film Critic":
@@ -778,10 +818,11 @@ private struct ActionButton: View {
           .resizable()
           .scaledToFit()
           .frame(width: 22, height: 22)
+          .id(assetName)
 
         if count > 0 {
           Text(count.compactFormatted)
-            .font(.caption.weight(.medium))
+            .font(.appCounter)
             .monospacedDigit()
         }
       }
@@ -824,61 +865,6 @@ private struct FilmCardStarRow: View {
     }
 
     return "star"
-  }
-}
-
-private struct LinkPreviewCard: View {
-  let preview: LinkPreview
-
-  private var domain: String {
-    URL(string: preview.url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? preview.url
-  }
-
-  var body: some View {
-    Button {
-      if let url = URL(string: preview.url) {
-        UIApplication.shared.open(url)
-      }
-    } label: {
-      HStack(spacing: 10) {
-        if let imageUrl = preview.imageUrl {
-          KFImage(URL(string: imageUrl))
-            .placeholder {
-              Rectangle()
-                .fill(Color(.tertiarySystemFill))
-            }
-            .resizable()
-            .scaledToFill()
-            .frame(width: 88, height: 88)
-            .clipped()
-        }
-
-        VStack(alignment: .leading, spacing: 4) {
-          Text(domain)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-
-          if let title = preview.title {
-            Text(title)
-              .font(.subheadline.weight(.semibold))
-              .foregroundStyle(.primary)
-              .lineLimit(2)
-          }
-
-          if let description = preview.description {
-            Text(description)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .lineLimit(2)
-          }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      .background(Color(.secondarySystemBackground))
-      .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    .buttonStyle(.plain)
   }
 }
 

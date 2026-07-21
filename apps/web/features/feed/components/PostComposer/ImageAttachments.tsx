@@ -18,6 +18,7 @@ function fileIdentity(file: File) {
 function gridClassName(count: number) {
   if (count === 1) return "grid-cols-1";
   if (count >= 5) return "grid-cols-4 gap-1";
+  if (count === 4) return "grid-cols-2 gap-0.5";
   return "grid-cols-2 gap-1.5";
 }
 
@@ -31,7 +32,10 @@ function cellClassName(count: number, index: number) {
   if (count === 3 && index === 0) {
     return "col-span-2 aspect-[2/1]";
   }
-  if (count === 3 || count === 4) {
+  if (count === 4) {
+    return "aspect-video";
+  }
+  if (count === 3) {
     return "aspect-square";
   }
   return "aspect-[4/3]";
@@ -191,7 +195,8 @@ export function ImageAttachments({
                   setDropIndex(null);
                 }}
                 className={cn(
-                  "group relative overflow-hidden rounded bg-sunken",
+                  "group relative overflow-hidden bg-sunken",
+                  imageCount !== 4 && "rounded",
                   cellClassName(imageCount, index),
                   images.length > 1 && "cursor-grab active:cursor-grabbing",
                   isDropTarget && "ring-2 ring-accent ring-inset",

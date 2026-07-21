@@ -33,11 +33,11 @@ export function LogNoteField(props: LogNoteFieldProps) {
         "overflow-hidden rounded-xl border border-border bg-sunken transition-[border-color,background-color,box-shadow] duration-150",
         props.editable !== false
           ? "focus-within:border-fg-muted/50 focus-within:bg-[var(--composer-bg)] focus-within:shadow-sm"
-          : "border-border/70 bg-sunken/70"
+          : "border-border bg-sunken/70"
       )}
     >
       {props.showFormatBar && props.editable !== false ? (
-        <div className="flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
+        <div className="flex items-center gap-1 border-b border-border px-2 py-1.5">
           <FormattingToolbar editor={props.editor} showDivider={false} />
         </div>
       ) : null}
@@ -63,7 +63,7 @@ export function LogNoteField(props: LogNoteFieldProps) {
         )}
       />
 
-      <div className="flex items-center justify-between gap-3 border-t border-border/50 px-3.5 py-2">
+      <div className="flex items-center justify-between gap-3 border-t border-border px-3.5 py-2">
         {!props.isReview && plainText.length > 0 ? (
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-border">

@@ -6,6 +6,7 @@ export interface VideoPreview {
   url: string;
   thumbnailUrl: string;
   label: string;
+  title: string;
 }
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi;
@@ -63,6 +64,7 @@ function toVideoPreview(rawUrl: string): VideoPreview | null {
         url: rawUrl,
         thumbnailUrl: `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
         label: "YouTube",
+        title: "YouTube video",
       };
     }
     const vimeoId = extractVimeoId(parsed);
@@ -73,6 +75,7 @@ function toVideoPreview(rawUrl: string): VideoPreview | null {
         url: rawUrl,
         thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`,
         label: "Vimeo",
+        title: "Vimeo video",
       };
     }
     const dailymotionId = extractDailymotionId(parsed);
@@ -83,6 +86,7 @@ function toVideoPreview(rawUrl: string): VideoPreview | null {
         url: rawUrl,
         thumbnailUrl: `https://www.dailymotion.com/thumbnail/video/${dailymotionId}`,
         label: "Dailymotion",
+        title: "Dailymotion video",
       };
     }
     return null;
@@ -118,6 +122,7 @@ export function videoPreviewFromLinkPreview(
             ? linkPreview.image
             : `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
         label: "YouTube",
+        title: linkPreview.title.trim() || "YouTube video",
       };
     } catch {
       return null;
@@ -137,6 +142,7 @@ export function videoPreviewFromLinkPreview(
             ? linkPreview.image
             : `https://vumbnail.com/${vimeoId}.jpg`,
         label: "Vimeo",
+        title: linkPreview.title.trim() || "Vimeo video",
       };
     } catch {
       return null;

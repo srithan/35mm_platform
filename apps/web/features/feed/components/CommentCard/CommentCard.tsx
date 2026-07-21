@@ -143,7 +143,7 @@ export function CommentCard({
       style={containerStyle}
     >
       <div className="flex items-start min-w-0">
-        <CommentCardHeader comment={comment} menu={moreMenu}>
+        <CommentCardHeader comment={comment} depth={depth} menu={moreMenu}>
           <CommentCardBody
             isEditing={isEditing}
             editDraft={editDraft}
@@ -201,6 +201,7 @@ export function CommentCard({
               postBookmarkFolderId={postBookmarkFolderId}
               depth={depth}
               expanded={repliesExpanded}
+              onExpand={() => setRepliesExpanded(true)}
               truncateText={truncateText}
               onReplySubmit={onReplySubmit}
             />

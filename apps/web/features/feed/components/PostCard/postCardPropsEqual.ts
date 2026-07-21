@@ -58,7 +58,8 @@ function areLinkPreviewsEqual(
     prev.description === next.description &&
     prev.image === next.image &&
     prev.domain === next.domain &&
-    prev.provider === next.provider
+    prev.provider === next.provider &&
+    prev.presentation === next.presentation
   );
 }
 
@@ -191,6 +192,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     prev.saveData === next.saveData &&
     areLinkPreviewsEqual(prev.linkPreview, next.linkPreview) &&
     prev.likeCount === next.likeCount &&
+    prev.repostCount === next.repostCount &&
     prev.liked === next.liked &&
     prev.bookmarked === next.bookmarked &&
     prev.bookmarkFolderId === next.bookmarkFolderId &&

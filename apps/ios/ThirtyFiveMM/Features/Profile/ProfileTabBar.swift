@@ -21,7 +21,7 @@ struct ProfileTabBar: View {
             ZStack(alignment: .bottom) {
               HStack(spacing: isSelected ? 7 : 0) {
                 Image(systemName: tab.systemImage)
-                  .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
+                  .font(.system(.title3, weight: isSelected ? .semibold : .regular))
 
                 if isSelected {
                   Text(tab.title)
@@ -56,6 +56,7 @@ struct ProfileTabBar: View {
         }
       }
       .frame(maxWidth: .infinity)
+      .padding(.horizontal, 16)
     }
     .frame(maxWidth: .infinity)
     .background(.background)
