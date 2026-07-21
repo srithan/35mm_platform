@@ -61,28 +61,48 @@ function PostGalleryImage({
 function SinglePostImageCell({
   url,
   blurhash,
+  dimensions,
   imageCaption,
   priority = false,
   onImageClick,
 }: {
   url: string;
   blurhash?: string | null;
+  dimensions?: { width: number; height: number } | null;
   imageCaption?: string;
   priority?: boolean;
   onImageClick?: () => void;
 }) {
-  const [layout, setLayout] = useState<SingleImageLayout>(null);
+  const hasStoredDimensions = Boolean(
+    dimensions && dimensions.width > 0 && dimensions.height > 0
+  );
+  const storedLayout = hasStoredDimensions && dimensions
+    ? resolveSingleImageLayout(dimensions.width, dimensions.height)
+    : null;
+  const [loadedLayout, setLoadedLayout] = useState<SingleImageLayout>(null);
 
   const handleLoad = useCallback(function (event: SyntheticEvent<HTMLImageElement>) {
     const img = event.currentTarget;
     const naturalWidth = img.naturalWidth;
     const naturalHeight = img.naturalHeight;
     if (naturalWidth <= 0 || naturalHeight <= 0) return;
-    setLayout(resolveSingleImageLayout(naturalWidth, naturalHeight));
-  }, []);
+    if (!hasStoredDimensions) {
+      setLoadedLayout(resolveSingleImageLayout(naturalWidth, naturalHeight));
+    }
+  }, [hasStoredDimensions]);
 
+  const layout = storedLayout ?? loadedLayout;
   const isCapped = layout === "capped";
   const isLoaded = layout !== null;
+  const stableStyle = hasStoredDimensions && dimensions
+    ? {
+        aspectRatio: `${dimensions.width} / ${dimensions.height}`,
+        width: "100%",
+        maxWidth: isCapped
+          ? `${(dimensions.width / dimensions.height) * SINGLE_IMAGE_MAX_HEIGHT}px`
+          : undefined,
+      }
+    : undefined;
 
   return (
     <button
@@ -90,35 +110,52 @@ function SinglePostImageCell({
       className={cn(
         "relative block max-w-full overflow-hidden rounded-xl p-0 text-left",
         !isLoaded && "aspect-[16/10] w-full bg-sunken",
-        isCapped && "w-fit bg-transparent",
-        layout === "intrinsic" && "w-full bg-sunken"
+        isCapped && !hasStoredDimensions && "w-fit bg-transparent",
+        layout === "intrinsic" && "w-full bg-sunken",
+        hasStoredDimensions && "bg-sunken"
       )}
+      style={stableStyle}
       onClick={function (e) {
         e.stopPropagation();
         onImageClick?.();
       }}
     >
-      <BlurImage
-        src={url}
-        alt={imageCaption || "Post image"}
-        blurhash={blurhash}
-        onLoad={handleLoad}
-        className={cn(
-          "rounded-xl transition-opacity hover:opacity-90",
-          isCapped
-            ? "block h-[510px] w-auto max-w-full"
-            : "block h-auto w-full"
-        )}
-        containerClassName={cn(
-          "relative leading-none",
-          isCapped ? "block w-fit max-w-full" : "block w-full",
-          !isLoaded && "h-full"
-        )}
-        placeholderClassName="rounded-xl"
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
-        draggable={false}
-      />
+      {hasStoredDimensions ? (
+        <BlurImage
+          src={url}
+          alt={imageCaption || "Post image"}
+          blurhash={blurhash}
+          onLoad={handleLoad}
+          className="absolute inset-0 h-full w-full rounded-xl object-cover transition-opacity hover:opacity-90"
+          containerClassName="absolute inset-0 leading-none"
+          placeholderClassName="rounded-xl"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+          draggable={false}
+        />
+      ) : (
+        <BlurImage
+          src={url}
+          alt={imageCaption || "Post image"}
+          blurhash={blurhash}
+          onLoad={handleLoad}
+          className={cn(
+            "rounded-xl transition-opacity hover:opacity-90",
+            isCapped
+              ? "block h-[510px] w-auto max-w-full"
+              : "block h-auto w-full"
+          )}
+          containerClassName={cn(
+            "relative leading-none",
+            isCapped ? "block w-fit max-w-full" : "block w-full",
+            !isLoaded && "h-full"
+          )}
+          placeholderClassName="rounded-xl"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+          draggable={false}
+        />
+      )}
     </button>
   );
 }
@@ -303,12 +340,14 @@ function PostImageCarousel({
 function PostImageGrid({
   urls,
   blurhashes,
+  dimensions,
   imageCaption,
   priority = false,
   onImageClick,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
+  dimensions?: Array<{ width: number; height: number } | null>;
   imageCaption?: string;
   priority?: boolean;
   onImageClick?: (index: number) => void;
@@ -321,6 +360,7 @@ function PostImageGrid({
         <SinglePostImageCell
           url={urls[0]}
           blurhash={blurhashes?.[0] ?? null}
+          dimensions={dimensions?.[0] ?? null}
           imageCaption={imageCaption}
           priority={priority}
           onImageClick={function () {
@@ -365,6 +405,7 @@ function PostImageGrid({
 export function PostImageGallery({
   urls,
   blurhashes,
+  dimensions,
   imageCaption,
   onImageClick,
   saveData = false,
@@ -372,6 +413,7 @@ export function PostImageGallery({
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
+  dimensions?: Array<{ width: number; height: number } | null>;
   imageCaption?: string;
   onImageClick?: (index: number) => void;
   saveData?: boolean;
@@ -394,6 +436,7 @@ export function PostImageGallery({
         <PostImageGrid
           urls={urls}
           blurhashes={blurhashes}
+          dimensions={dimensions}
           imageCaption={imageCaption}
           onImageClick={onImageClick}
           priority={priority}

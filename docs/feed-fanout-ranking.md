@@ -24,13 +24,14 @@ Before this work:
 New post/repost write flow:
 
 1. API creates the `posts` row.
-2. API writes only the author's own `feed_items` row synchronously when the post should enter feeds.
-3. API enqueues `feed.fanout` with `{ postId, authorUserId }`.
+2. API writes the author's own `feed_items` row and a unique `feed_fanout_outbox` intent in the same transaction when the post should enter feeds.
+3. API best-effort enqueues `feed.fanout` with `{ postId, authorUserId }`; direct enqueue is the latency path, not the durability boundary.
 4. Worker reads `profiles.follower_count` for the author.
 5. Worker skips private/deleted posts.
 6. Worker skips high-follower authors.
 7. Worker paginates accepted followers and inserts follower `feed_items` in chunks.
 8. Worker invalidates viewer feed caches for each written chunk.
+9. Successful worker completion deletes the durable outbox row. A repeatable `feed.fanout.outbox` relay claims due rows with `FOR UPDATE SKIP LOCKED` and re-enqueues unique recovery jobs after Redis outages.
 
 High-follower behavior:
 
@@ -150,8 +151,12 @@ Authenticated home feed cursor encodes:
 - `score`
 - `id`
 - `asOf`
+- the materialized-row retention anchor
+- an explicit cold-history phase marker
 
 `asOf` freezes formula-based score calculation across a pagination session, preventing live high-follower rows from drifting between page requests because of recency decay.
+
+When the last retained page has no additional hot row, the API runs one bounded existence probe against the viewer's direct post/follow graph. If history remains, the next cursor carries the cold marker and the following request reads directly from `posts`. This avoids ending pagination before older posts while keeping cold reads off normal hot-feed pages. An empty retained feed switches to the direct read in the same request.
 
 Ordering:
 
@@ -175,6 +180,7 @@ Materialized-only authenticated home feeds:
 - Use existing Redis feed page cache.
 - Cache key includes viewer, cursor, and limit.
 - Worker fanout/rescore invalidates touched viewer indexes.
+- API and worker share the versioned `FEED_CACHE_NAMESPACE`; cursor-semantic changes bump it so cached terminal pages cannot preserve obsolete `hasMore` results.
 
 High-follower live-merge feeds:
 
@@ -205,6 +211,7 @@ Migration behavior:
 Implemented or changed:
 
 - `feed.fanout`
+- `feed.fanout.outbox`
 - `feed.rescore`
 
 Existing Phase 1 counter job remains:
@@ -222,6 +229,10 @@ Queue name:
 ```env
 FEED_HIGH_FOLLOWER_THRESHOLD=10000
 FEED_FANOUT_BATCH_SIZE=500
+FEED_FANOUT_OUTBOX_BATCH_SIZE=100
+FEED_FANOUT_OUTBOX_INTERVAL_SECONDS=15
+FEED_FANOUT_OUTBOX_RETRY_BASE_MS=5000
+FEED_FANOUT_OUTBOX_RETRY_MAX_MS=300000
 FEED_RESCORE_MAX_AGE_HOURS=72
 FEED_RESCORE_BATCH_SIZE=500
 ```
@@ -287,6 +298,7 @@ Test coverage added:
 ## Operational Notes
 
 - `feed.fanout` job throughput scales by follower chunks, not one giant transaction.
+- Feed fanout intent is durable in Postgres. Redis/queue restoration triggers outbox recovery; missed historical ranges can be registered with `pnpm --filter @35mm/worker backfill:feed-fanout -- --from=<ISO> --to=<ISO> [--dry-run]`.
 - High-follower accounts avoid write amplification and shift cost to read-time live merge.
 - `feed.rescore` should run periodically after async counters settle.
 - Existing rows with null `feed_items.score` still rank through SQL fallback until rescored.

@@ -6,6 +6,10 @@ import {
   type CounterOutboxJobResult,
 } from "./jobs/counterIncrement.js";
 import { runFeedFanoutJob } from "./jobs/feedFanout.js";
+import {
+  completeFeedFanoutOutbox,
+  runFeedFanoutOutboxJob,
+} from "./jobs/feedFanoutOutbox.js";
 import { runFeedPruneFeedItemsJob } from "./jobs/feedPruneFeedItems.js";
 import { runFeedRescoreJob } from "./jobs/feedRescore.js";
 import { runListCloneJob } from "./jobs/listClone.js";
@@ -95,7 +99,23 @@ async function handleJob(job: Job, queue: Queue): Promise<unknown> {
   }
 
   if (job.name === "feed.fanout") {
-    return runFeedFanoutJob(job.data);
+    var fanoutResult = await runFeedFanoutJob(job.data);
+    await completeFeedFanoutOutbox(fanoutResult.postId);
+    return fanoutResult;
+  }
+
+  if (job.name === "feed.fanout.outbox") {
+    var fanoutOutboxResult = await runFeedFanoutOutboxJob(job.data, queue);
+    if (fanoutOutboxResult.followUp) {
+      await queue.add("feed.fanout.outbox", {}, {
+        jobId: "feed.fanout.outbox-followup-" + Date.now(),
+        attempts: 6,
+        backoff: { type: "exponential", delay: 1_000 },
+        removeOnComplete: true,
+        removeOnFail: 1000,
+      });
+    }
+    return fanoutOutboxResult;
   }
 
   if (job.name === "feed.rescore") {
@@ -238,6 +258,34 @@ async function main() {
     },
     removeOnComplete: true,
     removeOnFail: 500,
+  });
+
+  var fanoutOutboxIntervalSeconds = Number.isFinite(env.FEED_FANOUT_OUTBOX_INTERVAL_SECONDS)
+    ? Math.max(5, env.FEED_FANOUT_OUTBOX_INTERVAL_SECONDS)
+    : 15;
+  await schedulerQueue.add("feed.fanout.outbox", {}, {
+    jobId: "feed.fanout.outbox-repeat",
+    repeat: {
+      every: fanoutOutboxIntervalSeconds * 1_000,
+    },
+    attempts: 6,
+    backoff: {
+      type: "exponential",
+      delay: 1_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 1000,
+  });
+
+  await schedulerQueue.add("feed.fanout.outbox", {}, {
+    jobId: "feed.fanout.outbox-startup-" + Date.now(),
+    attempts: 6,
+    backoff: {
+      type: "exponential",
+      delay: 1_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 1000,
   });
 
   await schedulerQueue.add("feed.pruneFeedItems", {}, {

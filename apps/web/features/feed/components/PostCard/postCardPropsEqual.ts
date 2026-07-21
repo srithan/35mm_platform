@@ -92,6 +92,8 @@ function areMediaItemsEqual(
     if (!a || !b) return false;
     if (a.type !== b.type) return false;
     if (a.url !== b.url) return false;
+    if ((a.width ?? null) !== (b.width ?? null)) return false;
+    if ((a.height ?? null) !== (b.height ?? null)) return false;
     if ((a.blurhash ?? null) !== (b.blurhash ?? null)) return false;
     if ((a.variants?.thumb ?? null) !== (b.variants?.thumb ?? null)) return false;
     if ((a.variants?.feed ?? null) !== (b.variants?.feed ?? null)) return false;

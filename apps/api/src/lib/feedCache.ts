@@ -1,8 +1,9 @@
 import { getRedisClient } from "./redis.js";
+import { FEED_CACHE_NAMESPACE } from "@35mm/types";
 
 const FEED_CACHE_TTL_SECONDS = 60;
 const FEED_INDEX_TTL_SECONDS = 10 * 60;
-const CACHE_NS = "feed-cache:v4";
+const CACHE_NS = FEED_CACHE_NAMESPACE;
 const GUEST = "guest";
 
 export type FeedCachePayload = {

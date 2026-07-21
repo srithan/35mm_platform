@@ -9,6 +9,7 @@ export interface ResolvedPostMedia {
   videoUrls: string[];
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
+  imageDimensions: Array<{ width: number; height: number } | null>;
 }
 
 function isVideoUrl(url: string): boolean {
@@ -43,9 +44,15 @@ export function resolvePostMedia(
   });
 
   const displayMediaEntries = normalizedMediaUrls.map(function (url, index) {
+    const width = imageMedia[index]?.width;
+    const height = imageMedia[index]?.height;
     return {
       url,
       blurhash: galleryBlurhashes[index] ?? null,
+      dimensions:
+        typeof width === "number" && width > 0 && typeof height === "number" && height > 0
+          ? { width, height }
+          : null,
     };
   });
 
@@ -71,6 +78,9 @@ export function resolvePostMedia(
     }),
     imageBlurhashes: imageEntries.map(function (entry) {
       return entry.blurhash;
+    }),
+    imageDimensions: imageEntries.map(function (entry) {
+      return entry.dimensions;
     }),
   };
 }

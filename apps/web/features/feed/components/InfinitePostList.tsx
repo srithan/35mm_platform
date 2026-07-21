@@ -49,9 +49,7 @@ interface InfinitePostListProps {
 }
 const PREFETCH_MAX_PAGES = 3;
 const SCROLL_FAST_THRESHOLD_PX_PER_SEC = 1_300;
-const SCROLL_FAST_EXIT_THRESHOLD_PX_PER_SEC = 900;
 const SCROLL_RAPID_THRESHOLD_PX_PER_SEC = 2_400;
-const RAPID_SCROLL_EXIT_DELAY_MS = 700;
 
 export function InfinitePostList({
   username,
@@ -64,8 +62,6 @@ export function InfinitePostList({
   const { getToken, isLoaded: isAuthLoaded } = useAuth();
   const connection = useConnectionPreferences();
   const [scrollMargin, setScrollMargin] = useState(0);
-  const [isRapidScroll, setIsRapidScroll] = useState(false);
-  const rapidScrollExitTimerRef = useRef<number | null>(null);
   const virtualListStartRef = useRef<HTMLDivElement>(null);
   const {
     data,
@@ -265,18 +261,6 @@ export function InfinitePostList({
   }, [visiblePosts, connection.saveData]);
 
   useEffect(
-    function cleanupRapidScrollTimer() {
-      return function () {
-        if (rapidScrollExitTimerRef.current !== null) {
-          window.clearTimeout(rapidScrollExitTimerRef.current);
-          rapidScrollExitTimerRef.current = null;
-        }
-      };
-    },
-    []
-  );
-
-  useEffect(
     function () {
       if (!postTypes || postTypes.length === 0) return;
       if (status === "pending" || isLoading || isFetchingNextPage) return;
@@ -287,16 +271,13 @@ export function InfinitePostList({
     [postTypes, status, isLoading, isFetchingNextPage, hasNextPage, postCards.length, fetchNextPage]
   );
 
-  const virtualFeedEnabled = postCards.length > 50;
-
   useLayoutEffect(
     function () {
-      if (!virtualFeedEnabled) return;
       if (!virtualListStartRef.current) return;
       const top = virtualListStartRef.current.getBoundingClientRect().top + window.scrollY;
       setScrollMargin(top);
     },
-    [virtualFeedEnabled, postCards.length]
+    [postCards.length]
   );
 
   const rowVirtualizer = useWindowVirtualizer({
@@ -304,6 +285,7 @@ export function InfinitePostList({
     estimateSize: () => 560,
     overscan: 6,
     scrollMargin,
+    useAnimationFrameWithResizeObserver: true,
     getItemKey: function (index) {
       return postCards[index]?.postId ?? index;
     },
@@ -319,46 +301,35 @@ export function InfinitePostList({
   return (
     <div>
       <div ref={virtualListStartRef}>
-        {virtualFeedEnabled ? (
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            {rowVirtualizer.getVirtualItems().map(function (virtualRow) {
-              const post = postCards[virtualRow.index];
-              if (!post) return null;
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map(function (virtualRow) {
+            const post = postCards[virtualRow.index];
+            if (!post) return null;
 
-              return (
-                <div
-                  key={virtualRow.key}
-                  data-index={virtualRow.index}
-                  ref={rowVirtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                  }}
-                >
-                  <PostCard {...post} disableAnimation />
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          postCards.map(function (post) {
             return (
-              <PostCard
-                key={post.postId}
-                {...post}
-              />
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                }}
+              >
+                <PostCard {...post} disableAnimation />
+              </div>
             );
-          })
-        )}
+          })}
+        </div>
       </div>
 
       <InfiniteScrollTrigger
@@ -367,33 +338,7 @@ export function InfinitePostList({
         onLoadMore={handleLoadMore}
         onPrefetch={handlePrefetch}
         setPrefetchVelocity={function (velocity) {
-          const shouldEnableRapidMode = velocity >= SCROLL_FAST_THRESHOLD_PX_PER_SEC;
           prefetchScrollVelocityRef.current = velocity;
-          setIsRapidScroll(function (current) {
-            if (!current && shouldEnableRapidMode) {
-              if (rapidScrollExitTimerRef.current !== null) {
-                window.clearTimeout(rapidScrollExitTimerRef.current);
-                rapidScrollExitTimerRef.current = null;
-              }
-              return true;
-            }
-
-            if (current && velocity <= SCROLL_FAST_EXIT_THRESHOLD_PX_PER_SEC) {
-              if (rapidScrollExitTimerRef.current !== null) {
-                window.clearTimeout(rapidScrollExitTimerRef.current);
-              }
-              rapidScrollExitTimerRef.current = window.setTimeout(function () {
-                setIsRapidScroll(false);
-              }, RAPID_SCROLL_EXIT_DELAY_MS);
-              return true;
-            }
-
-            if (rapidScrollExitTimerRef.current !== null) {
-              window.clearTimeout(rapidScrollExitTimerRef.current);
-              rapidScrollExitTimerRef.current = null;
-            }
-            return current;
-          });
         }}
       />
     </div>

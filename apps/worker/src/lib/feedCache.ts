@@ -1,6 +1,7 @@
 import { resolveCacheRedisRestConfig } from "./redisConfig.js";
+import { FEED_CACHE_NAMESPACE } from "@35mm/types";
 
-const CACHE_NS = "feed-cache:v1";
+const CACHE_NS = FEED_CACHE_NAMESPACE;
 const FEED_INDEX_TTL_SECONDS = 10 * 60;
 
 type RedisClient = {

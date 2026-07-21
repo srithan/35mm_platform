@@ -13,6 +13,7 @@ export {
   feedItemsRetentionBoundary,
   parseFeedItemsRetentionDays,
 } from "./feedRetention.js";
+export { FEED_CACHE_NAMESPACE } from "./feedCacheNamespace.js";
 
 export type PostId = string;
 export type MessageId = string;

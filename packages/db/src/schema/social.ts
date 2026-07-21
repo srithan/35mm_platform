@@ -200,6 +200,49 @@ export var feedItems = pgTable(
   }
 );
 
+export var feedFanoutOutbox = pgTable(
+  "feed_fanout_outbox",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(function () {
+        return posts.id;
+      }, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(function () {
+        return users.id;
+      }, { onDelete: "cascade" }),
+    status: text("status").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  function (table) {
+    return {
+      postIdIdx: uniqueIndex("feed_fanout_outbox_post_id_idx").on(table.postId),
+      statusNextAttemptIdx: index("feed_fanout_outbox_status_next_attempt_created_id_idx").on(
+        table.status,
+        table.nextAttemptAt,
+        table.createdAt,
+        table.id
+      ),
+      statusCheck: check(
+        "feed_fanout_outbox_status_chk",
+        sql`${table.status} in ('pending', 'processing')`
+      ),
+      attemptsNonnegativeCheck: check(
+        "feed_fanout_outbox_attempts_nonnegative_chk",
+        sql`${table.attempts} >= 0`
+      ),
+    };
+  }
+);
+
 export var postEdits = pgTable(
   "post_edits",
   {

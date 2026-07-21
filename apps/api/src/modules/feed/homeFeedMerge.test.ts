@@ -10,6 +10,7 @@ import {
   composeRepostDisplayRow,
   mergeHomeFeedRows,
   rankHighFollowerAuthorCacheRows,
+  shouldProbeColdFeedContinuation,
   shouldUseColdFeedFallback,
 } from "./routes.js";
 import {
@@ -354,6 +355,42 @@ describe("feed retention config", function () {
       },
       retentionBoundary: boundary,
       rankingAsOf: now,
+    })).toBe(false);
+  });
+
+  it("honors an explicit cold-history handoff cursor", function () {
+    var now = new Date("2026-06-21T12:00:00.000Z");
+    var boundary = feedItemsRetentionBoundary(now, 30);
+
+    expect(shouldUseColdFeedFallback({
+      cursor: {
+        score: 10,
+        id: "10000000-0000-4000-8000-000000000001",
+        asOf: now,
+        retentionCreatedAt: new Date("2026-06-20T12:00:00.000Z"),
+        legacy: false,
+        cold: true,
+      },
+      retentionBoundary: boundary,
+      rankingAsOf: now,
+    })).toBe(true);
+  });
+
+  it("probes cold history only after the retained page is exhausted", function () {
+    expect(shouldProbeColdFeedContinuation({
+      respondingFromColdFeed: false,
+      hasMore: false,
+      hasTail: true,
+    })).toBe(true);
+    expect(shouldProbeColdFeedContinuation({
+      respondingFromColdFeed: false,
+      hasMore: true,
+      hasTail: true,
+    })).toBe(false);
+    expect(shouldProbeColdFeedContinuation({
+      respondingFromColdFeed: true,
+      hasMore: false,
+      hasTail: true,
     })).toBe(false);
   });
 

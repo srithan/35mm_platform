@@ -290,6 +290,7 @@ function PostCardComponent(props: PostCardProps) {
             videoUrls={resolvedMedia.videoUrls}
             imageUrls={resolvedMedia.imageUrls}
             imageBlurhashes={resolvedMedia.imageBlurhashes}
+            imageDimensions={resolvedMedia.imageDimensions}
             prioritizeImages={prioritizeMedia}
             imageCaption={imageCaption}
             poll={poll}

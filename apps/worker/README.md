@@ -32,6 +32,8 @@ Required env:
 - `ABLY_API_KEY` (required for realtime notification/chat publish)
 - `FEED_HIGH_FOLLOWER_THRESHOLD` (optional; default `10000`)
 - `FEED_FANOUT_BATCH_SIZE` (optional; default `500`, max `2000`)
+- `FEED_FANOUT_OUTBOX_BATCH_SIZE` (optional; default `100`, max `500`)
+- `FEED_FANOUT_OUTBOX_INTERVAL_SECONDS` (optional; default `15`)
 - `FEED_RESCORE_MAX_AGE_HOURS` (optional; default `72`)
 - `FEED_RESCORE_BATCH_SIZE` (optional; default `500`, max `2000`)
 
@@ -41,6 +43,7 @@ Current job handlers:
 
 - `media.process` (real): generate `thumb/feed/full` variants + blurhash
 - `feed.fanout` (real): chunked accepted-follower `feed_items` writes below high-follower threshold
+- `feed.fanout.outbox` (real): durable Postgres recovery relay for missed/failed Redis fanout enqueue
 - `feed.rescore` (real): periodic stale `feed_items.score` refresh from denormalized post counters, ordered by `score_refreshed_at`
 - `counter.increment` (real): batched denormalized counter deltas
 - `chat.deliver` (real): fallback/asynchronous publish for new chat messages and inbox badge updates when API direct publish fails or fanout is too large
@@ -81,6 +84,19 @@ Notes:
 - Cursor-based scan (`created_at desc, id desc`)
 - Idempotent: already-processed media rows skipped
 - `--dry-run` scans and reports candidates without writing changes
+
+## Feed fanout recovery
+
+Register feed-eligible posts from a known Redis outage window in the durable fanout outbox:
+
+```bash
+pnpm --filter @35mm/worker backfill:feed-fanout -- \
+  --from=2026-07-20T00:00:00Z \
+  --to=2026-07-21T00:00:00Z \
+  --dry-run
+```
+
+Remove `--dry-run` after reviewing candidate count. Optional `--limit=<n>` and `--batch-size=<n>` cap a run. Scan uses cursor `(posts.created_at, posts.id)` and inserts unique `feed_fanout_outbox(post_id)` rows; it never runs a posts-by-followers cross join. Run worker concurrently to drain registered work. Historical `public + postToFeed=false` requests cannot be distinguished because `postToFeed` was not persisted; normal web clients store unchecked posts as `private` and are excluded.
 
 ## Profile media backfill
 

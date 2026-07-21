@@ -51,6 +51,7 @@ import {
   notifications,
   profiles,
   feedItems,
+  feedFanoutOutbox,
   follows,
   postEdits,
   commentLikes,
@@ -117,6 +118,7 @@ import {
 
 const COMMENT_BODY_MAX_CHARS = 100000;
 const COMMENT_BODY_LENGTH_ERROR = `Comment body must be 1-${COMMENT_BODY_MAX_CHARS} characters`;
+const FEED_FANOUT_OUTBOX_GRACE_MS = 5 * 60 * 1000;
 
 export var feedRoutes = new Hono();
 
@@ -1788,6 +1790,7 @@ type FeedScoreCursor = {
   asOf: Date;
   retentionCreatedAt: Date | null;
   legacy: boolean;
+  cold?: boolean;
 };
 
 export type CachedHighFollowerAuthorRow = {
@@ -1870,6 +1873,7 @@ function encodeFeedScoreCursor(input: FeedScoreCursor): string {
     i: input.id,
     a: input.asOf.toISOString(),
     r: input.retentionCreatedAt ? input.retentionCreatedAt.toISOString() : null,
+    c: input.cold === true,
   });
   return Buffer.from(payload, "utf8").toString("base64");
 }
@@ -1879,7 +1883,7 @@ function decodeFeedScoreCursor(cursorValue: string | undefined): FeedScoreCursor
 
   try {
     var decoded = Buffer.from(cursorValue, "base64").toString("utf8");
-    var parsed = JSON.parse(decoded) as { s?: unknown; i?: unknown; a?: unknown };
+    var parsed = JSON.parse(decoded) as { s?: unknown; i?: unknown; a?: unknown; c?: unknown };
     var retentionCreatedAtRaw = (parsed as { r?: unknown }).r;
     var scoreRaw = parsed.s;
     var idRaw = parsed.i;
@@ -1907,6 +1911,7 @@ function decodeFeedScoreCursor(cursorValue: string | undefined): FeedScoreCursor
       asOf,
       retentionCreatedAt,
       legacy: !Object.prototype.hasOwnProperty.call(parsed, "r"),
+      cold: parsed.c === true,
     };
   } catch (_error) {
     throw badRequest("Invalid cursor");
@@ -1919,6 +1924,8 @@ export function shouldUseColdFeedFallback(input: {
   rankingAsOf: Date;
 }): boolean {
   if (!input.cursor) return false;
+
+  if (input.cursor.cold === true) return true;
 
   if (!input.cursor.legacy) {
     return input.cursor.retentionCreatedAt != null
@@ -1933,6 +1940,14 @@ export function shouldUseColdFeedFallback(input: {
     now: input.rankingAsOf,
   });
   return input.cursor.score <= boundaryScore;
+}
+
+export function shouldProbeColdFeedContinuation(input: {
+  respondingFromColdFeed: boolean;
+  hasMore: boolean;
+  hasTail: boolean;
+}): boolean {
+  return !input.respondingFromColdFeed && !input.hasMore && input.hasTail;
 }
 
 function feedItemsRetentionDays(): number {
@@ -2084,29 +2099,13 @@ async function selectLiveHomeFeedRows(input: {
 
   var db = getDb();
   var liveScore = feedScoreSql(input.rankingAsOf);
-  var authorFilter = input.authorIds
-    ? inArray(posts.userId, input.authorIds)
-    : sql<boolean>`(
-        ${posts.userId} = ${input.viewerUserId}
-        or exists (
-          select 1
-          from ${follows}
-          where ${follows.followerId} = ${input.viewerUserId}
-            and ${follows.followingId} = ${posts.userId}
-            and ${follows.status} = 'accepted'
-        )
-      )`;
-  var liveFilters: any[] = [
-    authorFilter,
-    eq(posts.isDeleted, false),
-    postModerationAccessSql(input.viewerUserId, input.viewerIsStaff),
-    postVisibilitySql(input.viewerUserId, input.viewerIsStaff),
-    profileAccessSql(input.viewerUserId, input.viewerIsStaff),
-    ...blockFiltersForAuthor(input.viewerUserId, posts.userId),
-    notMutedByViewerSql(input.viewerUserId, posts.userId),
-  ];
-  var liveCursorFilter = feedScoreCursorSql(liveScore, posts.id, input.scoreCursor);
-  if (liveCursorFilter) liveFilters.push(liveCursorFilter);
+  var liveFilters = liveHomeFeedFilters({
+    viewerUserId: input.viewerUserId,
+    viewerIsStaff: input.viewerIsStaff,
+    authorIds: input.authorIds,
+    scoreCursor: input.scoreCursor,
+    liveScore,
+  });
 
   return db
     .select({
@@ -2161,6 +2160,64 @@ async function selectLiveHomeFeedRows(input: {
     .where(and(...liveFilters))
     .orderBy(desc(liveScore), desc(posts.id))
     .limit(input.limit);
+}
+
+function liveHomeFeedFilters(input: {
+  viewerUserId: string;
+  viewerIsStaff: boolean;
+  authorIds: string[] | null;
+  scoreCursor: FeedScoreCursor | null;
+  liveScore: ReturnType<typeof feedScoreSql>;
+}): any[] {
+  var authorFilter = input.authorIds
+    ? inArray(posts.userId, input.authorIds)
+    : sql<boolean>`(
+        ${posts.userId} = ${input.viewerUserId}
+        or exists (
+          select 1
+          from ${follows}
+          where ${follows.followerId} = ${input.viewerUserId}
+            and ${follows.followingId} = ${posts.userId}
+            and ${follows.status} = 'accepted'
+        )
+      )`;
+  var liveFilters: any[] = [
+    authorFilter,
+    eq(posts.isDeleted, false),
+    postModerationAccessSql(input.viewerUserId, input.viewerIsStaff),
+    postVisibilitySql(input.viewerUserId, input.viewerIsStaff),
+    profileAccessSql(input.viewerUserId, input.viewerIsStaff),
+    ...blockFiltersForAuthor(input.viewerUserId, posts.userId),
+    notMutedByViewerSql(input.viewerUserId, posts.userId),
+  ];
+  var liveCursorFilter = feedScoreCursorSql(input.liveScore, posts.id, input.scoreCursor);
+  if (liveCursorFilter) liveFilters.push(liveCursorFilter);
+
+  return liveFilters;
+}
+
+async function hasLiveHomeFeedContinuation(input: {
+  viewerUserId: string;
+  viewerIsStaff: boolean;
+  scoreCursor: FeedScoreCursor;
+  rankingAsOf: Date;
+}): Promise<boolean> {
+  var liveScore = feedScoreSql(input.rankingAsOf);
+  var liveFilters = liveHomeFeedFilters({
+    viewerUserId: input.viewerUserId,
+    viewerIsStaff: input.viewerIsStaff,
+    authorIds: null,
+    scoreCursor: input.scoreCursor,
+    liveScore,
+  });
+  var rows = await getDb()
+    .select({ id: posts.id })
+    .from(posts)
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .where(and(...liveFilters))
+    .limit(1);
+
+  return rows.length > 0;
 }
 
 async function visibleHighFollowerAuthorIds(
@@ -2801,6 +2858,19 @@ feedRoutes.get("/", async function (c) {
       liveRows,
       parsed.limit + 1
     );
+    var respondingFromColdFeed = useColdFeedFallback;
+    if (!useColdFeedFallback && merged.rows.length === 0) {
+      liveRows = await selectLiveHomeFeedRows({
+        viewerUserId: viewer.userId,
+        viewerIsStaff,
+        authorIds: null,
+        scoreCursor,
+        rankingAsOf,
+        limit: parsed.limit + 1,
+      });
+      merged = mergeHomeFeedRows([], liveRows, parsed.limit + 1);
+      respondingFromColdFeed = true;
+    }
     var visibleRows = merged.rows.slice(0, parsed.limit);
     var visibleRowsWithInteractions = await applyViewerInteractionFlags(visibleRows, viewer.userId);
     var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRowsWithInteractions);
@@ -2821,11 +2891,32 @@ feedRoutes.get("/", async function (c) {
       );
     }));
 
-    var hasMore =
+    var baseHasMore =
       merged.rows.length > parsed.limit ||
       merged.hasMore ||
       visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
     var tail = visibleRows[visibleRows.length - 1];
+    var hasColdContinuation = false;
+    if (shouldProbeColdFeedContinuation({
+      respondingFromColdFeed,
+      hasMore: baseHasMore,
+      hasTail: Boolean(tail),
+    }) && tail) {
+      hasColdContinuation = await hasLiveHomeFeedContinuation({
+        viewerUserId: viewer.userId,
+        viewerIsStaff,
+        scoreCursor: {
+          score: tail.cursorScore,
+          id: tail.cursorId,
+          asOf: rankingAsOf,
+          retentionCreatedAt: tail.cursorRetentionCreatedAt,
+          legacy: false,
+          cold: true,
+        },
+        rankingAsOf,
+      });
+    }
+    var hasMore = baseHasMore || hasColdContinuation;
     var nextCursor = hasMore && tail
       ? encodeFeedScoreCursor({
           score: tail.cursorScore,
@@ -2833,6 +2924,7 @@ feedRoutes.get("/", async function (c) {
           asOf: rankingAsOf,
           retentionCreatedAt: tail.cursorRetentionCreatedAt,
           legacy: false,
+          cold: respondingFromColdFeed || hasColdContinuation,
         })
       : null;
     var payload = { items, nextCursor, hasMore };
@@ -3081,6 +3173,17 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         })
         .onConflictDoNothing({
           target: [feedItems.userId, feedItems.postId],
+        });
+
+      await tx
+        .insert(feedFanoutOutbox)
+        .values({
+          postId,
+          authorUserId: user.userId,
+          nextAttemptAt: new Date(Date.now() + FEED_FANOUT_OUTBOX_GRACE_MS),
+        })
+        .onConflictDoNothing({
+          target: feedFanoutOutbox.postId,
         });
     }
 
@@ -4186,6 +4289,17 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, postInteractionRateLimit,
         })
         .onConflictDoNothing({
           target: [feedItems.userId, feedItems.postId],
+        });
+
+      await tx
+        .insert(feedFanoutOutbox)
+        .values({
+          postId: repostPostId,
+          authorUserId: user.userId,
+          nextAttemptAt: new Date(Date.now() + FEED_FANOUT_OUTBOX_GRACE_MS),
+        })
+        .onConflictDoNothing({
+          target: feedFanoutOutbox.postId,
         });
     }
 

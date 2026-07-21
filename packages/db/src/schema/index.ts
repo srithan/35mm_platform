@@ -115,6 +115,7 @@ export {
   profileFollowApprovalOutbox,
   notificationTypeEnum,
   feedItems,
+  feedFanoutOutbox,
   postEdits,
   userBlocks,
   userMutes,

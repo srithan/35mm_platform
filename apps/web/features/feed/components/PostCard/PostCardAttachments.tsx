@@ -34,6 +34,7 @@ interface PostCardAttachmentsProps {
   videoUrls: string[];
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
+  imageDimensions?: Array<{ width: number; height: number } | null>;
   prioritizeImages?: boolean;
   imageCaption?: string;
   poll?: PostCardPoll | null;
@@ -67,6 +68,7 @@ export function PostCardAttachments({
   videoUrls,
   imageUrls,
   imageBlurhashes,
+  imageDimensions = [],
   prioritizeImages = false,
   imageCaption,
   poll,
@@ -133,6 +135,7 @@ export function PostCardAttachments({
           <PostImageGallery
             urls={imageUrls}
             blurhashes={imageBlurhashes}
+            dimensions={imageDimensions}
             priority={prioritizeImages}
             imageCaption={imageCaption}
             saveData={saveData}

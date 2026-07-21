@@ -435,6 +435,7 @@ Current Drizzle schema highlights:
 - `comments`: post/user/parent, body, like count, soft delete, edit timestamp. App code enforces nesting rules.
 - `notifications`: recipient, actor, actor ID bundle array, type, entity, read state, bundle count. Notification types include `follow_request_approved` for accepted private-account requests and `chat_reaction` for first-time message reaction adds.
 - `feed_items`: materialized feed rows for fanout/backfill.
+- `feed_fanout_outbox`: unique per-post durable fanout intent. Post/repost creation writes it transactionally; successful worker fanout deletes it, while a repeatable lock-safe relay re-enqueues stale work after Redis outages.
 - `post_edits`: post body/headline edit history.
 - `user_blocks`, `user_mutes`: moderation relationship tables.
 - `reports`: ULID-keyed user reports for post/comment/profile targets, including server-captured JSONB snapshots, reason/details, review status, and resolved-action linkage. Partial uniqueness enforces one unresolved report per reporter/content pair; grouping, queue, and per-reporter indexes are cursor-ready.
@@ -560,7 +561,7 @@ Business purpose: primary social timeline for film discussion, logs, reviews, me
 Frontend:
 
 - `PostComposer` creates posts with text/discussion/log modes, rich text, film selection, media, YouTube/link preview, polls, quote-source IDs, and editing support. TipTap `http`/`https` link marks pass the shared rich-text validator; create and edit submit the same bounded preview contract, and edit can replace or clear persisted `posts.link_preview`. Submit performs a final lookup if debounce has not completed, while lookup failures are surfaced without blocking the text post. Image previews use a shared image-first `LinkPreviewCard` with title overlay and quiet source line; missing-image previews retain a compact text treatment. YouTube/Vimeo metadata instead feeds one inline-playable `VideoUrlPreview`, including the fetched publisher title and image, preventing a second editorial card for the same video. Preview JSON also stores `presentation: card_only | url_and_card`. The authored URL remains in the canonical body, standalone URL lines default to card-only, inline URLs default to URL-plus-card, and the composer exposes a persistent author override for non-video link cards. Feed and quote renderers on web/iOS suppress only the matching URL for card-only posts; legacy rows default to URL-plus-card. The JSONB extension requires no migration or index.
-- `InfinitePostList` uses `useFeed`, React Query infinite pagination, prefetching, virtualization after larger list sizes, and memoized `PostCard`. Profile feed keys include `all | reposts`; Reposts sends `kind=reposts` so the server filters before cursor pagination.
+- `InfinitePostList` uses `useFeed`, React Query infinite pagination, velocity-aware prefetching, first-page-onward window virtualization, and memoized `PostCard`. Keeping one render strategy avoids a structural layout swap when loaded history crosses a row threshold. Profile feed keys include `all | reposts`; Reposts sends `kind=reposts` so the server filters before cursor pagination.
 - `PostCard` is `React.memo` with a custom prop comparator.
 - `CommentSection` loads and mutates comments under each post/detail.
 
@@ -585,12 +586,12 @@ How it works:
 - The shared web API client also uses `cache: "no-store"` for app API calls so browser cache cannot resurrect stale viewer-specific interaction state after likes/bookmarks.
 - Auth home feed reads materialized `feed_items` and merges live recent posts from followed high-follower accounts, ordered by score + post ID.
 - Feed score formula is `1000 * exp(-ageHours / 36) + 120 * ln(1 + likes + comments*3 + reposts*4)`, using denormalized post counters only.
-- Auth home feed cursors encode score, post ID, and ranking timestamp. Guest/profile/bookmark/comment feeds keep chronological cursors.
+- Auth home feed cursors encode score, post ID, ranking timestamp, retention anchor, and an explicit hot/cold phase. A bounded existence probe runs only when the retained page is exhausted; remaining direct history receives a cold cursor, while an empty retained feed falls through to the direct query in the same request. Guest/profile/bookmark/comment feeds keep chronological cursors.
 - High-follower live-merge auth feeds bypass Redis payload cache; materialized-only auth feeds still use targeted cache invalidation.
 - Posts reference canonical `films.id` through `film_id`.
 - Repost writes create an idempotent `post_reposts` fact plus a soft-deletable activity post used for fan-out/ranking/profile pagination. Read paths batch-load all original posts for the page by primary key, return original post identity/content/author/counters/interactions, then collapse normalized duplicates in one O(page-size) map. Nullable `repostContext` exposes at most two named `users`, denormalized `totalCount`, and original-row provenance; web and iOS render “You reposted” when the current viewer is a reposter, otherwise “x reposted”, “x and y reposted”, or “x, y and n others reposted” above one original card, and perform the same bounded deduplication across loaded cursor pages. No new query or index is required.
 - Web feed post previews truncate only beyond a word-safe 400-grapheme content limit, producing the same cutoff on every viewport and leaving detail views complete. `Intl.Segmenter` keeps multi-code-point emoji intact, with a code-point fallback for older runtimes. This replaces per-card hidden DOM measurement and `ResizeObserver` work; comment cards keep their independent expandable line clamp.
-- Quote creation persists a server-authorized canonical `quoted_post_id`. Feed/detail/profile/bookmark reads expose a bounded, non-recursive `quotedPost` preview with original identity, rich text, media, film, link preview, and poll; web `PostCardQuoteEmbed` and native `QuotedPostCard` render that source below quote commentary. Missing/deleted/inaccessible sources become `quotedPostUnavailable` tombstones. Repost and quote sources share one batched primary-key query plus batched rich-mention/poll hydration. Feed cache moderation filtering tombstones newly hidden quote sources and removes hidden identities from aggregated repost proof while preserving a separately visible original. The response-cache namespace is `feed-cache:v4`.
+- Quote creation persists a server-authorized canonical `quoted_post_id`. Feed/detail/profile/bookmark reads expose a bounded, non-recursive `quotedPost` preview with original identity, rich text, media, film, link preview, and poll; web `PostCardQuoteEmbed` and native `QuotedPostCard` render that source below quote commentary. Missing/deleted/inaccessible sources become `quotedPostUnavailable` tombstones. Repost and quote sources share one batched primary-key query plus batched rich-mention/poll hydration. Feed cache moderation filtering tombstones newly hidden quote sources and removes hidden identities from aggregated repost proof while preserving a separately visible original. API and worker import shared `FEED_CACHE_NAMESPACE` (`feed-cache:v5`) so worker invalidation targets current response keys.
 - API hydrates film, poll, viewer action flags, media variant URLs, author fields, and moderation state into feed payloads.
 - Like/repost/comment/bookmark actions create notifications where appropriate.
 
@@ -598,6 +599,8 @@ Known gaps:
 
 - Post like/comment/repost/bookmark counters, comment likes, poll vote counters, profile films/post/follower/following counters, and film list like/entry counters are async via `counter.increment`. `profiles.post_count` counts non-deleted authored posts and is updated transactionally through durable counter-outbox deltas on post/repost create/delete.
 - `feed.fanout` reads `profiles.follower_count` and materializes new posts into followers' `feed_items` below `FEED_HIGH_FOLLOWER_THRESHOLD` (default `10000`) in cursor-paginated batches (`FEED_FANOUT_BATCH_SIZE`, default `500`).
+- Feed-eligible post/repost writes also insert `feed_fanout_outbox` in the same transaction with a five-minute normal-job grace period. Direct BullMQ enqueue remains the latency path; `feed.fanout.outbox` claims due Postgres rows with `FOR UPDATE SKIP LOCKED` every 15 seconds and emits unique recovery jobs. Successful fanout deletes the outbox row, so Redis absence cannot silently lose follower materialization.
+- Operator repair command: `pnpm --filter @35mm/worker backfill:feed-fanout -- --from=<ISO> --to=<ISO> [--dry-run]`. Scan and inserts are bounded/idempotent; no posts-by-followers cross join runs in the script.
 - High-follower authors skip write fanout; home feed pulls their recent posts live and interleaves by score + post ID.
 - Follow creation backfills recent posts into `feed_items` for normal public accounts, but skips high-follower accounts because live merge handles them.
 - `feed_items.score` is populated on feed row writes/backfills/fanout and refreshed later by `feed.rescore`; `feed_items.score_refreshed_at` lets the worker process least-fresh retained rows first so time-decayed scores do not stay pinned at write-time values.
@@ -914,6 +917,7 @@ Implemented or partially implemented:
 - `catalog.index.outbox`: implemented as the durable catalog index relay from Postgres outbox to BullMQ; also samples `catalog.pending_queue_depth` outside the mutation path.
 - `catalog.index`: implemented as a BullMQ handler with explicit unconfigured-search logging; real Meilisearch writes remain unwired.
 - `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.
+- `feed.fanout.outbox`: implemented durable Postgres relay for direct fanout enqueue failures, with stale-lock recovery, capped exponential retry, unique recovery job IDs, and bounded backlog follow-ups.
 - `feed.rescore`: implemented periodic pass for stale materialized feed rows; recomputes score from post denormalized counters, refreshes `score_refreshed_at`, and invalidates touched viewer caches.
 - `chat.deliver`: implemented for new-message and inbox realtime publish.
 - `chat.messageUpdated`: implemented for message edit/delete/reaction realtime publish.
@@ -933,6 +937,7 @@ Important operational detail:
 - Chat Keyspaces needs `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `KEYSPACES_ENDPOINT`; AWS Keyspaces Cassandra driver traffic uses SigV4 auth on port 9142. Pool/timeout knobs: `KEYSPACES_CORE_CONNECTIONS`, `KEYSPACES_MAX_REQUESTS_PER_CONNECTION`, `KEYSPACES_CONNECT_TIMEOUT_MS`, `KEYSPACES_DEFAULT_TIMEOUT_MS`, `KEYSPACES_READ_TIMEOUT_MS`, `KEYSPACES_WRITE_TIMEOUT_MS`, `KEYSPACES_HEARTBEAT_MS`.
 - iOS local config lives in `apps/ios/ThirtyFiveMM.xcconfig`: `API_BASE_URL`, `CLERK_PUBLISHABLE_KEY`, and optional `ABLY_API_KEY`.
 - Feed fanout config: `FEED_HIGH_FOLLOWER_THRESHOLD` default `10000`; `FEED_FANOUT_BATCH_SIZE` default `500`, worker cap `2000`.
+- Fanout outbox config: `FEED_FANOUT_OUTBOX_BATCH_SIZE` default `100`, cap `500`; `FEED_FANOUT_OUTBOX_INTERVAL_SECONDS` default `15`; relay failures use `FEED_FANOUT_OUTBOX_RETRY_BASE_MS` default `5000` and `FEED_FANOUT_OUTBOX_RETRY_MAX_MS` default `300000`.
 - Feed rescore config: `FEED_RESCORE_STALE_AFTER_MINUTES` default `60`; `FEED_RESCORE_INTERVAL_MINUTES` default `5`; `FEED_RESCORE_BATCH_SIZE` default `500`, worker cap `2000`. The worker schedules it on boot instead of recomputing scores on every read.
 - Counter reconciliation safety net: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<posts|comments|post_polls|poll_options|film_lists|profiles|all> --id=<optional-id>`.
 - `COUNTER_BATCH_WINDOW_MS` can tune worker counter coalescing; default is 50ms.
@@ -942,7 +947,7 @@ Important operational detail:
 
 Caching:
 
-- Feed cache namespace: `feed-cache:v4`.
+- Feed cache namespace: `feed-cache:v5`.
 - Home feed key includes viewer, cursor, limit.
 - Profile feed key includes username, viewer, feed kind, cursor, limit.
 - Index sets track cache keys by viewer and author for targeted invalidation.
@@ -961,7 +966,7 @@ Rate limits:
 Frontend performance:
 
 - `PostCard` is memoized.
-- Feed uses infinite queries and virtualization for larger lists.
+- Feed uses infinite queries and window virtualization from the first loaded page. Stored media width/height reserves single-image card geometry before decode, so virtual remounts do not repeat placeholder-to-intrinsic height shifts; metadata-free legacy rows keep a bounded fallback ratio. ResizeObserver measurements are animation-frame batched. This adds no API, database, cache, worker, schema, or index.
 - Heavy UI such as emoji picker, GIF picker, and film search are dynamically imported in relevant code.
 - R2 image helpers choose connection-aware variants for post media and normalize profile media URLs.
 - Service worker caches navigation/static/image assets and R2 media assets, not cross-origin API responses.

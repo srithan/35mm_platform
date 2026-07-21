@@ -32,6 +32,7 @@ export declare function loadWorkerEnv(): {
     MEDIA_BACKFILL_BATCH_SIZE: number;
     FEED_HIGH_FOLLOWER_THRESHOLD: number;
     FEED_FANOUT_BATCH_SIZE: number;
+    FEED_FANOUT_OUTBOX_INTERVAL_SECONDS: number;
     FEED_RESCORE_MAX_AGE_HOURS: number;
     FEED_RESCORE_STALE_AFTER_MINUTES: number;
     FEED_RESCORE_BATCH_SIZE: number;

@@ -21,6 +21,8 @@ erDiagram
   users ||--o{ notifications : actor
   users ||--o{ feed_items : owns
   posts ||--o{ feed_items : materialized_into
+  users ||--o{ feed_fanout_outbox : authors
+  posts ||--o| feed_fanout_outbox : queues
   posts ||--o{ post_edits : history
   users ||--o{ film_lists : owns
   film_lists ||--o{ film_list_entries : contains
