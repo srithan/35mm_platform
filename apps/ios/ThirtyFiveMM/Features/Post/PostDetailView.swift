@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PostDetailView: View {
+  @Environment(\.theme) private var theme
   let post: FeedPost
   private let apiClient: APIClient?
 
@@ -21,6 +22,7 @@ struct PostDetailView: View {
 }
 
 private struct EnvironmentPostDetailContent: View {
+  @Environment(\.theme) private var theme
   @EnvironmentObject private var env: AppEnvironment
   let post: FeedPost
 
@@ -30,6 +32,7 @@ private struct EnvironmentPostDetailContent: View {
 }
 
 private struct PostDetailContent: View {
+  @Environment(\.theme) private var theme
   @StateObject private var viewModel: PostDetailViewModel
   @State private var commentText = ""
   @State private var isCommentComposerExpanded = false
@@ -48,7 +51,7 @@ private struct PostDetailContent: View {
 
           Text("\(viewModel.post.commentCount) comments")
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
 
@@ -134,7 +137,7 @@ private struct PostDetailContent: View {
       if viewModel.commentTree.isEmpty && !viewModel.isLoadingComments {
         Text("No comments yet")
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .frame(maxWidth: .infinity)
           .padding(.vertical, 32)
       }
@@ -162,6 +165,7 @@ private struct PostDetailContent: View {
 }
 
 private struct CommentLoadErrorView: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -169,7 +173,7 @@ private struct CommentLoadErrorView: View {
     VStack(spacing: 12) {
       Text(message)
         .font(.callout)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
 
       Button("Retry", action: retry)
@@ -181,6 +185,7 @@ private struct CommentLoadErrorView: View {
 }
 
 private struct PostDetailErrorBanner: View {
+  @Environment(\.theme) private var theme
   let message: String
   let dismiss: () -> Void
 
@@ -191,7 +196,7 @@ private struct PostDetailErrorBanner: View {
 
       Text(message)
         .font(.footnote)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(2)
 
       Spacer(minLength: 8)
@@ -201,7 +206,7 @@ private struct PostDetailErrorBanner: View {
           .font(.caption.weight(.bold))
       }
       .buttonStyle(.plain)
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)

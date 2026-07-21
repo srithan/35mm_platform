@@ -47,6 +47,7 @@
 		A00000000000000000000026 /* CommentNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000027 /* CommentNode.swift */; };
 		A00000000000000000000027 /* PostInteracting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000028 /* PostInteracting.swift */; };
 		A0DE51600000000000000001 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE51600000000000000001 /* DesignSystem.swift */; };
+		A0DE51600000000000000002 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE51600000000000000002 /* Theme.swift */; };
 		A00000000000000000000028 /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000029 /* PostDetailView.swift */; };
 		A00000000000000000000029 /* PostDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002A /* PostDetailViewModel.swift */; };
 		A0000000000000000000002A /* CommentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002B /* CommentRow.swift */; };
@@ -216,6 +217,7 @@
 		B00000000000000000000027 /* CommentNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentNode.swift; sourceTree = "<group>"; };
 		B00000000000000000000028 /* PostInteracting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostInteracting.swift; sourceTree = "<group>"; };
 		B0DE51600000000000000001 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		B0DE51600000000000000002 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		B00000000000000000000029 /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
 		B0000000000000000000002A /* PostDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailViewModel.swift; sourceTree = "<group>"; };
 		B0000000000000000000002B /* CommentRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentRow.swift; sourceTree = "<group>"; };
@@ -399,6 +401,7 @@
 				B00000000000000000000028 /* PostInteracting.swift */,
 				B00000000000000000000030 /* BottomActionSheet.swift */,
 				B0DE51600000000000000001 /* DesignSystem.swift */,
+				B0DE51600000000000000002 /* Theme.swift */,
 				D50000000000000000000001 /* ShareModal.swift */,
 				D60000000000000000000001 /* ImageViewerView.swift */,
 			);
@@ -860,6 +863,7 @@
 				A00000000000000000000026 /* CommentNode.swift in Sources */,
 				A00000000000000000000027 /* PostInteracting.swift in Sources */,
 				A0DE51600000000000000001 /* DesignSystem.swift in Sources */,
+				A0DE51600000000000000002 /* Theme.swift in Sources */,
 				A00000000000000000000028 /* PostDetailView.swift in Sources */,
 				A00000000000000000000029 /* PostDetailViewModel.swift in Sources */,
 				A0000000000000000000002A /* CommentRow.swift in Sources */,

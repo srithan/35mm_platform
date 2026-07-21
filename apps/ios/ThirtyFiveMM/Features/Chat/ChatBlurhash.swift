@@ -140,6 +140,7 @@ enum ChatBlurhash {
 }
 
 struct ChatBlurhashPlaceholder: View {
+  @Environment(\.theme) private var theme
   let blurhash: String?
 
   var body: some View {
@@ -151,7 +152,7 @@ struct ChatBlurhashPlaceholder: View {
           .blur(radius: 10)
       } else {
         Rectangle()
-          .fill(Color(.systemGray5))
+          .fill(theme.fillStrong)
       }
     }
   }

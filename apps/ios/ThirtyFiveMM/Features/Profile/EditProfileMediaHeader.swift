@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct EditProfileMediaHeader: View {
+  @Environment(\.theme) private var theme
   let profile: PublicProfile
   let uploadingKind: ProfileMutation.MediaKind?
   let uploadProgress: Double
@@ -46,10 +47,10 @@ struct EditProfileMediaHeader: View {
             .lineLimit(1)
           Text("@\(profile.username)")
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
           Text(uploadingKind == nil ? "Tap a photo to update" : "Uploading…")
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
 
         Spacer()

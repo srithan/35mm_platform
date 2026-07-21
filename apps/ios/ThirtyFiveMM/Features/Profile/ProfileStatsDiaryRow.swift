@@ -2,13 +2,14 @@ import Kingfisher
 import SwiftUI
 
 struct ProfileStatsDiaryRow: View {
+  @Environment(\.theme) private var theme
   let entry: ProfileStatsSummary.DiaryEntry
 
   var body: some View {
     HStack(spacing: 12) {
       KFImage(URL(string: entry.film.posterUrl ?? ""))
         .placeholder {
-          Rectangle().fill(Color(.tertiarySystemFill))
+          Rectangle().fill(theme.fill)
         }
         .resizable()
         .scaledToFill()
@@ -22,7 +23,7 @@ struct ProfileStatsDiaryRow: View {
           .lineLimit(2)
         Text(entry.createdAt, format: .dateTime.month(.abbreviated).day())
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
       }
 
       Spacer()

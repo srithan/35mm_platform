@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarkMoveRow: View {
+  @Environment(\.theme) private var theme
   let title: String
   let subtitle: String
   let systemImage: String
@@ -19,7 +20,7 @@ struct BookmarkMoveRow: View {
             .font(.body.bold())
           Text(subtitle)
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
 
         Spacer()
@@ -30,7 +31,7 @@ struct BookmarkMoveRow: View {
             .accessibilityLabel("Selected")
         }
       }
-      .foregroundStyle(.primary)
+      .foregroundStyle(theme.text)
       .padding(.vertical, 4)
     }
   }

@@ -110,6 +110,7 @@ final class DiscoverViewModel: ObservableObject {
 }
 
 struct DiscoverView: View {
+  @Environment(\.theme) private var theme
   @StateObject private var viewModel: DiscoverViewModel
   @State private var searchTask: Task<Void, Never>?
   private let apiClient: APIClient
@@ -128,7 +129,7 @@ struct DiscoverView: View {
       }
       .padding(.bottom, 40)
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .navigationTitle("Discover")
     .navigationBarTitleDisplayMode(.inline)
     .searchable(
@@ -149,13 +150,13 @@ struct DiscoverView: View {
       Text("THIS WEEK'S PROGRAM")
         .font(.caption2.weight(.bold))
         .tracking(1.8)
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(theme.accent)
       Text("Discover")
         .font(.system(.largeTitle, design: .serif, weight: .bold))
         .accessibilityAddTraits(.isHeader)
       Text("Curated by your circle, current releases, and catalog paths that still need a permanent 35mm home.")
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .fixedSize(horizontal: false, vertical: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -177,7 +178,7 @@ struct DiscoverView: View {
               .padding(.horizontal, 16)
               .frame(minHeight: 40)
               .background(
-                viewModel.selectedTab == tab ? Color.primary : Color(.secondarySystemBackground),
+                viewModel.selectedTab == tab ? Color.primary : theme.bgSunken,
                 in: Capsule()
               )
           }
@@ -381,6 +382,7 @@ struct DiscoverView: View {
 }
 
 private struct DiscoverTitleLink<Label: View>: View {
+  @Environment(\.theme) private var theme
   let title: TMDBDiscoverTitle
   let apiClient: APIClient
   @ViewBuilder let label: () -> Label
@@ -396,6 +398,7 @@ private struct DiscoverTitleLink<Label: View>: View {
 }
 
 private struct DiscoverTitleResolverView: View {
+  @Environment(\.theme) private var theme
   let title: TMDBDiscoverTitle
   let apiClient: APIClient
   @State private var catalogTitle: CatalogTitle?
@@ -451,6 +454,7 @@ private struct DiscoverTitleResolverView: View {
 }
 
 private struct DiscoverHeroCard: View {
+  @Environment(\.theme) private var theme
   let title: TMDBDiscoverTitle
   let label: String
 
@@ -470,10 +474,10 @@ private struct DiscoverHeroCard: View {
         Text(label.uppercased())
           .font(.caption2.weight(.bold))
           .tracking(1.4)
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(theme.accent)
         Text(title.displayTitle)
           .font(.system(.title, design: .serif, weight: .bold))
-          .foregroundStyle(Color(.systemBackground))
+          .foregroundStyle(theme.bg)
           .lineLimit(2)
         Text([title.yearText, title.resolvedMediaType == "tv" ? "Series" : nil]
           .compactMap { $0 }.joined(separator: " · "))
@@ -495,6 +499,7 @@ private struct DiscoverHeroCard: View {
 }
 
 private struct DiscoverFilmShelf: View {
+  @Environment(\.theme) private var theme
   var eyebrow: String?
   let title: String
   var subtitle: String?
@@ -509,13 +514,13 @@ private struct DiscoverFilmShelf: View {
             Text(eyebrow)
               .font(.caption2.weight(.bold))
               .tracking(1.4)
-              .foregroundStyle(Color.accentColor)
+              .foregroundStyle(theme.accent)
           }
           Text(title)
             .font(.system(.title2, design: .serif, weight: .bold))
             .accessibilityAddTraits(.isHeader)
           if let subtitle {
-            Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            Text(subtitle).font(.caption).foregroundStyle(theme.textSecondary)
           }
         }
         .padding(.horizontal, 20)
@@ -537,6 +542,7 @@ private struct DiscoverFilmShelf: View {
 }
 
 private struct DiscoverStreamingShelf: View {
+  @Environment(\.theme) private var theme
   let titles: [TMDBDiscoverTitle]
   let selectedProviderID: Int?
   let apiClient: APIClient
@@ -593,6 +599,7 @@ private struct DiscoverStreamingShelf: View {
 }
 
 private struct DiscoverRankedShelf: View {
+  @Environment(\.theme) private var theme
   let titles: [TMDBDiscoverTitle]
   let apiClient: APIClient
 
@@ -602,7 +609,7 @@ private struct DiscoverRankedShelf: View {
         Text("CATALOG RANKED")
           .font(.caption2.weight(.bold))
           .tracking(1.5)
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(theme.accent)
         Text("Top rated right now")
           .font(.system(.title, design: .serif, weight: .bold))
           .foregroundStyle(.white)
@@ -612,7 +619,7 @@ private struct DiscoverRankedShelf: View {
             HStack(spacing: 13) {
               Text(String(index + 1).paddingLeft(toLength: 2, withPad: "0"))
                 .font(.system(.title2, design: .serif, weight: .bold))
-                .foregroundStyle(Color(.systemBackground).opacity(0.32))
+                .foregroundStyle(theme.bg.opacity(0.32))
                 .frame(width: 38)
               CatalogImage(url: title.posterURL, contentMode: .fill)
                 .frame(width: 42, height: 62)
@@ -620,30 +627,31 @@ private struct DiscoverRankedShelf: View {
               VStack(alignment: .leading, spacing: 4) {
                 Text(title.displayTitle)
                   .font(.subheadline.weight(.semibold))
-                  .foregroundStyle(Color(.systemBackground))
+                  .foregroundStyle(theme.bg)
                   .lineLimit(1)
                 Text([title.yearText, "★ " + title.starRating.formatted(.number.precision(.fractionLength(1)))]
                   .compactMap { $0 }.joined(separator: " · "))
                   .font(.caption)
-                  .foregroundStyle(Color(.systemBackground).opacity(0.58))
+                  .foregroundStyle(theme.bg.opacity(0.58))
               }
               Spacer()
             }
             .padding(.vertical, 6)
             .overlay(alignment: .bottom) {
-              Divider().overlay(Color(.systemBackground).opacity(0.1))
+              Divider().overlay(theme.bg.opacity(0.1))
             }
           }
         }
       }
       .padding(20)
-      .background(Color(.label), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+      .background(theme.text, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
       .padding(.horizontal, 20)
     }
   }
 }
 
 private struct DiscoverMoodShelves: View {
+  @Environment(\.theme) private var theme
   let titles: [TMDBDiscoverTitle]
   let apiClient: APIClient
 
@@ -670,6 +678,7 @@ private struct DiscoverMoodShelves: View {
 }
 
 private struct DiscoverPosterGrid: View {
+  @Environment(\.theme) private var theme
   let title: String
   let titles: [TMDBDiscoverTitle]
   let apiClient: APIClient
@@ -697,6 +706,7 @@ private struct DiscoverPosterGrid: View {
 }
 
 private struct DiscoverPosterCard: View {
+  @Environment(\.theme) private var theme
   let title: TMDBDiscoverTitle
   var badge: String?
 
@@ -717,12 +727,12 @@ private struct DiscoverPosterCard: View {
         }
       Text(title.displayTitle)
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(2)
       Text([title.yearText, title.resolvedMediaType == "tv" ? "Series" : nil]
         .compactMap { $0 }.joined(separator: " · "))
         .font(.caption2)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
     }
     .accessibilityElement(children: .combine)
@@ -731,6 +741,7 @@ private struct DiscoverPosterCard: View {
 }
 
 private struct SprocketDivider: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     HStack(spacing: 16) {
       ForEach(0..<14, id: \.self) { _ in
@@ -744,6 +755,7 @@ private struct SprocketDivider: View {
 }
 
 private struct TicketDivider: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     Divider()
       .overlay(Color.primary.opacity(0.12))
@@ -754,20 +766,21 @@ private struct TicketDivider: View {
 }
 
 private struct DiscoverPageSkeleton: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     VStack(alignment: .leading, spacing: 28) {
       RoundedRectangle(cornerRadius: 18)
-        .fill(Color(.secondarySystemBackground))
+        .fill(theme.bgSunken)
         .frame(height: 330)
       ForEach(0..<3, id: \.self) { _ in
         VStack(alignment: .leading, spacing: 12) {
           RoundedRectangle(cornerRadius: 4)
-            .fill(Color(.secondarySystemBackground))
+            .fill(theme.bgSunken)
             .frame(width: 190, height: 24)
           HStack(spacing: 14) {
             ForEach(0..<3, id: \.self) { _ in
               RoundedRectangle(cornerRadius: 7)
-                .fill(Color(.secondarySystemBackground))
+                .fill(theme.bgSunken)
                 .frame(width: 112, height: 168)
             }
           }
@@ -781,27 +794,29 @@ private struct DiscoverPageSkeleton: View {
 }
 
 private struct DiscoverErrorBanner: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
       Image(systemName: "wifi.exclamationmark")
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(theme.accent)
       Text(message)
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .frame(maxWidth: .infinity, alignment: .leading)
       Button("Retry", action: retry)
         .font(.caption.weight(.semibold))
     }
     .padding(12)
-    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+    .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 10))
     .accessibilityElement(children: .combine)
   }
 }
 
 struct CatalogImage: View {
+  @Environment(\.theme) private var theme
   let url: String?
   var contentMode: SwiftUI.ContentMode = .fill
 
@@ -809,10 +824,10 @@ struct CatalogImage: View {
     KFImage(url.flatMap(URL.init(string:)))
       .placeholder {
         ZStack {
-          Color(.secondarySystemBackground)
+          theme.bgSunken
           Image(systemName: "film")
             .font(.title3)
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(theme.textTertiary)
         }
       }
       .retry(maxCount: 2, interval: .seconds(1))
@@ -824,6 +839,7 @@ struct CatalogImage: View {
 }
 
 struct CatalogLoadState: View {
+  @Environment(\.theme) private var theme
   let systemImage: String
   let title: String
   let message: String

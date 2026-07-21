@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CommentInputBar: View {
+  @Environment(\.theme) private var theme
   @Binding var text: String
   @Binding var isExpanded: Bool
   let replyingTo: Comment?
@@ -46,17 +47,17 @@ struct CommentInputBar: View {
           .resizable()
           .scaledToFit()
           .frame(width: 40, height: 40)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
 
         Text("Post your reply…")
           .font(.subheadline.weight(.medium))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
 
         Spacer(minLength: 8)
 
         Image(systemName: "arrowshape.turn.up.left.fill")
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.systemBackground))
+          .foregroundStyle(theme.bg)
           .frame(width: 32, height: 32)
           .background(Color.primary, in: Circle())
       }
@@ -64,7 +65,7 @@ struct CommentInputBar: View {
       .padding(.trailing, 12)
       .padding(.vertical, 10)
       .background(
-        Color(.secondarySystemBackground).opacity(0.6),
+        theme.bgSunken.opacity(0.6),
         in: RoundedRectangle(cornerRadius: 16)
       )
       .overlay {
@@ -86,7 +87,7 @@ struct CommentInputBar: View {
           .resizable()
           .scaledToFit()
           .frame(width: 40, height: 40)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
 
         Capsule()
           .fill(Color.secondary.opacity(0.25))
@@ -116,20 +117,20 @@ struct CommentInputBar: View {
 
             Button("Cancel", action: onCancel)
               .font(.subheadline.weight(.medium))
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
               .frame(minHeight: 44)
 
             Button(action: submitIfPossible) {
               Group {
                 if isPosting {
                   ProgressView()
-                    .tint(Color(.systemBackground))
+                    .tint(theme.bg)
                 } else {
                   Text("Reply")
                 }
               }
               .font(.subheadline.weight(.semibold))
-              .foregroundStyle(Color(.systemBackground))
+              .foregroundStyle(theme.bg)
               .frame(minWidth: 72, minHeight: 36)
               .background(isSendDisabled ? Color.secondary : Color.primary, in: Capsule())
             }
@@ -137,9 +138,9 @@ struct CommentInputBar: View {
           }
           .padding(.horizontal, 10)
           .padding(.vertical, 4)
-          .background(Color(.secondarySystemBackground).opacity(0.55))
+          .background(theme.bgSunken.opacity(0.55))
         }
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(theme.bg, in: RoundedRectangle(cornerRadius: 12))
         .overlay {
           RoundedRectangle(cornerRadius: 12)
             .stroke(Color.secondary.opacity(0.25))
@@ -155,20 +156,20 @@ struct CommentInputBar: View {
         .font(.caption.weight(.semibold))
         .foregroundStyle(.white)
         .frame(width: 28, height: 28)
-        .background(Color.accentColor, in: Circle())
+        .background(theme.accent, in: Circle())
 
       Text("Replying to")
         .font(.caption.weight(.medium))
 
       Text("@\(replyTarget.username)")
         .font(.caption.weight(.semibold))
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(theme.accent)
         .lineLimit(1)
 
       if let displayName = replyTarget.displayName, !displayName.isEmpty {
         Text("· \(displayName)")
           .font(.caption)
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(theme.textTertiary)
           .lineLimit(1)
       }
     }

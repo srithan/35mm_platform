@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarkPostRow: View {
+  @Environment(\.theme) private var theme
   let post: FeedPost
   let folderName: String?
   let interactor: any PostInteracting
@@ -15,7 +16,7 @@ struct BookmarkPostRow: View {
       if let folderName {
         Label(folderName, systemImage: "bookmark.fill")
           .font(.caption.bold())
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.leading, 68)

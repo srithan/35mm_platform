@@ -64,6 +64,11 @@ enum DesignSystem {
     static let extraLarge = 88.0
   }
 
+  // MARK: Typography metrics
+
+  /// Extra leading for post/comment body text so paragraphs breathe (Twitter-like line height).
+  static let appBodyLineSpacing = 3.0
+
   // MARK: Elevation
 
   enum Shadow {
@@ -92,15 +97,22 @@ extension Font {
   /// Compact row label (secondary sidebar rows).
   static let appRowLabelCompact = Font.system(.subheadline, design: .default, weight: .semibold)
 
-  /// Post author display name.
-  static let appAuthorName = Font.system(.subheadline, design: .default, weight: .semibold)
+  /// Post author display name. 15pt bold, matching Twitter's feed identity weight.
+  static let appAuthorName = Font.system(.subheadline, design: .default, weight: .bold)
 
-  /// Post author handle and other muted identity text.
+  /// Post author handle, inline timestamps, and other muted identity text.
+  /// Same 15pt size as the name so the identity row reads as one line, like Twitter.
   static let appAuthorHandle = Font.system(.subheadline, design: .default)
 
-  /// Timestamps and other metadata trailing text.
+  /// Post body text in feed cards. 15pt regular; pair with `appBodyLineSpacing`.
+  static let appBody = Font.system(.subheadline, design: .default)
+
+  /// Post body text on detail screens. 17pt regular; pair with `appBodyLineSpacing`.
+  static let appBodyLarge = Font.system(.body, design: .default)
+
+  /// Timestamps and other metadata trailing text outside the identity row.
   static let appMetadata = Font.system(.footnote, design: .default)
 
-  /// Counter labels next to action icons.
-  static let appCounter = Font.system(.footnote, design: .default, weight: .medium)
+  /// Counter labels next to action icons. 13pt regular, like Twitter's action bar.
+  static let appCounter = Font.system(.footnote, design: .default)
 }

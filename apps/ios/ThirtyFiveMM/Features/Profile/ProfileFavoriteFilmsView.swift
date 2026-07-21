@@ -2,6 +2,7 @@ import Kingfisher
 import SwiftUI
 
 struct ProfileFavoriteFilmsView: View {
+  @Environment(\.theme) private var theme
   let films: [ProfileStatsSummary.Film]
 
   var body: some View {
@@ -17,8 +18,8 @@ struct ProfileFavoriteFilmsView: View {
                 KFImage(URL(string: film.posterUrl ?? ""))
                   .placeholder {
                     Rectangle()
-                      .fill(Color(.tertiarySystemFill))
-                      .overlay { Image(systemName: "film").foregroundStyle(.tertiary) }
+                      .fill(theme.fill)
+                      .overlay { Image(systemName: "film").foregroundStyle(theme.textTertiary) }
                   }
                   .resizable()
                   .scaledToFill()

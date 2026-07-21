@@ -2,6 +2,7 @@ import Kingfisher
 import SwiftUI
 
 struct ProfileAvatarView: View {
+  @Environment(\.theme) private var theme
   let url: String?
   let displayName: String
   let size: Double
@@ -10,11 +11,11 @@ struct ProfileAvatarView: View {
     KFImage(URL(string: url ?? ""))
       .placeholder {
         ZStack {
-          Circle().fill(Color(.secondarySystemBackground))
+          Circle().fill(theme.bgSunken)
           Text(initials)
             .font(.title2)
             .bold()
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
       }
       .resizable()
@@ -22,7 +23,7 @@ struct ProfileAvatarView: View {
       .frame(width: size, height: size)
       .clipShape(.circle)
       .overlay {
-        Circle().stroke(Color(.systemBackground), lineWidth: 4)
+        Circle().stroke(theme.bg, lineWidth: 4)
       }
       .accessibilityLabel("\(displayName)'s profile photo")
   }

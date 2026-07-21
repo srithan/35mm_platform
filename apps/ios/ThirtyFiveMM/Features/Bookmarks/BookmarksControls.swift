@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarksControls: View {
+  @Environment(\.theme) private var theme
   @Binding var searchText: String
   let filters: [BookmarkFilter]
   let unsortedCount: Int
@@ -16,7 +17,7 @@ struct BookmarksControls: View {
       HStack(spacing: 10) {
         HStack(spacing: 9) {
           Image(systemName: "magnifyingglass")
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
             .accessibilityHidden(true)
 
           TextField("Search saved posts", text: $searchText)
@@ -29,7 +30,7 @@ struct BookmarksControls: View {
           if !searchText.isEmpty {
             Button("Clear search", systemImage: "xmark.circle.fill", action: onClearSearch)
               .labelStyle(.iconOnly)
-              .foregroundStyle(.tertiary)
+              .foregroundStyle(theme.textTertiary)
               .frame(minWidth: 44, minHeight: 44)
           }
         }
@@ -40,7 +41,7 @@ struct BookmarksControls: View {
         Button("New folder", systemImage: "plus", action: onCreateFolder)
           .labelStyle(.iconOnly)
           .font(.title3.bold())
-          .foregroundStyle(.primary)
+          .foregroundStyle(theme.text)
           .frame(minWidth: 44, minHeight: 44)
           .background(Color(uiColor: .secondarySystemBackground), in: .circle)
           .accessibilityIdentifier("bookmarks.new-folder")
@@ -49,7 +50,7 @@ struct BookmarksControls: View {
           Button("Folder actions", systemImage: "ellipsis", action: onShowFolderActions)
             .labelStyle(.iconOnly)
             .font(.title3.bold())
-            .foregroundStyle(.primary)
+            .foregroundStyle(theme.text)
             .frame(minWidth: 44, minHeight: 44)
             .background(Color(uiColor: .secondarySystemBackground), in: .circle)
             .accessibilityIdentifier("bookmarks.folder-actions")

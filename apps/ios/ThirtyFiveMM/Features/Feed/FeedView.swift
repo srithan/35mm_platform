@@ -7,6 +7,7 @@ enum FeedScrollDirection {
 }
 
 struct FeedView: View {
+  @Environment(\.theme) private var theme
   @EnvironmentObject private var env: AppEnvironment
   @StateObject private var viewModel: FeedViewModel
   @State private var selectedPost: FeedPost?
@@ -147,6 +148,7 @@ struct FeedView: View {
         }
       }
       .coordinateSpace(name: "feed-scroll")
+      .themedBackground()
       .onPreferenceChange(FeedScrollOffsetPreferenceKey.self) { offset in
         handleScrollOffset(offset)
       }
@@ -208,6 +210,7 @@ private struct FeedScrollOffsetPreferenceKey: PreferenceKey {
 }
 
 private struct FeedErrorView: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -215,7 +218,7 @@ private struct FeedErrorView: View {
     VStack(spacing: 12) {
       Text(message)
         .font(.callout)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
 
       Button("Retry", action: retry)
@@ -227,6 +230,7 @@ private struct FeedErrorView: View {
 }
 
 private struct ErrorBanner: View {
+  @Environment(\.theme) private var theme
   let message: String
   let dismiss: () -> Void
 
@@ -237,7 +241,7 @@ private struct ErrorBanner: View {
 
       Text(message)
         .font(.footnote)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(2)
 
       Spacer(minLength: 8)
@@ -247,7 +251,7 @@ private struct ErrorBanner: View {
           .font(.caption.weight(.bold))
       }
       .buttonStyle(.plain)
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)

@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 struct TitleReviewsView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: TitleDetailViewModel
   let apiClient: APIClient
 
@@ -14,7 +15,7 @@ struct TitleReviewsView: View {
           .accessibilityAddTraits(.isHeader)
         Text("Newest public reviews from the 35mm community.")
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
       }
 
       reviewsContent
@@ -36,7 +37,7 @@ struct TitleReviewsView: View {
       VStack(spacing: 14) {
         ForEach(0..<3, id: \.self) { _ in
           RoundedRectangle(cornerRadius: 14)
-            .fill(Color(.secondarySystemBackground))
+            .fill(theme.bgSunken)
             .frame(height: 170)
         }
       }
@@ -95,6 +96,7 @@ struct TitleReviewsView: View {
 }
 
 private struct TitleReviewCard: View {
+  @Environment(\.theme) private var theme
   let review: FeedPost
   let apiClient: APIClient
   let onLike: () -> Void
@@ -115,10 +117,10 @@ private struct TitleReviewCard: View {
             KFImage(review.author.avatarUrl.flatMap(URL.init(string:)))
               .placeholder {
                 Circle()
-                  .fill(Color(.tertiarySystemFill))
+                  .fill(theme.fill)
                   .overlay {
                     Image(systemName: "person.fill")
-                      .foregroundStyle(.tertiary)
+                      .foregroundStyle(theme.textTertiary)
                   }
               }
               .retry(maxCount: 2, interval: .seconds(1))
@@ -130,18 +132,18 @@ private struct TitleReviewCard: View {
             VStack(alignment: .leading, spacing: 2) {
               Text(authorName)
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(theme.text)
                 .lineLimit(1)
               Text("@\(review.author.username) · \(review.createdAt.relativeShort)")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
                 .lineLimit(1)
             }
 
             Spacer(minLength: 6)
             Image(systemName: "chevron.right")
               .font(.caption.weight(.semibold))
-              .foregroundStyle(.tertiary)
+              .foregroundStyle(theme.textTertiary)
           }
 
           if let rating = review.starRating {
@@ -150,11 +152,11 @@ private struct TitleReviewCard: View {
 
           if let headline = review.headline, !headline.isEmpty {
             RichTextView(body: headline, font: .headline)
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
           }
 
           RichTextView(body: review.body, font: .body)
-            .foregroundStyle(.primary)
+            .foregroundStyle(theme.text)
             .lineLimit(8)
             .lineSpacing(3)
         }
@@ -174,7 +176,7 @@ private struct TitleReviewCard: View {
         .accessibilityLabel(review.isLiked ? "Unlike review" : "Like review")
 
         Label(review.commentCount.compactFormatted, systemImage: "bubble.left")
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
 
         Spacer(minLength: 0)
 
@@ -185,13 +187,13 @@ private struct TitleReviewCard: View {
             .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .accessibilityLabel("Review actions")
       }
       .font(.subheadline.weight(.medium))
     }
     .padding(16)
-    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+    .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 14))
     .contentShape(RoundedRectangle(cornerRadius: 14))
     .accessibilityElement(children: .contain)
     .bottomActionSheet(isPresented: $isShowingActions) {
@@ -208,17 +210,18 @@ private struct TitleReviewCard: View {
 }
 
 private struct ReviewStars: View {
+  @Environment(\.theme) private var theme
   let rating: Double
 
   var body: some View {
     HStack(spacing: 2) {
       ForEach(1...5, id: \.self) { value in
         Image(systemName: symbol(for: Double(value)))
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(theme.accent)
       }
       Text(rating.formatted(.number.precision(.fractionLength(1))))
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .padding(.leading, 5)
     }
     .font(.caption)

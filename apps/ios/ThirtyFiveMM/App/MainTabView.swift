@@ -3,6 +3,7 @@ import UIKit
 
 struct MainTabView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.theme) private var theme
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   @State private var selectedTab: AppTab = .home
   @State private var previousTab: AppTab = .home
@@ -14,7 +15,8 @@ struct MainTabView: View {
   @State private var profileLoadError: String?
 
   init() {
-    Self.configureTabBarAppearance()
+    let manager = ThemeManager.shared
+    Self.applyTabBarTheme(manager.palette, custom: manager.theme.isCustomPalette)
   }
 
   var body: some View {
@@ -114,7 +116,7 @@ struct MainTabView: View {
       }
       .tag(AppTab.activity)
     }
-    .tint(Color(.label))
+    .tint(theme.text)
     .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
     .fullScreenCover(
       isPresented: $env.isComposerPresented,
@@ -283,16 +285,26 @@ struct MainTabView: View {
     }
   }
 
-  private static func configureTabBarAppearance() {
+  /// Applies theme colors to the UIKit tab bar. Custom-palette themes use an
+  /// opaque themed background; light/dark/auto keep the system blur.
+  static func applyTabBarTheme(_ palette: ThemePalette, custom: Bool) {
     let appearance = UITabBarAppearance()
-    appearance.configureWithDefaultBackground()
+    if custom {
+      appearance.configureWithOpaqueBackground()
+      appearance.backgroundColor = palette.uiBg
+    } else {
+      appearance.configureWithDefaultBackground()
+    }
     appearance.shadowColor = .clear
 
+    let selectedColor = custom ? palette.uiText : UIColor.label
+    let normalColor = custom ? palette.uiTextTertiary : UIColor.secondaryLabel
+
     let itemAppearance = UITabBarItemAppearance()
-    itemAppearance.normal.iconColor = .secondaryLabel
-    itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.secondaryLabel]
-    itemAppearance.selected.iconColor = .label
-    itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.label]
+    itemAppearance.normal.iconColor = normalColor
+    itemAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
+    itemAppearance.selected.iconColor = selectedColor
+    itemAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
 
     appearance.stackedLayoutAppearance = itemAppearance
     appearance.inlineLayoutAppearance = itemAppearance
@@ -300,8 +312,21 @@ struct MainTabView: View {
 
     UITabBar.appearance().standardAppearance = appearance
     UITabBar.appearance().scrollEdgeAppearance = appearance
-    UITabBar.appearance().tintColor = .label
-    UITabBar.appearance().unselectedItemTintColor = .secondaryLabel
+    UITabBar.appearance().tintColor = selectedColor
+    UITabBar.appearance().unselectedItemTintColor = normalColor
+
+    // Appearance proxies only affect new instances; update live tab bars too.
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+      for window in windowScene.windows {
+        window.allSubviews(of: UITabBar.self).forEach { tabBar in
+          tabBar.standardAppearance = appearance
+          tabBar.scrollEdgeAppearance = appearance
+          tabBar.tintColor = selectedColor
+          tabBar.unselectedItemTintColor = normalColor
+        }
+      }
+    }
   }
 }
 
@@ -418,6 +443,7 @@ enum ProfileSidebarItem: String, CaseIterable, Identifiable {
 }
 
 private struct SidebarPageView: View {
+  @Environment(\.theme) private var theme
   let item: ProfileSidebarItem
   let profile: UserProfile?
 
@@ -426,21 +452,21 @@ private struct SidebarPageView: View {
       VStack(alignment: .leading, spacing: 22) {
         HStack(spacing: 14) {
           item.icon(size: 22, weight: .bold)
-            .foregroundStyle(Color(.label))
+            .foregroundStyle(theme.text)
             .frame(width: 46, height: 46)
-            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(theme.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
           VStack(alignment: .leading, spacing: 4) {
             Text(item.title)
               .font(.title2.weight(.bold))
-              .foregroundStyle(Color(.label))
+              .foregroundStyle(theme.text)
               .lineLimit(1)
               .minimumScaleFactor(0.78)
 
             if let subtitle {
               Text(subtitle)
                 .font(.subheadline)
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(theme.textSecondary)
                 .lineLimit(2)
             }
           }
@@ -451,7 +477,7 @@ private struct SidebarPageView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(22)
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .navigationTitle(item.title)
     .navigationBarTitleDisplayMode(.inline)
   }
@@ -501,45 +527,47 @@ private struct SidebarPageView: View {
     VStack(alignment: .leading, spacing: 12) {
       Text(profile?.displayName ?? profile?.username ?? "Profile")
         .font(.title3.weight(.bold))
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
 
       if let roleContext = profile?.roleContext, !roleContext.isEmpty {
         Text(roleContext)
           .font(.subheadline)
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
       }
 
       if let filmsLoggedCount = profile?.filmsLoggedCount {
         Text("\(filmsLoggedCount.compactFormatted) films logged")
           .font(.subheadline)
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(18)
-    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    .background(theme.fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
   }
 }
 
 private struct EmptyStateCard: View {
+  @Environment(\.theme) private var theme
   let item: ProfileSidebarItem
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       item.icon(size: 26, weight: .medium)
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
 
       Text(item.title)
         .font(.appSectionTitle)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(18)
-    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    .background(theme.fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
   }
 }
 
 private struct AppTabRootScreen<Content: View>: View {
+  @Environment(\.theme) private var theme
   let title: AppHeaderTitle
   let profile: UserProfile?
   let profileLoadError: String?
@@ -580,11 +608,12 @@ private struct AppTabRootScreen<Content: View>: View {
       content()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
   }
 }
 
 private struct AppHeader: View {
+  @Environment(\.theme) private var theme
   let title: AppHeaderTitle
   let profile: UserProfile?
   let profileLoadError: String?
@@ -614,7 +643,7 @@ private struct AppHeader: View {
               .resizable()
               .scaledToFit()
               .frame(width: 21, height: 23)
-              .foregroundStyle(canOpenMessages ? Color(.label) : Color(.tertiaryLabel))
+              .foregroundStyle(canOpenMessages ? theme.text : theme.textTertiary)
               .frame(width: 42, height: 42)
               .contentShape(Circle())
           }
@@ -628,7 +657,7 @@ private struct AppHeader: View {
 
       Divider()
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
   }
 
   @ViewBuilder
@@ -637,14 +666,14 @@ private struct AppHeader: View {
     case .logo:
       Text(AppConstants.appName)
         .font(.appWordmark)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .lineLimit(1)
         .minimumScaleFactor(0.82)
         .accessibilityAddTraits(.isHeader)
     case .text(let value):
       Text(value)
         .font(.appScreenTitle)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .lineLimit(1)
         .minimumScaleFactor(0.82)
         .accessibilityAddTraits(.isHeader)
@@ -653,6 +682,7 @@ private struct AppHeader: View {
 }
 
 private struct HeaderAvatar: View {
+  @Environment(\.theme) private var theme
   let url: String?
   let size: CGFloat
 
@@ -664,10 +694,10 @@ private struct HeaderAvatar: View {
       default:
         ZStack {
           Circle()
-            .fill(Color(.systemGray6))
+            .fill(theme.fill)
           Image(systemName: "person.fill")
             .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(Color(.systemGray2))
+            .foregroundStyle(theme.textTertiary)
         }
       }
     }
@@ -675,12 +705,13 @@ private struct HeaderAvatar: View {
     .clipShape(Circle())
     .overlay {
       Circle()
-        .stroke(Color(.systemGray5), lineWidth: 1)
+        .stroke(theme.fillStrong, lineWidth: 1)
     }
   }
 }
 
 private struct ProfileSidebar: View {
+  @Environment(\.theme) private var theme
   let profile: UserProfile?
   let profileLoadError: String?
   let width: CGFloat
@@ -720,20 +751,20 @@ private struct ProfileSidebar: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(displayName)
             .font(.title3.weight(.bold))
-            .foregroundStyle(Color(.label))
+            .foregroundStyle(theme.text)
             .lineLimit(1)
             .minimumScaleFactor(0.72)
 
           Text(username)
             .font(.subheadline)
-            .foregroundStyle(Color(.secondaryLabel))
+            .foregroundStyle(theme.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
 
           if let relationshipSummary {
             Text(relationshipSummary)
               .font(.footnote)
-              .foregroundStyle(Color(.secondaryLabel))
+              .foregroundStyle(theme.textSecondary)
               .lineLimit(2)
               .padding(.top, 2)
           }
@@ -775,13 +806,14 @@ private struct ProfileSidebar: View {
     }
     .frame(width: width)
     .frame(maxHeight: .infinity, alignment: .leading)
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .shadow(color: .black.opacity(0.16), radius: 24, x: 8, y: 0)
     .ignoresSafeArea()
   }
 }
 
 private struct ProfileSidebarRow: View {
+  @Environment(\.theme) private var theme
   enum Size {
     case regular
     case compact
@@ -805,12 +837,12 @@ private struct ProfileSidebarRow: View {
   var body: some View {
     HStack(spacing: 18) {
       item.icon(size: iconSize, weight: .medium)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .frame(width: 30)
 
       Text(item.title)
         .font(font)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .lineLimit(1)
         .minimumScaleFactor(0.72)
     }
@@ -820,12 +852,13 @@ private struct ProfileSidebarRow: View {
 }
 
 private struct AppTabPlaceholder: View {
+  @Environment(\.theme) private var theme
   let message: String
 
   var body: some View {
     Text(message)
       .font(.subheadline.weight(.medium))
-      .foregroundStyle(Color(.secondaryLabel))
+      .foregroundStyle(theme.textSecondary)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
@@ -911,6 +944,7 @@ private enum ComposerPostOption: String, CaseIterable, Identifiable {
 }
 
 private struct PostComposerView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @EnvironmentObject private var env: AppEnvironment
   @FocusState private var isBodyFocused: Bool
@@ -939,7 +973,7 @@ private struct PostComposerView: View {
 
   var body: some View {
     ZStack(alignment: .top) {
-      Color(.systemGray4)
+      theme.fillStrong
         .ignoresSafeArea()
 
       VStack(spacing: 0) {
@@ -947,7 +981,7 @@ private struct PostComposerView: View {
         Divider()
         composerBody
       }
-      .background(Color(.systemBackground))
+      .background(theme.bg)
       .clipShape(
         UnevenRoundedRectangle(
           topLeadingRadius: 24,
@@ -962,7 +996,7 @@ private struct PostComposerView: View {
     }
     .safeAreaInset(edge: .bottom) {
       composerFooter
-        .background(Color(.systemBackground))
+        .background(theme.bg)
     }
     .task {
       await loadProfile()
@@ -980,7 +1014,7 @@ private struct PostComposerView: View {
     ZStack {
       Text(quotedPost == nil ? "New thread" : "Quote post")
         .font(.headline)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(1)
         .minimumScaleFactor(0.82)
 
@@ -990,7 +1024,7 @@ private struct PostComposerView: View {
         } label: {
           Text("Cancel")
             .font(.body)
-            .foregroundStyle(.primary)
+            .foregroundStyle(theme.text)
             .lineLimit(1)
         }
         .buttonStyle(.plain)
@@ -1003,7 +1037,7 @@ private struct PostComposerView: View {
           } label: {
             Image(systemName: "doc.text")
               .font(.system(size: 19, weight: .medium))
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
           }
           .buttonStyle(.plain)
           .accessibilityLabel("Draft options")
@@ -1013,7 +1047,7 @@ private struct PostComposerView: View {
           } label: {
             Image(systemName: "ellipsis.circle")
               .font(.system(size: 20, weight: .medium))
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
           }
           .buttonStyle(.plain)
           .accessibilityLabel("More composer actions")
@@ -1031,27 +1065,27 @@ private struct PostComposerView: View {
           ComposerAvatar(url: avatarUrl, size: 42)
 
           Rectangle()
-            .fill(Color(.systemGray5))
+            .fill(theme.fillStrong)
             .frame(width: 2, height: 64)
 
           Image(systemName: "person.circle.fill")
             .font(.system(size: 18))
-            .foregroundStyle(Color(.systemGray5))
+            .foregroundStyle(theme.fillStrong)
         }
 
         VStack(alignment: .leading, spacing: 5) {
           HStack(spacing: 6) {
             Text(username)
               .font(.appAuthorName)
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
 
             Image(systemName: "chevron.right")
               .font(.system(size: 12, weight: .semibold))
-              .foregroundStyle(Color(.systemGray2))
+              .foregroundStyle(theme.textTertiary)
 
             TextField("Add a topic", text: $topic)
               .font(.subheadline.weight(.medium))
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
               .textInputAutocapitalization(.words)
           }
 
@@ -1059,14 +1093,14 @@ private struct PostComposerView: View {
             if bodyText.isEmpty {
               Text("What's new?")
                 .font(.body)
-                .foregroundStyle(Color(.systemGray2))
+                .foregroundStyle(theme.textTertiary)
                 .padding(.top, 7)
                 .padding(.leading, 4)
             }
 
             TextEditor(text: $bodyText)
               .font(.body)
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
               .scrollContentBackground(.hidden)
               .frame(minHeight: 64, maxHeight: 130)
               .focused($isBodyFocused)
@@ -1088,11 +1122,11 @@ private struct PostComposerView: View {
           HStack(spacing: 12) {
             Image(systemName: "person.circle.fill")
               .font(.system(size: 17))
-              .foregroundStyle(Color(.systemGray5))
+              .foregroundStyle(theme.fillStrong)
 
             Text("Add to thread")
               .font(.subheadline.weight(.medium))
-              .foregroundStyle(Color(.systemGray3))
+              .foregroundStyle(theme.fillStrong)
           }
           .padding(.top, 2)
         }
@@ -1112,13 +1146,13 @@ private struct PostComposerView: View {
       composerTool("list.bullet.rectangle")
         .overlay(alignment: .topTrailing) {
           Circle()
-            .fill(.black)
+            .fill(theme.text)
             .frame(width: 8, height: 8)
             .offset(x: 2, y: -1)
         }
       composerTool("ellipsis.circle")
     }
-    .foregroundStyle(Color(.systemGray2))
+    .foregroundStyle(theme.textTertiary)
     .padding(.top, 4)
   }
 
@@ -1143,7 +1177,7 @@ private struct PostComposerView: View {
           .lineLimit(1)
           .fixedSize(horizontal: true, vertical: false)
       }
-      .foregroundStyle(Color(.systemGray2))
+      .foregroundStyle(theme.textTertiary)
       .layoutPriority(1)
 
       Spacer(minLength: 4)
@@ -1160,9 +1194,9 @@ private struct PostComposerView: View {
           }
         }
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.systemBackground))
+          .foregroundStyle(theme.bg)
           .frame(width: 64, height: 38)
-          .background(canPost ? Color(.label) : Color(.systemGray3), in: Capsule())
+          .background(canPost ? theme.text : theme.fillStrong, in: Capsule())
       }
       .buttonStyle(.plain)
       .disabled(!canPost)
@@ -1210,6 +1244,7 @@ private struct PostComposerView: View {
 }
 
 private struct ComposerAvatar: View {
+  @Environment(\.theme) private var theme
   let url: String?
   let size: CGFloat
 
@@ -1221,10 +1256,10 @@ private struct ComposerAvatar: View {
       default:
         ZStack {
           Circle()
-            .fill(Color(.systemGray6))
+            .fill(theme.fill)
           Image(systemName: "person.fill")
             .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(Color(.systemGray2))
+            .foregroundStyle(theme.textTertiary)
         }
       }
     }
@@ -1232,12 +1267,13 @@ private struct ComposerAvatar: View {
     .clipShape(Circle())
     .overlay {
       Circle()
-        .stroke(Color(.systemGray5), lineWidth: 1)
+        .stroke(theme.fillStrong, lineWidth: 1)
     }
   }
 }
 
 private struct ComposerOptionTabs: View {
+  @Environment(\.theme) private var theme
   @Binding var selectedOption: ComposerPostOption
 
   var body: some View {
@@ -1250,12 +1286,12 @@ private struct ComposerOptionTabs: View {
         } label: {
           Image(systemName: option.systemImage)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(selectedOption == option ? Color(.label) : Color(.systemGray2))
+            .foregroundStyle(selectedOption == option ? theme.text : theme.textTertiary)
             .frame(width: 36, height: 36)
             .background {
               if selectedOption == option {
                 Capsule()
-                  .fill(Color(.systemBackground))
+                  .fill(theme.bg)
                   .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
               }
             }
@@ -1265,6 +1301,6 @@ private struct ComposerOptionTabs: View {
       }
     }
     .padding(4)
-    .background(Color(.systemGray4), in: Capsule())
+    .background(theme.fillStrong, in: Capsule())
   }
 }

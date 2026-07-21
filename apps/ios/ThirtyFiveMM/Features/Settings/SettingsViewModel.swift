@@ -157,6 +157,9 @@ final class SettingsViewModel: ObservableObject {
     do {
       settings = try await apiClient.getSettings()
       resetUsernameStatus()
+      if let appearance = settings?.appearance {
+        ThemeManager.shared.apply(appearance)
+      }
     } catch {
       loadError = settingsMessage(for: error, fallback: "Could not load settings.")
     }
@@ -297,6 +300,9 @@ final class SettingsViewModel: ObservableObject {
     do {
       settings = try await operation()
       toast = success
+      if let appearance = settings?.appearance {
+        ThemeManager.shared.apply(appearance)
+      }
     } catch {
       toast = settingsMessage(for: error, fallback: "Could not save changes.")
     }

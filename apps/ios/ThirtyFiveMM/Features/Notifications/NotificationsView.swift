@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct NotificationsView: View {
+  @Environment(\.theme) private var theme
   @EnvironmentObject private var env: AppEnvironment
   @StateObject private var viewModel: NotificationsViewModel
   @State private var selectedPost: FeedPost?
@@ -19,7 +20,7 @@ struct NotificationsView: View {
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .task {
       await viewModel.loadInitial()
     }
@@ -54,7 +55,7 @@ struct NotificationsView: View {
             .frame(width: 36, height: 32)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(viewModel.hasUnread ? Color(.label) : Color(.tertiaryLabel))
+        .foregroundStyle(viewModel.hasUnread ? theme.text : theme.textTertiary)
         .disabled(!viewModel.hasUnread)
         .accessibilityLabel("Mark all notifications read")
       }
@@ -63,7 +64,7 @@ struct NotificationsView: View {
 
       Divider()
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
   }
 
   @ViewBuilder
@@ -118,7 +119,7 @@ struct NotificationsView: View {
           } header: {
             Text(group.title)
               .font(.footnote.weight(.semibold))
-              .foregroundStyle(Color(.secondaryLabel))
+              .foregroundStyle(theme.textSecondary)
               .textCase(nil)
               .padding(.top, 4)
           }
@@ -135,6 +136,7 @@ struct NotificationsView: View {
         }
       }
       .listStyle(.plain)
+      .themedListBackground()
       .refreshable {
         await viewModel.refresh()
       }
@@ -215,6 +217,7 @@ private struct NotificationDateGroup: Identifiable {
 }
 
 private struct NotificationRow: View {
+  @Environment(\.theme) private var theme
   let item: NotificationItem
   let isOpening: Bool
   let onOpen: () -> Void
@@ -230,31 +233,31 @@ private struct NotificationRow: View {
           HStack(alignment: .firstTextBaseline, spacing: 6) {
             notificationText
               .font(.subheadline)
-              .foregroundStyle(Color(.label))
+              .foregroundStyle(theme.text)
               .lineSpacing(1)
               .fixedSize(horizontal: false, vertical: true)
 
             Text(item.createdAt.relativeShort)
               .font(.caption)
-              .foregroundStyle(Color(.tertiaryLabel))
+              .foregroundStyle(theme.textTertiary)
               .lineLimit(1)
           }
 
           if let preview = previewText {
             Text(preview)
               .font(.footnote)
-              .foregroundStyle(Color(.secondaryLabel))
+              .foregroundStyle(theme.textSecondary)
               .lineLimit(3)
               .padding(.horizontal, 10)
               .padding(.vertical, 8)
               .frame(maxWidth: .infinity, alignment: .leading)
-              .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+              .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
           }
 
           if item.type == .followRequest {
             Text("Respond from requests above")
               .font(.caption.weight(.semibold))
-              .foregroundStyle(Color(.secondaryLabel))
+              .foregroundStyle(theme.textSecondary)
           }
         }
 
@@ -269,7 +272,7 @@ private struct NotificationRow: View {
           }
 
           Circle()
-            .fill(item.isRead ? Color.clear : Color.accentColor)
+            .fill(item.isRead ? Color.clear : theme.accent)
             .frame(width: 8, height: 8)
             .accessibilityHidden(true)
         }
@@ -278,7 +281,7 @@ private struct NotificationRow: View {
       .padding(.horizontal, 16)
       .padding(.vertical, 12)
       .contentShape(Rectangle())
-      .background(item.isRead ? Color(.systemBackground) : Color.accentColor.opacity(0.07))
+      .background(item.isRead ? theme.bg : theme.accent.opacity(0.07))
     }
     .buttonStyle(.plain)
     .accessibilityElement(children: .combine)
@@ -456,6 +459,7 @@ private struct NotificationAvatarData {
 }
 
 private struct NotificationAvatar: View {
+  @Environment(\.theme) private var theme
   let data: NotificationAvatarData
   let size: CGFloat
 
@@ -479,7 +483,7 @@ private struct NotificationAvatar: View {
     .frame(width: size, height: size)
     .clipShape(Circle())
     .overlay {
-      Circle().stroke(Color(.systemBackground), lineWidth: 2)
+      Circle().stroke(theme.bg, lineWidth: 2)
     }
   }
 
@@ -495,6 +499,7 @@ private struct NotificationAvatar: View {
 }
 
 private struct NotificationTypeBadge: View {
+  @Environment(\.theme) private var theme
   let type: NotificationType
 
   var body: some View {
@@ -504,7 +509,7 @@ private struct NotificationTypeBadge: View {
       .frame(width: 20, height: 20)
       .background(color, in: Circle())
       .overlay {
-        Circle().stroke(Color(.systemBackground), lineWidth: 2)
+        Circle().stroke(theme.bg, lineWidth: 2)
       }
   }
 
@@ -544,6 +549,7 @@ private struct NotificationTypeBadge: View {
 }
 
 private struct NotificationThumbnail: View {
+  @Environment(\.theme) private var theme
   let url: String
 
   var body: some View {
@@ -555,7 +561,7 @@ private struct NotificationThumbnail: View {
           .scaledToFill()
       default:
         RoundedRectangle(cornerRadius: 5, style: .continuous)
-          .fill(Color(.secondarySystemBackground))
+          .fill(theme.bgSunken)
       }
     }
     .frame(width: 42, height: 58)
@@ -564,6 +570,7 @@ private struct NotificationThumbnail: View {
 }
 
 private struct FollowRequestsTray: View {
+  @Environment(\.theme) private var theme
   let requests: [FollowRequest]
   let total: Int
   let onAccept: (FollowRequest) -> Void
@@ -574,16 +581,16 @@ private struct FollowRequestsTray: View {
       HStack {
         Label("Follow requests", systemImage: "person.crop.circle.badge.questionmark")
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
 
         Spacer()
 
         Text("\(total)")
           .font(.caption.weight(.bold))
-          .foregroundStyle(Color(.systemBackground))
+          .foregroundStyle(theme.bg)
           .padding(.horizontal, 8)
           .padding(.vertical, 4)
-          .background(Color(.label), in: Capsule())
+          .background(theme.text, in: Capsule())
       }
 
       VStack(spacing: 0) {
@@ -599,12 +606,13 @@ private struct FollowRequestsTray: View {
           }
         }
       }
-      .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+      .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
   }
 }
 
 private struct FollowRequestRow: View {
+  @Environment(\.theme) private var theme
   let request: FollowRequest
   let onAccept: () -> Void
   let onDecline: () -> Void
@@ -623,12 +631,12 @@ private struct FollowRequestRow: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(displayName)
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
           .lineLimit(1)
 
         Text(subtitle)
           .font(.caption)
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
       }
 
@@ -639,20 +647,20 @@ private struct FollowRequestRow: View {
           Image(systemName: "xmark")
             .font(.system(size: 12, weight: .bold))
             .frame(width: 32, height: 32)
-            .background(Color(.systemGray5), in: Circle())
+            .background(theme.fillStrong, in: Circle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .accessibilityLabel("Decline \(displayName)")
 
         Button(action: onAccept) {
           Image(systemName: "checkmark")
             .font(.system(size: 12, weight: .bold))
             .frame(width: 32, height: 32)
-            .background(Color(.label), in: Circle())
+            .background(theme.text, in: Circle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color(.systemBackground))
+        .foregroundStyle(theme.bg)
         .accessibilityLabel("Accept \(displayName)")
       }
     }
@@ -673,20 +681,21 @@ private struct FollowRequestRow: View {
 }
 
 private struct NotificationsSkeletonList: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     List {
       ForEach(0..<8, id: \.self) { _ in
         HStack(alignment: .top, spacing: 12) {
           Circle()
-            .fill(Color(.systemGray5))
+            .fill(theme.fillStrong)
             .frame(width: 48, height: 48)
 
           VStack(alignment: .leading, spacing: 8) {
             RoundedRectangle(cornerRadius: 4)
-              .fill(Color(.systemGray5))
+              .fill(theme.fillStrong)
               .frame(height: 14)
             RoundedRectangle(cornerRadius: 4)
-              .fill(Color(.systemGray5))
+              .fill(theme.fillStrong)
               .frame(width: 180, height: 12)
           }
         }
@@ -700,21 +709,22 @@ private struct NotificationsSkeletonList: View {
 }
 
 private struct NotificationsEmptyView: View {
+  @Environment(\.theme) private var theme
   let filter: NotificationFilter
 
   var body: some View {
     VStack(spacing: 12) {
       Image(systemName: filter == .unread ? "checkmark.circle" : "bell")
         .font(.system(size: 44, weight: .semibold))
-        .foregroundStyle(Color(.tertiaryLabel))
+        .foregroundStyle(theme.textTertiary)
 
       Text(filter == .unread ? "No unread notifications" : "No notifications yet")
         .font(.headline)
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
 
       Text(filter == .unread ? "You are caught up." : "Likes, follows, replies, mentions, and requests will land here.")
         .font(.subheadline)
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
         .padding(.horizontal, 34)
     }
@@ -723,6 +733,7 @@ private struct NotificationsEmptyView: View {
 }
 
 private struct NotificationsErrorView: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -737,7 +748,7 @@ private struct NotificationsErrorView: View {
 
       Text(message)
         .font(.callout)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
         .padding(.horizontal, 24)
 
@@ -750,6 +761,7 @@ private struct NotificationsErrorView: View {
 }
 
 private struct NotificationsInlineErrorBanner: View {
+  @Environment(\.theme) private var theme
   let message: String
   let dismiss: () -> Void
 
@@ -760,7 +772,7 @@ private struct NotificationsInlineErrorBanner: View {
 
       Text(message)
         .font(.footnote)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(2)
 
       Spacer(minLength: 8)
@@ -770,7 +782,7 @@ private struct NotificationsInlineErrorBanner: View {
           .font(.caption.weight(.bold))
       }
       .buttonStyle(.plain)
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)

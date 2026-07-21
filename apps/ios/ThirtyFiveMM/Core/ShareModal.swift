@@ -142,6 +142,7 @@ enum ShareURLFactory {
 }
 
 struct ShareModal: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -278,7 +279,7 @@ struct ShareModal: View {
       Button(action: dismissModal) {
         Image(systemName: "xmark")
           .font(.system(size: 15, weight: .semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .frame(width: 32, height: 32)
           .contentShape(Circle())
       }
@@ -301,7 +302,7 @@ struct ShareModal: View {
           Text(content.type.rawValue.uppercased())
             .font(.system(size: 9, weight: .bold))
             .tracking(0.7)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(ShareModalPalette.hover, in: RoundedRectangle(cornerRadius: 6))
@@ -312,7 +313,7 @@ struct ShareModal: View {
 
           Text("35mm.in")
             .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(theme.textTertiary)
         }
 
         Text(content.title)
@@ -322,7 +323,7 @@ struct ShareModal: View {
 
         Text(previewDescription(content))
           .font(.system(size: 12))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
       }
       .padding(.top, 1)
@@ -363,7 +364,7 @@ struct ShareModal: View {
   private var previewPlaceholder: some View {
     Image(systemName: "link")
       .font(.system(size: 22, weight: .medium))
-      .foregroundStyle(.tertiary)
+      .foregroundStyle(theme.textTertiary)
       .frame(width: 56, height: 56)
       .background(ShareModalPalette.hover)
       .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -387,7 +388,7 @@ struct ShareModal: View {
         Text(option.name.uppercased())
           .font(.system(size: 9.5, weight: .bold))
           .tracking(0.2)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
           .minimumScaleFactor(0.72)
       }
@@ -408,7 +409,7 @@ struct ShareModal: View {
       Text("OR")
         .font(.system(size: 10, weight: .bold))
         .tracking(2)
-        .foregroundStyle(.tertiary)
+        .foregroundStyle(theme.textTertiary)
 
       Rectangle()
         .fill(ShareModalPalette.border)
@@ -422,11 +423,11 @@ struct ShareModal: View {
     HStack(spacing: 8) {
       Image(systemName: "link")
         .font(.system(size: 15, weight: .medium))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
 
       Text(url.absoluteString)
         .font(.system(size: 13))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
         .truncationMode(.middle)
         .textSelection(.enabled)
@@ -671,6 +672,7 @@ private enum ShareModalPalette {
 }
 
 private struct ShareOptionButtonStyle: ButtonStyle {
+  @Environment(\.theme) private var theme
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .scaleEffect(configuration.isPressed ? 0.95 : 1)

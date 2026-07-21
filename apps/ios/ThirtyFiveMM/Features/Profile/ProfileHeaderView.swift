@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileHeaderView: View {
+  @Environment(\.theme) private var theme
   let profile: PublicProfile
   let isFollowMutationPending: Bool
   let onOpenAvatar: (() -> Void)?
@@ -35,7 +36,7 @@ struct ProfileHeaderView: View {
 
       VStack(alignment: .leading, spacing: 3) {
         Text(profile.displayName)
-          .font(.title2.weight(.semibold))
+          .font(.title3.weight(.bold))
           .accessibilityAddTraits(.isHeader)
 
         Label {
@@ -46,8 +47,8 @@ struct ProfileHeaderView: View {
           }
         }
         .labelStyle(ProfileHandleLabelStyle(isPrivate: profile.isPrivate))
-        .font(.footnote)
-        .foregroundStyle(.secondary)
+        .font(.subheadline)
+        .foregroundStyle(theme.textSecondary)
       }
 
       Text(profile.displayByline)
@@ -55,8 +56,8 @@ struct ProfileHeaderView: View {
         .bold()
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(ProfileDesign.accent.opacity(0.09), in: .capsule)
-        .foregroundStyle(ProfileDesign.accent)
+        .background(theme.accent.opacity(0.09), in: .capsule)
+        .foregroundStyle(theme.accent)
 
       if let bio = profile.bio?.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
         Text(bio)
@@ -66,7 +67,7 @@ struct ProfileHeaderView: View {
       } else if profile.isOwnProfile {
         Text("Add profile bio")
           .font(.subheadline)
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(theme.textTertiary)
       }
 
       ProfileMetadataView(profile: profile)
@@ -101,7 +102,7 @@ struct ProfileHeaderView: View {
         if isFollowMutationPending {
           ProgressView()
             .controlSize(.small)
-            .tint(profile.followState == .none ? Color.white : Color.primary)
+            .tint(profile.followState == .none ? theme.accentForeground : theme.text)
         } else {
           Text(followButtonTitle)
             .font(.subheadline.bold())
@@ -115,6 +116,7 @@ struct ProfileHeaderView: View {
 }
 
 private struct ProfileHeaderCircularButton: View {
+  @Environment(\.theme) private var theme
   let title: String
   let systemImage: String
   let action: () -> Void
@@ -124,7 +126,7 @@ private struct ProfileHeaderCircularButton: View {
       .labelStyle(.iconOnly)
       .font(.body.weight(.semibold))
       .frame(width: 44, height: 44)
-      .background(Color(.systemBackground), in: .circle)
+      .background(theme.bg, in: .circle)
       .overlay {
         Circle().stroke(ProfileDesign.buttonBorder, lineWidth: 1)
       }
@@ -135,6 +137,7 @@ private struct ProfileHeaderCircularButton: View {
 }
 
 private struct ProfileHeaderPillButtonStyle: ButtonStyle {
+  @Environment(\.theme) private var theme
   @Environment(\.isEnabled) private var isEnabled
 
   let isProminent: Bool
@@ -142,9 +145,9 @@ private struct ProfileHeaderPillButtonStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .frame(maxWidth: .infinity, minHeight: 44)
-      .foregroundStyle(isProminent ? Color.white : Color.primary)
+      .foregroundStyle(isProminent ? theme.accentForeground : theme.text)
       .background(
-        isProminent ? ProfileDesign.accent : Color(.systemBackground),
+        isProminent ? theme.accent : theme.bg,
         in: .capsule
       )
       .overlay {

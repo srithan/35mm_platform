@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileRoleOptionRow: View {
+  @Environment(\.theme) private var theme
   let role: ProfileRole
   let isSelected: Bool
   let action: () -> Void
@@ -16,10 +17,10 @@ struct ProfileRoleOptionRow: View {
           Text(role.rawValue)
             .font(.subheadline)
             .bold()
-            .foregroundStyle(.primary)
+            .foregroundStyle(theme.text)
           Text(role.description)
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
         }
 

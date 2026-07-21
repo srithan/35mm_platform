@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarkCollectionHeader: View {
+  @Environment(\.theme) private var theme
   let title: String
   let count: Int
   let isLoading: Bool
@@ -11,12 +12,12 @@ struct BookmarkCollectionHeader: View {
     HStack(spacing: 8) {
       Text(title)
         .font(.headline)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(1)
 
       Text(count, format: .number.notation(.compactName))
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .contentTransition(.numericText())
 
       Spacer()
@@ -31,7 +32,7 @@ struct BookmarkCollectionHeader: View {
         Button("Folder actions", systemImage: "ellipsis", action: onShowActions)
           .labelStyle(.iconOnly)
           .buttonStyle(.plain)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .frame(minWidth: 44, minHeight: 44)
           .accessibilityIdentifier("bookmarks.folder-actions")
       }

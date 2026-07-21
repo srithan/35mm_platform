@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarkFilterChip: View {
+  @Environment(\.theme) private var theme
   let filter: BookmarkFilter
   let unsortedCount: Int
   let isSelected: Bool
@@ -12,13 +13,13 @@ struct BookmarkFilterChip: View {
         HStack(spacing: 5) {
           Text(title)
             .font(isSelected ? .subheadline.bold() : .subheadline)
-            .foregroundStyle(.primary)
+            .foregroundStyle(theme.text)
             .lineLimit(1)
 
           if let count {
             Text(count, format: .number.notation(.compactName))
               .font(.caption)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
           }
         }
 

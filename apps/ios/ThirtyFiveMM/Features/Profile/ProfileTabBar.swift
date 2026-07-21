@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileTabBar: View {
+  @Environment(\.theme) private var theme
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   @Namespace private var selectionIndicator
   @Binding var selectedTab: ProfileTab
@@ -8,7 +9,7 @@ struct ProfileTabBar: View {
   var body: some View {
     ZStack(alignment: .bottom) {
       Rectangle()
-        .fill(Color.primary.opacity(0.08))
+        .fill(theme.text.opacity(0.08))
         .frame(height: 1)
 
       HStack(spacing: 0) {
@@ -34,12 +35,12 @@ struct ProfileTabBar: View {
                     )
                 }
               }
-              .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+              .foregroundStyle(isSelected ? theme.text : theme.textSecondary)
               .frame(maxWidth: .infinity, maxHeight: .infinity)
 
               if isSelected {
                 Capsule()
-                  .fill(Color.primary)
+                  .fill(theme.text)
                   .matchedGeometryEffect(id: "profile-tab-indicator", in: selectionIndicator)
                   .frame(height: 3)
                   .padding(.horizontal, 8)
@@ -59,7 +60,7 @@ struct ProfileTabBar: View {
       .padding(.horizontal, 16)
     }
     .frame(maxWidth: .infinity)
-    .background(.background)
+    .background(theme.bg)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Profile sections")
   }

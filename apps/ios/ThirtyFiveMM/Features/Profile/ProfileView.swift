@@ -11,6 +11,7 @@ struct ProfileDestination: Hashable {
 }
 
 struct ProfileView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @State private var model: ProfileViewModel
 
@@ -64,7 +65,7 @@ struct ProfileView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .navigationTitle("Profile")
     .toolbar(.hidden, for: .navigationBar)
     .task {

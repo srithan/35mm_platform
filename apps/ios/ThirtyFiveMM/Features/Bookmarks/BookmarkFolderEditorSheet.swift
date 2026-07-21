@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarkFolderEditorSheet: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @FocusState private var isNameFocused: Bool
   @State private var name: String
@@ -60,7 +61,7 @@ struct BookmarkFolderEditorSheet: View {
       VStack(alignment: .leading, spacing: 10) {
         Text("Name")
           .font(.caption.weight(.semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .textCase(.uppercase)
 
         TextField("Folder name", text: $name)
@@ -79,7 +80,7 @@ struct BookmarkFolderEditorSheet: View {
 
         Text("\(name.count) of \(BookmarksViewModel.folderNameLimit) characters")
           .font(.footnote)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
 
         if let errorMessage {
           Label(errorMessage, systemImage: "exclamationmark.triangle.fill")

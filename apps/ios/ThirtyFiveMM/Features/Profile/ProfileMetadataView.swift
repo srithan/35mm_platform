@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileMetadataView: View {
+  @Environment(\.theme) private var theme
   let profile: PublicProfile
 
   var body: some View {
@@ -9,7 +10,7 @@ struct ProfileMetadataView: View {
         Label(location, systemImage: "mappin.and.ellipse")
       } else if profile.isOwnProfile {
         Label("Add your location", systemImage: "mappin.and.ellipse")
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(theme.textTertiary)
       }
 
       if let website = validWebsite {
@@ -20,14 +21,14 @@ struct ProfileMetadataView: View {
         .accessibilityHint("Opens in your browser")
       } else if profile.isOwnProfile {
         Label("Add your links", systemImage: "link")
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(theme.textTertiary)
       }
 
       if let dateOfBirth = formattedDateOfBirth {
         Label("Born \(dateOfBirth)", systemImage: "calendar")
       } else if profile.isOwnProfile {
         Label("Add your date of birth", systemImage: "calendar")
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(theme.textTertiary)
       }
 
       if let createdAt = profile.createdAt {
@@ -39,7 +40,7 @@ struct ProfileMetadataView: View {
       }
     }
     .font(.footnote)
-    .foregroundStyle(.secondary)
+    .foregroundStyle(theme.textSecondary)
   }
 
   private var validWebsite: URL? {

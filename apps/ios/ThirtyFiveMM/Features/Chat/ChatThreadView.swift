@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 import UIKit
 
 struct ChatThreadView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
   @StateObject private var viewModel: ChatThreadViewModel
@@ -94,7 +95,7 @@ struct ChatThreadView: View {
         )
         .fixedSize(horizontal: false, vertical: true)
       }
-      .background(Color(.systemBackground))
+      .background(theme.bg)
     }
     .navigationBarBackButtonHidden(true)
     .toolbar(.hidden, for: .navigationBar)
@@ -438,6 +439,7 @@ struct ChatThreadView: View {
 }
 
 private struct ChatThreadHeader: View {
+  @Environment(\.theme) private var theme
   let title: String
   let subtitle: String?
   let onBack: () -> Void
@@ -449,14 +451,14 @@ private struct ChatThreadHeader: View {
         VStack(spacing: 2) {
           Text(title)
             .font(.headline)
-            .foregroundStyle(Color(.label))
+            .foregroundStyle(theme.text)
             .lineLimit(1)
             .minimumScaleFactor(0.76)
 
           if let subtitle, !subtitle.isEmpty {
             Text(subtitle)
               .font(.caption)
-              .foregroundStyle(Color(.secondaryLabel))
+              .foregroundStyle(theme.textSecondary)
               .lineLimit(1)
           }
         }
@@ -468,7 +470,7 @@ private struct ChatThreadHeader: View {
           Button(action: onBack) {
             Image(systemName: "chevron.left")
               .font(.system(size: 20, weight: .bold))
-              .foregroundStyle(Color(.label))
+              .foregroundStyle(theme.text)
               .frame(width: 42, height: 42)
               .contentShape(Circle())
           }
@@ -480,7 +482,7 @@ private struct ChatThreadHeader: View {
           Button(action: onMore) {
             Image(systemName: "ellipsis.circle")
               .font(.system(size: 22, weight: .semibold))
-              .foregroundStyle(Color(.label))
+              .foregroundStyle(theme.text)
               .frame(width: 42, height: 42)
               .contentShape(Circle())
           }
@@ -493,11 +495,12 @@ private struct ChatThreadHeader: View {
 
       Divider()
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
   }
 }
 
 private struct ChatMessageRow: View {
+  @Environment(\.theme) private var theme
   let message: ChatMessage
   let isMine: Bool
   let showHeader: Bool
@@ -593,7 +596,7 @@ private struct ChatMessageRow: View {
       if let readReceiptSummary {
         Text(readReceiptSummary)
           .font(.system(size: 11, weight: .semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .padding(.trailing, isMine ? 6 : 0)
       }
     }
@@ -602,6 +605,7 @@ private struct ChatMessageRow: View {
 }
 
 private struct ChatMessageBubble: View {
+  @Environment(\.theme) private var theme
   @Environment(\.openURL) private var openURL
 
   let message: ChatMessage
@@ -624,7 +628,7 @@ private struct ChatMessageBubble: View {
         Text("Message deleted")
           .font(.system(size: 15, weight: .medium))
           .italic()
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
       } else {
         content
       }
@@ -736,6 +740,7 @@ private struct ChatMessageBubble: View {
 }
 
 private struct ChatReplyPreview: View {
+  @Environment(\.theme) private var theme
   let snapshot: MessageReplySnapshot
 
   var body: some View {
@@ -746,7 +751,7 @@ private struct ChatReplyPreview: View {
         .font(.system(size: 12, weight: .medium))
         .lineLimit(2)
     }
-    .foregroundStyle(.secondary)
+    .foregroundStyle(theme.textSecondary)
     .padding(.leading, 8)
     .overlay(alignment: .leading) {
       RoundedRectangle(cornerRadius: 2)
@@ -775,6 +780,7 @@ private struct ChatReplyPreview: View {
 }
 
 private struct ChatMediaThumbnail: View {
+  @Environment(\.theme) private var theme
   let message: ChatMessage
 
   var body: some View {
@@ -815,6 +821,7 @@ private struct ChatMediaThumbnail: View {
 }
 
 private struct ChatMediaCaptionBubble: View {
+  @Environment(\.theme) private var theme
   let text: String
   let isMine: Bool
 
@@ -843,6 +850,7 @@ private struct ChatMediaCaptionBubble: View {
 }
 
 private struct ChatFileChip: View {
+  @Environment(\.theme) private var theme
   let message: ChatMessage
   let isMine: Bool
 
@@ -876,6 +884,7 @@ private struct ChatFileChip: View {
 }
 
 private struct ChatLinkCard: View {
+  @Environment(\.theme) private var theme
   let preview: ChatLinkPreview?
   let fallbackBody: String?
   let isMine: Bool
@@ -886,7 +895,7 @@ private struct ChatLinkCard: View {
       if let imageUrl = preview?.imageUrl {
         KFImage(URL(string: imageUrl))
           .placeholder {
-            Rectangle().fill(Color(.systemGray5))
+            Rectangle().fill(theme.fillStrong)
           }
           .resizable()
           .fade(duration: 0.18)
@@ -922,6 +931,7 @@ private struct ChatLinkCard: View {
 }
 
 private struct ChatReactionPills: View {
+  @Environment(\.theme) private var theme
   let reactions: [MessageReaction]
   let isMine: Bool
   let onReact: () -> Void
@@ -935,8 +945,8 @@ private struct ChatReactionPills: View {
             .foregroundStyle(reaction.viewerReacted ? .white : .primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(reaction.viewerReacted ? ChatTheme.accent : Color(.tertiarySystemBackground)))
-            .overlay(Capsule().stroke(Color(.systemGray5), lineWidth: reaction.viewerReacted ? 0 : 1))
+            .background(Capsule().fill(reaction.viewerReacted ? ChatTheme.accent : theme.fill))
+            .overlay(Capsule().stroke(theme.fillStrong, lineWidth: reaction.viewerReacted ? 0 : 1))
         }
         .buttonStyle(.plain)
       }
@@ -947,6 +957,7 @@ private struct ChatReactionPills: View {
 }
 
 private struct ChatLocalMessageStateView: View {
+  @Environment(\.theme) private var theme
   let state: ChatLocalMessageState
   let onRetry: () -> Void
 
@@ -959,7 +970,7 @@ private struct ChatLocalMessageStateView: View {
         Text("Sending")
       }
       .font(.system(size: 11, weight: .semibold))
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
     case .failed(let message):
       Button(action: onRetry) {
         HStack(spacing: 5) {
@@ -975,6 +986,7 @@ private struct ChatLocalMessageStateView: View {
 }
 
 private struct ChatComposerBar: View {
+  @Environment(\.theme) private var theme
   @Binding var text: String
   @Binding var stagedAttachment: ChatStagedAttachment?
   let attachmentError: String?
@@ -1088,7 +1100,7 @@ private struct ChatComposerBar: View {
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: 34, height: 34)
-            .background(Circle().fill(canSend ? ChatTheme.accent : Color(.systemGray3)))
+            .background(Circle().fill(canSend ? ChatTheme.accent : theme.fillStrong))
         }
         .buttonStyle(.plain)
         .disabled(!canSend)
@@ -1113,6 +1125,7 @@ private struct ChatComposerBar: View {
 }
 
 private struct ChatComposerContextBar: View {
+  @Environment(\.theme) private var theme
   let title: String
   let bodyText: String
   let onCancel: () -> Void
@@ -1128,14 +1141,14 @@ private struct ChatComposerContextBar: View {
           .foregroundStyle(ChatTheme.accent)
         Text(bodyText)
           .font(.system(size: 12))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
       }
       Spacer()
       Button(action: onCancel) {
         Image(systemName: "xmark.circle.fill")
           .font(.system(size: 18, weight: .semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
       }
       .buttonStyle(.plain)
     }
@@ -1150,6 +1163,7 @@ private struct ChatComposerContextBar: View {
 }
 
 private struct ChatStagedAttachmentPreview: View {
+  @Environment(\.theme) private var theme
   let attachment: ChatStagedAttachment
   let progress: Double?
   let onRemove: () -> Void
@@ -1166,7 +1180,7 @@ private struct ChatStagedAttachmentPreview: View {
           .lineLimit(1)
         Text(attachment.byteCount.formattedFileSize)
           .font(.system(size: 12))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
         if let progress {
           ProgressView(value: progress)
             .frame(maxWidth: 160)
@@ -1178,12 +1192,12 @@ private struct ChatStagedAttachmentPreview: View {
       Button(action: onRemove) {
         Image(systemName: "xmark.circle.fill")
           .font(.system(size: 19, weight: .semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
       }
       .buttonStyle(.plain)
     }
     .padding(8)
-    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemBackground)))
+    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.bgSunken))
   }
 
   @ViewBuilder
@@ -1194,10 +1208,10 @@ private struct ChatStagedAttachmentPreview: View {
         .scaledToFill()
     } else {
       ZStack {
-        Color(.systemGray5)
+        theme.fillStrong
         Image(systemName: "doc.fill")
           .font(.system(size: 22, weight: .semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
       }
     }
   }
@@ -1213,6 +1227,7 @@ private struct ChatStagedAttachmentPreview: View {
 }
 
 private struct ChatTypingBubble: View {
+  @Environment(\.theme) private var theme
   let users: [ChatThreadTypingUser]
 
   var body: some View {
@@ -1236,18 +1251,20 @@ private struct ChatTypingBubble: View {
 }
 
 private struct ChatDateSeparator: View {
+  @Environment(\.theme) private var theme
   let date: Date
 
   var body: some View {
     Text(date.chatThreadSeparatorText)
       .font(.system(size: 12, weight: .bold))
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
       .padding(.vertical, 12)
       .frame(maxWidth: .infinity)
   }
 }
 
 private struct ChatThreadSkeletonView: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 12) {
@@ -1257,7 +1274,7 @@ private struct ChatThreadSkeletonView: View {
               Spacer()
             }
             RoundedRectangle(cornerRadius: 18)
-              .fill(Color(.systemGray5))
+              .fill(theme.fillStrong)
               .frame(width: index.isMultiple(of: 2) ? 230 : 168, height: index.isMultiple(of: 4) ? 90 : 42)
             if !index.isMultiple(of: 3) {
               Spacer()
@@ -1272,6 +1289,7 @@ private struct ChatThreadSkeletonView: View {
 }
 
 private struct ChatThreadErrorView: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -1279,7 +1297,7 @@ private struct ChatThreadErrorView: View {
     VStack(spacing: 12) {
       Text(message)
         .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
       Button("Retry", action: retry)
         .buttonStyle(.borderedProminent)
@@ -1291,6 +1309,7 @@ private struct ChatThreadErrorView: View {
 }
 
 private struct ChatThreadEmptyView: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     VStack(spacing: 12) {
       Image("MessagesIcon")
@@ -1302,7 +1321,7 @@ private struct ChatThreadEmptyView: View {
         .font(.system(size: 22, weight: .bold))
       Text("Conversation history will appear here.")
         .font(.system(size: 15))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding()
@@ -1315,6 +1334,7 @@ private struct ChatImageSelection: Identifiable, Equatable {
 }
 
 private struct ChatImageViewerView: View {
+  @Environment(\.theme) private var theme
   let selection: ChatImageSelection
   let onClose: () -> Void
 

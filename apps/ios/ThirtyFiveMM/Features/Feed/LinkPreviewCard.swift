@@ -2,6 +2,7 @@ import Kingfisher
 import SwiftUI
 
 struct LinkPreviewCard: View {
+  @Environment(\.theme) private var theme
   @Environment(\.openURL) private var openURL
 
   let preview: LinkPreview
@@ -38,12 +39,12 @@ struct LinkPreviewCard: View {
 
   private func imageCard(_ imageURL: URL) -> some View {
     VStack(alignment: .leading, spacing: 6) {
-      Color(.secondarySystemBackground)
+      theme.bgSunken
         .aspectRatio(1.91, contentMode: .fit)
         .overlay {
           KFImage(imageURL)
             .placeholder {
-              Color(.tertiarySystemFill)
+              theme.fill
             }
             .resizable()
             .fade(duration: 0.18)
@@ -74,13 +75,13 @@ struct LinkPreviewCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay {
           RoundedRectangle(cornerRadius: 12)
-            .stroke(Color(.separator), lineWidth: 0.5)
+            .stroke(theme.border, lineWidth: 0.5)
         }
         .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
 
       Text(domain)
         .font(.footnote)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
         .padding(.horizontal, 2)
     }
@@ -92,12 +93,12 @@ struct LinkPreviewCard: View {
       Text(domain.uppercased())
         .font(.caption.weight(.medium))
         .tracking(0.7)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
 
       Text(title)
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(2)
         .multilineTextAlignment(.leading)
 
@@ -106,7 +107,7 @@ struct LinkPreviewCard: View {
       {
         Text(description)
           .font(.footnote)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(2)
           .multilineTextAlignment(.leading)
       }
@@ -114,11 +115,11 @@ struct LinkPreviewCard: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 16)
     .padding(.vertical, 14)
-    .background(Color(.secondarySystemBackground))
+    .background(theme.bgSunken)
     .clipShape(RoundedRectangle(cornerRadius: 12))
     .overlay {
       RoundedRectangle(cornerRadius: 12)
-        .stroke(Color(.separator), lineWidth: 0.5)
+        .stroke(theme.border, lineWidth: 0.5)
     }
     .contentShape(Rectangle())
   }

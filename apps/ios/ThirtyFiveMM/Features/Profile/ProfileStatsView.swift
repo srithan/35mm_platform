@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileStatsView: View {
+  @Environment(\.theme) private var theme
   let model: ProfileViewModel
 
   private let metricColumns = [GridItem(.flexible()), GridItem(.flexible())]
@@ -57,7 +58,7 @@ struct ProfileStatsView: View {
           if stats.recentDiary.isEmpty {
             Text("No film logs yet")
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
           } else {
             ForEach(stats.recentDiary) { entry in
               ProfileStatsDiaryRow(entry: entry)

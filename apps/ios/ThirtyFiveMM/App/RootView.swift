@@ -2,9 +2,18 @@ import SwiftUI
 
 struct RootView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @ObservedObject private var themeManager = ThemeManager.shared
 
   var body: some View {
     RootContentView(authManager: env.authManager)
+      .environment(\.theme, themeManager.palette)
+      .tint(themeManager.palette.accent)
+      .preferredColorScheme(themeManager.theme.colorScheme)
+      .grayscale(themeManager.theme.isMonochrome ? 1 : 0)
+      .background(themeManager.palette.bg.ignoresSafeArea())
+      .onChange(of: themeManager.palette) { _, newPalette in
+        MainTabView.applyTabBarTheme(newPalette, custom: themeManager.theme.isCustomPalette)
+      }
   }
 }
 

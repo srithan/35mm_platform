@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileDiaryView: View {
+  @Environment(\.theme) private var theme
   let model: ProfileViewModel
   let onOpenPost: (FeedPost) -> Void
 
@@ -40,7 +41,7 @@ struct ProfileDiaryView: View {
             Text(section.month, format: .dateTime.month(.wide).year())
               .font(.subheadline)
               .bold()
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
               .textCase(.uppercase)
 
             ForEach(section.posts) { post in

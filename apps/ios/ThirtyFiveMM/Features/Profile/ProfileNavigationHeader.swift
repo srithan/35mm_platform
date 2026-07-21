@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileNavigationHeader: View {
+  @Environment(\.theme) private var theme
   let onBack: () -> Void
 
   var body: some View {
@@ -13,7 +14,7 @@ struct ProfileNavigationHeader: View {
         Button("Back", systemImage: "chevron.left", action: onBack)
           .labelStyle(.iconOnly)
           .font(.system(.title3, weight: .semibold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
           .frame(width: 44, height: 44)
           .contentShape(Rectangle())
           .buttonStyle(.plain)
@@ -23,7 +24,7 @@ struct ProfileNavigationHeader: View {
       .padding(.horizontal, 8)
     }
     .frame(height: 56)
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .overlay(alignment: .bottom) {
       Divider()
     }

@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 struct CommentRow: View {
+  @Environment(\.theme) private var theme
   let node: CommentNode
   let depth: Int
   let onLike: (Comment) -> Void
@@ -83,13 +84,13 @@ struct CommentRow: View {
         .placeholder {
           Image(systemName: "person.circle.fill")
             .resizable()
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
         .resizable()
         .scaledToFill()
         .frame(width: avatarSize, height: avatarSize)
         .clipShape(Circle())
-        .background(Circle().fill(Color(.secondarySystemBackground)))
+        .background(Circle().fill(theme.bgSunken))
     }
     .buttonStyle(.plain)
     .frame(minWidth: 44, minHeight: 44, alignment: .top)
@@ -100,7 +101,7 @@ struct CommentRow: View {
   private var header: some View {
     HStack(alignment: .top, spacing: 0) {
       VStack(alignment: .leading, spacing: 1) {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
           NavigationLink(value: AppRoute.profile(authorDestination)) {
             FeedAuthorIdentityLabel(
               displayName: authorName,
@@ -133,7 +134,7 @@ struct CommentRow: View {
           .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
       .accessibilityLabel("More comment actions")
     }
   }
@@ -159,7 +160,7 @@ struct CommentRow: View {
       }
       .foregroundStyle(
         comment.isLiked
-          ? DesignSystem.Colors.like
+          ? theme.like
           : Color.secondary
       )
       .accessibilityLabel(comment.isLiked ? "Unlike comment" : "Like comment")
@@ -198,8 +199,8 @@ struct CommentRow: View {
 
       Spacer(minLength: 0)
     }
-    .font(.caption.weight(.medium))
-    .foregroundStyle(.secondary)
+    .font(.appCounter)
+    .foregroundStyle(theme.textSecondary)
     .buttonStyle(.plain)
   }
 
@@ -216,9 +217,10 @@ struct CommentRow: View {
     if isDeleted {
       Text("[comment deleted]")
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
     } else {
-      RichTextView(body: comment.body, font: .subheadline)
+      RichTextView(body: comment.body, font: .appBody)
+        .lineSpacing(DesignSystem.appBodyLineSpacing)
         .fixedSize(horizontal: false, vertical: true)
     }
   }

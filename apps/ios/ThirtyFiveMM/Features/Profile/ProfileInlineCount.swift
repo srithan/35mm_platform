@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileInlineCount: View {
+  @Environment(\.theme) private var theme
   let value: Int
   let label: String
 
@@ -12,7 +13,7 @@ struct ProfileInlineCount: View {
         .monospacedDigit()
       Text(label)
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
     }
   }
 }

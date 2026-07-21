@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileGenreBreakdownView: View {
+  @Environment(\.theme) private var theme
   let genres: [ProfileStatsSummary.Genre]
 
   var body: some View {
@@ -16,7 +17,7 @@ struct ProfileGenreBreakdownView: View {
               Spacer()
               Text(genre.percentage / 100, format: .percent.precision(.fractionLength(0)))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
                 .monospacedDigit()
             }
 

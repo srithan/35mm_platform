@@ -2,6 +2,7 @@ import Kingfisher
 import SwiftUI
 
 struct ChatInboxView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @StateObject private var viewModel: ChatInboxViewModel
   @State private var isShowingComposer = false
@@ -47,7 +48,7 @@ struct ChatInboxView: View {
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-      .background(Color(.systemBackground))
+      .background(theme.bg)
       .navigationBarBackButtonHidden(true)
       .toolbar(.hidden, for: .navigationBar)
       .sheet(isPresented: $isShowingComposer) {
@@ -147,6 +148,7 @@ struct ChatInboxView: View {
 }
 
 private struct ChatInboxHeader<ArchiveDestination: View>: View {
+  @Environment(\.theme) private var theme
   let title: String
   let showsArchiveAction: Bool
   let onBack: () -> Void
@@ -172,7 +174,7 @@ private struct ChatInboxHeader<ArchiveDestination: View>: View {
       ZStack {
         Text(title)
           .font(.appScreenTitle)
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
           .lineLimit(1)
           .minimumScaleFactor(0.82)
           .frame(maxWidth: 180)
@@ -183,7 +185,7 @@ private struct ChatInboxHeader<ArchiveDestination: View>: View {
           Button(action: onBack) {
             Image(systemName: "chevron.left")
               .font(.system(size: 20, weight: .bold))
-              .foregroundStyle(Color(.label))
+              .foregroundStyle(theme.text)
               .frame(width: 42, height: 42)
               .contentShape(Circle())
           }
@@ -198,7 +200,7 @@ private struct ChatInboxHeader<ArchiveDestination: View>: View {
             } label: {
               Image(systemName: "archivebox")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color(.label))
+                .foregroundStyle(theme.text)
                 .frame(width: 38, height: 42)
                 .contentShape(Circle())
             }
@@ -208,7 +210,7 @@ private struct ChatInboxHeader<ArchiveDestination: View>: View {
             Button(action: onCompose) {
               Image(systemName: "square.and.pencil")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color(.label))
+                .foregroundStyle(theme.text)
                 .frame(width: 38, height: 42)
                 .contentShape(Circle())
             }
@@ -222,11 +224,12 @@ private struct ChatInboxHeader<ArchiveDestination: View>: View {
 
       Divider()
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
   }
 }
 
 private struct ChatInboxRow: View {
+  @Environment(\.theme) private var theme
   let thread: ChatThreadPreview
   let preview: String
   let isTyping: Bool
@@ -258,7 +261,7 @@ private struct ChatInboxRow: View {
           if thread.isMuted {
             Image(systemName: "bell.slash.fill")
               .font(.system(size: 11, weight: .semibold))
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
           }
 
           Spacer(minLength: 6)
@@ -273,7 +276,7 @@ private struct ChatInboxRow: View {
         HStack(spacing: 8) {
           Text(preview)
             .font(.system(size: 15, weight: hasUnread ? .semibold : .regular))
-            .foregroundStyle(isTyping ? Color(.systemBlue) : Color(.secondaryLabel))
+            .foregroundStyle(isTyping ? Color(.systemBlue) : theme.textSecondary)
             .lineLimit(1)
 
           Spacer(minLength: 6)
@@ -294,6 +297,7 @@ private struct ChatInboxRow: View {
 }
 
 private struct ChatAvatarCluster: View {
+  @Environment(\.theme) private var theme
   let members: [ChatMember]
   let type: ChatThreadType
   let isOnline: Bool
@@ -346,6 +350,7 @@ private struct ChatAvatarCluster: View {
 }
 
 struct ChatAvatarImage: View {
+  @Environment(\.theme) private var theme
   let url: String?
   let size: CGFloat
 
@@ -354,10 +359,10 @@ struct ChatAvatarImage: View {
       .placeholder {
         ZStack {
           Circle()
-            .fill(Color(.secondarySystemBackground))
+            .fill(theme.bgSunken)
           Image(systemName: "person.fill")
             .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(Color(.systemGray2))
+            .foregroundStyle(theme.textTertiary)
         }
       }
       .resizable()
@@ -371,6 +376,7 @@ struct ChatAvatarImage: View {
 }
 
 private struct ChatUnreadBadge: View {
+  @Environment(\.theme) private var theme
   let count: Int
 
   var body: some View {
@@ -384,19 +390,20 @@ private struct ChatUnreadBadge: View {
 }
 
 private struct ChatInboxSkeletonList: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     List {
       ForEach(0..<8, id: \.self) { _ in
         HStack(spacing: 12) {
           Circle()
-            .fill(Color(.systemGray5))
+            .fill(theme.fillStrong)
             .frame(width: 54, height: 54)
           VStack(alignment: .leading, spacing: 9) {
             RoundedRectangle(cornerRadius: 4)
-              .fill(Color(.systemGray5))
+              .fill(theme.fillStrong)
               .frame(width: 160, height: 16)
             RoundedRectangle(cornerRadius: 4)
-              .fill(Color(.systemGray6))
+              .fill(theme.fill)
               .frame(width: 230, height: 13)
           }
         }
@@ -410,6 +417,7 @@ private struct ChatInboxSkeletonList: View {
 }
 
 private struct ChatInboxEmptyView: View {
+  @Environment(\.theme) private var theme
   let mode: ChatInboxMode
   let onCompose: () -> Void
 
@@ -426,7 +434,7 @@ private struct ChatInboxEmptyView: View {
             .font(.system(size: 42, weight: .semibold))
         }
       }
-      .foregroundStyle(Color(.systemGray2))
+      .foregroundStyle(theme.textTertiary)
 
       Text(mode == .inbox ? "No messages yet" : "No archived threads")
         .font(.system(size: 22, weight: .bold))
@@ -449,6 +457,7 @@ private struct ChatInboxEmptyView: View {
 }
 
 private struct ChatInboxErrorView: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -456,7 +465,7 @@ private struct ChatInboxErrorView: View {
     VStack(spacing: 12) {
       Text(message)
         .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
       Button("Retry", action: retry)
         .buttonStyle(.borderedProminent)
@@ -468,6 +477,7 @@ private struct ChatInboxErrorView: View {
 }
 
 struct ChatInlineErrorBanner: View {
+  @Environment(\.theme) private var theme
   let message: String
   let dismiss: () -> Void
 
@@ -491,6 +501,7 @@ struct ChatInlineErrorBanner: View {
 }
 
 private struct ChatInboxLoadingMoreRow: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     HStack {
       Spacer()
@@ -502,6 +513,7 @@ private struct ChatInboxLoadingMoreRow: View {
 }
 
 private struct ChatComposeSheet: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @ObservedObject var viewModel: ChatInboxViewModel
   @State private var query = ""
@@ -545,10 +557,10 @@ private struct ChatComposeSheet: View {
               VStack(alignment: .leading, spacing: 2) {
                 Text(user.displayName?.isEmpty == false ? user.displayName ?? user.username : user.username)
                   .font(.system(size: 16, weight: .semibold))
-                  .foregroundStyle(.primary)
+                  .foregroundStyle(theme.text)
                 Text("@\(user.username)")
                   .font(.system(size: 13))
-                  .foregroundStyle(.secondary)
+                  .foregroundStyle(theme.textSecondary)
               }
               Spacer()
             }

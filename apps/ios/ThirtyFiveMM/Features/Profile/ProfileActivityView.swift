@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileActivityView: View {
+  @Environment(\.theme) private var theme
   let activity: [ProfileStatsSummary.ActivityDay]
 
   private let rows = Array(repeating: GridItem(.fixed(11), spacing: 4), count: 7)
@@ -29,7 +30,7 @@ struct ProfileActivityView: View {
 
   private func color(for count: Int) -> Color {
     switch count {
-    case 0: Color(.tertiarySystemFill)
+    case 0: theme.fill
     case 1: ProfileDesign.accent.opacity(0.28)
     case 2: ProfileDesign.accent.opacity(0.5)
     case 3: ProfileDesign.accent.opacity(0.72)

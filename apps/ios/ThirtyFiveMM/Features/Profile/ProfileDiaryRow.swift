@@ -2,6 +2,7 @@ import Kingfisher
 import SwiftUI
 
 struct ProfileDiaryRow: View {
+  @Environment(\.theme) private var theme
   let post: FeedPost
   let onOpen: () -> Void
 
@@ -11,7 +12,7 @@ struct ProfileDiaryRow: View {
         VStack(spacing: 1) {
           Text(post.createdAt, format: .dateTime.weekday(.abbreviated))
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
           Text(post.createdAt, format: .dateTime.day())
             .font(.title2)
             .bold()
@@ -22,9 +23,9 @@ struct ProfileDiaryRow: View {
         KFImage(URL(string: post.film?.posterUrl ?? ""))
           .placeholder {
             Rectangle()
-              .fill(Color(.secondarySystemBackground))
+              .fill(theme.bgSunken)
               .overlay {
-                Image(systemName: "film").foregroundStyle(.tertiary)
+                Image(systemName: "film").foregroundStyle(theme.textTertiary)
               }
           }
           .resizable()
@@ -36,7 +37,7 @@ struct ProfileDiaryRow: View {
           HStack(alignment: .firstTextBaseline) {
             Text(post.film?.title ?? "Untitled film")
               .font(.headline)
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
               .lineLimit(2)
 
             Spacer(minLength: 6)
@@ -54,23 +55,23 @@ struct ProfileDiaryRow: View {
 
           Text(metaText)
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
             .textCase(.uppercase)
 
           if let notes {
             Text(notes)
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
               .lineLimit(3)
           } else {
             Text("No notes added")
               .font(.subheadline)
-              .foregroundStyle(.tertiary)
+              .foregroundStyle(theme.textTertiary)
           }
         }
       }
       .padding(12)
-      .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: ProfileDesign.cardRadius))
+      .background(theme.bgSunken, in: .rect(cornerRadius: ProfileDesign.cardRadius))
       .contentShape(.rect)
     }
     .buttonStyle(.plain)

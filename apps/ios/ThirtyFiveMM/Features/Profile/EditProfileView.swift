@@ -3,6 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct EditProfileView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
   @State private var model: EditProfileViewModel
   @State private var isShowingDiscardConfirmation = false
@@ -59,7 +60,7 @@ struct EditProfileView: View {
 
           LabeledContent("Username") {
             Text("@\(model.profile.username)")
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
           }
 
           Toggle("Add date of birth", isOn: $includesBirthday)
@@ -144,7 +145,7 @@ struct EditProfileView: View {
               .accessibilityIdentifier("edit-profile.website")
             Text("https:// is added when omitted.")
               .font(.caption)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
             ProfileEditErrorText(message: model.draft.errors[.website])
           }
         }

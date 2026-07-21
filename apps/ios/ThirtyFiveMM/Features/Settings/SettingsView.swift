@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct SettingsView: View {
+  @Environment(\.theme) private var theme
   @StateObject private var viewModel: SettingsViewModel
 
   private let authManager: AuthManager
@@ -23,7 +24,7 @@ struct SettingsView: View {
           .transition(.move(edge: .bottom).combined(with: .opacity))
       }
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .navigationTitle("Settings")
     .navigationBarTitleDisplayMode(.inline)
     .task {
@@ -94,6 +95,7 @@ struct SettingsView: View {
 }
 
 private struct SettingsSectionDestination: View {
+  @Environment(\.theme) private var theme
   let section: SettingsSectionID
   @ObservedObject var viewModel: SettingsViewModel
   let authManager: AuthManager
@@ -125,13 +127,14 @@ private struct SettingsSectionDestination: View {
         SettingsDataSecurityView(viewModel: viewModel, authManager: authManager)
       }
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .navigationTitle(section.title)
     .navigationBarTitleDisplayMode(.inline)
   }
 }
 
 private struct SettingsProfileHeader: View {
+  @Environment(\.theme) private var theme
   let profile: UserProfile?
   let settings: ProfileSettings
 
@@ -147,34 +150,35 @@ private struct SettingsProfileHeader: View {
       VStack(alignment: .leading, spacing: 4) {
         Text(displayName)
           .font(.title3.weight(.bold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
           .lineLimit(1)
           .minimumScaleFactor(0.72)
 
         Text("@\(settings.username)")
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
 
         Text(settings.email)
           .font(.footnote.weight(.medium))
-          .foregroundStyle(Color(.tertiaryLabel))
+          .foregroundStyle(theme.textTertiary)
           .lineLimit(1)
       }
 
       Spacer(minLength: 0)
     }
     .padding(16)
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     .overlay {
       RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .stroke(Color(.separator).opacity(0.45), lineWidth: 1)
+        .stroke(theme.border.opacity(0.45), lineWidth: 1)
     }
   }
 }
 
 private struct SettingsAccountView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: SettingsViewModel
   @State private var profile: ProfileSettings
   @State private var showPasswordInfo = false
@@ -292,7 +296,7 @@ private struct SettingsAccountView: View {
         .foregroundStyle(Color.red)
     case .idle:
       Image(systemName: "info.circle.fill")
-        .foregroundStyle(Color(.tertiaryLabel))
+        .foregroundStyle(theme.textTertiary)
     }
   }
 
@@ -303,12 +307,13 @@ private struct SettingsAccountView: View {
     case .unavailable, .error:
       Color.red
     default:
-      Color(.secondaryLabel)
+      theme.textSecondary
     }
   }
 }
 
 private struct SettingsPrivacyView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: SettingsViewModel
   @State private var privacy: PrivacySettings
   @State private var confirmMakePublic = false
@@ -403,6 +408,7 @@ private struct SettingsPrivacyView: View {
 }
 
 private struct SettingsNotificationsView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: SettingsViewModel
   @State private var notifications: NotificationSettings
 
@@ -485,28 +491,9 @@ private struct SettingsNotificationsView: View {
 }
 
 private struct SettingsAppearanceView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: SettingsViewModel
   @State private var appearance: AppearanceSettings
-
-  private let themes = [
-    ("auto", "Auto", "circle.lefthalf.filled"),
-    ("light", "Light", "sun.max"),
-    ("dark", "Dark", "moon"),
-    ("matrix", "Matrix", "terminal"),
-    ("oppenheimer-bw", "B&W", "camera.filters"),
-    ("barbie", "Pop", "sparkles"),
-  ]
-
-  private let accentColors = [
-    ("theme", "Theme", Color(.label)),
-    ("warm-red", "Warm red", DesignSystem.Colors.accent),
-    ("crimson", "Crimson", Color.pink),
-    ("amber", "Amber", Color.orange),
-    ("forest", "Forest", Color.green),
-    ("ocean", "Ocean", Color.blue),
-    ("violet", "Violet", Color.purple),
-    ("rose", "Rose", Color(red: 0.93, green: 0.32, blue: 0.52)),
-  ]
 
   init(viewModel: SettingsViewModel, initialAppearance: AppearanceSettings) {
     self.viewModel = viewModel
@@ -518,13 +505,13 @@ private struct SettingsAppearanceView: View {
       VStack(spacing: 18) {
         SettingsSectionCard(title: "Theme") {
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 10)], spacing: 10) {
-            ForEach(themes, id: \.0) { theme in
+            ForEach(AppTheme.allCases) { theme in
               SettingsChoiceButton(
-                title: theme.1,
-                systemImage: theme.2,
-                selected: appearance.theme == theme.0
+                title: theme.title,
+                systemImage: theme.systemImage,
+                selected: appearance.theme == theme.rawValue
               ) {
-                appearance.theme = theme.0
+                appearance.theme = theme.rawValue
                 save()
               }
             }
@@ -533,30 +520,30 @@ private struct SettingsAppearanceView: View {
 
         SettingsSectionCard(title: "Accent color") {
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 122), spacing: 10)], spacing: 10) {
-            ForEach(accentColors, id: \.0) { accent in
+            ForEach(AppAccent.allCases) { accent in
               Button {
-                appearance.accentColor = accent.0
+                appearance.accentColor = accent.rawValue
                 save()
               } label: {
                 HStack(spacing: 9) {
                   Circle()
-                    .fill(accent.2)
+                    .fill(accent.overrideColor.map(Color.init) ?? theme.text)
                     .frame(width: 18, height: 18)
                     .overlay {
-                      if appearance.accentColor == accent.0 {
+                      if appearance.accentColor == accent.rawValue {
                         Image(systemName: "checkmark")
                           .font(.system(size: 9, weight: .black))
                           .foregroundStyle(Color.white)
                       }
                     }
-                  Text(accent.1)
+                  Text(accent.title)
                     .font(.footnote.weight(.semibold))
                     .lineLimit(1)
                   Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 12)
                 .frame(height: 42)
-                .background(appearance.accentColor == accent.0 ? Color(.systemGray5) : Color(.systemBackground))
+                .background(appearance.accentColor == accent.rawValue ? theme.fillStrong : theme.bg)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
               }
               .buttonStyle(.plain)
@@ -584,6 +571,8 @@ private struct SettingsAppearanceView: View {
   }
 
   private func save() {
+    // Apply optimistically so the theme flips instantly; server sync follows.
+    ThemeManager.shared.apply(appearance)
     Task {
       await viewModel.saveAppearance(appearance)
     }
@@ -591,6 +580,7 @@ private struct SettingsAppearanceView: View {
 }
 
 private struct SettingsMediaView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: SettingsViewModel
   @State private var media: MediaSettings
 
@@ -688,6 +678,7 @@ private struct SettingsMediaView: View {
 }
 
 private struct SettingsModerationListView: View {
+  @Environment(\.theme) private var theme
   let kind: SettingsModerationKind
   @ObservedObject var viewModel: SettingsViewModel
 
@@ -704,7 +695,7 @@ private struct SettingsModerationListView: View {
               ProgressView()
               Text("Loading \(kind.title.lowercased())...")
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(theme.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
@@ -746,6 +737,7 @@ private struct SettingsModerationListView: View {
 }
 
 private struct SettingsDataSecurityView: View {
+  @Environment(\.theme) private var theme
   @ObservedObject var viewModel: SettingsViewModel
   let authManager: AuthManager
 
@@ -857,6 +849,7 @@ private struct SettingsDataSecurityView: View {
 }
 
 private struct SettingsFooter: View {
+  @Environment(\.theme) private var theme
   let authManager: AuthManager
   @State private var confirmSignOut = false
 
@@ -869,7 +862,7 @@ private struct SettingsFooter: View {
         .foregroundStyle(Color.red)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
-        .background(Color(.systemBackground))
+        .background(theme.bg)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
           RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -891,6 +884,7 @@ private struct SettingsFooter: View {
 }
 
 private struct ModeratedUserRow: View {
+  @Environment(\.theme) private var theme
   let kind: SettingsModerationKind
   let user: ModeratedUser
   let action: () -> Void
@@ -905,12 +899,12 @@ private struct ModeratedUserRow: View {
           .lineLimit(1)
         Text("@\(user.username)")
           .font(.footnote.weight(.medium))
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
         if let bio = user.bio, !bio.isEmpty {
           Text(bio)
             .font(.caption)
-            .foregroundStyle(Color(.secondaryLabel))
+            .foregroundStyle(theme.textSecondary)
             .lineLimit(2)
             .padding(.top, 2)
         }
@@ -920,10 +914,10 @@ private struct ModeratedUserRow: View {
 
       Button(kind.actionTitle, action: action)
         .font(.footnote.weight(.semibold))
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(Color(.systemGray6))
+        .background(theme.fill)
         .clipShape(Capsule())
     }
     .padding(.vertical, 2)
@@ -931,6 +925,7 @@ private struct ModeratedUserRow: View {
 }
 
 private struct SettingsSectionCard<Content: View>: View {
+  @Environment(\.theme) private var theme
   let title: String?
   let content: Content
 
@@ -944,7 +939,7 @@ private struct SettingsSectionCard<Content: View>: View {
       if let title {
         Text(title)
           .font(.footnote.weight(.bold))
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .textCase(.uppercase)
           .padding(.horizontal, 4)
       }
@@ -953,17 +948,18 @@ private struct SettingsSectionCard<Content: View>: View {
         content
       }
       .padding(14)
-      .background(Color(.systemBackground))
+      .background(theme.bg)
       .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
       .overlay {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-          .stroke(Color(.separator).opacity(0.45), lineWidth: 1)
+          .stroke(theme.border.opacity(0.45), lineWidth: 1)
       }
     }
   }
 }
 
 private struct SettingsAvatar: View {
+  @Environment(\.theme) private var theme
   let url: String?
   let size: CGFloat
 
@@ -975,10 +971,10 @@ private struct SettingsAvatar: View {
       default:
         ZStack {
           Circle()
-            .fill(Color(.systemGray6))
+            .fill(theme.fill)
           Image(systemName: "person.fill")
             .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(Color(.systemGray2))
+            .foregroundStyle(theme.textTertiary)
         }
       }
     }
@@ -986,12 +982,13 @@ private struct SettingsAvatar: View {
     .clipShape(Circle())
     .overlay {
       Circle()
-        .stroke(Color(.systemGray5), lineWidth: 1)
+        .stroke(theme.fillStrong, lineWidth: 1)
     }
   }
 }
 
 private struct SettingsNavigationRow: View {
+  @Environment(\.theme) private var theme
   let systemImage: String
   let title: String
   let subtitle: String
@@ -1003,11 +1000,11 @@ private struct SettingsNavigationRow: View {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
           .font(.callout.weight(.semibold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
           .lineLimit(1)
         Text(subtitle)
           .font(.caption.weight(.medium))
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
       }
 
@@ -1015,7 +1012,7 @@ private struct SettingsNavigationRow: View {
 
       Image(systemName: "chevron.right")
         .font(.system(size: 13, weight: .bold))
-        .foregroundStyle(Color(.tertiaryLabel))
+        .foregroundStyle(theme.textTertiary)
     }
     .frame(minHeight: 54)
     .contentShape(Rectangle())
@@ -1023,6 +1020,7 @@ private struct SettingsNavigationRow: View {
 }
 
 private struct SettingsActionRow: View {
+  @Environment(\.theme) private var theme
   let systemImage: String
   let title: String
   let subtitle: String
@@ -1035,12 +1033,12 @@ private struct SettingsActionRow: View {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
           .font(.callout.weight(.semibold))
-          .foregroundStyle(isDestructive ? Color.red : Color(.label))
+          .foregroundStyle(isDestructive ? Color.red : theme.text)
           .lineLimit(1)
           .minimumScaleFactor(0.78)
         Text(subtitle)
           .font(.caption.weight(.medium))
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(2)
       }
 
@@ -1052,20 +1050,22 @@ private struct SettingsActionRow: View {
 }
 
 private struct SettingsIcon: View {
+  @Environment(\.theme) private var theme
   let systemImage: String
   var isDestructive = false
 
   var body: some View {
     Image(systemName: systemImage)
       .font(.system(size: 17, weight: .bold))
-      .foregroundStyle(isDestructive ? Color.red : Color(.label))
+      .foregroundStyle(isDestructive ? Color.red : theme.text)
       .frame(width: 34, height: 34)
-      .background(isDestructive ? Color.red.opacity(0.1) : Color(.systemGray6))
+      .background(isDestructive ? Color.red.opacity(0.1) : theme.fill)
       .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
   }
 }
 
 private struct SettingsToggleRow: View {
+  @Environment(\.theme) private var theme
   let title: String
   var subtitle: String?
   @Binding var isOn: Bool
@@ -1075,11 +1075,11 @@ private struct SettingsToggleRow: View {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
         if let subtitle {
           Text(subtitle)
             .font(.caption.weight(.medium))
-            .foregroundStyle(Color(.secondaryLabel))
+            .foregroundStyle(theme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
         }
       }
@@ -1090,6 +1090,7 @@ private struct SettingsToggleRow: View {
 }
 
 private struct SettingsTextFieldRow: View {
+  @Environment(\.theme) private var theme
   let title: String
   @Binding var text: String
   let placeholder: String
@@ -1102,16 +1103,16 @@ private struct SettingsTextFieldRow: View {
     VStack(alignment: .leading, spacing: 8) {
       Text(title)
         .font(.footnote.weight(.semibold))
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
 
       HStack(spacing: 0) {
         if let prefix {
           Text(prefix)
             .font(.subheadline.weight(.medium))
-            .foregroundStyle(Color(.secondaryLabel))
+            .foregroundStyle(theme.textSecondary)
             .padding(.horizontal, 11)
             .frame(height: 44)
-            .background(Color(.systemGray6))
+            .background(theme.fill)
         }
 
         TextField(placeholder, text: $text)
@@ -1123,11 +1124,11 @@ private struct SettingsTextFieldRow: View {
           .padding(.horizontal, 12)
           .frame(height: 44)
       }
-      .background(Color(.systemBackground))
+      .background(theme.bg)
       .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
       .overlay {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .stroke(Color(.systemGray5), lineWidth: 1)
+          .stroke(theme.fillStrong, lineWidth: 1)
       }
     }
     .padding(.vertical, 2)
@@ -1135,6 +1136,7 @@ private struct SettingsTextFieldRow: View {
 }
 
 private struct SettingsMenuRow: View {
+  @Environment(\.theme) private var theme
   let title: String
   let subtitle: String
   let value: String
@@ -1146,10 +1148,10 @@ private struct SettingsMenuRow: View {
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(Color(.label))
+          .foregroundStyle(theme.text)
         Text(subtitle)
           .font(.caption.weight(.medium))
-          .foregroundStyle(Color(.secondaryLabel))
+          .foregroundStyle(theme.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
 
@@ -1168,10 +1170,10 @@ private struct SettingsMenuRow: View {
           Image(systemName: "chevron.up.chevron.down")
             .font(.system(size: 10, weight: .bold))
         }
-        .foregroundStyle(Color(.label))
+        .foregroundStyle(theme.text)
         .padding(.horizontal, 10)
         .frame(height: 34)
-        .background(Color(.systemGray6))
+        .background(theme.fill)
         .clipShape(Capsule())
       }
     }
@@ -1180,6 +1182,7 @@ private struct SettingsMenuRow: View {
 }
 
 private struct SettingsChoiceButton: View {
+  @Environment(\.theme) private var theme
   let title: String
   let systemImage: String
   let selected: Bool
@@ -1195,14 +1198,14 @@ private struct SettingsChoiceButton: View {
           .lineLimit(1)
           .minimumScaleFactor(0.8)
       }
-      .foregroundStyle(selected ? Color(.label) : Color(.secondaryLabel))
+      .foregroundStyle(selected ? theme.text : theme.textSecondary)
       .frame(maxWidth: .infinity)
       .frame(height: 74)
-      .background(selected ? Color(.systemGray5) : Color(.systemBackground))
+      .background(selected ? theme.fillStrong : theme.bg)
       .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
       .overlay {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .stroke(selected ? Color(.label).opacity(0.24) : Color(.systemGray5), lineWidth: 1)
+          .stroke(selected ? theme.text.opacity(0.24) : theme.fillStrong, lineWidth: 1)
       }
     }
     .buttonStyle(.plain)
@@ -1210,6 +1213,7 @@ private struct SettingsChoiceButton: View {
 }
 
 private struct SettingsPrimaryButton: View {
+  @Environment(\.theme) private var theme
   let title: String
   let disabled: Bool
   let action: () -> Void
@@ -1221,7 +1225,7 @@ private struct SettingsPrimaryButton: View {
         .foregroundStyle(Color.white)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
-        .background(disabled ? Color(.systemGray3) : Color.black)
+        .background(disabled ? theme.fillStrong : Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
     .buttonStyle(.plain)
@@ -1230,6 +1234,7 @@ private struct SettingsPrimaryButton: View {
 }
 
 private struct SettingsDivider: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     Divider()
       .padding(.leading, 47)
@@ -1237,18 +1242,20 @@ private struct SettingsDivider: View {
 }
 
 private struct SettingsLoadingView: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     VStack(spacing: 12) {
       ProgressView()
       Text("Loading settings...")
         .font(.subheadline.weight(.medium))
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 
 private struct SettingsErrorView: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -1259,7 +1266,7 @@ private struct SettingsErrorView: View {
         .foregroundStyle(Color.orange)
       Text(message)
         .font(.subheadline.weight(.medium))
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
       Button("Retry", action: retry)
         .font(.subheadline.weight(.semibold))
@@ -1275,6 +1282,7 @@ private struct SettingsErrorView: View {
 }
 
 private struct SettingsInlineError: View {
+  @Environment(\.theme) private var theme
   let message: String
   let retry: () -> Void
 
@@ -1292,6 +1300,7 @@ private struct SettingsInlineError: View {
 }
 
 private struct SettingsEmptyState: View {
+  @Environment(\.theme) private var theme
   let systemImage: String
   let title: String
   let bodyText: String
@@ -1300,15 +1309,15 @@ private struct SettingsEmptyState: View {
     VStack(spacing: 10) {
       Image(systemName: systemImage)
         .font(.system(size: 28, weight: .bold))
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
         .frame(width: 56, height: 56)
-        .background(Color(.systemGray6))
+        .background(theme.fill)
         .clipShape(Circle())
       Text(title)
         .font(.callout.weight(.bold))
       Text(bodyText)
         .font(.footnote.weight(.medium))
-        .foregroundStyle(Color(.secondaryLabel))
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
         .lineLimit(3)
     }
@@ -1318,6 +1327,7 @@ private struct SettingsEmptyState: View {
 }
 
 private struct SettingsToast: View {
+  @Environment(\.theme) private var theme
   let message: String
 
   var body: some View {

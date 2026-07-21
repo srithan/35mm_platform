@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 struct PostCard: View {
+  @Environment(\.theme) private var theme
   @EnvironmentObject private var env: AppEnvironment
 
   let post: FeedPost
@@ -76,14 +77,14 @@ struct PostCard: View {
     .background {
       if let onOpenPost {
         Button(action: onOpenPost) {
-          Color(.systemBackground)
+          theme.bg
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Open post by \(authorName)")
         .accessibilityHint("Opens post")
       } else {
-        Color(.systemBackground)
+        theme.bg
       }
     }
     .bottomActionSheet(
@@ -162,13 +163,13 @@ struct PostCard: View {
         .placeholder {
           Image(systemName: "person.circle.fill")
             .resizable()
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
         .resizable()
         .scaledToFill()
         .frame(width: 40, height: 40)
         .clipShape(Circle())
-        .background(Circle().fill(Color(.secondarySystemBackground)))
+        .background(Circle().fill(theme.bgSunken))
     }
     .buttonStyle(.plain)
     .frame(minWidth: 44, minHeight: 44, alignment: .top)
@@ -179,7 +180,7 @@ struct PostCard: View {
   private var authorRow: some View {
     HStack(alignment: .top, spacing: 0) {
       VStack(alignment: .leading, spacing: 1) {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
           NavigationLink(value: AppRoute.profile(authorDestination)) {
             FeedAuthorIdentityLabel(
               displayName: authorName,
@@ -212,7 +213,7 @@ struct PostCard: View {
           .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .foregroundStyle(.secondary)
+      .foregroundStyle(theme.textSecondary)
       .accessibilityLabel("More post actions")
     }
   }
@@ -223,7 +224,7 @@ struct PostCard: View {
       Label("DISCUSSION", systemImage: "bubble.left.and.bubble.right")
         .font(.caption.weight(.semibold))
         .tracking(0.5)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(.quaternary, in: Capsule())
@@ -246,7 +247,7 @@ struct PostCard: View {
     if let headline = post.headline, !headline.isEmpty {
       Text(headline)
         .font(.headline)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .fixedSize(horizontal: false, vertical: true)
     }
   }
@@ -256,8 +257,10 @@ struct PostCard: View {
     if let body = post.body, !body.isEmpty {
       let suppressedURL =
         post.linkPreview?.presentation == .cardOnly ? post.linkPreview?.url : nil
+      let bodyFont: Font = truncatesBody ? .appBody : .appBodyLarge
       VStack(alignment: .leading, spacing: 4) {
-        RichTextView(body: body, font: .body, suppressingURL: suppressedURL)
+        RichTextView(body: body, font: bodyFont, suppressingURL: suppressedURL)
+          .lineSpacing(DesignSystem.appBodyLineSpacing)
           .lineLimit(shouldClampBody(body) ? 6 : nil)
           .fixedSize(horizontal: false, vertical: true)
 
@@ -265,9 +268,9 @@ struct PostCard: View {
           Button("more") {
             isExpanded = true
           }
-          .font(.body.weight(.medium))
+          .font(.appBody.weight(.medium))
           .buttonStyle(.plain)
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(theme.accent)
         }
       }
     }
@@ -319,7 +322,7 @@ struct PostCard: View {
         assetName: post.isLiked ? "PostActionHeartFilled" : "PostActionHeart",
         count: post.likeCount,
         isActive: post.isLiked,
-        activeColor: DesignSystem.Colors.like,
+        activeColor: theme.like,
         accessibilityLabel: post.isLiked ? "Unlike post" : "Like post"
       ) {
         Task { await interactor.toggleLike(postId: post.id) }
@@ -338,7 +341,7 @@ struct PostCard: View {
         assetName: post.isReposted ? "PostActionRepostFilled" : "PostActionRepost",
         count: post.repostCount,
         isActive: post.isReposted,
-        activeColor: DesignSystem.Colors.repost,
+        activeColor: theme.repost,
         accessibilityLabel: post.isReposted
           ? "Repost options, reposted"
           : "Repost options, not reposted"
@@ -456,6 +459,7 @@ struct PostCard: View {
 }
 
 struct FeedAuthorIdentityLabel: View {
+  @Environment(\.theme) private var theme
   let displayName: String
   let username: String
 
@@ -463,38 +467,40 @@ struct FeedAuthorIdentityLabel: View {
     HStack(alignment: .firstTextBaseline, spacing: 4) {
       Text(displayName)
         .font(.appAuthorName)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(1)
 
       Text("@\(username)")
         .font(.appAuthorHandle)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
     }
   }
 }
 
 struct FeedTimestampLabel: View {
+  @Environment(\.theme) private var theme
   let timestamp: String
   var context: String? = nil
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 2) {
       Text("· \(timestamp)")
-        .font(.appMetadata)
+        .font(.appAuthorHandle)
 
       if let context {
         Text(context)
-          .font(.caption2)
+          .font(.appMetadata)
       }
     }
-    .foregroundStyle(.secondary)
+    .foregroundStyle(theme.textSecondary)
     .lineLimit(1)
     .fixedSize(horizontal: true, vertical: false)
   }
 }
 
 struct AuthorRoleLabel: View {
+  @Environment(\.theme) private var theme
   let author: PostAuthor
 
   nonisolated static func headline(for author: PostAuthor) -> String? {
@@ -525,21 +531,21 @@ struct AuthorRoleLabel: View {
     {
       HStack(spacing: 6) {
         Circle()
-          .fill(Self.color(for: role))
+          .fill(color(for: role))
           .frame(width: 5, height: 5)
 
         Text(headline)
           .font(.caption2.weight(.medium))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
       }
     }
   }
 
-  private static func color(for role: String) -> Color {
+  private func color(for role: String) -> Color {
     switch role {
     case "Cinephile":
-      return DesignSystem.Colors.accent
+      return theme.accent
     case "Creator", "Director":
       return .indigo
     case "Critic", "Film Critic":
@@ -553,7 +559,7 @@ struct AuthorRoleLabel: View {
     case "Screenwriter":
       return .pink
     default:
-      return .secondary
+      return theme.textSecondary
     }
   }
 }
@@ -804,10 +810,11 @@ private final class FilmPosterColorCache {
 }
 
 private struct ActionButton: View {
+  @Environment(\.theme) private var theme
   let assetName: String
   let count: Int
   let isActive: Bool
-  var activeColor: Color = .accentColor
+  var activeColor: Color = DesignSystem.Colors.accent
   let accessibilityLabel: String
   let action: () -> Void
 
@@ -826,7 +833,7 @@ private struct ActionButton: View {
             .monospacedDigit()
         }
       }
-      .foregroundStyle(isActive ? activeColor : Color.secondary)
+      .foregroundStyle(isActive ? activeColor : theme.textSecondary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .frame(minHeight: 44)
       .contentShape(Rectangle())
@@ -869,6 +876,7 @@ private struct FilmCardStarRow: View {
 }
 
 private struct PollView: View {
+  @Environment(\.theme) private var theme
   let postId: String
   let poll: Poll
   let interactor: any PostInteracting
@@ -894,17 +902,17 @@ private struct PollView: View {
     static let gradientText = Color(red: 0.06, green: 0.06, blue: 0.06)
     static let winnerStart = Color(red: 10.0 / 255.0, green: 228.0 / 255.0, blue: 72.0 / 255.0)
     static let winnerEnd = Color(red: 171.0 / 255.0, green: 1.0, blue: 132.0 / 255.0)
-    static let barStart = Color.primary.opacity(0.16)
-    static let barEnd = Color.primary.opacity(0.07)
 
     static let winnerGradient = LinearGradient(
       colors: [winnerStart, winnerEnd],
       startPoint: UnitPoint(x: 0.12, y: 0.18),
       endPoint: UnitPoint(x: 0.82, y: 0.78)
     )
+  }
 
-    static let barGradient = LinearGradient(
-      colors: [barStart, barEnd],
+  private var barGradient: LinearGradient {
+    LinearGradient(
+      colors: [theme.text.opacity(0.16), theme.text.opacity(0.07)],
       startPoint: UnitPoint(x: 0.12, y: 0.18),
       endPoint: UnitPoint(x: 0.82, y: 0.78)
     )
@@ -942,9 +950,9 @@ private struct PollView: View {
         HStack(spacing: 8) {
           Image(systemName: "chart.bar.xaxis")
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(theme.accent)
             .frame(width: 28, height: 28)
-            .background(Color(.systemBackground), in: Circle())
+            .background(theme.bg, in: Circle())
 
           Text("Poll")
             .font(.subheadline.weight(.semibold))
@@ -955,7 +963,7 @@ private struct PollView: View {
         if !canVote {
           Text(voteCountText)
             .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
       }
 
@@ -970,10 +978,10 @@ private struct PollView: View {
       footer
     }
     .padding(12)
-    .background(Color(.secondarySystemBackground).opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .background(theme.bgSunken.opacity(0.45), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     .overlay(
       RoundedRectangle(cornerRadius: 14, style: .continuous)
-        .stroke(Color(.separator).opacity(0.35), lineWidth: 1)
+        .stroke(theme.border.opacity(0.35), lineWidth: 1)
     )
   }
 
@@ -992,15 +1000,15 @@ private struct PollView: View {
     } label: {
       Text(option.displayLabel)
         .font(.subheadline.weight(isSelected ? .semibold : .medium))
-        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        .foregroundStyle(isSelected ? theme.accent : theme.text)
         .lineLimit(2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(isSelected ? Color.accentColor.opacity(0.08) : Color(.systemBackground), in: Capsule())
+        .background(isSelected ? theme.accent.opacity(0.08) : theme.bg, in: Capsule())
         .overlay(
           Capsule()
-            .stroke(isSelected ? Color.accentColor : Color(.separator).opacity(0.65), lineWidth: 1.5)
+            .stroke(isSelected ? theme.accent : theme.border.opacity(0.65), lineWidth: 1.5)
         )
     }
     .buttonStyle(.plain)
@@ -1015,7 +1023,7 @@ private struct PollView: View {
 
     return ZStack(alignment: .leading) {
       Capsule()
-        .fill(Color(.secondarySystemBackground))
+        .fill(theme.bgSunken)
 
       GeometryReader { proxy in
         Capsule()
@@ -1029,12 +1037,12 @@ private struct PollView: View {
           if isSelected {
             Image(systemName: "checkmark.circle.fill")
               .font(.system(size: 17, weight: .semibold))
-              .foregroundStyle(isWinner ? PollPalette.gradientText : Color.accentColor)
+              .foregroundStyle(isWinner ? PollPalette.gradientText : theme.accent)
           }
 
           Text(option.displayLabel)
             .font(.subheadline.weight(isWinner ? .semibold : .regular))
-            .foregroundStyle(isWinner && percent > 64 ? PollPalette.gradientText : Color.primary)
+            .foregroundStyle(isWinner && percent > 64 ? PollPalette.gradientText : theme.text)
             .lineLimit(1)
         }
 
@@ -1064,7 +1072,7 @@ private struct PollView: View {
 
         Text(option.displayLabel)
           .font(.caption.weight(.medium))
-          .foregroundStyle(isWinner && poll.resultsVisible ? PollPalette.gradientText : Color.primary)
+          .foregroundStyle(isWinner && poll.resultsVisible ? PollPalette.gradientText : theme.text)
           .lineLimit(1)
           .frame(maxWidth: .infinity)
           .padding(.horizontal, 8)
@@ -1073,14 +1081,14 @@ private struct PollView: View {
             if isWinner && poll.resultsVisible {
               PollPalette.winnerGradient
             } else {
-              Color(.systemBackground)
+              theme.bg
             }
           }
       }
       .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
       .overlay(
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .stroke(isSelected ? Color.accentColor : Color(.separator).opacity(0.55), lineWidth: isSelected ? 2 : 1)
+          .stroke(isSelected ? theme.accent : theme.border.opacity(0.55), lineWidth: isSelected ? 2 : 1)
       )
     }
     .buttonStyle(.plain)
@@ -1094,7 +1102,7 @@ private struct PollView: View {
     isSelected: Bool,
     isWinner: Bool
   ) -> some View {
-    Color(.tertiarySystemFill)
+    theme.fill
       .aspectRatio(1, contentMode: .fit)
       .overlay {
         optionImage(option)
@@ -1115,7 +1123,7 @@ private struct PollView: View {
         if isSelected {
           Image(systemName: "checkmark.circle.fill")
             .font(.system(size: poll.resultsVisible ? 24 : 36, weight: .bold))
-            .foregroundStyle(.white, Color.accentColor)
+            .foregroundStyle(.white, theme.accent)
             .shadow(color: .black.opacity(0.22), radius: 8, y: 2)
         }
       }
@@ -1169,11 +1177,11 @@ private struct PollView: View {
 
   private var imagePlaceholder: some View {
     ZStack {
-      Color(.tertiarySystemFill)
+      theme.fill
 
       Image(systemName: "photo")
         .font(.system(size: 30, weight: .light))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
     }
   }
 
@@ -1181,7 +1189,7 @@ private struct PollView: View {
     TimelineView(.periodic(from: Date(), by: pollCountdownInterval)) { context in
       Text(footerText(now: context.date))
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
     }
   }
@@ -1246,7 +1254,7 @@ private struct PollView: View {
   }
 
   private func resultFillStyle(isWinner: Bool) -> AnyShapeStyle {
-    isWinner ? AnyShapeStyle(PollPalette.winnerGradient) : AnyShapeStyle(PollPalette.barGradient)
+    isWinner ? AnyShapeStyle(PollPalette.winnerGradient) : AnyShapeStyle(barGradient)
   }
 
   private func formatPercent(_ percent: Double) -> String {

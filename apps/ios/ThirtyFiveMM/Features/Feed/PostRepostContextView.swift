@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PostRepostContextView: View {
+  @Environment(\.theme) private var theme
   let context: RepostContext
   let viewerUserId: String?
   let viewerHasReposted: Bool
@@ -8,8 +9,8 @@ struct PostRepostContextView: View {
   var body: some View {
     Label {
       Text(summary)
-        .font(.caption.weight(.medium))
-        .foregroundStyle(.secondary)
+        .font(.footnote.weight(.semibold))
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
     } icon: {
       Image("PostActionRepost")

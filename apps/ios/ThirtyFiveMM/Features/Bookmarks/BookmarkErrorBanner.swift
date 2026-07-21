@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BookmarkErrorBanner: View {
+  @Environment(\.theme) private var theme
   let message: String
   let dismiss: () -> Void
 
@@ -12,14 +13,14 @@ struct BookmarkErrorBanner: View {
 
       Text(message)
         .font(.footnote)
-        .foregroundStyle(.primary)
+        .foregroundStyle(theme.text)
         .lineLimit(3)
 
       Spacer(minLength: 8)
 
       Button("Dismiss error", systemImage: "xmark", action: dismiss)
         .labelStyle(.iconOnly)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .frame(minWidth: 44, minHeight: 44)
     }
     .padding(.leading, 12)

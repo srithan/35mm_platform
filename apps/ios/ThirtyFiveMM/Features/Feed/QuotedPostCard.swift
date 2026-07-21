@@ -2,6 +2,7 @@ import Kingfisher
 import SwiftUI
 
 struct QuotedPostCard: View {
+  @Environment(\.theme) private var theme
   let post: QuotedFeedPost?
   let unavailable: Bool
   var isCompact = false
@@ -18,16 +19,16 @@ struct QuotedPostCard: View {
       } else if unavailable {
         Label("This post is unavailable", systemImage: "lock.fill")
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .frame(maxWidth: .infinity, minHeight: 96)
           .accessibilityLabel("Quoted post unavailable")
       }
     }
-    .background(Color(.secondarySystemBackground).opacity(0.48))
+    .background(theme.bgSunken.opacity(0.48))
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .overlay {
       RoundedRectangle(cornerRadius: 12, style: .continuous)
-        .stroke(Color(.separator), lineWidth: 0.5)
+        .stroke(theme.border, lineWidth: 0.5)
     }
     .padding(.top, 4)
   }
@@ -39,7 +40,7 @@ struct QuotedPostCard: View {
           .placeholder {
             Image(systemName: "person.circle.fill")
               .resizable()
-              .foregroundStyle(.secondary)
+              .foregroundStyle(theme.textSecondary)
           }
           .resizable()
           .scaledToFill()
@@ -48,17 +49,17 @@ struct QuotedPostCard: View {
 
         Text(displayName(for: post))
           .font(.caption.weight(.bold))
-          .foregroundStyle(.primary)
+          .foregroundStyle(theme.text)
           .lineLimit(1)
 
         Text("@\(post.author.username)")
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(1)
 
         Text("· \(post.createdAt.feedRelativeShort)")
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .fixedSize(horizontal: true, vertical: false)
       }
 
@@ -83,19 +84,19 @@ struct QuotedPostCard: View {
           ForEach(poll.options.prefix(4)) { option in
             Text(option.label ?? "Image option")
               .font(.caption)
-              .foregroundStyle(.primary)
+              .foregroundStyle(theme.text)
               .lineLimit(1)
               .frame(maxWidth: .infinity, alignment: .leading)
               .padding(.horizontal, 10)
               .padding(.vertical, 6)
               .overlay {
-                Capsule().stroke(Color(.separator), lineWidth: 0.5)
+                Capsule().stroke(theme.border, lineWidth: 0.5)
               }
           }
 
           Text("Poll")
             .font(.caption2)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
         }
       }
 
@@ -104,9 +105,9 @@ struct QuotedPostCard: View {
           KFImage(URL(string: film.posterUrl ?? ""))
             .placeholder {
               Image(systemName: "film")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.tertiarySystemBackground))
+                .background(theme.fill)
             }
             .resizable()
             .scaledToFill()
@@ -120,13 +121,13 @@ struct QuotedPostCard: View {
             if let year = film.year {
               Text(String(year))
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
             }
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+        .background(theme.fill, in: RoundedRectangle(cornerRadius: 8))
       }
 
       if !isCompact {
@@ -148,18 +149,18 @@ struct QuotedPostCard: View {
             VStack(alignment: .leading, spacing: 3) {
               Text(URL(string: preview.url)?.host() ?? preview.url)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
                 .lineLimit(1)
               Text(preview.title ?? preview.url)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(theme.text)
                 .lineLimit(2)
             }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .clipShape(RoundedRectangle(cornerRadius: 8))
           .overlay {
-            RoundedRectangle(cornerRadius: 8).stroke(Color(.separator), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 8).stroke(theme.border, lineWidth: 0.5)
           }
         }
       }

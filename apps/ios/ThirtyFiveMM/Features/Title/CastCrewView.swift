@@ -83,6 +83,7 @@ final class CastCrewViewModel: ObservableObject {
 }
 
 struct CastCrewView: View {
+  @Environment(\.theme) private var theme
   @StateObject private var viewModel: CastCrewViewModel
   @State private var selectedCredit: CatalogCredit?
   private let title: String
@@ -158,7 +159,7 @@ struct CastCrewView: View {
     .safeAreaInset(edge: .top, spacing: 0) {
       Text(title)
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .lineLimit(1)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -196,7 +197,7 @@ struct CastCrewView: View {
       .padding(.horizontal, 20)
       .padding(.vertical, 12)
     }
-    .background(Color(.systemBackground))
+    .background(theme.bg)
     .overlay(alignment: .bottom) { Divider() }
   }
 
@@ -210,7 +211,7 @@ struct CastCrewView: View {
         .padding(.horizontal, 14)
         .frame(minHeight: 38)
         .background(
-          viewModel.selectedDepartment == value ? Color.primary : Color(.secondarySystemBackground),
+          viewModel.selectedDepartment == value ? Color.primary : theme.bgSunken,
           in: Capsule()
         )
     }
@@ -220,6 +221,7 @@ struct CastCrewView: View {
 }
 
 private struct CreditRow: View {
+  @Environment(\.theme) private var theme
   let credit: CatalogCredit
 
   var body: some View {
@@ -231,21 +233,21 @@ private struct CreditRow: View {
       VStack(alignment: .leading, spacing: 4) {
         Text(credit.person?.primaryName ?? credit.creditedAs ?? "Unknown")
           .font(.body.weight(.semibold))
-          .foregroundStyle(.primary)
+          .foregroundStyle(theme.text)
           .lineLimit(2)
         Text(credit.roleText)
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(theme.textSecondary)
           .lineLimit(2)
         Text(credit.departmentLabel)
           .font(.caption2.weight(.bold))
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(theme.textTertiary)
           .textCase(.uppercase)
       }
 
       Spacer(minLength: 8)
       Image(systemName: "ellipsis")
-        .foregroundStyle(.tertiary)
+        .foregroundStyle(theme.textTertiary)
     }
     .contentShape(Rectangle())
     .accessibilityElement(children: .combine)

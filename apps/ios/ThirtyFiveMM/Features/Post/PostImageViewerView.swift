@@ -12,6 +12,7 @@ struct PostImageViewerMetrics {
 }
 
 struct PostImageViewerView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
 
   let destination: PostImageDestination
@@ -177,7 +178,7 @@ struct PostImageViewerView: View {
         image: Image(metrics.isReposted ? "PostActionRepostFilled" : "PostActionRepost"),
         count: metrics.repostCount,
         isActive: metrics.isReposted,
-        activeColor: DesignSystem.Colors.repost,
+        activeColor: theme.repost,
         accessibilityLabel: metrics.isReposted
           ? "Repost options, reposted"
           : "Repost options, not reposted"

@@ -185,6 +185,7 @@ final class TitleDetailViewModel: ObservableObject {
 }
 
 struct TitleDetailView: View {
+  @Environment(\.theme) private var theme
   @Environment(\.openURL) private var openURL
   @StateObject private var viewModel: TitleDetailViewModel
   @State private var selectedTab: TitleDetailTab = .overview
@@ -218,7 +219,7 @@ struct TitleDetailView: View {
           }
           .padding(.bottom, 40)
         }
-        .background(Color(.systemBackground))
+        .background(theme.bg)
         .refreshable { await viewModel.load() }
       } else {
         CatalogLoadState(
@@ -355,7 +356,7 @@ struct TitleDetailView: View {
         TitleSection(title: "About") {
           Text(synopsis)
             .font(.body)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.textSecondary)
             .lineSpacing(5)
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -381,7 +382,7 @@ struct TitleDetailView: View {
             TitleFactRow(label: "Languages", value: detail.spokenLanguages.joined(separator: ", "))
           }
         }
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 14))
       }
 
       if !viewModel.castPreview.isEmpty {
@@ -460,6 +461,7 @@ struct TitleDetailView: View {
 }
 
 private struct TitleSection<Content: View>: View {
+  @Environment(\.theme) private var theme
   let title: String
   @ViewBuilder let content: () -> Content
 
@@ -475,6 +477,7 @@ private struct TitleSection<Content: View>: View {
 }
 
 private struct TitleFactRow: View {
+  @Environment(\.theme) private var theme
   let label: String
   let value: String
 
@@ -482,7 +485,7 @@ private struct TitleFactRow: View {
     HStack(alignment: .firstTextBaseline, spacing: 12) {
       Text(label)
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .frame(width: 88, alignment: .leading)
       Text(value)
         .font(.subheadline.weight(.medium))
@@ -495,6 +498,7 @@ private struct TitleFactRow: View {
 }
 
 private struct CastCreditCard: View {
+  @Environment(\.theme) private var theme
   let credit: CatalogCredit
 
   var body: some View {
@@ -508,7 +512,7 @@ private struct CastCreditCard: View {
         .lineLimit(2)
       Text(credit.roleText)
         .font(.caption2)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(theme.textSecondary)
         .multilineTextAlignment(.center)
         .lineLimit(2)
     }
@@ -518,19 +522,20 @@ private struct CastCreditCard: View {
 }
 
 private struct TitleLoadingView: View {
+  @Environment(\.theme) private var theme
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 18) {
         Rectangle()
-          .fill(Color(.secondarySystemBackground))
+          .fill(theme.bgSunken)
           .frame(height: 410)
         RoundedRectangle(cornerRadius: 8)
-          .fill(Color(.secondarySystemBackground))
+          .fill(theme.bgSunken)
           .frame(height: 48)
           .padding(.horizontal, 20)
         ForEach(0..<4, id: \.self) { _ in
           RoundedRectangle(cornerRadius: 8)
-            .fill(Color(.secondarySystemBackground))
+            .fill(theme.bgSunken)
             .frame(height: 72)
             .padding(.horizontal, 20)
         }
