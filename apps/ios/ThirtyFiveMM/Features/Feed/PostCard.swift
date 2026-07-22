@@ -822,6 +822,7 @@ private struct ActionButton: View {
     Button(action: action) {
       HStack(spacing: 6) {
         Image(assetName)
+          .renderingMode(.template)
           .resizable()
           .scaledToFit()
           .frame(width: 22, height: 22)

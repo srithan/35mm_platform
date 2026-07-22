@@ -33,7 +33,7 @@ final class NotificationsViewModel: ObservableObject {
 
   private let apiClient: APIClient
   private let pageLimit = 24
-  private let followRequestLimit = 8
+  private let followRequestLimit = 2
   private var nextCursor: String?
   private var hasMore = true
 
@@ -161,12 +161,16 @@ final class NotificationsViewModel: ObservableObject {
     }
   }
 
-  func acceptFollowRequest(_ request: FollowRequest) async {
-    await resolveFollowRequest(request, endpoint: .acceptFollowRequest(request.requesterId))
-  }
-
-  func declineFollowRequest(_ request: FollowRequest) async {
-    await resolveFollowRequest(request, endpoint: .declineFollowRequest(request.requesterId))
+  func refreshFollowRequests() async {
+    do {
+      let page: FollowRequestPage = try await apiClient.request(
+        .getFollowRequests(cursor: nil, limit: followRequestLimit)
+      )
+      followRequests = page.requests
+      followRequestTotal = page.total
+    } catch {
+      self.error = error.localizedDescription
+    }
   }
 
   func clearError() {
@@ -198,22 +202,6 @@ final class NotificationsViewModel: ObservableObject {
       } else if let currentIndex = items.firstIndex(where: { $0.id == item.id }) {
         items[currentIndex] = original
       }
-      self.error = error.localizedDescription
-    }
-  }
-
-  private func resolveFollowRequest(_ request: FollowRequest, endpoint: APIEndpoint) async {
-    let originalRequests = followRequests
-    let originalTotal = followRequestTotal
-    followRequests.removeAll { $0.id == request.id }
-    followRequestTotal = max(followRequestTotal - 1, 0)
-    error = nil
-
-    do {
-      try await apiClient.requestVoid(endpoint)
-    } catch {
-      followRequests = originalRequests
-      followRequestTotal = originalTotal
       self.error = error.localizedDescription
     }
   }

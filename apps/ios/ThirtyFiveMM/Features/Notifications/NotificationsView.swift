@@ -6,6 +6,8 @@ struct NotificationsView: View {
   @StateObject private var viewModel: NotificationsViewModel
   @State private var selectedPost: FeedPost?
   @State private var openingItemId: String?
+  @State private var optionsItem: NotificationItem?
+  @State private var isShowingFollowRequests = false
   private let apiClient: APIClient
 
   init(apiClient: APIClient) {
@@ -28,100 +30,121 @@ struct NotificationsView: View {
       PostDetailView(post: post)
         .environmentObject(env)
     }
+    .navigationDestination(isPresented: $isShowingFollowRequests) {
+      FollowRequestsView(service: apiClient)
+        .onDisappear {
+          Task { await viewModel.refreshFollowRequests() }
+        }
+    }
+    .bottomActionSheet(item: $optionsItem) { item in
+      BottomActionSheet(
+        title: "Notification options",
+        actions: notificationActions(for: item)
+      )
+    }
     .animation(.easeInOut(duration: 0.2), value: viewModel.items)
     .animation(.easeInOut(duration: 0.2), value: viewModel.followRequests)
   }
 
   private var notificationsToolbar: some View {
-    VStack(spacing: 0) {
-      HStack(spacing: 12) {
-        Picker("Notification filter", selection: Binding(
-          get: { viewModel.filter },
-          set: { nextFilter in
-            Task { await viewModel.setFilter(nextFilter) }
-          }
-        )) {
-          ForEach(NotificationFilter.allCases) { filter in
-            Text(filter.title).tag(filter)
-          }
+    HStack(spacing: DesignSystem.Spacing.md) {
+      ForEach(NotificationFilter.allCases) { filter in
+        Button(filter.title) {
+          Task { await viewModel.setFilter(filter) }
         }
-        .pickerStyle(.segmented)
-
-        Button {
-          Task { await viewModel.markAllRead() }
-        } label: {
-          Image(systemName: "checkmark.circle")
-            .font(.system(.title3, weight: .semibold))
-            .frame(width: 36, height: 32)
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(viewModel.filter == filter ? theme.text : theme.textSecondary)
+        .frame(minHeight: 44)
+        .overlay(alignment: .bottom) {
+          Capsule()
+            .fill(theme.accent)
+            .frame(height: 2)
+            .opacity(viewModel.filter == filter ? 1 : 0)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(viewModel.hasUnread ? theme.text : theme.textTertiary)
-        .disabled(!viewModel.hasUnread)
-        .accessibilityLabel("Mark all notifications read")
+        .accessibilityAddTraits(viewModel.filter == filter ? .isSelected : [])
       }
-      .padding(.horizontal, 16)
-      .padding(.vertical, 10)
 
-      Divider()
+      Spacer()
+
+      Button("Mark all read", systemImage: "checkmark.circle") {
+        Task { await viewModel.markAllRead() }
+      }
+      .labelStyle(.iconOnly)
+      .font(.system(.title3).bold())
+      .frame(width: 44, height: 44)
+      .contentShape(Rectangle())
+      .buttonStyle(.plain)
+      .foregroundStyle(viewModel.hasUnread ? theme.text : theme.textTertiary)
+      .disabled(!viewModel.hasUnread)
     }
+    .padding(.horizontal, DesignSystem.Spacing.screenHorizontal)
+    .padding(.vertical, DesignSystem.Spacing.xxs)
     .background(theme.bg)
+    .overlay(alignment: .bottom) {
+      Rectangle()
+        .fill(theme.border)
+        .frame(height: 0.5)
+    }
   }
 
   @ViewBuilder
   private var content: some View {
     if viewModel.isLoadingInitial && viewModel.items.isEmpty {
       NotificationsSkeletonList()
-    } else if let error = viewModel.error, viewModel.items.isEmpty {
-      NotificationsErrorView(message: error) {
-        Task { await viewModel.loadInitial() }
-      }
-    } else if viewModel.items.isEmpty && viewModel.followRequests.isEmpty {
-      NotificationsEmptyView(filter: viewModel.filter)
     } else {
       List {
-        if !viewModel.followRequests.isEmpty {
-          Section {
-            FollowRequestsTray(
-              requests: viewModel.followRequests,
-              total: viewModel.followRequestTotal,
-              onAccept: { request in
-                Task { await viewModel.acceptFollowRequest(request) }
-              },
-              onDecline: { request in
-                Task { await viewModel.declineFollowRequest(request) }
-              }
-            )
-            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-            .listRowSeparator(.hidden)
+        FollowRequestsSummaryRow(
+          requests: viewModel.followRequests,
+          total: viewModel.followRequestTotal,
+          onOpen: { isShowingFollowRequests = true }
+        )
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+
+        if let error = viewModel.error, viewModel.items.isEmpty {
+          NotificationsErrorView(message: error) {
+            Task { await viewModel.loadInitial() }
           }
+          .listRowInsets(EdgeInsets())
+          .listRowSeparator(.hidden)
+        } else if viewModel.items.isEmpty {
+          NotificationsEmptyView(filter: viewModel.filter)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
         }
 
         ForEach(groupedNotifications) { group in
-          Section {
-            ForEach(group.items) { item in
-              NotificationRow(item: item, isOpening: openingItemId == item.id) {
-                Task { await open(item) }
+          Text(group.title)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(theme.text)
+            .padding(.horizontal, DesignSystem.Spacing.screenHorizontal)
+            .padding(.top, DesignSystem.Spacing.md)
+            .padding(.bottom, DesignSystem.Spacing.xs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+
+          ForEach(group.items) { item in
+            NotificationRow(
+              item: item,
+              isOpening: openingItemId == item.id,
+              onOpen: { Task { await open(item) } },
+              onMore: { optionsItem = item }
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              Button {
+                Task { await viewModel.toggleRead(item) }
+              } label: {
+                Label(item.isRead ? "Unread" : "Read", systemImage: item.isRead ? "circle" : "checkmark")
               }
-              .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-              .listRowSeparator(.hidden)
-              .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button {
-                  Task { await viewModel.toggleRead(item) }
-                } label: {
-                  Label(item.isRead ? "Unread" : "Read", systemImage: item.isRead ? "circle" : "checkmark")
-                }
-                .tint(item.isRead ? .blue : .green)
-              }
-              .onAppear {
-                Task { await viewModel.loadMoreIfNeeded(currentItemId: item.id) }
-              }
+              .tint(item.isRead ? .blue : .green)
             }
-          } header: {
-            Text(group.title)
-              .font(.footnote.weight(.semibold))
-              .foregroundStyle(theme.textSecondary)
-              .textCase(nil)
-              .padding(.top, 4)
+            .onAppear {
+              Task { await viewModel.loadMoreIfNeeded(currentItemId: item.id) }
+            }
           }
         }
 
@@ -141,7 +164,7 @@ struct NotificationsView: View {
         await viewModel.refresh()
       }
       .overlay(alignment: .top) {
-        if let error = viewModel.error {
+        if let error = viewModel.error, !viewModel.items.isEmpty {
           NotificationsInlineErrorBanner(message: error) {
             viewModel.clearError()
           }
@@ -186,6 +209,29 @@ struct NotificationsView: View {
       viewModel.showError(error.localizedDescription)
     }
   }
+
+  private func notificationActions(for item: NotificationItem) -> [BottomActionSheetAction] {
+    var actions: [BottomActionSheetAction] = []
+
+    if item.destinationPostId != nil {
+      actions.append(
+        BottomActionSheetAction("View post", systemImage: "arrow.up.right") {
+          Task { await open(item) }
+        }
+      )
+    }
+
+    actions.append(
+      BottomActionSheetAction(
+        item.isRead ? "Mark as unread" : "Mark as read",
+        systemImage: item.isRead ? "circle" : "checkmark.circle"
+      ) {
+        Task { await viewModel.toggleRead(item) }
+      }
+    )
+
+    return actions
+  }
 }
 
 private struct NotificationDateGroup: Identifiable {
@@ -197,486 +243,22 @@ private struct NotificationDateGroup: Identifiable {
   static func title(for date: Date) -> String {
     let calendar = Calendar.current
     if calendar.isDateInToday(date) {
-      return "Today"
+      return "New"
     }
     if calendar.isDateInYesterday(date) {
       return "Yesterday"
     }
-    if let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: Date())).day,
+    if let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: .now)).day,
       days < 7
     {
-      return "This Week"
+      return "Last 7 days"
     }
 
-    var style = Date.FormatStyle().month(.abbreviated).day()
-    if !calendar.isDate(date, equalTo: Date(), toGranularity: .year) {
-      style = style.year()
-    }
-    return date.formatted(style)
-  }
-}
-
-private struct NotificationRow: View {
-  @Environment(\.theme) private var theme
-  let item: NotificationItem
-  let isOpening: Bool
-  let onOpen: () -> Void
-
-  var body: some View {
-    Button(action: onOpen) {
-      HStack(alignment: .top, spacing: 12) {
-        NotificationAvatarStack(item: item)
-          .frame(width: 48, height: 48)
-          .padding(.top, 2)
-
-        VStack(alignment: .leading, spacing: 7) {
-          HStack(alignment: .firstTextBaseline, spacing: 6) {
-            notificationText
-              .font(.subheadline)
-              .foregroundStyle(theme.text)
-              .lineSpacing(1)
-              .fixedSize(horizontal: false, vertical: true)
-
-            Text(item.createdAt.relativeShort)
-              .font(.caption)
-              .foregroundStyle(theme.textTertiary)
-              .lineLimit(1)
-          }
-
-          if let preview = previewText {
-            Text(preview)
-              .font(.footnote)
-              .foregroundStyle(theme.textSecondary)
-              .lineLimit(3)
-              .padding(.horizontal, 10)
-              .padding(.vertical, 8)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-          }
-
-          if item.type == .followRequest {
-            Text("Respond from requests above")
-              .font(.caption.weight(.semibold))
-              .foregroundStyle(theme.textSecondary)
-          }
-        }
-
-        Spacer(minLength: 4)
-
-        VStack(spacing: 10) {
-          if isOpening {
-            ProgressView()
-              .controlSize(.small)
-          } else if let url = item.entity?.thumbnailUrl {
-            NotificationThumbnail(url: url)
-          }
-
-          Circle()
-            .fill(item.isRead ? Color.clear : theme.accent)
-            .frame(width: 8, height: 8)
-            .accessibilityHidden(true)
-        }
-        .padding(.top, 4)
-      }
-      .padding(.horizontal, 16)
-      .padding(.vertical, 12)
-      .contentShape(Rectangle())
-      .background(item.isRead ? theme.bg : theme.accent.opacity(0.07))
-    }
-    .buttonStyle(.plain)
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel(accessibilityLabel)
-  }
-
-  private var notificationText: Text {
-    Text(actorSummary).bold() + Text(actionText)
-  }
-
-  private var actorSummary: String {
-    let profiles = item.actorProfiles ?? []
-    var names: [String] = []
-    var seen = Set<String>()
-
-    for profile in profiles {
-      guard !seen.contains(profile.userId) else { continue }
-      seen.insert(profile.userId)
-      let label = (profile.displayName?.isEmpty == false ? profile.displayName : profile.username) ?? ""
-      if !label.isEmpty {
-        names.append(label)
-      }
+    if calendar.isDate(date, equalTo: .now, toGranularity: .month) {
+      return "This Month"
     }
 
-    if names.isEmpty, let actor = item.actor {
-      names.append(actor.displayName.isEmpty ? actor.username : actor.displayName)
-    }
-
-    guard let first = names.first else { return "Someone" }
-    let total = max(item.bundleCount, names.count, 1)
-    if total <= 1 || names.count == 1 {
-      return first
-    }
-    if total == 2, names.count > 1 {
-      return "\(first) and \(names[1])"
-    }
-    return "\(first), \(names.dropFirst().first ?? "someone") and \(max(total - 2, 1)) others"
-  }
-
-  private var actionText: String {
-    switch item.type {
-    case .follow:
-      return " started following you"
-    case .followRequest:
-      return " requested to follow you"
-    case .followRequestApproved:
-      return " approved your follow request"
-    case .like:
-      if item.entity?.type == .comment {
-        return item.entity?.title.map { " liked your comment on \($0)" } ?? " liked your comment"
-      }
-      return " liked your \(entityTitle(defaultValue: "post"))"
-    case .comment:
-      return " commented on your \(entityTitle(defaultValue: "post"))"
-    case .reply:
-      return " replied to your comment"
-    case .mention:
-      return " mentioned you"
-    case .repost:
-      return " reposted your \(entityTitle(defaultValue: "post"))"
-    case .filmLogged:
-      return " logged \(entityTitle(defaultValue: "a film you logged"))"
-    case .chatReaction:
-      return " reacted to your message"
-    }
-  }
-
-  private var previewText: String? {
-    guard let entity = item.entity else { return nil }
-
-    if let contentPreview = entity.contentPreview?.trimmingCharacters(in: .whitespacesAndNewlines),
-      !contentPreview.isEmpty
-    {
-      return contentPreview
-    }
-
-    switch entity.type {
-    case .post, .comment:
-      return nil
-    case .film:
-      return entity.title
-    case .chatThread:
-      return "Message thread"
-    case .user:
-      return entity.title
-    case nil:
-      return nil
-    }
-  }
-
-  private var accessibilityLabel: String {
-    var label = "\(actorSummary)\(actionText)"
-    if let preview = previewText {
-      label += ", \(preview)"
-    }
-    return "\(label), \(item.createdAt.relativeDisplayString)"
-  }
-
-  private func entityTitle(defaultValue: String) -> String {
-    guard let title = item.entity?.title, !title.isEmpty else {
-      return defaultValue
-    }
-
-    return title
-  }
-}
-
-private struct NotificationAvatarStack: View {
-  let item: NotificationItem
-
-  private var avatars: [NotificationAvatarData] {
-    var values: [NotificationAvatarData] = []
-    var seen = Set<String>()
-
-    for profile in item.actorProfiles ?? [] {
-      guard seen.insert(profile.userId).inserted else { continue }
-      values.append(
-        NotificationAvatarData(
-          id: profile.userId,
-          label: profile.displayName?.isEmpty == false ? profile.displayName! : profile.username,
-          url: profile.avatarUrl ?? profile.avatarUrlLg
-        )
-      )
-    }
-
-    if values.isEmpty, let actor = item.actor {
-      values.append(
-        NotificationAvatarData(
-          id: actor.id,
-          label: actor.displayName.isEmpty ? actor.username : actor.displayName,
-          url: actor.avatarUrl ?? actor.avatarUrlLg
-        )
-      )
-    }
-
-    if values.isEmpty {
-      values.append(NotificationAvatarData(id: item.id, label: "35mm", url: nil))
-    }
-
-    return Array(values.prefix(3))
-  }
-
-  var body: some View {
-    ZStack(alignment: .bottomTrailing) {
-      ForEach(Array(avatars.enumerated()), id: \.element.id) { index, avatar in
-        NotificationAvatar(data: avatar, size: avatars.count == 1 ? 46 : 32)
-          .offset(x: offset(for: index).x, y: offset(for: index).y)
-          .zIndex(Double(avatars.count - index))
-      }
-
-      NotificationTypeBadge(type: item.type)
-        .offset(x: 2, y: 2)
-        .zIndex(Double(avatars.count + 1))
-        .accessibilityHidden(true)
-    }
-  }
-
-  private func offset(for index: Int) -> CGPoint {
-    guard avatars.count > 1 else { return .zero }
-    switch index {
-    case 0:
-      return CGPoint(x: -8, y: -8)
-    case 1:
-      return CGPoint(x: 9, y: 8)
-    default:
-      return CGPoint(x: -10, y: 10)
-    }
-  }
-}
-
-private struct NotificationAvatarData {
-  let id: String
-  let label: String
-  let url: String?
-}
-
-private struct NotificationAvatar: View {
-  @Environment(\.theme) private var theme
-  let data: NotificationAvatarData
-  let size: CGFloat
-
-  var body: some View {
-    AsyncImage(url: data.url.flatMap(URL.init(string:))) { phase in
-      switch phase {
-      case .success(let image):
-        image
-          .resizable()
-          .scaledToFill()
-      default:
-        ZStack {
-          Circle()
-            .fill(avatarColor)
-          Text(initial)
-            .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
-        }
-      }
-    }
-    .frame(width: size, height: size)
-    .clipShape(Circle())
-    .overlay {
-      Circle().stroke(theme.bg, lineWidth: 2)
-    }
-  }
-
-  private var initial: String {
-    data.label.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init)?.uppercased() ?? "3"
-  }
-
-  private var avatarColor: Color {
-    let palette: [Color] = [.black, .blue, .purple, .indigo, .pink, .teal, .orange]
-    let value = abs(data.id.unicodeScalars.reduce(0) { ($0 &* 31) &+ Int($1.value) })
-    return palette[value % palette.count]
-  }
-}
-
-private struct NotificationTypeBadge: View {
-  @Environment(\.theme) private var theme
-  let type: NotificationType
-
-  var body: some View {
-    Image(systemName: icon)
-      .font(.system(size: 9, weight: .bold))
-      .foregroundStyle(.white)
-      .frame(width: 20, height: 20)
-      .background(color, in: Circle())
-      .overlay {
-        Circle().stroke(theme.bg, lineWidth: 2)
-      }
-  }
-
-  private var icon: String {
-    switch type {
-    case .like:
-      return "heart.fill"
-    case .comment, .reply, .mention:
-      return "bubble.left.fill"
-    case .follow, .followRequest, .followRequestApproved:
-      return "person.fill"
-    case .repost:
-      return "arrow.2.squarepath"
-    case .filmLogged:
-      return "film.fill"
-    case .chatReaction:
-      return "face.smiling.fill"
-    }
-  }
-
-  private var color: Color {
-    switch type {
-    case .like:
-      return .pink
-    case .comment, .reply, .mention:
-      return .blue
-    case .follow, .followRequest, .followRequestApproved:
-      return .green
-    case .repost:
-      return .teal
-    case .filmLogged:
-      return .purple
-    case .chatReaction:
-      return .orange
-    }
-  }
-}
-
-private struct NotificationThumbnail: View {
-  @Environment(\.theme) private var theme
-  let url: String
-
-  var body: some View {
-    AsyncImage(url: URL(string: url)) { phase in
-      switch phase {
-      case .success(let image):
-        image
-          .resizable()
-          .scaledToFill()
-      default:
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
-          .fill(theme.bgSunken)
-      }
-    }
-    .frame(width: 42, height: 58)
-    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-  }
-}
-
-private struct FollowRequestsTray: View {
-  @Environment(\.theme) private var theme
-  let requests: [FollowRequest]
-  let total: Int
-  let onAccept: (FollowRequest) -> Void
-  let onDecline: (FollowRequest) -> Void
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Label("Follow requests", systemImage: "person.crop.circle.badge.questionmark")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(theme.text)
-
-        Spacer()
-
-        Text("\(total)")
-          .font(.caption.weight(.bold))
-          .foregroundStyle(theme.bg)
-          .padding(.horizontal, 8)
-          .padding(.vertical, 4)
-          .background(theme.text, in: Capsule())
-      }
-
-      VStack(spacing: 0) {
-        ForEach(requests) { request in
-          FollowRequestRow(
-            request: request,
-            onAccept: { onAccept(request) },
-            onDecline: { onDecline(request) }
-          )
-
-          if request.id != requests.last?.id {
-            Divider().padding(.leading, 54)
-          }
-        }
-      }
-      .background(theme.bgSunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-  }
-}
-
-private struct FollowRequestRow: View {
-  @Environment(\.theme) private var theme
-  let request: FollowRequest
-  let onAccept: () -> Void
-  let onDecline: () -> Void
-
-  var body: some View {
-    HStack(spacing: 10) {
-      NotificationAvatar(
-        data: NotificationAvatarData(
-          id: request.id,
-          label: displayName,
-          url: request.avatarUrl ?? request.avatarUrlLg
-        ),
-        size: 42
-      )
-
-      VStack(alignment: .leading, spacing: 2) {
-        Text(displayName)
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(theme.text)
-          .lineLimit(1)
-
-        Text(subtitle)
-          .font(.caption)
-          .foregroundStyle(theme.textSecondary)
-          .lineLimit(1)
-      }
-
-      Spacer(minLength: 4)
-
-      HStack(spacing: 6) {
-        Button(action: onDecline) {
-          Image(systemName: "xmark")
-            .font(.system(size: 12, weight: .bold))
-            .frame(width: 32, height: 32)
-            .background(theme.fillStrong, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(theme.text)
-        .accessibilityLabel("Decline \(displayName)")
-
-        Button(action: onAccept) {
-          Image(systemName: "checkmark")
-            .font(.system(size: 12, weight: .bold))
-            .frame(width: 32, height: 32)
-            .background(theme.text, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(theme.bg)
-        .accessibilityLabel("Accept \(displayName)")
-      }
-    }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 10)
-  }
-
-  private var displayName: String {
-    request.displayName?.isEmpty == false ? request.displayName! : request.username
-  }
-
-  private var subtitle: String {
-    if request.mutualFollowerCount > 0 {
-      return "@\(request.username) · \(request.mutualFollowerCount) mutual"
-    }
-    return "@\(request.username)"
+    return date.formatted(.dateTime.month(.wide).year())
   }
 }
 
@@ -728,7 +310,8 @@ private struct NotificationsEmptyView: View {
         .multilineTextAlignment(.center)
         .padding(.horizontal, 34)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(.vertical, DesignSystem.Spacing.xl * 2)
+    .frame(maxWidth: .infinity)
   }
 }
 
@@ -756,7 +339,8 @@ private struct NotificationsErrorView: View {
         .buttonStyle(.borderedProminent)
     }
     .padding()
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(.vertical, DesignSystem.Spacing.xl)
+    .frame(maxWidth: .infinity)
   }
 }
 

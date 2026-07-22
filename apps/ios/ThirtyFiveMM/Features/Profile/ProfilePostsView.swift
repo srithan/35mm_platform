@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfilePostsView: View {
   let model: ProfileViewModel
+  let isActive: Bool
   let onOpenPost: (FeedPost) -> Void
   let onOpenImage: (ProfileImageSelection) -> Void
 
@@ -28,28 +29,29 @@ struct ProfilePostsView: View {
         description: Text(model.profile?.isOwnProfile == true ? "Your next film thought can start here." : "Nothing has been shared here yet.")
       )
     } else {
-      ForEach(model.visiblePosts) { post in
-        PostCard(
-          post: post,
-          interactor: model,
-          onOpenPost: { onOpenPost(post) },
-          onOpenImage: { destination in
-            onOpenImage(ProfileImageSelection(destination: destination, post: post))
-          }
-        )
-        .onAppear {
-          if post.id == model.visiblePosts.last?.id {
-            Task { await model.loadMorePosts() }
-          }
+      LazyVStack(spacing: 0) {
+        ForEach(model.visiblePosts) { post in
+          PostCard(
+            post: post,
+            interactor: model,
+            onOpenPost: { onOpenPost(post) },
+            onOpenImage: { destination in
+              onOpenImage(ProfileImageSelection(destination: destination, post: post))
+            }
+          )
+
+          Divider()
         }
 
-        Divider()
-      }
-
-      if model.isLoadingMorePosts {
-        ProgressView()
-          .frame(maxWidth: .infinity)
-          .padding()
+        if model.canLoadMorePosts || model.isLoadingMorePosts {
+          ProgressView()
+            .frame(maxWidth: .infinity)
+            .padding()
+            .task(id: isActive ? model.posts.count : -1) {
+              guard isActive else { return }
+              await model.loadMorePosts()
+            }
+        }
       }
     }
   }

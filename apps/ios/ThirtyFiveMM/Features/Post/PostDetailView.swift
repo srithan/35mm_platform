@@ -51,7 +51,7 @@ private struct PostDetailContent: View {
 
           Text("\(viewModel.post.commentCount) comments")
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(theme.textSecondary)
+            .foregroundStyle(theme.text)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
 
@@ -74,6 +74,10 @@ private struct PostDetailContent: View {
       .navigationTitle("@\(viewModel.post.author.username)'s post")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar(.visible, for: .navigationBar)
+      .toolbarBackground(theme.bg, for: .navigationBar)
+      .toolbarBackground(.visible, for: .navigationBar)
+      .modifier(ThemedNavigationBarColorSchemeModifier())
+      .themedBackground()
 
       if let error = viewModel.error, !viewModel.commentTree.isEmpty {
         PostDetailErrorBanner(message: error) {

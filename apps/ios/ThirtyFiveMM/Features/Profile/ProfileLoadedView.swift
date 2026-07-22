@@ -3,6 +3,7 @@ import UIKit
 
 struct ProfileLoadedView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
   let profile: PublicProfile
   let model: ProfileViewModel
@@ -10,6 +11,8 @@ struct ProfileLoadedView: View {
   let onCurrentProfileUpdated: (PublicProfile) -> Void
 
   @State private var selectedTab: ProfileTab = .posts
+  @State private var requestedTab: ProfileTab?
+  @State private var pagerProgress = 0.0
   @State private var isShowingProfileActions = false
   @State private var isShowingUnfollowConfirmation = false
   @State private var isShowingBlockConfirmation = false
@@ -41,18 +44,24 @@ struct ProfileLoadedView: View {
         .background(.background)
 
         Section {
-          if isPrivateGate {
-            ContentUnavailableView(
-              "This account is private",
-              systemImage: "lock.fill",
-              description: Text("Follow \(profile.displayName) to see their posts.")
-            )
-            .padding(.vertical, 32)
-          } else {
-            tabContent
-          }
+          ProfileTabPager(
+            profile: profile,
+            model: model,
+            selectedTab: selectedTab,
+            isPrivateGate: isPrivateGate,
+            onOpenPost: openPost,
+            onOpenImage: openImage,
+            onWillPresent: prepareTab,
+            onSettled: commitPagerSelection,
+            requestedTab: $requestedTab,
+            progress: $pagerProgress
+          )
         } header: {
-          ProfileTabBar(selectedTab: $selectedTab)
+          ProfileTabBar(
+            selectedTab: selectedTab,
+            selectionProgress: pagerProgress,
+            onSelect: selectTab
+          )
         }
       }
     }
@@ -60,6 +69,7 @@ struct ProfileLoadedView: View {
       await model.refresh(selectedTab: selectedTab)
     }
     .task(id: selectedTab) {
+      guard !isPrivateGate else { return }
       await model.loadTabIfNeeded(selectedTab)
     }
     .overlay(alignment: .top) {
@@ -139,22 +149,6 @@ struct ProfileLoadedView: View {
         model.applyUpdatedProfile(updated)
         onCurrentProfileUpdated(updated)
       }
-    }
-  }
-
-  @ViewBuilder
-  private var tabContent: some View {
-    switch selectedTab {
-    case .posts:
-      ProfilePostsView(model: model, onOpenPost: openPost, onOpenImage: openImage)
-    case .reposts:
-      ProfileRepostsView(model: model, onOpenPost: openPost, onOpenImage: openImage)
-    case .diary:
-      ProfileDiaryView(model: model, onOpenPost: openPost)
-    case .lists:
-      ProfileListsView(model: model)
-    case .stats:
-      ProfileStatsView(model: model)
     }
   }
 
@@ -276,5 +270,27 @@ struct ProfileLoadedView: View {
 
   private func openImage(_ selection: ProfileImageSelection) {
     selectedImage = selection
+  }
+
+  private func selectTab(_ tab: ProfileTab) {
+    guard tab != selectedTab, requestedTab == nil else { return }
+    prepareTab(tab)
+
+    if accessibilityReduceMotion {
+      commitPagerSelection(tab)
+    } else {
+      requestedTab = tab
+    }
+  }
+
+  private func commitPagerSelection(_ tab: ProfileTab) {
+    prepareTab(tab)
+    selectedTab = tab
+    requestedTab = nil
+  }
+
+  private func prepareTab(_ tab: ProfileTab) {
+    guard !isPrivateGate else { return }
+    Task { await model.loadTabIfNeeded(tab) }
   }
 }

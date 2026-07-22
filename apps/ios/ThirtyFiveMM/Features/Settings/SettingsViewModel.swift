@@ -135,6 +135,8 @@ final class SettingsViewModel: ObservableObject {
 
   private let apiClient: APIClient
   private var usernameCheckTask: Task<Void, Never>?
+  /// Latest appearance the user picked while a PATCH is in flight (latest-wins).
+  private var pendingAppearance: AppearanceSettings?
 
   init(apiClient: APIClient) {
     self.apiClient = apiClient
@@ -151,15 +153,18 @@ final class SettingsViewModel: ObservableObject {
 
   func reload() async {
     guard !isLoading else { return }
+    // Avoid clobbering an in-flight optimistic theme with a stale GET.
+    guard savingSections.contains(.appearance) == false, pendingAppearance == nil else { return }
     isLoading = true
     loadError = nil
 
     do {
       settings = try await apiClient.getSettings()
       resetUsernameStatus()
-      if let appearance = settings?.appearance {
-        ThemeManager.shared.apply(appearance)
-      }
+      // ThemeManager is local authority (UserDefaults), same as web localStorage.
+      // Never paint GET/PATCH appearance onto the UI — stale reads were the
+      // NEW → OLD → NEW flash when SettingsView recreated mid-save.
+      ThemeManager.shared.hydrateFromServerIfNeeded(settings?.appearance)
     } catch {
       loadError = settingsMessage(for: error, fallback: "Could not load settings.")
     }
@@ -235,10 +240,56 @@ final class SettingsViewModel: ObservableObject {
     }
   }
 
+  /// Applies theme locally first (web-parity), then PATCHes. Merges the
+  /// requested appearance over the response so a stale API body cannot flash
+  /// the previous theme back onto screen.
   func saveAppearance(_ appearance: AppearanceSettings) async {
-    await save(section: .appearance, success: "Appearance updated") {
-      try await apiClient.updateSettingsAppearance(appearance)
+    let previousTheme = ThemeManager.shared.theme
+    let previousAccent = ThemeManager.shared.accent
+    let previousSettings = settings
+    pendingAppearance = appearance
+
+    // Theme first — do not publish `settings` until the PATCH settles so a
+    // mid-save settings write cannot recreate Settings and re-hit GET.
+    ThemeManager.shared.apply(appearance)
+
+    guard savingSections.contains(.appearance) == false else { return }
+    savingSections.insert(.appearance)
+
+    while let request = pendingAppearance {
+      pendingAppearance = nil
+      do {
+        let remote = try await apiClient.updateSettingsAppearance(request)
+        // Newer tap landed during the await — loop and PATCH that instead.
+        if pendingAppearance != nil { continue }
+
+        settings = Self.mergingAppearance(request, into: remote)
+        toast = "Appearance updated"
+      } catch {
+        if pendingAppearance != nil { continue }
+
+        settings = previousSettings
+        ThemeManager.shared.set(theme: previousTheme, accent: previousAccent)
+        toast = settingsMessage(for: error, fallback: "Could not save changes.")
+      }
     }
+
+    savingSections.remove(.appearance)
+  }
+
+  /// Prefer fields the client just sent when the server echo is stale
+  /// (same merge as web `useUpdateAppearanceMutation` onSuccess).
+  private static func mergingAppearance(
+    _ requested: AppearanceSettings,
+    into remote: UserSettings
+  ) -> UserSettings {
+    var merged = remote
+    merged.appearance = AppearanceSettings(
+      theme: requested.theme,
+      accentColor: requested.accentColor,
+      videoAutoplay: requested.videoAutoplay
+    )
+    return merged
   }
 
   func saveMedia(_ media: MediaSettings) async {
@@ -300,9 +351,8 @@ final class SettingsViewModel: ObservableObject {
     do {
       settings = try await operation()
       toast = success
-      if let appearance = settings?.appearance {
-        ThemeManager.shared.apply(appearance)
-      }
+      // Appearance has its own optimistic path; other sections must not
+      // re-apply a possibly stale appearance blob from the PATCH response.
     } catch {
       toast = settingsMessage(for: error, fallback: "Could not save changes.")
     }

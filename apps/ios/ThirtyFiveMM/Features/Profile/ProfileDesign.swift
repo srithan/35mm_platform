@@ -20,4 +20,9 @@ enum ProfileDesign {
   static let coverAspectRatio = 3.0
   static let avatarSize = 88.0
   static let avatarOverlap = 24.0
+  static let tabBarHeight = 52.0
+  static let tabBarHorizontalPadding = 16.0
+  static let tabIndicatorInset = 8.0
+  static let tabSwipeProjectionTime = 0.2
+  static let tabTransition = Animation.snappy(duration: 0.32, extraBounce: 0)
 }

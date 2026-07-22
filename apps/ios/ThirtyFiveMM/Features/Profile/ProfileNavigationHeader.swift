@@ -8,6 +8,7 @@ struct ProfileNavigationHeader: View {
     ZStack {
       Text("Profile")
         .font(.headline)
+        .foregroundStyle(theme.text)
         .accessibilityAddTraits(.isHeader)
 
       HStack {

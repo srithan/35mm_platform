@@ -11,6 +11,7 @@ struct ProfileInlineCount: View {
         .font(.subheadline)
         .bold()
         .monospacedDigit()
+        .foregroundStyle(theme.text)
       Text(label)
         .font(.subheadline)
         .foregroundStyle(theme.textSecondary)

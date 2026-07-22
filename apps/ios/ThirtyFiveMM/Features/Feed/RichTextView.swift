@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RichTextView: View {
+  @Environment(\.theme) private var theme
+
   private let textBody: String?
   private let suppressedURL: String?
   var font: Font = .body
@@ -15,6 +17,8 @@ struct RichTextView: View {
     if let attributedString = RichTextParser.parse(textBody, suppressingURL: suppressedURL) {
       Text(attributedString)
         .font(font)
+        .foregroundStyle(theme.text)
+        .tint(theme.socialAccent)
         .environment(
           \.openURL,
           OpenURLAction { url in
@@ -29,6 +33,7 @@ struct RichTextView: View {
     } else {
       Text(textBody ?? "")
         .font(font)
+        .foregroundStyle(theme.text)
     }
   }
 }

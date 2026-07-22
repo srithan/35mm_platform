@@ -117,7 +117,12 @@ struct MainTabView: View {
       .tag(AppTab.activity)
     }
     .tint(theme.text)
+    // Fill behind the floating tab bar. Do NOT use `.toolbarBackground(.visible,
+    // for: .tabBar)` — on iOS 26 that expands into a fat slab that covers feed
+    // content above the bar (the white/cream band in screenshots).
+    .background(theme.bg.ignoresSafeArea())
     .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
+    .modifier(TabBarMinimizeDisabledModifier())
     .fullScreenCover(
       isPresented: $env.isComposerPresented,
       onDismiss: env.clearComposer
@@ -151,6 +156,12 @@ struct MainTabView: View {
       }
     case .sidebarItem(let item):
       sidebarDestination(for: item)
+    case .settingsSection(let section):
+      SettingsSectionDestination(
+        section: section,
+        viewModel: env.settingsViewModel,
+        authManager: env.authManager
+      )
     case .profile(let destination):
       profileDestination(for: destination)
     case .post(let postId):
@@ -285,26 +296,36 @@ struct MainTabView: View {
     }
   }
 
-  /// Applies theme colors to the UIKit tab bar. Custom-palette themes use an
-  /// opaque themed background; light/dark/auto keep the system blur.
+  /// Styles tab item colors via `UITabBarAppearance`.
+  /// On iOS 26 the tab bar floats — the `UITabBar` view itself must stay
+  /// `.clear`. Painting it opaque (or using SwiftUI `.toolbarBackground(.visible,
+  /// for: .tabBar)`) expands into a content-covering bottom slab.
   static func applyTabBarTheme(_ palette: ThemePalette, custom: Bool) {
     let appearance = UITabBarAppearance()
     if custom {
       appearance.configureWithOpaqueBackground()
       appearance.backgroundColor = palette.uiBg
+      appearance.backgroundEffect = nil
     } else {
       appearance.configureWithDefaultBackground()
+      appearance.backgroundColor = nil
     }
     appearance.shadowColor = .clear
 
-    let selectedColor = custom ? palette.uiText : UIColor.label
-    let normalColor = custom ? palette.uiTextTertiary : UIColor.secondaryLabel
+    let selectedColor = palette.uiText
+    let normalColor = palette.uiTextSecondary
 
     let itemAppearance = UITabBarItemAppearance()
     itemAppearance.normal.iconColor = normalColor
-    itemAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
+    itemAppearance.normal.titleTextAttributes = [
+      .foregroundColor: normalColor,
+      .font: UIFont.systemFont(ofSize: 10, weight: .medium),
+    ]
     itemAppearance.selected.iconColor = selectedColor
-    itemAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
+    itemAppearance.selected.titleTextAttributes = [
+      .foregroundColor: selectedColor,
+      .font: UIFont.systemFont(ofSize: 10, weight: .semibold),
+    ]
 
     appearance.stackedLayoutAppearance = itemAppearance
     appearance.inlineLayoutAppearance = itemAppearance
@@ -312,10 +333,13 @@ struct MainTabView: View {
 
     UITabBar.appearance().standardAppearance = appearance
     UITabBar.appearance().scrollEdgeAppearance = appearance
+    UITabBar.appearance().isTranslucent = true
     UITabBar.appearance().tintColor = selectedColor
     UITabBar.appearance().unselectedItemTintColor = normalColor
+    UITabBar.appearance().barTintColor = nil
+    // Keep the bar view clear so iOS 26 does not grow a bottom slab.
+    UITabBar.appearance().backgroundColor = .clear
 
-    // Appearance proxies only affect new instances; update live tab bars too.
     for scene in UIApplication.shared.connectedScenes {
       guard let windowScene = scene as? UIWindowScene else { continue }
       for window in windowScene.windows {
@@ -324,6 +348,9 @@ struct MainTabView: View {
           tabBar.scrollEdgeAppearance = appearance
           tabBar.tintColor = selectedColor
           tabBar.unselectedItemTintColor = normalColor
+          tabBar.isTranslucent = true
+          tabBar.barTintColor = nil
+          tabBar.backgroundColor = .clear
         }
       }
     }
@@ -338,6 +365,8 @@ private enum AppHeaderTitle: Equatable {
 enum AppRoute: Hashable {
   case messages
   case sidebarItem(ProfileSidebarItem)
+  /// Pushed on the same tab stack as Settings so theme rebuilds cannot pop it.
+  case settingsSection(SettingsSectionID)
   case profile(ProfileDestination)
   case post(String)
 }

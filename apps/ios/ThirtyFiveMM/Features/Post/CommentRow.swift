@@ -68,7 +68,10 @@ struct CommentRow: View {
         }
       }
     }
-    .padding(.horizontal, 16)
+    .padding(
+      .horizontal,
+      depth == 0 ? DesignSystem.Spacing.screenHorizontal : 0
+    )
     .padding(.vertical, 12)
     .bottomActionSheet(isPresented: $isShowingCommentActions) {
       BottomActionSheet(
@@ -146,6 +149,7 @@ struct CommentRow: View {
       } label: {
         HStack(spacing: 6) {
           Image(comment.isLiked ? "PostActionHeartFilled" : "PostActionHeart")
+            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: 19, height: 19)
@@ -158,11 +162,7 @@ struct CommentRow: View {
         .frame(minWidth: 72, minHeight: 44, alignment: .leading)
         .contentShape(Rectangle())
       }
-      .foregroundStyle(
-        comment.isLiked
-          ? theme.like
-          : Color.secondary
-      )
+      .foregroundStyle(comment.isLiked ? theme.like : theme.textSecondary)
       .accessibilityLabel(comment.isLiked ? "Unlike comment" : "Like comment")
 
       Button {
@@ -171,6 +171,7 @@ struct CommentRow: View {
       } label: {
         HStack(spacing: 6) {
           Image("PostActionComment")
+            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: 19, height: 19)

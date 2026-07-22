@@ -102,7 +102,7 @@ struct RichTextParser {
   private static func mentionText(label: String?) -> AttributedString {
     let cleanLabel = (label ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     var text = AttributedString("@\(cleanLabel)")
-    text.foregroundColor = .blue
+    // Leave color unset so `RichTextView` / `.tint` can apply the active theme.
 
     if let encoded = cleanLabel.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
       let url = URL(string: "mention://\(encoded)")

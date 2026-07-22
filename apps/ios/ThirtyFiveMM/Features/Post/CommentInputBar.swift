@@ -57,9 +57,9 @@ struct CommentInputBar: View {
 
         Image(systemName: "arrowshape.turn.up.left.fill")
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(theme.bg)
+          .foregroundStyle(theme.accentForeground)
           .frame(width: 32, height: 32)
-          .background(Color.primary, in: Circle())
+          .background(theme.text, in: Circle())
       }
       .padding(.leading, 2)
       .padding(.trailing, 12)
@@ -71,7 +71,7 @@ struct CommentInputBar: View {
       .overlay {
         RoundedRectangle(cornerRadius: 16)
           .stroke(
-            Color.secondary.opacity(0.35),
+            theme.borderStrong,
             style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
           )
       }
@@ -90,7 +90,7 @@ struct CommentInputBar: View {
           .foregroundStyle(theme.textSecondary)
 
         Capsule()
-          .fill(Color.secondary.opacity(0.25))
+          .fill(theme.borderStrong)
           .frame(width: 1)
           .frame(minHeight: 40)
       }
@@ -124,15 +124,15 @@ struct CommentInputBar: View {
               Group {
                 if isPosting {
                   ProgressView()
-                    .tint(theme.bg)
+                    .tint(theme.accentForeground)
                 } else {
                   Text("Reply")
                 }
               }
               .font(.subheadline.weight(.semibold))
-              .foregroundStyle(theme.bg)
+              .foregroundStyle(theme.accentForeground)
               .frame(minWidth: 72, minHeight: 36)
-              .background(isSendDisabled ? Color.secondary : Color.primary, in: Capsule())
+              .background(isSendDisabled ? theme.fillStrong : theme.text, in: Capsule())
             }
             .disabled(isSendDisabled)
           }
@@ -143,7 +143,7 @@ struct CommentInputBar: View {
         .background(theme.bg, in: RoundedRectangle(cornerRadius: 12))
         .overlay {
           RoundedRectangle(cornerRadius: 12)
-            .stroke(Color.secondary.opacity(0.25))
+            .stroke(theme.border)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -154,12 +154,13 @@ struct CommentInputBar: View {
     HStack(spacing: 8) {
       Image(systemName: "arrowshape.turn.up.left.fill")
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.white)
+        .foregroundStyle(theme.accentForeground)
         .frame(width: 28, height: 28)
         .background(theme.accent, in: Circle())
 
       Text("Replying to")
         .font(.caption.weight(.medium))
+        .foregroundStyle(theme.textSecondary)
 
       Text("@\(replyTarget.username)")
         .font(.caption.weight(.semibold))

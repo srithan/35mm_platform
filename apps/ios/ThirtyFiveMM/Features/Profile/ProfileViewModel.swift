@@ -106,8 +106,10 @@ final class ProfileViewModel {
       postsCursor = response.nextCursor
       postsHaveMore = response.hasMore
     } catch {
-      postsError = error.localizedDescription
-      postsHaveMore = false
+      if !Task.isCancelled {
+        postsError = error.localizedDescription
+        postsHaveMore = false
+      }
     }
 
     isLoadingProfile = false
@@ -167,7 +169,9 @@ final class ProfileViewModel {
       postsCursor = response.nextCursor
       postsHaveMore = response.hasMore
     } catch {
-      postsError = error.localizedDescription
+      if !Task.isCancelled {
+        postsError = error.localizedDescription
+      }
     }
 
     isLoadingMorePosts = false
@@ -188,7 +192,9 @@ final class ProfileViewModel {
       repostsCursor = response.nextCursor
       repostsHaveMore = response.hasMore
     } catch {
-      repostsError = error.localizedDescription
+      if !Task.isCancelled {
+        repostsError = error.localizedDescription
+      }
     }
 
     isLoadingMoreReposts = false
@@ -210,7 +216,9 @@ final class ProfileViewModel {
       listsCursor = response.nextCursor
       listsHaveMore = response.hasMore
     } catch {
-      listsError = error.localizedDescription
+      if !Task.isCancelled {
+        listsError = error.localizedDescription
+      }
     }
 
     isLoadingMoreLists = false
@@ -310,7 +318,9 @@ final class ProfileViewModel {
       postsCursor = response.nextCursor
       postsHaveMore = response.hasMore
     } catch {
-      postsError = error.localizedDescription
+      if !Task.isCancelled {
+        postsError = error.localizedDescription
+      }
     }
 
     isLoadingPosts = false
@@ -337,7 +347,9 @@ final class ProfileViewModel {
       repostsHaveMore = response.hasMore
       hasLoadedReposts = true
     } catch {
-      repostsError = error.localizedDescription
+      if !Task.isCancelled {
+        repostsError = error.localizedDescription
+      }
     }
 
     isLoadingReposts = false
@@ -360,7 +372,9 @@ final class ProfileViewModel {
       listsHaveMore = response.hasMore
       hasLoadedLists = true
     } catch {
-      listsError = error.localizedDescription
+      if !Task.isCancelled {
+        listsError = error.localizedDescription
+      }
     }
 
     isLoadingLists = false
@@ -375,7 +389,9 @@ final class ProfileViewModel {
       stats = try await service.fetchProfileStats(username: username)
       hasLoadedStats = true
     } catch {
-      statsError = error.localizedDescription
+      if !Task.isCancelled {
+        statsError = error.localizedDescription
+      }
     }
 
     isLoadingStats = false

@@ -8,11 +8,20 @@ struct RootView: View {
     RootContentView(authManager: env.authManager)
       .environment(\.theme, themeManager.palette)
       .tint(themeManager.palette.accent)
-      .preferredColorScheme(themeManager.theme.colorScheme)
+      // Do NOT also set `.preferredColorScheme` — it fights
+      // `UIWindow.overrideUserInterfaceStyle` and flashes the old scheme.
       .grayscale(themeManager.theme.isMonochrome ? 1 : 0)
+      .animation(nil, value: themeManager.snapshot)
       .background(themeManager.palette.bg.ignoresSafeArea())
-      .onChange(of: themeManager.palette) { _, newPalette in
-        MainTabView.applyTabBarTheme(newPalette, custom: themeManager.theme.isCustomPalette)
+      .onAppear {
+        ThemeManager.applyInterfaceStyle(
+          themeManager.theme,
+          windowBackground: themeManager.palette.uiBg
+        )
+        ThemeManager.applyChrome(
+          themeManager.palette,
+          custom: themeManager.theme.isCustomPalette
+        )
       }
   }
 }

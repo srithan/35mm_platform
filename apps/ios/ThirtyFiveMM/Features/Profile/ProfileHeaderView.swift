@@ -37,6 +37,7 @@ struct ProfileHeaderView: View {
       VStack(alignment: .leading, spacing: 3) {
         Text(profile.displayName)
           .font(.title3.weight(.bold))
+          .foregroundStyle(theme.text)
           .accessibilityAddTraits(.isHeader)
 
         Label {
@@ -62,6 +63,7 @@ struct ProfileHeaderView: View {
       if let bio = profile.bio?.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
         Text(bio)
           .font(.subheadline)
+          .foregroundStyle(theme.text)
           .lineSpacing(2)
           .fixedSize(horizontal: false, vertical: true)
       } else if profile.isOwnProfile {
@@ -125,10 +127,11 @@ private struct ProfileHeaderCircularButton: View {
     Button(title, systemImage: systemImage, action: action)
       .labelStyle(.iconOnly)
       .font(.body.weight(.semibold))
+      .foregroundStyle(theme.text)
       .frame(width: 44, height: 44)
-      .background(theme.bg, in: .circle)
+      .background(theme.bgElevated, in: .circle)
       .overlay {
-        Circle().stroke(ProfileDesign.buttonBorder, lineWidth: 1)
+        Circle().stroke(theme.borderStrong, lineWidth: 1)
       }
       .contentShape(Circle())
       .buttonStyle(.plain)
@@ -153,7 +156,7 @@ private struct ProfileHeaderPillButtonStyle: ButtonStyle {
       .overlay {
         Capsule()
           .stroke(
-            isProminent ? Color.clear : ProfileDesign.buttonBorderStrong,
+            isProminent ? Color.clear : theme.borderStrong,
             lineWidth: 1
           )
       }

@@ -361,11 +361,25 @@ extension ThemePalette {
 extension AppTheme {
   var basePalette: ThemePalette {
     switch self {
-    case .auto, .light, .dark: .system
+    // Light/dark must be static. Dynamic `.system` resolves against the
+    // *current* trait collection, so during a Matrix→Light switch the UI
+    // still has dark traits for a frame and paints the old dark palette
+    // (NEW → OLD → NEW flash). Auto is the only mode that should track traits.
+    case .auto: .system
+    case .light: .light
+    case .dark: .dark
     case .matinee: .matinee
     case .matrix: .matrix
     case .oppenheimerBW: .oppenheimerBW
     case .barbie: .barbie
+    }
+  }
+
+  var userInterfaceStyle: UIUserInterfaceStyle {
+    switch self {
+    case .auto: .unspecified
+    case .light, .matinee, .barbie: .light
+    case .dark, .matrix, .oppenheimerBW: .dark
     }
   }
 }
@@ -375,6 +389,19 @@ extension AppTheme {
 /// Source of truth for the active theme + accent. Persisted locally so the
 /// theme applies on cold launch before settings load, then re-synced whenever
 /// the settings API responds (same layering as web: localStorage + settings).
+/// Atomic theme+accent+palette so observers never render a mixed frame.
+struct ThemeSnapshot: Equatable {
+  var theme: AppTheme
+  var accent: AppAccent
+  var palette: ThemePalette
+
+  init(theme: AppTheme, accent: AppAccent) {
+    self.theme = theme
+    self.accent = accent
+    self.palette = theme.basePalette.withAccent(accent)
+  }
+}
+
 @MainActor
 final class ThemeManager: ObservableObject {
   static let shared = ThemeManager()
@@ -382,33 +409,128 @@ final class ThemeManager: ObservableObject {
   private static let themeKey = "35mm.appearance.theme"
   private static let accentKey = "35mm.appearance.accent"
 
-  @Published private(set) var theme: AppTheme
-  @Published private(set) var accent: AppAccent
+  /// One publish per switch — never theme-then-accent across two frames.
+  @Published private(set) var snapshot: ThemeSnapshot
 
-  var palette: ThemePalette { theme.basePalette.withAccent(accent) }
+  var theme: AppTheme { snapshot.theme }
+  var accent: AppAccent { snapshot.accent }
+  var palette: ThemePalette { snapshot.palette }
 
   private init() {
     let defaults = UserDefaults.standard
-    theme = defaults.string(forKey: Self.themeKey).flatMap(AppTheme.init(rawValue:)) ?? .auto
-    accent = defaults.string(forKey: Self.accentKey).flatMap(AppAccent.init(rawValue:)) ?? .theme
+    let theme = defaults.string(forKey: Self.themeKey).flatMap(AppTheme.init(rawValue:)) ?? .auto
+    let accent = defaults.string(forKey: Self.accentKey).flatMap(AppAccent.init(rawValue:)) ?? .theme
+    snapshot = ThemeSnapshot(theme: theme, accent: accent)
   }
 
   func set(theme: AppTheme, accent: AppAccent) {
     guard theme != self.theme || accent != self.accent else { return }
-    self.theme = theme
-    self.accent = accent
+
+    let next = ThemeSnapshot(theme: theme, accent: accent)
+
+    // Snap UIKit traits + chrome *before* SwiftUI publishes. Otherwise dynamic
+    // colors / preferredColorScheme lag a frame behind and flash the old look.
+    Self.applyInterfaceStyle(theme, windowBackground: next.palette.uiBg)
+    Self.applyChrome(next.palette, custom: theme.isCustomPalette)
+
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      snapshot = next
+    }
 
     let defaults = UserDefaults.standard
     defaults.set(theme.rawValue, forKey: Self.themeKey)
     defaults.set(accent.rawValue, forKey: Self.accentKey)
   }
 
-  /// Sync from server-side appearance settings; unknown values keep current.
+  /// Forces window trait collection immediately (avoids preferredColorScheme lag).
+  /// Also paints root/tab hosts so the home-indicator strip matches the theme
+  /// (Matinee was leaking system white under the floating tab bar).
+  static func applyInterfaceStyle(_ theme: AppTheme, windowBackground: UIColor) {
+    let style = theme.userInterfaceStyle
+    UIView.performWithoutAnimation {
+      for scene in UIApplication.shared.connectedScenes {
+        guard let windowScene = scene as? UIWindowScene else { continue }
+        for window in windowScene.windows {
+          window.overrideUserInterfaceStyle = style
+          window.backgroundColor = windowBackground
+          paintHostBackgrounds(from: window.rootViewController, color: windowBackground)
+        }
+      }
+    }
+  }
+
+  private static func paintHostBackgrounds(from root: UIViewController?, color: UIColor) {
+    guard let root else { return }
+    var queue: [UIViewController] = [root]
+    while let controller = queue.first {
+      queue.removeFirst()
+      // Paint hosts behind the floating tab bar. Never paint `UITabBar` itself
+      // opaque — that creates the iOS 26 content-covering bottom slab.
+      controller.view.backgroundColor = color
+      if let tab = controller as? UITabBarController {
+        tab.view.backgroundColor = color
+      }
+      queue.append(contentsOf: controller.children)
+      if let presented = controller.presentedViewController {
+        queue.append(presented)
+      }
+    }
+  }
+
+  /// Restyles UIKit navigation + tab chrome for custom palettes (Matrix/Matinee/etc).
+  static func applyChrome(_ palette: ThemePalette, custom: Bool) {
+    UIView.performWithoutAnimation {
+      applyNavigationBarTheme(palette, custom: custom)
+      MainTabView.applyTabBarTheme(palette, custom: custom)
+    }
+  }
+
+  private static func applyNavigationBarTheme(_ palette: ThemePalette, custom: Bool) {
+    _ = custom
+    let appearance = UINavigationBarAppearance()
+    appearance.configureWithOpaqueBackground()
+    appearance.backgroundColor = palette.uiBg
+    appearance.titleTextAttributes = [.foregroundColor: palette.uiText]
+    appearance.largeTitleTextAttributes = [.foregroundColor: palette.uiText]
+    appearance.buttonAppearance.normal.titleTextAttributes = [.foregroundColor: palette.uiText]
+    appearance.shadowColor = .clear
+
+    let tint = palette.uiText
+    UINavigationBar.appearance().standardAppearance = appearance
+    UINavigationBar.appearance().scrollEdgeAppearance = appearance
+    UINavigationBar.appearance().compactAppearance = appearance
+    UINavigationBar.appearance().tintColor = tint
+
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+      for window in windowScene.windows {
+        window.allSubviews(of: UINavigationBar.self).forEach { bar in
+          bar.standardAppearance = appearance
+          bar.scrollEdgeAppearance = appearance
+          bar.compactAppearance = appearance
+          bar.tintColor = tint
+        }
+      }
+    }
+  }
+
+  /// Sync from an explicit user choice (settings picker). Always applies.
   func apply(_ appearance: AppearanceSettings) {
     set(
       theme: AppTheme(rawValue: appearance.theme) ?? theme,
       accent: AppAccent(rawValue: appearance.accentColor) ?? accent
     )
+  }
+
+  /// Cold-start hydrate only. Once the user (or a prior launch) has a persisted
+  /// theme, GET responses must not override it — that caused the theme flash.
+  func hydrateFromServerIfNeeded(_ appearance: AppearanceSettings?) {
+    guard let appearance else { return }
+    let defaults = UserDefaults.standard
+    guard defaults.object(forKey: Self.themeKey) == nil else { return }
+    apply(appearance)
   }
 }
 
@@ -445,7 +567,9 @@ private struct ThemedBackgroundModifier: ViewModifier {
   let keyPath: KeyPath<ThemePalette, Color>
 
   func body(content: Content) -> some View {
-    content.background(theme[keyPath: keyPath])
+    // Ignore safe area so Matinee/Matrix fill the home-indicator strip instead
+    // of leaking system white/black behind the tab bar.
+    content.background(theme[keyPath: keyPath].ignoresSafeArea())
   }
 }
 
@@ -455,7 +579,29 @@ private struct ThemedListBackgroundModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .scrollContentBackground(.hidden)
-      .background(theme.bg)
+      .background(theme.bg.ignoresSafeArea())
+  }
+}
+
+/// No-op kept for call sites. Forcing `toolbarColorScheme` fought window
+/// `overrideUserInterfaceStyle` and contributed to theme-switch flashes.
+struct ThemedNavigationBarColorSchemeModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+  }
+}
+
+/// Disables the floating/minimized tab bar when available so custom themes
+/// keep one opaque chrome surface instead of a glassy ghost bar.
+struct TabBarMinimizeDisabledModifier: ViewModifier {
+  @ObservedObject private var themeManager = ThemeManager.shared
+
+  func body(content: Content) -> some View {
+    if #available(iOS 26.0, *), themeManager.theme.isCustomPalette {
+      content.tabBarMinimizeBehavior(.never)
+    } else {
+      content
+    }
   }
 }
 

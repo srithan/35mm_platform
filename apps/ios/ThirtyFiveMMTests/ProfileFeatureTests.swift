@@ -27,6 +27,86 @@ struct ProfileFeatureTests {
   }
 
   @Test
+  func profilePagerProgressTracksDirectionAndClampsEdges() {
+    #expect(
+      ProfileTab.dragProgress(
+        from: .diary,
+        translation: -195,
+        pageWidth: 390,
+        isRightToLeft: false
+      ) == 2.5
+    )
+    #expect(
+      ProfileTab.dragProgress(
+        from: .diary,
+        translation: 195,
+        pageWidth: 390,
+        isRightToLeft: true
+      ) == 2.5
+    )
+    #expect(
+      ProfileTab.dragProgress(
+        from: .posts,
+        translation: 195,
+        pageWidth: 390,
+        isRightToLeft: false
+      ) == 0
+    )
+    #expect(
+      ProfileTab.dragProgress(
+        from: .stats,
+        translation: -195,
+        pageWidth: 390,
+        isRightToLeft: false
+      ) == 4
+    )
+  }
+
+  @Test
+  func profilePagerChoosesOnlyOneAdjacentPage() {
+    #expect(ProfileTab.diary.adjacentTab(for: -100, isRightToLeft: false) == .lists)
+    #expect(ProfileTab.diary.adjacentTab(for: 100, isRightToLeft: false) == .reposts)
+    #expect(ProfileTab.diary.adjacentTab(for: 100, isRightToLeft: true) == .lists)
+    #expect(ProfileTab.posts.adjacentTab(for: 100, isRightToLeft: false) == nil)
+    #expect(ProfileTab.stats.adjacentTab(for: -100, isRightToLeft: false) == nil)
+  }
+
+  @Test
+  func profilePagerBeginsOnlyForClearlyHorizontalIntent() {
+    #expect(ProfileTab.hasHorizontalIntent(horizontalVelocity: 240, verticalVelocity: 100))
+    #expect(!ProfileTab.hasHorizontalIntent(horizontalVelocity: 110, verticalVelocity: 100))
+    #expect(!ProfileTab.hasHorizontalIntent(horizontalVelocity: 40, verticalVelocity: 240))
+  }
+
+  @Test
+  func profilePagerSettlementUsesDistanceAndPrediction() {
+    #expect(
+      ProfileTab.shouldSettleDrag(
+        translation: -100,
+        predictedTranslation: -110,
+        pageWidth: 390,
+        targetDirection: 1
+      )
+    )
+    #expect(
+      ProfileTab.shouldSettleDrag(
+        translation: -40,
+        predictedTranslation: -160,
+        pageWidth: 390,
+        targetDirection: 1
+      )
+    )
+    #expect(
+      !ProfileTab.shouldSettleDrag(
+        translation: -40,
+        predictedTranslation: -70,
+        pageWidth: 390,
+        targetDirection: 1
+      )
+    )
+  }
+
+  @Test
   func profileHeaderButtonBordersMatchWebTokens() {
     let light = UITraitCollection(userInterfaceStyle: .light)
     let dark = UITraitCollection(userInterfaceStyle: .dark)
@@ -540,6 +620,7 @@ struct ProfileFeatureTests {
       cachedAt: .now
     )
   }
+
 }
 
 @MainActor

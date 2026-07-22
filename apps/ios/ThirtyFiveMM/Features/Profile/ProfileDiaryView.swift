@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfileDiaryView: View {
   @Environment(\.theme) private var theme
   let model: ProfileViewModel
+  let isActive: Bool
   let onOpenPost: (FeedPost) -> Void
 
   var body: some View {
@@ -25,8 +26,10 @@ struct ProfileDiaryView: View {
       ProgressView("Finding diary entries")
         .frame(maxWidth: .infinity)
         .padding(.vertical, 48)
-        .task(id: model.posts.count) {
-          await model.loadMorePosts()
+        .task(id: isActive ? model.posts.count : -1) {
+          if isActive {
+            await model.loadMorePosts()
+          }
         }
     } else if model.diaryPosts.isEmpty {
       ContentUnavailableView(
@@ -35,7 +38,7 @@ struct ProfileDiaryView: View {
         description: Text(model.profile?.isOwnProfile == true ? "Logs and reviews will build your film diary." : "No diary entries have been shared.")
       )
     } else {
-      VStack(alignment: .leading, spacing: 18) {
+      LazyVStack(alignment: .leading, spacing: 18) {
         ForEach(model.diarySections) { section in
           VStack(alignment: .leading, spacing: 10) {
             Text(section.month, format: .dateTime.month(.wide).year())
@@ -56,8 +59,10 @@ struct ProfileDiaryView: View {
           ProgressView()
             .frame(maxWidth: .infinity)
             .padding()
-            .task(id: model.posts.count) {
-              await model.loadMorePosts()
+            .task(id: isActive ? model.posts.count : -1) {
+              if isActive {
+                await model.loadMorePosts()
+              }
             }
         }
       }

@@ -17,7 +17,7 @@ struct ProfileMetadataView: View {
         Link(destination: website) {
           Label(website.host() ?? website.absoluteString, systemImage: "link")
         }
-        .foregroundStyle(ProfileDesign.accent)
+        .foregroundStyle(theme.accent)
         .accessibilityHint("Opens in your browser")
       } else if profile.isOwnProfile {
         Label("Add your links", systemImage: "link")

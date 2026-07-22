@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileRepostsView: View {
   let model: ProfileViewModel
+  let isActive: Bool
   let onOpenPost: (FeedPost) -> Void
   let onOpenImage: (ProfileImageSelection) -> Void
 
@@ -25,8 +26,10 @@ struct ProfileRepostsView: View {
       ProgressView("Finding reposts")
         .frame(maxWidth: .infinity)
         .padding(.vertical, 48)
-        .task(id: model.reposts.count) {
-          await model.loadMoreReposts()
+        .task(id: isActive ? model.reposts.count : -1) {
+          if isActive {
+            await model.loadMoreReposts()
+          }
         }
     } else if model.reposts.isEmpty {
       ContentUnavailableView(
@@ -39,28 +42,29 @@ struct ProfileRepostsView: View {
         )
       )
     } else {
-      ForEach(model.reposts) { post in
-        PostCard(
-          post: post,
-          interactor: model,
-          onOpenPost: { onOpenPost(post) },
-          onOpenImage: { destination in
-            onOpenImage(ProfileImageSelection(destination: destination, post: post))
-          }
-        )
-        .onAppear {
-          if post.id == model.reposts.last?.id {
-            Task { await model.loadMoreReposts() }
-          }
+      LazyVStack(spacing: 0) {
+        ForEach(model.reposts) { post in
+          PostCard(
+            post: post,
+            interactor: model,
+            onOpenPost: { onOpenPost(post) },
+            onOpenImage: { destination in
+              onOpenImage(ProfileImageSelection(destination: destination, post: post))
+            }
+          )
+
+          Divider()
         }
 
-        Divider()
-      }
-
-      if model.isLoadingMoreReposts {
-        ProgressView()
-          .frame(maxWidth: .infinity)
-          .padding()
+        if model.canLoadMoreReposts || model.isLoadingMoreReposts {
+          ProgressView()
+            .frame(maxWidth: .infinity)
+            .padding()
+            .task(id: isActive ? model.reposts.count : -1) {
+              guard isActive else { return }
+              await model.loadMoreReposts()
+            }
+        }
       }
     }
   }

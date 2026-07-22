@@ -2,17 +2,32 @@ import SwiftUI
 import UIKit
 
 struct SettingsView: View {
-  @Environment(\.theme) private var theme
-  @StateObject private var viewModel: SettingsViewModel
+  @EnvironmentObject private var env: AppEnvironment
 
   private let authManager: AuthManager
   private let profile: UserProfile?
 
   init(apiClient: APIClient, authManager: AuthManager, profile: UserProfile?) {
-    _viewModel = StateObject(wrappedValue: SettingsViewModel(apiClient: apiClient))
+    // `apiClient` retained for call-site parity; view model is app-scoped.
+    _ = apiClient
     self.authManager = authManager
     self.profile = profile
   }
+
+  var body: some View {
+    SettingsRootView(
+      viewModel: env.settingsViewModel,
+      authManager: authManager,
+      profile: profile
+    )
+  }
+}
+
+private struct SettingsRootView: View {
+  @Environment(\.theme) private var theme
+  @ObservedObject var viewModel: SettingsViewModel
+  let authManager: AuthManager
+  let profile: UserProfile?
 
   var body: some View {
     ZStack(alignment: .bottom) {
@@ -60,13 +75,10 @@ struct SettingsView: View {
 
           SettingsSectionCard {
             ForEach(SettingsSectionID.allCases) { section in
-              NavigationLink {
-                SettingsSectionDestination(
-                  section: section,
-                  viewModel: viewModel,
-                  authManager: authManager
-                )
-              } label: {
+              // Push on the tab's AppRoute stack (not a nested NavigationStack /
+              // untyped link). Path lives in MainTabView so theme rebuilds of
+              // SettingsView cannot pop Appearance → empty → feed.
+              NavigationLink(value: AppRoute.settingsSection(section)) {
                 SettingsNavigationRow(
                   systemImage: section.systemImage,
                   title: section.title,
@@ -94,7 +106,7 @@ struct SettingsView: View {
   }
 }
 
-private struct SettingsSectionDestination: View {
+struct SettingsSectionDestination: View {
   @Environment(\.theme) private var theme
   let section: SettingsSectionID
   @ObservedObject var viewModel: SettingsViewModel
@@ -106,22 +118,40 @@ private struct SettingsSectionDestination: View {
       case .account:
         if let settings = viewModel.settings {
           SettingsAccountView(viewModel: viewModel, initialProfile: settings.profile)
+        } else {
+          SettingsLoadingView()
         }
       case .privacy:
         if let settings = viewModel.settings {
           SettingsPrivacyView(viewModel: viewModel, initialPrivacy: settings.privacy)
+        } else {
+          SettingsLoadingView()
         }
       case .notifications:
         if let settings = viewModel.settings {
           SettingsNotificationsView(viewModel: viewModel, initialNotifications: settings.notifications)
+        } else {
+          SettingsLoadingView()
         }
       case .appearance:
         if let settings = viewModel.settings {
-          SettingsAppearanceView(viewModel: viewModel, initialAppearance: settings.appearance)
+          // Theme/accent from ThemeManager (painted truth), not possibly-stale GET.
+          SettingsAppearanceView(
+            viewModel: viewModel,
+            initialAppearance: AppearanceSettings(
+              theme: ThemeManager.shared.theme.rawValue,
+              accentColor: ThemeManager.shared.accent.rawValue,
+              videoAutoplay: settings.appearance.videoAutoplay
+            )
+          )
+        } else {
+          SettingsLoadingView()
         }
       case .media:
         if let settings = viewModel.settings {
           SettingsMediaView(viewModel: viewModel, initialMedia: settings.media)
+        } else {
+          SettingsLoadingView()
         }
       case .dataSecurity:
         SettingsDataSecurityView(viewModel: viewModel, authManager: authManager)
@@ -564,17 +594,16 @@ private struct SettingsAppearanceView: View {
       .padding(.bottom, 24)
     }
     .onChange(of: viewModel.settings?.appearance) { _, newValue in
-      if let newValue {
-        appearance = newValue
-      }
+      guard let newValue else { return }
+      // Keep videoAutoplay from server; theme/accent stay on ThemeManager.
+      appearance.videoAutoplay = newValue.videoAutoplay
     }
   }
 
   private func save() {
-    // Apply optimistically so the theme flips instantly; server sync follows.
-    ThemeManager.shared.apply(appearance)
+    let next = appearance
     Task {
-      await viewModel.saveAppearance(appearance)
+      await viewModel.saveAppearance(next)
     }
   }
 }

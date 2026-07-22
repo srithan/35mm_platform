@@ -5,6 +5,10 @@ import Foundation
 final class AppEnvironment: ObservableObject {
   let apiClient: APIClient
   let authManager: AuthManager
+  /// Survives Settings navigation destination recreation when the theme
+  /// environment changes (a new `@StateObject` per push was re-fetching
+  /// settings and flashing the stale server theme over the optimistic one).
+  let settingsViewModel: SettingsViewModel
 
   @Published var isComposerPresented = false
   @Published private(set) var composerQuote: FeedPost?
@@ -19,6 +23,7 @@ final class AppEnvironment: ObservableObject {
       baseURL: AppConstants.apiBaseURLValue,
       tokenProvider: manager
     )
+    settingsViewModel = SettingsViewModel(apiClient: apiClient)
 
     manager.start(apiClient: apiClient)
   }

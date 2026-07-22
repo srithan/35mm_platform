@@ -24,11 +24,11 @@ struct QuotedPostCard: View {
           .accessibilityLabel("Quoted post unavailable")
       }
     }
-    .background(theme.bgSunken.opacity(0.48))
+    .background(theme.bgSunken)
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .overlay {
       RoundedRectangle(cornerRadius: 12, style: .continuous)
-        .stroke(theme.border, lineWidth: 0.5)
+        .stroke(theme.borderStrong, lineWidth: 1)
     }
     .padding(.top, 4)
   }

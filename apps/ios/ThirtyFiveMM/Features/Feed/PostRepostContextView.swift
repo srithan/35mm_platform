@@ -14,10 +14,11 @@ struct PostRepostContextView: View {
         .lineLimit(1)
     } icon: {
       Image("PostActionRepost")
+        .renderingMode(.template)
         .resizable()
         .scaledToFit()
         .frame(width: 14, height: 14)
-        .foregroundStyle(repostColor)
+        .foregroundStyle(theme.repost)
     }
     .labelStyle(.titleAndIcon)
     .padding(.leading, 52)
@@ -69,9 +70,5 @@ struct PostRepostContextView: View {
 
     let noun = remainingCount == 1 ? "other" : "others"
     return "\(namedSummary) and \(remainingCount) \(noun) reposted"
-  }
-
-  private var repostColor: Color {
-    Color(red: 90.0 / 255.0, green: 158.0 / 255.0, blue: 122.0 / 255.0)
   }
 }

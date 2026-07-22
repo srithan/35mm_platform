@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileListsView: View {
   let model: ProfileViewModel
+  let isActive: Bool
 
   var body: some View {
     if model.isLoadingLists && model.lists.isEmpty {
@@ -26,20 +27,21 @@ struct ProfileListsView: View {
         description: Text(model.profile?.isOwnProfile == true ? "Curate films into collections from the Lists section." : "No public lists have been shared.")
       )
     } else {
-      ForEach(model.lists) { list in
-        ProfileListRow(list: list)
-          .onAppear {
-            if list.id == model.lists.last?.id {
-              Task { await model.loadMoreLists() }
-            }
-          }
-        Divider().padding(.leading, 110)
-      }
+      LazyVStack(spacing: 0) {
+        ForEach(model.lists) { list in
+          ProfileListRow(list: list)
+          Divider().padding(.leading, 110)
+        }
 
-      if model.isLoadingMoreLists {
-        ProgressView()
-          .frame(maxWidth: .infinity)
-          .padding()
+        if model.canLoadMoreLists || model.isLoadingMoreLists {
+          ProgressView()
+            .frame(maxWidth: .infinity)
+            .padding()
+            .task(id: isActive ? model.lists.count : -1) {
+              guard isActive else { return }
+              await model.loadMoreLists()
+            }
+        }
       }
     }
   }
