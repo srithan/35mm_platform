@@ -1,0 +1,25 @@
+appId: ${MOBILE_APP_ID}
+name: Foundation visual captures
+tags:
+  - foundation
+  - visual
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: foundation.gallery.canvas
+- takeScreenshot:
+    path: artifacts/visual/actual/${MOBILE_PLATFORM}/foundation-controls-light
+    cropOn:
+      id: foundation.gallery.canvas
+    label: Capture light controls gallery
+- tapOn:
+    id: foundation.section.states
+- tapOn:
+    id: foundation.theme.toggle
+- assertVisible: Use light theme
+- takeScreenshot:
+    path: artifacts/visual/actual/${MOBILE_PLATFORM}/foundation-states-dark
+    cropOn:
+      id: foundation.gallery.canvas
+    label: Capture dark states gallery

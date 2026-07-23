@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "minimumRuns": 5,
+  "requiredBuildType": "release",
+  "requiredMetrics": [
+    {
+      "key": "coldLaunchMs",
+      "unit": "ms",
+      "direction": "lower"
+    },
+    {
+      "key": "warmLaunchMs",
+      "unit": "ms",
+      "direction": "lower"
+    },
+    {
+      "key": "steadyMemoryMb",
+      "unit": "MiB",
+      "direction": "lower"
+    },
+    {
+      "key": "slowFramePercent",
+      "unit": "percent",
+      "direction": "lower"
+    }
+  ],
+  "deviceProfiles": {
+    "ios": {
+      "minimumOs": "17.0",
+      "requiredTool": "Xcode Instruments/App Launch and Core Animation",
+      "scenario": "five cold launches, five warm launches, then 60 seconds of gallery interaction"
+    },
+    "android": {
+      "minimumApi": 24,
+      "requiredTool": "Perfetto plus adb am start -W, dumpsys meminfo, and gfxinfo",
+      "scenario": "five cold launches, five warm launches, then 60 seconds of gallery interaction"
+    }
+  }
+}

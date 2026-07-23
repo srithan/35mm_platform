@@ -12,6 +12,23 @@ Last agent-context refresh: 2026-06-28.
 
 We will get a minimum of 1 million daily active users. Make sure you are not writing code or taking approaches that hurt at scale.
 
+## React Native Mobile Continuation Contract
+
+Before planning, reviewing, or editing any React Native/mobile work, read
+`docs/react-native-mobile-development-plan.md` completely. It is the canonical
+roadmap, progress ledger, decision/blocker log, and handoff prompt for the shared
+iOS/Android app.
+
+- The shared app lives at `apps/mobile`; its Phase 1.1 Expo/React Native
+  workspace now exists and later phases must extend it in place.
+- Never delete, rename, replace, or weaken `apps/ios` or related files. The
+  SwiftUI app remains a product/native-behavior reference and retained fallback.
+- Use mobile web and SwiftUI as reference points, following the precedence rules
+  in the mobile plan and verifying behavior directly in source.
+- Before finishing mobile work, update the plan's current phase, next task,
+  checklist, feature status, blockers/decisions, and dated work log in the same
+  change.
+
 ---
 
 
@@ -38,12 +55,14 @@ pnpm dev:all    # web + API + worker
 pnpm dev:web
 pnpm dev:api
 pnpm dev:worker
+pnpm dev:mobile
+pnpm mobile:check
 pnpm build
 pnpm typecheck
 pnpm lint
 ```
 
-Node engine: `>=22.0.0`.
+Node engine: `>=22.13.0` (Expo SDK 57 minimum).
 
 ---
 

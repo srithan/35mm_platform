@@ -1,0 +1,42 @@
+appId: ${MOBILE_APP_ID}
+name: Foundation visual captures (development client)
+tags:
+  - foundation
+  - visual
+  - development-client
+---
+- launchApp:
+    clearState: true
+- openLink: ${MOBILE_START_URL}
+- tapOn:
+    text: ${MOBILE_METRO_URL}
+    optional: true
+- tapOn:
+    text: Continue
+    optional: true
+- tapOn:
+    text: Close
+    optional: true
+- assertVisible:
+    id: foundation.gallery.canvas
+- takeScreenshot:
+    path: artifacts/visual/actual/${MOBILE_PLATFORM}/foundation-controls-light
+    cropOn:
+      id: foundation.gallery.canvas
+    label: Capture light controls gallery
+- tapOn:
+    id: foundation.section.states
+- tapOn:
+    text: Close
+    optional: true
+- tapOn:
+    id: foundation.theme.toggle
+- tapOn:
+    text: Close
+    optional: true
+- assertVisible: Use light theme
+- takeScreenshot:
+    path: artifacts/visual/actual/${MOBILE_PLATFORM}/foundation-states-dark
+    cropOn:
+      id: foundation.gallery.canvas
+    label: Capture dark states gallery

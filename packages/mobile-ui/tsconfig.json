@@ -1,0 +1,13 @@
+{
+  "extends": "../config/base.tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022"],
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "types": ["react"]
+  },
+  "include": ["src"]
+}

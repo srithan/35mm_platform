@@ -1,11 +1,44 @@
 # 35mm Platform - Architecture and System Design
 
 > Master reference document for engineers, AI agents, and product architecture work.
-> Last updated: 2026-07-17
+> Last updated: 2026-07-22
 
 Catalog documentation lives in `docs/catalog/`; start with `docs/catalog/spec.md`.
 
 Content moderation documentation lives in `docs/moderation/`; start with `docs/moderation/spec.md`.
+
+The React Native iOS/Android roadmap and continuation contract live in
+`docs/react-native-mobile-development-plan.md`. Phase 1.8 foundation includes
+the `apps/mobile` scaffold, deterministic mobile checks, isolated development
+and preview build identities, enforceable Expo CNG policy, and React-free
+shared design tokens plus React Native UI primitives, root providers, bounded
+account-scoped persistence, Clerk secure token wiring, lifecycle handling, and
+a platform-neutral API client plus accessibility, Maestro E2E, PNG visual-diff,
+and measured-performance evidence harnesses; `apps/ios` remains intact as the SwiftUI
+reference and retained fallback. The local CocoaPods/Android/Maestro toolchain is
+configured; the Android development binary plus emulator smoke flow pass, and a
+Personal-Team-signed iOS embedded-bundle build now builds, installs, launches,
+and visibly renders the Foundation gallery on the connected iPhone 13 Pro
+without Metro. Device syslog first proved its black screen came from Release
+dead-code stripping the generated `ExpoModulesProvider`, leaving `ExpoAsset`
+and Expo Constants absent. An explicit CNG plugin lifetime-retains that
+provider from generated `AppDelegate`. A second startup failure exposed Expo's
+unquoted `PROJECT_DIR` handling under repository paths containing spaces,
+which silently omitted the embedded Expo Constants manifest. The retained
+Podfile plugin plus pinned dependency patch now supply and safely preserve the
+application root. The final app contains its JS bundle, valid Expo config, and
+provider class; strict signing, visible screenshot, sustained process, and
+clean device-log checks pass. Native verification now executes Expo manifest
+generation for both variants through a synthetic path containing spaces, while
+a macOS Release-artifact gate rejects missing JavaScript/config, mismatched
+identity, stripped provider symbols, or invalid signing before installation.
+The root bootstrap also no longer returns blank
+trees during Clerk, query-scope, font, or theme initialization: it renders one
+explicit loading surface and does not block routes on non-critical theme
+hydration.
+Expo SDK 57's generated Debug app still reaches React Native with a null bundle
+URL before launcher UI appears and is not used for physical-iOS smoke validation.
+Phase 1.9 remains blocked on one low/mid-range physical Android device.
 
 35mm is a social film platform: Letterboxd x Twitter for cinema. It combines a social feed, film logs/reviews, comments, profiles, follows, notifications, film lists/watchlists, discovery, creator-friendly media workflows, and an IMDb-like catalog database for titles, people, companies, awards, media, sources, and public revision history.
 
@@ -22,9 +55,13 @@ Target scale: 35M+ users. Architecture decisions should preserve cursor paginati
 │   ├── studio/    Next.js internal admin/content operations app
 │   ├── api/       Hono REST API
 │   ├── worker/    BullMQ background worker
+│   ├── mobile/    Expo/React Native shared iOS and Android app
 │   └── ios/       SwiftUI iOS app
 ├── packages/
 │   ├── db/          Drizzle schema and Neon client
+│   ├── api-client/  Platform-neutral mobile REST transport and errors
+│   ├── design-tokens/ React-free shared mobile themes and foundation tokens
+│   ├── mobile-ui/    Shared React Native primitives and state surfaces
 │   ├── types/       Shared TypeScript contracts
 │   ├── validators/  Shared Zod schemas and parsing helpers
 │   ├── ui/          Shared React primitives
@@ -33,12 +70,28 @@ Target scale: 35M+ users. Architecture decisions should preserve cursor paginati
 └── codebase-analysis-docs/
 ```
 
+The tree above reflects implemented workspaces. `apps/mobile` currently contains
+Phase 1.1 runtime/configuration and root Router entry infrastructure, Phase 1.2
+test/CI command wiring, Phase 1.3 build-variant validation, and Phase 1.4 native
+generation policy/verification. Phase 1.5 adds the shared design-token package
+and source-backed web/Swift theme parity fixtures. Phase 1.6 adds the shared
+React Native UI package, local DM font assets, one cross-platform icon source,
+overlays, toast, skeletons, and explicit state surfaces. Phase 1.7 adds root
+provider/bootstrap composition, Clerk secure token caching, React Query and
+Zustand ownership boundaries, bounded account-scoped persistence, lifecycle
+integration, recovery, and `packages/api-client`. Phase 1.8 adds a deterministic
+internal foundation gallery, semantic/touch-target component coverage, Maestro
+smoke and fixed-profile screenshot flows, reviewed PNG comparison, and a
+release/device performance-result validator; mobile auth screens,
+onboarding, shell, and feature routes remain unimplemented.
+
 Deploy targets:
 
 - `apps/web`: Vercel.
 - `apps/studio`: internal Next.js admin deployment, isolated from the public web app.
 - `apps/api`: Vercel or dedicated Node host.
 - `apps/worker`: long-running Node process.
+- `apps/mobile`: Expo development/native builds with isolated internal EAS development and preview profiles; production identity, signing, and store profile remain blocked on release decisions.
 - `packages/db`: not deployed directly; consumed by API and worker.
 
 Root commands:
@@ -50,12 +103,29 @@ pnpm dev:web
 pnpm dev:studio
 pnpm dev:api
 pnpm dev:worker
+pnpm dev:mobile
+pnpm mobile:ios
+pnpm mobile:android
+pnpm mobile:typecheck
+pnpm mobile:lint
+pnpm mobile:test
+pnpm mobile:test:ci
+pnpm mobile:tokens:check
+pnpm mobile:api-client:check
+pnpm mobile:ui:check
+pnpm mobile:quality:check
+pnpm mobile:e2e:foundation
+pnpm mobile:visual:test
+pnpm mobile:performance:verify
+pnpm mobile:native:check
+pnpm mobile:native:regenerate development all
+pnpm mobile:check
 pnpm build
 pnpm typecheck
 pnpm lint
 ```
 
-Node engine: `>=22.0.0`.
+Node engine: `>=22.13.0`.
 
 ---
 
@@ -163,6 +233,32 @@ Web and native profiles share Posts/Reposts/Diary/Lists/Stats navigation. Web ro
 Native profiles live in `Features/Profile` and mirror the mobile-web information hierarchy with cover/avatar identity, inline relationship counts, bio metadata, and equal-width Posts/Reposts/Diary/Lists/Stats tabs. The identity chip renders profile role plus optional role context; denormalized films-logged count remains a separate metric in the counts row. Header actions use the web profile's adaptive border hierarchy: regular border for circular share/overflow controls and strong border for outline action pills. Profiles with valid avatar or cover URLs expose accessible full-screen previews through `Core/ImageViewerView.swift`; presentation suppresses system cover choreography, profile photos use a centered circular crop, covers retain fitted rectangular presentation, and both place the profile username directly below the image. Missing media remains noninteractive, and image delivery reuses Kingfisher's bounded cache/retry path without another API read. Overflow, unfollow, and block choices use the shared app-standard bottom action sheet; profile sharing opens the branded native `ShareModal` directly. Profile posts, reposts, and lists use independent 20-item cursor streams; reposts, lists, and the server-cached stats summary load only when selected. Existing denormalized counts remain read-time inputs, post interactions preserve optimistic rollback, and follow/request/mute/block actions reuse the existing authorized, rate-limited REST mutations. Own-profile editing uses validated PATCH semantics with explicit JSON `null` for field/media removal; avatar and cover changes reuse `/v1/media/presign` plus direct R2 PUT through the shared native presigned uploader. This extends an existing read route without adding a mutation, worker job, or counter path. At 1M+ DAU, each tab request remains one bounded cursor query; `posts_user_repost_created_at_id_idx` keeps repost scans indexed by user and activity order. Media previews add only user-initiated CDN delivery when not already cached.
 
 Native Discover mirrors the web Discover program through the existing cached, IP-rate-limited `/api/tmdb` proxy: popular/featured heroes, provider-filtered streaming, trending, ranked, current-release, popular, mood, TV, and Now Playing shelves use the same upstream paths and ordering. Provider changes refetch only the streaming shelf. TMDB IDs remain discovery metadata, never 35mm identity: opening an item resolves `externalProvider=tmdb&externalId=...` through public `/v1/catalog/titles`, then navigates with the canonical catalog ID; an unlinked item offers an explicit web-title fallback. `Features/Title` remains catalog-backed and provides hero/metadata, lazy reviews, complete cursor-paged cast/crew, live watchlist state, and bottom action sheets. Social reviews resolve only through `catalog_titles.legacy_film_id` to canonical `films.id`; unbridged titles render an explicit unavailable state instead of substituting a TMDB ID.
+
+### Shared mobile: `apps/mobile`
+
+Phase 1.1 implements private workspace `@35mm/mobile` with Expo SDK 57.0.8, React Native 0.86.0, React 19.2.3, Expo Router 57.0.8 typed routes, strict TypeScript, Expo flat-config ESLint, and automatic pnpm monorepo resolution. React type packages are excluded from pnpm's hidden workspace hoist, and existing React Email packages declare their missing React 18 type peers, preventing Expo's React 19 types from crossing into React 18 workspaces. Expo SDK 57 runs only on New Architecture/Fabric; generated Android config also records `newArchEnabled=true` and Hermes. Native build properties enforce Android minimum API 24 and compile/target API 36. The initial Expo iOS 16.4 floor was raised to iOS 17.0 in Phase 1.7 for the selected Clerk Expo native SDK.
+
+Phase 1.3 requires explicit `APP_VARIANT=development|preview` during Expo config resolution and fails closed when the value is missing or unsupported. Development resolves to `35mm Dev`, `thirtyfivemm-dev`, and `com.thirtyfivemm.mobile.dev`; preview resolves to `35mm Preview`, `thirtyfivemm-preview`, and `com.thirtyfivemm.mobile.preview`. Both native identities remain distinct from SwiftUI production ID `com.35mm.app`. Cross-platform local scripts inject the development variant without shell-specific assignment. `apps/mobile/eas.json` maps internal development and preview profiles to matching EAS environments and variant values; no production profile exists while product/signing ownership remains blocked. Expo Dev Client is enabled for development builds, while its generated scheme is disabled for preview so installed variants do not compete for the same development URL. Development launcher mode disables automatic recent-bundle launch, but physical-iOS evidence shows that setting alone does not stop Expo SDK 57's generated Debug app from supplying React Native a null bundle URL before launcher UI appears. Clerk's supported `appleSignIn` plugin option is also variant-specific: development omits the entitlement for Apple Personal Team provisioning, preview retains it for paid-team validation, and public config exposes `extra.appleSignInEnabled` so future authentication UI can match the installed native capability.
+
+`pnpm --filter @35mm/mobile config:check` resolves both public configs, checks exact display names, schemes, iOS/Android identifiers, public variant markers, profile-to-environment mapping, and cross-variant uniqueness. Unit tests also cover both identities and missing/invalid variant rejection. No product route, provider, auth flow, data client, feature implementation, API request, database load, cache, worker job, schema, or index was added; backend read/write volume and 1M+ DAU characteristics are unchanged. `packages/ui` and other DOM-only source are not imported.
+
+Phase 1.4 adopts Expo Continuous Native Generation as source of truth. `apps/mobile/ios` and `apps/mobile/android` remain ignored, untracked, and disposable; retained native behavior must live in reviewed app config, explicit config plugins, or native modules outside generated trees. `apps/mobile/NATIVE_GENERATION.md` records adoption/review rules and local clean-regeneration commands. Policy validation rejects tracked generated files and symbolic-link targets, requires the independently tracked SwiftUI project to retain approved production identity `com.35mm.app`, and baselines explicit plugins plus resolved autolinking. A current user/Xcode edit changes that SwiftUI identity to `com.35mm.com`, so aggregate native policy intentionally fails until the separate production identity decision resolves the drift; React Native work must not overwrite it. Repository paths containing spaces are supported by a pinned `expo-constants@57.0.7` dependency patch that quotes both its CocoaPods script path and `PROJECT_DIR`, a Podfile plugin that supplies the application `PROJECT_ROOT` before podspec evaluation, and a structured config plugin that quotes the generated React Native bundle-script invocation. Another reviewed plugin injects a lifetime-held generated `ExpoModulesProvider` instance into `AppDelegate`, preventing Release dead-code stripping from removing Expo Asset/Constants module registration. Native checks execute the installed Expo manifest generator for both variants through a synthetic path containing spaces, then isolated clean Prebuild verification generates development and preview projects under OS scratch storage and checks their identities, display names, New Architecture, Hermes, iOS target, opposite Apple Sign-In entitlement states, recent-bundle auto-launch preference, Expo Constants project root, retained Expo provider, and safe bundle invocation. A separate macOS artifact gate validates embedded JavaScript/config, final identity, provider linkage, and strict signing. Scratch projects are removed without writing either workspace native tree. Native dependency/config changes must update this baseline and create new binaries rather than JavaScript-only OTA updates.
+
+Phase 1.5 adds private package `@35mm/design-tokens` as plain TypeScript with no React, React Native, DOM, UIKit, or Android dependency. It owns seven preference IDs (`auto | light | dark | matinee | matrix | oppenheimer-bw | barbie`), six resolved palettes, explicit system light/dark resolution for `auto`, semantic colors, 4-point spacing, radii and sheet geometry, touch/avatar/icon/poster/media sizes, DM-family typography roles, motion plus Reduce Motion substitutions, and equivalent iOS/Android elevation recipes. Stable fixtures read current web CSS and Swift `Theme.swift` during tests. Mobile-web values win the recorded Matrix/Oppenheimer social-accent and Oppenheimer unread-badge conflicts under the mobile reference hierarchy; both source values remain asserted so drift cannot be silent. Critical text/control pairs pass WCAG AA contrast, including readable theme-specific badge foregrounds. This static client data adds no API, database, cache, queue, or runtime network work, changes no 1M+ DAU read/write path, and requires no index.
+
+Phase 1.6 adds private package `@35mm/mobile-ui` as the React Native adapter over `@35mm/design-tokens`. It owns a fail-loud controlled theme context; local DM Serif Display, DM Sans, and DM Mono asset aliases; one Lucide/`react-native-svg` icon map; safe-area screens; text, card, divider, button, icon-button, badge, chip, counter, field, and avatar primitives; centered/full-screen modal and confirmation surfaces; the web/Swift-aligned 32-point action sheet with 58-point rows, 80-point drag dismissal, Android-back handling, and Reanimated/Gesture Handler UI-thread motion; a provider-scoped four-item toast queue; bounded pulse skeleton primitives; and explicit loading, empty, offline, unauthorized, private, deleted, permission-denied, pagination, and inline-notice states. Reduce Motion removes autonomous spatial motion, skeleton geometry is hidden from assistive technology, interactive targets meet the 44-point floor, and sheet/modal surfaces declare modal accessibility containment. Phase 1.7 now loads its fonts and composes its safe-area, controlled theme, and toast providers at the app root.
+
+`@35mm/mobile-ui` is presentation-only. Its toast queue and skeleton line counts are bounded in client memory, and it performs no API request, database read/write, cache operation, queue/worker job, schema change, or server mutation. At 1M+ DAU it adds no backend volume and requires no database index. `react-native-gesture-handler`, Reanimated 4.5, Worklets 0.10, and `react-native-svg` are native dependencies, so this slice is binary-affecting and is not eligible for JavaScript-only OTA delivery; isolated development/preview CNG checks cover both generated platforms.
+
+Phase 1.7 composes the root error boundary, Clerk Expo provider and supported SecureStore token cache, account-gated React Query persistence, AppState/NetInfo lifecycle bridge, injected API client, and shared UI bootstrap. React Query owns server state; Zustand owns transient drawer/chrome/composer presentation and persists only validated theme preference. One explicit accessible 35mm loading surface covers Clerk, query-scope, and font initialization; theme preference restores asynchronously without blocking route rendering. Query persistence is opt-in, successful/idle, explicitly non-sensitive and bounded, limited to 32 entries/256 KiB each/1 MiB total/six hours, and keyed by a SHA-256-derived account scope; the prior account cache is removed before a new scope renders. Runtime configuration requires explicit `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`; preview requires a non-loopback HTTPS API origin.
+
+Phase 1.8 mounts a deterministic internal foundation gallery at the only root route configured for development/preview builds. It renders shared controls plus loading/offline/error states in explicit light/dark and Reduce Motion conditions, with stable accessibility/test identifiers. React Native Testing Library verifies headers, images, fields, tabs, selected/disabled state, state transitions, and the 44-point interaction floor. Maestro smoke and screenshot flows inject only approved internal app IDs; screenshot capture crops to the 35mm-owned canvas. A `pngjs` comparator enforces equal geometry, bounded channel noise, and a 0.1% changed-pixel ceiling against reviewed fixed iPhone 15/iOS 17.5 and Pixel 6/API 36 baselines. Missing baselines fail rather than self-approve.
+
+The performance harness accepts only named-device, release-build evidence with commit, tool/version, Hermes bundle size, and at least five samples for cold/warm launch, steady memory, and slow-frame percentage; it reports p50/p95 and does not invent thresholds before physical-device measurement. The local host now has Xcode 26.6, one valid Apple Development identity, CocoaPods, JDK 17, Android Studio/SDK/ADB/emulator, Maestro, and EAS CLI. An Android development binary builds and installs on the Pixel 6/API 36 AVD, its Metro bundle resolves, and the development-client Maestro smoke flow passes. Expo's development Tools overlay occupies the top-right corner, so the internal gallery keeps its theme control clear of that development-only surface; preview behavior is unchanged. The ignored development environment contains Clerk plus a health-checked LAN API origin, which must be refreshed if the workstation address changes. EAS authentication is optional while local builds are used. The Personal-Team-signed iOS Debug app builds and installs on the connected/trusted iPhone 13 Pro, but it fails before Expo launcher UI with a null React Native bundle URL; no Continue or Local Network prompt is present, and earlier instructions claiming otherwise were incorrect. Physical-iOS smoke validation therefore uses the development identity in Release configuration with an embedded Hermes bundle. Device syslog and LLDB proved the first Release black screen was not a surviving bootstrap wait: Release dead-code stripping removed the generated Expo provider, so `ExpoAsset` and Expo Constants never registered even though React owned a root view. After provider retention, device logs exposed a missing embedded manifest because Expo's shell script split the space-containing project path. The corrected app now retains the provider, embeds the valid Expo Constants config, visibly renders the Foundation gallery, remains alive, and has clean startup logs without prior fatal signatures. Explicit bootstrap loading remains as fail-visible protection. Maestro 2.7.0 does not support local physical-iOS execution. No representative low/mid-range Android device is available; reviewed fixed-profile baselines and release performance evidence remain unclaimed. Harness code is fixed-size local/test infrastructure: it creates no API, DB, Redis, cache, queue, worker, schema, or index impact at 1M+ DAU.
+
+Private package `@35mm/api-client` contains no React, React Native, storage, or Clerk dependency. The app injects the API origin, Clerk token provider, fetch implementation, request-ID generator, abort signal, and platform metadata. It provides bounded read/mutation/upload timeouts, one-megabyte response protection, standard API error decoding, redacted diagnostics, cancellation, optional runtime parsing, and at most three retries; non-GET retry requires an idempotency key. The provider foundation introduces no automatic endpoint call, API route, DB/Redis/worker operation, schema, or index. At 1M+ DAU, network volume remains feature-driven and unchanged; retry and device-cache work is explicitly bounded.
+
+Phase 1.2 adds Jest 29.7 through `jest-expo` 57.0.2 and React Native Testing Library 14.0.1. Tests live outside Expo Router's route directory. `pnpm mobile:check` is the deterministic CI entry point and runs the design-token, API-client, and mobile-UI package checks, strict mobile TypeScript, Expo ESLint, public Expo config validation, quality-harness contracts, native policy/generation checks, and serialized Jest CI coverage. Current tests cover 29 source-backed token invariants, 6 API transport cases, and 43 app/UI cases spanning Router/config, variant capabilities, shared controls, provider composition/token injection, runtime rejection, state/lifecycle/retry boundaries, persisted-cache policy/account cleanup, root recovery, explicit bootstrap loading, and the foundation accessibility/state gallery without product behavior or mock production data.
 
 ### External Services
 
@@ -1322,6 +1418,15 @@ NEXT_PUBLIC_CHAT_API_URL=
 NEXT_PUBLIC_TENOR_API_KEY=
 ```
 
+Shared mobile development and preview runtime:
+
+```env
+EXPO_PUBLIC_API_URL=
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
+```
+
+Both values are required by the Phase 1.7 root bootstrap. Preview accepts only a non-loopback HTTPS API origin. The Clerk value is a public publishable key; session tokens remain in Clerk's Expo SecureStore token cache and are never persisted in AsyncStorage or query state.
+
 Studio:
 
 ```env
@@ -1369,6 +1474,7 @@ Current test coverage includes:
 - Web post composer.
 - Web settings schemas, hooks, and notifications panel.
 - Modal focus stack.
+- Mobile root-layout/Router-bootstrap Jest tests, Expo Doctor, strict TypeScript, Expo ESLint/config resolution, CNG boundary/plugin/autolinking policy checks, isolated two-variant native prebuild, and iOS/Android Hermes bundle export.
 
 Useful commands:
 
@@ -1378,6 +1484,18 @@ pnpm --filter @35mm/api test
 pnpm --filter @35mm/api typecheck
 pnpm --filter @35mm/worker typecheck
 pnpm --filter @35mm/worker test
+pnpm --filter @35mm/mobile typecheck
+pnpm --filter @35mm/mobile lint
+pnpm --filter @35mm/mobile config:check
+pnpm --filter @35mm/mobile test
+pnpm mobile:tokens:check
+pnpm mobile:api-client:check
+pnpm mobile:ui:check
+pnpm mobile:quality:check
+pnpm mobile:e2e:foundation
+pnpm mobile:visual:test
+pnpm mobile:performance:verify
+pnpm mobile:check
 pnpm typecheck
 ```
 
@@ -1396,6 +1514,7 @@ Highest priority architecture gaps:
 8. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
 9. Validate migrations against current Drizzle schema in real environments.
 10. Define audited appeals, unsuspend, and unban actions if account reinstatement enters scope.
+11. Resume React Native Phase 1.9 by connecting one low/mid-range Android device and capturing eligible hardware evidence. Embedded-bundle iPhone build/sign/install, visible gallery rendering, sustained process, and clean startup logs are verified; representative physical Android evidence must precede Phase 2.
 
 Post-V1 or gated surfaces:
 

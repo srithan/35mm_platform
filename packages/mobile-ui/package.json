@@ -1,0 +1,51 @@
+{
+  "name": "@35mm/mobile-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "check:ci": "pnpm typecheck && pnpm lint && pnpm build"
+  },
+  "dependencies": {
+    "@35mm/design-tokens": "workspace:*"
+  },
+  "peerDependencies": {
+    "@expo-google-fonts/dm-mono": "0.4.2",
+    "@expo-google-fonts/dm-sans": "0.4.2",
+    "@expo-google-fonts/dm-serif-display": "0.4.2",
+    "lucide-react-native": "1.25.0",
+    "react": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4"
+  },
+  "devDependencies": {
+    "@35mm/config": "workspace:*",
+    "@expo-google-fonts/dm-mono": "0.4.2",
+    "@expo-google-fonts/dm-sans": "0.4.2",
+    "@expo-google-fonts/dm-serif-display": "0.4.2",
+    "@types/react": "~19.2.2",
+    "lucide-react-native": "1.25.0",
+    "react": "19.2.3",
+    "react-native": "0.86.0",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
+    "typescript": "~6.0.3"
+  }
+}

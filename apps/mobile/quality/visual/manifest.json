@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "pixelThreshold": 8,
+  "maximumDifferentPixelRatio": 0.001,
+  "profiles": {
+    "ios": {
+      "device": "iPhone 15",
+      "os": "iOS 17.5",
+      "locale": "en-US",
+      "fontScale": 1,
+      "appearance": "light"
+    },
+    "android": {
+      "device": "Pixel 6",
+      "os": "Android 16 / API 36",
+      "locale": "en-US",
+      "fontScale": 1,
+      "displayScale": 1,
+      "navigation": "gesture"
+    }
+  },
+  "captures": [
+    "foundation-controls-light",
+    "foundation-states-dark"
+  ]
+}

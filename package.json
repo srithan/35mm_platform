@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.6.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @35mm/web --filter @35mm/api dev",
@@ -13,6 +13,24 @@
     "dev:studio": "pnpm --filter @35mm/studio dev",
     "dev:api": "pnpm --filter @35mm/api dev",
     "dev:worker": "pnpm --filter @35mm/worker dev",
+    "dev:mobile": "pnpm --filter @35mm/mobile start",
+    "mobile:ios": "pnpm --filter @35mm/mobile ios",
+    "mobile:android": "pnpm --filter @35mm/mobile android",
+    "mobile:typecheck": "pnpm --filter @35mm/mobile typecheck",
+    "mobile:lint": "pnpm --filter @35mm/mobile lint",
+    "mobile:test": "pnpm --filter @35mm/mobile test",
+    "mobile:test:ci": "pnpm --filter @35mm/mobile test:ci",
+    "mobile:tokens:check": "pnpm --filter @35mm/design-tokens check:ci",
+    "mobile:api-client:check": "pnpm --filter @35mm/api-client check:ci",
+    "mobile:ui:check": "pnpm --filter @35mm/mobile-ui check:ci",
+    "mobile:quality:check": "pnpm --filter @35mm/mobile quality:check",
+    "mobile:e2e:foundation": "pnpm --filter @35mm/mobile e2e:foundation",
+    "mobile:visual:test": "pnpm --filter @35mm/mobile visual:test",
+    "mobile:performance:verify": "pnpm --filter @35mm/mobile performance:verify",
+    "mobile:native:check": "pnpm --filter @35mm/mobile native:check",
+    "mobile:native:regenerate": "pnpm --filter @35mm/mobile native:regenerate",
+    "mobile:ios:artifact:check": "pnpm --filter @35mm/mobile native:ios:artifact:check",
+    "mobile:check": "pnpm mobile:tokens:check && pnpm mobile:api-client:check && pnpm mobile:ui:check && pnpm --filter @35mm/mobile check:ci",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint"
@@ -25,5 +43,73 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.45.2"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@react-email/body@0.3.0": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/button@0.2.1": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/components@1.0.12": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/container@0.0.16": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/head@0.0.13": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/hr@0.0.12": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/html@0.0.12": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/link@0.0.13": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/preview@0.0.14": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/render@2.0.9": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0",
+          "@types/react-dom": "^18.3.0"
+        }
+      },
+      "@react-email/section@0.0.17": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      },
+      "@react-email/text@0.1.6": {
+        "peerDependencies": {
+          "@types/react": "^18.3.0"
+        }
+      }
+    },
+    "patchedDependencies": {
+      "expo-constants@57.0.7": "patches/expo-constants@57.0.7.patch"
+    }
   }
 }

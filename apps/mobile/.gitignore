@@ -1,0 +1,17 @@
+.expo/
+/coverage*/
+dist/
+expo-env.d.ts
+artifacts/
+
+# Expo Continuous Native Generation output. See NATIVE_GENERATION.md.
+/android/
+/ios/
+
+# Local signing material.
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision

@@ -1,0 +1,28 @@
+appId: ${MOBILE_APP_ID}
+name: Foundation accessibility and recovery smoke
+tags:
+  - foundation
+  - smoke
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: foundation.gallery
+- assertVisible: Foundation gallery
+- assertVisible:
+    id: foundation.controls
+- assertVisible: Primary action
+- assertVisible: Search films
+- tapOn:
+    id: foundation.section.states
+- assertVisible:
+    id: foundation.states
+- assertVisible: You’re offline
+- assertVisible: Retry
+- tapOn:
+    id: foundation.theme.toggle
+- assertVisible: Use light theme
+- tapOn:
+    id: foundation.section.controls
+- assertVisible:
+    id: foundation.controls
