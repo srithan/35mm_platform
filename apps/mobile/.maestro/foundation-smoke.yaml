@@ -6,6 +6,7 @@ tags:
 ---
 - launchApp:
     clearState: true
+- openLink: ${MOBILE_QUALITY_URL}
 - assertVisible:
     id: foundation.gallery
 - assertVisible: Foundation gallery

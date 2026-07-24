@@ -10,9 +10,14 @@ quality runners for feature-owned scenarios.
 ## Deterministic foundation surface
 
 `src/harness/FoundationGallery.tsx` renders controls and explicit loading,
-offline, and error states with local content only. It starts in light theme,
-forces Reduce Motion, exposes stable accessibility/test identifiers, and can
-switch to dark theme and state coverage without depending on device settings.
+offline, and error states with local content only. Quality runners no longer
+depend on the root destination: Maestro opens the internal
+`/quality/foundation` route through the variant-specific `thirtyfivemm-dev` or
+`thirtyfivemm-preview` scheme. The auth-gated root still uses the gallery as its
+bounded signed-in internal destination until later onboarding and shell phases
+land. It starts in light theme, forces Reduce Motion, exposes stable
+accessibility/test identifiers, and can switch to dark theme and state coverage
+without depending on device settings.
 This makes screenshot input repeatable while component tests still verify
 native roles, names, selected/disabled states, and the 44-point target floor.
 
@@ -42,7 +47,8 @@ pnpm --filter @35mm/mobile e2e:foundation
 
 Android uses `MOBILE_TEST_PLATFORM=android` and the installed Android package
 ID. Runner rejects unknown app identities, missing device names/IDs, and missing
-Maestro CLI, then passes the exact ID through Maestro’s global `--device` flag.
+Maestro CLI, then passes the exact ID through Maestro’s global `--device` flag
+and opens the reviewed internal quality URL after launch.
 When testing the development client, also set `MOBILE_TEST_START_URL` to the
 full `exp+thirtyfivemm-mobile://expo-development-client/?url=...` value printed
 by the running Expo server. The runner validates the reviewed scheme and nested

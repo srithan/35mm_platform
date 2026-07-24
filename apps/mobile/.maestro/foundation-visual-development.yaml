@@ -17,6 +17,7 @@ tags:
 - tapOn:
     text: Close
     optional: true
+- openLink: ${MOBILE_QUALITY_URL}
 - assertVisible:
     id: foundation.gallery.canvas
 - takeScreenshot:

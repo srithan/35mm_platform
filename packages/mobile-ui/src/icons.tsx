@@ -13,6 +13,7 @@ import {
   CircleAlert,
   Clapperboard,
   Compass,
+  Eye,
   EyeOff,
   Film,
   Folder,
@@ -21,6 +22,7 @@ import {
   Home,
   Image,
   Lock,
+  Mail,
   Menu,
   MessageCircle,
   MoreHorizontal,
@@ -62,6 +64,7 @@ export type AppIconName =
   | "close"
   | "compose"
   | "discover"
+  | "eye"
   | "eye-off"
   | "film"
   | "folder"
@@ -70,6 +73,7 @@ export type AppIconName =
   | "home"
   | "image"
   | "lock"
+  | "mail"
   | "menu"
   | "message"
   | "more"
@@ -106,6 +110,7 @@ const ICONS = {
   close: X,
   compose: SquarePen,
   discover: Compass,
+  eye: Eye,
   "eye-off": EyeOff,
   film: Film,
   folder: Folder,
@@ -114,6 +119,7 @@ const ICONS = {
   home: Home,
   image: Image,
   lock: Lock,
+  mail: Mail,
   menu: Menu,
   message: MessageCircle,
   more: MoreHorizontal,

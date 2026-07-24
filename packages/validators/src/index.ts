@@ -1,4 +1,28 @@
 import { z } from "zod";
+export {
+  currentUtcDateOnly,
+  DATE_OF_BIRTH_LENGTH,
+  dateOfBirthSchema,
+  parseDateOnly,
+  validateDateOfBirth,
+  type DateOfBirthValidation,
+  type DateOnlyParts,
+} from "./dateOfBirth.js";
+export {
+  EMAIL_ADDRESS_MAX_LENGTH,
+  emailAddressSchema,
+} from "./email.js";
+export {
+  isReservedUsername,
+  RESERVED_USERNAMES,
+  usernameSchema,
+} from "./username.js";
+import {
+  isReservedUsername,
+  RESERVED_USERNAMES,
+  usernameSchema,
+} from "./username.js";
+import { dateOfBirthSchema } from "./dateOfBirth.js";
 
 var ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 var RICH_TEXT_PREFIX = "__35MM_RICH_TEXT_V1__";
@@ -490,56 +514,12 @@ export var inboxCursorSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
-export var usernameSchema = z
-  .string()
-  .min(2, { message: "Username must be at least 2 characters" })
-  .max(30, { message: "Username must be 30 characters or fewer" })
-  .regex(/^[a-zA-Z0-9._]+$/, {
-    message: "Letters, numbers, dots and underscores only",
-  })
-  .transform(function (v) {
-    return v.toLowerCase();
-  });
-
-export var RESERVED_USERNAMES = [
-  "admin",
-  "api",
-  "help",
-  "support",
-  "about",
-  "terms",
-  "privacy",
-  "settings",
-  "notifications",
-  "bookmarks",
-  "contribute",
-  "discover",
-  "new",
-  "login",
-  "signup",
-  "forgot",
-  "reset",
-  "verify",
-  "onboarding",
-  "landing",
-] as const;
-
-var RESERVED_USERNAME_SET = new Set<string>(RESERVED_USERNAMES);
-
-export function isReservedUsername(username: string): boolean {
-  return RESERVED_USERNAME_SET.has(username.toLowerCase().trim());
-}
-
 export var updateProfileSchema = z.object({
   displayName: z.string().trim().min(1).max(100).optional(),
   bio: z.string().max(500).optional(),
   location: z.string().max(100).optional().nullable(),
   website: z.string().max(200).optional().nullable(),
-  dateOfBirth: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected YYYY-MM-DD" })
-    .optional()
-    .nullable(),
+  dateOfBirth: dateOfBirthSchema.optional().nullable(),
   role: z.string().max(50).optional().nullable(),
   roleContext: z.string().max(200).optional().nullable(),
   isPrivate: z.boolean().optional(),

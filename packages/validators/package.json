@@ -9,6 +9,18 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./username": {
+      "types": "./src/username.ts",
+      "default": "./src/username.ts"
+    },
+    "./email": {
+      "types": "./src/email.ts",
+      "default": "./src/email.ts"
+    },
+    "./date-of-birth": {
+      "types": "./src/dateOfBirth.ts",
+      "default": "./src/dateOfBirth.ts"
     }
   },
   "scripts": {

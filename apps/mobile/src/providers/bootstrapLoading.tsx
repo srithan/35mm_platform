@@ -1,5 +1,5 @@
 import { themes } from "@35mm/design-tokens";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 
 export function BootstrapLoadingSurface() {
   const colors = themes.light.colors;
@@ -11,8 +11,14 @@ export function BootstrapLoadingSurface() {
       style={[styles.loading, { backgroundColor: colors.surface }]}
       testID="app-bootstrap-loading"
     >
-      <Text style={[styles.wordmark, { color: colors.text }]}>35mm</Text>
-      <ActivityIndicator color={colors.accent} size="small" />
+      <Image
+        accessibilityIgnoresInvertColors
+        accessible={false}
+        resizeMode="contain"
+        source={require("../../assets/launch/launch-wordmark.png")}
+        style={styles.wordmark}
+        testID="app-bootstrap-wordmark"
+      />
     </View>
   );
 }
@@ -21,12 +27,10 @@ const styles = StyleSheet.create({
   loading: {
     alignItems: "center",
     flex: 1,
-    gap: 16,
     justifyContent: "center",
   },
   wordmark: {
-    fontSize: 34,
-    fontWeight: "700",
-    letterSpacing: -1,
+    height: 56,
+    width: 151,
   },
 });

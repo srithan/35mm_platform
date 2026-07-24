@@ -51,7 +51,7 @@ describe("MobileUiBootstrapProvider", () => {
     );
 
     expect(view.getByTestId("app-bootstrap-loading")).toBeOnTheScreen();
-    expect(view.getByText("35mm")).toBeOnTheScreen();
+    expect(view.getByTestId("app-bootstrap-wordmark")).toBeOnTheScreen();
     expect(view.queryByText("Route content")).not.toBeOnTheScreen();
   });
 

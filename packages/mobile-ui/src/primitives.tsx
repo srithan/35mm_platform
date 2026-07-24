@@ -24,7 +24,7 @@ import {
   typography,
   type ThemeColors,
 } from "@35mm/design-tokens";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { AppIcon, type AppIconName } from "./icons";
 import { fontFamilyForTypography, type TypographyRole } from "./fonts";
 import { elevationStyle, useMobileUI } from "./theme";
@@ -508,6 +508,7 @@ export interface TextFieldProps extends TextInputProps {
   readonly errorMessage?: string;
   readonly leadingIcon?: AppIconName;
   readonly trailing?: ReactNode;
+  readonly inputRef?: Ref<TextInput>;
   readonly containerStyle?: StyleProp<ViewStyle>;
 }
 
@@ -517,6 +518,7 @@ export function TextField({
   errorMessage,
   leadingIcon,
   trailing,
+  inputRef,
   editable = true,
   multiline = false,
   style,
@@ -556,6 +558,7 @@ export function TextField({
         ) : null}
         <TextInput
           {...props}
+          ref={inputRef}
           accessibilityLabel={props.accessibilityLabel ?? label}
           editable={editable}
           multiline={multiline}
@@ -583,6 +586,40 @@ export function TextField({
         </AppText>
       ) : null}
     </View>
+  );
+}
+
+export interface PasswordFieldProps extends Omit<
+  TextFieldProps,
+  "secureTextEntry" | "trailing"
+> {
+  readonly visible: boolean;
+  readonly onVisibilityChange: (visible: boolean) => void;
+}
+
+export function PasswordField({
+  label,
+  visible,
+  onVisibilityChange,
+  ...props
+}: PasswordFieldProps) {
+  const visibilityAction = visible ? "Hide" : "Show";
+  return (
+    <TextField
+      {...props}
+      label={label}
+      secureTextEntry={!visible}
+      trailing={
+        <IconButton
+          accessibilityHint={`${visibilityAction}s the entered ${label.toLowerCase()}`}
+          icon={visible ? "eye-off" : "eye"}
+          label={`${visibilityAction} ${label.toLowerCase()}`}
+          onPress={() => onVisibilityChange(!visible)}
+          selected={visible}
+          testID={`${props.testID ?? "password-field"}-visibility`}
+        />
+      }
+    />
   );
 }
 

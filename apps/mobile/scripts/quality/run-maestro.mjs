@@ -19,6 +19,9 @@ assert.ok(
   "MOBILE_TEST_APP_ID must be an approved development or preview identifier.",
 );
 const isDevelopmentClient = appId === "com.thirtyfivemm.mobile.dev";
+const qualityUrl = isDevelopmentClient
+  ? "thirtyfivemm-dev://quality/foundation"
+  : "thirtyfivemm-preview://quality/foundation";
 const startUrl = process.env.MOBILE_TEST_START_URL?.trim();
 let metroUrl;
 if (isDevelopmentClient) {
@@ -123,6 +126,8 @@ const result = spawnSync(
     `MOBILE_APP_ID=${appId}`,
     "-e",
     `MOBILE_PLATFORM=${platform}`,
+    "-e",
+    `MOBILE_QUALITY_URL=${qualityUrl}`,
     ...startUrlArguments,
     flow,
   ],

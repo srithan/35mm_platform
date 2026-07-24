@@ -36,6 +36,7 @@ export const EXPLICIT_CONFIG_PLUGIN_NAMES = [
   "expo-secure-store",
   "expo-build-properties",
   "expo-system-ui",
+  "expo-splash-screen",
   "./plugins/with-expo-constants-project-root.cjs",
   "./plugins/with-retained-expo-modules-provider.cjs",
   "./plugins/with-quoted-react-native-bundle-script.cjs",
@@ -106,9 +107,22 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
       EXPLICIT_CONFIG_PLUGIN_NAMES[5],
-      EXPLICIT_CONFIG_PLUGIN_NAMES[6],
+      [
+        EXPLICIT_CONFIG_PLUGIN_NAMES[6],
+        {
+          backgroundColor: "#FFFFFF",
+          image: "./assets/launch/launch-wordmark.png",
+          imageWidth: 151,
+          resizeMode: "contain",
+          dark: {
+            backgroundColor: "#FFFFFF",
+            image: "./assets/launch/launch-wordmark.png",
+          },
+        },
+      ],
       EXPLICIT_CONFIG_PLUGIN_NAMES[7],
       EXPLICIT_CONFIG_PLUGIN_NAMES[8],
+      EXPLICIT_CONFIG_PLUGIN_NAMES[9],
     ],
     experiments: {
       typedRoutes: true,

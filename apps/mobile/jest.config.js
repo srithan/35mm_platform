@@ -8,6 +8,7 @@ module.exports = {
       "<rootDir>/node_modules/react-native-worklets/src/mock.ts",
   },
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
+  roots: ["<rootDir>/src"],
   testPathIgnorePatterns: ["<rootDir>/android/", "<rootDir>/ios/"],
   transformIgnorePatterns: [
     "node_modules/(?!(.pnpm|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|lucide-react-native|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-gesture-handler|react-native-reanimated|react-native-svg|react-native-worklets))",

@@ -25,7 +25,11 @@ import {
   isModerationStaffViewer,
   moderationReadAccessSql,
 } from "../../lib/moderationRead.js";
-import { cursorPaginationSchema, updateProfileSchema } from "@35mm/validators";
+import {
+  cursorPaginationSchema,
+  updateProfileSchema,
+  validateDateOfBirth,
+} from "@35mm/validators";
 import {
   getR2ObjectKeyFromUrl,
   isR2ConfiguredPublicUrl,
@@ -216,10 +220,7 @@ profileRoutes.get("/search", requireAuth, async function (c) {
 });
 
 function isValidDateOnly(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  var parsed = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) return false;
-  return parsed.toISOString().slice(0, 10) === value;
+  return validateDateOfBirth(value).success;
 }
 
 profileRoutes.get("/:username", async function (c) {

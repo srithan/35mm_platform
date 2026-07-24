@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1440" viewBox="0 0 1200 1440">
+  <defs>
+    <linearGradient id="film" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#45120f"/>
+      <stop offset="0.4" stop-color="#c2473a"/>
+      <stop offset="0.72" stop-color="#f2732b"/>
+      <stop offset="1" stop-color="#e7bd65"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#fff" stop-opacity=".82"/>
+      <stop offset=".45" stop-color="#fff" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".55" stop-color="#fff" stop-opacity=".74"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="24"/></filter>
+  </defs>
+  <rect width="1200" height="1440" fill="url(#film)"/>
+  <circle cx="990" cy="390" r="390" fill="url(#glow)" filter="url(#blur)"/>
+  <g fill="none" stroke="#fff" stroke-width="6">
+    <rect x="-170" y="780" width="930" height="430" rx="140" opacity=".16" transform="rotate(-7 295 995)"/>
+    <rect x="650" y="705" width="820" height="390" rx="125" opacity=".11" transform="rotate(8 1060 900)"/>
+  </g>
+  <g fill="#fff" opacity=".74">
+    <circle cx="144" cy="346" r="9"/>
+    <circle cx="264" cy="605" r="6"/>
+    <circle cx="420" cy="260" r="7"/>
+    <circle cx="816" cy="404" r="6"/>
+    <circle cx="936" cy="662" r="10"/>
+    <circle cx="1068" cy="303" r="5"/>
+  </g>
+  <ellipse cx="220" cy="1270" rx="500" ry="190" fill="#fff" opacity=".72" filter="url(#blur)"/>
+  <ellipse cx="980" cy="1320" rx="550" ry="210" fill="#fff" opacity=".8" filter="url(#blur)"/>
+  <rect y="900" width="1200" height="540" fill="url(#paper)"/>
+</svg>

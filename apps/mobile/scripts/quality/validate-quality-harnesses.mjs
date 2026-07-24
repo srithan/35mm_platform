@@ -57,6 +57,10 @@ assert.equal(developmentSmoke.commands[3].tapOn.text, "Continue");
 assert.equal(developmentVisual.commands[3].tapOn.text, "Continue");
 assert.equal(developmentSmoke.commands[4].tapOn.text, "Close");
 assert.equal(developmentVisual.commands[4].tapOn.text, "Close");
+assert.equal(smoke.commands[1].openLink, "${MOBILE_QUALITY_URL}");
+assert.equal(visual.commands[1].openLink, "${MOBILE_QUALITY_URL}");
+assert.equal(developmentSmoke.commands[5].openLink, "${MOBILE_QUALITY_URL}");
+assert.equal(developmentVisual.commands[5].openLink, "${MOBILE_QUALITY_URL}");
 
 const serializedSmoke = JSON.stringify(smoke.commands);
 const serializedDevelopmentSmoke = JSON.stringify(developmentSmoke.commands);
@@ -109,6 +113,7 @@ assert.deepEqual(Object.keys(performanceProtocol.deviceProfiles).sort(), [
 ]);
 
 for (const requiredPath of [
+  "src/app/quality/foundation.tsx",
   "src/test/foundation-gallery.test.tsx",
   "scripts/quality/run-maestro.mjs",
   "scripts/quality/compare-visuals.mjs",
@@ -124,6 +129,9 @@ const maestroRunner = readFileSync(
 );
 assert.match(maestroRunner, /MOBILE_TEST_DEVICE_ID/);
 assert.match(maestroRunner, /MOBILE_TEST_START_URL/);
+assert.match(maestroRunner, /MOBILE_QUALITY_URL/);
+assert.match(maestroRunner, /thirtyfivemm-dev:\/\/quality\/foundation/);
+assert.match(maestroRunner, /thirtyfivemm-preview:\/\/quality\/foundation/);
 assert.match(maestroRunner, /"--device"/);
 
 const repositoryRoot = resolve(mobileRoot, "../..");
