@@ -3,6 +3,12 @@ import { Webhook } from "svix";
 import { eq } from "drizzle-orm";
 import { users, profiles, userSettings } from "@35mm/db/schema";
 import { getDb, getWriteDb } from "../../lib/db.js";
+import {
+  invalidateAuthorProfileFeedCaches,
+  invalidateHighFollowerAuthorFeedCache,
+} from "../../lib/feedCache.js";
+import { invalidateProfileStatsCaches } from "../../lib/profileStatsCache.js";
+import { finalizeUsernameFromClerkWebhook } from "../settings/usernameSync.js";
 
 export var webhookRoutes = new Hono();
 
@@ -86,6 +92,7 @@ webhookRoutes.post("/clerk", async function (c) {
             .values({
               userId: userId,
               username: usernameCandidate,
+              usernameAuthSyncedAt: new Date(),
               displayName: displayName,
               avatarUrl: null,
               bio: null,
@@ -110,11 +117,38 @@ webhookRoutes.post("/clerk", async function (c) {
     var data = event.data;
     var clerkId = data.id as string;
     var email = (data.email_addresses?.[0]?.email_address ?? "") as string;
+    var clerkUsername =
+      typeof data.username === "string"
+        ? data.username.trim().toLowerCase()
+        : null;
 
-    await db
+    var updatedUsers = await getWriteDb()
       .update(users)
       .set({ email: email, updatedAt: new Date() })
-      .where(eq(users.clerkUserId, clerkId));
+      .where(eq(users.clerkUserId, clerkId))
+      .returning({ userId: users.id });
+
+    var localUserId = updatedUsers[0]?.userId;
+    if (localUserId && clerkUsername) {
+      var syncResult = await finalizeUsernameFromClerkWebhook({
+        userId: localUserId,
+        clerkUsername,
+      });
+
+      if (syncResult === "finalized") {
+        await Promise.all([
+          invalidateAuthorProfileFeedCaches([localUserId]),
+          invalidateHighFollowerAuthorFeedCache(localUserId),
+          invalidateProfileStatsCaches([localUserId]),
+        ]);
+      } else if (syncResult === "ignored") {
+        console.error("[username-sync] webhook-drift-ignored", {
+          clerkUserId: clerkId,
+          userId: localUserId,
+          clerkUsername,
+        });
+      }
+    }
   }
 
   if (event.type === "user.deleted") {

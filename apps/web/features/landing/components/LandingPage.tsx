@@ -1,30 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import * as z from "zod/v4";
-import {
-  ArrowRight,
-  Clapperboard,
-  Eye,
-  EyeOff,
-  MessagesSquare,
-  UserRound,
-  UsersRound,
-  X,
-} from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
-import { useSignUp, useSignIn } from "@clerk/nextjs/legacy";
-import { clerkSignUp, clerkSignIn } from "@/features/auth/lib/auth-client";
+import { useSignIn, useSignUp } from "@clerk/nextjs/legacy";
+import { clerkSignIn, clerkSignUp } from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
-import { Modal } from "@/components/Modal/Modal";
-import { LandingReveal } from "./LandingReveal";
 import { LandingHero } from "./LandingHero";
+import styles from "./LandingPage.module.css";
 
 const LANDING_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+const SOCIAL_PROOF_FACES = [
+  "/landing/social-faces/face-01.jpg",
+  "/landing/social-faces/face-02.jpg",
+  "/landing/social-faces/face-03.jpg",
+  "/landing/social-faces/face-04.jpg",
+  "/landing/social-faces/face-05.jpg",
+  "/landing/social-faces/face-06.jpg",
+  "/landing/social-faces/face-07.jpg",
+  "/landing/social-faces/face-08.jpg",
+  "/landing/social-faces/face-09.jpg",
+];
 
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: "Enter your name" }),
@@ -43,12 +46,15 @@ const loginSchema = z.object({
 
 type SignupValues = z.infer<typeof signupSchema>;
 type LoginValues = z.infer<typeof loginSchema>;
+type AuthMode = "signup" | "login";
+type UsernameCheck = "" | "checking" | "free" | "taken" | "short" | "error";
 
-function usernameStatusLabel(status: "" | "checking" | "free" | "taken" | "short") {
-  if (status === "checking") return "Checking";
+function usernameStatusLabel(status: UsernameCheck) {
+  if (status === "checking") return "Checking…";
   if (status === "taken") return "Taken";
   if (status === "short") return "Too short";
   if (status === "free") return "Available";
+  if (status === "error") return "Check failed";
   return "";
 }
 
@@ -60,25 +66,20 @@ function isAlreadySignedInMessage(message: string) {
   return message.toLowerCase().includes("already signed in");
 }
 
-type LandingPageProps = {
-  children?: ReactNode;
-};
-
 type AuthPanelProps = {
-  mode: "signup" | "login";
-  setMode: (mode: "signup" | "login") => void;
-  onClose: () => void;
+  mode: AuthMode;
+  setMode: (mode: AuthMode) => void;
   signupForm: ReturnType<typeof useForm<SignupValues>>;
   loginForm: ReturnType<typeof useForm<LoginValues>>;
   signupError: string | null;
   loginError: string | null;
-  usernameCheck: "" | "checking" | "free" | "taken" | "short";
+  usernameCheck: UsernameCheck;
   usernameStatus: string;
   usernameIsBlocked: boolean;
   showSignupPassword: boolean;
   showLoginPassword: boolean;
-  setShowSignupPassword: (value: boolean | ((prev: boolean) => boolean)) => void;
-  setShowLoginPassword: (value: boolean | ((prev: boolean) => boolean)) => void;
+  setShowSignupPassword: (value: boolean | ((previous: boolean) => boolean)) => void;
+  setShowLoginPassword: (value: boolean | ((previous: boolean) => boolean)) => void;
   isSignupLoading: boolean;
   isLoginLoading: boolean;
   onSignupSubmit: (data: SignupValues) => void;
@@ -89,7 +90,6 @@ function LandingAuthPanel(props: AuthPanelProps) {
   const {
     mode,
     setMode,
-    onClose,
     signupForm,
     loginForm,
     signupError,
@@ -108,248 +108,269 @@ function LandingAuthPanel(props: AuthPanelProps) {
   } = props;
 
   return (
-    <div className="landing-auth-panel">
-      <div className="landing-auth-panel__header">
-        <p className="landing-auth-panel__title">
-          {mode === "signup" ? "Join 35mm" : "Login to 35mm"}
+    <div className={styles.authPanel}>
+      <div className={styles.authHeader}>
+        <h2>{mode === "signup" ? "Join 35mm" : "Log in to 35mm"}</h2>
+        <p>
+          {mode === "signup"
+            ? "Create your account, then choose the first voices in your film circle."
+            : "Return to the films, lists, and conversations your circle is building."}
         </p>
-        <button type="button" onClick={onClose} className="landing-auth-panel__close" aria-label="Close auth form">
-          <X className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-
-      <div className="landing-auth-panel__tabs">
-        <button
-          type="button"
-          onClick={function () {
-            setMode("signup");
-          }}
-          className={
-            mode === "signup"
-              ? "landing-auth-panel__tab landing-auth-panel__tab--active"
-              : "landing-auth-panel__tab"
-          }
-        >
-          Sign up
-        </button>
-        <button
-          type="button"
-          onClick={function () {
-            setMode("login");
-          }}
-          className={
-            mode === "login"
-              ? "landing-auth-panel__tab landing-auth-panel__tab--active"
-              : "landing-auth-panel__tab"
-          }
-        >
-          Log in
-        </button>
       </div>
 
       {mode === "signup" ? (
-        <div className="landing-auth-panel__body" data-landing-auth-body>
-          <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="landing-auth-panel__form">
-            {signupError ? (
-              <p className="landing-auth-panel__alert" role="alert">
-                {signupError}
-              </p>
-            ) : null}
-
-            <div>
-              <input
-                type="text"
-                autoComplete="name"
-                {...signupForm.register("fullName")}
-                placeholder="Full name"
-                className={"landing-input" + (signupForm.formState.errors.fullName ? " landing-input-error" : "")}
-              />
-              {signupForm.formState.errors.fullName ? (
-                <p className="landing-error">{signupForm.formState.errors.fullName.message}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <div
-                className={
-                  "landing-input-wrap" + (signupForm.formState.errors.username ? " landing-input-error" : "")
-                }
-              >
-                <span className="landing-input-prefix">35mm/</span>
-                <input
-                  type="text"
-                  autoComplete="username"
-                  {...signupForm.register("username")}
-                  placeholder="username"
-                  className="landing-input-inline"
+        <div className={styles.authProof} aria-label="What happens after joining">
+          <div className={styles.authProofFaces} aria-hidden>
+            {SOCIAL_PROOF_FACES.map(function (src, index) {
+              return (
+                <Image
+                  key={src}
+                  src={src}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className={styles.authProofFace}
+                  priority={index < 4}
                 />
-                {usernameStatus ? (
-                  <span
-                    className={
-                      "landing-input-badge " +
-                      (usernameCheck === "free"
-                        ? "landing-input-badge--ok"
-                        : usernameIsBlocked
-                          ? "landing-input-badge--bad"
-                          : "landing-input-badge--neutral")
-                    }
-                  >
-                    {usernameStatus}
-                  </span>
-                ) : null}
-              </div>
-              {signupForm.formState.errors.username ? (
-                <p className="landing-error">{signupForm.formState.errors.username.message}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <input
-                type="email"
-                autoComplete="email"
-                {...signupForm.register("email")}
-                placeholder="Email"
-                className={"landing-input" + (signupForm.formState.errors.email ? " landing-input-error" : "")}
-              />
-              {signupForm.formState.errors.email ? (
-                <p className="landing-error">{signupForm.formState.errors.email.message}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <div className="landing-input-password">
-                <input
-                  type={showSignupPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  {...signupForm.register("password")}
-                  placeholder="Password"
-                  className={
-                    "landing-input landing-input--password" +
-                    (signupForm.formState.errors.password ? " landing-input-error" : "")
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={function () {
-                    setShowSignupPassword(function (prev) {
-                      return !prev;
-                    });
-                  }}
-                  className="landing-input-toggle"
-                  aria-label={showSignupPassword ? "Hide password" : "Show password"}
-                >
-                  {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {signupForm.formState.errors.password ? (
-                <p className="landing-error">{signupForm.formState.errors.password.message}</p>
-              ) : null}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSignupLoading || usernameIsBlocked}
-              className="landing-auth-panel__submit"
-            >
-              {isSignupLoading ? (
-                <span className="landing-auth-panel__spinner" />
-              ) : (
-                <>
-                  Create account <ArrowRight className="h-4 w-4" aria-hidden />
-                </>
-              )}
-            </button>
-          </form>
+              );
+            })}
+          </div>
+          <p>Join these and 11,183 other film lovers.</p>
         </div>
-      ) : (
-        <div className="landing-auth-panel__body" data-landing-auth-body>
-          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="landing-auth-panel__form">
-            {loginError ? (
-              <p className="landing-auth-panel__alert" role="alert">
-                {loginError}
-              </p>
-            ) : null}
+      ) : null}
 
-            <div>
+      {mode === "signup" ? (
+        <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className={styles.authForm} noValidate>
+          {signupError ? (
+            <p className={styles.formAlert} role="alert">
+              {signupError}
+            </p>
+          ) : null}
+
+          <div className={styles.field}>
+            <input
+              id="landing-full-name"
+              type="text"
+              autoComplete="name"
+              {...signupForm.register("fullName")}
+              aria-label="Full name"
+              placeholder="Agnès Varda"
+              className={signupForm.formState.errors.fullName ? styles.inputError : undefined}
+              aria-invalid={Boolean(signupForm.formState.errors.fullName)}
+            />
+            {signupForm.formState.errors.fullName ? (
+              <p className={styles.fieldError}>{signupForm.formState.errors.fullName.message}</p>
+            ) : null}
+          </div>
+
+          <div className={styles.field}>
+            <div
+              className={
+                styles.usernameField +
+                (signupForm.formState.errors.username ? " " + styles.inputError : "")
+              }
+            >
+              <span className={styles.usernamePrefix}>35mm.in/</span>
               <input
+                id="landing-username"
                 type="text"
                 autoComplete="username"
-                {...loginForm.register("identifier")}
-                placeholder="Username or email"
-                className={"landing-input" + (loginForm.formState.errors.identifier ? " landing-input-error" : "")}
+                {...signupForm.register("username")}
+                aria-label="Username"
+                placeholder="agnes"
+                aria-invalid={Boolean(signupForm.formState.errors.username) || usernameCheck === "taken"}
               />
-              {loginForm.formState.errors.identifier ? (
-                <p className="landing-error">{loginForm.formState.errors.identifier.message}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <div className="landing-input-password">
-                <input
-                  type={showLoginPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  {...loginForm.register("password")}
-                  placeholder="Password"
+              {usernameStatus ? (
+                <span
                   className={
-                    "landing-input landing-input--password" +
-                    (loginForm.formState.errors.password ? " landing-input-error" : "")
+                    styles.usernameStatus +
+                    " " +
+                    (usernameCheck === "free"
+                      ? styles.usernameStatusFree
+                      : usernameCheck === "taken" || usernameCheck === "short" || usernameCheck === "error"
+                        ? styles.usernameStatusBad
+                        : styles.usernameStatusNeutral)
                   }
-                />
-                <button
-                  type="button"
-                  onClick={function () {
-                    setShowLoginPassword(function (prev) {
-                      return !prev;
-                    });
-                  }}
-                  className="landing-input-toggle"
-                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                  aria-live="polite"
                 >
-                  {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {loginForm.formState.errors.password ? (
-                <p className="landing-error">{loginForm.formState.errors.password.message}</p>
+                  {usernameCheck === "free" ? <Check size={12} aria-hidden /> : null}
+                  {usernameStatus}
+                </span>
               ) : null}
             </div>
-
-            <button type="submit" disabled={isLoginLoading} className="landing-auth-panel__submit">
-              {isLoginLoading ? (
-                <span className="landing-auth-panel__spinner" />
-              ) : (
-                <>
-                  Log in <ArrowRight className="h-4 w-4" aria-hidden />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="landing-auth-panel__footer">
-            <Link href={ROUTES.AUTH_FORGOT} className="landing-auth-panel__link">
-              Forgot password?
-            </Link>
+            {signupForm.formState.errors.username ? (
+              <p className={styles.fieldError}>{signupForm.formState.errors.username.message}</p>
+            ) : usernameCheck === "error" ? (
+              <p className={styles.fieldError}>Couldn’t check this username. Try editing it again.</p>
+            ) : null}
           </div>
-        </div>
+
+          <div className={styles.field}>
+            <input
+              id="landing-email"
+              type="email"
+              autoComplete="email"
+              {...signupForm.register("email")}
+              aria-label="Email"
+              placeholder="agnes@example.com"
+              className={signupForm.formState.errors.email ? styles.inputError : undefined}
+              aria-invalid={Boolean(signupForm.formState.errors.email)}
+            />
+            {signupForm.formState.errors.email ? (
+              <p className={styles.fieldError}>{signupForm.formState.errors.email.message}</p>
+            ) : null}
+          </div>
+
+          <div className={styles.field}>
+            <div className={styles.passwordField}>
+              <input
+                id="landing-signup-password"
+                type={showSignupPassword ? "text" : "password"}
+                autoComplete="new-password"
+                {...signupForm.register("password")}
+                aria-label="Password"
+                placeholder="At least 8 characters"
+                className={signupForm.formState.errors.password ? styles.inputError : undefined}
+                aria-invalid={Boolean(signupForm.formState.errors.password)}
+              />
+              <button
+                type="button"
+                onClick={function () {
+                  setShowSignupPassword(function (previous) {
+                    return !previous;
+                  });
+                }}
+                className={styles.passwordToggle}
+                aria-label={showSignupPassword ? "Hide password" : "Show password"}
+              >
+                {showSignupPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            {signupForm.formState.errors.password ? (
+              <p className={styles.fieldError}>{signupForm.formState.errors.password.message}</p>
+            ) : null}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSignupLoading || usernameIsBlocked}
+            className={styles.submitButton}
+          >
+            {isSignupLoading ? (
+              <span className={styles.spinner} aria-label="Creating account" />
+            ) : (
+              <>
+                Join 35mm <ArrowRight size={17} aria-hidden />
+              </>
+            )}
+          </button>
+
+          <p className={styles.legalCopy}>
+            By joining, you agree to the <Link href="/terms">Terms</Link> and{" "}
+            <Link href="/privacy">Privacy Policy</Link>.
+          </p>
+        </form>
+      ) : (
+        <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className={styles.authForm} noValidate>
+          {loginError ? (
+            <p className={styles.formAlert} role="alert">
+              {loginError}
+            </p>
+          ) : null}
+
+          <div className={styles.field}>
+            <input
+              id="landing-identifier"
+              type="text"
+              autoComplete="username"
+              {...loginForm.register("identifier")}
+              aria-label="Username or email"
+              placeholder="agnes or agnes@example.com"
+              className={loginForm.formState.errors.identifier ? styles.inputError : undefined}
+              aria-invalid={Boolean(loginForm.formState.errors.identifier)}
+            />
+            {loginForm.formState.errors.identifier ? (
+              <p className={styles.fieldError}>{loginForm.formState.errors.identifier.message}</p>
+            ) : null}
+          </div>
+
+          <div className={styles.field}>
+            <div className={styles.forgotRow}>
+              <Link href={ROUTES.AUTH_FORGOT}>Forgot password?</Link>
+            </div>
+            <div className={styles.passwordField}>
+              <input
+                id="landing-login-password"
+                type={showLoginPassword ? "text" : "password"}
+                autoComplete="current-password"
+                {...loginForm.register("password")}
+                aria-label="Password"
+                placeholder="Your password"
+                className={loginForm.formState.errors.password ? styles.inputError : undefined}
+                aria-invalid={Boolean(loginForm.formState.errors.password)}
+              />
+              <button
+                type="button"
+                onClick={function () {
+                  setShowLoginPassword(function (previous) {
+                    return !previous;
+                  });
+                }}
+                className={styles.passwordToggle}
+                aria-label={showLoginPassword ? "Hide password" : "Show password"}
+              >
+                {showLoginPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            {loginForm.formState.errors.password ? (
+              <p className={styles.fieldError}>{loginForm.formState.errors.password.message}</p>
+            ) : null}
+          </div>
+
+          <button type="submit" disabled={isLoginLoading} className={styles.submitButton}>
+            {isLoginLoading ? (
+              <span className={styles.spinner} aria-label="Logging in" />
+            ) : (
+              <>
+                Log in <ArrowRight size={17} aria-hidden />
+              </>
+            )}
+          </button>
+        </form>
       )}
+
+      <div className={styles.modeSwitch}>
+        <span>{mode === "signup" ? "Already a member?" : "New to 35mm?"}</span>
+        <button
+          type="button"
+          onClick={function () {
+            setMode(mode === "signup" ? "login" : "signup");
+          }}
+        >
+          {mode === "signup" ? "Log in" : "Create an account"}
+        </button>
+      </div>
     </div>
   );
 }
 
-export function LandingPage({ children }: LandingPageProps) {
+export function LandingPage() {
   const router = useRouter();
   const { isLoaded: authIsLoaded, isSignedIn } = useAuth();
-  const { signUp: clerkSignUpObj, isLoaded: signUpLoaded } = useSignUp();
-  const { signIn: clerkSignInObj, setActive, isLoaded: signInLoaded } = useSignIn();
-  const [mode, setMode] = useState<"signup" | "login">("signup");
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
+  const { signUp: clerkSignUpObject, isLoaded: signUpLoaded } = useSignUp();
+  const { signIn: clerkSignInObject, setActive, isLoaded: signInLoaded } = useSignIn();
+  const [mode, setMode] = useState<AuthMode>("signup");
+  const [usernameCheck, setUsernameCheck] = useState<UsernameCheck>("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [isSignupLoading, setIsSignupLoading] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const authAsideRef = useRef<HTMLElement | null>(null);
   const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const usernameRequestRef = useRef<AbortController | null>(null);
+  const usernameCheckSequenceRef = useRef(0);
 
   const signupForm = useForm<SignupValues>({
     resolver: standardSchemaResolver(signupSchema),
@@ -361,11 +382,15 @@ export function LandingPage({ children }: LandingPageProps) {
     defaultValues: { identifier: "", password: "" },
   });
 
-  const watchUsername = signupForm.watch("username");
+  const watchedUsername = signupForm.watch("username");
 
-  const checkUsername = useCallback(function (val: string) {
+  const checkUsername = useCallback(function (value: string) {
+    const requestSequence = usernameCheckSequenceRef.current + 1;
+    usernameCheckSequenceRef.current = requestSequence;
     if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
-    const trimmed = val.trim().toLowerCase();
+    usernameRequestRef.current?.abort();
+
+    const trimmed = value.trim().toLowerCase();
     if (!trimmed) {
       setUsernameCheck("");
       return;
@@ -374,25 +399,56 @@ export function LandingPage({ children }: LandingPageProps) {
       setUsernameCheck("short");
       return;
     }
+
     setUsernameCheck("checking");
     usernameTimerRef.current = setTimeout(async function () {
-      try {
-        const res = await fetch(LANDING_API_URL + "/v1/usernames/" + encodeURIComponent(trimmed) + "/available");
-        const data = await res.json();
-        setUsernameCheck(data.available ? "free" : "taken");
-      } catch (_err) {
-        setUsernameCheck("free");
-      }
+      if (requestSequence !== usernameCheckSequenceRef.current) return;
       usernameTimerRef.current = null;
+
+      const controller = new AbortController();
+      usernameRequestRef.current = controller;
+
+      try {
+        const response = await fetch(
+          LANDING_API_URL + "/v1/usernames/" + encodeURIComponent(trimmed) + "/available",
+          { signal: controller.signal }
+        );
+        if (!response.ok) {
+          throw new Error("Username check returned " + response.status);
+        }
+        const data: unknown = await response.json();
+        if (!data || typeof data !== "object" || !("available" in data) || typeof data.available !== "boolean") {
+          throw new Error("Username check returned an invalid response");
+        }
+        if (requestSequence !== usernameCheckSequenceRef.current) return;
+        setUsernameCheck(data.available ? "free" : "taken");
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (requestSequence !== usernameCheckSequenceRef.current) return;
+        console.error("[LandingPage] Username availability check failed", error);
+        setUsernameCheck("error");
+      } finally {
+        if (usernameRequestRef.current === controller) {
+          usernameRequestRef.current = null;
+        }
+      }
     }, 500);
   }, []);
 
   useEffect(
     function () {
-      checkUsername(watchUsername);
+      checkUsername(watchedUsername);
     },
-    [watchUsername, checkUsername]
+    [watchedUsername, checkUsername]
   );
+
+  useEffect(function () {
+    return function () {
+      usernameCheckSequenceRef.current += 1;
+      if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+      usernameRequestRef.current?.abort();
+    };
+  }, []);
 
   useEffect(
     function () {
@@ -403,45 +459,51 @@ export function LandingPage({ children }: LandingPageProps) {
     [authIsLoaded, isSignedIn]
   );
 
-  const openAuthModal = useCallback(function (nextMode: "signup" | "login") {
+  const showAuth = useCallback(function (nextMode: AuthMode) {
     setMode(nextMode);
-    setAuthModalOpen(true);
-  }, []);
-
-  const closeAuthModal = useCallback(function () {
-    setAuthModalOpen(false);
+    window.requestAnimationFrame(function () {
+      authAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }, []);
 
   const onSignupSubmit = async function (data: SignupValues) {
-    if (!signUpLoaded || !clerkSignUpObj) return;
-    if (usernameCheck === "taken" || usernameCheck === "short") return;
+    if (!signUpLoaded || !clerkSignUpObject) return;
+    if (usernameCheck !== "free") {
+      setSignupError("Choose an available username before creating your account.");
+      return;
+    }
+
     setSignupError(null);
     setIsSignupLoading(true);
-    const result = await clerkSignUp(clerkSignUpObj, {
+    const result = await clerkSignUp(clerkSignUpObject, {
       fullName: data.fullName.trim(),
       username: data.username.trim(),
       email: data.email.trim(),
       password: data.password,
     });
     setIsSignupLoading(false);
+
     if (!result.ok) {
       setSignupError(result.message);
       return;
     }
-    const q = new URLSearchParams();
-    q.set("email", data.email.trim());
-    router.push(ROUTES.AUTH_VERIFY + "?" + q.toString());
+
+    const query = new URLSearchParams();
+    query.set("email", data.email.trim());
+    router.push(ROUTES.AUTH_VERIFY + "?" + query.toString());
   };
 
   const onLoginSubmit = async function (data: LoginValues) {
-    if (!signInLoaded || !clerkSignInObj || !setActive) return;
+    if (!signInLoaded || !clerkSignInObject || !setActive) return;
+
     setLoginError(null);
     setIsLoginLoading(true);
-    const result = await clerkSignIn(clerkSignInObj, {
+    const result = await clerkSignIn(clerkSignInObject, {
       identifier: data.identifier.trim(),
       password: data.password,
     });
     setIsLoginLoading(false);
+
     if (!result.ok) {
       if (isAlreadySignedInMessage(result.message)) {
         completeSessionNavigation(ROUTES.HOME);
@@ -450,170 +512,61 @@ export function LandingPage({ children }: LandingPageProps) {
       setLoginError(result.message);
       return;
     }
-    await setActive({ session: clerkSignInObj.createdSessionId });
+
+    await setActive({ session: clerkSignInObject.createdSessionId });
     completeSessionNavigation(ROUTES.HOME);
   };
 
-  const authPanelProps: AuthPanelProps = {
-    mode: mode,
-    setMode: setMode,
-    onClose: closeAuthModal,
-    signupForm: signupForm,
-    loginForm: loginForm,
-    signupError: signupError,
-    loginError: loginError,
-    usernameCheck: usernameCheck,
-    usernameStatus: usernameStatusLabel(usernameCheck),
-    usernameIsBlocked: usernameCheck === "taken" || usernameCheck === "short",
-    showSignupPassword: showSignupPassword,
-    showLoginPassword: showLoginPassword,
-    setShowSignupPassword: setShowSignupPassword,
-    setShowLoginPassword: setShowLoginPassword,
-    isSignupLoading: isSignupLoading,
-    isLoginLoading: isLoginLoading,
-    onSignupSubmit: onSignupSubmit,
-    onLoginSubmit: onLoginSubmit,
-  };
+  const usernameIsBlocked =
+    usernameCheck === "checking" ||
+    usernameCheck === "taken" ||
+    usernameCheck === "short" ||
+    usernameCheck === "error";
 
   return (
-    <main className="landing-root">
-      <div className="landing-hero__ambient" aria-hidden />
-
-      <div className="landing-shell">
+    <main className={styles.root}>
+      <div className={styles.backdropTexture} aria-hidden />
+      <div className={styles.shell}>
         <LandingHero
           onJoin={function () {
-            openAuthModal("signup");
+            showAuth("signup");
           }}
           onLogin={function () {
-            openAuthModal("login");
+            showAuth("login");
           }}
         />
 
-        <div className="landing-below">
-          {children ? (
-            <LandingReveal className="landing-block">
-              <h2 className="landing-block__title">Films in conversation</h2>
-              <p className="landing-block__text">
-                A rotating look at what people in the community are logging and arguing about right now —
-                new releases, repertory screenings, deep cuts, and everything in between.
-              </p>
-              {children}
-            </LandingReveal>
-          ) : null}
+        <aside ref={authAsideRef} id="landing-auth" className={styles.authAside} aria-label="Account access">
+          <LandingAuthPanel
+            mode={mode}
+            setMode={setMode}
+            signupForm={signupForm}
+            loginForm={loginForm}
+            signupError={signupError}
+            loginError={loginError}
+            usernameCheck={usernameCheck}
+            usernameStatus={usernameStatusLabel(usernameCheck)}
+            usernameIsBlocked={usernameIsBlocked}
+            showSignupPassword={showSignupPassword}
+            showLoginPassword={showLoginPassword}
+            setShowSignupPassword={setShowSignupPassword}
+            setShowLoginPassword={setShowLoginPassword}
+            isSignupLoading={isSignupLoading}
+            isLoginLoading={isLoginLoading}
+            onSignupSubmit={onSignupSubmit}
+            onLoginSubmit={onLoginSubmit}
+          />
 
-          <LandingReveal className="landing-after-carousel">
-            <section className="landing-after-carousel__grid" aria-labelledby="landing-after-carousel-title">
-              <div className="landing-after-carousel__intro">
-                <p className="landing-section-kicker">What happens next</p>
-                <h2 id="landing-after-carousel-title">A public record for the films that stay with you.</h2>
-                <p>
-                  35mm turns watching into a living profile: logs, ratings, reviews, and conversations that travel
-                  through the people you actually follow.
-                </p>
-              </div>
-
-              <div className="landing-feature-grid">
-                <article className="landing-feature-card">
-                  <span className="landing-feature-card__icon" aria-hidden>
-                    <Clapperboard className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="landing-feature-card__label">Logs</p>
-                    <h3>Every post can carry a film.</h3>
-                    <p>
-                      First watches, rewatches, half-star ratings, festival notes, and long reviews all connect
-                      back to the title being discussed.
-                    </p>
-                  </div>
-                </article>
-
-                <article className="landing-feature-card">
-                  <span className="landing-feature-card__icon" aria-hidden>
-                    <UserRound className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="landing-feature-card__label">Profiles</p>
-                    <h3>Your taste becomes legible.</h3>
-                    <p>
-                      Favorites, diary entries, ratings, lists, and the films you defend build a profile that says
-                      more than a bio ever could.
-                    </p>
-                  </div>
-                </article>
-
-                <article className="landing-feature-card">
-                  <span className="landing-feature-card__icon" aria-hidden>
-                    <MessagesSquare className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="landing-feature-card__label">Feed</p>
-                    <h3>The timeline starts with your follows.</h3>
-                    <p>
-                      Follow filmmakers, critics, friends, programmers, and people with impossible watchlists.
-                      Their film activity becomes your home feed.
-                    </p>
-                  </div>
-                </article>
-              </div>
-            </section>
-          </LandingReveal>
-
-          <LandingReveal className="landing-audience" delay={0.04}>
-            <div className="landing-audience__header">
-              <UsersRound className="h-5 w-5" aria-hidden />
-              <h2>Made for the people who keep cinema moving.</h2>
-            </div>
-            <div className="landing-audience__list">
-              <p>Directors and DPs sharing work, influences, and festival notes.</p>
-              <p>Critics and programmers writing in public without leaving the conversation.</p>
-              <p>Students, collectors, and casual viewers building a record one film at a time.</p>
-            </div>
-          </LandingReveal>
-
-          <LandingReveal className="landing-cta-strip" delay={0.06}>
-            <div>
-              <p className="landing-section-kicker">Start with one film</p>
-              <h2>Claim your username and build the feed from there.</h2>
-            </div>
-            <div className="landing-cta-strip__actions">
-              <button
-                type="button"
-                onClick={function () {
-                  openAuthModal("signup");
-                }}
-                className="landing-cta-strip__button landing-cta-strip__button--primary"
-              >
-                Join 35mm <ArrowRight className="h-4 w-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={function () {
-                  openAuthModal("login");
-                }}
-                className="landing-cta-strip__button landing-cta-strip__button--secondary"
-              >
-                Login
-              </button>
-            </div>
-          </LandingReveal>
-
-          <footer className="landing-footer">
-            <p>© 35mm.in</p>
+          <footer className={styles.footer}>
+            <span>© 35mm.in</span>
+            <nav aria-label="Legal">
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/terms">Terms</Link>
+              <Link href="/help">Help</Link>
+            </nav>
           </footer>
-        </div>
+        </aside>
       </div>
-
-      <Modal
-        open={authModalOpen}
-        onClose={closeAuthModal}
-        variant="bare"
-        ariaLabel={mode === "signup" ? "Join 35mm" : "Login to 35mm"}
-        containerClassName="landing-auth-modal__container"
-        contentClassName="landing-auth-modal"
-        initialFocusWithinSelector="[data-landing-auth-body]"
-      >
-        <LandingAuthPanel {...authPanelProps} />
-      </Modal>
     </main>
   );
 }

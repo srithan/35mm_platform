@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { profiles } from "@35mm/db/schema";
 import { isReservedUsername, usernameSchema } from "@35mm/validators";
 import { getDb } from "../../lib/db.js";
@@ -7,6 +7,7 @@ import { requireAuth } from "../../lib/middleware.js";
 import { badRequest } from "../../lib/errors.js";
 import { resolveProfileAvatarUrl } from "../media/url.js";
 import { findUsernameLock } from "../../lib/usernameLocks.js";
+import { getVisibleProfileCounters } from "../../lib/profileCounters.js";
 
 export var authRoutes = new Hono();
 
@@ -28,7 +29,12 @@ authRoutes.get("/usernames/:username/available", async function (c) {
     db
       .select({ id: profiles.id })
       .from(profiles)
-      .where(eq(profiles.username, username))
+      .where(
+        or(
+          eq(profiles.username, username),
+          eq(profiles.pendingUsername, username)
+        )
+      )
       .limit(1),
     findUsernameLock(db, username),
   ]);
@@ -45,6 +51,7 @@ authRoutes.get("/usernames/:username/available", async function (c) {
 });
 
 authRoutes.get("/me", requireAuth, async function (c) {
+  c.header("Cache-Control", "private, no-store");
   var user = c.get("user");
   var db = getDb();
   var rows = await db
@@ -68,6 +75,11 @@ authRoutes.get("/me", requireAuth, async function (c) {
   }
 
   var row = rows[0];
+  var visibleCounters = await getVisibleProfileCounters(db, user.userId, {
+    filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
+    followerCount: Number(row.followerCount ?? 0),
+    followingCount: Number(row.followingCount ?? 0),
+  });
   var [avatarUrl, avatarUrlLg] = await Promise.all([
     resolveProfileAvatarUrl(row.avatarUrl, user.userId, row.avatarVariants, "sm"),
     resolveProfileAvatarUrl(row.avatarUrl, user.userId, row.avatarVariants, "lg"),
@@ -81,8 +93,8 @@ authRoutes.get("/me", requireAuth, async function (c) {
     avatarUrlLg,
     role: row.role,
     roleContext: row.roleContext,
-    filmsLoggedCount: row.filmsLoggedCount,
-    followerCount: row.followerCount,
-    followingCount: row.followingCount,
+    filmsLoggedCount: visibleCounters.filmsLoggedCount,
+    followerCount: visibleCounters.followerCount,
+    followingCount: visibleCounters.followingCount,
   });
 });

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { users, profiles, follows, profileFollowApprovalOutbox, posts, films } from "@35mm/db/schema";
 import { getDb, getWriteDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
@@ -38,6 +39,7 @@ import {
   type AvatarVariants,
   type CoverVariants,
 } from "../media/url.js";
+import { getVisibleProfileCounters } from "../../lib/profileCounters.js";
 
 export var profileRoutes = new Hono();
 type FollowState = "none" | "requested" | "following" | "self";
@@ -224,6 +226,7 @@ function isValidDateOnly(value: string): boolean {
 }
 
 profileRoutes.get("/:username", async function (c) {
+  c.header("Cache-Control", "private, no-store");
   var username = c.req.param("username").toLowerCase().trim();
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
@@ -290,6 +293,7 @@ profileRoutes.get("/:username", async function (c) {
   var [
     followRelationRows,
     incomingFollowRequestRows,
+    visibleCounters,
   ] = await Promise.all([
     viewer
       ? db
@@ -311,10 +315,15 @@ profileRoutes.get("/:username", async function (c) {
           )
           .limit(1)
       : Promise.resolve([] as Array<{ followerId: string }>),
+    getVisibleProfileCounters(db, row.userId, {
+      filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
+      followerCount: Number(row.followerCount ?? 0),
+      followingCount: Number(row.followingCount ?? 0),
+    }),
   ]);
 
-  var followerCount = Number(row.followerCount ?? 0);
-  var followingCount = Number(row.followingCount ?? 0);
+  var followerCount = visibleCounters.followerCount;
+  var followingCount = visibleCounters.followingCount;
   var followStatus = followRelationRows[0]?.status ?? null;
   var followState = followStateFromStatus(viewer?.userId ?? null, row.userId, followStatus);
   var isFollowing = followState === "following";
@@ -371,7 +380,7 @@ profileRoutes.get("/:username", async function (c) {
       roleContext: row.roleContext,
       headline: row.headline,
       headlineContext: row.headlineContext,
-	      filmsLoggedCount: row.filmsLoggedCount,
+	      filmsLoggedCount: visibleCounters.filmsLoggedCount,
 	      followerCount,
 	      followingCount,
 	      followState,
@@ -400,7 +409,7 @@ profileRoutes.get("/:username", async function (c) {
     roleContext: row.roleContext,
     headline: row.headline,
     headlineContext: row.headlineContext,
-	    filmsLoggedCount: row.filmsLoggedCount,
+	    filmsLoggedCount: visibleCounters.filmsLoggedCount,
 	    followerCount,
 	    followingCount,
 	    followState,
@@ -598,7 +607,7 @@ profileRoutes.get("/:username/stats", async function (c) {
       viewerIsStaff
     )
   );
-  var diaryFilter = sql<boolean>`${posts.type} in ('log', 'review')`;
+  var diaryFilter = sql<boolean>`${posts.type} in ('log', 'review') and ${posts.isRepost} = false`;
 
   var [aggregateRows, recentDiaryRows, genreResult, activityResult] = await Promise.all([
     db
@@ -1100,6 +1109,7 @@ profileRoutes.patch("/me", requireAuth, profileWriteRateLimit, async function (c
 });
 
 profileRoutes.get("/:username/followers", async function (c) {
+  c.header("Cache-Control", "private, no-store");
   var username = c.req.param("username").toLowerCase().trim();
   var parsed = cursorPaginationSchema.parse({
     cursor: c.req.query("cursor"),
@@ -1114,6 +1124,7 @@ profileRoutes.get("/:username/followers", async function (c) {
     viewerIsStaff
   );
   var db = getDb();
+  var viewerFollow = alias(follows, "followers_viewer_follow");
 
   var cursorFilter = cursor
     ? or(
@@ -1131,9 +1142,19 @@ profileRoutes.get("/:username/followers", async function (c) {
       avatarVariants: profiles.avatarVariants,
       createdAt: follows.createdAt,
       cursorId: follows.followerId,
+      viewerFollowStatus: viewerFollow.status,
     })
     .from(follows)
     .innerJoin(profiles, eq(profiles.userId, follows.followerId))
+    .leftJoin(
+      viewerFollow,
+      and(
+        viewer
+          ? eq(viewerFollow.followerId, viewer.userId)
+          : sql<boolean>`false`,
+        eq(viewerFollow.followingId, profiles.userId)
+      )
+    )
     .where(
       and(
         eq(follows.followingId, followingId),
@@ -1161,6 +1182,11 @@ profileRoutes.get("/:username/followers", async function (c) {
         avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
         avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         followedAt: row.createdAt.toISOString(),
+        followState: followStateFromStatus(
+          viewer?.userId ?? null,
+          row.userId,
+          row.viewerFollowStatus
+        ),
       };
     })
   );
@@ -1171,10 +1197,16 @@ profileRoutes.get("/:username/followers", async function (c) {
     ? encodeCompositeCursor({ createdAt: tail.createdAt, id: tail.cursorId })
     : null;
 
-  return c.json({ items, nextCursor, hasMore });
+  return c.json({
+    items,
+    nextCursor,
+    hasMore,
+    viewerOwnsProfile: viewer?.userId === followingId,
+  });
 });
 
 profileRoutes.get("/:username/following", async function (c) {
+  c.header("Cache-Control", "private, no-store");
   var username = c.req.param("username").toLowerCase().trim();
   var parsed = cursorPaginationSchema.parse({
     cursor: c.req.query("cursor"),
@@ -1189,6 +1221,7 @@ profileRoutes.get("/:username/following", async function (c) {
     viewerIsStaff
   );
   var db = getDb();
+  var viewerFollow = alias(follows, "following_viewer_follow");
 
   var cursorFilter = cursor
     ? or(
@@ -1206,9 +1239,19 @@ profileRoutes.get("/:username/following", async function (c) {
       avatarVariants: profiles.avatarVariants,
       createdAt: follows.createdAt,
       cursorId: follows.followingId,
+      viewerFollowStatus: viewerFollow.status,
     })
     .from(follows)
     .innerJoin(profiles, eq(profiles.userId, follows.followingId))
+    .leftJoin(
+      viewerFollow,
+      and(
+        viewer
+          ? eq(viewerFollow.followerId, viewer.userId)
+          : sql<boolean>`false`,
+        eq(viewerFollow.followingId, profiles.userId)
+      )
+    )
     .where(
       and(
         eq(follows.followerId, followerId),
@@ -1236,6 +1279,11 @@ profileRoutes.get("/:username/following", async function (c) {
         avatarUrl: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "sm"),
         avatarUrlLg: await resolveProfileAvatarUrl(row.avatarUrl, row.userId, row.avatarVariants, "lg"),
         followedAt: row.createdAt.toISOString(),
+        followState: followStateFromStatus(
+          viewer?.userId ?? null,
+          row.userId,
+          row.viewerFollowStatus
+        ),
       };
     })
   );
@@ -1246,7 +1294,12 @@ profileRoutes.get("/:username/following", async function (c) {
     ? encodeCompositeCursor({ createdAt: tail.createdAt, id: tail.cursorId })
     : null;
 
-  return c.json({ items, nextCursor, hasMore });
+  return c.json({
+    items,
+    nextCursor,
+    hasMore,
+    viewerOwnsProfile: viewer?.userId === followerId,
+  });
 });
 
 profileRoutes.get("/:username/follow-requests", requireAuth, async function (c) {

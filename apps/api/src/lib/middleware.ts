@@ -177,6 +177,7 @@ async function ensureLocalUser(clerkUserId: string, clerkSecretKey: string) {
             id: randomUUID(),
             userId: localUserId,
             username: usernameCandidate,
+            usernameAuthSyncedAt: new Date(),
             displayName: displayName,
             avatarUrl: null,
             bio: null,

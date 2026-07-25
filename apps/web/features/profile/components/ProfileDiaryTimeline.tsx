@@ -8,7 +8,10 @@ import { useFeed } from "@/features/feed/hooks/useFeed";
 import type { Post } from "@/features/feed/types/feed";
 
 function isDiaryPost(post: Post) {
-  return post.type === "log" || post.type === "review";
+  return (
+    (post.type === "log" || post.type === "review") &&
+    post.repostContext === null
+  );
 }
 
 function formatDiaryDate(iso: string): string {
@@ -196,11 +199,9 @@ export function ProfileDiaryTimeline({
           return (
             <div key={post.id} className="mb-4 last:mb-0">
               {entry.startsMonth ? (
-                <div className="mb-2 border-b border-border-strong pb-1.5">
-                  <h3 className="text-[12px] uppercase tracking-[0.12em] text-fg-muted">
-                    {entry.month}
-                  </h3>
-                </div>
+                <h3 className="mb-3 text-[12px] uppercase tracking-[0.12em] text-fg-muted">
+                  {entry.month}
+                </h3>
               ) : null}
 
               <article className="group flex gap-3 rounded-2xl border border-border bg-elevated px-3 py-3 transition-colors hover:bg-hover/50">

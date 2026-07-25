@@ -13,6 +13,10 @@ interface DialogProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  containerClassName?: string;
+  headerClassName?: string;
+  titleClassName?: string;
+  descriptionClassName?: string;
   showCloseButton?: boolean;
   variant?: ModalVariant;
   /** Forwarded to Modal — focus first field in the body, not the header close control. */
@@ -27,6 +31,10 @@ export function Dialog({
   children,
   className,
   contentClassName,
+  containerClassName,
+  headerClassName,
+  titleClassName,
+  descriptionClassName,
   showCloseButton = true,
   variant = "centered",
   initialFocusRef,
@@ -43,6 +51,7 @@ export function Dialog({
       ariaLabelledBy={titleId}
       initialFocusRef={initialFocusRef}
       initialFocusWithinSelector="[data-dialog-body]"
+      containerClassName={containerClassName}
       contentClassName={cn(
         "flex w-full max-w-lg flex-col overflow-hidden overscroll-contain",
         variant === "bottomSheet"
@@ -52,17 +61,32 @@ export function Dialog({
       )}
     >
       {(title || showCloseButton) && (
-        <div className="flex items-start justify-between gap-3 px-5 py-4 sm:px-6 border-b border-border">
+        <div
+          className={cn(
+            "flex items-start justify-between gap-3 border-b border-border px-5 py-4 sm:px-6",
+            headerClassName
+          )}
+        >
           {title && (
             <div className="min-w-0 flex-1 pt-0.5">
               <h2
                 id={titleId}
-                className="text-[15px] font-semibold tracking-tight text-fg leading-snug"
+                className={cn(
+                  "text-[15px] font-semibold leading-snug tracking-tight text-fg",
+                  titleClassName
+                )}
               >
                 {title}
               </h2>
               {description && (
-                <p className="text-[13px] text-fg-muted mt-1 leading-relaxed">{description}</p>
+                <p
+                  className={cn(
+                    "mt-1 text-[13px] leading-relaxed text-fg-muted",
+                    descriptionClassName
+                  )}
+                >
+                  {description}
+                </p>
               )}
             </div>
           )}

@@ -300,7 +300,7 @@ export function EditProfileModal({
         onClose={requestClose}
         title="Edit profile"
         description="Update how you appear across 35mm."
-        className="max-w-xl"
+        className="max-w-xl font-sans"
         contentClassName="flex max-h-[min(44rem,calc(100vh-5.5rem))] flex-col !p-0"
         initialFocusRef={displayNameRef}
       >

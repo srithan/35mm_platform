@@ -391,11 +391,15 @@ Source of truth: `packages/db/src/schema/*`.
   - `avatar_variants`: `{ sm?: string; lg?: string }`
   - `cover_variants`: `{ default?: string }`
 - Role/headline fields and onboarding completion state.
+- Username auth synchronization state: `username_auth_synced_at` records a completed Clerk/35mm match,
+  while nullable `pending_username` plus `pending_username_requested_at` form the durable reservation used
+  during cross-system renames. A partial unique index prevents two accounts from reserving the same target.
 - Edit Profile can update role/headline metadata through `/v1/profiles/me`; role changes write both role and headline fields so profile and post bylines stay aligned.
 - Favorite film IDs and genre IDs arrays.
 - Private account flag.
-- Denormalized `films_logged_count`, `post_count`, follower/following counts, moderation `strike_count`, and `moderation_status`. `post_count` tracks non-deleted authored posts through the durable async counter outbox; migration `0047_profile_post_count` backfills existing profiles.
+- Denormalized `films_logged_count`, `post_count`, follower/following counts, moderation `strike_count`, and `moderation_status`. `films_logged_count` tracks non-deleted, non-repost `log` and `review` posts with a canonical film through the durable async counter outbox; migration `0053_profile_films_logged_count` reconciles existing profiles. `post_count` tracks non-deleted authored posts through the same outbox; migration `0047_profile_post_count` backfills existing profiles.
 - Public profile detail, stats, search, follower, and following reads exclude hidden/removed profiles. Profile owner and moderation staff retain access; responses expose `moderationStatus` so owner clients can render under-review/removed state.
+- Viewer-specific public profile detail, follower/following lists, and authenticated `/v1/me` responses use `private, no-store`. Followers and Following are tabs inside one fixed-height web Connections modal; owner views add Requests as a third tab, and each connection list keeps its independent cursor/query cache while switching. Each connection-list page resolves viewer relationship state through one indexed join and returns server-authoritative `viewerOwnsProfile`, letting authenticated follower rows expose Follow, Follow back, or Requested without trusting transient page ownership state or issuing per-row reads. Web profile detail revalidates whenever mounted, while accepted suggestion/modal follows update the actor's cached `followingCount`, the target's cached `followerCount`, and both connection lists before bounded invalidation. Private-account requests expose `requested` state and do not change either count until acceptance.
 
 `username_locks`
 
@@ -404,6 +408,8 @@ Source of truth: `packages/db/src/schema/*`.
 - `owner`, `reason`, and timestamps for Studio-managed operational context.
 - Check constraints enforce lowercase usernames and the allowed state set.
 - API username availability and profile rename paths consult this table in addition to existing profile usernames and the shared reserved-name list.
+- Username availability also treats `profiles.pending_username` as unavailable, so signup and rename cannot
+  claim a name while Clerk synchronization is in flight.
 
 `contribution_submissions`
 
@@ -848,6 +854,20 @@ Settings:
 - `PATCH /v1/me/settings/appearance`
 - `PATCH /v1/me/settings/media`
 
+`PATCH /v1/me/settings/profile` treats Clerk and `profiles.username` as one consistency boundary. Username
+changes reserve `profiles.pending_username` in a row-locked transaction, update Clerk through the secret that
+verified the active session, then finalize `profiles.username`. Clerk `user.updated` webhooks can finalize a
+matching reservation after an API process failure; a retry reconciles reservations older than five minutes
+against Clerk before accepting another rename. Clerk write errors are reread before rollback so ambiguous
+network failures cannot recreate split-brain identity. Completed sync timestamps avoid a Clerk read on ordinary
+profile saves, while legacy rows with a null timestamp receive one drift-healing check. Rename requests add a
+6/hour per-user limiter on top of the settings route-family limiter.
+
+This is a low-frequency per-user point-read and point-write flow at 1M+ DAU. It uses existing unique profile
+identity plus the partial pending-username index, and adds no list pagination, counter, UGC deletion, feed
+fanout, or worker requirement. Successful renames invalidate author profile-feed, high-follower slice, and
+profile-stats caches; broad home-feed identity payloads age out through the existing 60-second TTL.
+
 Media:
 
 - `POST /v1/media/presign`
@@ -959,8 +979,11 @@ Route groups:
 
 Important app routes:
 
-- `/landing`: signed-out landing page.
-- `/`: authenticated home feed.
+- `/`: session-aware root. Signed-out visitors receive a fixed-light, responsive split landing surface with
+  local cinematic artwork and embedded Clerk-backed signup/login forms; signed-in visitors receive the
+  authenticated home feed. The signed-out path performs only the debounced username-availability read after
+  username input—there is no TMDB/poster-carousel fetch on initial render.
+- `/landing`: compatibility URL that redirects to `/`.
 - `/new`: post composer page.
 - `/:username`: profile.
 - `/:username/post/:postid`: post detail.
@@ -1031,6 +1054,8 @@ Write path:
 6. API creates mention notifications and enqueues media processing if media exists.
 7. API invalidates author/actor/guest feed caches for author mutations. Post interactions invalidate only bounded caches: the actor viewer cache, the post owner's viewer cache, and the post owner's profile-feed cache. It does not load every follower for cache invalidation; follower feeds rely on short feed TTLs, materialized feed writes, and async counter/rescore jobs for broad freshness.
 
+The desktop composer modal uses a stable `min(680px, 80dvh)` shell. Its mode header and formatting/action toolbar remain outside the single internal scroll region, so growing text, polls, media, link previews, and quoted posts cannot expand the dialog beyond 80% of the viewport or move submission controls offscreen. This is client-only layout behavior: it adds no API read, database write, cache entry, queue job, schema change, or index, and therefore has no request-volume impact at 1M+ DAU.
+
 Interactions:
 
 - Likes, reposts, bookmarks, poll votes, comment CRUD, and comment likes are real API paths.
@@ -1057,7 +1082,7 @@ Current feed behavior:
 - Authenticated home feed reads materialized `feed_items` plus live recent posts from followed high-follower accounts, ordered by score + post ID.
 - Feed score formula is `1000 * exp(-ageHours / 36) + 120 * ln(1 + likes + comments*3 + reposts*4)`.
 - `feed_items.score` is computed at fanout/backfill/write time from denormalized post counters, and `feed.rescore` periodically refreshes recent rows after async counter deltas settle.
-- `GET /v1/feed/posts/:postId` is viewer-specific because it includes `isLiked`, `isBookmarked`, `isReposted`, and bookmark folder state. The route is served with `Cache-Control: no-store`; browser/HTTP caches must not reuse detail payloads across interaction state changes. Detail/action payloads add pending `counter_job_deltas` for that one post to denormalized counters, so the viewer sees their interaction count change while the worker catches up without scanning fact tables. Feed/profile/bookmark pages apply the same pending-delta overlay in one grouped query for the visible page.
+- `GET /v1/feed/posts/:postId` is viewer-specific because it includes `isLiked`, `isBookmarked`, `isReposted`, and bookmark folder state. The route is served with `Cache-Control: no-store`; browser/HTTP caches must not reuse detail payloads across interaction state changes. Detail/action payloads add pending `counter_job_deltas` for that one post to denormalized counters, so the viewer sees their interaction count change while the worker catches up without scanning fact tables. Feed/profile/bookmark pages apply the same pending-delta overlay in one grouped query for the visible page. Public profile detail and authenticated `/v1/me` reads likewise overlay the indexed pending `followerCount` and `followingCount` deltas, preserving read-after-write counts without scanning the follows table or making counter writes synchronous.
 - `feed_items` retention defaults to 30 days (`FEED_ITEMS_RETENTION_DAYS`). This keeps the hot materialized table bounded while covering the practical depth of normal social feed pagination; users who page beyond that switch to the cold path.
 - `feed.pruneFeedItems` runs as a repeatable worker job every 60 minutes by default, deleting old `feed_items` in indexed `(created_at, id)` chunks of 5,000 rows, up to 20 chunks per run. It logs pruned rows and distinct touched viewers; it relies on the 60-second feed cache TTL instead of issuing per-viewer Redis invalidations during prune.
 - Authenticated home feed cursors include score, post ID, ranking timestamp, the materialized row creation time when a row came from `feed_items`, and an explicit hot/cold phase marker. When a retained page is exhausted, one bounded existence probe determines whether direct history remains; a cold-marked cursor then bypasses feed cache and reads from `posts` for the viewer's own posts plus accepted followees. If the retained feed is empty, that direct read happens in the same request.
@@ -1069,9 +1094,9 @@ Current feed behavior:
 - Authenticated home feeds that include high-follower live rows cache the final per-viewer merged page with the normal feed payload TTL and also cache the viewer-independent slice: recent rows for each high-follower author, keyed by author ID.
 - `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaults to 45 seconds. This intentionally allows high-follower author scores/counters/profile fields to be up to TTL seconds stale in exchange for sharing one cached author slice across many followers.
 - `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaults to 100 rows per author. Deep pagination beyond the cached slice falls back to a direct per-author DB query for that rare page.
-- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/post/follower/following counters, and film list like/entry counters. Post create/delete and repost create/delete write the profile `postCount` delta in the same transaction as the post mutation.
+- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/post/follower/following counters, and film list like/entry counters. Post create/delete and repost create/delete write the profile `postCount` delta in the same transaction as the post mutation. Creating or deleting a canonical-film `log`/`review`, plus editing one across the film-attached boundary, writes the matching `filmsLoggedCount` delta in that same transaction. Reposts never count as diary logs. Profile detail and `/v1/me` overlay pending profile film/follow deltas for read-after-write consistency while BullMQ drains the durable outbox; web diary mutations invalidate active profile and current-user queries so the refreshed header consumes that overlay immediately.
 - `counter.outbox`: worker drains pending rows with row locks, batches by target/counter, and now loops until empty or a configured time budget (`COUNTER_OUTBOX_LOOP_BUDGET_MS`) before ending. If a full batch is processed and backlog remains, worker self-enqueues follow-up `counter.outbox` work to keep up with burst writes.
-- Counter jobs are durable through `counter_jobs`: API counter-touching mutations write outbox rows in the same transaction as the fact mutation, then best-effort enqueue `counter.outbox` to wake the worker. The worker deletes processed `counter_jobs` rows and decrements `counter_job_deltas`, and also drains `profile_follow_approval_outbox` rows in the same loop and re-schedules `profile.followApproval` pages when needed. If BullMQ is unavailable, the repeatable `counter.outbox` worker job still drains pending DB rows when the queue returns. Manual reconciliation path: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`.
+- Counter jobs are durable through `counter_jobs`: API counter-touching mutations write outbox rows in the same transaction as the fact mutation, then best-effort enqueue `counter.outbox` to wake the worker. The worker deletes processed `counter_jobs` rows and decrements `counter_job_deltas`, and also drains `profile_follow_approval_outbox` rows in the same loop and re-schedules `profile.followApproval` pages when needed. If BullMQ is unavailable, the repeatable `counter.outbox` worker job still drains pending DB rows when the queue returns. Manual reconciliation path: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`; profile reconciliation repairs both `post_count` and `films_logged_count`.
 
 ---
 

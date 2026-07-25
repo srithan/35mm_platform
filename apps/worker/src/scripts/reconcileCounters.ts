@@ -213,7 +213,17 @@ async function reconcileProfiles(database: Db, id: string | null, dryRun: boolea
     var rows = await database.execute(sql`
       select
         profile.user_id,
+        profile.films_logged_count as stored_films_logged_count,
         profile.post_count as stored_post_count,
+        (
+          select count(*)::integer
+          from posts post
+          where post.user_id = profile.user_id
+            and post.type in ('log', 'review')
+            and post.film_id is not null
+            and post.is_repost = false
+            and post.is_deleted = false
+        ) as actual_films_logged_count,
         (
           select count(*)::integer
           from posts post
@@ -230,7 +240,16 @@ async function reconcileProfiles(database: Db, id: string | null, dryRun: boolea
 
   await database.execute(sql`
     update profiles profile
-    set post_count = (
+    set films_logged_count = (
+          select count(*)::integer
+          from posts post
+          where post.user_id = profile.user_id
+            and post.type in ('log', 'review')
+            and post.film_id is not null
+            and post.is_repost = false
+            and post.is_deleted = false
+        ),
+        post_count = (
           select count(*)::integer
           from posts post
           where post.user_id = profile.user_id

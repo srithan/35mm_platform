@@ -18,6 +18,8 @@ import {
 import type { FeedPage, Post } from "../types/feed";
 import { feedKeys } from "./queryKeys";
 import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
+import { authKeys } from "@/features/auth/hooks/queryKeys";
+import { profileKeys } from "@/features/profile/hooks/queryKeys";
 import { showGlobalFlashToast } from "@/components/FlashToast";
 import { applyOptimisticPollVote } from "../utils/pollUtils";
 
@@ -166,6 +168,11 @@ function removePostFromAllFeedCaches(
     if (!isInfiniteFeedData(data)) continue;
     queryClient.setQueryData(key, removePostFromInfinite(data, postId));
   }
+}
+
+function invalidateProfileFilmCounts(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: authKeys.me() });
+  queryClient.invalidateQueries({ queryKey: profileKeys.all });
 }
 
 export function useLikePost(postId?: string) {
@@ -375,9 +382,15 @@ export function useCreatePost() {
     mutationFn: async function (input: CreatePostInput) {
       return createPost(input, await getToken());
     },
-    onSuccess: function () {
+    onSuccess: function (created) {
       queryClient.invalidateQueries({ queryKey: feedKeys.home() });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      if (
+        created.film &&
+        (created.type === "log" || created.type === "review")
+      ) {
+        invalidateProfileFilmCounts(queryClient);
+      }
     },
   });
 }
@@ -396,6 +409,9 @@ export function useUpdatePost() {
       }, updated);
       queryClient.invalidateQueries({ queryKey: feedKeys.post(updated.id) });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      if (updated.type === "log" || updated.type === "review") {
+        invalidateProfileFilmCounts(queryClient);
+      }
     },
   });
 }
@@ -435,6 +451,7 @@ export function useDeletePost() {
       queryClient.removeQueries({ queryKey: feedKeys.comments(input.postId) });
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
       queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
+      invalidateProfileFilmCounts(queryClient);
     },
   });
 }

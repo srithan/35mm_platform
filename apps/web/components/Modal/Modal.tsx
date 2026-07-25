@@ -403,6 +403,7 @@ export function Modal({
             type="button"
             aria-hidden
             tabIndex={-1}
+            data-modal-backdrop
             className={cn(VARIANT_BACKDROP[variant], backdropClassName, "z-0")}
             onClick={closeOnBackdrop ? onClose : undefined}
           />
@@ -437,22 +438,20 @@ export function Modal({
           key="modal-root"
           ref={hasOutsidePanel ? viewportRef : undefined}
           className={viewportClassName}
-          initial={{ opacity: 0 }}
+          // Keep backdrop-filter active on first paint; only the panel animates in.
+          initial={false}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           {...(hasOutsidePanel
             ? { role, "aria-modal": true as const, ...dialogLabelProps }
             : {})}
         >
-          <motion.button
-            key="backdrop"
+          <button
             type="button"
             aria-hidden
             tabIndex={-1}
+            data-modal-backdrop
             className={cn(VARIANT_BACKDROP[variant], backdropClassName, "z-0")}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             onClick={closeOnBackdrop ? onClose : undefined}
           />
 

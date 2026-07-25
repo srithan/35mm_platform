@@ -26,8 +26,9 @@ function StatColumn(props: {
           "hover:bg-hover active:bg-active",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-2"
         )}
+        aria-label={`View ${props.value} ${props.label.toLowerCase()}`}
       >
-        <span className="font-mono text-[15px] font-semibold leading-none tabular-nums text-fg">
+        <span className="text-[15px] font-bold leading-none tabular-nums text-fg">
           {props.value}
         </span>
         <span className="text-[11px] font-medium leading-none tracking-[0.01em] text-fg-faint">
@@ -39,7 +40,7 @@ function StatColumn(props: {
 
   return (
     <div className="flex min-w-[4.5rem] flex-col items-center justify-center gap-1 px-3 py-1">
-      <span className="font-mono text-[15px] font-semibold leading-none tabular-nums text-fg">
+      <span className="text-[15px] font-bold leading-none tabular-nums text-fg">
         {props.value}
       </span>
       <span className="text-[11px] font-medium leading-none tracking-[0.01em] text-fg-faint">
@@ -56,7 +57,7 @@ function StatInline(props: {
 }) {
   const content = (
     <>
-      <span className="font-semibold tabular-nums text-fg">{props.value}</span>
+      <span className="font-bold tabular-nums text-fg">{props.value}</span>
       <span className="font-normal text-fg-muted">{props.label}</span>
     </>
   );
@@ -64,12 +65,17 @@ function StatInline(props: {
   const className = cn(
     "inline-flex items-baseline gap-1 text-[14px] leading-none",
     props.onClick &&
-      "rounded-sm border-none bg-transparent p-0 font-inherit transition-opacity active:opacity-70"
+      "rounded-sm border-none bg-transparent p-0 font-inherit transition-opacity active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-2"
   );
 
   if (props.onClick) {
     return (
-      <button type="button" onClick={props.onClick} className={className}>
+      <button
+        type="button"
+        onClick={props.onClick}
+        className={className}
+        aria-label={`View ${props.value} ${props.label.toLowerCase()}`}
+      >
         {content}
       </button>
     );
@@ -96,11 +102,13 @@ export function ProfileStats(props: {
     <>
       <div
         className={cn(
+          "font-sans",
           variant === "inline"
             ? "flex flex-wrap items-center gap-x-4 gap-y-2"
             : "flex h-full min-w-0 flex-1 items-center overflow-x-auto scrollbar-hide",
           props.className
         )}
+        aria-label="Profile stats"
       >
         {variant === "inline" ? (
           <>

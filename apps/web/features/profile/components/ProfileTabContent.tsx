@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Repeat2 } from "lucide-react";
 import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
 import { StatBox } from "./StatBox";
 import { ActivityHeatmap } from "./ActivityHeatmap";
@@ -42,6 +43,32 @@ function formatDiaryDate(iso: string): string {
     month: "short",
     day: "numeric",
   }).format(dt).toUpperCase();
+}
+
+function RepostsEmptyArtwork() {
+  return (
+    <div className="relative h-[74px] w-[104px]" aria-hidden>
+      <div className="absolute left-0 top-0 h-[48px] w-[78px] rounded-xl border border-border bg-bg px-2.5 py-2 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-sunken-2" />
+          <span className="h-1.5 w-8 rounded-full bg-sunken-2" />
+        </div>
+        <span className="mt-2 block h-1.5 w-12 rounded-full bg-sunken" />
+        <span className="mt-1 block h-1.5 w-9 rounded-full bg-sunken" />
+      </div>
+      <div className="absolute bottom-0 right-0 h-[48px] w-[78px] rounded-xl border border-border bg-elevated px-2.5 py-2 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-sunken-2" />
+          <span className="h-1.5 w-7 rounded-full bg-sunken-2" />
+        </div>
+        <span className="mt-2 block h-1.5 w-11 rounded-full bg-sunken" />
+        <span className="mt-1 block h-1.5 w-8 rounded-full bg-sunken" />
+      </div>
+      <span className="absolute bottom-2 left-4 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg bg-accent text-white shadow-sm">
+        <Repeat2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+      </span>
+    </div>
+  );
 }
 
 export function ProfileTabContent({
@@ -94,12 +121,18 @@ export function ProfileTabContent({
         emptyState={
           isOwnProfile
             ? {
-                icon: <span className="text-[24px]">&#x21C4;</span>,
-                headline: "You haven't reposted anything yet",
+                icon: <RepostsEmptyArtwork />,
+                headline: "Nothing reposted yet",
+                subline: "Share a post you want more people to see. It’ll collect here.",
+                primaryCta: {
+                  label: "Browse the feed",
+                  href: ROUTES.HOME,
+                },
               }
             : {
-                icon: <span className="text-[24px]">&#x21C4;</span>,
-                headline: `${displayName ?? username} hasn't reposted anything yet`,
+                icon: <RepostsEmptyArtwork />,
+                headline: "No reposts yet",
+                subline: `${displayName ?? username} hasn’t shared any posts yet.`,
               }
         }
       />

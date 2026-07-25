@@ -115,6 +115,7 @@ import {
   feedHighFollowerCacheTtlSeconds,
   feedHighFollowerThreshold,
 } from "./fanoutConfig.js";
+import { filmsLoggedCountDelta } from "./filmLogCounter.js";
 
 const COMMENT_BODY_MAX_CHARS = 100000;
 const COMMENT_BODY_LENGTH_ERROR = `Comment body must be 1-${COMMENT_BODY_MAX_CHARS} characters`;
@@ -2604,6 +2605,9 @@ async function assertPostOwner(postId: string, userId: string) {
       visibility: posts.visibility,
       body: posts.body,
       headline: posts.headline,
+      type: posts.type,
+      filmId: posts.filmId,
+      isRepost: posts.isRepost,
       linkPreview: posts.linkPreview,
     })
     .from(posts)
@@ -3187,12 +3191,28 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         });
     }
 
-    await recordCounterDeltas(tx, {
-      targetTable: "profiles",
-      targetId: user.userId,
-      counterName: "postCount",
-      delta: 1,
+    var profileCounterDeltas: CounterIncrementJobPayload[] = [
+      {
+        targetTable: "profiles",
+        targetId: user.userId,
+        counterName: "postCount",
+        delta: 1,
+      },
+    ];
+    var filmsLoggedDelta = filmsLoggedCountDelta(null, {
+      type: input.type,
+      filmId: input.filmId,
+      isRepost: false,
     });
+    if (filmsLoggedDelta !== 0) {
+      profileCounterDeltas.push({
+        targetTable: "profiles",
+        targetId: user.userId,
+        counterName: "filmsLoggedCount",
+        delta: filmsLoggedDelta,
+      });
+    }
+    await recordCounterDeltas(tx, profileCounterDeltas);
 
     return { postId, postCreatedAt };
   });
@@ -3739,15 +3759,32 @@ feedRoutes.delete("/posts/:postId", requireAuth, postEditRateLimit, async functi
         eq(posts.userId, user.userId),
         eq(posts.isDeleted, false)
       ))
-      .returning({ id: posts.id });
+      .returning({
+        id: posts.id,
+        type: posts.type,
+        filmId: posts.filmId,
+        isRepost: posts.isRepost,
+      });
 
     if (deletedRows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "profiles" as const,
-        targetId: user.userId,
-        counterName: "postCount",
-        delta: -1,
-      });
+      var profileCounterDeltas: CounterIncrementJobPayload[] = [
+        {
+          targetTable: "profiles",
+          targetId: user.userId,
+          counterName: "postCount",
+          delta: -1,
+        },
+      ];
+      var filmsLoggedDelta = filmsLoggedCountDelta(deletedRows[0], null);
+      if (filmsLoggedDelta !== 0) {
+        profileCounterDeltas.push({
+          targetTable: "profiles",
+          targetId: user.userId,
+          counterName: "filmsLoggedCount",
+          delta: filmsLoggedDelta,
+        });
+      }
+      await recordCounterDeltas(tx, profileCounterDeltas);
     }
     return deletedRows.length > 0;
   });
@@ -3784,10 +3821,7 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
     throw badRequest("Poll posts cannot be edited");
   }
 
-  var headline = input.headline !== undefined ? input.headline : current.headline;
-  var body = input.body !== undefined ? input.body : current.body;
   var filmIdToPersist = input.filmId;
-  var linkPreview = input.linkPreview !== undefined ? input.linkPreview : current.linkPreview;
 
   if (filmIdToPersist !== undefined && filmIdToPersist !== null) {
     var filmRows = await db
@@ -3801,28 +3835,97 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
     }
   }
 
-  await db.insert(postEdits).values({
-    postId,
-    headline: current.headline,
-    body: current.body,
-    editedAt: new Date(),
-  });
+  var editResult = await getWriteDb().transaction(async function (tx) {
+    var lockedRows = await tx
+      .select({
+        id: posts.id,
+        userId: posts.userId,
+        isDeleted: posts.isDeleted,
+        visibility: posts.visibility,
+        type: posts.type,
+        filmId: posts.filmId,
+        isRepost: posts.isRepost,
+        headline: posts.headline,
+        body: posts.body,
+        linkPreview: posts.linkPreview,
+      })
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .limit(1)
+      .for("update");
+    var locked = lockedRows[0];
+    if (!locked) throw notFound("Post not found");
+    if (locked.userId !== user.userId) {
+      throw forbidden("You can only modify your own posts");
+    }
+    if (locked.isDeleted) {
+      throw badRequest("Cannot edit deleted post");
+    }
 
-  await db
-    .update(posts)
-    .set({
-      headline,
-      body,
-      ...(filmIdToPersist !== undefined ? { filmId: filmIdToPersist } : {}),
-      linkPreview,
-      editedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(posts.id, postId));
+    var headline = input.headline !== undefined ? input.headline : locked.headline;
+    var body = input.body !== undefined ? input.body : locked.body;
+    var nextFilmId =
+      filmIdToPersist !== undefined ? filmIdToPersist : locked.filmId;
+    var linkPreview =
+      input.linkPreview !== undefined ? input.linkPreview : locked.linkPreview;
+    var editedAt = new Date();
+
+    await tx.insert(postEdits).values({
+      postId,
+      headline: locked.headline,
+      body: locked.body,
+      editedAt,
+    });
+
+    await tx
+      .update(posts)
+      .set({
+        headline,
+        body,
+        ...(filmIdToPersist !== undefined ? { filmId: filmIdToPersist } : {}),
+        linkPreview,
+        editedAt,
+        updatedAt: editedAt,
+      })
+      .where(and(
+        eq(posts.id, postId),
+        eq(posts.userId, user.userId),
+        eq(posts.isDeleted, false)
+      ));
+
+    var filmsLoggedDelta = filmsLoggedCountDelta(
+      {
+        type: locked.type,
+        filmId: locked.filmId,
+        isRepost: locked.isRepost,
+      },
+      {
+        type: locked.type,
+        filmId: nextFilmId,
+        isRepost: locked.isRepost,
+      }
+    );
+    if (filmsLoggedDelta !== 0) {
+      await recordCounterDeltas(tx, {
+        targetTable: "profiles",
+        targetId: user.userId,
+        counterName: "filmsLoggedCount",
+        delta: filmsLoggedDelta,
+      });
+    }
+
+    return {
+      filmsLoggedDelta,
+      visibility: locked.visibility,
+    };
+  });
+  if (editResult.filmsLoggedDelta !== 0) {
+    wakeCounterOutbox();
+  }
 
   await invalidateFeedAfterAuthorMutation({
     authorUserId: user.userId,
-    includeGuest: current.visibility === "public",
+    includeGuest: editResult.visibility === "public",
   });
 
   var updated = await getPostById(postId, user.userId);

@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { ShellGrid } from "@/components/layout/ShellGrid";
 import { ScrollRestore } from "@/features/feed/components/FeedScrollRestore";
 import { FeedWithComposer } from "@/features/feed/components/FeedWithComposer";
 import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
-import { LandingCarousel } from "@/features/landing/components/LandingCarousel";
 import { LandingPage } from "@/features/landing/components/LandingPage";
 import { OnboardingGate } from "@/features/onboarding/components/OnboardingGate";
 import { getIsAuthenticated } from "@/lib/auth";
@@ -12,16 +10,16 @@ import { getIsAuthenticated } from "@/lib/auth";
 export const metadata: Metadata = {
   title: "35mm",
   description:
-    "35mm is a social network for directors, critics, and film lovers.",
+    "35mm is a social network for film lovers to follow friends, critics, and filmmakers.",
   openGraph: {
     title: "35mm",
     description:
-      "35mm is a social network for directors, critics, and film lovers.",
+      "Watch films. Find your people on 35mm.",
   },
   twitter: {
     title: "35mm",
     description:
-      "35mm is a social network for directors, critics, and film lovers.",
+      "Watch films. Find your people on 35mm.",
   },
 };
 
@@ -29,19 +27,7 @@ export default async function RootPage() {
   const isAuthenticated = await getIsAuthenticated();
 
   if (!isAuthenticated) {
-    return (
-      <LandingPage>
-        <Suspense
-          fallback={
-            <div className="landing-carousel-fallback">
-              <span>Loading...</span>
-            </div>
-          }
-        >
-          <LandingCarousel />
-        </Suspense>
-      </LandingPage>
-    );
+    return <LandingPage />;
   }
 
   return (

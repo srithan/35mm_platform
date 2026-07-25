@@ -1,13 +1,22 @@
 import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
 import { users, profiles, userSettings, type NotificationEmailPreferences } from "@35mm/db/schema";
-import { isReservedUsername } from "@35mm/validators";
+import { isReservedUsername, usernameSchema } from "@35mm/validators";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
 import { notFound, badRequest } from "../../lib/errors.js";
-import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
+import {
+  applyRateLimit,
+  createRateLimitMiddleware,
+  identifyByUserId,
+} from "../../lib/rateLimit.js";
+import {
+  invalidateAuthorProfileFeedCaches,
+  invalidateHighFollowerAuthorFeedCache,
+} from "../../lib/feedCache.js";
+import { invalidateProfileStatsCaches } from "../../lib/profileStatsCache.js";
 import { setActivityVisibilityCache } from "../chat/chatRedis.js";
-import { findUsernameLock } from "../../lib/usernameLocks.js";
+import { synchronizeUsername } from "./usernameSync.js";
 
 interface SettingsRecord {
   email: string;
@@ -32,8 +41,6 @@ interface SettingsRecord {
   videoCaptionStyle: string | null;
   videoQuietMode: boolean;
 }
-
-const USERNAME_RE = /^[a-zA-Z0-9._]+$/;
 
 function isValidTheme(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
@@ -475,36 +482,41 @@ settingsRoutes.patch("/profile", requireAuth, settingsWriteRateLimit, async func
   }
 
   if (body.username !== undefined) {
-    var username = String(body.username).toLowerCase().trim();
-    if (username.length < 2) {
-      throw badRequest("Username must be at least 2 characters");
+    var parsedUsername = usernameSchema.safeParse(String(body.username).trim());
+    if (!parsedUsername.success) {
+      throw badRequest(
+        parsedUsername.error.issues[0]?.message ?? "Invalid username"
+      );
     }
-    if (!USERNAME_RE.test(username)) {
-      throw badRequest("Letters, numbers, dots and underscores only");
+    var username = parsedUsername.data;
+    if (isReservedUsername(username)) {
+      return c.json({ code: "USERNAME_RESERVED", message: "Username is reserved" }, 409);
     }
+
     if (username !== user.username) {
-      if (isReservedUsername(username)) {
-        return c.json({ code: "USERNAME_RESERVED", message: "Username is reserved" }, 409);
-      }
+      var usernameRateLimitResponse = await applyRateLimit(c, {
+        keyPrefix: "settings:username-write",
+        limit: 6,
+        windowSeconds: 60 * 60,
+        identifier: user.userId,
+      });
+      if (usernameRateLimitResponse) return usernameRateLimitResponse;
+    }
 
-      var [existing, locked] = await Promise.all([
-        db
-          .select({ id: profiles.id })
-          .from(profiles)
-          .where(eq(profiles.username, username))
-          .limit(1),
-        findUsernameLock(db, username),
+    var usernameSync = await synchronizeUsername({
+      userId: user.userId,
+      clerkUserId: user.clerkUserId,
+      clerkSecretKey: user.clerkSecretKey,
+      clerkAuthSource: user.clerkAuthSource,
+      targetUsername: username,
+    });
+
+    if (usernameSync.changed) {
+      await Promise.all([
+        invalidateAuthorProfileFeedCaches([user.userId]),
+        invalidateHighFollowerAuthorFeedCache(user.userId),
+        invalidateProfileStatsCaches([user.userId]),
       ]);
-
-      if (locked) {
-        return c.json({ code: "USERNAME_RESERVED", message: `Username is ${locked.state}` }, 409);
-      }
-
-      if (existing.length > 0) {
-        return c.json({ code: "USERNAME_TAKEN", message: "Username is already taken" }, 409);
-      }
-
-      profileUpdates.username = username;
     }
   }
 

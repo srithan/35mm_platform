@@ -372,6 +372,20 @@
       "when": 1784653200000,
       "tag": "0051_feed_fanout_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1785002302590,
+      "tag": "0052_username_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1785002302591,
+      "tag": "0053_profile_films_logged_count",
+      "breakpoints": true
     }
   ]
 }

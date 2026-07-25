@@ -1345,6 +1345,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   return (
     <div
       ref={composerRef}
+      data-post-composer-shell
       tabIndex={isFullPage ? undefined : -1}
       onPointerDownCapture={onPointerDownCaptureMobile}
       onFocus={() => setIsFocused(true)}
@@ -1363,7 +1364,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           (isFocused
             ? "shadow-[0_4px_24px_rgba(0,0,0,0.08)] ring-1 ring-border"
             : "shadow-sm hover:shadow-md"),
-        isModal && "bg-[var(--composer-bg)]"
+        isModal &&
+          "flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--composer-bg)]"
       )}
     >
       {/* Mode tabs */}
@@ -1434,9 +1436,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       </div>
 
       <div
+        data-composer-scroll-region={isModal ? "" : undefined}
         className={cn(
           isFullPage &&
             "overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]",
+          isModal &&
+            "min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]",
           fixedMobileToolbar
             ? "max-h-[calc(100dvh-11.5rem-52px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] w-full flex-none"
             : isFullPage && "min-h-0 flex-1"
@@ -1455,10 +1460,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
         {/* Content */}
         <div
-          className={cn(
-            "flex-1 min-w-0 pl-0 pr-0 pb-0",
-            isModal && !isFullPage && "overflow-y-auto"
-          )}
+          className="min-w-0 flex-1 pb-0 pl-0 pr-0"
         >
           {/* Write mode */}
           {mode === "write" && (

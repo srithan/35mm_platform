@@ -377,7 +377,13 @@ export function CoverPhoto(props: CoverPhotoProps) {
         onChange={handleFileChange}
       />
 
-      <Dialog open={isCropping} onClose={closeCropper} title="Crop cover photo" description="Adjust the crop for a wide header view.">
+      <Dialog
+        open={isCropping}
+        onClose={closeCropper}
+        title="Crop cover photo"
+        description="Adjust the crop for a wide header view."
+        className="font-sans"
+      >
         {image ? (
           <ImageCropper
             image={image}

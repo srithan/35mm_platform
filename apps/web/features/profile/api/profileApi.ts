@@ -152,8 +152,13 @@ export async function fetchProfileStats(
 export async function followUser(
   userId: string,
   token: string | null
-): Promise<{ ok: true; isFollowing: boolean; status: "accepted" | "pending" }> {
-  return apiRequest<{ ok: true; isFollowing: boolean; status: "accepted" | "pending" }>(
+): Promise<{ ok: true; isFollowing: boolean; status: "accepted" | "pending"; created: boolean }> {
+  return apiRequest<{
+    ok: true;
+    isFollowing: boolean;
+    status: "accepted" | "pending";
+    created: boolean;
+  }>(
     `/v1/follows/${encodeURIComponent(userId)}`,
     {
       method: "POST",
@@ -213,6 +218,7 @@ export interface ProfileConnectionUser {
   avatarUrl: string | null;
   avatarUrlLg?: string | null;
   followedAt: string;
+  followState: FollowState;
 }
 
 export interface ProfileFollowRequest {
@@ -264,7 +270,12 @@ export async function fetchProfileConnections(params: {
   cursor?: string;
   limit?: number;
   token?: string | null;
-}): Promise<{ items: ProfileConnectionUser[]; nextCursor: string | null; hasMore: boolean }> {
+}): Promise<{
+  items: ProfileConnectionUser[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  viewerOwnsProfile?: boolean;
+}> {
   var query = new URLSearchParams({
     limit: String(params.limit ?? 30),
   });
@@ -278,7 +289,12 @@ export async function fetchProfileConnections(params: {
     "?" +
     query.toString();
 
-  return apiRequest<{ items: ProfileConnectionUser[]; nextCursor: string | null; hasMore: boolean }>(
+  return apiRequest<{
+    items: ProfileConnectionUser[];
+    nextCursor: string | null;
+    hasMore: boolean;
+    viewerOwnsProfile?: boolean;
+  }>(
     path,
     {
       token: params.token,

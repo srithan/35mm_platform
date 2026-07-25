@@ -139,6 +139,21 @@ function storedBody(text: string): string {
 }
 
 describe("PostComposer", () => {
+  it("keeps modal chrome fixed while composer content owns scrolling", () => {
+    const { container } = render(<PostComposer variant="modal" />);
+
+    const shell = container.querySelector("[data-post-composer-shell]");
+    const scrollRegion = container.querySelector("[data-composer-scroll-region]");
+
+    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "overflow-hidden");
+    expect(scrollRegion).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overflow-y-auto",
+      "overscroll-y-contain"
+    );
+  });
+
   it("keeps pasted YouTube URL in text and submits it", async () => {
     const user = userEvent.setup();
     render(<PostComposer variant="inline" />);

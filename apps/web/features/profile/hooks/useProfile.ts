@@ -30,6 +30,7 @@ export function usePublicProfile(username: string) {
     queryFn: async () => fetchPublicProfile(username, await getToken()),
     enabled: isLoaded && username.trim().length > 0,
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: "always",
     retry: 1,
   });
 }

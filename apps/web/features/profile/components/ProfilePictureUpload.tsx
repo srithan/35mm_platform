@@ -239,6 +239,7 @@ export function ProfilePictureUpload({
         onClose={closeCropper}
         title="Crop Profile Photo"
         description="Drag to reposition and use the slider to zoom."
+        className="font-sans"
       >
         {image && (
           <ImageCropper

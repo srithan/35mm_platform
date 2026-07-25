@@ -1734,7 +1734,7 @@ body {
 .landing-hero__brand {
     justify-content: center;
     margin: 0 auto 2.75rem;
-    font-size: 5.8rem;
+    font-size: 4.2rem;
     color: #1d1d1f;
 }
 
@@ -1807,9 +1807,18 @@ body {
     background: #f5f5f7;
 }
 
+.landing-hero__community {
+    display: block;
+    width: min(calc(100vw - 2.5rem), 900px);
+    max-width: none;
+    height: auto;
+    margin: 2.75rem 0 0 50%;
+    transform: translateX(-50%);
+}
+
 @media (min-width: 640px) {
     .landing-hero__brand {
-        font-size: 7.4rem;
+        font-size: 5.3rem;
     }
 
     .landing-hero__intro,
@@ -1820,14 +1829,14 @@ body {
 
 @media (min-width: 960px) {
     .landing-hero__brand {
-        font-size: 10rem;
+        font-size: 6.25rem;
     }
 }
 
 @media (max-width: 480px) {
     .landing-hero__brand {
         margin-bottom: 2rem;
-        font-size: 4.1rem;
+        font-size: 3.2rem;
     }
 
     .landing-hero__intro,
@@ -1842,6 +1851,10 @@ body {
     .landing-hero__button {
         width: 100%;
         max-width: 260px;
+    }
+
+    .landing-hero__community {
+        margin-top: 2.25rem;
     }
 }
 
@@ -2214,16 +2227,19 @@ body {
 }
 
 .landing-auth-panel {
-    --landing-input-bg: #f5f5f7;
-    --landing-input-border-focus: rgba(29, 29, 31, 0.35);
+    --landing-auth-accent: #0095f6;
+    --landing-auth-accent-hover: #1265d1;
+    --landing-input-bg: #ffffff;
+    --landing-input-border: #c4c4c9;
+    --landing-input-border-focus: #1d1d1f;
     --landing-error: #d92d20;
     padding: 1.25rem;
     border-radius: 1.125rem;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #d6d6da;
+    background: #ffffff;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 28px 72px rgba(0, 0, 0, 0.2);
 }
 
 .landing-auth-panel__header {
@@ -2248,17 +2264,27 @@ body {
     height: 2rem;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1px solid #d8d8dc;
     border-radius: 999px;
-    color: rgba(29, 29, 31, 0.55);
-    background: #f5f5f7;
+    color: #66666c;
+    background: #f5f5f6;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .landing-auth-panel__close:hover {
-    color: rgba(29, 29, 31, 0.9);
-    background: #ececf0;
+    color: #111111;
+    border-color: #bdbdc3;
+    background: #ebebed;
+}
+
+.landing-auth-panel__close:focus-visible,
+.landing-auth-panel__tab:focus-visible,
+.landing-auth-panel__submit:focus-visible,
+.landing-auth-panel__link:focus-visible,
+.landing-auth-panel .landing-input-toggle:focus-visible {
+    outline: 2px solid #1d1d1f;
+    outline-offset: 2px;
 }
 
 .landing-auth-panel__tabs {
@@ -2266,30 +2292,32 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 0.25rem;
     padding: 0.25rem;
+    border: 1px solid #d6d6da;
     border-radius: 999px;
-    background: #f5f5f7;
+    background: #f0f0f2;
 }
 
 .landing-auth-panel__tab {
-    border: none;
+    border: 1px solid transparent;
     border-radius: 999px;
     padding: 0.55rem 1rem;
     font-size: 0.8125rem;
-    font-weight: 500;
-    color: rgba(29, 29, 31, 0.55);
+    font-weight: 600;
+    color: #69696f;
     background: transparent;
     cursor: pointer;
-    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .landing-auth-panel__tab:hover {
-    color: rgba(29, 29, 31, 0.78);
+    color: #111111;
 }
 
 .landing-auth-panel__tab--active {
-    color: rgba(29, 29, 31, 0.92);
+    color: #111111;
+    border-color: #c8c8cd;
     background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .landing-auth-panel__body {
@@ -2322,15 +2350,17 @@ body {
     border: none;
     border-radius: 999px;
     font-size: 0.9375rem;
-    font-weight: 500;
+    font-weight: 600;
     color: #ffffff;
     background: #1d1d1f;
     cursor: pointer;
-    transition: background-color 0.15s ease, opacity 0.15s ease;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .landing-auth-panel__submit:hover:not(:disabled) {
     background: #000000;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
 }
 
 .landing-auth-panel__submit:disabled {
@@ -2360,24 +2390,24 @@ body {
 
 .landing-auth-panel__link {
     font-size: 0.8125rem;
-    font-weight: 500;
-    color: rgba(29, 29, 31, 0.55);
+    font-weight: 600;
+    color: var(--landing-auth-accent-hover);
     text-decoration: none;
     transition: color 0.15s ease;
 }
 
 .landing-auth-panel__link:hover {
-    color: rgba(29, 29, 31, 0.88);
+    color: var(--landing-auth-accent);
 }
 
 .landing-auth-panel .landing-input,
 .landing-auth-panel .landing-input-wrap {
     width: 100%;
     min-height: 44px;
-    border: 1px solid transparent;
+    border: 1px solid var(--landing-input-border);
     border-radius: 9999px;
     background: var(--landing-input-bg);
-    color: rgba(29, 29, 31, 0.92);
+    color: #111111;
     font-size: 0.875rem;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
@@ -2401,7 +2431,7 @@ body {
 .landing-auth-panel .landing-input-prefix {
     flex-shrink: 0;
     font-size: 0.8125rem;
-    color: rgba(29, 29, 31, 0.45);
+    color: #66666c;
 }
 
 .landing-auth-panel .landing-input-inline {
@@ -2409,14 +2439,14 @@ body {
     flex: 1;
     border: none;
     background: transparent;
-    color: rgba(29, 29, 31, 0.92);
+    color: #111111;
     font-size: 0.875rem;
     outline: none;
 }
 
 .landing-auth-panel .landing-input-inline::placeholder,
 .landing-auth-panel .landing-input::placeholder {
-    color: rgba(29, 29, 31, 0.38);
+    color: #74747b;
 }
 
 .landing-auth-panel .landing-input-badge {
@@ -2453,20 +2483,20 @@ body {
     transform: translateY(-50%);
     border: none;
     background: transparent;
-    color: rgba(29, 29, 31, 0.42);
+    color: #69696f;
     cursor: pointer;
     transition: color 0.15s ease;
 }
 
 .landing-auth-panel .landing-input-toggle:hover {
-    color: rgba(29, 29, 31, 0.78);
+    color: #111111;
 }
 
 .landing-auth-panel .landing-input:focus,
 .landing-auth-panel .landing-input-wrap:focus-within {
     border-color: var(--landing-input-border-focus);
     background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(29, 29, 31, 0.06);
+    box-shadow: 0 0 0 3px rgba(29, 29, 31, 0.1);
 }
 
 .landing-auth-panel .landing-input-error,

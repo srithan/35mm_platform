@@ -9,7 +9,11 @@ import { ROUTES } from "@/lib/constants/routes";
 import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
 import { cn } from "@/lib/utils/cn";
 import { LetterboxdImportWidget } from "@/features/letterboxd-import";
-import { usePeopleSuggestions, useSuggestionFollowMutation } from "@/features/suggestions/hooks/useSuggestions";
+import {
+  usePeopleSuggestions,
+  useSuggestionFollowMutation,
+  type SuggestionFollowState,
+} from "@/features/suggestions/hooks/useSuggestions";
 import type { FollowSuggestion } from "@35mm/types";
 
 /** Second-line items point at discover/onboarding stubs until dedicated pages exist. */
@@ -90,7 +94,9 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
   var suggestionsQuery = usePeopleSuggestions({ limit: 5 });
   var followMutation = useSuggestionFollowMutation();
   var suggestions = suggestionsQuery.data?.suggestions ?? [];
-  var [followingByUserId, setFollowingByUserId] = useState<Record<string, boolean>>({});
+  var [followStateByUserId, setFollowStateByUserId] = useState<
+    Record<string, SuggestionFollowState>
+  >({});
   var [submittingByUserId, setSubmittingByUserId] = useState<Record<string, boolean>>({});
 
   return (
@@ -130,21 +136,22 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
             ) : null}
             {!suggestionsQuery.isLoading
               ? suggestions.map(function (row, idx) {
-              var isFollowing = Boolean(followingByUserId[row.user.id]);
+              var followState = followStateByUserId[row.user.id] ?? "none";
               var isSubmitting = Boolean(submittingByUserId[row.user.id]);
               return (
                 <SuggestionRow
                   key={row.user.id + "-" + row.signalType + "-" + idx}
                   row={row}
-                  isFollowing={isFollowing}
+                  followState={followState}
                   isSubmitting={isSubmitting}
                   onFollow={function () {
                     var userId = row.user.id;
-                    var nextFollowing = !isFollowing;
-                    setFollowingByUserId(function (current) {
+                    var optimisticFollowState: SuggestionFollowState =
+                      followState === "none" ? "following" : "none";
+                    setFollowStateByUserId(function (current) {
                       return {
                         ...current,
-                        [userId]: nextFollowing,
+                        [userId]: optimisticFollowState,
                       };
                     });
                     setSubmittingByUserId(function (current) {
@@ -155,13 +162,25 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
                     });
 
                     followMutation.mutate(
-                      { userId: userId, isFollowing: isFollowing },
                       {
-                        onError: function () {
-                          setFollowingByUserId(function (current) {
+                        userId: userId,
+                        username: row.user.username,
+                        followState: followState,
+                      },
+                      {
+                        onSuccess: function (result) {
+                          setFollowStateByUserId(function (current) {
                             return {
                               ...current,
-                              [userId]: isFollowing,
+                              [userId]: result.nextState,
+                            };
+                          });
+                        },
+                        onError: function () {
+                          setFollowStateByUserId(function (current) {
+                            return {
+                              ...current,
+                              [userId]: followState,
                             };
                           });
                         },
@@ -297,14 +316,21 @@ function SuggestionsSidebarEmptyState(props: { variant: "computing" | "empty" })
 
 function SuggestionRow(props: {
   row: FollowSuggestion;
-  isFollowing: boolean;
+  followState: SuggestionFollowState;
   isSubmitting: boolean;
   onFollow: () => void;
 }) {
   var row = props.row;
   var profileHref = ROUTES.PROFILE(row.user.username);
   var src = row.user.avatarUrl ?? getMockPortraitUrlForUsername(row.user.username);
-  var followLabel = props.isSubmitting ? "..." : props.isFollowing ? "Following" : "Follow";
+  var followLabel = props.isSubmitting
+    ? "..."
+    : props.followState === "requested"
+      ? "Requested"
+      : props.followState === "following"
+        ? "Following"
+        : "Follow";
+  var hasFollowState = props.followState !== "none";
   return (
     <li className="flex items-start gap-3 min-w-0">
       <Link
@@ -336,7 +362,7 @@ function SuggestionRow(props: {
         onClick={props.onFollow}
         className={cn(
           "shrink-0 mt-1 cursor-pointer border-none bg-transparent px-0 py-0.5 text-[12px] font-bold transition-colors disabled:opacity-60",
-          props.isFollowing
+          hasFollowState
             ? "text-fg-muted hover:opacity-80"
             : "text-social-accent hover:text-social-accent-hover"
         )}

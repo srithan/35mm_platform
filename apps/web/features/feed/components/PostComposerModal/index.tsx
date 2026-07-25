@@ -209,13 +209,15 @@ export function PostComposerModal({
       />
 
       <div
-        className="absolute inset-0 overflow-y-auto overscroll-y-contain"
+        data-post-composer-modal-viewport
+        className="absolute inset-0 flex items-center justify-center overflow-hidden p-4"
         onClick={handleClose}
       >
-        <div className="min-h-full flex items-end md:items-start md:pt-[12vh] md:px-4">
+        <div className="flex min-h-0 w-full items-center justify-center">
           {/* Modal card */}
           <motion.div
             ref={modalRef}
+            data-post-composer-modal-panel
             initial={
               isMobile
                 ? { y: "100%" }
@@ -230,11 +232,11 @@ export function PostComposerModal({
               duration: isMobile ? 0.25 : 0.2,
               ease: "easeOut",
             }}
-            className="relative mx-auto flex max-h-[92vh] w-full max-w-[580px] flex-col overflow-hidden border border-[var(--composer-border)] bg-[var(--composer-bg)]
+            className="relative mx-auto flex h-[min(680px,80dvh)] max-h-[80dvh] min-h-0 w-full max-w-[580px] flex-col overflow-hidden border border-[var(--composer-border)] bg-[var(--composer-bg)]
               rounded-t-[var(--composer-radius)] rounded-b-none md:rounded-[var(--composer-radius)] md:rounded-b-[var(--composer-radius)]
               border-b-0 shadow-2xl pointer-events-auto will-change-transform md:border-b"
             style={{ transformOrigin }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
           >
             {/* Drag handle - mobile only */}
             <div
@@ -243,7 +245,10 @@ export function PostComposerModal({
             />
 
             {/* Composer */}
-            <div data-composer-root className="min-w-0 relative">
+            <div
+              data-composer-root
+              className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
+            >
               <PostComposer
                 variant="modal"
                 onDirtyChange={setIsDirty}
@@ -265,7 +270,7 @@ export function PostComposerModal({
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.15 }}
                   className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--composer-bg)]/95 p-4 backdrop-blur-sm"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
                 >
                   <div className="flex w-full max-w-[320px] flex-col items-center justify-center rounded-[var(--composer-dialog-radius)] border border-[var(--composer-border)] bg-[var(--composer-field-bg)] p-6 text-center shadow-xl">
                     <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 text-film-red">

@@ -30,7 +30,16 @@ function queryFor(responses: unknown[][]) {
   return query;
 }
 
-async function importRoutesWithDbResponses(responses: unknown[][]) {
+async function importRoutesWithDbResponses(
+  responses: unknown[][],
+  optionalUser: {
+    clerkUserId: string;
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: null;
+  } | null = null
+) {
   stubRequiredEnv();
   vi.doMock("../../lib/db.js", function () {
     return {
@@ -56,7 +65,7 @@ async function importRoutesWithDbResponses(responses: unknown[][]) {
         await next();
       },
       getOptionalAuthUser: async function () {
-        return null;
+        return optionalUser;
       },
     };
   });
@@ -97,6 +106,10 @@ describe("profile media route responses", function () {
           followingCount: 218,
         },
       ],
+      [
+        { counterName: "followerCount", delta: -1 },
+        { counterName: "followingCount", delta: -1 },
+      ],
     ]);
     var app = new Hono().route("/v1", authRoutes);
 
@@ -106,12 +119,13 @@ describe("profile media route responses", function () {
     var body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expectStableAvatarUrl(
       body.avatarUrl,
       "https://media.example.com/users/user_1/avatar/" + rawAvatar
     );
-    expect(body.followerCount).toBe(1_248);
-    expect(body.followingCount).toBe(218);
+    expect(body.followerCount).toBe(1_247);
+    expect(body.followingCount).toBe(217);
   });
 
   it("GET /v1/profiles/:username resolves bare avatar and cover filenames before responding", async function () {
@@ -135,12 +149,17 @@ describe("profile media route responses", function () {
           headlineContext: null,
           isPrivate: false,
           filmsLoggedCount: 0,
+          followerCount: 1_248,
+          followingCount: 218,
           moderationStatus: "visible",
           status: "active",
           createdAt: new Date("2026-06-22T00:00:00.000Z"),
         },
       ],
-      [],
+      [
+        { counterName: "followerCount", delta: -1 },
+        { counterName: "followingCount", delta: -1 },
+      ],
       [],
     ]);
     var app = new Hono().route("/v1/profiles", profileRoutes);
@@ -149,11 +168,62 @@ describe("profile media route responses", function () {
     var body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expectStableAvatarUrl(
       body.avatarUrl,
       "https://media.example.com/users/user_2/avatar/" + rawAvatar
     );
     expect(body.coverUrl).toBe("https://media.example.com/users/user_2/cover/" + rawCover);
     expect(body.coverUrl).not.toContain("X-Amz-Signature");
+    expect(body.followerCount).toBe(1_247);
+    expect(body.followingCount).toBe(217);
+  });
+
+  it("GET /v1/profiles/:username/followers exposes viewer follow state", async function () {
+    var { profileRoutes } = await importRoutesWithDbResponses(
+      [
+        [
+          {
+            userId: "viewer-id",
+            moderationStatus: "visible",
+          },
+        ],
+        [
+          {
+            userId: "follower-id",
+            username: "mira",
+            displayName: "Mira Chen",
+            avatarUrl: null,
+            avatarVariants: null,
+            createdAt: new Date("2026-07-20T00:00:00.000Z"),
+            cursorId: "follower-id",
+            viewerFollowStatus: null,
+          },
+        ],
+      ],
+      {
+        clerkUserId: "clerk-viewer",
+        userId: "viewer-id",
+        username: "viewer",
+        displayName: "Viewer",
+        avatarUrl: null,
+      }
+    );
+    var app = new Hono().route("/v1/profiles", profileRoutes);
+
+    var response = await app.request("/v1/profiles/viewer/followers", {
+      headers: { Authorization: "Bearer test" },
+    });
+    var body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]).toMatchObject({
+      userId: "follower-id",
+      username: "mira",
+      followState: "none",
+    });
+    expect(body.viewerOwnsProfile).toBe(true);
   });
 });

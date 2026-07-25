@@ -415,8 +415,8 @@ export function ProfileHeader({
   );
 
   return (
-    <div className="ProfileHeader md:border-b md:border-border">
-      <div className="relative overflow-visible bg-bg px-5 pb-4 sm:px-6 md:px-8 md:pb-6">
+    <div className="ProfileHeader font-sans md:border-b md:border-border">
+      <div className="relative overflow-visible bg-bg px-5 pb-4 sm:px-6 md:px-8 md:pb-0">
         <div className="absolute -top-11 left-5 z-10 sm:-top-14 sm:left-6 md:-top-[100px] md:left-8">
           {isOwnProfile ? (
             <ProfilePictureUpload onUploadComplete={handleAvatarChange}>

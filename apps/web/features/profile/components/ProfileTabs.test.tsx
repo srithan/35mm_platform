@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileTabs } from "./ProfileTabs";
 
 const navigation = vi.hoisted(function () {
@@ -36,6 +36,20 @@ describe("ProfileTabs", function () {
     navigation.pathname = "/cinemafan";
   });
 
+  afterEach(function () {
+    vi.restoreAllMocks();
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    Object.defineProperty(window, "scrollX", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+  });
+
   it("keeps mobile labels collapsed except for the active tab", function () {
     render(<ProfileTabs username="CinemaFan" />);
 
@@ -54,8 +68,89 @@ describe("ProfileTabs", function () {
     var list = screen.getByRole("list");
     var diary = screen.getByRole("link", { name: "Diary" });
 
-    expect(list.parentElement).toHaveClass("px-4", "md:px-0");
+    expect(list.parentElement?.parentElement).toHaveClass("px-4", "md:px-0");
     expect(diary.querySelector(".lucide-calendar-days")).toBeInTheDocument();
+  });
+
+  it("hides inactive desktop icons and animates the active icon into place", function () {
+    render(<ProfileTabs username="CinemaFan" />);
+
+    var postsIcon = screen
+      .getByRole("link", { name: "Posts" })
+      .querySelector(".lucide-file-text");
+    var diaryIcon = screen
+      .getByRole("link", { name: "Diary" })
+      .querySelector(".lucide-calendar-days");
+
+    expect(postsIcon).toHaveClass(
+      "md:mr-2",
+      "md:w-[17px]",
+      "md:rotate-0",
+      "md:scale-100",
+      "opacity-100"
+    );
+    expect(diaryIcon).toHaveClass(
+      "md:mr-0",
+      "md:w-0",
+      "md:-rotate-6",
+      "md:scale-75",
+      "md:opacity-0"
+    );
+    expect(diaryIcon).toHaveClass(
+      "transition-[width,margin,opacity,transform,color]",
+      "motion-reduce:transition-none"
+    );
+  });
+
+  it("keeps one persistent underline outside tab links", function () {
+    render(<ProfileTabs username="CinemaFan" />);
+
+    var indicator = screen.getByTestId("profile-tab-indicator");
+
+    expect(screen.getAllByTestId("profile-tab-indicator")).toHaveLength(1);
+    expect(indicator).toHaveClass("absolute", "bottom-0", "w-1/5");
+    expect(screen.getByRole("link", { name: "Posts" })).not.toContainElement(indicator);
+  });
+
+  it("preserves window scroll when navigating from a sticky tab bar", function () {
+    navigation.pathname = "/cinemafan/reposts";
+    var onStickyNavigation = vi.fn();
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      writable: true,
+      value: 420,
+    });
+    Object.defineProperty(window, "scrollX", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+
+    render(
+      <ProfileTabs
+        username="CinemaFan"
+        onStickyNavigation={onStickyNavigation}
+      />
+    );
+    var nav = screen.getByRole("navigation", { name: "Profile sections" });
+    nav.style.top = "72px";
+    vi.spyOn(nav, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 72,
+      top: 72,
+      right: 640,
+      bottom: 124,
+      left: 0,
+      width: 640,
+      height: 52,
+      toJSON: function () {
+        return {};
+      },
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "Posts" }));
+
+    expect(onStickyNavigation).toHaveBeenCalledWith(420);
   });
 
   it("marks the route tab active while preserving canonical profile links", function () {

@@ -14,6 +14,7 @@ import type { FollowSuggestion } from "@35mm/types";
 import {
   usePeopleSuggestions,
   useSuggestionFollowMutation,
+  type SuggestionFollowState,
 } from "../hooks/useSuggestions";
 
 const SIGNAL_FILTERS: Array<FollowSuggestion["signalType"] | "All"> = [
@@ -38,7 +39,7 @@ function signalFilterLabel(signalType: FollowSuggestion["signalType"] | "All") {
 
 function SuggestionRow(props: {
   person: FollowSuggestion;
-  isFollowing: boolean;
+  followState: SuggestionFollowState;
   isSubmitting: boolean;
   onToggleFollow: () => void;
 }) {
@@ -47,9 +48,12 @@ function SuggestionRow(props: {
   var avatarUrl = person.user.avatarUrl ?? getMockPortraitUrlForUsername(person.user.username);
   var followLabel = props.isSubmitting
     ? "..."
-    : props.isFollowing
-      ? "Following"
-      : "Follow";
+    : props.followState === "requested"
+      ? "Requested"
+      : props.followState === "following"
+        ? "Following"
+        : "Follow";
+  var hasFollowState = props.followState !== "none";
 
   return (
     <article className="border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-hover/70 sm:px-5">
@@ -103,12 +107,12 @@ function SuggestionRow(props: {
               onClick={props.onToggleFollow}
               className={cn(
                 "inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-[12px] font-bold transition-colors disabled:opacity-60",
-                props.isFollowing
+                hasFollowState
                   ? "border border-border bg-bg text-fg hover:bg-hover"
                   : "border border-black bg-black text-white hover:bg-neutral-800"
               )}
             >
-              {props.isFollowing ? (
+              {hasFollowState ? (
                 <>
                   <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.2} />
                   {followLabel}
@@ -135,7 +139,9 @@ export function PeopleSuggestionsPage() {
   var suggestionsQuery = usePeopleSuggestions({ limit: 50 });
   var followMutation = useSuggestionFollowMutation();
 
-  var [followingByUserId, setFollowingByUserId] = useState<Record<string, boolean>>({});
+  var [followStateByUserId, setFollowStateByUserId] = useState<
+    Record<string, SuggestionFollowState>
+  >({});
   var [submittingByUserId, setSubmittingByUserId] = useState<Record<string, boolean>>({});
 
   var visiblePeople = useMemo(
@@ -168,12 +174,13 @@ export function PeopleSuggestionsPage() {
 
   function onToggleFollow(person: FollowSuggestion) {
     var userId = person.user.id;
-    var currentlyFollowing = Boolean(followingByUserId[userId]);
-    var nextFollowing = !currentlyFollowing;
-    setFollowingByUserId(function (current) {
+    var currentFollowState = followStateByUserId[userId] ?? "none";
+    var optimisticFollowState: SuggestionFollowState =
+      currentFollowState === "none" ? "following" : "none";
+    setFollowStateByUserId(function (current) {
       return {
         ...current,
-        [userId]: nextFollowing,
+        [userId]: optimisticFollowState,
       };
     });
     setSubmittingByUserId(function (current) {
@@ -184,13 +191,25 @@ export function PeopleSuggestionsPage() {
     });
 
     followMutation.mutate(
-      { userId: userId, isFollowing: currentlyFollowing },
       {
-        onError: function () {
-          setFollowingByUserId(function (current) {
+        userId: userId,
+        username: person.user.username,
+        followState: currentFollowState,
+      },
+      {
+        onSuccess: function (result) {
+          setFollowStateByUserId(function (current) {
             return {
               ...current,
-              [userId]: currentlyFollowing,
+              [userId]: result.nextState,
+            };
+          });
+        },
+        onError: function () {
+          setFollowStateByUserId(function (current) {
+            return {
+              ...current,
+              [userId]: currentFollowState,
             };
           });
         },
@@ -254,7 +273,7 @@ export function PeopleSuggestionsPage() {
               <SuggestionRow
                 key={person.user.id}
                 person={person}
-                isFollowing={Boolean(followingByUserId[person.user.id])}
+                followState={followStateByUserId[person.user.id] ?? "none"}
                 isSubmitting={Boolean(submittingByUserId[person.user.id])}
                 onToggleFollow={function () {
                   onToggleFollow(person);

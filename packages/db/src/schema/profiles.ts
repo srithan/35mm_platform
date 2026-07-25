@@ -26,6 +26,9 @@ export var profiles = pgTable(
         return users.id;
       }, { onDelete: "cascade" }),
   username: text("username").notNull(),
+  usernameAuthSyncedAt: timestamp("username_auth_synced_at", { withTimezone: true }),
+  pendingUsername: text("pending_username"),
+  pendingUsernameRequestedAt: timestamp("pending_username_requested_at", { withTimezone: true }),
   displayName: text("display_name").notNull(),
   bio: text("bio"),
     avatarUrl: text("avatar_url"),
@@ -57,6 +60,13 @@ export var profiles = pgTable(
   function (table) {
     return {
       usernameIdx: uniqueIndex("profiles_username_lower_idx").on(table.username),
+      pendingUsernameIdx: uniqueIndex("profiles_pending_username_lower_idx")
+        .on(table.pendingUsername)
+        .where(sql`${table.pendingUsername} is not null`),
+      pendingUsernamePairCheck: check(
+        "profiles_pending_username_pair_chk",
+        sql`(${table.pendingUsername} is null) = (${table.pendingUsernameRequestedAt} is null)`
+      ),
       headlineMaxLengthCheck: check(
         "profiles_headline_max_50_chk",
         sql`char_length(${table.headline}) <= 50`
