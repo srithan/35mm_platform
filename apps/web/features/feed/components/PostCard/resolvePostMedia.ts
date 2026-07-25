@@ -1,4 +1,10 @@
 import type { PostCardMediaItem } from "./types";
+import type { NsfwCategory } from "@35mm/types";
+
+export interface ResolvedImageNsfw {
+  flagged: boolean;
+  categories: NsfwCategory[];
+}
 
 export interface ResolvedPostMedia {
   normalizedMediaUrls: string[];
@@ -10,6 +16,8 @@ export interface ResolvedPostMedia {
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
   imageDimensions: Array<{ width: number; height: number } | null>;
+  imageNsfw: ResolvedImageNsfw[];
+  viewerNsfw: ResolvedImageNsfw[];
 }
 
 function isVideoUrl(url: string): boolean {
@@ -42,12 +50,25 @@ export function resolvePostMedia(
   const viewerBlurhashes = normalizedViewerMediaUrls.map(function (_url, index) {
     return imageMedia[index]?.blurhash ?? null;
   });
+  const imageNsfw = normalizedMediaUrls.map(function (_url, index) {
+    return {
+      flagged: imageMedia[index]?.nsfw === true,
+      categories: imageMedia[index]?.nsfwCategories ?? [],
+    };
+  });
+  const viewerNsfw = normalizedViewerMediaUrls.map(function (_url, index) {
+    return {
+      flagged: imageMedia[index]?.nsfw === true,
+      categories: imageMedia[index]?.nsfwCategories ?? [],
+    };
+  });
 
   const displayMediaEntries = normalizedMediaUrls.map(function (url, index) {
     const width = imageMedia[index]?.width;
     const height = imageMedia[index]?.height;
     return {
       url,
+      index,
       blurhash: galleryBlurhashes[index] ?? null,
       dimensions:
         typeof width === "number" && width > 0 && typeof height === "number" && height > 0
@@ -82,5 +103,9 @@ export function resolvePostMedia(
     imageDimensions: imageEntries.map(function (entry) {
       return entry.dimensions;
     }),
+    imageNsfw: imageEntries.map(function (entry) {
+      return imageNsfw[entry.index] ?? { flagged: false, categories: [] };
+    }),
+    viewerNsfw,
   };
 }

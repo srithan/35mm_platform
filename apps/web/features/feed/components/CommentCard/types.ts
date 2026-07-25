@@ -1,3 +1,5 @@
+import type { NsfwInfo } from "@35mm/types";
+
 export interface Comment {
   id: string;
   parentId?: string | null;
@@ -19,6 +21,7 @@ export interface Comment {
   liked?: boolean;
   replyCount: number;
   replies?: Comment[];
+  nsfw?: NsfwInfo;
 }
 
 export interface CommentCardProps {

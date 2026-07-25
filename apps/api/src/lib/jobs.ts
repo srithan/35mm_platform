@@ -42,6 +42,12 @@ export type ModerationAutoHideCheckJobPayload = {
   contentId: string;
 };
 
+export type NsfwScanJobPayload = {
+  contentType: "post" | "comment";
+  contentId: string;
+  priority?: boolean;
+};
+
 type ChatDeliverJobPayload = {
   messageId: string;
   threadId: string;
@@ -110,6 +116,7 @@ type QueueName =
   | "profile.followApproval"
   | "moderation.autoHideCheck"
   | "moderation.notifyReporters"
+  | "nsfw.scan"
   | "chat.deliver"
   | "chat.messageUpdated"
   | "chat.readReceipt"
@@ -177,6 +184,18 @@ function defaultJobOptions(name: QueueName): JobsOptions {
       backoff: {
         type: "exponential",
         delay: 2_000,
+      },
+      removeOnComplete: true,
+      removeOnFail: 1000,
+    };
+  }
+
+  if (name === "nsfw.scan") {
+    return {
+      attempts: 8,
+      backoff: {
+        type: "exponential",
+        delay: 1_000,
       },
       removeOnComplete: true,
       removeOnFail: 1000,
@@ -460,6 +479,47 @@ export async function enqueueModerationNotificationOutboxJob(): Promise<boolean>
     return false;
   }
 
+  return true;
+}
+
+export async function enqueueNsfwScanJob(
+  payload: NsfwScanJobPayload
+): Promise<boolean> {
+  var contentId = payload.contentId.trim();
+  if (!contentId || (payload.contentType !== "post" && payload.contentType !== "comment")) {
+    console.error("[nsfw.scan] invalid enqueue payload", payload);
+    return false;
+  }
+
+  try {
+    var q = getQueue();
+    if (!q) {
+      console.error("[nsfw.scan] queue disabled", payload);
+      return false;
+    }
+    await q.add("nsfw.scan", {
+      contentType: payload.contentType,
+      contentId,
+      priority: payload.priority === true,
+    }, {
+      ...defaultJobOptions("nsfw.scan"),
+      jobId:
+        "nsfw.scan-" +
+        payload.contentType +
+        "-" +
+        contentId +
+        (payload.priority ? "-priority" : ""),
+      priority: payload.priority ? 1 : 10,
+    });
+  } catch (error) {
+    console.error("[nsfw.scan] enqueue failed", {
+      contentType: payload.contentType,
+      contentId,
+      priority: payload.priority === true,
+      error,
+    });
+    return false;
+  }
   return true;
 }
 

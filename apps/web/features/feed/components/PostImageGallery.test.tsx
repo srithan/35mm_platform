@@ -19,7 +19,7 @@ describe("PostImageGallery stable single-image geometry", function () {
       />
     );
 
-    expect(container.querySelector("button")).toHaveStyle({
+    expect(container.querySelector("[data-nsfw-status]")).toHaveStyle({
       aspectRatio: "1200 / 1800",
       width: "100%",
       maxWidth: "340px",
@@ -31,6 +31,6 @@ describe("PostImageGallery stable single-image geometry", function () {
       <PostImageGallery urls={["https://images.example.com/legacy.jpg"]} />
     );
 
-    expect(container.querySelector("button")).toHaveClass("aspect-[16/10]");
+    expect(container.querySelector("[data-nsfw-status]")).toHaveClass("aspect-[16/10]");
   });
 });

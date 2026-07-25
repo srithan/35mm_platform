@@ -1,3 +1,4 @@
+import type { NsfwCategory, NsfwInfo } from "@35mm/types";
 import type { QuotedPost } from "../../types/feed";
 
 export type PostVariant = "text" | "film-log" | "image" | "discussion";
@@ -28,6 +29,8 @@ export interface PostCardMediaItem {
   width?: number;
   height?: number;
   blurhash?: string;
+  nsfw?: boolean;
+  nsfwCategories?: NsfwCategory[];
   variants?: {
     thumb?: string;
     feed?: string;
@@ -114,6 +117,7 @@ export interface PostCardProps {
   imageSrc?: string;
   imageCaption?: string;
   media?: PostCardMediaItem[];
+  nsfw?: NsfwInfo;
   mediaUrls?: string[];
   viewerMediaUrls?: string[];
   prioritizeMedia?: boolean;

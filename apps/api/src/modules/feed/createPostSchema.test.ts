@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPostSchema } from "@35mm/validators";
+import { createCommentSchema, createPostSchema } from "@35mm/validators";
 
 describe("createPostSchema quote relation", function () {
   it("accepts a UUID quoted source id", function () {
@@ -55,5 +55,48 @@ describe("createPostSchema quote relation", function () {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("NSFW author input validation", function () {
+  it("accepts only declared post categories", function () {
+    expect(createPostSchema.safeParse({
+      type: "text",
+      body: "content",
+      authorNsfwCategories: ["nudity", "sensitive"],
+    }).success).toBe(true);
+
+    expect(createPostSchema.safeParse({
+      type: "text",
+      body: "content",
+      authorNsfwCategories: ["unsupported"],
+    }).success).toBe(false);
+  });
+
+  it("accepts only declared comment categories", function () {
+    expect(createCommentSchema.safeParse({
+      body: "content",
+      authorNsfwCategories: ["violence"],
+    }).success).toBe(true);
+
+    expect(createCommentSchema.safeParse({
+      body: "content",
+      authorNsfwCategories: ["unsupported"],
+    }).success).toBe(false);
+  });
+
+  it("strips client-supplied nsfwStatus", function () {
+    var post = createPostSchema.parse({
+      type: "text",
+      body: "content",
+      nsfwStatus: "flagged",
+    });
+    var comment = createCommentSchema.parse({
+      body: "content",
+      nsfwStatus: "flagged",
+    });
+
+    expect(post).not.toHaveProperty("nsfwStatus");
+    expect(comment).not.toHaveProperty("nsfwStatus");
   });
 });

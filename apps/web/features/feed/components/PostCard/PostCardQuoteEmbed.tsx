@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils/cn";
 import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
 import type { QuotedPost } from "../../types/feed";
 import { postMediaGridCellClassName } from "../postMediaGridLayout";
+import { NsfwMediaOverlay, NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
 
 function formatQuoteTime(iso: string): string {
   const then = Date.parse(iso);
@@ -67,6 +68,7 @@ export function PostCardQuoteEmbed({
   const visibleBody = suppressedUrl
     ? suppressLinkPreviewUrl(plainBody, suppressedUrl)
     : plainBody;
+  const quoteNsfw = post.nsfw ?? { status: "none" as const, categories: [], source: null };
 
   const navigate = () => {
     router.push(href);
@@ -89,6 +91,10 @@ export function PostCardQuoteEmbed({
         navigate();
       }}
     >
+      <NsfwTextReveal
+        status={media.length > 0 ? "none" : quoteNsfw.status}
+        categories={quoteNsfw.categories}
+      >
       <div className="px-3.5 pb-3 pt-3">
         <div className="flex min-w-0 items-center gap-2">
           <Avatar
@@ -183,6 +189,7 @@ export function PostCardQuoteEmbed({
           </div>
         ) : null}
       </div>
+      </NsfwTextReveal>
 
       {media.length > 0 ? (
         <div
@@ -190,9 +197,22 @@ export function PostCardQuoteEmbed({
           aria-label="Quoted post media"
         >
           {media.map(function (item, index) {
+            const status =
+              quoteNsfw.status === "pending"
+                ? "pending"
+                : item.nsfw
+                  ? "flagged"
+                  : "none";
             return (
-              <div
+              <NsfwMediaOverlay
                 key={`${item.url}-${index}`}
+                status={status}
+                categories={
+                  item.nsfwCategories && item.nsfwCategories.length > 0
+                    ? item.nsfwCategories
+                    : quoteNsfw.categories
+                }
+                compact
                 className={cn(
                   "relative bg-sunken",
                   media.length === 1
@@ -220,7 +240,7 @@ export function PostCardQuoteEmbed({
                     unoptimized={shouldLoadRemoteImageUnoptimized(item.variants?.feed ?? item.url)}
                   />
                 )}
-              </div>
+              </NsfwMediaOverlay>
             );
           })}
         </div>

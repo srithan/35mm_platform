@@ -1,3 +1,5 @@
+import type { NsfwCategory, NsfwInfo } from "@35mm/types";
+
 export interface Author {
   id: string;
   username: string;
@@ -34,6 +36,8 @@ export interface PostMedia {
   width?: number;
   height?: number;
   blurhash?: string;
+  nsfw?: boolean;
+  nsfwCategories?: NsfwCategory[];
   variants?: {
     thumb?: string;
     feed?: string;
@@ -49,6 +53,7 @@ export interface Post {
   editedAt?: string | null;
   isDeleted?: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
+  nsfw?: NsfwInfo;
   /** Discussion-style title. When set, `body` is only the post body (not the title). */
   headline?: string;
   body: string;
@@ -116,7 +121,7 @@ export interface Post {
 export type QuotedPost = Pick<
   Post,
   "id" | "author" | "type" | "headline" | "body" | "media" | "mediaUrls" | "linkPreview" | "poll" | "film" | "createdAt"
->;
+> & { nsfw?: NsfwInfo };
 
 export interface Comment {
   id: string;
@@ -127,6 +132,7 @@ export interface Comment {
   isLiked: boolean;
   isDeleted?: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
+  nsfw?: NsfwInfo;
   editedAt?: string | null;
   createdAt: string;
   replies: Comment[];

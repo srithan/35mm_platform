@@ -7,6 +7,9 @@ Catalog documentation lives in `docs/catalog/`; start with `docs/catalog/spec.md
 
 Content moderation documentation lives in `docs/moderation/`; start with `docs/moderation/spec.md`.
 
+NSFW content-classification documentation lives in `docs/nsfw/`; start with
+`docs/nsfw/spec.md`.
+
 The React Native iOS/Android roadmap and continuation contract live in
 `docs/react-native-mobile-development-plan.md`. Phase 1.8 foundation includes
 the `apps/mobile` scaffold, deterministic mobile checks, isolated development
@@ -533,6 +536,20 @@ Catalog write pattern:
 - Denormalized `like_count`, `comment_count`, `repost_count`, `bookmark_count`.
 - `is_deleted`, `edited_at`.
 - Denormalized `moderation_status` (`visible | hidden | removed`) is updated in the same transaction as staff enforcement. Feed/detail/profile-feed/bookmark/comment-parent reads use it without joining report history or `moderation_content_state`.
+- Denormalized NSFW classification fields are `nsfw_status` (`none | pending | flagged`),
+  `nsfw_categories`, nullable `nsfw_source` (`author | system`), and
+  `nsfw_scanned_at`. `posts_nsfw_pending_idx` is partial and supports bounded
+  pending-worker scans. NSFW is presentation metadata and never filters reads
+  or changes moderation state.
+- The web composer runs advisory-only debounced text heuristics and a
+  lazy-loaded client NSFWJS image pass. Authors may select enum-backed content
+  warnings, which are the only client-writable NSFW input. The controls are
+  absent from the composer body at rest and open from one compact `CW` toolbar
+  action or a new advisory detection; its badge retains the selected-category
+  count. Feed/detail media uses per-item JSONB flags for mixed galleries,
+  shares local reveal state with the full-screen viewer, and collapses
+  text-only flagged/pending content. These presentation paths add no server
+  read, cache, or aggregate.
 - JSONB `media`, text array `media_urls`, JSONB `link_preview`.
 - Timestamps.
 
@@ -620,6 +637,9 @@ Automatic moderation enforcement:
 - UUID primary key.
 - `post_id`, `user_id`, optional `parent_id`.
 - Body, denormalized `like_count`, soft delete, edit timestamp, and denormalized `moderation_status`.
+- Comments also carry the post-aligned NSFW status/category/source/scanned
+  fields and partial pending index. Comment DTOs expose this classification
+  without another query.
 - App layer enforces max nesting depth.
 - Comment list and interaction paths exclude hidden/removed comments and moderated authors for ordinary viewers. Comment author and moderation staff retain read access; API comment list/create/edit payloads expose `moderationStatus` plus author `role`, `roleContext`, and denormalized `filmsLoggedCount` from the existing profile read/join.
 
@@ -1279,6 +1299,9 @@ Queue: `35mm-jobs`.
 Implemented:
 
 - `media.process`: post image variants/blurhash and profile avatar/cover variants.
+- `nsfw.scan`: classifies post/comment text and bounded post image media,
+  preserves author-set categories, writes per-item media labels, and resolves
+  pending status through one retry-safe direct update.
 - `notification.publish`: Ably notification publish.
 - `compute-suggestions`: friend-of-friend follow suggestions.
   Writes UUID-backed `follow_suggestions` rows and refreshes the Redis cached ID list.
@@ -1398,6 +1421,9 @@ R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET=
+NSFW_CLASSIFIER_URL=
+NSFW_CLASSIFIER_TOKEN=
+NSFW_CLASSIFIER_TIMEOUT_MS=
 R2_PUBLIC_BASE_URL=
 R2_PRESIGN_TTL_SECONDS=
 RATE_LIMIT_REDIS_URL=
@@ -1511,6 +1537,8 @@ Current test coverage includes:
 - API feed rich mentions and mention notifications.
 - API moderation dedupe/action decisions, static no-`OFFSET` guard, and `RUN_MODERATION_DB_TESTS` transaction coverage.
 - Worker moderation auto-hide threshold/window/trusted-follower decisions.
+- API/worker NSFW validator, no-read-filter, category-union, matched-media, and
+  optional `RUN_NSFW_DB_TESTS` transaction/idempotence coverage.
 - Web rich text renderer.
 - Web R2 media helpers.
 - Web post media helpers.

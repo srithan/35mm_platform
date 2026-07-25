@@ -143,6 +143,7 @@ export function PostDetailView({
         imageSrc={legacy.imageSrc ?? image?.url}
         imageCaption={legacy.imageCaption ?? image?.altText}
         media={post.media}
+        nsfw={post.nsfw ?? { status: "none", categories: [], source: null }}
         likeCount={post.likeCount}
         repostCount={post.repostCount}
         liked={post.isLiked}

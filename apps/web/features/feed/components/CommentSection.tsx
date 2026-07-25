@@ -56,6 +56,7 @@ function toCommentCard(comment: FeedComment): CommentCardType {
     role: comment.author.role,
     roleContext: comment.author.roleContext,
     filmsLoggedCount: comment.author.filmsLoggedCount,
+    nsfw: comment.nsfw ?? { status: "none", categories: [], source: null },
     replies: rankCommentReplies(comment.replies).map(toCommentCard),
   };
 }

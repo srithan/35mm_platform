@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import type { NsfwCategory, NsfwStatus } from "@35mm/types";
 import { cn } from "@/lib/utils/cn";
 import {
   carouselDotSize,
@@ -9,11 +10,33 @@ import {
   carouselNavButtonOnDarkClass,
 } from "@/lib/utils/carouselDots";
 import { BlurImage } from "@/components/ui/BlurImage";
+import { NsfwMediaOverlay } from "@/components/media/NsfwMediaOverlay";
 import { postMediaGridCellClassName } from "./postMediaGridLayout";
 
 const SINGLE_IMAGE_MAX_HEIGHT = 510;
 
 type SingleImageLayout = "capped" | "intrinsic" | null;
+interface ImageNsfwInfo {
+  flagged: boolean;
+  categories: NsfwCategory[];
+}
+
+function itemNsfw(
+  postStatus: NsfwStatus,
+  postCategories: NsfwCategory[],
+  item: ImageNsfwInfo | undefined
+): { status: NsfwStatus; categories: NsfwCategory[] } {
+  if (postStatus === "pending") {
+    return { status: "pending", categories: item?.categories ?? postCategories };
+  }
+  if (item?.flagged) {
+    return {
+      status: "flagged",
+      categories: item.categories.length > 0 ? item.categories : postCategories,
+    };
+  }
+  return { status: "none", categories: [] };
+}
 
 function resolveSingleImageLayout(naturalWidth: number, naturalHeight: number): "capped" | "intrinsic" {
   if (naturalHeight >= SINGLE_IMAGE_MAX_HEIGHT) {
@@ -65,6 +88,10 @@ function SinglePostImageCell({
   imageCaption,
   priority = false,
   onImageClick,
+  nsfwStatus,
+  nsfwCategories,
+  revealed,
+  onReveal,
 }: {
   url: string;
   blurhash?: string | null;
@@ -72,6 +99,10 @@ function SinglePostImageCell({
   imageCaption?: string;
   priority?: boolean;
   onImageClick?: () => void;
+  nsfwStatus: NsfwStatus;
+  nsfwCategories: NsfwCategory[];
+  revealed: boolean;
+  onReveal?: () => void;
 }) {
   const hasStoredDimensions = Boolean(
     dimensions && dimensions.width > 0 && dimensions.height > 0
@@ -105,8 +136,11 @@ function SinglePostImageCell({
     : undefined;
 
   return (
-    <button
-      type="button"
+    <NsfwMediaOverlay
+      status={nsfwStatus}
+      categories={nsfwCategories}
+      revealed={revealed}
+      onReveal={onReveal}
       className={cn(
         "relative block max-w-full overflow-hidden rounded-xl p-0 text-left",
         !isLoaded && "aspect-[16/10] w-full bg-sunken",
@@ -115,11 +149,15 @@ function SinglePostImageCell({
         hasStoredDimensions && "bg-sunken"
       )}
       style={stableStyle}
-      onClick={function (e) {
-        e.stopPropagation();
-        onImageClick?.();
-      }}
     >
+      <button
+        type="button"
+        className="block h-full w-full p-0 text-left"
+        onClick={function (e) {
+          e.stopPropagation();
+          onImageClick?.();
+        }}
+      >
       {hasStoredDimensions ? (
         <BlurImage
           src={url}
@@ -156,7 +194,8 @@ function SinglePostImageCell({
           draggable={false}
         />
       )}
-    </button>
+      </button>
+    </NsfwMediaOverlay>
   );
 }
 
@@ -167,6 +206,11 @@ function PostImageCarousel({
   onImageClick,
   saveData = false,
   priority = false,
+  postNsfwStatus,
+  postNsfwCategories,
+  imageNsfw,
+  revealedIndexes,
+  onReveal,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
@@ -174,6 +218,11 @@ function PostImageCarousel({
   onImageClick?: (index: number) => void;
   saveData?: boolean;
   priority?: boolean;
+  postNsfwStatus: NsfwStatus;
+  postNsfwCategories: NsfwCategory[];
+  imageNsfw: ImageNsfwInfo[];
+  revealedIndexes: ReadonlySet<number>;
+  onReveal?: (index: number) => void;
 }) {
   var trackRef = useRef<HTMLDivElement>(null);
   var carouselRef = useRef<HTMLDivElement>(null);
@@ -252,27 +301,38 @@ function PostImageCarousel({
           if (saveData) {
             shouldLoadImage = isPriorityImage || (isNearViewport && idx === activeIndex);
           }
+          const nsfw = itemNsfw(postNsfwStatus, postNsfwCategories, imageNsfw[idx]);
           return (
-            <button
+            <NsfwMediaOverlay
               key={`post-image-${idx}`}
-              type="button"
-              aria-label={"View image " + String(idx + 1) + " of " + String(urls.length)}
-              className="relative aspect-[4/5] w-full min-w-full max-w-full flex-shrink-0 flex-grow-0 snap-start snap-always bg-sunken"
-              onClick={function (e) {
-                e.stopPropagation();
-                onImageClick?.(idx);
+              status={nsfw.status}
+              categories={nsfw.categories}
+              revealed={revealedIndexes.has(idx)}
+              onReveal={function () {
+                onReveal?.(idx);
               }}
+              className="relative aspect-[4/5] w-full min-w-full max-w-full flex-shrink-0 flex-grow-0 snap-start snap-always bg-sunken"
             >
-              <PostGalleryImage
-                url={url}
-                alt={imageCaption || "Post image " + String(idx + 1)}
-                blurhash={blurhashes?.[idx] ?? null}
-                className="absolute inset-0 h-full w-full object-cover"
-                shouldLoad={shouldLoadImage}
-                forceLoad={isPriorityImage}
-                priority={isPriorityImage}
-              />
-            </button>
+              <button
+                type="button"
+                aria-label={"View image " + String(idx + 1) + " of " + String(urls.length)}
+                className="relative block h-full w-full"
+                onClick={function (e) {
+                  e.stopPropagation();
+                  onImageClick?.(idx);
+                }}
+              >
+                <PostGalleryImage
+                  url={url}
+                  alt={imageCaption || "Post image " + String(idx + 1)}
+                  blurhash={blurhashes?.[idx] ?? null}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  shouldLoad={shouldLoadImage}
+                  forceLoad={isPriorityImage}
+                  priority={isPriorityImage}
+                />
+              </button>
+            </NsfwMediaOverlay>
           );
         })}
       </div>
@@ -344,6 +404,11 @@ function PostImageGrid({
   imageCaption,
   priority = false,
   onImageClick,
+  postNsfwStatus,
+  postNsfwCategories,
+  imageNsfw,
+  revealedIndexes,
+  onReveal,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
@@ -351,10 +416,16 @@ function PostImageGrid({
   imageCaption?: string;
   priority?: boolean;
   onImageClick?: (index: number) => void;
+  postNsfwStatus: NsfwStatus;
+  postNsfwCategories: NsfwCategory[];
+  imageNsfw: ImageNsfwInfo[];
+  revealedIndexes: ReadonlySet<number>;
+  onReveal?: (index: number) => void;
 }) {
   var count = urls.length;
 
   if (count === 1) {
+    const nsfw = itemNsfw(postNsfwStatus, postNsfwCategories, imageNsfw[0]);
     return (
       <div className="mt-3.5 w-full">
         <SinglePostImageCell
@@ -366,6 +437,12 @@ function PostImageGrid({
           onImageClick={function () {
             onImageClick?.(0);
           }}
+          nsfwStatus={nsfw.status}
+          nsfwCategories={nsfw.categories}
+          revealed={revealedIndexes.has(0)}
+          onReveal={function () {
+            onReveal?.(0);
+          }}
         />
       </div>
     );
@@ -374,28 +451,39 @@ function PostImageGrid({
   return (
     <div className={cn("mt-3.5 grid w-full overflow-hidden rounded-lg", gridClassName(count))}>
       {urls.map(function (url, idx) {
+        const nsfw = itemNsfw(postNsfwStatus, postNsfwCategories, imageNsfw[idx]);
         return (
-          <button
+          <NsfwMediaOverlay
             key={`post-image-${idx}`}
-            type="button"
+            status={nsfw.status}
+            categories={nsfw.categories}
+            revealed={revealedIndexes.has(idx)}
+            onReveal={function () {
+              onReveal?.(idx);
+            }}
             className={cn(
               "relative block w-full overflow-hidden bg-sunken text-left",
               count !== 4 && "rounded",
               postMediaGridCellClassName(count, idx)
             )}
-            onClick={function (e) {
-              e.stopPropagation();
-              onImageClick?.(idx);
-            }}
           >
-            <PostGalleryImage
-              url={url}
-              alt={imageCaption || "Post image"}
-              blurhash={blurhashes?.[idx] ?? null}
-              className="absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-90"
-              priority={priority && idx === 0}
-            />
-          </button>
+            <button
+              type="button"
+              className="relative block h-full w-full text-left"
+              onClick={function (e) {
+                e.stopPropagation();
+                onImageClick?.(idx);
+              }}
+            >
+              <PostGalleryImage
+                url={url}
+                alt={imageCaption || "Post image"}
+                blurhash={blurhashes?.[idx] ?? null}
+                className="absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-90"
+                priority={priority && idx === 0}
+              />
+            </button>
+          </NsfwMediaOverlay>
         );
       })}
     </div>
@@ -410,6 +498,11 @@ export function PostImageGallery({
   onImageClick,
   saveData = false,
   priority = false,
+  nsfwStatus = "none",
+  nsfwCategories = [],
+  imageNsfw = [],
+  revealedIndexes = new Set<number>(),
+  onReveal,
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
@@ -418,6 +511,11 @@ export function PostImageGallery({
   onImageClick?: (index: number) => void;
   saveData?: boolean;
   priority?: boolean;
+  nsfwStatus?: NsfwStatus;
+  nsfwCategories?: NsfwCategory[];
+  imageNsfw?: ImageNsfwInfo[];
+  revealedIndexes?: ReadonlySet<number>;
+  onReveal?: (index: number) => void;
 }) {
   if (urls.length === 0) return null;
 
@@ -431,6 +529,11 @@ export function PostImageGallery({
           onImageClick={onImageClick}
           saveData={saveData}
           priority={priority}
+          postNsfwStatus={nsfwStatus}
+          postNsfwCategories={nsfwCategories}
+          imageNsfw={imageNsfw}
+          revealedIndexes={revealedIndexes}
+          onReveal={onReveal}
         />
       ) : (
         <PostImageGrid
@@ -440,6 +543,11 @@ export function PostImageGallery({
           imageCaption={imageCaption}
           onImageClick={onImageClick}
           priority={priority}
+          postNsfwStatus={nsfwStatus}
+          postNsfwCategories={nsfwCategories}
+          imageNsfw={imageNsfw}
+          revealedIndexes={revealedIndexes}
+          onReveal={onReveal}
         />
       )}
       {imageCaption ? (

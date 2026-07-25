@@ -1,6 +1,7 @@
 "use client";
 
 import type { Editor } from "@tiptap/react";
+import type { NsfwCategory } from "@35mm/types";
 import { cn } from "@/lib/utils/cn";
 import { storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { FormattingToolbar } from "./FormattingToolbar";
@@ -19,6 +20,7 @@ interface LogNoteFieldProps {
   onBlur: (ev: FocusEvent) => void;
   onFocus: () => void;
   editable?: boolean;
+  onNsfwHintChange?: (categories: NsfwCategory[]) => void;
 }
 
 export function LogNoteField(props: LogNoteFieldProps) {
@@ -50,6 +52,7 @@ export function LogNoteField(props: LogNoteFieldProps) {
         onBlur={props.onBlur}
         onFocus={props.onFocus}
         editable={props.editable !== false}
+        onNsfwHintChange={props.onNsfwHintChange}
         placeholder={
           props.editable === false
             ? "Select a film to add a note or review."

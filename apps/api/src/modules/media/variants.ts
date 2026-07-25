@@ -9,6 +9,10 @@ export type PostMediaItem = {
   width?: number;
   height?: number;
   blurhash?: string;
+  nsfw?: boolean;
+  nsfwCategories?: Array<
+    "nudity" | "sexual_content" | "violence" | "graphic_content" | "sensitive"
+  >;
   variants?: {
     thumb?: string;
     feed?: string;
@@ -56,7 +60,12 @@ export function normalizePostMediaItem(value: unknown): PostMediaItem | null {
   var normalized: PostMediaItem = {
     type: cleanType(value.type),
     url,
+    nsfw: value.nsfw === true,
   };
+
+  if (Array.isArray(value.nsfwCategories)) {
+    normalized.nsfwCategories = value.nsfwCategories.slice() as PostMediaItem["nsfwCategories"];
+  }
 
   var key = cleanString(value.key);
   if (key) normalized.key = key;

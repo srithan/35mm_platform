@@ -11,6 +11,7 @@ import {
   type AnyPgColumn,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { bookmarkFolders } from "./bookmarks.js";
@@ -58,6 +59,10 @@ export type PostMedia = {
   width?: number;
   height?: number;
   blurhash?: string;
+  nsfw?: boolean;
+  nsfwCategories?: Array<
+    "nudity" | "sexual_content" | "violence" | "graphic_content" | "sensitive"
+  >;
   variants?: {
     thumb?: string;
     feed?: string;
@@ -108,6 +113,17 @@ export var posts = pgTable(
     bookmarkCount: integer("bookmark_count").default(0).notNull(),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
+    nsfwStatus: text("nsfw_status")
+      .$type<"none" | "pending" | "flagged">()
+      .default("none")
+      .notNull(),
+    nsfwCategories: text("nsfw_categories")
+      .array()
+      .$type<Array<"nudity" | "sexual_content" | "violence" | "graphic_content" | "sensitive">>()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    nsfwSource: text("nsfw_source").$type<"author" | "system">(),
+    nsfwScannedAt: timestamp("nsfw_scanned_at", { withTimezone: true }),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     media: jsonb("media").$type<PostMedia[]>().default(sql`'[]'::jsonb`).notNull(),
     mediaUrls: text("media_urls").array().default(sql`'{}'::text[]`).notNull(),
@@ -135,6 +151,13 @@ export var posts = pgTable(
         table.moderationStatus,
         table.createdAt,
         table.id
+      ),
+      nsfwPendingIdx: index("posts_nsfw_pending_idx")
+        .on(table.nsfwStatus, table.createdAt, table.id)
+        .where(sql`${table.nsfwStatus} = 'pending'`),
+      nsfwStatusCheck: check(
+        "posts_nsfw_status_check",
+        sql`${table.nsfwStatus} in ('none', 'pending', 'flagged')`
       ),
       quotedPostCreatedAtIdx: index("posts_quoted_post_id_created_at_id_idx")
         .on(table.quotedPostId, table.createdAt.desc(), table.id.desc())

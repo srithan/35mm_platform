@@ -1,4 +1,5 @@
 import type { Comment } from "../types/feed";
+import type { NsfwInfo } from "@35mm/types";
 import { buildCommentTree } from "./adapters";
 import { apiRequest } from "./http";
 
@@ -9,6 +10,7 @@ type CommentItem = {
   body: string | null;
   isDeleted?: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
+  nsfw: NsfwInfo;
   likeCount: number;
   isLiked?: boolean;
   editedAt?: string | null;

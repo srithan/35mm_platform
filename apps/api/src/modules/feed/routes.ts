@@ -25,9 +25,11 @@ import {
   FEED_SCORE_REPOST_WEIGHT,
   parseFeedItemsRetentionDays,
   type FeedPost,
+  type NsfwCategory,
   type QuotedFeedPost,
 } from "@35mm/types";
 import {
+  createCommentSchema,
   createPostSchema,
   cursorPaginationSchema,
   bookmarkFolderNameSchema,
@@ -99,6 +101,7 @@ import { invalidateProfileStatsCaches } from "../../lib/profileStatsCache.js";
 import {
   enqueueFeedFanoutJob,
   enqueueMediaProcessJob,
+  enqueueNsfwScanJob,
   removeNotificationPublishJob,
   type CounterIncrementJobPayload,
 } from "../../lib/jobs.js";
@@ -725,6 +728,9 @@ async function selectReferencedPostRows(
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -847,6 +853,7 @@ type CreatePostInput = {
   filmRating: number | null;
   visibility: "public" | "followers_only" | "private";
   quotedPostId: string | null;
+  authorNsfwCategories: NsfwCategory[];
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
@@ -956,7 +963,14 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     filmRating,
     visibility,
     quotedPostId: parsed.quotedPostId ?? null,
-    media: normalizePostMediaList(source.media ?? parsed.media).slice(0, 10),
+    authorNsfwCategories: Array.from(new Set(parsed.authorNsfwCategories ?? [])),
+    media: normalizePostMediaList(source.media ?? parsed.media).slice(0, 10).map(function (item) {
+      return {
+        ...item,
+        nsfw: false,
+        nsfwCategories: [],
+      };
+    }),
     mediaUrls: Array.isArray(source.mediaUrls)
       ? source.mediaUrls.filter(function (value): value is string {
           return typeof value === "string" && value.trim().length > 0;
@@ -1051,18 +1065,19 @@ export function parsePatchPostInput(raw: unknown): {
   return out;
 }
 
-function parseCreateCommentInput(raw: unknown): { body: string; parentId: string | null } {
-  if (!raw || typeof raw !== "object") {
-    throw badRequest("Invalid payload");
+function parseCreateCommentInput(raw: unknown): {
+  body: string;
+  parentId: string | null;
+  authorNsfwCategories: NsfwCategory[];
+} {
+  var result = createCommentSchema.safeParse(raw);
+  if (!result.success) {
+    throw badRequest(result.error.issues[0]?.message ?? "Invalid comment");
   }
-
-  var source = raw as Record<string, unknown>;
-  if (typeof source.body !== "string") {
-    throw badRequest("Comment body must be string");
-  }
+  var parsed = result.data;
   var body: string;
   try {
-    body = validateRichTextBody(source.body.trim(), COMMENT_BODY_MAX_CHARS);
+    body = validateRichTextBody(parsed.body.trim(), COMMENT_BODY_MAX_CHARS);
   } catch (_error) {
     throw badRequest(COMMENT_BODY_LENGTH_ERROR);
   }
@@ -1077,16 +1092,17 @@ function parseCreateCommentInput(raw: unknown): { body: string; parentId: string
   }
 
   if (
-    source.parentId !== undefined &&
-    source.parentId !== null &&
-    (typeof source.parentId !== "string" || source.parentId.length === 0)
+    parsed.parentId !== undefined &&
+    parsed.parentId !== null &&
+    parsed.parentId.length === 0
   ) {
     throw badRequest("Invalid parent comment id");
   }
 
   return {
     body,
-    parentId: typeof source.parentId === "string" ? source.parentId : null,
+    parentId: parsed.parentId ?? null,
+    authorNsfwCategories: Array.from(new Set(parsed.authorNsfwCategories ?? [])),
   };
 }
 
@@ -1640,6 +1656,9 @@ type PostItemRow = {
   bookmarkCount: number;
   isDeleted: boolean;
   moderationStatus: "visible" | "hidden" | "removed";
+  nsfwStatus: "none" | "pending" | "flagged";
+  nsfwCategories: NsfwCategory[];
+  nsfwSource: "author" | "system" | null;
   isRepost: boolean;
   replyToId: string | null;
   quotedPostId: string | null;
@@ -1729,6 +1748,11 @@ async function toPostItem(
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
     isDeleted: row.isDeleted,
     moderationStatus: row.moderationStatus,
+    nsfw: {
+      status: row.nsfwStatus,
+      categories: row.nsfwCategories,
+      source: row.nsfwSource,
+    },
     author: {
       id: row.authorId,
       username: row.username,
@@ -1774,6 +1798,7 @@ async function toQuotedPostItem(
     linkPreview: item.linkPreview,
     film: item.film,
     poll: item.poll,
+    nsfw: item.nsfw,
     createdAt: item.createdAt,
   };
 }
@@ -1837,6 +1862,9 @@ export type CachedHighFollowerAuthorRow = {
   bookmarkCount: number;
   isDeleted: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
+  nsfwStatus?: "none" | "pending" | "flagged";
+  nsfwCategories?: NsfwCategory[];
+  nsfwSource?: "author" | "system" | null;
   isRepost: boolean;
   replyToId: string | null;
   quotedPostId: string | null;
@@ -2020,6 +2048,9 @@ function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFol
     bookmarkCount: Number(row.bookmarkCount ?? 0),
     isDeleted: row.isDeleted,
     moderationStatus: row.moderationStatus,
+    nsfwStatus: row.nsfwStatus,
+    nsfwCategories: row.nsfwCategories,
+    nsfwSource: row.nsfwSource,
     isRepost: row.isRepost,
     replyToId: row.replyToId,
     quotedPostId: row.quotedPostId,
@@ -2034,6 +2065,9 @@ function homeRowFromCachedHighFollowerAuthorRow(
   return {
     ...row,
     moderationStatus: row.moderationStatus ?? "visible",
+    nsfwStatus: row.nsfwStatus ?? "none",
+    nsfwCategories: row.nsfwCategories ?? [],
+    nsfwSource: row.nsfwSource ?? null,
     createdAt,
     updatedAt: new Date(row.updatedAt),
     editedAt: row.editedAt ? new Date(row.editedAt) : null,
@@ -2148,6 +2182,9 @@ async function selectLiveHomeFeedRows(input: {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -2303,6 +2340,9 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -2541,6 +2581,9 @@ async function getPostById(
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -2602,6 +2645,9 @@ async function assertPostOwner(postId: string, userId: string) {
       userId: posts.userId,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       visibility: posts.visibility,
       body: posts.body,
       headline: posts.headline,
@@ -2821,6 +2867,9 @@ feedRoutes.get("/", async function (c) {
           bookmarkCount: posts.bookmarkCount,
           isDeleted: posts.isDeleted,
           moderationStatus: posts.moderationStatus,
+          nsfwStatus: posts.nsfwStatus,
+          nsfwCategories: posts.nsfwCategories,
+          nsfwSource: posts.nsfwSource,
           isRepost: posts.isRepost,
           replyToId: posts.replyToId,
           quotedPostId: posts.quotedPostId,
@@ -3010,6 +3059,9 @@ feedRoutes.get("/", async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -3109,6 +3161,16 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     ? await resolveReadableQuotedPostId(input.quotedPostId, user.userId)
     : null;
 
+  var hasScannablePostContent =
+    normalizedMedia.length > 0 ||
+    input.body.trim().length > 0 ||
+    Boolean(input.headline?.trim());
+  var authorFlaggedPost = input.authorNsfwCategories.length > 0;
+  var initialPostNsfwStatus: "none" | "pending" | "flagged" = authorFlaggedPost
+    ? "flagged"
+    : hasScannablePostContent
+      ? "pending"
+      : "none";
   var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
   var createdPost = await getWriteDb().transaction(async function (tx) {
     var insertedRows = await tx
@@ -3125,6 +3187,9 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         media: normalizedMedia,
         mediaUrls: normalizedMediaUrls,
         linkPreview: input.linkPreview,
+        nsfwStatus: initialPostNsfwStatus,
+        nsfwCategories: input.authorNsfwCategories,
+        nsfwSource: authorFlaggedPost ? "author" : null,
       })
       .returning({ id: posts.id, createdAt: posts.createdAt });
 
@@ -3253,6 +3318,19 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     }
   }
 
+  if (hasScannablePostContent) {
+    void enqueueNsfwScanJob({
+      contentType: "post",
+      contentId: postId,
+    }).then(function (enqueued) {
+      if (!enqueued) {
+        console.error("[nsfw.scan] post enqueue unavailable", { postId });
+      }
+    }).catch(function (error) {
+      console.error("[nsfw.scan] post enqueue failed", { postId, error });
+    });
+  }
+
   if (shouldFanoutToFeed) {
     await invalidateFeedAfterAuthorMutation({
       authorUserId: user.userId,
@@ -3365,6 +3443,9 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -3554,6 +3635,9 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -3697,6 +3781,9 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       bookmarkCount: posts.bookmarkCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
       isRepost: posts.isRepost,
       replyToId: posts.replyToId,
       quotedPostId: posts.quotedPostId,
@@ -5299,6 +5386,9 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
       likeCount: comments.likeCount,
       isDeleted: comments.isDeleted,
       moderationStatus: comments.moderationStatus,
+      nsfwStatus: comments.nsfwStatus,
+      nsfwCategories: comments.nsfwCategories,
+      nsfwSource: comments.nsfwSource,
       editedAt: comments.editedAt,
       createdAt: comments.createdAt,
       updatedAt: comments.updatedAt,
@@ -5331,6 +5421,11 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
         body: row.isDeleted ? null : await hydrateRichMentions(row.body),
         isDeleted: row.isDeleted,
         moderationStatus: row.moderationStatus,
+        nsfw: {
+          status: row.nsfwStatus,
+          categories: row.nsfwCategories,
+          source: row.nsfwSource,
+        },
         likeCount: Number(row.likeCount ?? 0),
         isLiked: Boolean(row.isLiked),
         editedAt: row.editedAt ? row.editedAt.toISOString() : null,
@@ -5440,6 +5535,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
   }
 
   var insertedRows = await getWriteDb().transaction(async function (tx) {
+    var authorFlaggedComment = input.authorNsfwCategories.length > 0;
     var rows = await tx
       .insert(comments)
       .values({
@@ -5447,6 +5543,9 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
         userId: user.userId,
         parentId: input.parentId ?? null,
         body: input.body,
+        nsfwStatus: authorFlaggedComment ? "flagged" : "pending",
+        nsfwCategories: input.authorNsfwCategories,
+        nsfwSource: authorFlaggedComment ? "author" : null,
       })
       .returning({
         id: comments.id,
@@ -5456,6 +5555,9 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
         body: comments.body,
         likeCount: comments.likeCount,
         isDeleted: comments.isDeleted,
+        nsfwStatus: comments.nsfwStatus,
+        nsfwCategories: comments.nsfwCategories,
+        nsfwSource: comments.nsfwSource,
         editedAt: comments.editedAt,
         createdAt: comments.createdAt,
         updatedAt: comments.updatedAt,
@@ -5479,6 +5581,19 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
   }
 
   wakeCounterOutbox();
+  void enqueueNsfwScanJob({
+    contentType: "comment",
+    contentId: inserted.id,
+  }).then(function (enqueued) {
+    if (!enqueued) {
+      console.error("[nsfw.scan] comment enqueue unavailable", { commentId: inserted.id });
+    }
+  }).catch(function (error) {
+    console.error("[nsfw.scan] comment enqueue failed", {
+      commentId: inserted.id,
+      error,
+    });
+  });
 
   await createMentionNotifications({
     body: inserted.body,
@@ -5535,6 +5650,11 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
       body: await hydrateRichMentions(inserted.body),
       isDeleted: inserted.isDeleted,
       moderationStatus: "visible",
+      nsfw: {
+        status: inserted.nsfwStatus,
+        categories: inserted.nsfwCategories,
+        source: inserted.nsfwSource,
+      },
       likeCount: Number(inserted.likeCount ?? 0),
       editedAt: inserted.editedAt ? inserted.editedAt.toISOString() : null,
       createdAt: inserted.createdAt.toISOString(),
@@ -5600,6 +5720,9 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
       body: comments.body,
       isDeleted: comments.isDeleted,
       moderationStatus: comments.moderationStatus,
+      nsfwStatus: comments.nsfwStatus,
+      nsfwCategories: comments.nsfwCategories,
+      nsfwSource: comments.nsfwSource,
       likeCount: comments.likeCount,
       editedAt: comments.editedAt,
       createdAt: comments.createdAt,
@@ -5639,6 +5762,11 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
     body: await hydrateRichMentions(updated.body),
     isDeleted: updated.isDeleted,
     moderationStatus: updated.moderationStatus,
+    nsfw: {
+      status: updated.nsfwStatus,
+      categories: updated.nsfwCategories,
+      source: updated.nsfwSource,
+    },
     likeCount: Number(updated.likeCount ?? 0),
     editedAt: updated.editedAt ? updated.editedAt.toISOString() : null,
     createdAt: updated.createdAt.toISOString(),

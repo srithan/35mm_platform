@@ -113,8 +113,12 @@ describe("PostCardQuoteEmbed", function () {
       />
     );
 
-    expect(screen.getByAltText("First still").parentElement).toHaveClass("aspect-[4/5]");
-    expect(screen.getByAltText("Second still").parentElement).toHaveClass("aspect-[4/5]");
+    expect(screen.getByAltText("First still").closest("[data-nsfw-status]")).toHaveClass(
+      "aspect-[4/5]"
+    );
+    expect(screen.getByAltText("Second still").closest("[data-nsfw-status]")).toHaveClass(
+      "aspect-[4/5]"
+    );
   });
 
   it("hides a card-only preview URL without removing the source body", function () {

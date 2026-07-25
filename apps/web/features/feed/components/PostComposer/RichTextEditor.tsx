@@ -8,16 +8,20 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useRef } from "react";
+import type { NsfwCategory } from "@35mm/types";
 import { cn } from "@/lib/utils/cn";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import { FloatingFormattingToolbar } from "./FormattingToolbar";
 import {
   docFromPlainText,
   isStoredRichText,
   parseStoredRichText,
   serializeRichTextDoc,
+  storedRichTextToPlainText,
   type RichTextDoc,
 } from "@/lib/utils/richContent";
 import { searchMentionSuggestions, type MentionSuggestion } from "@/features/feed/api/mentionsApi";
+import { detectNsfwTextHint } from "../../lib/nsfwTextHint";
 
 export const Spoiler = Mark.create({
   name: "spoiler",
@@ -260,12 +264,19 @@ export interface RichTextEditorProps {
   onBlur?: (event: FocusEvent) => void;
   onPaste?: (event: ClipboardEvent) => void;
   editable?: boolean;
+  onNsfwHintChange?: (categories: NsfwCategory[]) => void;
 }
 
 export function RichTextEditor(props: RichTextEditorProps) {
   const { getToken } = useAuth();
   const lastSerializedRef = useRef<string>("");
   const initialContent = useMemo(() => editorContentFromValue(props.value), []);
+  const debouncedNsfwHintText = useDebounce(
+    useMemo(function () {
+      return storedRichTextToPlainText(props.value);
+    }, [props.value]),
+    450
+  );
   const extensions = useMemo(
     function () {
       return [
@@ -336,6 +347,13 @@ export function RichTextEditor(props: RichTextEditorProps) {
       };
     },
     [editor, props.onEditorReady]
+  );
+
+  useEffect(
+    function () {
+      props.onNsfwHintChange?.(detectNsfwTextHint(debouncedNsfwHintText));
+    },
+    [debouncedNsfwHintText, props.onNsfwHintChange]
   );
 
   useEffect(

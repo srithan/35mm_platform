@@ -90,6 +90,17 @@ export var comments = pgTable(
     likeCount: integer("like_count").default(0).notNull(),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
+    nsfwStatus: text("nsfw_status")
+      .$type<"none" | "pending" | "flagged">()
+      .default("none")
+      .notNull(),
+    nsfwCategories: text("nsfw_categories")
+      .array()
+      .$type<Array<"nudity" | "sexual_content" | "violence" | "graphic_content" | "sensitive">>()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    nsfwSource: text("nsfw_source").$type<"author" | "system">(),
+    nsfwScannedAt: timestamp("nsfw_scanned_at", { withTimezone: true }),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -103,6 +114,13 @@ export var comments = pgTable(
         table.moderationStatus,
         table.createdAt,
         table.id
+      ),
+      nsfwPendingIdx: index("comments_nsfw_pending_idx")
+        .on(table.nsfwStatus, table.createdAt, table.id)
+        .where(sql`${table.nsfwStatus} = 'pending'`),
+      nsfwStatusCheck: check(
+        "comments_nsfw_status_check",
+        sql`${table.nsfwStatus} in ('none', 'pending', 'flagged')`
       ),
       parentIdIdx: index("comments_parent_id_idx").on(table.parentId),
     };

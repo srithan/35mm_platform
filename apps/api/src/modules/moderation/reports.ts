@@ -17,7 +17,10 @@ import type { CreateReportInput } from "@35mm/validators";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { getDb, getWriteDb } from "../../lib/db.js";
 import { notFound } from "../../lib/errors.js";
-import { enqueueModerationAutoHideCheckJob } from "../../lib/jobs.js";
+import {
+  enqueueModerationAutoHideCheckJob,
+  enqueueNsfwScanJob,
+} from "../../lib/jobs.js";
 import { createUlid } from "../../lib/ulid.js";
 import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
@@ -362,6 +365,37 @@ export async function createReport(
     contentType: result.row.contentType,
     contentId: result.row.contentId,
   });
+
+  if (
+    input.reason === "nudity_sexual_content" &&
+    (result.row.contentType === "post" || result.row.contentType === "comment")
+  ) {
+    var nsfwRows = result.row.contentType === "post"
+      ? await getDb()
+          .select({ status: posts.nsfwStatus })
+          .from(posts)
+          .where(eq(posts.id, result.row.contentId))
+          .limit(1)
+      : await getDb()
+          .select({ status: comments.nsfwStatus })
+          .from(comments)
+          .where(eq(comments.id, result.row.contentId))
+          .limit(1);
+    if (nsfwRows[0]?.status === "none") {
+      var enqueued = await enqueueNsfwScanJob({
+        contentType: result.row.contentType,
+        contentId: result.row.contentId,
+        priority: true,
+      });
+      if (!enqueued) {
+        console.error("[nsfw.report-rescan] priority enqueue unavailable", {
+          reportId: result.row.id,
+          contentType: result.row.contentType,
+          contentId: result.row.contentId,
+        });
+      }
+    }
+  }
 
   return {
     report: toReportDto(result.row),

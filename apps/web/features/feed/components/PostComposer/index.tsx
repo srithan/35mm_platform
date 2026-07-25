@@ -11,6 +11,7 @@ import {
   useImperativeHandle,
 } from "react";
 import type { Editor } from "@tiptap/react";
+import type { NsfwCategory } from "@35mm/types";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
@@ -53,6 +54,9 @@ import {
   inferLinkPreviewPresentation,
   type LinkPreviewPresentation,
 } from "@/lib/utils/linkPreviewPresentation";
+import { ContentWarningControls } from "./ContentWarningControls";
+import { detectNsfwTextHint } from "../../lib/nsfwTextHint";
+import { classifyStagedImage } from "../../lib/nsfwImageHint";
 
 const WRITE_MAX_CHARS = 500;
 const POLL_TEXT_MAX_CHARS = 140;
@@ -248,6 +252,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [postToFeed, setPostToFeed] = useState(true);
+  const [authorNsfwCategories, setAuthorNsfwCategories] = useState<NsfwCategory[]>([]);
+  const [textNsfwHintCategories, setTextNsfwHintCategories] = useState<NsfwCategory[]>([]);
+  const [imageNsfwHintCategories, setImageNsfwHintCategories] = useState<NsfwCategory[]>([]);
+  const [isImageNsfwScanPending, setIsImageNsfwScanPending] = useState(false);
+  const [isContentWarningOpen, setIsContentWarningOpen] = useState(false);
+  const [dismissedNsfwHint, setDismissedNsfwHint] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createPostMutation = useCreatePost();
@@ -286,6 +296,17 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const logPlainText = storedRichTextToPlainText(logText);
   const activeText = mode === "discussion" ? discussionPlainText : mode === "log" ? logPlainText : writePlainText;
   const debouncedActiveText = useDebounce(activeText, 500);
+  const detectedNsfwCategories = useMemo(
+    function () {
+      const headlineCategories =
+        mode === "discussion" ? detectNsfwTextHint(discussionHeadline) : [];
+      return Array.from(
+        new Set([...textNsfwHintCategories, ...headlineCategories, ...imageNsfwHintCategories])
+      );
+    },
+    [discussionHeadline, imageNsfwHintCategories, mode, textNsfwHintCategories]
+  );
+  const detectedNsfwSignature = detectedNsfwCategories.join("|");
   const composerVideoPreview = useMemo(
     function () {
       const preview = videoPreviewFromLinkPreview(linkPreview);
@@ -389,6 +410,53 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     linkPreviewPresentationWasOverridden,
     pollDraft,
   ]);
+
+  useEffect(
+    function () {
+      let cancelled = false;
+      if (images.length === 0) {
+        setImageNsfwHintCategories([]);
+        setIsImageNsfwScanPending(false);
+        return;
+      }
+
+      setIsImageNsfwScanPending(true);
+      void (async function () {
+        const detected: NsfwCategory[] = [];
+        for (const file of images) {
+          try {
+            detected.push(...(await classifyStagedImage(file)));
+          } catch (error) {
+            console.warn("[nsfw.hint] image classification unavailable", {
+              fileName: file.name,
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+          if (cancelled) return;
+        }
+        if (cancelled) return;
+        setImageNsfwHintCategories(Array.from(new Set(detected)));
+        setIsImageNsfwScanPending(false);
+      })();
+
+      return function () {
+        cancelled = true;
+      };
+    },
+    [images]
+  );
+
+  useEffect(
+    function () {
+      if (!detectedNsfwSignature) {
+        setDismissedNsfwHint("");
+        return;
+      }
+      if (detectedNsfwSignature === dismissedNsfwHint) return;
+      setIsContentWarningOpen(true);
+    },
+    [detectedNsfwSignature, dismissedNsfwHint]
+  );
 
   const handleLinkPreviewPresentationChange = useCallback(function (
     presentation: LinkPreviewPresentation
@@ -980,6 +1048,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     if (quotedPost?.postId) {
       input.quotedPostId = quotedPost.postId;
     }
+    if (!editingPost && authorNsfwCategories.length > 0) {
+      input.authorNsfwCategories = authorNsfwCategories;
+    }
 
     try {
       if (editingPost) {
@@ -1027,6 +1098,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setShowDropZone(false);
     setShowEmojiPicker(false);
     setPostToFeed(true);
+    setAuthorNsfwCategories([]);
+    setTextNsfwHintCategories([]);
+    setImageNsfwHintCategories([]);
+    setIsContentWarningOpen(false);
+    setDismissedNsfwHint("");
     } finally {
       setIsSubmitting(false);
     }
@@ -1058,6 +1134,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     dismissedPreviewUrl,
     getToken,
     postToFeed,
+    authorNsfwCategories,
   ]);
 
   useImperativeHandle(
@@ -1239,6 +1316,37 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               Search film above
             </span>
           )}
+
+          {!editingPost ? (
+            <button
+              type="button"
+              onClick={function () {
+                setIsContentWarningOpen(true);
+              }}
+              className={cn(
+                "relative flex h-9 min-w-9 items-center justify-center rounded-full px-2 font-mono text-[10px] font-bold tracking-[0.08em] transition-colors active:scale-[0.97]",
+                fixedMobileToolbar
+                  ? cn(
+                      "text-accent hover:bg-accent/[0.12]",
+                      isContentWarningOpen && "bg-accent/15"
+                    )
+                  : cn(
+                      "text-fg-muted hover:bg-hover hover:text-fg",
+                      isContentWarningOpen && "bg-sunken text-fg"
+                    )
+              )}
+              aria-label="Content warning"
+              aria-expanded={isContentWarningOpen}
+              title="Content warning"
+            >
+              CW
+              {authorNsfwCategories.length > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-fg px-1 font-sans text-[9px] font-bold tracking-normal text-bg">
+                  {authorNsfwCategories.length}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
 
           {!fixedMobileToolbar && (
             <EmojiPicker
@@ -1477,6 +1585,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 value={writeText}
                 onChange={(value) => setWriteText(value)}
                 onEditorReady={setWriteEditor}
+                onNsfwHintChange={setTextNsfwHintCategories}
                 onFocus={() => setActiveField("body")}
                 onPaste={(e) => handleEditorPaste(e, "write")}
                 onBlur={(e) => {
@@ -1645,6 +1754,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 value={discussionText}
                 onChange={(value) => setDiscussionText(value)}
                 onEditorReady={setDiscussionEditor}
+                onNsfwHintChange={setTextNsfwHintCategories}
                 onFocus={() => setActiveField("body")}
                 onPaste={(e) => handleEditorPaste(e, "discussion")}
                 onBlur={(e) => {
@@ -1765,6 +1875,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 onChange={setLogText}
                 editor={logEditor}
                 onEditorReady={setLogEditor}
+                onNsfwHintChange={setTextNsfwHintCategories}
                 isReview={isReview}
                 showFormatBar={showLogFormatBar}
                 editable={selectedFilm !== null}
@@ -1804,6 +1915,18 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               ) : null}
             </div>
           )}
+          {!editingPost && isContentWarningOpen ? (
+            <ContentWarningControls
+              selected={authorNsfwCategories}
+              detected={detectedNsfwCategories}
+              isImageScanPending={isImageNsfwScanPending}
+              onChange={setAuthorNsfwCategories}
+              onDismiss={function () {
+                setIsContentWarningOpen(false);
+                setDismissedNsfwHint(detectedNsfwSignature);
+              }}
+            />
+          ) : null}
         </div>
         </div>
 

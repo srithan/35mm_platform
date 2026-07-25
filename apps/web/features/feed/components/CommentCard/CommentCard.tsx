@@ -17,6 +17,7 @@ import { CommentCardReplyComposer } from "./CommentCardReplyComposer";
 import { CommentCardActionsBar } from "./CommentCardActionsBar";
 import { CommentCardReplies } from "./CommentCardReplies";
 import { CommentCardOverlays } from "./CommentCardOverlays";
+import { NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
 
 export function CommentCard({
   comment,
@@ -144,26 +145,32 @@ export function CommentCard({
     >
       <div className="flex items-start min-w-0">
         <CommentCardHeader comment={comment} depth={depth} menu={moreMenu}>
-          <CommentCardBody
-            isEditing={isEditing}
-            editDraft={editDraft}
-            isSaving={updateCommentMutation.isPending}
-            cleanedText={renderText}
-            previews={previews}
-            expanded={expanded}
-            isOverflowing={isOverflowing}
-            truncatedText={truncatedText}
-            bodyRef={bodyRef}
-            measureRef={measureRef}
-            onEditDraftChange={setEditDraft}
-            onSaveEdit={handleSaveEdit}
-            onCancelEdit={() => {
-              setIsEditing(false);
-              setEditDraft(comment.text);
-            }}
-            onExpand={() => setExpanded(true)}
-            onCollapse={() => setExpanded(false)}
-          />
+          <NsfwTextReveal
+            status={comment.nsfw?.status ?? "none"}
+            categories={comment.nsfw?.categories ?? []}
+            compact
+          >
+            <CommentCardBody
+              isEditing={isEditing}
+              editDraft={editDraft}
+              isSaving={updateCommentMutation.isPending}
+              cleanedText={renderText}
+              previews={previews}
+              expanded={expanded}
+              isOverflowing={isOverflowing}
+              truncatedText={truncatedText}
+              bodyRef={bodyRef}
+              measureRef={measureRef}
+              onEditDraftChange={setEditDraft}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={() => {
+                setIsEditing(false);
+                setEditDraft(comment.text);
+              }}
+              onExpand={() => setExpanded(true)}
+              onCollapse={() => setExpanded(false)}
+            />
+          </NsfwTextReveal>
 
           <CommentCardActionsBar
             postId={postId}

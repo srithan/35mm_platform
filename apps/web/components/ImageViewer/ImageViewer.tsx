@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import type { NsfwCategory, NsfwStatus } from "@35mm/types";
 import { cn } from "@/lib/utils/cn";
 import {
   carouselDotSize,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/utils/carouselDots";
 import { Modal } from "@/components/Modal/Modal";
 import { LazyR2Image } from "@/components/LazyR2Image";
+import { NsfwMediaOverlay } from "@/components/media/NsfwMediaOverlay";
 
 interface ImageViewerProps {
   open: boolean;
@@ -21,6 +23,11 @@ interface ImageViewerProps {
   alt?: string;
   /** Rendered below the image panel in its own container (e.g. post like/comment actions). */
   footer?: ReactNode;
+  nsfwStatus?: NsfwStatus;
+  nsfwCategories?: NsfwCategory[];
+  nsfwItems?: Array<{ flagged: boolean; categories: NsfwCategory[] }>;
+  revealedIndexes?: ReadonlySet<number>;
+  onReveal?: (index: number) => void;
 }
 
 function resolveUrls(src?: string, srcs?: string[]) {
@@ -38,6 +45,11 @@ export function ImageViewer({
   initialIndex = 0,
   alt,
   footer,
+  nsfwStatus = "none",
+  nsfwCategories = [],
+  nsfwItems = [],
+  revealedIndexes = new Set<number>(),
+  onReveal,
 }: ImageViewerProps) {
   const urls = resolveUrls(src, srcs);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
@@ -93,6 +105,17 @@ export function ImageViewer({
   );
 
   const currentUrl = urls.length > 0 ? (urls[activeIndex] ?? urls[0]) : "";
+  const currentNsfwItem = nsfwItems[activeIndex];
+  const currentNsfwStatus: NsfwStatus =
+    nsfwStatus === "pending"
+      ? "pending"
+      : currentNsfwItem?.flagged
+        ? "flagged"
+        : "none";
+  const currentNsfwCategories =
+    currentNsfwItem?.categories && currentNsfwItem.categories.length > 0
+      ? currentNsfwItem.categories
+      : nsfwCategories;
 
   if (urls.length === 0) return null;
 
@@ -169,7 +192,15 @@ export function ImageViewer({
           </div>
         ) : null}
 
-        <div className="inline-flex max-w-[min(96vw,72rem)]">
+        <NsfwMediaOverlay
+          status={currentNsfwStatus}
+          categories={currentNsfwCategories}
+          revealed={revealedIndexes.has(activeIndex)}
+          onReveal={function () {
+            onReveal?.(activeIndex);
+          }}
+          className="inline-flex max-w-[min(96vw,72rem)]"
+        >
           <LazyR2Image
             key={currentUrl}
             src={currentUrl}
@@ -181,7 +212,7 @@ export function ImageViewer({
             containerClassName="inline-flex items-center justify-center"
             placeholderClassName="bg-transparent"
           />
-        </div>
+        </NsfwMediaOverlay>
 
         {hasMultiple ? (
           <div className="pointer-events-none mt-4 flex h-3 items-center justify-center gap-[7px]">

@@ -1,10 +1,10 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createDb } from "@35mm/db";
 import { posts, profiles, type PostMedia } from "@35mm/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { encode as encodeBlurhash } from "blurhash";
 import { loadWorkerEnv, type WorkerEnv } from "../lib/env.js";
+import { getWorkerR2ObjectBytes, putWorkerR2WebpObject } from "../lib/r2.js";
 
 type PostRow = {
   id: string;
@@ -22,25 +22,9 @@ export type MediaProcessJobPayload =
       objectKey: string;
     };
 
-var s3Client: S3Client | null = null;
-
 function getDb() {
   var env = loadWorkerEnv();
   return createDb(env.DATABASE_URL);
-}
-
-function getS3Client(env: WorkerEnv) {
-  if (s3Client) return s3Client;
-  s3Client = new S3Client({
-    region: "auto",
-    endpoint: "https://" + env.R2_ACCOUNT_ID + ".r2.cloudflarestorage.com",
-    credentials: {
-      accessKeyId: env.R2_ACCESS_KEY_ID,
-      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-    },
-    forcePathStyle: true,
-  });
-  return s3Client;
 }
 
 function normalizePublicBaseUrl(baseUrl: string): URL {
@@ -153,29 +137,8 @@ export function postNeedsMediaProcessing(media: PostMedia[]): boolean {
   });
 }
 
-async function getObjectBytes(env: WorkerEnv, key: string): Promise<Uint8Array> {
-  var response = await getS3Client(env).send(
-    new GetObjectCommand({
-      Bucket: env.R2_BUCKET,
-      Key: key,
-    })
-  );
-  if (!response.Body) {
-    throw new Error("Missing R2 body for key: " + key);
-  }
-  return await response.Body.transformToByteArray();
-}
-
 async function putWebpVariant(env: WorkerEnv, key: string, body: Buffer) {
-  await getS3Client(env).send(
-    new PutObjectCommand({
-      Bucket: env.R2_BUCKET,
-      Key: key,
-      Body: body,
-      ContentType: "image/webp",
-      CacheControl: "public, max-age=31536000, immutable",
-    })
-  );
+  await putWorkerR2WebpObject(env, key, body);
 }
 
 async function uploadSourceToCloudflareImages(env: WorkerEnv, sourceUrl: string, imageId: string) {
@@ -232,7 +195,7 @@ async function processImageMediaItem(env: WorkerEnv, item: PostMedia): Promise<P
   var sourceKey = keyFromMediaItem(item, env);
   if (!sourceKey) return item;
 
-  var objectBytes = await getObjectBytes(env, sourceKey);
+  var objectBytes = await getWorkerR2ObjectBytes(env, sourceKey);
   var variants = variantObjectKeys(sourceKey);
 
   var thumbBuffer = await sharp(objectBytes)
@@ -303,7 +266,7 @@ async function processProfileMedia(
   env: WorkerEnv,
   payload: Extract<MediaProcessJobPayload, { kind: "avatar" | "cover" }>
 ): Promise<{ changed: boolean; variants: Record<string, string> }> {
-  var objectBytes = await getObjectBytes(env, payload.objectKey);
+  var objectBytes = await getWorkerR2ObjectBytes(env, payload.objectKey);
   var variantKeys = profileMediaVariantObjectKeys(payload.objectKey, payload.kind);
 
   // To backfill variants for existing avatars and covers, run:

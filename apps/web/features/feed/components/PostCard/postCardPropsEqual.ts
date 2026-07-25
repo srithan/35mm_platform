@@ -95,12 +95,28 @@ function areMediaItemsEqual(
     if ((a.width ?? null) !== (b.width ?? null)) return false;
     if ((a.height ?? null) !== (b.height ?? null)) return false;
     if ((a.blurhash ?? null) !== (b.blurhash ?? null)) return false;
+    if ((a.nsfw ?? false) !== (b.nsfw ?? false)) return false;
+    if (!areStringArraysEqual(a.nsfwCategories, b.nsfwCategories)) return false;
     if ((a.variants?.thumb ?? null) !== (b.variants?.thumb ?? null)) return false;
     if ((a.variants?.feed ?? null) !== (b.variants?.feed ?? null)) return false;
     if ((a.variants?.full ?? null) !== (b.variants?.full ?? null)) return false;
   }
 
   return true;
+}
+
+function areNsfwInfoEqual(
+  prev?: PostCardProps["nsfw"],
+  next?: PostCardProps["nsfw"]
+) {
+  if (prev === next) return true;
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  return (
+    prev.status === next.status &&
+    prev.source === next.source &&
+    areStringArraysEqual(prev.categories, next.categories)
+  );
 }
 
 function arePollsEqual(prev?: PostCardProps["poll"], next?: PostCardProps["poll"]) {
@@ -188,6 +204,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     prev.imageCaption === next.imageCaption &&
     prev.prioritizeMedia === next.prioritizeMedia &&
     areMediaItemsEqual(prev.media, next.media) &&
+    areNsfwInfoEqual(prev.nsfw, next.nsfw) &&
     areStringArraysEqual(prev.mediaUrls, next.mediaUrls) &&
     areStringArraysEqual(prev.viewerMediaUrls, next.viewerMediaUrls) &&
     arePollsEqual(prev.poll, next.poll) &&

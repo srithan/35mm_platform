@@ -26,6 +26,7 @@ import { PostCardRepostContext } from "./PostCardRepostContext";
 import { PostCardQuoteEmbed } from "./PostCardQuoteEmbed";
 import { truncatePostPreview } from "../../utils/truncatePostPreview";
 import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
+import { NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
 
 function PostCardComponent(props: PostCardProps) {
   const {
@@ -50,6 +51,7 @@ function PostCardComponent(props: PostCardProps) {
     imageSrc,
     imageCaption,
     media,
+    nsfw = { status: "none", categories: [], source: null },
     mediaUrls,
     viewerMediaUrls,
     prioritizeMedia = false,
@@ -94,6 +96,11 @@ function PostCardComponent(props: PostCardProps) {
   const [muteToast, setMuteToast] = useState<{ handle: string; userId: string } | null>(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [viewerImageIndex, setViewerImageIndex] = useState(0);
+  const [revealedImageIndexes, setRevealedImageIndexes] = useState<Set<number>>(
+    function () {
+      return new Set();
+    }
+  );
 
   const suppressedUrl =
     linkPreview?.presentation === "card_only" ? linkPreview.url : undefined;
@@ -265,19 +272,24 @@ function PostCardComponent(props: PostCardProps) {
             />
           }
         >
-          <PostCardBodyText
-            variant={variant}
-            headline={headline}
-            cleanedText={renderText}
-            filmRef={filmRef}
-            stopRichLinkBubble={stopRichLinkBubble}
-            postBodyTextClassName={postBodyTextClassName}
-            truncatedText={truncatedText}
-            isOverflowing={isOverflowing}
-            postId={postId}
-            username={username}
-            suppressedUrl={suppressedUrl}
-          />
+          <NsfwTextReveal
+            status={resolvedMedia.hasAttachedMedia ? "none" : nsfw.status}
+            categories={nsfw.categories}
+          >
+            <PostCardBodyText
+              variant={variant}
+              headline={headline}
+              cleanedText={renderText}
+              filmRef={filmRef}
+              stopRichLinkBubble={stopRichLinkBubble}
+              postBodyTextClassName={postBodyTextClassName}
+              truncatedText={truncatedText}
+              isOverflowing={isOverflowing}
+              postId={postId}
+              username={username}
+              suppressedUrl={suppressedUrl}
+            />
+          </NsfwTextReveal>
 
           <PostCardAttachments
             variant={variant}
@@ -298,6 +310,11 @@ function PostCardComponent(props: PostCardProps) {
             saveData={saveData}
             normalizedViewerMediaUrls={resolvedMedia.normalizedViewerMediaUrls}
             viewerBlurhashes={resolvedMedia.viewerBlurhashes}
+            nsfwStatus={nsfw.status}
+            nsfwCategories={nsfw.categories}
+            imageNsfw={resolvedMedia.imageNsfw}
+            viewerNsfw={resolvedMedia.viewerNsfw}
+            revealedImageIndexes={revealedImageIndexes}
             showImageViewer={showImageViewer}
             viewerImageIndex={viewerImageIndex}
             replyPreview={replyPreview}
@@ -308,6 +325,13 @@ function PostCardComponent(props: PostCardProps) {
               setShowImageViewer(true);
             }}
             onCloseImageViewer={() => setShowImageViewer(false)}
+            onRevealImage={function (index) {
+              setRevealedImageIndexes(function (current) {
+                const next = new Set(current);
+                next.add(index);
+                return next;
+              });
+            }}
             imageViewerFooter={
               <PostCardActionsBar
                 postId={postId}

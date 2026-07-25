@@ -337,6 +337,14 @@ export var createPostPollSchema = z
     });
   });
 
+export var nsfwCategorySchema = z.enum([
+  "nudity",
+  "sexual_content",
+  "violence",
+  "graphic_content",
+  "sensitive",
+]);
+
 export var createPostSchema = z
   .object({
     type: z.enum(["text", "discussion", "log", "review", "image"]).default("text"),
@@ -363,6 +371,7 @@ export var createPostSchema = z
     linkPreview: postLinkPreviewSchema.nullable().optional(),
     quotedPostId: z.string().uuid().optional(),
     poll: createPostPollSchema.optional(),
+    authorNsfwCategories: z.array(nsfwCategorySchema).max(5).optional(),
   })
   .superRefine(function (post, ctx) {
     var visibleBody = "";
@@ -405,6 +414,12 @@ export var createPostSchema = z
       });
     }
   });
+
+export var createCommentSchema = z.object({
+  body: z.string().max(100000),
+  parentId: z.string().uuid().nullable().optional(),
+  authorNsfwCategories: z.array(nsfwCategorySchema).max(5).optional(),
+});
 
 export var notificationTypeSchema = z.enum([
   "like",
@@ -1362,6 +1377,7 @@ export type ModerationActionPayloadInput = z.infer<typeof moderationActionPayloa
 export type ModerationDismissPayloadInput = z.infer<typeof moderationDismissPayloadSchema>;
 export type ModerationUserParamsInput = z.infer<typeof moderationUserParamsSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type CreateChatThreadInput = z.infer<typeof createChatThreadSchema>;
 export type EditMessageInput = z.infer<typeof editMessageSchema>;

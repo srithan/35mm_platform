@@ -18,6 +18,20 @@ export { FEED_CACHE_NAMESPACE } from "./feedCacheNamespace.js";
 export type PostId = string;
 export type MessageId = string;
 export type LinkPreviewPresentation = "card_only" | "url_and_card";
+export type NsfwStatus = "none" | "pending" | "flagged";
+export type NsfwCategory =
+  | "nudity"
+  | "sexual_content"
+  | "violence"
+  | "graphic_content"
+  | "sensitive";
+export type NsfwSource = "author" | "system";
+
+export interface NsfwInfo {
+  status: NsfwStatus;
+  categories: NsfwCategory[];
+  source: NsfwSource | null;
+}
 export type OnboardingRole =
   | "cinephile"
   | "creator"
@@ -101,6 +115,7 @@ export interface FeedPost {
   type: "text" | "discussion" | "log" | "review" | "image";
   visibility?: "public" | "followers_only" | "private";
   moderationStatus?: ModerationContentStatus;
+  nsfw: NsfwInfo;
   isDeleted?: boolean;
   editedAt?: string | null;
   headline?: string | null;
@@ -114,6 +129,8 @@ export interface FeedPost {
     width?: number;
     height?: number;
     blurhash?: string;
+    nsfw?: boolean;
+    nsfwCategories?: NsfwCategory[];
     variants?: {
       thumb?: string;
       feed?: string;
@@ -190,13 +207,29 @@ export interface FeedPost {
 
 export type QuotedFeedPost = Pick<
   FeedPost,
-  "id" | "author" | "type" | "headline" | "body" | "media" | "linkPreview" | "film" | "poll" | "createdAt"
+  "id" | "author" | "type" | "headline" | "body" | "media" | "linkPreview" | "film" | "poll" | "nsfw" | "createdAt"
 >;
 
 export interface FeedPage {
   items: FeedPost[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+export interface FeedComment {
+  id: string;
+  postId: string;
+  parentId: string | null;
+  author: PublicUser;
+  body: string | null;
+  isDeleted: boolean;
+  moderationStatus: ModerationContentStatus;
+  nsfw: NsfwInfo;
+  likeCount: number;
+  isLiked?: boolean;
+  editedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FilmListFilm {

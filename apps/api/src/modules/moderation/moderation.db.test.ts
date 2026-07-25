@@ -8,6 +8,7 @@ vi.mock("../../lib/jobs.js", function () {
   return {
     enqueueModerationAutoHideCheckJob: vi.fn(async function () { return true; }),
     enqueueModerationNotificationOutboxJob: vi.fn(async function () { return true; }),
+    enqueueNsfwScanJob: vi.fn(async function () { return true; }),
   };
 });
 vi.mock("../../lib/feedCache.js", function () {

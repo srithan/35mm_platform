@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import type { NsfwCategory, NsfwStatus } from "@35mm/types";
 import Link from "next/link";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { FilmCard } from "@/components/FilmCard";
@@ -42,6 +43,11 @@ interface PostCardAttachmentsProps {
   saveData: boolean;
   normalizedViewerMediaUrls: string[];
   viewerBlurhashes: Array<string | null>;
+  nsfwStatus?: NsfwStatus;
+  nsfwCategories?: NsfwCategory[];
+  imageNsfw?: Array<{ flagged: boolean; categories: NsfwCategory[] }>;
+  viewerNsfw?: Array<{ flagged: boolean; categories: NsfwCategory[] }>;
+  revealedImageIndexes?: ReadonlySet<number>;
   showImageViewer: boolean;
   viewerImageIndex: number;
   replyPreview?: PostCardReplyPreview;
@@ -49,6 +55,7 @@ interface PostCardAttachmentsProps {
   stopRichLinkBubble: boolean;
   onImageClick: (index: number) => void;
   onCloseImageViewer: () => void;
+  onRevealImage?: (index: number) => void;
   imageViewerFooter?: ReactNode;
 }
 
@@ -76,6 +83,11 @@ export function PostCardAttachments({
   saveData,
   normalizedViewerMediaUrls,
   viewerBlurhashes,
+  nsfwStatus = "none",
+  nsfwCategories = [],
+  imageNsfw = [],
+  viewerNsfw = [],
+  revealedImageIndexes = new Set<number>(),
   showImageViewer,
   viewerImageIndex,
   replyPreview,
@@ -83,6 +95,7 @@ export function PostCardAttachments({
   stopRichLinkBubble,
   onImageClick,
   onCloseImageViewer,
+  onRevealImage,
   imageViewerFooter,
 }: PostCardAttachmentsProps) {
   const filmTitleHref = getFilmTitleHref(attachedFilm);
@@ -113,8 +126,8 @@ export function PostCardAttachments({
               href={filmTitleHref}
               aria-label={`Open ${filmCard.title}`}
               className="block no-underline"
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
+              onClick={(event: MouseEvent<HTMLAnchorElement>) => event.stopPropagation()}
+              onKeyDown={(event: KeyboardEvent<HTMLAnchorElement>) => event.stopPropagation()}
             >
               {filmCardNode}
             </Link>
@@ -140,6 +153,11 @@ export function PostCardAttachments({
             imageCaption={imageCaption}
             saveData={saveData}
             onImageClick={onImageClick}
+            nsfwStatus={nsfwStatus}
+            nsfwCategories={nsfwCategories}
+            imageNsfw={imageNsfw}
+            revealedIndexes={revealedImageIndexes}
+            onReveal={onRevealImage}
           />
           <ImageViewer
             open={showImageViewer}
@@ -149,6 +167,11 @@ export function PostCardAttachments({
             initialIndex={viewerImageIndex}
             alt={imageCaption || "Post image"}
             footer={imageViewerFooter}
+            nsfwStatus={nsfwStatus}
+            nsfwCategories={nsfwCategories}
+            nsfwItems={viewerNsfw}
+            revealedIndexes={revealedImageIndexes}
+            onReveal={onRevealImage}
           />
         </>
       )}

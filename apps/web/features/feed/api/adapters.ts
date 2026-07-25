@@ -1,3 +1,4 @@
+import type { NsfwCategory, NsfwInfo } from "@35mm/types";
 import type { Comment, Post, QuotedPost } from "../types/feed";
 
 var ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -32,6 +33,33 @@ function asStringArray(value: unknown): string[] {
 
 function asModerationStatus(value: unknown): "visible" | "hidden" | "removed" {
   return value === "hidden" || value === "removed" ? value : "visible";
+}
+
+const NSFW_CATEGORIES = new Set<NsfwCategory>([
+  "nudity",
+  "sexual_content",
+  "violence",
+  "graphic_content",
+  "sensitive",
+]);
+
+function asNsfwCategories(value: unknown): NsfwCategory[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(function (category): category is NsfwCategory {
+    return typeof category === "string" && NSFW_CATEGORIES.has(category as NsfwCategory);
+  });
+}
+
+function asNsfwInfo(value: unknown): NsfwInfo {
+  if (!isRecord(value)) {
+    return { status: "none", categories: [], source: null };
+  }
+  return {
+    status:
+      value.status === "pending" || value.status === "flagged" ? value.status : "none",
+    categories: asNsfwCategories(value.categories),
+    source: value.source === "author" || value.source === "system" ? value.source : null,
+  };
 }
 
 function normalizePoll(raw: Record<string, unknown>): Post["poll"] {
@@ -115,6 +143,8 @@ function normalizeMedia(raw: Record<string, unknown>): Post["media"] {
       var blurhash = asString(item.blurhash);
       var width = asNumber(item.width, 0);
       var height = asNumber(item.height, 0);
+      var nsfw = item.nsfw === true;
+      var nsfwCategories = asNsfwCategories(item.nsfwCategories);
       var variants = isRecord(item.variants) ? item.variants : null;
       var thumbVariant = variants ? asString(variants.thumb) : "";
       var feedVariant = variants ? asString(variants.feed) : "";
@@ -125,6 +155,8 @@ function normalizeMedia(raw: Record<string, unknown>): Post["media"] {
       if (blurhash) next.blurhash = blurhash;
       if (width > 0) next.width = width;
       if (height > 0) next.height = height;
+      if (nsfw) next.nsfw = true;
+      if (nsfwCategories.length > 0) next.nsfwCategories = nsfwCategories;
       if (thumbVariant || feedVariant || fullVariant) {
         next.variants = {};
         if (thumbVariant) next.variants.thumb = thumbVariant;
@@ -230,6 +262,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
       linkPreview: adaptedQuote.linkPreview,
       poll: adaptedQuote.poll,
       film: adaptedQuote.film,
+      nsfw: adaptedQuote.nsfw,
       createdAt: adaptedQuote.createdAt,
     };
   }
@@ -288,6 +321,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
     editedAt: asNullableString(root.editedAt),
     isDeleted: Boolean(root.isDeleted),
     moderationStatus: asModerationStatus(root.moderationStatus),
+    nsfw: asNsfwInfo(root.nsfw),
     author: {
       id: asString(authorRaw.id) || asString(root.userId) || username,
       username,
@@ -372,6 +406,7 @@ type CommentDto = {
   body: string | null;
   isDeleted?: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
+  nsfw?: NsfwInfo;
   likeCount: number;
   editedAt?: string | null;
   createdAt: string;
@@ -403,6 +438,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
       body: raw.body,
       isDeleted: raw.isDeleted,
       moderationStatus: asModerationStatus(raw.moderationStatus),
+      nsfw: asNsfwInfo(raw.nsfw),
       likeCount: raw.likeCount,
       isLiked: Boolean(raw.isLiked),
       editedAt: raw.editedAt ?? null,

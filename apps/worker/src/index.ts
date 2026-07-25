@@ -25,6 +25,7 @@ import { runChatTypingJob } from "./jobs/chatTyping.js";
 import { runCatalogIndexJob, runCatalogIndexOutboxJob } from "./jobs/catalogIndex.js";
 import { runModerationAutoHideCheck } from "./jobs/moderationAutoHide.js";
 import { runModerationNotifyReporters } from "./jobs/moderationNotifyReporters.js";
+import { runNsfwScanJob } from "./jobs/nsfwScan.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
@@ -177,6 +178,10 @@ async function handleJob(job: Job, queue: Queue): Promise<unknown> {
       });
     }
     return moderationResult;
+  }
+
+  if (job.name === "nsfw.scan") {
+    return runNsfwScanJob(job.data);
   }
 
   if (job.name === "chat.deliver") {

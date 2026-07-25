@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedMediaUrl, fullMediaUrl } from "./variants.js";
+import { feedMediaUrl, fullMediaUrl, normalizePostMediaItem } from "./variants.js";
 
 describe("media variants url selection", function () {
   it("feedMediaUrl prefers feed variant and falls back to source", function () {
@@ -19,6 +19,27 @@ describe("media variants url selection", function () {
         url: "https://cdn.example.com/original.jpg",
       })
     ).toBe("https://cdn.example.com/original.jpg");
+  });
+
+  it("preserves NSFW item metadata and defaults nsfw to false", function () {
+    expect(normalizePostMediaItem({
+      type: "image",
+      url: "https://cdn.example.com/flagged.jpg",
+      key: "posts/flagged.jpg",
+      nsfw: true,
+      nsfwCategories: ["nudity"],
+    })).toMatchObject({
+      nsfw: true,
+      nsfwCategories: ["nudity"],
+    });
+
+    expect(normalizePostMediaItem({
+      type: "image",
+      url: "https://cdn.example.com/plain.jpg",
+      key: "posts/plain.jpg",
+    })).toMatchObject({
+      nsfw: false,
+    });
   });
 
   it("fullMediaUrl prefers full variant and falls back to source", function () {

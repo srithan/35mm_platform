@@ -1,3 +1,4 @@
+import type { NsfwCategory } from "@35mm/types";
 import type { Post } from "../types/feed";
 import { adaptPostToFeedType } from "./adapters";
 import { apiRequest } from "./http";
@@ -34,6 +35,7 @@ export interface CreatePostInput {
   }>;
   mediaUrls?: string[];
   quotedPostId?: string;
+  authorNsfwCategories?: NsfwCategory[];
   linkPreview?: {
     url: string;
     title: string;

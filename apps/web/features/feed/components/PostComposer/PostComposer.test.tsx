@@ -73,6 +73,10 @@ vi.mock("@/features/profile/api/mediaApi", () => ({
   uploadToPresignedUrl: vi.fn(),
 }));
 
+vi.mock("../../lib/nsfwImageHint", () => ({
+  classifyStagedImage: vi.fn(async () => []),
+}));
+
 vi.mock("./FilmSearch", () => ({
   FilmSearch: ({ onSelect, isHidden }: { onSelect: (film: { id: number; title: string; year: string; language: string; genres: string[]; posterPath: string | null }) => void; isHidden: boolean }) =>
     isHidden ? null : (
@@ -139,6 +143,71 @@ function storedBody(text: string): string {
 }
 
 describe("PostComposer", () => {
+  it("adds selected sensitive categories to the create payload", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+
+    await user.type(screen.getByPlaceholderText(WRITE_PLACEHOLDER), "A difficult scene");
+    await user.click(screen.getByRole("button", { name: "Content warning" }));
+    await user.click(screen.getByRole("checkbox", { name: "Nudity" }));
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ authorNsfwCategories: ["nudity"] })
+      );
+    });
+  });
+
+  it("keeps content-warning controls hidden until requested", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+
+    expect(screen.getByRole("button", { name: "Content warning" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Nudity" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Content warning" }));
+    expect(screen.getByRole("checkbox", { name: "Nudity" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Close content warning" }));
+    expect(screen.queryByRole("checkbox", { name: "Nudity" })).not.toBeInTheDocument();
+  });
+
+  it("opens the compact content-warning panel when an advisory hint is detected", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+
+    await user.type(
+      screen.getByPlaceholderText(WRITE_PLACEHOLDER),
+      "The film includes graphic violence."
+    );
+
+    await waitFor(
+      () => {
+        expect(screen.getByRole("checkbox", { name: "Violence" })).toBeInTheDocument();
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "This may contain sensitive content"
+        );
+      },
+      { timeout: 1_500 }
+    );
+  });
+
+  it("omits sensitive categories when none are selected", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer variant="inline" />);
+
+    await user.type(screen.getByPlaceholderText(WRITE_PLACEHOLDER), "A quiet scene");
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    const call = mocks.createPostMutateAsync.mock.calls[0] as unknown[];
+    const payload = call[0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("authorNsfwCategories");
+  });
+
   it("keeps modal chrome fixed while composer content owns scrolling", () => {
     const { container } = render(<PostComposer variant="modal" />);
 
