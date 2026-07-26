@@ -216,6 +216,39 @@ export interface FeedPage {
   hasMore: boolean;
 }
 
+export type SiteSearchResult =
+  | {
+      id: string;
+      type: "film";
+      title: string;
+      year: number | null;
+      posterUrl: string | null;
+      director: string | null;
+      genres: string[];
+    }
+  | {
+      id: string;
+      type: "user";
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      isPrivate: boolean;
+    }
+  | {
+      id: string;
+      type: "post";
+      username: string;
+      headline: string | null;
+      excerpt: string;
+      createdAt: string;
+    };
+
+export interface SiteSearchResponse {
+  items: SiteSearchResult[];
+  nextCursor: null;
+  hasMore: false;
+}
+
 export interface FeedComment {
   id: string;
   postId: string;

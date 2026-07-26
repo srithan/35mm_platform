@@ -1315,6 +1315,11 @@ export var catalogReadPageQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export var siteSearchQuerySchema = z.object({
+  q: z.string().trim().min(2).max(120),
+  limit: z.coerce.number().int().min(1).max(8).default(5),
+});
+
 export var catalogTitleSearchQuerySchema = catalogReadPageQuerySchema.extend({
   query: z.string().trim().min(1).max(200).optional(),
   type: catalogTitleTypeSchema.optional(),
@@ -1418,6 +1423,7 @@ export type CatalogWorkflowPayloadInput = z.infer<typeof catalogWorkflowPayloadS
 export type CatalogHistoryQueryInput = z.infer<typeof catalogHistoryQuerySchema>;
 export type CatalogIdParamInput = z.infer<typeof catalogIdParamSchema>;
 export type CatalogReadPageQueryInput = z.infer<typeof catalogReadPageQuerySchema>;
+export type SiteSearchQueryInput = z.infer<typeof siteSearchQuerySchema>;
 export type CatalogTitleSearchQueryInput = z.infer<typeof catalogTitleSearchQuerySchema>;
 export type CatalogPeopleSearchQueryInput = z.infer<typeof catalogPeopleSearchQuerySchema>;
 export type CatalogCompanySearchQueryInput = z.infer<typeof catalogCompanySearchQuerySchema>;

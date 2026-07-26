@@ -20,12 +20,14 @@ The repository is a pnpm/Turborepo monorepo:
 - `packages/db`: Drizzle schema and Neon client.
 - `packages/design-tokens`: React-free mobile theme and foundation tokens with web/Swift parity fixtures.
 - `packages/mobile-ui`: Shared React Native primitives, overlays, skeletons, and state surfaces.
+- `packages/search`: dependency-free Meilisearch HTTP client, index contracts,
+  document shapes, and deterministic index settings shared by API/worker.
 - `packages/types`: shared TypeScript contracts.
 - `packages/validators`: shared Zod validators.
 - `packages/ui`: small shared UI primitive package.
 - `packages/config`: shared TypeScript config.
 
-Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, the new `catalog_` database core, catalog read APIs, catalog mutation APIs/helpers, Studio catalog-title API wiring, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, contribution submissions, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Contribution rewiring, Meilisearch, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
+Current implementation is beyond parts of the older architecture plan. The code now has canonical `films`, the new `catalog_` database core, catalog read APIs, catalog mutation APIs/helpers, Studio catalog-title API wiring, Meilisearch-backed site-header search for films/users/posts, `post_bookmarks`, follows, comments, notifications, feed items, post edits, user blocks/mutes, film lists, watchlists, polls, contribution submissions, and chat thread metadata in the Drizzle schema. Chat message persistence uses AWS Keyspaces. Contribution rewiring, normalized catalog people/company search, Cloudflare Stream, and notification digest email remain partial, planned, or mock-heavy.
 
 React Native product direction is approved, including one shared visual system
 for iOS and Android, preservation of `apps/ios`, Android API 24+ support, full
@@ -321,6 +323,12 @@ Important files:
 - `src/jobs/feedFanout.ts`: materializes accepted-follower `feed_items` below the high-follower threshold and skips high-follower authors for live read merge.
 - `src/jobs/feedRescore.ts`: recomputes recent materialized feed scores from denormalized post counters.
 - `src/jobs/catalogIndex.ts`: drains `catalog_index_jobs` through the partial unprocessed index with `FOR UPDATE SKIP LOCKED`, enqueues idempotent BullMQ `catalog.index` jobs, marks rows processed, samples pending-review queue depth outside the mutation path, and emits index-job lag logs. The `catalog.index` handler logs unconfigured search target until Meilisearch document writes are wired.
+- `src/jobs/searchIndex.ts`: drains trigger-backed `search_index_jobs` in bounded
+  lock-safe batches, coalesces entity refs, batch-loads canonical films,
+  profiles, and public posts, and waits for idempotent Meilisearch
+  replacement/deletion tasks. `src/scripts/setupSearch.ts` configures indexes
+  with a short-lived admin key; `backfillSearch.ts` uses resumable primary-key
+  cursor scans.
 - `src/jobs/notificationDigest.ts`: currently logs readiness only.
 - `src/jobs/chatDeliver.ts`: fetches Keyspaces message rows and publishes new-message + inbox update events.
 - `src/jobs/chatMessageUpdated.ts`: publishes edit/delete/reaction updates from Keyspaces message rows.
@@ -875,7 +883,10 @@ Current state:
 - Title pages live at `/title/[media]/[id]` and are still largely TMDB-oriented.
 - Short films include catalog JSON, watch/upload UI, and upload form, but are out of V1 per architecture.
 - Festivals and communities have rich UI/data mock surfaces but no complete backend wiring.
-- Search bar has mock search API and component tests; Meilisearch is not wired.
+- Site-header search uses authenticated `/v1/search`, server-side Meilisearch
+  multi-search, bounded Postgres authorization hydration, canonical film links,
+  and real API result component tests. Other mock-heavy discovery surfaces
+  remain separate.
 
 ### Chat
 
@@ -989,6 +1000,9 @@ Implemented or partially implemented:
 - `counter.outbox`: durable DB drain for `counter_jobs` and `profile_follow_approval_outbox`. API counter-touching mutations write `counter_jobs` rows in the same DB transaction as fact changes; follow-approval flips write `profile_follow_approval_outbox` in the visibility transaction. Worker drains both tables with row locks, applies batched counter updates in bounded time-budget loops, and deletes processed rows. `backlog` is returned from each run for observability. If a full batch drains and backlog remains, worker self-enqueues follow-up `counter.outbox` work. Repeatable worker schedule still drains pending rows if an API wake enqueue failed.
 - `catalog.index.outbox`: implemented as the durable catalog index relay from Postgres outbox to BullMQ; also samples `catalog.pending_queue_depth` outside the mutation path.
 - `catalog.index`: implemented as a BullMQ handler with explicit unconfigured-search logging; real Meilisearch writes remain unwired.
+- `search.index.outbox` and `search.index`: implemented for canonical
+  films/users/posts with transactional triggers, bounded coalescing, async task
+  failure propagation, and cursor backfill.
 - `feed.fanout`: implemented for below-threshold authors with idempotent `feed_items(user_id, post_id)` writes, chunked follower pagination, score computation, and viewer cache invalidation.
 - `feed.fanout.outbox`: implemented durable Postgres relay for direct fanout enqueue failures, with stale-lock recovery, capped exponential retry, unique recovery job IDs, and bounded backlog follow-ups.
 - `feed.rescore`: implemented periodic pass for stale materialized feed rows; recomputes score from post denormalized counters, refreshes `score_refreshed_at`, and invalidates touched viewer caches.
@@ -1100,9 +1114,11 @@ Stale or superseded items in `docs/architecture.md` / older agent notes:
 
 Still true gaps:
 
-- General catalog read/search module exists over DB current-state tables; Meilisearch is still unwired.
+- General normalized catalog read/search remains DB-backed; site-header
+  films/users/posts retrieval is Meilisearch-backed.
 - Studio catalog title CRUD/import writes through the catalog mutation/revision pipeline; Contributions do not yet write through it.
-- Meilisearch is not wired.
+- Meilisearch people/company indexing and remaining discover/composer rewiring
+  are not implemented.
 - Notification digest email is not implemented.
 - Cloudflare Stream is not wired.
 - Chat production rollout depends on keeping AWS Keyspaces and Postgres migrations applied in each environment.

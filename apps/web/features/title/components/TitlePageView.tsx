@@ -16,10 +16,14 @@ import { MAIN_SECTION_GAP } from "./titlePageLayoutTokens";
 
 type TitleContentTab = "overview" | "reviews";
 
-export function TitlePageView(props: { media: TitleMedia; id: string }) {
-  const { media, id } = props;
+export function TitlePageView(props: {
+  media: TitleMedia;
+  id: string;
+  tmdbId?: string;
+}) {
+  const { media, id, tmdbId } = props;
   const { status, detail, videos, recommendations, seasons, errorMessage } =
-    useTitlePageData(media, id);
+    useTitlePageData(media, id, tmdbId);
   const [activeVideoKey, setActiveVideoKey] = useState<string | null>(null);
   const [contentTab, setContentTab] = useState<TitleContentTab>("overview");
   const [reviewsTabMounted, setReviewsTabMounted] = useState(false);

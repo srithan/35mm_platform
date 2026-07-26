@@ -69,6 +69,9 @@ export interface SearchBarProps {
    */
   isLoading?: boolean;
 
+  /** Whether externally-provided search failed. */
+  isError?: boolean;
+
   /**
    * Layout variant.
    * - `"default"` — standalone bar with outer padding (Discover / Festivals)

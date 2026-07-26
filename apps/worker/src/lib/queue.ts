@@ -22,6 +22,8 @@ type SupportedJobName =
   | "counter.outbox"
   | "catalog.index"
   | "catalog.index.outbox"
+  | "search.index"
+  | "search.index.outbox"
   | "notification.publish"
   | "notification.digest"
   | "compute-suggestions";

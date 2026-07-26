@@ -10,6 +10,8 @@ import type {
 import type { TitleMedia } from "@/lib/title/paths";
 
 const MAX_SEASONS_FETCH = 40;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 function parseDetail(text: string): TMDBMovie | null {
   const d = parseTmdbJsonObject<TMDBMovie>(text);
@@ -51,24 +53,15 @@ const emptyData: TitlePageData = {
   errorMessage: null,
 };
 
-export function useTitlePageData(media: TitleMedia, idParam: string): TitlePageData {
+export function useTitlePageData(
+  media: TitleMedia,
+  idParam: string,
+  resolvedTmdbId?: string
+): TitlePageData {
   const [data, setData] = useState<TitlePageData>(emptyData);
 
   useEffect(
     function () {
-      const id = parseInt(idParam, 10);
-      if (isNaN(id) || id < 1) {
-        setData({
-          status: "invalid_id",
-          detail: null,
-          videos: [],
-          recommendations: [],
-          seasons: [],
-          errorMessage: null,
-        });
-        return;
-      }
-
       let cancelled = false;
       setData({
         status: "loading",
@@ -79,29 +72,69 @@ export function useTitlePageData(media: TitleMedia, idParam: string): TitlePageD
         errorMessage: null,
       });
 
-      const cert = media === "tv" ? "content_ratings" : "release_dates";
-      const extra =
-        media === "tv" ? "created_by" : "";
-      const detailUrl =
-        "/api/tmdb/" +
-        media +
-        "/" +
-        id +
-        "?append_to_response=" +
-        ["credits", "watch/providers", "external_ids", cert, "videos", extra]
-          .filter(Boolean)
-          .join(",");
-      const recUrl = `/api/tmdb/${media}/${id}/recommendations?page=1`;
+      async function resolveTmdbId(): Promise<number | null> {
+        if (resolvedTmdbId && /^\d+$/.test(resolvedTmdbId)) {
+          const resolvedNumeric = Number(resolvedTmdbId);
+          return Number.isSafeInteger(resolvedNumeric) && resolvedNumeric > 0
+            ? resolvedNumeric
+            : null;
+        }
+        if (/^\d+$/.test(idParam)) {
+          const numeric = Number(idParam);
+          return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+        }
+        const canonicalId = idParam.trim().toUpperCase();
+        if (!ULID_RE.test(canonicalId)) return null;
+        const response = await fetch(
+          API_URL + "/v1/films/" + encodeURIComponent(canonicalId),
+          { cache: "no-store" }
+        );
+        if (!response.ok) return null;
+        const film = (await response.json()) as { tmdbId?: unknown };
+        return typeof film.tmdbId === "number" && film.tmdbId > 0
+          ? film.tmdbId
+          : null;
+      }
 
-      Promise.all([
-        fetch(detailUrl).then(function (r) {
-          return r.text();
-        }),
-        fetch(recUrl).then(function (r) {
-          return r.text();
-        }),
-      ])
-        .then(function ([detailText, recText]) {
+      resolveTmdbId()
+        .then(function (id) {
+          if (cancelled) return null;
+          if (!id) {
+            setData({
+              status: "invalid_id",
+              detail: null,
+              videos: [],
+              recommendations: [],
+              seasons: [],
+              errorMessage: null,
+            });
+            return null;
+          }
+
+          const cert = media === "tv" ? "content_ratings" : "release_dates";
+          const extra = media === "tv" ? "created_by" : "";
+          const detailUrl =
+            "/api/tmdb/" +
+            media +
+            "/" +
+            id +
+            "?append_to_response=" +
+            ["credits", "watch/providers", "external_ids", cert, "videos", extra]
+              .filter(Boolean)
+              .join(",");
+          const recUrl = `/api/tmdb/${media}/${id}/recommendations?page=1`;
+          return Promise.all([
+            fetch(detailUrl).then(function (r) {
+              return r.text();
+            }),
+            fetch(recUrl).then(function (r) {
+              return r.text();
+            }),
+          ]);
+        })
+        .then(function (result) {
+          if (!result) return;
+          const [detailText, recText] = result;
           if (cancelled) return;
           const detail = parseDetail(detailText);
           if (!detail) {
@@ -151,7 +184,7 @@ export function useTitlePageData(media: TitleMedia, idParam: string): TitlePageD
           const seasonFetches: Promise<TMDBSeasonDetail | null>[] = [];
           for (let s = 1; s <= n; s++) {
             seasonFetches.push(
-              fetch("/api/tmdb/tv/" + id + "/season/" + s)
+              fetch("/api/tmdb/tv/" + detail.id + "/season/" + s)
                 .then(function (r) {
                   return r.text();
                 })
@@ -196,7 +229,7 @@ export function useTitlePageData(media: TitleMedia, idParam: string): TitlePageD
         cancelled = true;
       };
     },
-    [media, idParam]
+    [media, idParam, resolvedTmdbId]
   );
 
   return data;

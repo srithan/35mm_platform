@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@35mm/db": "workspace:*",
+    "@35mm/search": "workspace:*",
     "@35mm/types": "workspace:*",
     "@35mm/validators": "workspace:*",
     "aws-sigv4-auth-cassandra-plugin": "^1.0.1",

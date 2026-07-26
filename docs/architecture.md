@@ -291,12 +291,12 @@ Phase 1.2 adds Jest 29.7 through `jest-expo` 57.0.2 and React Native Testing Lib
 | Neon Postgres | Wired | Source-of-truth relational data |
 | Cloudflare R2 | Wired | Originals and processed media variants |
 | Upstash Redis | Wired | Split Redis databases for feed/catalog/profile/TMDB cache, rate limits, BullMQ broker, suggestions cache, and chat unread/typing/presence |
-| BullMQ | Partially wired | Media processing, notifications, suggestions, async counters, and feed fanout implemented; digest/search jobs partial |
+| BullMQ | Partially wired | Media processing, notifications, suggestions, async counters, feed fanout, and site-search indexing implemented; notification digest remains partial |
 | Ably | Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions |
 | TMDB | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports |
 | Cloudflare Images | Optional | Delivery layer for processed images |
 | Cloudflare Stream | Not wired | Future video streaming |
-| Meilisearch | Not wired | Future search |
+| Meilisearch | Partially wired | Site-header films/users/posts search; normalized catalog people/company indexing remains pending |
 | Resend | Partially wired | Transactional notification emails from the worker; digest remains future work |
 
 ---
@@ -520,6 +520,16 @@ Catalog write pattern:
 7. Public catalog mutation routes derive source/trust server-side: Studio catalog writers stage as `studio`, other authenticated users stage as `contribution`, and client-supplied `source` is ignored.
 8. `apps/worker/src/jobs/catalogIndex.ts` drains `catalog_index_jobs` into BullMQ `catalog.index` jobs through the partial unprocessed index and samples pending-review queue depth out of band. Meilisearch document writes still require search backend wiring.
 9. Public catalog GET routes use the `catalog-read:v1` Redis cache with normalized path/query keys, a 45-second TTL, and an index set for explicit invalidation after applied catalog mutations, reverts, and merges. If Redis is missing, reads fall back to bounded indexed DB queries.
+
+`search_index_jobs`
+
+- Transactional search projection outbox for canonical `films`, profiles, and
+  posts. Migration-owned triggers enqueue only search-relevant source changes.
+- `(created_at, id) WHERE processed_at IS NULL` supports bounded lock-safe
+  relay scans; `(status, available_at, id)` supports operational recovery.
+- Worker coalesces duplicate entity refs, batch-loads source rows without N+1
+  queries, replaces/deletes Meilisearch documents idempotently, and waits for
+  asynchronous task completion before acknowledging BullMQ work.
 
 ### Posts and Interactions
 
@@ -1309,6 +1319,11 @@ Implemented:
 - `counter.outbox`: durable `counter_jobs` and `profile_follow_approval_outbox` drain, now run with bounded time budget loops and emit `backlog` + `followUp` metrics in worker result payloads.
 - `catalog.index.outbox`: durable catalog indexing relay. It locks unprocessed `catalog_index_jobs` rows with `FOR UPDATE SKIP LOCKED`, enqueues idempotent `catalog.index` BullMQ jobs, records `processed_at`, emits index-job lag logs, and samples `catalog.pending_queue_depth` outside the mutation path.
 - `catalog.index`: receives catalog index payloads. It logs an explicit unconfigured search target until Meilisearch host/token and document mapping are wired.
+- `search.index.outbox`: drains transactional `search_index_jobs` in bounded
+  `FOR UPDATE SKIP LOCKED` batches and enqueues idempotent `search.index` work.
+- `search.index`: batch-loads canonical films, active/visible profiles, and
+  public visible non-flagged posts, then applies idempotent Meilisearch
+  replacements/deletions and waits for task success so BullMQ retries failures.
 - `counter_job_deltas`: aggregates active `counter_jobs` deltas by `(target_table, target_id, counter_name)` to keep feed overlays bounded to active keys.
 - `feed.fanout`: materializes new posts into accepted followers' `feed_items` below the high-follower threshold; skips high-follower authors for live read merge.
 - `feed.fanout.outbox`: relays durable Postgres fanout intents back into per-post BullMQ work after queue outages; uses bounded lock-safe claims, unique recovery job IDs, and capped retry backoff.
@@ -1331,7 +1346,8 @@ Rate limiting:
 Stub or incomplete:
 
 - `notification.digest`: logs readiness only.
-- Search indexing jobs are not implemented.
+- Normalized `catalog_` title/person/company indexing remains separate from the
+  implemented site-search projection over `films`, profiles, and posts.
 - API producer enqueues idempotent-per-report `moderation.autoHideCheck` jobs after report commit. Worker handling is added in moderation Stage 5; until then this staged feature must not be deployed independently.
 - API producer wakes `moderation.notification.outbox` after committed staff actions. Durable rows remain pending when Redis is unavailable; Stage 5 adds relay and reporter/author delivery.
 
@@ -1343,15 +1359,24 @@ Current:
 
 - Native iOS Discover uses the same server-side TMDB proxy and default shelf composition as web, then resolves selections through the canonical catalog API before native title navigation. Web title and composer paths still rely on TMDB proxy or local/static data in places.
 - Post composer film search uses frontend TMDB-oriented lookup paths in places.
-- SearchBar has mock search behavior.
+- Site-header search calls authenticated `GET /v1/search`. API performs one
+  Meilisearch multi-index request for `films`, `users`, and `posts`,
+  retrieves IDs only, then batch-hydrates Postgres rows with current
+  moderation, account, block, mute, visibility, deletion, repost, and NSFW
+  enforcement. Browser receives no Meilisearch key.
+- Searchable source mutations write `search_index_jobs` transactionally through
+  migration triggers; worker jobs relay, coalesce, index, delete, retry, and
+  expose cursor-based setup/backfill scripts. See `docs/search.md`.
+- Film results and `/v1/films/:id` use canonical `films.id`; the existing title
+  presentation resolves TMDB metadata behind that canonical URL.
 
-Target:
+Remaining target:
 
 - Meilisearch indexes:
-  - `films`
+  - `films` (canonical `films` projection)
   - `users`
   - `posts`
-- Indexing should happen asynchronously through worker jobs.
+- Add normalized catalog people/company search projection.
 - Composer film search should prefer 35mm film catalog search once populated.
 - TMDB should remain fallback/autocomplete only.
 
@@ -1519,11 +1544,16 @@ ABLY_API_KEY=
 
 `WEB_BASE_URL` points native Discover at the same Next deployment that owns `/api/tmdb`; local simulator builds use `http://127.0.0.1:3000`, and release configuration must supply the deployed web origin.
 
-Future:
+Search:
 
 ```env
 MEILISEARCH_HOST=
 MEILISEARCH_API_KEY=
+MEILISEARCH_SEARCH_API_KEY=
+MEILISEARCH_REQUEST_TIMEOUT_MS=3000
+MEILISEARCH_TASK_TIMEOUT_MS=30000
+SEARCH_INDEX_OUTBOX_INTERVAL_SECONDS=5
+SEARCH_INDEX_OUTBOX_BATCH_SIZE=500
 ```
 
 ---
@@ -1579,7 +1609,8 @@ pnpm typecheck
 Highest priority architecture gaps:
 
 1. Rewire Contributions to typed catalog mutations instead of review-queue scaffolding.
-2. Wire Meilisearch document writes for titles/people/companies plus users/posts.
+2. Extend implemented Meilisearch site search from canonical films/users/posts
+   to normalized catalog people/companies and composer/discover surfaces.
 3. Run and validate the `films` to `catalog_titles` backfill in real environments while keeping `films` as the social FK bridge.
 4. Add DB-level checks for ULID-shaped text IDs where practical.
 5. Finish notification digest scheduling; transactional Resend notification email is wired.

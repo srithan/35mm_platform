@@ -13,6 +13,8 @@
     "backfill:media": "node --env-file=../api/.env --import tsx src/scripts/backfillMedia.ts",
     "backfill:avatars": "node --env-file=../api/.env --import tsx src/scripts/backfillProfileMedia.ts",
     "backfill:feed-fanout": "node --env-file=../api/.env --import tsx src/scripts/backfillFeedFanout.ts",
+    "search:setup": "node --env-file=../api/.env --import tsx src/scripts/setupSearch.ts",
+    "search:backfill": "node --env-file=../api/.env --import tsx src/scripts/backfillSearch.ts",
     "reconcile:counters": "node --env-file=../api/.env --import tsx src/scripts/reconcileCounters.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -20,6 +22,7 @@
   },
   "dependencies": {
     "@35mm/db": "workspace:*",
+    "@35mm/search": "workspace:*",
     "@35mm/types": "workspace:*",
     "aws-sigv4-auth-cassandra-plugin": "^1.0.1",
     "@react-email/components": "^1.0.12",

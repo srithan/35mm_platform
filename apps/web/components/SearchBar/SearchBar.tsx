@@ -30,6 +30,7 @@ export function SearchBar({
   onClear,
   results: externalResults,
   isLoading: externalLoading,
+  isError: externalError,
   variant = "default",
   size = "default",
   autoFocus = false,
@@ -46,7 +47,7 @@ export function SearchBar({
     debouncedQuery,
     results: internalResults,
     isLoading: internalLoading,
-    isError,
+    isError: internalError,
     isOpen,
     open,
     close,
@@ -63,6 +64,9 @@ export function SearchBar({
   const isLoading = useExternalResults
     ? (externalLoading ?? false)
     : internalLoading;
+  const isError = useExternalResults
+    ? (externalError ?? false)
+    : internalError;
 
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);

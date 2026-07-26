@@ -57,6 +57,12 @@ export function loadEnv() {
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? "",
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
     ABLY_API_KEY: process.env.ABLY_API_KEY ?? "",
+    MEILISEARCH_HOST: process.env.MEILISEARCH_HOST ?? "",
+    MEILISEARCH_SEARCH_API_KEY:
+      process.env.MEILISEARCH_SEARCH_API_KEY ?? "",
+    MEILISEARCH_REQUEST_TIMEOUT_MS: Number(
+      process.env.MEILISEARCH_REQUEST_TIMEOUT_MS ?? "3000"
+    ),
     RATE_LIMIT_DISABLED: (process.env.RATE_LIMIT_DISABLED ?? "").toLowerCase() === "true",
     EMAIL_UNSUBSCRIBE_SECRET: process.env.EMAIL_UNSUBSCRIBE_SECRET ?? "",
     NODE_ENV: nodeEnv,

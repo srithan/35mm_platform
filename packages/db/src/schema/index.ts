@@ -29,6 +29,11 @@ export {
   type ModerationContentSnapshot,
 } from "./moderation.js";
 export { usernameLocks, type UsernameLockState } from "./username_locks.js";
+export {
+  searchIndexJobs,
+  type SearchIndexEntityType,
+  type SearchIndexJobStatus,
+} from "./search.js";
 export { userSettings } from "./user_settings.js";
 export { films, filmSourceEnum } from "./films.js";
 export {

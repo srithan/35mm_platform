@@ -26,6 +26,10 @@ import { runCatalogIndexJob, runCatalogIndexOutboxJob } from "./jobs/catalogInde
 import { runModerationAutoHideCheck } from "./jobs/moderationAutoHide.js";
 import { runModerationNotifyReporters } from "./jobs/moderationNotifyReporters.js";
 import { runNsfwScanJob } from "./jobs/nsfwScan.js";
+import {
+  runSearchIndexJob,
+  runSearchIndexOutboxJob,
+} from "./jobs/searchIndex.js";
 import { WORKER_QUEUE_NAME } from "./lib/queue.js";
 import { loadWorkerEnv } from "./lib/env.js";
 import { warmKeyspacesClient } from "./lib/keyspaces.js";
@@ -150,6 +154,14 @@ async function handleJob(job: Job, queue: Queue): Promise<unknown> {
 
   if (job.name === "catalog.index") {
     return runCatalogIndexJob(job.data);
+  }
+
+  if (job.name === "search.index.outbox") {
+    return runSearchIndexOutboxJob(job.data, queue);
+  }
+
+  if (job.name === "search.index") {
+    return runSearchIndexJob(job.data);
   }
 
   if (job.name === "notification.publish") {
@@ -334,6 +346,34 @@ async function main() {
     },
     removeOnComplete: true,
     removeOnFail: 1000,
+  });
+
+  var searchIndexIntervalSeconds = Number(
+    process.env.SEARCH_INDEX_OUTBOX_INTERVAL_SECONDS ?? "5"
+  );
+  await schedulerQueue.add("search.index.outbox", {}, {
+    jobId: "search.index.outbox-repeat",
+    repeat: {
+      every: Math.max(2, searchIndexIntervalSeconds) * 1000,
+    },
+    attempts: 8,
+    backoff: {
+      type: "exponential",
+      delay: 1_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 2_000,
+  });
+
+  await schedulerQueue.add("search.index.outbox", {}, {
+    jobId: "search.index.outbox-startup-" + Date.now(),
+    attempts: 8,
+    backoff: {
+      type: "exponential",
+      delay: 1_000,
+    },
+    removeOnComplete: true,
+    removeOnFail: 2_000,
   });
 
   var moderationOutboxIntervalSeconds = Number.isFinite(env.MODERATION_NOTIFICATION_OUTBOX_INTERVAL_SECONDS)
