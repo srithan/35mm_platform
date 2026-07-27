@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useMemo } from "react";
+import { createContext, useCallback, useMemo, type ComponentType, type ReactNode } from "react";
 import { ThemeProvider as NextThemesProvider, useTheme as useNextTheme } from "next-themes";
 
 export type ThemeOption =
@@ -15,6 +15,21 @@ type ResolvedTheme = "light" | "dark" | "matinee" | "matrix" | "oppenheimer-bw" 
 
 const STORAGE_KEY = "35mm-theme";
 const THEMES: ResolvedTheme[] = ["light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"];
+
+type React18NextThemesProviderProps = {
+  children?: ReactNode;
+  attribute?: `data-${string}` | "class" | Array<`data-${string}` | "class">;
+  defaultTheme?: string;
+  disableTransitionOnChange?: boolean;
+  enableSystem?: boolean;
+  storageKey?: string;
+  themes?: string[];
+};
+
+// next-themes resolves React outside this pnpm workspace's isolated React 18
+// type boundary. Keep the compatibility cast narrow and mirror its public API.
+const React18NextThemesProvider =
+  NextThemesProvider as unknown as ComponentType<React18NextThemesProviderProps>;
 
 interface ThemeContextValue {
   /** User preference: auto | light | dark | matinee | matrix | oppenheimer-bw | barbie */
@@ -60,7 +75,7 @@ function ThemeContextBridge({ children }: { children: React.ReactNode }) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
-    <NextThemesProvider
+    <React18NextThemesProvider
       attribute="data-theme"
       defaultTheme="system"
       enableSystem
@@ -69,6 +84,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       <ThemeContextBridge>{children}</ThemeContextBridge>
-    </NextThemesProvider>
+    </React18NextThemesProvider>
   );
 }

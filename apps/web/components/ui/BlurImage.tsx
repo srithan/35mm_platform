@@ -5,6 +5,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ComponentType,
+  type CSSProperties,
+  type HTMLAttributes,
   type ImgHTMLAttributes,
   type SyntheticEvent,
 } from "react";
@@ -13,6 +16,20 @@ import { cn } from "@/lib/utils/cn";
 import { resolvePublicMediaUrl } from "@/lib/utils/r2Media";
 
 type NativeImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt" | "width" | "height">;
+
+type BlurhashComponentProps = HTMLAttributes<HTMLDivElement> & {
+  hash: string;
+  height?: number | string | "auto";
+  punch?: number;
+  resolutionX?: number;
+  resolutionY?: number;
+  style?: CSSProperties;
+  width?: number | string | "auto";
+};
+
+// react-blurhash's declaration resolves React outside this pnpm workspace's
+// isolated React 18 type boundary. The runtime component follows these props.
+const React18Blurhash = Blurhash as unknown as ComponentType<BlurhashComponentProps>;
 
 export interface BlurImageProps extends NativeImageProps {
   src?: string | null;
@@ -106,7 +123,7 @@ export function BlurImage({
       {!loaded ? (
         trimmedBlurhash ? (
           <span className={cn("absolute inset-0 block", placeholderClassName)} aria-hidden>
-            <Blurhash
+            <React18Blurhash
               hash={trimmedBlurhash}
               width="100%"
               height="100%"

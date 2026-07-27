@@ -130,8 +130,7 @@ async function mutualFollowerCountsForRequesters(
         inArray(follows.followerId, requesterIds)
       )
     )
-    .groupBy(follows.followerId)
-    .orderBy(desc(follows.createdAt), desc(follows.followerId));
+    .groupBy(follows.followerId);
 
   var map = new Map<string, number>();
   var index = 0;

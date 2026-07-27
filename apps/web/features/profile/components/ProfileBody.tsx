@@ -2,7 +2,7 @@
 
 import { Lock } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { ProfileTabs } from "./ProfileTabs";
 import { ProfileTabContent } from "./ProfileTabContent";
@@ -28,7 +28,9 @@ export function ProfileBody(props: {
   filmsLoggedCount: number;
 }) {
   var pathname = usePathname();
-  var tab = resolveProfileTabFromPathname(pathname ?? "", props.username) ?? "posts";
+  var routeTab =
+    resolveProfileTabFromPathname(pathname ?? "", props.username) ?? "posts";
+  var [tab, setTab] = useState(routeTab);
   var pendingStickyScrollYRef = useRef<number | null>(null);
   var previousTabRef = useRef(tab);
   var stickyTop = "calc(var(--site-header-sticky-offset, 4.5rem) + 1rem)";
@@ -47,6 +49,13 @@ export function ProfileBody(props: {
     headlineContext: props.headlineContext,
     filmsLoggedCount: props.filmsLoggedCount,
   };
+
+  useEffect(
+    function () {
+      setTab(routeTab);
+    },
+    [routeTab]
+  );
 
   useLayoutEffect(
     function () {
@@ -90,6 +99,8 @@ export function ProfileBody(props: {
           <div className="w-full max-w-[640px] lg:ml-auto lg:border-l lg:border-border xl:w-[640px] xl:max-w-[640px]">
             <ProfileTabs
               username={props.username}
+              activeTab={tab}
+              onTabNavigation={setTab}
               onStickyNavigation={function (scrollY) {
                 pendingStickyScrollYRef.current = scrollY;
               }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ComponentType } from "react";
 import Cropper from "react-easy-crop";
 import type { Point, Area } from "react-easy-crop";
 import { Button } from "@/components/Button";
@@ -14,6 +14,23 @@ interface ImageCropperProps {
   aspect?: number;
   cropShape?: "rect" | "round";
 }
+
+type React18CropperProps = {
+  image?: string;
+  crop: Point;
+  zoom?: number;
+  rotation?: number;
+  aspect?: number;
+  cropShape?: "rect" | "round";
+  showGrid?: boolean;
+  onCropChange: (location: Point) => void;
+  onCropComplete?: (croppedArea: Area, croppedAreaPixels: Area) => void;
+  onZoomChange?: (zoom: number) => void;
+};
+
+// react-easy-crop's class declaration resolves React outside this pnpm
+// workspace's isolated React 18 type boundary.
+const React18Cropper = Cropper as unknown as ComponentType<React18CropperProps>;
 
 export function ImageCropper({
   image,
@@ -45,7 +62,7 @@ export function ImageCropper({
   return (
     <div className="flex flex-col gap-6">
       <div className="relative w-full h-[400px] bg-black/20 rounded-xl overflow-hidden border border-border">
-        <Cropper
+        <React18Cropper
           image={image}
           crop={crop}
           zoom={zoom}

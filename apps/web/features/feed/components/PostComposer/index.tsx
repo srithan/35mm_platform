@@ -1604,11 +1604,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                       : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45]"
                     : isModal
                       ? compactComposeBody
-                        ? "min-h-[3rem] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
-                        : "min-h-[170px] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
+                        ? "min-h-[3rem] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                        : "min-h-[170px] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
                       : compactComposeBody
-                        ? "min-h-[3rem] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
-                        : "min-h-[140px] text-[19px] font-[600] leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-[600]"
+                        ? "min-h-[3rem] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                        : "min-h-[140px] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
                 )}
               />
               {fixedMobileToolbar && (
@@ -1747,7 +1747,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   }}
                   onFocus={() => setActiveField("headline")}
                   placeholder="What's your question or take?"
-                  className="w-full text-[19px] font-semibold text-fg bg-transparent border-none outline-none placeholder:text-fg-muted placeholder:font-normal absolute inset-0"
+                  className="w-full text-[19px] font-medium text-fg bg-transparent border-none outline-none placeholder:text-fg-muted placeholder:font-medium absolute inset-0"
                 />
               </div>
               <RichTextEditor
@@ -1768,10 +1768,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 className={cn(
                   "mt-2",
                   isFullPage
-                    ? "min-h-[3rem] text-[17px] font-normal leading-relaxed"
+                    ? "min-h-[3rem] text-[17px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
                     : compactComposeBody
-                      ? "min-h-[3rem] text-[16px] font-light leading-relaxed"
-                      : "min-h-[140px] text-[16px] font-light leading-relaxed"
+                      ? "min-h-[3rem] text-[16px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                      : "min-h-[140px] text-[16px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
                 )}
               />
               {(showDropZone || images.length > 0) && (

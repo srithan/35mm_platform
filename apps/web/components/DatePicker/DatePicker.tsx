@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils/cn";
 import { usePopoverLayer } from "@/lib/hooks/usePopoverLayer";
 import {
   buildCalendarDays,
+  daysInMonth,
   formatDisplayDate,
   getMonthLabel,
   getSelectableBounds,
@@ -22,6 +23,7 @@ import {
   isSelectableIsoDate,
   MONTHS,
   parseIsoDate,
+  toIsoDate,
   WEEKDAY_LABELS,
 } from "./datePickerUtils";
 
@@ -216,6 +218,17 @@ export function DatePicker({
     setOpen(false);
   }
 
+  function commitExistingDateForView(nextYear: number, nextMonth: number) {
+    const current = parseIsoDate(value);
+    if (!current) return;
+
+    const nextDay = Math.min(current.day, daysInMonth(nextYear, nextMonth));
+    const nextValue = toIsoDate(nextYear, nextMonth, nextDay);
+    if (isSelectableIsoDate(nextValue)) {
+      onChange(nextValue);
+    }
+  }
+
   function goToPreviousMonth() {
     setHeaderMenu(null);
     if (viewMonth === 1) {
@@ -271,7 +284,7 @@ export function DatePicker({
               id={listboxId}
               role="dialog"
               aria-label="Choose date of birth"
-              className="fixed z-[calc(var(--z-modal)+1)] rounded-2xl border border-border bg-elevated shadow-[0_16px_40px_color-mix(in_srgb,var(--fg)_12%,transparent)]"
+              className="pointer-events-auto fixed z-[calc(var(--z-modal)+1)] rounded-2xl border border-border bg-elevated shadow-[0_16px_40px_color-mix(in_srgb,var(--fg)_12%,transparent)]"
               style={{
                 top: panelStyle.top,
                 left: panelStyle.left,
@@ -318,6 +331,7 @@ export function DatePicker({
                           aria-selected={selected}
                           onClick={function () {
                             setViewMonth(monthValue);
+                            commitExistingDateForView(viewYear, monthValue);
                             setHeaderMenu(null);
                           }}
                           className={cn(
@@ -361,6 +375,7 @@ export function DatePicker({
                           aria-selected={selected}
                           onClick={function () {
                             setViewYear(year);
+                            commitExistingDateForView(year, viewMonth);
                             setHeaderMenu(null);
                           }}
                           className={cn(

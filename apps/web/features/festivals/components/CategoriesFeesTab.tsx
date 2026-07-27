@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type MouseEvent as ReactMouseEvent } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
@@ -199,7 +199,7 @@ function CatCard({ category, fees, addOn, isOpen, onToggle, slug }: CatCardProps
             )}
             <Link
               href={ROUTES.FESTIVAL(slug)}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: ReactMouseEvent<HTMLAnchorElement>) => e.stopPropagation()}
               className="inline-flex items-center gap-1 text-[11px] font-medium bg-accent text-white px-3 py-1.5 rounded transition-opacity hover:opacity-85 flex-shrink-0"
             >
               Submit →

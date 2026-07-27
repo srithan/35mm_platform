@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import * as z from "zod/v4";
+import { usernameSchema } from "@35mm/validators/username";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
 import { Avatar } from "@/components/Avatar";
@@ -16,7 +18,11 @@ import { LocationAutocomplete } from "./LocationAutocomplete";
 import { DatePicker } from "@/components/DatePicker/DatePicker";
 import { cn } from "@/lib/utils/cn";
 import { ROUTES } from "@/lib/constants/routes";
-import { updateCurrentProfile } from "../api/profileApi";
+import {
+  fetchUsernameAvailability,
+  updateCurrentProfile,
+  updateCurrentUsername,
+} from "../api/profileApi";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { profileKeys } from "../hooks/queryKeys";
 
@@ -54,6 +60,7 @@ const profileSchema = z.object({
     .trim()
     .min(1, "Display name is required")
     .max(50, "Name must be 50 characters or less"),
+  username: usernameSchema,
   dateOfBirth: z
     .string()
     .refine(function (value) {
@@ -73,10 +80,16 @@ interface EditProfileModalProps {
   onClose: () => void;
   onSave: (data: ProfileFormValues) => void;
   initialData: ProfileFormValues;
-  username: string;
   avatarUrl: string | null;
   onAvatarChange?: (imageUrl: string | null) => void;
 }
+
+type UsernameStatus =
+  | { state: "current"; message: string }
+  | { state: "checking"; message: string; username: string }
+  | { state: "available"; message: string; username: string }
+  | { state: "unavailable"; message: string; username: string }
+  | { state: "error"; message: string; username: string };
 
 function normalizeWebsite(value: string): string {
   var trimmed = value.trim();
@@ -154,7 +167,7 @@ function EditProfileField({
     <div
       className={cn(
         "px-4 py-3.5",
-        error && "bg-[color-mix(in_srgb,var(--color-film-red)_7%,var(--sunken))]"
+        error && "bg-[color-mix(in_srgb,var(--color-film-red)_7%,var(--bg))]"
       )}
     >
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
@@ -165,21 +178,26 @@ function EditProfileField({
       </div>
       {children}
       {error ? (
-        <p className="mt-1.5 text-[11.5px] text-accent" role="alert">
+        <p id={id + "-message"} className="mt-1.5 text-[11.5px] text-accent" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p className="mt-1.5 text-[11.5px] leading-relaxed text-fg-muted">{hint}</p>
+        <div
+          id={id + "-message"}
+          className="mt-1.5 text-[11.5px] leading-relaxed text-fg-muted"
+        >
+          {hint}
+        </div>
       ) : null}
     </div>
   );
 }
 
 const fieldGroupClassName =
-  "edit-profile-field-group overflow-hidden rounded-2xl border border-border bg-sunken divide-y divide-border";
+  "edit-profile-field-group overflow-hidden rounded-2xl border border-border bg-bg divide-y divide-border";
 
 const profileSummaryClassName =
-  "edit-profile-field-group flex items-center gap-4 rounded-2xl border border-border bg-sunken px-4 py-3.5";
+  "edit-profile-field-group flex items-center gap-4 rounded-2xl border border-border bg-bg px-4 py-3.5";
 
 const inputClassName =
   "edit-profile-input w-full border-0 bg-transparent p-0 text-[15px] leading-snug text-fg shadow-none outline-none ring-0 placeholder:text-fg-faint focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60";
@@ -193,16 +211,21 @@ export function EditProfileModal({
   onClose,
   onSave,
   initialData,
-  username,
   avatarUrl,
   onAvatarChange,
 }: EditProfileModalProps) {
   const { getToken } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const displayNameRef = useRef<HTMLInputElement | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [usernameCheckVersion, setUsernameCheckVersion] = useState(0);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>({
+    state: "current",
+    message: "This is your current profile URL.",
+  });
 
   const {
     register,
@@ -220,6 +243,15 @@ export function EditProfileModal({
 
   const displayNameField = register("displayName");
 
+  const usernameValue = watch("username") || "";
+  const normalizedUsername = usernameValue.trim().toLowerCase();
+  const normalizedInitialUsername = initialData.username.trim().toLowerCase();
+  const usernameChanged = normalizedUsername !== normalizedInitialUsername;
+  const usernameError = errors.username?.message;
+  const canSaveUsername =
+    !usernameChanged ||
+    (usernameStatus.state === "available" &&
+      usernameStatus.username === normalizedUsername);
   const bioContent = watch("bio") || "";
   const bioRemaining = BIO_MAX - bioContent.length;
   const roleValue = normalizeRoleLabel(watch("role"));
@@ -237,8 +269,83 @@ export function EditProfileModal({
       setSaveError(null);
       setWebsiteError(null);
       setDiscardConfirmOpen(false);
+      setUsernameCheckVersion(0);
+      setUsernameStatus({
+        state: "current",
+        message: "This is your current profile URL.",
+      });
     }
   }, [open, initialData, reset]);
+
+  useEffect(
+    function checkChangedUsername() {
+      if (!open) return;
+
+      if (!usernameChanged) {
+        setUsernameStatus({
+          state: "current",
+          message: "This is your current profile URL.",
+        });
+        return;
+      }
+
+      if (usernameError || normalizedUsername.length === 0) {
+        setUsernameStatus({
+          state: "unavailable",
+          message: usernameError ?? "Enter a valid username.",
+          username: normalizedUsername,
+        });
+        return;
+      }
+
+      var cancelled = false;
+      setUsernameStatus({
+        state: "checking",
+        message: "Checking availability…",
+        username: normalizedUsername,
+      });
+
+      const timeout = window.setTimeout(function () {
+        void fetchUsernameAvailability(normalizedUsername)
+          .then(function (result) {
+            if (cancelled) return;
+            setUsernameStatus(
+              result.available
+                ? {
+                    state: "available",
+                    message: "Username is available.",
+                    username: normalizedUsername,
+                  }
+                : {
+                    state: "unavailable",
+                    message: result.reason ?? "Username is not available.",
+                    username: normalizedUsername,
+                  }
+            );
+          })
+          .catch(function () {
+            if (cancelled) return;
+            setUsernameStatus({
+              state: "error",
+              message: "Could not check availability.",
+              username: normalizedUsername,
+            });
+          });
+      }, 450);
+
+      return function () {
+        cancelled = true;
+        window.clearTimeout(timeout);
+      };
+    },
+    [
+      normalizedUsername,
+      open,
+      usernameChanged,
+      usernameCheckVersion,
+      usernameError,
+    ]
+  );
 
   function requestClose() {
     if (isDirty && !isSubmitting) {
@@ -256,8 +363,13 @@ export function EditProfileModal({
       setWebsiteError("Enter a valid URL, like example.com");
       return;
     }
+    if (!canSaveUsername) {
+      setSaveError("Choose an available username before saving.");
+      return;
+    }
 
     try {
+      const token = await getToken();
       const nextWebsite = normalizeWebsite(data.website);
       const nextRole = normalizeRoleLabel(data.role);
       const nextRoleContext =
@@ -274,12 +386,24 @@ export function EditProfileModal({
           headline: nextRole,
           headlineContext: nextRoleContext,
         },
-        await getToken()
+        token
       );
-      queryClient.invalidateQueries({ queryKey: authKeys.me() });
-      queryClient.invalidateQueries({ queryKey: profileKeys.all });
+
+      var confirmedUsername = normalizedInitialUsername;
+      if (usernameChanged) {
+        confirmedUsername = await updateCurrentUsername(normalizedUsername, token);
+        if (confirmedUsername.toLowerCase() !== normalizedUsername) {
+          throw new Error("Username update returned an unexpected profile.");
+        }
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: authKeys.me() }),
+        queryClient.invalidateQueries({ queryKey: profileKeys.all }),
+      ]);
       onSave({
         displayName: next.displayName,
+        username: confirmedUsername,
         dateOfBirth: next.dateOfBirth ?? "",
         role: next.role ?? "Cinephile",
         roleContext: next.roleContext ?? "",
@@ -288,6 +412,9 @@ export function EditProfileModal({
         website: next.website ?? "",
       });
       onClose();
+      if (usernameChanged) {
+        router.replace(ROUTES.PROFILE(confirmedUsername));
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to update profile");
     }
@@ -312,7 +439,7 @@ export function EditProfileModal({
             <div className={profileSummaryClassName}>
               <ProfilePictureUpload onUploadComplete={onAvatarChange}>
                 <Avatar
-                  initial={(watch("displayName") || username)[0]}
+                  initial={(watch("displayName") || usernameValue)[0]}
                   src={avatarUrl}
                   size="lg"
                   className="h-[4.5rem] w-[4.5rem] shrink-0 text-[24px]"
@@ -322,7 +449,9 @@ export function EditProfileModal({
                 <p className="truncate text-[15px] font-semibold tracking-tight text-fg">
                   {watch("displayName") || "Your name"}
                 </p>
-                <p className="truncate text-[13px] text-fg-muted">@{username}</p>
+                <p className="truncate text-[13px] text-fg-muted">
+                  @{normalizedUsername || "username"}
+                </p>
                 <p className="mt-1 text-[12px] text-fg-muted">
                   Tap photo to update
                 </p>
@@ -349,6 +478,7 @@ export function EditProfileModal({
                   placeholder="Your name"
                   disabled={isSubmitting}
                   aria-invalid={Boolean(errors.displayName)}
+                  aria-describedby="edit-profile-display-name-message"
                   className={inputStateClassName(Boolean(errors.displayName))}
                 />
               </EditProfileField>
@@ -357,19 +487,60 @@ export function EditProfileModal({
                 id="edit-profile-username"
                 label="Username"
                 hint={
-                  <>
-                    Change in{" "}
-                    <Link
-                      href={ROUTES.SETTINGS}
-                      className="font-medium text-fg underline decoration-border underline-offset-2 transition-colors hover:decoration-fg-muted"
-                      onClick={onClose}
-                    >
-                      Settings
-                    </Link>
-                  </>
+                  <span className="flex items-center justify-between gap-3">
+                    <span aria-live="polite">{usernameStatus.message}</span>
+                    {usernameStatus.state === "error" ? (
+                      <button
+                        type="button"
+                        className="shrink-0 font-semibold text-fg underline decoration-border underline-offset-2"
+                        onClick={function () {
+                          setUsernameCheckVersion(function (value) {
+                            return value + 1;
+                          });
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Retry
+                      </button>
+                    ) : null}
+                  </span>
+                }
+                error={usernameError}
+                meta={
+                  usernameStatus.state === "checking" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-fg-muted" aria-hidden />
+                  ) : usernameStatus.state === "available" ||
+                    usernameStatus.state === "current" ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-[#1f7a54]" aria-hidden />
+                  ) : usernameStatus.state === "unavailable" ||
+                    usernameStatus.state === "error" ? (
+                    <XCircle className="h-3.5 w-3.5 text-film-red" aria-hidden />
+                  ) : null
                 }
               >
-                <p className="text-[15px] text-fg tabular-nums">@{username}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[15px] text-fg-muted" aria-hidden>
+                    @
+                  </span>
+                  <input
+                    {...register("username")}
+                    id="edit-profile-username"
+                    type="text"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="username"
+                    disabled={isSubmitting}
+                    aria-invalid={
+                      Boolean(usernameError) || usernameStatus.state === "unavailable"
+                    }
+                    aria-describedby="edit-profile-username-message"
+                    className={inputStateClassName(
+                      Boolean(usernameError) || usernameStatus.state === "unavailable"
+                    )}
+                  />
+                </div>
               </EditProfileField>
 
               <EditProfileField
@@ -634,7 +805,13 @@ export function EditProfileModal({
               type="submit"
               variant="primary"
               size="sm"
-              disabled={!isDirty || isSubmitting || !isValid || bioRemaining < 0}
+              disabled={
+                !isDirty ||
+                isSubmitting ||
+                !isValid ||
+                !canSaveUsername ||
+                bioRemaining < 0
+              }
             >
               {isSubmitting ? "Saving…" : "Save changes"}
             </Button>

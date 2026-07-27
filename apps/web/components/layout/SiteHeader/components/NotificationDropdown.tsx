@@ -1,4 +1,5 @@
-import type { Ref, WheelEvent } from "react";
+import type { CSSProperties, Ref, WheelEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -28,7 +29,15 @@ import {
   formatNotificationText,
   relativeNotificationTime,
 } from "../notificationUtils";
-import type { HeaderNotifRow } from "../types";
+import type {
+  HeaderNotifRow,
+  NotificationDropdownDirection,
+  NotificationDropdownView,
+} from "../types";
+import {
+  FollowRequestsEntryRow,
+  NotificationFollowRequestsView,
+} from "./NotificationFollowRequestsView";
 import styles from "../SiteHeader.module.css";
 
 const NOTIF_KIND_ICON = {
@@ -80,9 +89,76 @@ export function NotificationDropdown({
   markUnreadMutation,
   onTrapWheel,
 }: NotificationDropdownProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<NotificationDropdownView>("main");
+  const [direction, setDirection] = useState<NotificationDropdownDirection>("forward");
+  const [lockedPanelHeight, setLockedPanelHeight] = useState<number | null>(null);
+
+  useEffect(
+    function () {
+      if (open) return;
+      setView("main");
+      setDirection("forward");
+      setLockedPanelHeight(null);
+    },
+    [open]
+  );
+
+  useEffect(
+    function () {
+      if (!open || view !== "follow-requests") return;
+      function onKeyDown(ev: KeyboardEvent) {
+        if (ev.key !== "Escape") return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        setDirection("back");
+        setView("main");
+        setLockedPanelHeight(null);
+      }
+      document.addEventListener("keydown", onKeyDown, true);
+      return function () {
+        document.removeEventListener("keydown", onKeyDown, true);
+      };
+    },
+    [open, view]
+  );
+
   function markAllNotifRead() {
     void markAllMutation.mutate();
   }
+
+  function handleToggle() {
+    if (!open) {
+      setView("main");
+      setDirection("forward");
+      setLockedPanelHeight(null);
+    }
+    onToggle();
+  }
+
+  function openFollowRequests() {
+    const panel = panelRef.current;
+    if (panel) {
+      setLockedPanelHeight(Math.ceil(panel.getBoundingClientRect().height));
+    }
+    setDirection("forward");
+    setView("follow-requests");
+  }
+
+  function returnToMain() {
+    setDirection("back");
+    setView("main");
+    setLockedPanelHeight(null);
+  }
+
+  const panelStyle: CSSProperties | undefined =
+    view === "follow-requests" && lockedPanelHeight != null
+      ? {
+          height: lockedPanelHeight,
+          minHeight: lockedPanelHeight,
+          maxHeight: lockedPanelHeight,
+        }
+      : undefined;
 
   return (
     <div className={styles.notifWrap} id="notif-wrap" ref={wrapRef}>
@@ -92,7 +168,7 @@ export function NotificationDropdown({
         id="btn-notif"
         aria-label="Notifications"
         aria-expanded={open}
-        onClick={onToggle}
+        onClick={handleToggle}
       >
         <svg
           viewBox="0 0 24 24"
@@ -113,7 +189,7 @@ export function NotificationDropdown({
           />
           <line x1="12" y1="1" x2="12" y2="4" strokeLinecap="round" />
         </svg>
-	        {Number(unreadRowsQuery.data?.items.length ?? 0) + followRequestTotal > 0 ? (
+        {Number(unreadRowsQuery.data?.items.length ?? 0) + followRequestTotal > 0 ? (
           <span
             className={cn(styles.btnNotifBadge, "unread-notification-badge")}
             id="notif-badge"
@@ -125,128 +201,168 @@ export function NotificationDropdown({
 
       {open ? (
         <div
-          className={cn(styles.notifPanel, styles.panelNotifications)}
+          ref={panelRef}
+          className={cn(
+            styles.notifPanel,
+            styles.panelNotifications,
+            view === "follow-requests" ? styles.notifPanelLocked : null
+          )}
           id="notif-panel"
           role="dialog"
-          aria-label="Notifications"
+          aria-label={view === "follow-requests" ? "Follow requests" : "Notifications"}
+          style={panelStyle}
           onWheel={onTrapWheel}
         >
           <div className={styles.notifPanelArrow} aria-hidden />
-          <div className={styles.notifPanelHeader}>
-            <h2 className={styles.notifPanelHeading}>Notifications</h2>
-            <button
-              type="button"
-              className={styles.dropdownHeaderAction}
-              id="notif-mark-all"
-              onClick={markAllNotifRead}
+          <div className={styles.notifPanelViewport}>
+            <div
+              key={view}
+              className={cn(
+                styles.notifPanelSlide,
+                view === "follow-requests" ? styles.notifPanelSlideFill : null,
+                view !== "main" && direction === "forward" ? styles.profileMenuPanelForward : null,
+                direction === "back" ? styles.profileMenuPanelBack : null
+              )}
             >
-              Mark all read
-            </button>
-          </div>
-          <ul
-            ref={listRef}
-            className={styles.notifList}
-            role="list"
-            aria-busy={notifRowsQuery.isPending}
-            aria-live="polite"
-          >
-            {notifRowsQuery.isPending ? (
-              <NotificationDropdownSkeleton />
-            ) : notifRows.length === 0 ? (
-              <NotificationDropdownEmpty />
-            ) : (
-              notifRows.map(function (row) {
-                const IconGlyph = NOTIF_KIND_ICON[row.type];
-                const isTogglingRead =
-                  (markOneMutation.isPending && markOneMutation.variables === row.id) ||
-                  (markUnreadMutation.isPending && markUnreadMutation.variables === row.id);
-
-                function markRowAsRead() {
-                  if (row.isRead || markOneMutation.isPending) return;
-                  markOneMutation.mutate(row.id);
-                }
-
-                function toggleRowReadState() {
-                  if (isTogglingRead) return;
-                  if (row.isRead) {
-                    markUnreadMutation.mutate(row.id);
-                    return;
-                  }
-                  markOneMutation.mutate(row.id);
-                }
-
-                return (
-                  <li key={row.id} className={styles.dropdownListItem}>
-                    <div
-                      className={cn(
-                        styles.dropdownRow,
-                        styles.dropdownRowNotif,
-                        row.isRead ? styles.dropdownRowRead : styles.dropdownRowUnread
-                      )}
+              {view === "main" ? (
+                <>
+                  <div className={styles.notifPanelHeader}>
+                    <h2 className={styles.notifPanelHeading}>Notifications</h2>
+                    <button
+                      type="button"
+                      className={styles.dropdownHeaderAction}
+                      id="notif-mark-all"
+                      onClick={markAllNotifRead}
                     >
-                      <Link
-                        href={getNotificationDestination(row)}
-                        className={styles.dropdownRowLink}
-                        onClick={function () {
-                          markRowAsRead();
-                          onClose();
-                        }}
-                      >
-                        <span className={styles.dropdownNotifGlyph} aria-hidden>
-                          <IconGlyph size={14} strokeWidth={2} />
-                        </span>
-                        <span className={styles.dropdownRowAvatar}>
-                          <Avatar
-                            initial={initialForName(actorDisplayName(row))}
-                            size="sm"
-                            src={row.actor?.avatarUrl ?? undefined}
-                          />
-                        </span>
-                        <span className={styles.dropdownRowMain}>
-                          <p className={styles.dropdownNotifText}>{formatNotificationText(row)}</p>
-                          <span className={styles.dropdownNotifMetaRow}>
-                            <span className={styles.dropdownNotifTime}>
-                              {relativeNotificationTime(row.createdAt)}
-                            </span>
-                          </span>
-                        </span>
-                      </Link>
-                      <button
-                        type="button"
-                        className={styles.rowDotButton}
-                        title={row.isRead ? "Mark as unread" : "Mark as read"}
-                        aria-label={row.isRead ? "Mark as unread" : "Mark as read"}
-                        disabled={isTogglingRead}
-                        onClick={function (event) {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          toggleRowReadState();
-                        }}
-                      >
-                        <span
-                          className={cn(
-                            styles.rowDot,
-                            row.isRead ? styles.rowDotRead : styles.rowDotUnread
-                          )}
-                          aria-hidden
-                        />
-                      </button>
-                    </div>
-                  </li>
-                );
-              })
-            )}
-          </ul>
-          <Link
-            href={ROUTES.NOTIFICATIONS}
-            className={styles.notifSeeAll}
-            onClick={function () {
-              onClose();
-            }}
-          >
-            Full activity feed
-            <ChevronRight size={14} strokeWidth={2} aria-hidden />
-          </Link>
+                      Mark all read
+                    </button>
+                  </div>
+                  <ul
+                    ref={listRef}
+                    className={styles.notifList}
+                    role="list"
+                    aria-busy={notifRowsQuery.isPending}
+                    aria-live="polite"
+                  >
+                    <FollowRequestsEntryRow
+                      followRequestTotal={followRequestTotal}
+                      notifRows={notifRows}
+                      onOpen={openFollowRequests}
+                    />
+                    {notifRowsQuery.isPending ? (
+                      <NotificationDropdownSkeleton />
+                    ) : notifRows.length === 0 && followRequestTotal === 0 ? (
+                      <NotificationDropdownEmpty />
+                    ) : notifRows.length === 0 ? null : (
+                      notifRows.map(function (row) {
+                        const IconGlyph = NOTIF_KIND_ICON[row.type];
+                        const isTogglingRead =
+                          (markOneMutation.isPending && markOneMutation.variables === row.id) ||
+                          (markUnreadMutation.isPending &&
+                            markUnreadMutation.variables === row.id);
+
+                        function markRowAsRead() {
+                          if (row.isRead || markOneMutation.isPending) return;
+                          markOneMutation.mutate(row.id);
+                        }
+
+                        function toggleRowReadState() {
+                          if (isTogglingRead) return;
+                          if (row.isRead) {
+                            markUnreadMutation.mutate(row.id);
+                            return;
+                          }
+                          markOneMutation.mutate(row.id);
+                        }
+
+                        return (
+                          <li key={row.id} className={styles.dropdownListItem}>
+                            <div
+                              className={cn(
+                                styles.dropdownRow,
+                                styles.dropdownRowNotif,
+                                row.isRead
+                                  ? styles.dropdownRowRead
+                                  : styles.dropdownRowUnread
+                              )}
+                            >
+                              <Link
+                                href={getNotificationDestination(row)}
+                                className={styles.dropdownRowLink}
+                                onClick={function () {
+                                  markRowAsRead();
+                                  onClose();
+                                }}
+                              >
+                                <span className={styles.dropdownNotifGlyph} aria-hidden>
+                                  <IconGlyph size={14} strokeWidth={2} />
+                                </span>
+                                <span className={styles.dropdownRowAvatar}>
+                                  <Avatar
+                                    initial={initialForName(actorDisplayName(row))}
+                                    size="sm"
+                                    src={row.actor?.avatarUrl ?? undefined}
+                                  />
+                                </span>
+                                <span className={styles.dropdownRowMain}>
+                                  <p className={styles.dropdownNotifText}>
+                                    {formatNotificationText(row)}
+                                  </p>
+                                  <span className={styles.dropdownNotifMetaRow}>
+                                    <span className={styles.dropdownNotifTime}>
+                                      {relativeNotificationTime(row.createdAt)}
+                                    </span>
+                                  </span>
+                                </span>
+                              </Link>
+                              <button
+                                type="button"
+                                className={styles.rowDotButton}
+                                title={row.isRead ? "Mark as unread" : "Mark as read"}
+                                aria-label={row.isRead ? "Mark as unread" : "Mark as read"}
+                                disabled={isTogglingRead}
+                                onClick={function (event) {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  toggleRowReadState();
+                                }}
+                              >
+                                <span
+                                  className={cn(
+                                    styles.rowDot,
+                                    row.isRead ? styles.rowDotRead : styles.rowDotUnread
+                                  )}
+                                  aria-hidden
+                                />
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })
+                    )}
+                  </ul>
+                  <Link
+                    href={ROUTES.NOTIFICATIONS}
+                    className={styles.notifSeeAll}
+                    onClick={function () {
+                      onClose();
+                    }}
+                  >
+                    Full activity feed
+                    <ChevronRight size={14} strokeWidth={2} aria-hidden />
+                  </Link>
+                </>
+              ) : null}
+
+              {view === "follow-requests" ? (
+                <NotificationFollowRequestsView
+                  listRef={listRef}
+                  onBack={returnToMain}
+                  onClose={onClose}
+                />
+              ) : null}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

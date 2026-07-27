@@ -167,11 +167,17 @@ export async function followUser(
   );
 }
 
-export async function unfollowUser(userId: string, token: string | null): Promise<void> {
-  await apiRequest<{ ok: true }>(`/v1/follows/${encodeURIComponent(userId)}`, {
-    method: "DELETE",
-    token,
-  });
+export async function unfollowUser(
+  userId: string,
+  token: string | null
+): Promise<{ ok: true; isFollowing: false; deleted: boolean }> {
+  return apiRequest<{ ok: true; isFollowing: false; deleted: boolean }>(
+    `/v1/follows/${encodeURIComponent(userId)}`,
+    {
+      method: "DELETE",
+      token,
+    }
+  );
 }
 
 export async function blockUser(userId: string, token: string | null): Promise<void> {
@@ -334,6 +340,21 @@ export async function fetchUsernameAvailability(username: string): Promise<{
   return apiRequest<{ available: boolean; reason?: string }>(
     "/v1/usernames/" + encodeURIComponent(username) + "/available"
   );
+}
+
+export async function updateCurrentUsername(
+  username: string,
+  token: string | null
+): Promise<string> {
+  const payload = await apiRequest<{ profile: { username: string } }>(
+    "/v1/me/settings/profile",
+    {
+      method: "PATCH",
+      token,
+      body: { username },
+    }
+  );
+  return payload.profile.username;
 }
 
 export async function updateCurrentProfile(

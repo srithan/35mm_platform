@@ -153,6 +153,49 @@ describe("ProfileTabs", function () {
     expect(onStickyNavigation).toHaveBeenCalledWith(420);
   });
 
+  it("reports a plain tab click before the route pathname changes", function () {
+    var onTabNavigation = vi.fn();
+    render(
+      <ProfileTabs
+        username="CinemaFan"
+        onTabNavigation={onTabNavigation}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Stats" }));
+
+    expect(onTabNavigation).toHaveBeenCalledWith("stats");
+    expect(navigation.pathname).toBe("/cinemafan");
+  });
+
+  it("does not optimistically select tabs for modified clicks", function () {
+    var onTabNavigation = vi.fn();
+    render(
+      <ProfileTabs
+        username="CinemaFan"
+        onTabNavigation={onTabNavigation}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Stats" }), {
+      metaKey: true,
+    });
+
+    expect(onTabNavigation).not.toHaveBeenCalled();
+  });
+
+  it("renders a controlled active tab while route navigation is pending", function () {
+    render(<ProfileTabs username="CinemaFan" activeTab="stats" />);
+
+    expect(screen.getByRole("link", { name: "Stats" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    expect(screen.getByRole("link", { name: "Posts" })).not.toHaveAttribute(
+      "aria-current"
+    );
+  });
+
   it("marks the route tab active while preserving canonical profile links", function () {
     navigation.pathname = "/cinemafan/lists";
     render(<ProfileTabs username="CinemaFan" />);

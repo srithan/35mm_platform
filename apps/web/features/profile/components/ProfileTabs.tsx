@@ -37,10 +37,15 @@ export const PROFILE_TABS: TabDefinition[] = [
 
 export function ProfileTabs(props: {
   username: string;
+  activeTab?: ProfileTab;
+  onTabNavigation?: (tab: ProfileTab) => void;
   onStickyNavigation?: (scrollY: number) => void;
 }) {
   var pathname = usePathname();
-  var activeTab = resolveProfileTabFromPathname(pathname, props.username) ?? "posts";
+  var activeTab =
+    props.activeTab ??
+    resolveProfileTabFromPathname(pathname, props.username) ??
+    "posts";
   var activeTabIndex = Math.max(
     0,
     PROFILE_TABS.findIndex(function (tab) {
@@ -50,7 +55,7 @@ export function ProfileTabs(props: {
   var shouldReduceMotion = useReducedMotion();
   var navRef = useRef<HTMLElement | null>(null);
 
-  function preserveStickyPosition(
+  function handleTabClick(
     event: ReactMouseEvent<HTMLAnchorElement>,
     nextTab: ProfileTab
   ) {
@@ -65,6 +70,8 @@ export function ProfileTabs(props: {
     ) {
       return;
     }
+
+    props.onTabNavigation?.(nextTab);
 
     var nav = navRef.current;
     if (!nav) return;
@@ -101,7 +108,7 @@ export function ProfileTabs(props: {
                     onClick={function (
                       event: ReactMouseEvent<HTMLAnchorElement>
                     ) {
-                      preserveStickyPosition(event, t.id);
+                      handleTabClick(event, t.id);
                     }}
                     aria-label={t.label}
                     aria-current={isActive ? "page" : undefined}

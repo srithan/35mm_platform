@@ -40,6 +40,7 @@ import {
   type CoverVariants,
 } from "../media/url.js";
 import { getVisibleProfileCounters } from "../../lib/profileCounters.js";
+import { headlineContextUpdate } from "./headlineContext.js";
 
 export var profileRoutes = new Hono();
 type FollowState = "none" | "requested" | "following" | "self";
@@ -787,11 +788,6 @@ function dedupeStrings(values: string[]): string[] {
   return out;
 }
 
-function normalizeRole(value: string | null | undefined): string {
-  if (!value) return "";
-  return value.trim().toLowerCase();
-}
-
 function profileUpdateSetChunks(updates: Record<string, any>): Record<string, any> {
   var chunks: Record<string, any> = {};
 
@@ -907,11 +903,14 @@ profileRoutes.patch("/me", requireAuth, profileWriteRateLimit, async function (c
       roleForHeadlineContext = roleRows[0].role;
     }
 
-    var headlineContext = body.headlineContext ? String(body.headlineContext).trim() : "";
-    if (normalizeRole(roleForHeadlineContext) === "cinephile") {
+    var resolvedHeadlineContext = headlineContextUpdate(
+      roleForHeadlineContext,
+      body.headlineContext
+    );
+    if (!resolvedHeadlineContext.valid) {
       throw badRequest("headlineContext is only valid when role is not cinephile");
     }
-    updates.headlineContext = headlineContext.length > 0 ? headlineContext.slice(0, 25) : null;
+    updates.headlineContext = resolvedHeadlineContext.value;
   }
 
   if (body.avatarUrl !== undefined) {

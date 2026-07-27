@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   AnimatePresence,
@@ -414,10 +422,10 @@ export function Modal({
             ref={contentRef}
             data-modal-variant={variant}
             className={cn(panelClassName, "relative z-10")}
-            onPointerDown={function (e) {
+            onPointerDown={function (e: ReactPointerEvent<HTMLDivElement>) {
               e.stopPropagation();
             }}
-            onClick={function (e) {
+            onClick={function (e: ReactMouseEvent<HTMLDivElement>) {
               e.stopPropagation();
             }}
           >
@@ -472,10 +480,10 @@ export function Modal({
             }
             {...bottomSheetDragProps}
             className={cn(panelClassName, "relative z-10")}
-            onPointerDown={function (e) {
+            onPointerDown={function (e: ReactPointerEvent<HTMLDivElement>) {
               e.stopPropagation();
             }}
-            onClick={function (e) {
+            onClick={function (e: ReactMouseEvent<HTMLDivElement>) {
               e.stopPropagation();
             }}
           >

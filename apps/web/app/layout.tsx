@@ -14,6 +14,12 @@ import { OfflineStatus } from "@/components/OfflineStatus/OfflineStatus";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { Providers } from "./providers";
 
+// Clerk 7's App Router provider is an async Server Component. Next.js 15
+// supports that runtime contract, while React 18's JSX types do not.
+const React18ClerkProvider = ClerkProvider as unknown as React.ComponentType<
+  React.PropsWithChildren
+>;
+
 const playfair = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-playfair",
@@ -102,7 +108,7 @@ export default function RootLayout({
         <link rel="manifest" href="/favicon/site.webmanifest" />
       </head>
       <body className="font-sans bg-[var(--color-bg)] text-[var(--color-text)] min-h-screen antialiased">
-        <ClerkProvider>
+        <React18ClerkProvider>
           <Providers>
             <NuqsAdapter>
               <ServiceWorkerRegistration />
@@ -112,7 +118,7 @@ export default function RootLayout({
               <SpeedInsights />
             </NuqsAdapter>
           </Providers>
-        </ClerkProvider>
+        </React18ClerkProvider>
       </body>
     </html>
   );

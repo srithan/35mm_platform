@@ -29,6 +29,26 @@ vi.mock("@/features/profile/api/profileApi", function () {
   };
 });
 
+vi.mock("@/features/profile/hooks/useCurrentUserProfile", function () {
+  return {
+    useCurrentUserProfile: function () {
+      return {
+        data: {
+          userId: "viewer-1",
+          username: "ava",
+          displayName: "Ava Reed",
+          avatarUrl: null,
+          role: null,
+          roleContext: null,
+          filmsLoggedCount: 0,
+          followerCount: 12840,
+          followingCount: 316,
+        },
+      };
+    },
+  };
+});
+
 vi.mock("./ProfileFollowRequestsSection", function () {
   return {
     ProfileFollowRequestsSection: function (props: { query?: string }) {
@@ -113,7 +133,11 @@ describe("ProfileConnectionsModal", function () {
       nextCursor: null,
       hasMore: false,
     });
-    vi.mocked(unfollowUser).mockResolvedValue();
+    vi.mocked(unfollowUser).mockResolvedValue({
+      ok: true,
+      isFollowing: false,
+      deleted: true,
+    });
 
     renderModal({ kind: "following" });
 
@@ -123,6 +147,42 @@ describe("ProfileConnectionsModal", function () {
     await waitFor(function () {
       expect(unfollowUser).toHaveBeenCalledWith("user-1", "token");
       expect(screen.queryByText("Mira Chen")).not.toBeInTheDocument();
+    });
+  });
+
+  it("lets viewers unfollow mutual followers without removing the follower row", async function () {
+    vi.mocked(fetchProfileConnections).mockResolvedValue({
+      items: [
+        {
+          userId: "user-1",
+          username: "mira",
+          displayName: "Mira Chen",
+          avatarUrl: null,
+          followedAt: "2026-07-20T00:00:00.000Z",
+          followState: "following",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      viewerOwnsProfile: true,
+    });
+    vi.mocked(unfollowUser).mockResolvedValue({
+      ok: true,
+      isFollowing: false,
+      deleted: true,
+    });
+
+    renderModal({ kind: "followers" });
+
+    await screen.findByText("Mira Chen");
+    fireEvent.click(screen.getByRole("button", { name: "Unfollow" }));
+
+    await waitFor(function () {
+      expect(unfollowUser).toHaveBeenCalledWith("user-1", "token");
+      expect(screen.getByText("Mira Chen")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Follow back" })
+      ).toBeInTheDocument();
     });
   });
 

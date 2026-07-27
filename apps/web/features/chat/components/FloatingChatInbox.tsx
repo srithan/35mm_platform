@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
@@ -70,17 +71,35 @@ function FloatingChatPill({
   chats,
   unreadCount,
   onOpen,
+  shouldReduceMotion,
 }: {
   chats: ChatPreview[];
   unreadCount: number;
   onOpen: () => void;
+  shouldReduceMotion: boolean;
 }) {
   const avatarStack = chats.slice(0, 2);
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onOpen}
-      className="fixed bottom-5 right-5 z-40 hidden min-h-[52px] w-[260px] items-center justify-between gap-3 rounded-full border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] px-4 py-2 text-left shadow-[0_14px_44px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(0,0,0,0.22)] md:flex"
+      initial={
+        shouldReduceMotion
+          ? { opacity: 1 }
+          : { opacity: 0, scale: 0.96, y: 12 }
+      }
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={
+        shouldReduceMotion
+          ? { opacity: 1 }
+          : { opacity: 0, scale: 0.96, y: 12 }
+      }
+      transition={
+        shouldReduceMotion
+          ? { duration: 0 }
+          : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+      }
+      className="fixed bottom-5 right-5 z-40 hidden min-h-[52px] w-[260px] origin-bottom-right items-center justify-between gap-3 rounded-full border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] px-4 py-2 text-left shadow-[0_14px_44px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-shadow hover:shadow-[0_18px_54px_rgba(0,0,0,0.22)] md:flex"
       aria-label={
         unreadCount > 0
           ? "Open messages, " + formatUnread(unreadCount) + " unread"
@@ -124,7 +143,7 @@ function FloatingChatPill({
           </span>
         )}
       </span>
-    </button>
+    </motion.button>
   );
 }
 
@@ -327,6 +346,7 @@ export function FloatingChatInbox({
   const { currentUserId } = useChatRealtime();
   const pathname = usePathname() ?? "";
   const isDesktop = useIsDesktopMd();
+  const shouldReduceMotion = useReducedMotion() === true;
   const isChatRoute =
     pathname === ROUTES.CHAT || Boolean(pathname.startsWith("/chat/"));
   const enabled =
@@ -532,25 +552,29 @@ export function FloatingChatInbox({
     return null;
   }
 
-  if (!open) {
-    return (
-      <FloatingChatPill
-        chats={visibleChats}
-        unreadCount={unreadCount}
-        onOpen={function () {
-          setOpen(true);
-          setComposeOpen(false);
-        }}
-      />
-    );
-  }
-
   const fullChatHref = selectedId ? ROUTES.CHAT_WITH(selectedId) : ROUTES.CHAT;
   const showingThread = Boolean(selectedId) && !composeOpen;
 
-  return (
-    <section
-      className="fixed bottom-5 right-5 z-40 hidden h-[min(512px,calc(100dvh-5rem))] w-[372px] overflow-hidden rounded-[var(--chat-floating-radius)] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] shadow-[0_18px_64px_rgba(0,0,0,0.22)] md:flex md:flex-col"
+  const floatingPanel = (
+    <motion.section
+      key="floating-chat-panel"
+      initial={
+        shouldReduceMotion
+          ? { opacity: 1 }
+          : { opacity: 0, scale: 0.96, y: 16 }
+      }
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={
+        shouldReduceMotion
+          ? { opacity: 1 }
+          : { opacity: 0, scale: 0.96, y: 16 }
+      }
+      transition={
+        shouldReduceMotion
+          ? { duration: 0 }
+          : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+      }
+      className="fixed bottom-5 right-5 z-40 hidden h-[min(512px,calc(100dvh-5rem))] w-[372px] origin-bottom-right overflow-hidden rounded-[var(--chat-floating-radius)] border border-[var(--chat-floating-border)] bg-[var(--chat-floating-bg)] shadow-[0_18px_64px_rgba(0,0,0,0.22)] md:flex md:flex-col"
       data-floating-chat-panel
       aria-label="Floating messages"
     >
@@ -680,11 +704,6 @@ export function FloatingChatInbox({
             type="button"
             onClick={function () {
               setOpen(false);
-              setSelectedId(null);
-              setComposeOpen(false);
-              setComposeSearch("");
-              setListSearch("");
-              setListFilter("active");
             }}
             className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--chat-accent)] hover:bg-[var(--chat-accent-bg)]"
             aria-label="Close messages"
@@ -1005,6 +1024,37 @@ export function FloatingChatInbox({
         variant="danger"
         swapButtonOrder
       />
-    </section>
+    </motion.section>
+  );
+
+  return (
+    <AnimatePresence
+      initial={false}
+      onExitComplete={function () {
+        if (open) {
+          return;
+        }
+        setSelectedId(null);
+        setComposeOpen(false);
+        setComposeSearch("");
+        setListSearch("");
+        setListFilter("active");
+      }}
+    >
+      {!open ? (
+        <FloatingChatPill
+          key="floating-chat-pill"
+          chats={visibleChats}
+          unreadCount={unreadCount}
+          shouldReduceMotion={shouldReduceMotion}
+          onOpen={function () {
+            setOpen(true);
+            setComposeOpen(false);
+          }}
+        />
+      ) : (
+        floatingPanel
+      )}
+    </AnimatePresence>
   );
 }

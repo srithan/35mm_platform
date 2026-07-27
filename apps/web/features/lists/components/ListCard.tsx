@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent as ReactMouseEvent } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Heart, Pencil, Trash2 } from "lucide-react";
 import type { FilmListDetail, FilmListEntry, FilmListSummary } from "@35mm/types";
@@ -87,7 +88,7 @@ export function ListCard({
             <Link
               href={ROUTES.LIST(list.id)}
               className="shrink-0 text-[11px] font-semibold text-fg-muted no-underline hover:text-accent"
-              onClick={function (e) {
+              onClick={function (e: ReactMouseEvent<HTMLAnchorElement>) {
                 e.stopPropagation();
               }}
             >

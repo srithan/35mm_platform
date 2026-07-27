@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@35mm/types", "@35mm/validators"],
   env: {
     NEXT_PUBLIC_APP_VERSION:
       process.env.VERCEL_GIT_COMMIT_SHA ??
@@ -48,6 +49,16 @@ const nextConfig: NextConfig = {
         pathname: "/api/portraits/**",
       },
     ],
+  },
+  webpack(config) {
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+      ".js": [".ts", ".tsx", ".js"],
+      ".mjs": [".mts", ".mjs"],
+    };
+    config.module.noParse =
+      /[\\/]nsfwjs[\\/]dist[\\/]models[\\/].+\.min\.js$/;
+    return config;
   },
 };
 

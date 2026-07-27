@@ -29,6 +29,10 @@ interface MobileSidebarProps {
   onClose: () => void;
 }
 
+function isIconName(icon: MobileSidebarItem["icon"]): icon is IconName {
+  return typeof icon === "string";
+}
+
 function MobileSidebarSection({
   items,
   onClose,
@@ -60,7 +64,7 @@ function MobileSidebarSection({
             )}
           >
             <span className="flex w-[30px] shrink-0 items-center justify-center" aria-hidden>
-              {typeof SidebarIcon === "string" ? (
+              {isIconName(SidebarIcon) ? (
                 <Icon
                   name={SidebarIcon}
                   className={regular ? "h-[21px] w-[21px]" : "h-[18px] w-[18px]"}

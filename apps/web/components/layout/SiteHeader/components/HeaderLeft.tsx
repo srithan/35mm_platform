@@ -16,7 +16,7 @@ export function HeaderLeft() {
   const results = useMemo<SearchResult[]>(function () {
     return (searchQuery.data?.items ?? []).map(function (item) {
       if (item.type === "film") {
-        var details = [
+        const details = [
           item.year ? String(item.year) : null,
           item.genres[0] ?? null,
           item.director,

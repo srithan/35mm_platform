@@ -31,6 +31,7 @@ import {
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { ProfileFollowRequestsSection } from "@/features/profile/components/ProfileFollowRequestsSection";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
+import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
 
@@ -125,6 +126,8 @@ export function ProfileConnectionsModal({
   const isRequestsView = isOwnProfile && activeView === "requests";
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const queryClient = useQueryClient();
+  const currentUserQuery = useCurrentUserProfile();
+  const currentUser = currentUserQuery.data;
   const [queryText, setQueryText] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const connectionsQueryKey =
@@ -147,14 +150,19 @@ export function ProfileConnectionsModal({
     staleTime: 30_000,
     gcTime: 5 * 60_000,
   });
+  const viewerOwnsProfile =
+    connectionsQuery.data?.pages[0]?.viewerOwnsProfile ?? isOwnProfile;
+  const viewerUsername =
+    currentUser?.username ?? (viewerOwnsProfile ? username : null);
+  const canActOnFollowers = isLoaded && Boolean(isSignedIn);
   const unfollowMutation = useMutation({
     mutationFn: async function (user: ProfileConnectionUser) {
-      await unfollowUser(user.userId, await getToken());
-      return user;
+      var result = await unfollowUser(user.userId, await getToken());
+      return { result, user };
     },
-    onSuccess: async function (_result, user) {
+    onSuccess: async function ({ result, user }) {
       queryClient.setQueryData<InfiniteData<ConnectionsPage>>(
-        profileKeys.following(username),
+        profileKeys.followers(username),
         function (existing) {
           if (!existing) return existing;
           return {
@@ -162,25 +170,98 @@ export function ProfileConnectionsModal({
             pages: existing.pages.map(function (page) {
               return {
                 ...page,
-                items: page.items.filter(function (item) {
-                  return item.userId !== user.userId;
+                items: page.items.map(function (item) {
+                  return item.userId === user.userId
+                    ? { ...item, followState: "none" }
+                    : item;
                 }),
               };
             }),
           };
         }
       );
-      queryClient.setQueryData<PublicProfile | null>(
-        profileKeys.detail(username),
-        function (profile) {
+
+      if (viewerUsername) {
+        queryClient.setQueryData<InfiniteData<ConnectionsPage>>(
+          profileKeys.following(viewerUsername),
+          function (existing) {
+            if (!existing) return existing;
+            return {
+              ...existing,
+              pages: existing.pages.map(function (page) {
+                return {
+                  ...page,
+                  items: page.items.filter(function (item) {
+                    return item.userId !== user.userId;
+                  }),
+                };
+              }),
+            };
+          }
+        );
+      }
+
+      if (result.deleted) {
+        queryClient.setQueryData<CurrentUserProfile>(authKeys.me(), function (profile) {
           if (!profile) return profile;
           return {
             ...profile,
             followingCount: Math.max(0, profile.followingCount - 1),
           };
+        });
+      }
+
+      if (viewerUsername && result.deleted) {
+        queryClient.setQueryData<PublicProfile | null>(
+          profileKeys.detail(viewerUsername),
+          function (profile) {
+            if (!profile) return profile;
+            return {
+              ...profile,
+              followingCount: Math.max(0, profile.followingCount - 1),
+            };
+          }
+        );
+      }
+
+      queryClient.setQueryData<PublicProfile | null>(
+        profileKeys.detail(user.username),
+        function (profile) {
+          if (!profile) return profile;
+          return {
+            ...profile,
+            followState: "none",
+            followerCount: result.deleted
+              ? Math.max(0, profile.followerCount - 1)
+              : profile.followerCount,
+          };
         }
       );
-      await queryClient.invalidateQueries({ queryKey: profileKeys.detail(username) });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: authKeys.me() }),
+        viewerUsername
+          ? queryClient.invalidateQueries({
+              queryKey: profileKeys.detail(viewerUsername),
+            })
+          : Promise.resolve(),
+        queryClient.invalidateQueries({
+          queryKey: profileKeys.detail(user.username),
+        }),
+        viewerUsername
+          ? queryClient.invalidateQueries({
+              queryKey: profileKeys.following(viewerUsername),
+              refetchType: "none",
+            })
+          : Promise.resolve(),
+        queryClient.invalidateQueries({
+          queryKey: profileKeys.followers(username),
+          refetchType: "none",
+        }),
+        queryClient.invalidateQueries({
+          queryKey: profileKeys.followers(user.username),
+        }),
+      ]);
     },
   });
   const followBackMutation = useMutation({
@@ -221,16 +302,21 @@ export function ProfileConnectionsModal({
             followingCount: Math.max(0, profile.followingCount + counterDelta),
           };
         });
-        queryClient.setQueryData<PublicProfile | null>(
-          profileKeys.detail(username),
-          function (profile) {
-            if (!profile) return profile;
-            return {
-              ...profile,
-              followingCount: Math.max(0, profile.followingCount + counterDelta),
-            };
-          }
-        );
+        if (viewerUsername) {
+          queryClient.setQueryData<PublicProfile | null>(
+            profileKeys.detail(viewerUsername),
+            function (profile) {
+              if (!profile) return profile;
+              return {
+                ...profile,
+                followingCount: Math.max(
+                  0,
+                  profile.followingCount + counterDelta
+                ),
+              };
+            }
+          );
+        }
       }
 
       queryClient.setQueryData<PublicProfile | null>(
@@ -247,17 +333,22 @@ export function ProfileConnectionsModal({
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: authKeys.me() }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.detail(username) }),
+        viewerUsername
+          ? queryClient.invalidateQueries({
+              queryKey: profileKeys.detail(viewerUsername),
+            })
+          : Promise.resolve(),
         queryClient.invalidateQueries({ queryKey: profileKeys.detail(user.username) }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.following(username) }),
+        viewerUsername
+          ? queryClient.invalidateQueries({
+              queryKey: profileKeys.following(viewerUsername),
+            })
+          : Promise.resolve(),
         queryClient.invalidateQueries({ queryKey: profileKeys.followers(user.username) }),
       ]);
     },
   });
   const allConnections = connectionsQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const viewerOwnsProfile =
-    connectionsQuery.data?.pages[0]?.viewerOwnsProfile ?? isOwnProfile;
-  const canActOnFollowers = isLoaded && Boolean(isSignedIn);
   const filteredConnections = useMemo(
     function () {
       var needle = queryText.trim().toLowerCase();
@@ -391,7 +482,7 @@ export function ProfileConnectionsModal({
                   showAction={
                     activeKind === "followers"
                       ? canActOnFollowers
-                      : isOwnProfile
+                      : viewerOwnsProfile
                   }
                 />
               );
@@ -462,7 +553,7 @@ export function ProfileConnectionsModal({
                     </span>
                   </span>
                 </Link>
-                {isOwnProfile && activeKind === "following" ? (
+                {viewerOwnsProfile && activeKind === "following" ? (
                   <button
                     type="button"
                     onClick={function () {
@@ -505,6 +596,23 @@ export function ProfileConnectionsModal({
                     className="inline-flex h-8 min-w-[92px] shrink-0 items-center justify-center rounded-full border border-border-strong bg-elevated px-3 text-[12px] font-semibold text-fg-muted opacity-75"
                   >
                     Requested
+                  </button>
+                ) : null}
+                {canActOnFollowers &&
+                activeKind === "followers" &&
+                user.followState === "following" ? (
+                  <button
+                    type="button"
+                    onClick={function () {
+                      unfollowMutation.mutate(user);
+                    }}
+                    disabled={unfollowMutation.isPending}
+                    className="inline-flex h-8 min-w-[84px] shrink-0 items-center justify-center rounded-full border border-border-strong bg-elevated px-3 text-[12px] font-semibold text-fg hover:bg-hover disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus-ring)]"
+                  >
+                    {unfollowMutation.isPending &&
+                    unfollowMutation.variables?.userId === user.userId
+                      ? "Unfollowing…"
+                      : "Unfollow"}
                   </button>
                 ) : null}
               </div>

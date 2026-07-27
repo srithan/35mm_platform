@@ -29,6 +29,8 @@ vi.mock("./ProfileDetails", function () {
 vi.mock("./ProfileTabs", function () {
   return {
     ProfileTabs: function (props: {
+      activeTab?: string;
+      onTabNavigation?: (tab: "posts") => void;
       onStickyNavigation?: (scrollY: number) => void;
     }) {
       return (
@@ -36,9 +38,10 @@ vi.mock("./ProfileTabs", function () {
           type="button"
           onClick={function () {
             props.onStickyNavigation?.(420);
+            props.onTabNavigation?.("posts");
           }}
         >
-          Profile tabs
+          Profile tabs: {props.activeTab}
         </button>
       );
     },
@@ -48,11 +51,11 @@ vi.mock("./ProfileTabs", function () {
 vi.mock("./ProfileTabContent", async function () {
   var React = await import("react");
   return {
-    ProfileTabContent: function () {
+    ProfileTabContent: function (props: { tab: string }) {
       React.useLayoutEffect(function () {
         layoutOrder.push("content-layout");
       });
-      return <div data-testid="profile-tab-content">Profile tab content</div>;
+      return <div data-testid="profile-tab-content">Profile tab content: {props.tab}</div>;
     },
   };
 });
@@ -109,7 +112,18 @@ describe("ProfileBody", function () {
     );
     layoutOrder.length = 0;
 
-    fireEvent.click(screen.getByRole("button", { name: "Profile tabs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Profile tabs: reposts" }));
+
+    expect(screen.getByTestId("profile-tab-content")).toHaveTextContent(
+      "Profile tab content: posts"
+    );
+    expect(scrollTo).toHaveBeenCalledWith({
+      top: 420,
+      left: 0,
+      behavior: "auto",
+    });
+    expect(layoutOrder).toEqual(["content-layout", "scroll-restore"]);
+
     navigation.pathname = "/cinemafan";
     view.rerender(
       <ProfileBody
@@ -124,11 +138,6 @@ describe("ProfileBody", function () {
       />
     );
 
-    expect(scrollTo).toHaveBeenCalledWith({
-      top: 420,
-      left: 0,
-      behavior: "auto",
-    });
-    expect(layoutOrder).toEqual(["content-layout", "scroll-restore"]);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
   });
 });

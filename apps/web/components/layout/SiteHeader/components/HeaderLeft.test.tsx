@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HeaderLeft } from "./HeaderLeft";
 
-var push = vi.fn();
+const push = vi.fn();
 
 vi.mock("next/navigation", function () {
   return {
@@ -45,7 +45,7 @@ describe("HeaderLeft search", function () {
   });
 
   it("renders real API results and navigates with canonical film ID", async function () {
-    var client = new QueryClient({
+    const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     render(
@@ -53,8 +53,8 @@ describe("HeaderLeft search", function () {
         <HeaderLeft />
       </QueryClientProvider>
     );
-    var user = userEvent.setup();
-    var input = screen.getByRole("combobox", { name: "Search 35mm" });
+    const user = userEvent.setup();
+    const input = screen.getByRole("combobox", { name: "Search 35mm" });
     await user.type(input, "alien");
     expect(await screen.findByText("Alien")).toBeInTheDocument();
     await user.click(screen.getByText("Alien"));

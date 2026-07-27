@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -201,7 +202,9 @@ export function NewPostPage() {
                   exit={{ y: "100%" }}
                   transition={{ type: "spring", damping: 32, stiffness: 380 }}
                   className="w-full max-w-lg overflow-hidden rounded-t-[10px] bg-bg shadow-[0_-8px_40px_rgba(0,0,0,0.12)]"
-                  onClick={function (e) { e.stopPropagation(); }}
+                  onClick={function (e: ReactMouseEvent<HTMLDivElement>) {
+                    e.stopPropagation();
+                  }}
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="new-post-discard-title"

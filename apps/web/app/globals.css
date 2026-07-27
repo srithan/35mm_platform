@@ -844,7 +844,7 @@
 
     .edit-profile-field-group {
         border-color: var(--border);
-        background: var(--sunken);
+        background: var(--bg);
     }
 
     .edit-profile-field-group > :not([hidden]) ~ :not([hidden]) {
@@ -862,7 +862,7 @@
     .edit-profile-form .edit-profile-input:-webkit-autofill,
     .edit-profile-form .edit-profile-input:-webkit-autofill:hover,
     .edit-profile-form .edit-profile-input:-webkit-autofill:focus {
-        -webkit-box-shadow: 0 0 0 1000px var(--sunken) inset !important;
+        -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
         -webkit-text-fill-color: var(--fg) !important;
         caret-color: var(--fg);
         transition: background-color 9999s ease-out 0s;

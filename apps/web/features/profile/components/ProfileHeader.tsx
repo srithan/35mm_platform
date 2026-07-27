@@ -603,11 +603,11 @@ export function ProfileHeader({
       <EditProfileModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
-        username={profileData.username}
         avatarUrl={profileImage}
         onAvatarChange={handleAvatarChange}
         initialData={{
           displayName: profileData.displayName,
+          username: profileData.username,
           dateOfBirth: profileData.dateOfBirth,
           role: profileData.role,
           roleContext: profileData.roleContext,

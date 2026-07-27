@@ -6,6 +6,9 @@ export type HeaderNotifRow = ApiNotificationItem;
 export type ProfileMenuView = "main" | "appearance" | "privacy";
 export type ProfileMenuDirection = "forward" | "back";
 
+export type NotificationDropdownView = "main" | "follow-requests";
+export type NotificationDropdownDirection = "forward" | "back";
+
 export const PROFILE_THEME_OPTIONS: { id: ThemeOption; label: string; swatch: string }[] = [
   { id: "auto", label: "Auto", swatch: "linear-gradient(90deg, #faf9f7 0 50%, #1f1d1a 50% 100%)" },
   { id: "light", label: "Light", swatch: "#faf9f7" },
