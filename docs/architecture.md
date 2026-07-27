@@ -147,6 +147,7 @@ Node engine: `>=22.13.0`.
 | Forms | React Hook Form + Zod |
 | Rich text | TipTap |
 | Animation | Framer Motion |
+| 3D/WebGL | Three.js with component-scoped postprocessing and lil-gui preview controls |
 | URL state | nuqs |
 | Analytics | Vercel Analytics + Speed Insights |
 | Tests | Vitest + Testing Library + Happy DOM |
@@ -158,6 +159,7 @@ Design conventions:
 - Shell layout is a left nav, center content, and right rail.
 - Server state belongs in React Query. Do not mirror DB-backed state in Zustand.
 - Query key factories live in feature folders. Do not use ad hoc query strings.
+- Public `/waitlist` is a UI-only launch preview: its username/email form has no mutation, persistence, availability read, or reservation semantics. The route mounts the reusable `ProjectionDeskScene`, which pauses rendering when hidden or offscreen and disposes its WebGL resources on unmount. Global providers suppress the dynamically loaded floating chat inbox on this acquisition route.
 
 ### Studio: `apps/studio`
 
@@ -168,8 +170,10 @@ Design conventions:
 | Auth | Dedicated Clerk app configuration |
 | Server state | TanStack Query |
 | Client/UI state | Zustand and local component state |
-| Forms | React Hook Form + Zod through standard-schema resolver |
+| Forms | React Hook Form + Zod 4 through `@hookform/resolvers/zod` |
 | Styling | Tailwind CSS with shadcn-style primitives |
+
+Studio uses the same Zod 4 and Hook Form resolver major versions as the public web workspace so pnpm's monorepo type resolution cannot mix Zod 3 schemas with Zod 4 resolver declarations.
 
 Studio is a separate internal workspace from the public web app. It exposes operational surfaces for catalog titles, shelves, users, username locks, infrastructure, queues, moderation, imports, and API reference pages. Studio development and production builds use Next's webpack path so workspace packages can retain Node-compatible `.js` source specifiers while webpack resolves their TypeScript sources; `@35mm/types` and `@35mm/validators` remain explicitly transpiled. Catalog title list/detail/form/import surfaces use the Hono `/v1/catalog` read and mutation APIs, TanStack Query, Clerk bearer tokens for writes, required idempotency keys, and cursor pagination. Local browser sessions on `http://localhost:3001` call the local Hono API at `http://localhost:4000` directly because non-production API CORS allows Studio. Deployed/no-env sessions fall back to the Studio `/api/platform/*` server proxy; that proxy accepts `PLATFORM_API_URL` for deployed/internal API origins, rejects self-targeting Studio URLs, and returns JSON diagnostics for upstream non-JSON errors. Username lock routes rely on the shared Drizzle schema and require the `0036_username_locks` migration in environments where lock management is enabled.
 

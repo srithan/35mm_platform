@@ -1,0 +1,423 @@
+.page {
+    --waitlist-ink: #0b0b0d;
+    --waitlist-carbon: #151519;
+    --waitlist-bone: #eeeae2;
+    --waitlist-smoke: #92908b;
+    --waitlist-red: #c2473a;
+    background: var(--waitlist-ink);
+    color: var(--waitlist-bone);
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(25rem, 0.88fr);
+    min-block-size: 100svh;
+    overflow: hidden;
+    position: relative;
+}
+
+.header {
+    align-items: center;
+    display: flex;
+    inset-block-start: 0;
+    inset-inline: 0;
+    justify-content: space-between;
+    padding: clamp(1.5rem, 3.2vw, 3rem);
+    pointer-events: none;
+    position: absolute;
+    z-index: 10;
+}
+
+.logo {
+    color: var(--waitlist-bone);
+    font-size: clamp(1.6rem, 2.2vw, 2.1rem);
+    pointer-events: auto;
+}
+
+.logoMark {
+    block-size: 1em;
+}
+
+.previewLabel {
+    align-items: center;
+    color: rgba(238, 234, 226, 0.72);
+    display: flex;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.6875rem;
+    gap: 0.625rem;
+    letter-spacing: 0.13em;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.statusDot {
+    background: var(--waitlist-red);
+    block-size: 0.375rem;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0.25rem rgba(194, 71, 58, 0.12);
+    inline-size: 0.375rem;
+}
+
+.copyPanel {
+    align-items: center;
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    min-block-size: 100svh;
+    padding:
+        clamp(6.5rem, 12vh, 9rem)
+        clamp(2rem, 6vw, 6.5rem)
+        clamp(2rem, 5vh, 4.5rem);
+    position: relative;
+    z-index: 3;
+}
+
+.copyPanel::after {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(209, 82, 68, 0.16),
+        rgba(94, 104, 194, 0.08),
+        transparent
+    );
+    content: "";
+    filter: blur(24px);
+    inline-size: 7rem;
+    inset-block: 11%;
+    inset-inline-start: -4.5rem;
+    opacity: 0.9;
+    pointer-events: none;
+    position: absolute;
+}
+
+.copyInner {
+    animation: waitlist-copy-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    inline-size: min(100%, 31rem);
+}
+
+.eyebrow {
+    color: var(--waitlist-red);
+    font-family: var(--font-mono), monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.2em;
+    margin: 0 0 1.5rem;
+    text-transform: uppercase;
+}
+
+.title {
+    color: var(--waitlist-bone);
+    font-family: var(--font-display-discover), "Times New Roman", serif;
+    font-size: clamp(3.65rem, 5vw, 6.5rem);
+    font-weight: 400;
+    letter-spacing: -0.055em;
+    line-height: 0.82;
+    margin: 0;
+    text-wrap: balance;
+}
+
+.title em {
+    color: var(--waitlist-smoke);
+    font-weight: 400;
+}
+
+.intro {
+    color: rgba(238, 234, 226, 0.66);
+    font-family: var(--font-sans), sans-serif;
+    font-size: clamp(0.96rem, 1.1vw, 1.08rem);
+    line-height: 1.65;
+    margin: clamp(1.5rem, 3.5vh, 2.5rem) 0 0;
+    max-inline-size: 28rem;
+}
+
+.form {
+    border-block-start: 1px solid rgba(238, 234, 226, 0.15);
+    display: grid;
+    gap: 0;
+    margin-block-start: clamp(1.75rem, 4vh, 2.75rem);
+}
+
+.field {
+    border-block-end: 1px solid rgba(238, 234, 226, 0.15);
+    padding-block: 0.9rem 0.75rem;
+}
+
+.label {
+    color: var(--waitlist-smoke);
+    display: block;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    margin-block-end: 0.4rem;
+    text-transform: uppercase;
+}
+
+.usernameControl {
+    align-items: baseline;
+    display: flex;
+    min-inline-size: 0;
+}
+
+.usernamePrefix {
+    color: rgba(238, 234, 226, 0.5);
+    flex: 0 0 auto;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.9375rem;
+}
+
+.input {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--waitlist-bone);
+    font-family: var(--font-sans), sans-serif;
+    font-size: 1rem;
+    inline-size: 100%;
+    line-height: 1.5;
+    min-inline-size: 0;
+    outline: 0;
+    padding: 0;
+}
+
+.usernameControl .input {
+    padding-inline-start: 0.25rem;
+}
+
+.input::placeholder {
+    color: rgba(238, 234, 226, 0.38);
+    opacity: 1;
+}
+
+.field:focus-within {
+    border-block-end-color: rgba(238, 234, 226, 0.58);
+}
+
+.field:focus-within .label {
+    color: var(--waitlist-bone);
+}
+
+.submitButton {
+    align-items: center;
+    align-self: start;
+    background: var(--waitlist-red);
+    border: 0;
+    border-radius: 0;
+    color: #fff8f1;
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--font-sans), sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    gap: 2rem;
+    justify-content: space-between;
+    margin-block-start: 1.5rem;
+    min-block-size: 3.25rem;
+    padding: 0.85rem 1rem 0.85rem 1.125rem;
+    transition:
+        background-color 160ms ease,
+        transform 160ms ease;
+}
+
+.submitButton svg {
+    block-size: 1.125rem;
+    inline-size: 1.125rem;
+    transition: transform 160ms ease;
+}
+
+.submitButton:hover {
+    background: #d05245;
+}
+
+.submitButton:hover svg {
+    transform: translate(0.125rem, -0.125rem);
+}
+
+.submitButton:active {
+    transform: translateY(1px);
+}
+
+.submitButton:focus-visible {
+    outline: 2px solid var(--waitlist-bone);
+    outline-offset: 3px;
+}
+
+.formNote {
+    color: rgba(238, 234, 226, 0.36);
+    font-family: var(--font-mono), monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+    margin: 1rem 0 0;
+}
+
+.scenePanel {
+    animation: waitlist-scene-in 1s 120ms ease-out both;
+    grid-column: 1;
+    grid-row: 1;
+    min-block-size: 100svh;
+    overflow: hidden;
+    position: relative;
+}
+
+.projection {
+    block-size: 100%;
+    min-block-size: 100svh;
+}
+
+.sceneWash {
+    background:
+        linear-gradient(270deg, var(--waitlist-ink) 0%, transparent 14%),
+        linear-gradient(0deg, rgba(11, 11, 13, 0.7), transparent 30%);
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+}
+
+.sceneCaption {
+    align-items: center;
+    color: rgba(238, 234, 226, 0.52);
+    display: flex;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.625rem;
+    inset-block-end: clamp(1.5rem, 3.2vw, 3rem);
+    inset-inline: clamp(1.5rem, 3.2vw, 3rem);
+    justify-content: space-between;
+    letter-spacing: 0.13em;
+    position: absolute;
+    text-transform: uppercase;
+    z-index: 2;
+}
+
+.sceneCaption span:first-child {
+    align-items: center;
+    display: flex;
+    gap: 0.625rem;
+}
+
+.sceneCaption span:first-child::before {
+    background: rgba(238, 234, 226, 0.5);
+    block-size: 1px;
+    content: "";
+    inline-size: 1.5rem;
+}
+
+@keyframes waitlist-copy-in {
+    from {
+        opacity: 0;
+        transform: translateY(1rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes waitlist-scene-in {
+    from {
+        opacity: 0;
+        transform: scale(1.015);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (max-width: 900px) {
+    .page {
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+    }
+
+    .header {
+        padding: 1.5rem;
+    }
+
+    .previewLabel {
+        color: rgba(238, 234, 226, 0.85);
+    }
+
+    .scenePanel {
+        block-size: 44svh;
+        min-block-size: 22rem;
+        order: 1;
+        position: relative;
+    }
+
+    .projection {
+        block-size: 100%;
+        min-block-size: 22rem;
+    }
+
+    .sceneWash {
+        background: linear-gradient(
+            0deg,
+            var(--waitlist-ink) 0%,
+            rgba(11, 11, 13, 0.26) 45%,
+            rgba(11, 11, 13, 0.2) 100%
+        );
+    }
+
+    .sceneCaption {
+        display: none;
+    }
+
+    .copyPanel {
+        background: var(--waitlist-ink);
+        min-block-size: auto;
+        order: 2;
+        padding: 1rem 1.5rem 3rem;
+    }
+
+    .copyPanel::after {
+        display: none;
+    }
+
+    .copyInner {
+        inline-size: 100%;
+        margin-inline: auto;
+        max-inline-size: 35rem;
+    }
+
+    .title {
+        font-size: clamp(3.8rem, 16vw, 6rem);
+    }
+
+    .intro {
+        max-inline-size: 32rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .scenePanel {
+        block-size: 24svh;
+        min-block-size: 13rem;
+    }
+
+    .projection {
+        min-block-size: 13rem;
+    }
+
+    .copyPanel {
+        padding-inline: 1.25rem;
+    }
+
+    .title {
+        font-size: clamp(3.25rem, 15.5vw, 4.5rem);
+    }
+
+    .submitButton {
+        inline-size: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .copyInner,
+    .scenePanel {
+        animation: none;
+    }
+
+    .submitButton,
+    .submitButton svg {
+        transition: none;
+    }
+}

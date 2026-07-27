@@ -36,20 +36,20 @@ const filmFormBaseSchema = z.object({
   status: z.enum(filmStatusValues).default('active'),
   synopsis: z.string().trim().max(10000).optional().or(z.literal('')).default(''),
   startYear: z
-    .number({ invalid_type_error: 'Year must be a number' })
+    .number({ error: 'Year must be a number' })
     .int()
     .min(1800)
     .max(2300)
     .optional(),
   endYear: z
-    .number({ invalid_type_error: 'End year must be a number' })
+    .number({ error: 'End year must be a number' })
     .int()
     .min(1800)
     .max(2300)
     .optional(),
   releaseDate: optionalDate.default(''),
   runtimeMinutes: z
-    .number({ invalid_type_error: 'Runtime must be a number' })
+    .number({ error: 'Runtime must be a number' })
     .int()
     .min(1)
     .max(6000)
@@ -76,7 +76,7 @@ const filmFormBaseSchema = z.object({
 export const filmFormSchema = filmFormBaseSchema.superRefine((values, ctx) => {
   if (values.endYear && values.startYear && values.endYear < values.startYear) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['endYear'],
       message: 'End year must be after start year',
     });
@@ -86,4 +86,5 @@ export const filmFormSchema = filmFormBaseSchema.superRefine((values, ctx) => {
 export const filmDraftSchema = filmFormBaseSchema.partial();
 export const createFilmInputSchema = filmFormBaseSchema;
 
-export type FilmFormValues = z.infer<typeof filmFormSchema>;
+export type FilmFormInput = z.input<typeof filmFormSchema>;
+export type FilmFormValues = z.output<typeof filmFormSchema>;

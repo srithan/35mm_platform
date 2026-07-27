@@ -142,6 +142,8 @@ Feature folders:
 
 ### `apps/studio`
 
+Studio aligns on Zod 4 and `@hookform/resolvers` 5 with the public web workspace, avoiding cross-major schema/resolver types through pnpm's monorepo dependency resolution.
+
 Internal platform/content operations app built with Next.js App Router. It is a separate workspace from the public web app and uses its own Clerk configuration. Its development and production scripts select Next's webpack path because shared workspace packages keep Node-compatible `.js` specifiers in TypeScript source; the webpack extension aliases resolve those specifiers to the transpiled `@35mm/types` and `@35mm/validators` sources.
 
 Important areas:
@@ -591,6 +593,7 @@ Shell and navigation:
 
 - Root layout wraps everything with Clerk, React Query, theme/accent providers, service worker registration, offline status, analytics, speed insights.
 - Middleware protects all non-public routes and prevents authenticated users from rendering guest-only auth pages.
+- `/waitlist` is explicitly public and renders a UI-only username/email reservation form with no action, API read/write, or persistence. Its reusable Three.js `ProjectionDeskScene` owns responsive WebGL rendering, bloom postprocessing, context fallback/recovery, reduced-motion handling, offscreen/tab pausing, and GPU cleanup. `ChatProviderShell` does not mount the dynamically loaded floating inbox on this route.
 - Shell layout adds auth bootstrap, onboarding gate, scroll restoration, skip link, and the shared `ShellGrid`.
 - Mobile `ShellGrid` keeps `MobileSidebar` fixed underneath the app page. Opening the menu translates route content right by `min(82vw, 320px)` and applies the same X offset directly to viewport-fixed `MobileHeader`, `MobileTabBar`, and scrim, avoiding a transformed containing block that would break fixed positioning. The content clip follows the captured scroll offset and `100dvh`, so top-left and bottom-left radii stay pinned to visible viewport corners for long feeds. No element shifts vertically or scales during sidebar reveal; a dimmed surface tap, Escape, or navigation closes the menu. Outside that state, the shared mobile scroll-direction listener hides `MobileHeader` and `MobileTabBar` on downward scroll and restores them on upward scroll or near page top, while an open sidebar pins the header visible. Profile-tab routes instead replace the hidden standard controls with a fixed back-and-username profile header, keeping `ProfileTabs` anchored to the existing measured mobile-header offset. Background page content becomes inert while dialog focus stays trapped in the sidebar. Drawer content follows native iOS `ProfileSidebar`: static profile identity, seven regular primary rows, divider, and four compact secondary rows; web routes provide Lists, Diary, Drafts, Help, and the other native destinations without mock navigation. Existing sidebar destinations retain the established shared `Icon` glyphs (`user`, `search`, `frames`, `bookmark`, `chat`, `bell`, and `settings`); only newly introduced destinations use additional Lucide glyphs.
 - Home route renders composer and infinite feed.

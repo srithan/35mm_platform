@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { FILM_LIFECYCLES, FILM_STATUS, FILM_TYPES, type Film, type FilmType } from '@/lib/types';
-import { filmFormSchema, type FilmFormValues } from '@/lib/schemas';
+import { filmFormSchema, type FilmFormInput, type FilmFormValues } from '@/lib/schemas';
 import { slugify } from '@/lib/utils';
 import { useFilms } from '@/hooks/useFilms';
 import { ExternalFilmSearch } from './ExternalFilmSearch';
@@ -135,7 +135,7 @@ export function FilmForm({ film, filmId }: { film?: Film; filmId?: string }) {
     reset,
     getValues,
     formState: { errors, isDirty },
-  } = useForm<FilmFormValues>({
+  } = useForm<FilmFormInput, unknown, FilmFormValues>({
     resolver: zodResolver(filmFormSchema),
     defaultValues,
     mode: 'onBlur',

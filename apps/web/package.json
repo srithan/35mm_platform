@@ -38,6 +38,7 @@
         "framer-motion": "^11.11.0",
         "heic2any": "^0.0.4",
         "jszip": "^3.10.1",
+        "lil-gui": "0.20.0",
         "lucide-react": "^0.454.0",
         "next": "^15.0.7",
         "next-themes": "^0.4.6",
@@ -49,6 +50,7 @@
         "react-easy-crop": "^5.5.7",
         "react-hook-form": "^7.71.2",
         "tailwind-merge": "^2.5.4",
+        "three": "0.166.1",
         "use-sound": "^5.0.0",
         "zod": "^4.3.6",
         "zustand": "^5.0.11"
@@ -60,6 +62,7 @@
         "@types/node": "^22.9.0",
         "@types/react": "^18.3.12",
         "@types/react-dom": "^18.3.1",
+        "@types/three": "0.166.0",
         "eslint": "^9.15.0",
         "eslint-config-next": "^15.0.7",
         "happy-dom": "^20.7.0",

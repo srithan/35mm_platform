@@ -2,6 +2,7 @@
 
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { useAuth } from "@clerk/nextjs";
@@ -20,6 +21,7 @@ import { NotificationSoundPlayer } from "@/features/notifications/components/Not
 import { NotificationTitleBadge } from "@/features/notifications/components/NotificationTitleBadge";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { queryPersister, removePersistedQueryCache } from "@/lib/queryPersister";
+import { ROUTES } from "@/lib/constants/routes";
 
 const QUERY_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
 const PERSISTED_QUERY_ROOTS = new Set([
@@ -92,13 +94,20 @@ function ChatProviderShell({
   children: React.ReactNode;
   onActiveChatIdChange: (chatId: string | null) => void;
 }) {
+  const pathname = usePathname();
+  const showFloatingInbox = pathname !== ROUTES.WAITLIST;
+
   return (
     <ChatSidebarProvider>
       <NewChatProvider>
         <ChatInputFocusProvider>{children}</ChatInputFocusProvider>
-        <Suspense fallback={null}>
-          <FloatingChatInbox onActiveChatIdChange={onActiveChatIdChange} />
-        </Suspense>
+        {showFloatingInbox ? (
+          <Suspense fallback={null}>
+            <FloatingChatInbox
+              onActiveChatIdChange={onActiveChatIdChange}
+            />
+          </Suspense>
+        ) : null}
       </NewChatProvider>
     </ChatSidebarProvider>
   );
