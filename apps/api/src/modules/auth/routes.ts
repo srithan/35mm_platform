@@ -11,6 +11,10 @@ import { getVisibleProfileCounters } from "../../lib/profileCounters.js";
 
 export var authRoutes = new Hono();
 
+function hasNonEmptyText(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 authRoutes.get("/usernames/:username/available", async function (c) {
   var parsed = usernameSchema.safeParse(c.req.param("username"));
 
@@ -58,8 +62,12 @@ authRoutes.get("/me", requireAuth, async function (c) {
     .select({
       username: profiles.username,
       displayName: profiles.displayName,
+      bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
       avatarVariants: profiles.avatarVariants,
+      coverUrl: profiles.coverUrl,
+      coverVariants: profiles.coverVariants,
+      location: profiles.location,
       role: profiles.role,
       roleContext: profiles.roleContext,
       filmsLoggedCount: profiles.filmsLoggedCount,
@@ -93,6 +101,17 @@ authRoutes.get("/me", requireAuth, async function (c) {
     avatarUrlLg,
     role: row.role,
     roleContext: row.roleContext,
+    profileCompletion: {
+      avatar:
+        hasNonEmptyText(row.avatarUrl) ||
+        hasNonEmptyText(row.avatarVariants?.sm) ||
+        hasNonEmptyText(row.avatarVariants?.lg),
+      cover:
+        hasNonEmptyText(row.coverUrl) ||
+        hasNonEmptyText(row.coverVariants?.default),
+      bio: hasNonEmptyText(row.bio),
+      location: hasNonEmptyText(row.location),
+    },
     filmsLoggedCount: visibleCounters.filmsLoggedCount,
     followerCount: visibleCounters.followerCount,
     followingCount: visibleCounters.followingCount,

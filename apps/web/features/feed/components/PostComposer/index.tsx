@@ -738,10 +738,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   useEffect(
     function () {
       if (fixedMobileToolbar) return;
+      // Wait for TipTap write editor — mount race leaves writeEditor null on first paint.
+      if (mode === "write" && writeEditor == null) return;
       var delay = isFullPage ? 160 : 50;
       var focusTimer = window.setTimeout(function () {
         if (mode === "write") {
-          focusWriteTextarea();
+          writeEditor?.commands.focus("end", { scrollIntoView: false });
           setActiveField("body");
         } else if (mode === "discussion") {
           discussionHeadlineRef.current?.focus({ preventScroll: true });
@@ -755,7 +757,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         window.clearTimeout(focusTimer);
       };
     },
-    [mode, isFullPage, fixedMobileToolbar]
+    [mode, isFullPage, fixedMobileToolbar, writeEditor]
   );
 
   const handleEditorPaste = useCallback(
@@ -1595,7 +1597,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                     writeEditor?.commands.focus("end", { scrollIntoView: false });
                   });
                 }}
-                autoFocus={fixedMobileToolbar && mode === "write"}
+                autoFocus={mode === "write"}
                 placeholder={writePlaceholder}
                 className={cn(
                   isFullPage

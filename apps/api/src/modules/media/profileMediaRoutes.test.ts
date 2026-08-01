@@ -98,7 +98,11 @@ describe("profile media route responses", function () {
         {
           username: "person",
           displayName: "Person",
+          bio: "Programmer by day, projectionist by night.",
           avatarUrl: rawAvatar,
+          coverUrl: "cover.webp",
+          coverVariants: null,
+          location: "Chicago, IL",
           role: null,
           roleContext: null,
           filmsLoggedCount: 0,
@@ -126,6 +130,12 @@ describe("profile media route responses", function () {
     );
     expect(body.followerCount).toBe(1_247);
     expect(body.followingCount).toBe(217);
+    expect(body.profileCompletion).toEqual({
+      avatar: true,
+      cover: true,
+      bio: true,
+      location: true,
+    });
   });
 
   it("GET /v1/profiles/:username resolves bare avatar and cover filenames before responding", async function () {

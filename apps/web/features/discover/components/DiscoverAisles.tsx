@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { LazyImage } from "@/components/LazyImage";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import { cn } from "@/lib/utils/cn";
@@ -344,18 +345,38 @@ export function MoodGridAisles({
   groups: { title: string; films: TMDBMovie[] }[];
   onFilmClick: FilmClickHandler;
 }) {
+  const headingIdPrefix = useId();
   const visibleGroups = groups.filter(function (group) {
     return group.films.length > 0;
   });
   if (visibleGroups.length === 0) return null;
 
   return (
-    <section className="grid gap-10 md:grid-cols-2">
-      {visibleGroups.map(function (group) {
+    <section
+      aria-label="Genre collections"
+      className="grid gap-6 md:grid-cols-2 md:gap-5 lg:gap-6"
+    >
+      {visibleGroups.map(function (group, groupIndex) {
+        const headingId = `${headingIdPrefix}-${groupIndex}`;
+        const visibleFilmCount = Math.min(group.films.length, 6);
+
         return (
-          <div key={group.title}>
-            <div className="mb-4 flex items-baseline gap-4">
-              <h3 className="font-display text-xl font-semibold leading-tight text-fg sm:text-2xl">
+          <section
+            key={group.title}
+            aria-labelledby={headingId}
+            className="rounded-sm border border-border-strong bg-sunken p-4 sm:p-5 lg:p-6"
+          >
+            <div className="mb-5 border-b border-border-strong pb-4">
+              <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">
+                <span className="text-film-red">Genre program</span>
+                <span className="shrink-0 text-fg-muted">
+                  {visibleFilmCount} {visibleFilmCount === 1 ? "film" : "films"}
+                </span>
+              </div>
+              <h3
+                id={headingId}
+                className="font-display text-xl font-semibold leading-tight text-fg sm:text-2xl"
+              >
                 {group.title}
               </h3>
             </div>
@@ -382,7 +403,7 @@ export function MoodGridAisles({
                 );
               })}
             </div>
-          </div>
+          </section>
         );
       })}
     </section>

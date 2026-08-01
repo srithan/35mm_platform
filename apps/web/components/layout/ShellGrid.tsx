@@ -19,6 +19,7 @@ import { ComposerModalProvider } from "@/components/layout/PostComposerModalCont
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { HomeSuggestionsSidebar } from "@/features/feed/components/HomeSuggestionsSidebar";
+import { HomeProfileCompletionSidebar } from "@/features/profile/components/HomeProfileCompletionSidebar";
 import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
 import { ShellLayoutContext } from "@/components/layout/ShellLayoutContext";
 
@@ -240,6 +241,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                     <div className="hidden min-w-0 xl:block xl:min-h-px xl:justify-self-start" aria-hidden />
                   </div>
                   {/* Fixed viewport rail (below modals/backdrops — z below --z-modal) */}
+                  <HomeProfileCompletionSidebar />
                   <HomeSuggestionsSidebar />
                 </>
               ) : useProfileRailLayout ? (

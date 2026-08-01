@@ -66,6 +66,14 @@ vi.mock("./ProfilePictureUpload", function () {
   };
 });
 
+vi.mock("./CoverPhoto", function () {
+  return {
+    CoverPhoto: function () {
+      return <button type="button" data-cover-photo-trigger>Add cover photo</button>;
+    },
+  };
+});
+
 vi.mock("./LocationAutocomplete", function () {
   return {
     LocationAutocomplete: function (props: {
@@ -86,7 +94,11 @@ vi.mock("./LocationAutocomplete", function () {
   };
 });
 
-function renderModal(onSave = vi.fn(), onClose = vi.fn()) {
+function renderModal(
+  onSave = vi.fn(),
+  onClose = vi.fn(),
+  initialEditTarget?: "avatar" | "cover" | "bio" | "location"
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -101,6 +113,7 @@ function renderModal(onSave = vi.fn(), onClose = vi.fn()) {
         onClose={onClose}
         onSave={onSave}
         avatarUrl={null}
+        initialEditTarget={initialEditTarget}
         initialData={{
           displayName: "Maya Frames",
           username: "maya.frames",
@@ -132,6 +145,19 @@ describe("EditProfileModal", function () {
 
     expect(fieldGroup).toHaveClass("bg-bg");
     expect(fieldGroup).not.toHaveClass("bg-sunken");
+  });
+
+  it("focuses and highlights a deep-linked completion field", async function () {
+    renderModal(vi.fn(), vi.fn(), "location");
+
+    var location = screen.getByLabelText("Location");
+    await waitFor(function () {
+      expect(location).toHaveFocus();
+    });
+
+    expect(location.closest('[data-profile-edit-target="location"]')).toHaveClass(
+      "shadow-[inset_0_0_0_3px_color-mix(in_srgb,var(--color-film-red)_72%,transparent)]"
+    );
   });
 
   it("checks and saves a changed username while clearing cinephile context", async function () {

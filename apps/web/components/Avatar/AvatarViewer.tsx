@@ -35,7 +35,7 @@ export function AvatarViewer({
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-0 right-0 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer border-none"
+        className="fixed right-4 top-4 z-[calc(var(--z-modal-lightbox)+1)] flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/45 text-white shadow-md backdrop-blur-sm transition-colors hover:border-white/35 hover:bg-black/60 sm:right-6 sm:top-6"
         aria-label="Close"
       >
         <X className="w-5 h-5" strokeWidth={2} />

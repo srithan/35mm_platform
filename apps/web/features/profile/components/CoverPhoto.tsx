@@ -30,12 +30,14 @@ interface CoverPhotoProps {
   isOwnProfile?: boolean;
   coverUrl?: string | null;
   onUploadComplete?: (coverUrl: string | null) => void;
+  variant?: "profile" | "editor";
 }
 
 export function CoverPhoto(props: CoverPhotoProps) {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
   var isOwnProfile = props.isOwnProfile === true;
+  var isEditor = props.variant === "editor";
   var [viewerOpen, setViewerOpen] = useState(false);
   var [localCoverUrl, setLocalCoverUrl] = useState<string | null>(null);
   var [image, setImage] = useState<string | null>(null);
@@ -243,10 +245,14 @@ export function CoverPhoto(props: CoverPhotoProps) {
       <div
         className={cn(
           "relative w-full overflow-hidden bg-sunken-2",
-          "max-md:rounded-none max-md:border-0",
-          "md:rounded-t-xl md:rounded-b-none md:border md:border-border",
-          "shadow-[0_1px_2px_rgb(15_23_42/6%)]",
-          "min-h-[176px] h-[clamp(11rem,32vw,20.75rem)]",
+          isEditor
+            ? "h-[8.25rem] rounded-2xl border border-border shadow-[0_8px_24px_-20px_color-mix(in_srgb,var(--fg)_35%,transparent)]"
+            : [
+                "max-md:rounded-none max-md:border-0",
+                "md:rounded-t-xl md:rounded-b-none md:border md:border-border",
+                "shadow-[0_1px_2px_rgb(15_23_42/6%)]",
+                "min-h-[176px] h-[clamp(11rem,32vw,20.75rem)]",
+              ],
           isOwnProfile ? "group/cover" : "cursor-pointer"
         )}
         role={isOwnProfile ? undefined : "button"}
@@ -277,7 +283,11 @@ export function CoverPhoto(props: CoverPhotoProps) {
             alt="Cover"
             fill
             className="object-cover object-[50%_40%]"
-            sizes="(min-width: 1280px) min(1348px, 92vw), (min-width: 768px) 92vw, 100vw"
+            sizes={
+              isEditor
+                ? "(min-width: 640px) 520px, calc(100vw - 64px)"
+                : "(min-width: 1280px) min(1348px, 92vw), (min-width: 768px) 92vw, 100vw"
+            }
           />
         ) : (
           <Image
@@ -285,14 +295,18 @@ export function CoverPhoto(props: CoverPhotoProps) {
             alt="Default cover"
             fill
             className="object-cover"
-            sizes="(min-width: 1280px) min(1348px, 92vw), (min-width: 768px) 92vw, 100vw"
+            sizes={
+              isEditor
+                ? "(min-width: 640px) 520px, calc(100vw - 64px)"
+                : "(min-width: 1280px) min(1348px, 92vw), (min-width: 768px) 92vw, 100vw"
+            }
           />
         )}
         {isOwnProfile ? (
           <div
             className={cn(
               "absolute bottom-3 right-3 z-[1] flex gap-2 transition-opacity duration-150",
-              localCoverUrl
+              localCoverUrl && !isEditor
                 ? "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:group-hover/cover:opacity-100 [@media(hover:hover)]:group-hover/cover:pointer-events-auto [@media(hover:hover)]:has-[:focus-visible]:opacity-100 [@media(hover:hover)]:has-[:focus-visible]:pointer-events-auto"
                 : null
             )}
@@ -302,6 +316,8 @@ export function CoverPhoto(props: CoverPhotoProps) {
               size="sm"
               onClick={handleCoverTrigger}
               disabled={isUploading || isPreparingReposition}
+              aria-label={localCoverUrl ? "Edit cover photo" : "Add cover photo"}
+              data-cover-photo-trigger
               className="h-auto border border-white/30 bg-black/45 px-3 py-1.5 text-[12px] font-medium text-white shadow-none backdrop-blur-md hover:border-white/45 hover:bg-black/55 hover:text-white"
             >
               <span className="inline-flex items-center gap-1.5">

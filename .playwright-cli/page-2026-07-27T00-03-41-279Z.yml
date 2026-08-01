@@ -1,0 +1,97 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - region [ref=e4]:
+        - link "35mm home" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e8]:
+          - paragraph [ref=e9]: Social cinema, built around taste
+          - heading [level=1] [ref=e10]:
+            - text: Watch films. Find
+            - emphasis [ref=e11]: your people.
+          - paragraph [ref=e12]: Follow friends, critics, and filmmakers. See what they watch, recommend, review, and argue about in one living feed.
+          - list "What you can do on 35mm" [ref=e13]:
+            - listitem [ref=e14]:
+              - generic [ref=e19]:
+                - strong [ref=e20]: Your circle first.
+                - text: Build a feed from people whose taste you trust.
+            - listitem [ref=e21]:
+              - generic [ref=e24]:
+                - strong [ref=e25]: Stay in the conversation.
+                - text: Reply to scenes, lists, reviews, and takes.
+            - listitem [ref=e26]:
+              - generic [ref=e32]:
+                - strong [ref=e33]: Keep your film life together.
+                - text: Logs, ratings, reviews, and lists stay connected to people.
+        - generic "Preview of social film conversations on 35mm" [ref=e34]:
+          - generic [ref=e35]:
+            - generic [ref=e36]: Tonight in your circle
+            - generic [ref=e37]: Live feed
+          - article [ref=e38]:
+            - generic [ref=e39]:
+              - generic [ref=e40]:
+                - generic [ref=e41]: Perfect Days
+                - generic [ref=e42]: Wenders
+              - generic [ref=e43]:
+                - generic [ref=e44]:
+                  - generic [ref=e45]: M
+                  - generic [ref=e46]:
+                    - strong [ref=e47]: Maya
+                    - generic [ref=e48]: replayed the final shot
+                - paragraph [ref=e49]: Quiet ending. Big feeling. Anyone else read it as freedom, not loneliness?
+                - generic [ref=e50]:
+                  - generic [ref=e51]: "18"
+                  - generic [ref=e54]: "4.5"
+          - generic [ref=e57]:
+            - generic [ref=e58]: AK
+            - generic [ref=e59]: LV
+            - generic [ref=e60]: JR
+            - generic [ref=e61]: ST
+            - strong [ref=e62]: critics, friends, filmmakers
+          - generic [ref=e67]:
+            - strong [ref=e68]: 12 replies in your circle
+            - generic [ref=e69]: Before it becomes a timeline argument
+      - complementary "Account access" [ref=e70]:
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - heading "Join 35mm" [level=2] [ref=e73]
+            - paragraph [ref=e74]: Create your account, then choose the first voices in your film circle.
+          - generic "What happens after joining" [ref=e75]:
+            - paragraph [ref=e77]: Join these and 11,183 other film lovers.
+          - generic [ref=e78]:
+            - textbox "Full name" [ref=e80]:
+              - /placeholder: Agnès Varda
+            - generic [ref=e82]:
+              - generic [ref=e83]: 35mm.in/
+              - textbox "Username" [ref=e84]:
+                - /placeholder: agnes
+            - textbox "Email" [ref=e86]:
+              - /placeholder: agnes@example.com
+            - generic [ref=e88]:
+              - textbox "Password" [ref=e89]:
+                - /placeholder: At least 8 characters
+              - button "Show password" [ref=e90] [cursor=pointer]
+            - button "Join 35mm" [ref=e94] [cursor=pointer]
+            - paragraph [ref=e97]:
+              - text: By joining, you agree to the
+              - link "Terms" [ref=e98] [cursor=pointer]:
+                - /url: /terms
+              - text: and
+              - link "Privacy Policy" [ref=e99] [cursor=pointer]:
+                - /url: /privacy
+              - text: .
+          - generic [ref=e100]:
+            - generic [ref=e101]: Already a member?
+            - button "Log in" [ref=e102] [cursor=pointer]
+        - generic [ref=e103]:
+          - generic [ref=e104]: © 35mm.in
+          - navigation "Legal" [ref=e105]:
+            - link "Privacy" [ref=e106] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e107] [cursor=pointer]:
+              - /url: /terms
+            - link "Help" [ref=e108] [cursor=pointer]:
+              - /url: /help
+  - button "Open Tanstack query devtools" [ref=e159] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e213] [cursor=pointer]
+  - alert [ref=e217]

@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic:
+      - link "35mm home" [ref=e3] [cursor=pointer]:
+        - /url: /
+      - paragraph: Private preview
+    - region [ref=e5]:
+      - generic [ref=e6]:
+        - paragraph [ref=e7]: Coming soon
+        - heading [level=1] [ref=e8]:
+          - text: The lights are
+          - emphasis [ref=e9]: dimming.
+        - paragraph [ref=e10]: 35mm is a new place for people who live through films. Claim the name you want and we'll save you a seat for launch.
+        - form "Join the 35mm waitlist" [ref=e11]:
+          - generic [ref=e12]:
+            - generic [ref=e13]: Reserve your username
+            - generic [ref=e14]:
+              - generic [ref=e15]: 35mm.in/
+              - textbox "Reserve your username" [ref=e16]:
+                - /placeholder: yourname
+          - generic [ref=e17]:
+            - generic [ref=e18]: Email address
+            - textbox "Email address" [ref=e19]:
+              - /placeholder: you@example.com
+          - button "Reserve my username" [ref=e20] [cursor=pointer]
+        - paragraph [ref=e25]: One email when doors open. Nothing else.
+    - region "35mm preview" [ref=e26]:
+      - generic [ref=e30]:
+        - generic [ref=e31]: Now projecting
+        - generic [ref=e32]: 35mm / Preview
+  - button "Open Tanstack query devtools" [ref=e83] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e137] [cursor=pointer]
+  - alert [ref=e141]

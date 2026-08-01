@@ -1,0 +1,4 @@
+- generic [active] [ref=f3e1]:
+  - button "Open Tanstack query devtools" [ref=f3e52] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f3e106] [cursor=pointer]
+  - alert [ref=f3e110]

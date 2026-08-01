@@ -29,10 +29,12 @@ export function HeroCard({
   const year = yearFromDate(
     (film.release_date || film.first_air_date || "") as string
   );
-  const blurb =
+  const programNote =
     (tagline && tagline.trim()) ||
-    (film.overview && film.overview.trim().slice(0, 220)) ||
-    null;
+    (film.overview && film.overview.trim()) ||
+    "A featured title from the current discovery program.";
+  const programNotePreview =
+    programNote.slice(0, 180) + (programNote.length > 180 ? "..." : "");
 
   return (
     <div
@@ -45,12 +47,12 @@ export function HeroCard({
         if (e.key === "Enter") onOpenDetail(film);
       }}
       className={cn(
-        "group grid min-h-[420px] w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] md:grid-cols-5",
+        "group grid w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] lg:grid-cols-5",
         "cursor-pointer bg-[var(--discover-placeholder)] text-left shadow-sm",
         "transition-shadow hover:shadow-[0_18px_34px_-18px_rgba(28,26,23,0.5)]"
       )}
     >
-      <div className="relative min-h-[420px] overflow-hidden text-white md:col-span-3">
+      <div className="relative aspect-[4/3] overflow-hidden text-white sm:aspect-video lg:col-span-3">
         <div className="absolute inset-0">
           <LazyImage
             src={backdrop}
@@ -67,7 +69,7 @@ export function HeroCard({
           aria-hidden
         />
 
-        <div className="relative z-10 flex min-h-[420px] max-w-2xl flex-col justify-end gap-5 p-5 font-sans antialiased md:p-8">
+        <div className="absolute inset-0 z-10 flex max-w-2xl flex-col justify-end gap-4 p-5 font-sans antialiased md:p-8">
           <div className="min-w-0 space-y-4">
             {label ? (
               <span
@@ -81,7 +83,7 @@ export function HeroCard({
             ) : null}
 
             <div>
-              <h2 className="max-w-xl font-display text-[2rem] font-semibold leading-[1.02] text-white sm:text-[2.35rem] md:text-[3.4rem]">
+              <h2 className="max-w-xl font-display text-[2rem] font-semibold leading-[1.02] text-white sm:text-[2.35rem] lg:text-[3.4rem]">
                 {film.title || film.name}
               </h2>
               <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-white/78">
@@ -96,13 +98,6 @@ export function HeroCard({
                 ) : null}
               </div>
             </div>
-
-            {blurb ? (
-              <p className="line-clamp-3 max-w-xl text-[13.5px] leading-relaxed text-white/78 md:text-[14px]">
-                {blurb}
-                {film.overview && film.overview.length > 220 ? "..." : ""}
-              </p>
-            ) : null}
           </div>
 
           <div
@@ -150,15 +145,13 @@ export function HeroCard({
         </div>
       </div>
 
-      <aside className="flex min-h-[240px] flex-col justify-between bg-sunken p-6 text-fg md:col-span-2 md:min-h-[420px] md:p-7">
+      <aside className="flex min-h-[240px] flex-col justify-between bg-sunken p-6 text-fg lg:col-span-2 lg:min-h-0 lg:p-7">
         <div>
           <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-muted">
             Program note
           </p>
           <p className="text-[14px] leading-relaxed text-fg-muted">
-            {film.overview
-              ? film.overview.slice(0, 180) + (film.overview.length > 180 ? "..." : "")
-              : "A featured title from the current discovery program."}
+            {programNotePreview}
           </p>
         </div>
         <div className="my-6 h-px bg-[repeating-linear-gradient(to_right,var(--border)_0,var(--border)_8px,transparent_8px,transparent_16px)]" />

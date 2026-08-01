@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 describe("PostComposerModal", () => {
-  it("uses a stable viewport-bounded panel for empty and oversized content", async () => {
+  it("uses intrinsic height while bounding oversized content to the viewport", async () => {
     render(
       <PostComposerModal
         isOpen
@@ -49,14 +49,22 @@ describe("PostComposerModal", () => {
     const panel = document.querySelector("[data-post-composer-modal-panel]");
     const composerRoot = panel?.querySelector("[data-composer-root]");
 
-    expect(viewport).toHaveClass("items-center", "overflow-hidden");
+    expect(viewport).toHaveClass(
+      "items-start",
+      "overflow-hidden",
+      "pt-[12vh]"
+    );
+    expect(viewport).not.toHaveClass("items-center");
     expect(panel).toHaveClass(
-      "h-[min(680px,80dvh)]",
-      "max-h-[80dvh]",
+      "h-auto",
+      "max-h-[min(680px,80dvh)]",
       "min-h-0",
       "overflow-hidden"
     );
+    expect(panel).not.toHaveClass("h-[min(680px,80dvh)]");
     expect(composerRoot).toHaveClass(
+      "flex",
+      "flex-col",
       "min-h-0",
       "flex-1",
       "overflow-hidden"

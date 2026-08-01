@@ -89,6 +89,18 @@ vi.mock("./ChatConversation", () => ({
 }));
 
 describe("FloatingChatInbox motion", () => {
+  it("colors the message icon from the active theme foreground", () => {
+    const { container } = render(<FloatingChatInbox />);
+    const icon = container.querySelector(
+      '[style*="float-message.svg"]',
+    );
+
+    expect(icon).toHaveClass("bg-current", "text-fg");
+    expect(icon).toHaveStyle({
+      mask: 'url("/float-message.svg") center / contain no-repeat',
+    });
+  });
+
   it("keeps the panel mounted until its close animation finishes", async () => {
     render(<FloatingChatInbox />);
 

@@ -28,6 +28,7 @@ import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { useBlockUserMutation, useFollowToggle, useMuteUserMutation } from "../hooks/useProfile";
 import { profileKeys } from "../hooks/queryKeys";
 import { acceptFollowRequest, declineFollowRequest } from "@/features/notifications/api/notificationsApi";
+import type { ProfileEditTarget } from "../lib/profileEditTargets";
 
 interface ProfileHeaderProps {
   userId: string;
@@ -53,7 +54,10 @@ interface ProfileHeaderProps {
   followState: "none" | "requested" | "following" | "self";
   hasIncomingFollowRequest?: boolean;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
   onAvatarUrlChange?: (imageUrl: string | null) => void;
+  onCoverUrlChange?: (imageUrl: string | null) => void;
+  initialEditTarget?: ProfileEditTarget | null;
 }
 
 export function ProfileHeader({
@@ -78,7 +82,10 @@ export function ProfileHeader({
   hasIncomingFollowRequest = false,
   showFollowButton = true,
   avatarUrl: initialAvatarUrl = null,
+  coverUrl = null,
   onAvatarUrlChange,
+  onCoverUrlChange,
+  initialEditTarget = null,
   onMessageClick,
   isMessageActionPending = false,
 }: ProfileHeaderProps) {
@@ -94,6 +101,7 @@ export function ProfileHeader({
   const [profileImage, setProfileImage] = useState<string | null>(initialAvatarUrl);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [activeEditTarget, setActiveEditTarget] = useState<ProfileEditTarget | null>(null);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: initialDisplayName,
@@ -173,6 +181,20 @@ export function ProfileHeader({
     setIsMutedByViewer(initialIsMutedByViewer);
   }, [initialIsMutedByViewer]);
 
+  useEffect(
+    function openRequestedEditTarget() {
+      if (!isOwnProfile || !initialEditTarget) return;
+      setActiveEditTarget(initialEditTarget);
+      setShowEditModal(true);
+    },
+    [initialEditTarget, isOwnProfile]
+  );
+
+  function openEditProfile() {
+    setActiveEditTarget(null);
+    setShowEditModal(true);
+  }
+
   const handleAvatarChange = (imageUrl: string | null) => {
     setProfileImage(imageUrl);
     onAvatarUrlChange?.(imageUrl);
@@ -228,7 +250,7 @@ export function ProfileHeader({
   function handleFollowClick() {
     if (followToggleMutation.isPending) return;
     if (followState === "self") {
-      setShowEditModal(true);
+      openEditProfile();
       return;
     }
     if (followState === "requested" && !confirmCancelRequest) {
@@ -398,7 +420,7 @@ export function ProfileHeader({
       variant="secondary"
       size="sm"
       className="h-auto border border-border-strong bg-elevated px-5 py-2 text-[13px] font-bold text-fg shadow-none hover:border-fg-muted hover:bg-hover"
-      onClick={() => setShowEditModal(true)}
+      onClick={openEditProfile}
     >
       Edit profile
     </Button>
@@ -512,7 +534,7 @@ export function ProfileHeader({
                 variant="outline"
                 size="sm"
                 className="col-span-2 h-11 w-full border-border-strong bg-bg text-[14px] font-bold shadow-none hover:bg-hover"
-                onClick={() => setShowEditModal(true)}
+                onClick={openEditProfile}
               >
                 Edit profile
               </Button>
@@ -602,9 +624,15 @@ export function ProfileHeader({
 
       <EditProfileModal
         open={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        onClose={() => {
+          setShowEditModal(false);
+          setActiveEditTarget(null);
+        }}
         avatarUrl={profileImage}
+        coverUrl={coverUrl}
         onAvatarChange={handleAvatarChange}
+        onCoverChange={onCoverUrlChange}
+        initialEditTarget={activeEditTarget}
         initialData={{
           displayName: profileData.displayName,
           username: profileData.username,

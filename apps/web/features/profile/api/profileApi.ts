@@ -39,9 +39,17 @@ export interface CurrentUserProfile {
   avatarUrlLg?: string | null;
   role: string | null;
   roleContext: string | null;
+  profileCompletion: ProfileCompletionState;
   filmsLoggedCount: number;
   followerCount: number;
   followingCount: number;
+}
+
+export interface ProfileCompletionState {
+  avatar: boolean;
+  cover: boolean;
+  bio: boolean;
+  location: boolean;
 }
 
 export interface ProfileStatsFilm {

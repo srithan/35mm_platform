@@ -56,29 +56,47 @@ export function DiscoverHeroSkeleton() {
   return (
     <section
       className={cn(
-        "group relative min-h-[420px] w-full overflow-hidden rounded-2xl",
-        "bg-[var(--discover-placeholder)] text-left shadow-sm md:min-h-[520px] xl:min-h-[580px]"
+        "group grid w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] lg:grid-cols-5",
+        "bg-[var(--discover-placeholder)] text-left shadow-sm"
       )}
       aria-hidden
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-skeleton/70 via-skeleton-strong/65 to-skeleton/80" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/30 to-black/5 md:bg-[linear-gradient(90deg,rgba(0,0,0,.8)_0%,rgba(0,0,0,.5)_38%,rgba(0,0,0,.14)_72%,rgba(0,0,0,.04)_100%)]" />
+      <div className="relative aspect-[4/3] overflow-hidden sm:aspect-video lg:col-span-3">
+        <div className="absolute inset-0 bg-gradient-to-br from-skeleton/70 via-skeleton-strong/65 to-skeleton/80" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/30 to-black/5" />
 
-      <div className="relative z-10 flex min-h-[420px] max-w-2xl flex-col justify-end gap-5 p-5 md:min-h-[520px] md:p-8 xl:min-h-[580px]">
-        <div className="space-y-4">
-          <Skeleton className="h-5 w-24 rounded-full bg-white/15" />
-          <div className="space-y-3">
-            <Skeleton className="h-8 w-[78%] rounded bg-white/15 sm:h-10 md:h-14 md:w-[68%]" />
-            <Skeleton className="h-4 w-[56%] rounded bg-white/12" />
-            <Skeleton className="h-4 w-[44%] rounded bg-white/12" />
+        <div className="absolute inset-0 z-10 flex max-w-2xl flex-col justify-end gap-4 p-5 md:p-8">
+          <div className="space-y-4">
+            <Skeleton className="h-5 w-24 rounded-sm bg-white/15" />
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-[78%] rounded bg-white/15 sm:h-10 lg:h-14 lg:w-[68%]" />
+              <Skeleton className="h-4 w-[56%] rounded bg-white/12" />
+            </div>
           </div>
-          <Skeleton className="h-12 w-[82%] rounded-xl bg-white/12" />
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-9 w-24 rounded-full bg-white/12" />
-          <Skeleton className="h-9 w-20 rounded-full bg-white/12" />
-          <Skeleton className="h-9 w-24 rounded-full bg-white/12" />
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-10 w-24 rounded-full bg-white/12" />
+            <Skeleton className="h-10 w-24 rounded-full bg-white/12" />
+            <Skeleton className="h-10 w-24 rounded-full bg-white/12" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-h-[240px] flex-col justify-between bg-sunken p-6 lg:col-span-2 lg:min-h-0 lg:p-7">
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-28 rounded" />
+          <Skeleton className="h-4 w-full rounded" />
+          <Skeleton className="h-4 w-[92%] rounded" />
+          <Skeleton className="h-4 w-[72%] rounded" />
+        </div>
+        <div className="my-6 h-px bg-border" />
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-28 rounded" />
+          <div className="flex gap-2">
+            <Skeleton className="h-7 w-16 rounded" />
+            <Skeleton className="h-7 w-20 rounded" />
+            <Skeleton className="h-7 w-14 rounded" />
+          </div>
         </div>
       </div>
     </section>

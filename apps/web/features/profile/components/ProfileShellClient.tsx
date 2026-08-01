@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Home, Search, UserX } from "lucide-react";
 import { useLayoutEffect, useMemo, useState } from "react";
 import { Button } from "@/components/Button";
@@ -18,6 +18,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { showGlobalFlashToast } from "@/components/FlashToast";
 import { getChatErrorMessage } from "@/features/chat/api/errors";
 import { useCreateConversation } from "@/features/chat/hooks/useChatQueries";
+import { isProfileEditTarget } from "@/features/profile/lib/profileEditTargets";
 
 export function ProfileShellClient(props: { username: string }) {
   var username = props.username;
@@ -27,6 +28,7 @@ export function ProfileShellClient(props: { username: string }) {
   var { isSignedIn } = useAuth();
   var createConversationMutation = useCreateConversation();
   var router = useRouter();
+  var searchParams = useSearchParams();
   var { setProfileRailDisabled } = useShellLayout();
 
   var [avatarUrlOverride, setAvatarUrlOverride] = useState<string | null>(null);
@@ -54,6 +56,10 @@ export function ProfileShellClient(props: { username: string }) {
   var effectiveAvatarUrl = avatarUrlOverride ?? profile?.avatarUrl ?? null;
   var effectiveAvatarUrlLg = avatarUrlOverride ?? profile?.avatarUrlLg ?? profile?.avatarUrl ?? null;
   var effectiveCoverUrl = coverUrlOverride ?? profile?.coverUrl ?? null;
+  var requestedEditTargetValue = searchParams.get("editProfile");
+  var requestedEditTarget = isProfileEditTarget(requestedEditTargetValue)
+    ? requestedEditTargetValue
+    : null;
   var profileError = profileQuery.isError ? profileQuery.error : null;
   var isBlockedProfileError =
     profileError instanceof ApiRequestError && profileError.code === "BLOCKED";
@@ -216,7 +222,10 @@ export function ProfileShellClient(props: { username: string }) {
           bio={resolvedProfile.bio ?? ""}
           isOwnProfile={isOwnProfile}
           avatarUrl={effectiveAvatarUrlLg}
+          coverUrl={effectiveCoverUrl}
           onAvatarUrlChange={setAvatarUrlOverride}
+          onCoverUrlChange={setCoverUrlOverride}
+          initialEditTarget={isOwnProfile ? requestedEditTarget : null}
           location={resolvedProfile.location ?? ""}
           website={resolvedProfile.website ?? ""}
           dateOfBirth={resolvedProfile.dateOfBirth ?? ""}

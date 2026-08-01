@@ -25,6 +25,8 @@ import {
 } from "../api/profileApi";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { profileKeys } from "../hooks/queryKeys";
+import { CoverPhoto } from "./CoverPhoto";
+import type { ProfileEditTarget } from "../lib/profileEditTargets";
 
 const BIO_MAX = 160;
 const ROLE_CONTEXT_MAX = 25;
@@ -81,7 +83,10 @@ interface EditProfileModalProps {
   onSave: (data: ProfileFormValues) => void;
   initialData: ProfileFormValues;
   avatarUrl: string | null;
+  coverUrl?: string | null;
   onAvatarChange?: (imageUrl: string | null) => void;
+  onCoverChange?: (imageUrl: string | null) => void;
+  initialEditTarget?: ProfileEditTarget | null;
 }
 
 type UsernameStatus =
@@ -212,12 +217,20 @@ export function EditProfileModal({
   onSave,
   initialData,
   avatarUrl,
+  coverUrl = null,
   onAvatarChange,
+  onCoverChange,
+  initialEditTarget = null,
 }: EditProfileModalProps) {
   const { getToken } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const displayNameRef = useRef<HTMLInputElement | null>(null);
+  const avatarTargetRef = useRef<HTMLDivElement | null>(null);
+  const coverTargetRef = useRef<HTMLDivElement | null>(null);
+  const bioTargetRef = useRef<HTMLDivElement | null>(null);
+  const locationTargetRef = useRef<HTMLDivElement | null>(null);
+  const [highlightedTarget, setHighlightedTarget] = useState<ProfileEditTarget | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -276,6 +289,54 @@ export function EditProfileModal({
       });
     }
   }, [open, initialData, reset]);
+
+  useEffect(
+    function focusRequestedProfileField() {
+      if (!open || !initialEditTarget) return;
+
+      setHighlightedTarget(initialEditTarget);
+      var focusTimer = window.setTimeout(function () {
+        var target =
+          initialEditTarget === "avatar"
+            ? avatarTargetRef.current
+            : initialEditTarget === "cover"
+              ? coverTargetRef.current
+              : initialEditTarget === "bio"
+                ? bioTargetRef.current
+                : locationTargetRef.current;
+        if (!target) return;
+
+        if (typeof target.scrollIntoView === "function") {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        var focusable = target.querySelector<HTMLElement>(
+          initialEditTarget === "cover"
+            ? "[data-cover-photo-trigger]"
+            : initialEditTarget === "avatar"
+              ? ".profile-photo-trigger"
+              : "input, textarea, button"
+        );
+        focusable?.focus({ preventScroll: true });
+      }, 120);
+      var highlightTimer = window.setTimeout(function () {
+        setHighlightedTarget(null);
+      }, 2200);
+
+      return function () {
+        window.clearTimeout(focusTimer);
+        window.clearTimeout(highlightTimer);
+      };
+    },
+    [initialEditTarget, open]
+  );
+
+  function targetHighlightClass(target: ProfileEditTarget) {
+    return cn(
+      "transition-[background-color,box-shadow] duration-300 motion-reduce:transition-none",
+      highlightedTarget === target &&
+        "bg-[color-mix(in_srgb,var(--color-film-red)_12%,var(--bg))] shadow-[inset_0_0_0_3px_color-mix(in_srgb,var(--color-film-red)_72%,transparent)]"
+    );
+  }
 
   useEffect(
     function checkChangedUsername() {
@@ -436,7 +497,29 @@ export function EditProfileModal({
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="edit-profile-form min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
-            <div className={profileSummaryClassName}>
+            <EditProfileSection
+              title="Profile imagery"
+              description="Choose the images people remember you by."
+            >
+              <div
+                ref={coverTargetRef}
+                data-profile-edit-target="cover"
+                className={cn("rounded-2xl", targetHighlightClass("cover"))}
+              >
+                <CoverPhoto
+                  isOwnProfile
+                  coverUrl={coverUrl}
+                  onUploadComplete={onCoverChange}
+                  variant="editor"
+                />
+              </div>
+            </EditProfileSection>
+
+            <div
+              ref={avatarTargetRef}
+              data-profile-edit-target="avatar"
+              className={cn(profileSummaryClassName, targetHighlightClass("avatar"))}
+            >
               <ProfilePictureUpload onUploadComplete={onAvatarChange}>
                 <Avatar
                   initial={(watch("displayName") || usernameValue)[0]}
@@ -702,63 +785,75 @@ export function EditProfileModal({
               description="A short line under your name on your profile."
             >
               <div className={fieldGroupClassName}>
-              <EditProfileField
-                id="edit-profile-bio"
-                label="Bio"
-                error={errors.bio?.message}
-                meta={
-                  <span
-                    className={cn(
-                      "text-[11px] tabular-nums text-fg-muted",
-                      bioRemaining < 0 && "text-accent"
-                    )}
-                    aria-live="polite"
-                  >
-                    {bioContent.length}/{BIO_MAX}
-                  </span>
-                }
+              <div
+                ref={bioTargetRef}
+                data-profile-edit-target="bio"
+                className={targetHighlightClass("bio")}
               >
-                <textarea
-                  {...register("bio")}
+                <EditProfileField
                   id="edit-profile-bio"
-                  rows={3}
-                  placeholder="Films, directors, hot takes…"
-                  disabled={isSubmitting}
-                  aria-invalid={Boolean(errors.bio)}
-                  className={cn(
-                    inputStateClassName(Boolean(errors.bio)),
-                    "min-h-[4.5rem] resize-none leading-relaxed"
-                  )}
-                />
-              </EditProfileField>
+                  label="Bio"
+                  error={errors.bio?.message}
+                  meta={
+                    <span
+                      className={cn(
+                        "text-[11px] tabular-nums text-fg-muted",
+                        bioRemaining < 0 && "text-accent"
+                      )}
+                      aria-live="polite"
+                    >
+                      {bioContent.length}/{BIO_MAX}
+                    </span>
+                  }
+                >
+                  <textarea
+                    {...register("bio")}
+                    id="edit-profile-bio"
+                    rows={3}
+                    placeholder="Films, directors, hot takes…"
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(errors.bio)}
+                    className={cn(
+                      inputStateClassName(Boolean(errors.bio)),
+                      "min-h-[4.5rem] resize-none leading-relaxed"
+                    )}
+                  />
+                </EditProfileField>
+              </div>
               </div>
             </EditProfileSection>
 
             <EditProfileSection title="Links & location">
               <div className={fieldGroupClassName}>
-              <EditProfileField
-                id="edit-profile-location"
-                label="Location"
-                hint="City and state/region only — country helps pick the right place but isn’t saved."
-                error={errors.location?.message}
+              <div
+                ref={locationTargetRef}
+                data-profile-edit-target="location"
+                className={targetHighlightClass("location")}
               >
-                <Controller
-                  name="location"
-                  control={control}
-                  render={function ({ field }) {
-                    return (
-                      <LocationAutocomplete
-                        id="edit-profile-location"
-                        value={field.value}
-                        onChange={field.onChange}
-                        disabled={isSubmitting}
-                        placeholder="Los Angeles, CA, United States"
-                        aria-invalid={Boolean(errors.location)}
-                      />
-                    );
-                  }}
-                />
-              </EditProfileField>
+                <EditProfileField
+                  id="edit-profile-location"
+                  label="Location"
+                  hint="City and state/region only — country helps pick the right place but isn’t saved."
+                  error={errors.location?.message}
+                >
+                  <Controller
+                    name="location"
+                    control={control}
+                    render={function ({ field }) {
+                      return (
+                        <LocationAutocomplete
+                          id="edit-profile-location"
+                          value={field.value}
+                          onChange={field.onChange}
+                          disabled={isSubmitting}
+                          placeholder="Los Angeles, CA, United States"
+                          aria-invalid={Boolean(errors.location)}
+                        />
+                      );
+                    }}
+                  />
+                </EditProfileField>
+              </div>
 
               <EditProfileField
                 id="edit-profile-website"

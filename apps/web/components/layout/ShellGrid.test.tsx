@@ -57,6 +57,10 @@ vi.mock("@/features/feed/components/HomeSuggestionsSidebar", () => ({
   HomeSuggestionsSidebar: () => <div>Suggestions</div>,
 }));
 
+vi.mock("@/features/profile/components/HomeProfileCompletionSidebar", () => ({
+  HomeProfileCompletionSidebar: () => <div>Profile completion</div>,
+}));
+
 vi.mock("@/lib/hooks/useIsDesktopLg", () => ({
   useIsDesktopLg: () => false,
 }));
@@ -83,6 +87,7 @@ describe("ShellGrid mobile sidebar", () => {
       "pt-[calc(var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))-0.25rem)]"
     );
     expect(screen.getByRole("main")).not.toHaveClass("pt-20");
+    expect(screen.getByText("Profile completion")).toBeInTheDocument();
     expect(surface).toHaveClass("transform-none");
     expect(surface).not.toContainElement(screen.getByTestId("mobile-tabbar"));
 
@@ -117,6 +122,7 @@ describe("ShellGrid mobile sidebar", () => {
 
     expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("pt-0");
+    expect(screen.queryByText("Profile completion")).not.toBeInTheDocument();
   });
 
   it("keeps the reposts tab in the wide profile shell", () => {

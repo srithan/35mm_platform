@@ -108,11 +108,13 @@ function FloatingChatPill({
     >
       <span className="flex items-center gap-2 min-w-0">
         <span className="relative flex h-5 w-5 items-center justify-center rounded-full">
-          <img
-            src="/float-message.svg"
-            alt=""
+          <span
             aria-hidden="true"
-            className="h-5 w-5 shrink-0 object-contain"
+            className="h-5 w-5 shrink-0 bg-current text-fg"
+            style={{
+              WebkitMask: 'url("/float-message.svg") center / contain no-repeat',
+              mask: 'url("/float-message.svg") center / contain no-repeat',
+            }}
           />
           {unreadCount > 0 ? (
             <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--chat-unread-badge)] px-1 text-[10px] font-bold text-[var(--chat-unread-badge-fg)] ring-2 ring-bg tabular-nums">

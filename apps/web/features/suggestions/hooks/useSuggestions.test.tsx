@@ -86,6 +86,12 @@ function seedProfiles(queryClient: QueryClient) {
     avatarUrl: null,
     role: null,
     roleContext: null,
+    profileCompletion: {
+      avatar: false,
+      cover: false,
+      bio: false,
+      location: false,
+    },
     filmsLoggedCount: 0,
     followerCount: 5,
     followingCount: 10,

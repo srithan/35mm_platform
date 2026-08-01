@@ -210,7 +210,7 @@ export function PostComposerModal({
 
       <div
         data-post-composer-modal-viewport
-        className="absolute inset-0 flex items-center justify-center overflow-hidden p-4"
+        className="absolute inset-0 flex items-start justify-center overflow-hidden px-4 pb-4 pt-[12vh]"
         onClick={handleClose}
       >
         <div className="flex min-h-0 w-full items-center justify-center">
@@ -232,7 +232,7 @@ export function PostComposerModal({
               duration: isMobile ? 0.25 : 0.2,
               ease: "easeOut",
             }}
-            className="relative mx-auto flex h-[min(680px,80dvh)] max-h-[80dvh] min-h-0 w-full max-w-[580px] flex-col overflow-hidden border border-[var(--composer-border)] bg-[var(--composer-bg)]
+            className="relative mx-auto flex h-auto max-h-[min(680px,80dvh)] min-h-0 w-full max-w-[580px] flex-col overflow-hidden border border-[var(--composer-border)] bg-[var(--composer-bg)]
               rounded-t-[var(--composer-radius)] rounded-b-none md:rounded-[var(--composer-radius)] md:rounded-b-[var(--composer-radius)]
               border-b-0 shadow-2xl pointer-events-auto will-change-transform md:border-b"
             style={{ transformOrigin }}
@@ -247,7 +247,7 @@ export function PostComposerModal({
             {/* Composer */}
             <div
               data-composer-root
-              className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
+              className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
             >
               <PostComposer
                 variant="modal"

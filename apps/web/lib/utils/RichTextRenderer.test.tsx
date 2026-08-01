@@ -67,6 +67,35 @@ describe("RichTextRenderer", () => {
     expect(screen.getByRole("link", { name: "@ava" })).toHaveAttribute("href", "/ava");
   });
 
+  it("does not render a private-account lock beside a mention", () => {
+    render(
+      <RichTextRenderer
+        stored={stored({
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "mention",
+                  attrs: {
+                    id: "11111111-1111-4111-8111-111111111111",
+                    label: "ava",
+                    username: "ava",
+                    isPrivate: true,
+                  },
+                },
+              ],
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "@ava" })).toHaveAttribute("href", "/ava");
+    expect(screen.queryByLabelText("Private account")).not.toBeInTheDocument();
+  });
+
   it("renders deleted mention as muted plain text", () => {
     render(
       <RichTextRenderer
