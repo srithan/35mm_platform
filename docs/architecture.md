@@ -157,6 +157,7 @@ Design conventions:
 - Default experience is light mode. Additional themes exist through `data-theme`, including Matinee for warm editorial film surfaces, shared elevated panels/dropdowns, composer, and floating chat surfaces.
 - Main feed column max width is 640px.
 - Shell layout is a left nav, center content, and right rail.
+- The desktop home right rail includes `The Lobby`, a bounded audio-room summary widget. The current surface is presentation-only and intentionally renders a truthful empty state because no room-signaling, media, presence, or room API is wired. Its typed component contract displays at most four rooms, each with a host, up to three speaker avatars, topic, and denormalized listener count; it does not synthesize live data or expose nonfunctional join/create controls.
 - Server state belongs in React Query. Do not mirror DB-backed state in Zustand.
 - Query key factories live in feature folders. Do not use ad hoc query strings.
 - Public `/waitlist` is a UI-only launch preview: its username/email form has no mutation, persistence, availability read, or reservation semantics. The route mounts the reusable `ProjectionDeskScene`, which pauses rendering when hidden or offscreen and disposes its WebGL resources on unmount. Global providers suppress the dynamically loaded floating chat inbox on this acquisition route.
@@ -650,7 +651,7 @@ Automatic moderation enforcement:
 
 - UUID primary key.
 - `post_id`, `user_id`, optional `parent_id`.
-- Body, denormalized `like_count`, soft delete, edit timestamp, and denormalized `moderation_status`.
+- Body, optional validated GIPHY `gif_url`, denormalized `like_count`, soft delete, edit timestamp, and denormalized `moderation_status`. GIF-only comments store an empty body; deleted comment DTOs tombstone both body and GIF URL. `gif_url` is not indexed because it is payload-only and never participates in filters, joins, ordering, or aggregation.
 - Comments also carry the post-aligned NSFW status/category/source/scanned
   fields and partial pending index. Comment DTOs expose this classification
   without another query.
@@ -1016,7 +1017,8 @@ Important app routes:
 
 - `/`: session-aware root. Signed-out visitors receive a fixed-light, responsive split landing surface with
   local cinematic artwork and embedded Clerk-backed signup/login forms; signed-in visitors receive the
-  authenticated home feed. The signed-out path performs only the debounced username-availability read after
+  authenticated home feed. `app/page.tsx` is the sole owner of `/`; no `(shell)/page.tsx` duplicate exists,
+  preventing ambiguous App Router manifests in production. The signed-out path performs only the debounced username-availability read after
   username input—there is no TMDB/poster-carousel fetch on initial render.
 - `/landing`: compatibility URL that redirects to `/`.
 - `/new`: post composer page.
@@ -1042,6 +1044,7 @@ Next app API routes:
 Feature ownership:
 
 - `features/feed`: composer, feed, post cards, comments, polls, mutations.
+- `features/audio-rooms`: `The Lobby` right-rail presentation contract and empty state. A future production room service can supply bounded summaries and an open-room handler without changing the widget layout; realtime audio/signaling remains out of scope and unwired.
 - `features/profile`: public profile, Posts/Reposts/Diary/Lists/Stats routing, edit profile, follow state, media upload, connections, blocks/mutes. Reposts uses a dedicated React Query key and the server-side `kind=reposts` cursor feed. Mobile profile identity and actions render together in `ProfileHeader`: circular share/overflow controls align beside the cover-overlapping avatar, while full-width message/follow/edit capsules follow the profile details; tablet/desktop placement remains unchanged.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime. Realtime handles normal freshness; no-Ably fallback invalidates notification queries every 30 seconds without duplicate 5-second component polling.
 - `features/lists`: film lists and watchlists.
@@ -1516,7 +1519,10 @@ NEXT_PUBLIC_MEDIA_READS_PUBLIC=
 NEXT_PUBLIC_ABLY_API_KEY=
 NEXT_PUBLIC_CHAT_API_MODE=
 NEXT_PUBLIC_CHAT_API_URL=
-NEXT_PUBLIC_TENOR_API_KEY=
+NEXT_PUBLIC_GIPHY_API_KEY=
+NEXT_PUBLIC_GIPHY_POSTS_API_KEY=
+NEXT_PUBLIC_GIPHY_COMMENTS_API_KEY=
+NEXT_PUBLIC_GIPHY_CHAT_API_KEY=
 ```
 
 Shared mobile development and preview runtime:

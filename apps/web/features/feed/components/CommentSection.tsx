@@ -49,6 +49,7 @@ function toCommentCard(comment: FeedComment): CommentCardType {
     avatarUrl: comment.author.avatarUrl,
     avatarInitial: comment.author.displayName.charAt(0).toUpperCase() || "U",
     text: comment.body ?? "",
+    gifUrl: comment.gifUrl,
     timestamp: formatCommentTime(comment.createdAt),
     likeCount: comment.likeCount,
     liked: comment.isLiked,
@@ -76,6 +77,7 @@ export function CommentSection({
 }: CommentSectionProps) {
   const [isComposerActive, setIsComposerActive] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [replyGifUrl, setReplyGifUrl] = useState<string | null>(null);
   const createCommentMutation = useCreateComment(postId);
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
@@ -89,14 +91,20 @@ export function CommentSection({
   const handleCancelComposer = () => {
     setIsComposerActive(false);
     setReplyText("");
+    setReplyGifUrl(null);
   };
 
   const handleReplySubmit = async () => {
-    if (!hasVisibleRichText(replyText) || createCommentMutation.isPending) return;
+    if ((!hasVisibleRichText(replyText) && !replyGifUrl) || createCommentMutation.isPending) return;
 
     try {
-      var created = await createCommentMutation.mutateAsync({ body: replyText, parentId: null });
+      var created = await createCommentMutation.mutateAsync({
+        body: replyText,
+        gifUrl: replyGifUrl,
+        parentId: null,
+      });
       setReplyText("");
+      setReplyGifUrl(null);
       setIsComposerActive(false);
       requestAnimationFrame(() => {
         var el = document.getElementById(`comment-${created.id}`);
@@ -107,11 +115,16 @@ export function CommentSection({
     }
   };
 
-  const handleNestedReplySubmit = async (input: { parentId: string; body: string }) => {
-    if (!hasVisibleRichText(input.body) || createCommentMutation.isPending) return;
+  const handleNestedReplySubmit = async (input: {
+    parentId: string;
+    body: string;
+    gifUrl?: string | null;
+  }) => {
+    if ((!hasVisibleRichText(input.body) && !input.gifUrl) || createCommentMutation.isPending) return;
 
     var created = await createCommentMutation.mutateAsync({
       body: input.body,
+      gifUrl: input.gifUrl,
       parentId: input.parentId,
     });
 
@@ -138,7 +151,9 @@ export function CommentSection({
             <ReplyComposerPanel
               replyToHandle={postUsername ?? "post"}
               value={replyText}
+              gifUrl={replyGifUrl}
               onChange={setReplyText}
+              onGifChange={setReplyGifUrl}
               onSubmit={handleReplySubmit}
               onCancel={handleCancelComposer}
               placeholder="Post your reply…"

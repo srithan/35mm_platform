@@ -9,6 +9,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
 import { cn } from "@/lib/utils/cn";
 import { LetterboxdImportWidget } from "@/features/letterboxd-import";
+import { LobbyRoomsWidget } from "@/features/audio-rooms";
 import {
   usePeopleSuggestions,
   useSuggestionFollowMutation,
@@ -109,6 +110,7 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
         }
       >
         <LetterboxdImportWidget />
+        <LobbyRoomsWidget />
 
         <section className="rounded-lg border border-border bg-bg px-4 py-3.5 shadow-sm">
           <div className="flex items-center justify-between gap-2 mb-4">

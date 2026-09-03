@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { parseStoredRichText } from "@/lib/utils/richContent";
+import { hasVisibleRichText, parseStoredRichText } from "@/lib/utils/richContent";
 import { CommentSection } from "./CommentSection";
 
 const mocks = vi.hoisted(() => ({
@@ -55,6 +55,23 @@ vi.mock("@/features/feed/api/mentionsApi", () => ({
   searchMentionSuggestions: mocks.searchMentionSuggestionsMock,
 }));
 
+vi.mock("@/features/gif/components/GiphyGifPicker", () => ({
+  GiphyGifPicker: ({
+    isOpen,
+    onSelect,
+  }: {
+    isOpen: boolean;
+    onSelect: (url: string) => void;
+  }) => isOpen ? (
+    <button
+      type="button"
+      onClick={() => onSelect("https://media.giphy.com/media/example/giphy.gif")}
+    >
+      Choose test GIF
+    </button>
+  ) : null,
+}));
+
 function findMentionNode(node: any): any | null {
   if (!node || typeof node !== "object") return null;
   if (node.type === "mention") return node;
@@ -105,5 +122,27 @@ describe("CommentSection", () => {
       username: "mani",
       label: "mani",
     });
+  });
+
+  it("submits a GIF-only comment from the shared GIPHY picker", async () => {
+    const user = userEvent.setup();
+    render(<CommentSection comments={[]} postId="post-1" postUsername="ava" />);
+
+    await user.click(screen.getByRole("button", { name: "Post your reply…" }));
+    await user.click(screen.getByRole("button", { name: "Add GIF" }));
+    await user.click(await screen.findByRole("button", { name: "Choose test GIF" }));
+    await user.click(screen.getByRole("button", { name: "Reply" }));
+
+    await waitFor(() => {
+      expect(mocks.createCommentMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    var input = (mocks.createCommentMutateAsync.mock.calls[0] as unknown[])[0] as {
+      body: string;
+      gifUrl: string;
+      parentId: null;
+    };
+    expect(input.gifUrl).toBe("https://media.giphy.com/media/example/giphy.gif");
+    expect(input.parentId).toBeNull();
+    expect(hasVisibleRichText(input.body)).toBe(false);
   });
 });

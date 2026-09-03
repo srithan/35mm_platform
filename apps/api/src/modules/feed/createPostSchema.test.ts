@@ -100,3 +100,24 @@ describe("NSFW author input validation", function () {
     expect(comment).not.toHaveProperty("nsfwStatus");
   });
 });
+
+describe("comment GIPHY validation", function () {
+  it("accepts GIPHY media URLs and GIF-only comment payloads", function () {
+    expect(createCommentSchema.safeParse({
+      body: "",
+      gifUrl: "https://media2.giphy.com/media/example/giphy.gif?cid=35mm",
+    }).success).toBe(true);
+  });
+
+  it("rejects non-GIPHY and insecure GIF URLs", function () {
+    expect(createCommentSchema.safeParse({
+      body: "reaction",
+      gifUrl: "https://attacker.example/giphy.gif",
+    }).success).toBe(false);
+
+    expect(createCommentSchema.safeParse({
+      body: "reaction",
+      gifUrl: "http://media.giphy.com/media/example/giphy.gif",
+    }).success).toBe(false);
+  });
+});

@@ -10,6 +10,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import dynamic from "next/dynamic";
 import type { Editor } from "@tiptap/react";
 import type { NsfwCategory } from "@35mm/types";
 import { useAuth, useUser } from "@clerk/nextjs";
@@ -36,7 +37,6 @@ import type { EditingPost } from "@/stores/useComposerModalStore";
 import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboardingApi";
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 import { useDebounce } from "@/lib/hooks/useDebounce";
-import { TenorGifPicker } from "@/features/chat/components/TenorGifPicker";
 import { hasVisibleRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import {
   emptyPollOption,
@@ -57,6 +57,11 @@ import {
 import { ContentWarningControls } from "./ContentWarningControls";
 import { detectNsfwTextHint } from "../../lib/nsfwTextHint";
 import { classifyStagedImage } from "../../lib/nsfwImageHint";
+
+const GiphyGifPicker = dynamic(
+  () => import("@/features/gif/components/GiphyGifPicker").then((module) => module.GiphyGifPicker),
+  { ssr: false }
+);
 
 const WRITE_MAX_CHARS = 500;
 const POLL_TEXT_MAX_CHARS = 140;
@@ -1359,16 +1364,17 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               emojiStyle={POST_COMPOSER_EMOJI_STYLE}
             />
           )}
-          <TenorGifPicker
+          <GiphyGifPicker
             isOpen={showGifPicker}
             onClose={() => setShowGifPicker(false)}
-            onSelect={(url) => {
+            onSelect={(url: string) => {
               setGifUrl(url);
               setImages([]);
               setVideoFile(null);
               setShowDropZone(false);
             }}
             anchorRef={gifBtnRef}
+            apiKey={process.env.NEXT_PUBLIC_GIPHY_POSTS_API_KEY}
           />
         </div>
 

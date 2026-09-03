@@ -128,6 +128,7 @@ export interface Comment {
   postId: string;
   author: Author;
   body: string | null;
+  gifUrl?: string | null;
   likeCount: number;
   isLiked: boolean;
   isDeleted?: boolean;

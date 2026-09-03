@@ -31,6 +31,7 @@ export function CommentCard({
   const [repliesExpanded, setRepliesExpanded] = useState(false);
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [replyGifUrl, setReplyGifUrl] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
@@ -86,13 +87,14 @@ export function CommentCard({
 
   const handleReplySubmit = async () => {
     const body = replyText;
-    if (!hasVisibleRichText(body) || !onReplySubmit) return;
+    if ((!hasVisibleRichText(body) && !replyGifUrl) || !onReplySubmit) return;
 
     setRepliesExpanded(true);
 
     try {
-      await onReplySubmit({ parentId: comment.id, body });
+      await onReplySubmit({ parentId: comment.id, body, gifUrl: replyGifUrl });
       setReplyText("");
+      setReplyGifUrl(null);
       setReplyBoxOpen(false);
     } catch (_err) {
       // parent mutation controls error state
@@ -155,6 +157,7 @@ export function CommentCard({
               editDraft={editDraft}
               isSaving={updateCommentMutation.isPending}
               cleanedText={renderText}
+              gifUrl={comment.gifUrl}
               previews={previews}
               expanded={expanded}
               isOverflowing={isOverflowing}
@@ -192,11 +195,14 @@ export function CommentCard({
             username={comment.username}
             displayName={comment.displayName}
             replyText={replyText}
+            gifUrl={replyGifUrl}
             onReplyTextChange={setReplyText}
+            onGifChange={setReplyGifUrl}
             onSubmit={handleReplySubmit}
             onCancel={function () {
               setReplyBoxOpen(false);
               setReplyText("");
+              setReplyGifUrl(null);
             }}
           />
 

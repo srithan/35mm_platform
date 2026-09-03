@@ -255,6 +255,7 @@ export interface FeedComment {
   parentId: string | null;
   author: PublicUser;
   body: string | null;
+  gifUrl: string | null;
   isDeleted: boolean;
   moderationStatus: ModerationContentStatus;
   nsfw: NsfwInfo;

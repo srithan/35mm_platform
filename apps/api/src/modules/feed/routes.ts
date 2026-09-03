@@ -1067,6 +1067,7 @@ export function parsePatchPostInput(raw: unknown): {
 
 function parseCreateCommentInput(raw: unknown): {
   body: string;
+  gifUrl: string | null;
   parentId: string | null;
   authorNsfwCategories: NsfwCategory[];
 } {
@@ -1075,20 +1076,27 @@ function parseCreateCommentInput(raw: unknown): {
     throw badRequest(result.error.issues[0]?.message ?? "Invalid comment");
   }
   var parsed = result.data;
-  var body: string;
-  try {
-    body = validateRichTextBody(parsed.body.trim(), COMMENT_BODY_MAX_CHARS);
-  } catch (_error) {
-    throw badRequest(COMMENT_BODY_LENGTH_ERROR);
+  var body = "";
+  var trimmedBody = parsed.body.trim();
+  if (trimmedBody.length > 0) {
+    try {
+      body = validateRichTextBody(trimmedBody, COMMENT_BODY_MAX_CHARS);
+    } catch (_error) {
+      throw badRequest(COMMENT_BODY_LENGTH_ERROR);
+    }
   }
   var visibleBody = richTextBodyToVisibleText(body).trim();
   if (
-    body.length < 1 ||
     body.length > COMMENT_BODY_MAX_CHARS ||
-    visibleBody.length < 1 ||
     visibleBody.length > COMMENT_BODY_MAX_CHARS
   ) {
     throw badRequest(COMMENT_BODY_LENGTH_ERROR);
+  }
+  if (visibleBody.length < 1 && !parsed.gifUrl) {
+    throw badRequest("Comment must include text or a GIF");
+  }
+  if (visibleBody.length < 1) {
+    body = "";
   }
 
   if (
@@ -1101,6 +1109,7 @@ function parseCreateCommentInput(raw: unknown): {
 
   return {
     body,
+    gifUrl: parsed.gifUrl ?? null,
     parentId: parsed.parentId ?? null,
     authorNsfwCategories: Array.from(new Set(parsed.authorNsfwCategories ?? [])),
   };
@@ -5383,6 +5392,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
       userId: comments.userId,
       parentId: comments.parentId,
       body: comments.body,
+      gifUrl: comments.gifUrl,
       likeCount: comments.likeCount,
       isDeleted: comments.isDeleted,
       moderationStatus: comments.moderationStatus,
@@ -5419,6 +5429,7 @@ feedRoutes.get("/posts/:postId/comments", async function (c) {
         postId: row.postId,
         parentId: row.parentId,
         body: row.isDeleted ? null : await hydrateRichMentions(row.body),
+        gifUrl: row.isDeleted ? null : row.gifUrl,
         isDeleted: row.isDeleted,
         moderationStatus: row.moderationStatus,
         nsfw: {
@@ -5543,6 +5554,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
         userId: user.userId,
         parentId: input.parentId ?? null,
         body: input.body,
+        gifUrl: input.gifUrl,
         nsfwStatus: authorFlaggedComment ? "flagged" : "pending",
         nsfwCategories: input.authorNsfwCategories,
         nsfwSource: authorFlaggedComment ? "author" : null,
@@ -5553,6 +5565,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
         userId: comments.userId,
         parentId: comments.parentId,
         body: comments.body,
+        gifUrl: comments.gifUrl,
         likeCount: comments.likeCount,
         isDeleted: comments.isDeleted,
         nsfwStatus: comments.nsfwStatus,
@@ -5648,6 +5661,7 @@ feedRoutes.post("/posts/:postId/comments", requireAuth, commentWriteRateLimit, a
       postId: inserted.postId,
       parentId: inserted.parentId,
       body: await hydrateRichMentions(inserted.body),
+      gifUrl: inserted.gifUrl,
       isDeleted: inserted.isDeleted,
       moderationStatus: "visible",
       nsfw: {
@@ -5718,6 +5732,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
       postId: comments.postId,
       parentId: comments.parentId,
       body: comments.body,
+      gifUrl: comments.gifUrl,
       isDeleted: comments.isDeleted,
       moderationStatus: comments.moderationStatus,
       nsfwStatus: comments.nsfwStatus,
@@ -5760,6 +5775,7 @@ feedRoutes.patch("/posts/:postId/comments/:commentId", requireAuth, commentWrite
     postId: updated.postId,
     parentId: updated.parentId,
     body: await hydrateRichMentions(updated.body),
+    gifUrl: updated.gifUrl,
     isDeleted: updated.isDeleted,
     moderationStatus: updated.moderationStatus,
     nsfw: {

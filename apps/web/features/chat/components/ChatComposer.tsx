@@ -7,11 +7,16 @@ import {
   KeyboardEvent,
   ChangeEvent,
 } from "react";
+import dynamic from "next/dynamic";
 import { ArrowUp, FolderOpen, ImagePlus, Paperclip, Smile, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { ChatSendPayload } from "../types";
 import { ChatEmojiPanel } from "./ChatEmojiPanel";
-import { TenorGifPicker } from "./TenorGifPicker";
+
+const GiphyGifPicker = dynamic(
+  () => import("@/features/gif/components/GiphyGifPicker").then((module) => module.GiphyGifPicker),
+  { ssr: false }
+);
 
 export interface ChatComposerReplyTarget {
   id: string;
@@ -508,16 +513,17 @@ export function ChatComposer({
             >
               GIF
             </button>
-            <TenorGifPicker
+            <GiphyGifPicker
               isOpen={showGif}
               onClose={function () {
                 setShowGif(false);
               }}
-              onSelect={function (url) {
+              onSelect={function (url: string) {
                 setPending({ kind: "gif", url: url });
               }}
               anchorRef={gifBtnRef}
               align="left"
+              apiKey={process.env.NEXT_PUBLIC_GIPHY_CHAT_API_KEY}
             />
           </div>
         </div>

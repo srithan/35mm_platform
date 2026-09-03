@@ -47,4 +47,21 @@ describe("CommentCardHeader", () => {
   it("uses a smaller avatar for replies at every nested depth", () => {
     expect(renderHeader(2)).toHaveClass("h-8", "w-8");
   });
+
+  it("keeps the menu out of the username row flow", () => {
+    render(
+      <CommentCardHeader
+        comment={comment}
+        menu={<button type="button">More</button>}
+      >
+        <span>Comment body</span>
+      </CommentCardHeader>
+    );
+
+    expect(screen.getByRole("button", { name: "More" }).parentElement).toHaveClass(
+      "absolute",
+      "right-0",
+      "top-0"
+    );
+  });
 });

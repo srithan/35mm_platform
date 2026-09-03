@@ -8,7 +8,9 @@ interface CommentCardReplyComposerProps {
   username: string;
   displayName?: string;
   replyText: string;
+  gifUrl?: string | null;
   onReplyTextChange: (value: string) => void;
+  onGifChange: (gifUrl: string | null) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -19,7 +21,9 @@ export function CommentCardReplyComposer({
   username,
   displayName,
   replyText,
+  gifUrl,
   onReplyTextChange,
+  onGifChange,
   onSubmit,
   onCancel,
 }: CommentCardReplyComposerProps) {
@@ -30,7 +34,9 @@ export function CommentCardReplyComposer({
       replyToHandle={username}
       replyToName={displayName}
       value={replyText}
+      gifUrl={gifUrl}
       onChange={onReplyTextChange}
+      onGifChange={onGifChange}
       onSubmit={onSubmit}
       onCancel={onCancel}
       placeholder={`Reply to @${username}…`}

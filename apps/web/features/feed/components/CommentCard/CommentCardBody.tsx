@@ -17,6 +17,7 @@ interface CommentCardBodyProps {
   editDraft: string;
   isSaving: boolean;
   cleanedText: string;
+  gifUrl?: string | null;
   previews: VideoPreview[];
   expanded: boolean;
   isOverflowing: boolean;
@@ -35,6 +36,7 @@ export function CommentCardBody({
   editDraft,
   isSaving,
   cleanedText,
+  gifUrl,
   previews,
   expanded,
   isOverflowing,
@@ -126,6 +128,18 @@ export function CommentCardBody({
           </p>
         </div>
       )}
+
+      {!isEditing && gifUrl ? (
+        <div className={cn("overflow-hidden rounded-xl bg-sunken", cleanedText.length > 0 && "mt-2")}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={gifUrl}
+            alt="GIF"
+            className="max-h-[360px] w-auto max-w-full object-contain"
+            loading="lazy"
+          />
+        </div>
+      ) : null}
 
       {!isEditing && expanded && isOverflowing && (
         <button

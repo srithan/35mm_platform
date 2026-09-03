@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type { Editor } from "@tiptap/react";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon/Icon";
@@ -10,11 +11,18 @@ import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/
 import { FormattingToolbar } from "../PostComposer/FormattingToolbar";
 import { RichTextEditor } from "../PostComposer/RichTextEditor";
 
+const GiphyGifPicker = dynamic(
+  () => import("@/features/gif/components/GiphyGifPicker").then((module) => module.GiphyGifPicker),
+  { ssr: false }
+);
+
 export interface ReplyComposerPanelProps {
   replyToHandle: string;
   replyToName?: string;
   value: string;
+  gifUrl?: string | null;
   onChange: (value: string) => void;
+  onGifChange?: (gifUrl: string | null) => void;
   onSubmit: () => void | Promise<void>;
   onCancel?: () => void;
   placeholder?: string;
@@ -30,7 +38,9 @@ export function ReplyComposerPanel({
   replyToHandle,
   replyToName,
   value,
+  gifUrl = null,
   onChange,
+  onGifChange,
   onSubmit,
   onCancel,
   placeholder = "Write your reply…",
@@ -42,10 +52,12 @@ export function ReplyComposerPanel({
   variant = "thread",
 }: ReplyComposerPanelProps) {
   const [editor, setEditor] = useState<Editor | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const gifButtonRef = useRef<HTMLButtonElement>(null);
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const avatarInitial = initialForName(currentUser?.displayName ?? currentUser?.username);
-  const canSubmit = hasVisibleRichText(value) && !isSubmitting;
+  const canSubmit = (hasVisibleRichText(value) || Boolean(gifUrl)) && !isSubmitting;
   const isNested = variant === "nested";
   const avatarSize = isNested ? "h-8 w-8" : "h-10 w-10";
 
@@ -98,8 +110,58 @@ export function ReplyComposerPanel({
               )}
             />
 
+            {gifUrl ? (
+              <div className="relative mx-3.5 mb-3 w-fit max-w-full overflow-hidden rounded-xl bg-sunken">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={gifUrl}
+                  alt="Selected GIF"
+                  className="max-h-56 max-w-full object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={function () {
+                    onGifChange?.(null);
+                  }}
+                  className="absolute right-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-black/85"
+                  aria-label="Remove GIF"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between gap-2 border-t border-[color-mix(in_srgb,var(--fg)_8%,transparent)] bg-[color-mix(in_srgb,var(--fg)_4%,var(--elevated))] px-2.5 py-2">
-              <FormattingToolbar editor={editor} showDivider={false} />
+              <div className="flex min-w-0 items-center gap-1">
+                <FormattingToolbar editor={editor} showDivider={false} />
+                {onGifChange ? (
+                  <>
+                    <button
+                      ref={gifButtonRef}
+                      type="button"
+                      onClick={function () {
+                        setShowGifPicker((open) => !open);
+                      }}
+                      className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] font-bold text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+                      aria-label="Add GIF"
+                      aria-expanded={showGifPicker}
+                    >
+                      GIF
+                    </button>
+                    <GiphyGifPicker
+                      isOpen={showGifPicker}
+                      onClose={function () {
+                        setShowGifPicker(false);
+                      }}
+                      onSelect={function (url: string) {
+                        onGifChange(url);
+                      }}
+                      anchorRef={gifButtonRef}
+                      apiKey={process.env.NEXT_PUBLIC_GIPHY_COMMENTS_API_KEY}
+                    />
+                  </>
+                ) : null}
+              </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 {onCancel ? (
                   <button

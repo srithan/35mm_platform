@@ -404,6 +404,7 @@ type CommentDto = {
   postId: string;
   parentId: string | null;
   body: string | null;
+  gifUrl?: string | null;
   isDeleted?: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
   nsfw?: NsfwInfo;
@@ -436,6 +437,7 @@ export function buildCommentTree(items: CommentDto[]): Comment[] {
       parentId: raw.parentId,
       depth: 0,
       body: raw.body,
+      gifUrl: raw.gifUrl ?? null,
       isDeleted: raw.isDeleted,
       moderationStatus: asModerationStatus(raw.moderationStatus),
       nsfw: asNsfwInfo(raw.nsfw),

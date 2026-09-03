@@ -8,6 +8,7 @@ type CommentItem = {
   postId: string;
   parentId: string | null;
   body: string | null;
+  gifUrl?: string | null;
   isDeleted?: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
   nsfw: NsfwInfo;
@@ -63,6 +64,7 @@ export async function fetchComments(params: {
 export async function createComment(params: {
   postId: string;
   body: string;
+  gifUrl?: string | null;
   parentId: string | null;
   token: string | null;
 }): Promise<Comment> {
@@ -73,6 +75,7 @@ export async function createComment(params: {
       token: params.token,
       body: {
         body: params.body,
+        gifUrl: params.gifUrl ?? null,
         parentId: params.parentId,
       },
     }

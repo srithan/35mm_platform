@@ -87,6 +87,7 @@ export var comments = pgTable(
       return comments.id;
     }, { onDelete: "set null" }),
     body: text("body").notNull(),
+    gifUrl: text("gif_url"),
     likeCount: integer("like_count").default(0).notNull(),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
@@ -108,6 +109,10 @@ export var comments = pgTable(
   function (table) {
     return {
       bodyMaxLengthCheck: check("comments_body_max_100000_chk", sql`char_length(${table.body}) <= 100000`),
+      gifUrlCheck: check(
+        "comments_gif_url_giphy_chk",
+        sql`${table.gifUrl} is null or (char_length(${table.gifUrl}) <= 2048 and ${table.gifUrl} ~ '^https://(media[0-9]*|i)\\.giphy\\.com/')`
+      ),
       postCreatedAtIdx: index("comments_post_id_created_at_idx").on(table.postId, table.createdAt),
       postModerationCreatedAtIdx: index("comments_post_moderation_created_at_id_idx").on(
         table.postId,

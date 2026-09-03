@@ -149,10 +149,15 @@ export function useCreateComment(postId: string) {
   var { getToken } = useAuth();
 
   return useMutation({
-    mutationFn: async function (input: { body: string; parentId: string | null }) {
+    mutationFn: async function (input: {
+      body: string;
+      gifUrl?: string | null;
+      parentId: string | null;
+    }) {
       return createComment({
         postId,
         body: input.body,
+        gifUrl: input.gifUrl,
         parentId: input.parentId,
         token: await getToken(),
       });

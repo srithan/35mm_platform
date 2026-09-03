@@ -38,8 +38,8 @@ export function CommentCardHeader({
         />
       </UsernameLink>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
+        <div className="relative pr-8">
+          <div className="flex items-baseline gap-2 flex-wrap min-w-0">
             <UsernameLink
               username={comment.username}
               displayName={comment.displayName}
@@ -58,7 +58,7 @@ export function CommentCardHeader({
             </UsernameLink>
             <span className="text-xs text-fg-muted ">· {comment.timestamp}</span>
           </div>
-          {menu}
+          <div className="absolute right-0 top-0">{menu}</div>
         </div>
 
         {comment.role != null && comment.role.trim() !== "" ? (

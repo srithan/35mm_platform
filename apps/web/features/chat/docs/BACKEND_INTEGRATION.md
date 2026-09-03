@@ -127,7 +127,7 @@ Content-Type: application/json
 |-------|------|--------|
 | `text` | string | May be empty if media/file present |
 | `replyToId` | string? | Parent message id |
-| `gifUrl` | string? | Tenor (or CDN) URL |
+| `gifUrl` | string? | GIPHY media URL |
 | `imageDataUrl` | string? | Data URL for inline image (consider replacing with upload URL in production) |
 | `file` | `{ name, sizeLabel? }`? | Metadata only today; real uploads should move to presigned URLs + attachment ids |
 

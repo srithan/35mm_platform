@@ -28,7 +28,7 @@ The chat module provides:
 - **Desktop:** split view — conversation list + active thread (`ChatContent`), full thread on `/chat/[chatId]`, plus a global bottom-right floating inbox for signed-in users to read and reply without leaving the current route.
 - **Desktop new message:** **`NewChatProvider`** owns an ephemeral draft state. Clicking **New message** inserts a selected **New Message** row in **`ChatList`** and swaps the thread header for **`NewChatRecipientBar`**. No conversation is persisted until a contact is selected and **`useCreateConversation`** succeeds.
 - **Mobile:** list + tabs (**All / Requests / Archived**) on `/chat`, and thread view with **`ChatMobileHeader`** + **`ChatConversation`** on `/chat/[chatId]`.
-- **Behaviors:** send text, replies, reactions, GIFs (Tenor), lightweight file/image payloads in mock, archive/unarchive, delete message (own), delete conversation, in-thread search, jump-to-quoted message, read receipts (mock), message-request row (**`isPendingRequest`**).
+- **Behaviors:** send text, replies, reactions, GIFs (GIPHY), lightweight file/image payloads in mock, archive/unarchive, delete message (own), delete conversation, in-thread search, jump-to-quoted message, read receipts (mock), message-request row (**`isPendingRequest`**).
 
 **Default data source:** in-memory **mock** (`features/chat/mock/chatStore.ts`) with seeded threads (`seedChatThreads.ts`). **Production path:** swap to **remote** API via env (see **`BACKEND_INTEGRATION.md`**).
 
@@ -150,7 +150,7 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 | **`ChatConversation`** | Thread header (desktop), header skeleton, scroll region, **`ChatMessageList`**, **`ChatComposer`**, typing publishes, mutations, delete/archive dialogs. |
 | **`NewChatRecipientBar`** | Desktop new-message header with **To:** recipient search, bounded contact suggestions from **`useChatContactCandidates`**, and **`useCreateConversation`** on selection. |
 | **`ChatMessageList`** | Text bubbles, standalone attachment media/cards, avatars, reactions toolbar, anchored inline more menu, copy feedback, image lightbox, day separators, jump highlight, typing bubble, and seen indicators. |
-| **`ChatComposer`** | Textarea, attachments, Tenor, emoji panel, reply strip, composer-based edit mode, typing input callbacks. |
+| **`ChatComposer`** | Textarea, attachments, shared GIPHY picker, emoji panel, reply strip, composer-based edit mode, typing input callbacks. |
 | **`ChatHeaderMoreMenu`** | Thread-level menu (portaled, fixed position). |
 | **`ChatMobileHeader`** | Back, profile link, avatar URL, skeleton state, search-in-thread, menu, delete confirm. |
 | **`ChatDetailPage`** | Composes desktop **`ChatContent`** + mobile shell. |
@@ -241,7 +241,7 @@ Run project ESLint on touched files before merge.
 ### 11.7 Dependencies
 
 - **@tanstack/react-query** — required.
-- **Tenor** — `NEXT_PUBLIC_TENOR_API_KEY` for GIF picker (`ChatComposer` / **`TenorGifPicker`**).
+- **GIPHY web SDK** — `NEXT_PUBLIC_GIPHY_API_KEY` for shared post, comment, reply, and chat GIF picker.
 
 ---
 

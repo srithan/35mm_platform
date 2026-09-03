@@ -16,6 +16,7 @@ export interface Comment {
   roleContext?: string | null;
   filmsLoggedCount?: number | null;
   text: string;
+  gifUrl?: string | null;
   timestamp: string;
   likeCount: number;
   liked?: boolean;
@@ -31,7 +32,11 @@ export interface CommentCardProps {
   postBookmarkFolderId?: string | null;
   depth?: number;
   truncateText?: boolean;
-  onReplySubmit?: (input: { parentId: string; body: string }) => Promise<void>;
+  onReplySubmit?: (input: {
+    parentId: string;
+    body: string;
+    gifUrl?: string | null;
+  }) => Promise<void>;
 }
 
 export function getCommentThreadStyles(depth: number) {

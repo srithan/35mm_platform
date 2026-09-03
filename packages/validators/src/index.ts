@@ -415,8 +415,27 @@ export var createPostSchema = z
     }
   });
 
+export function isGiphyGifUrl(value: string): boolean {
+  try {
+    var url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      /^(?:media\d*|i)\.giphy\.com$/i.test(url.hostname) &&
+      url.pathname.toLowerCase().endsWith(".gif")
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+export var giphyGifUrlSchema = z
+  .string()
+  .max(2048)
+  .refine(isGiphyGifUrl, "GIF URL must be an HTTPS GIPHY media URL");
+
 export var createCommentSchema = z.object({
   body: z.string().max(100000),
+  gifUrl: giphyGifUrlSchema.nullable().optional(),
   parentId: z.string().uuid().nullable().optional(),
   authorNsfwCategories: z.array(nsfwCategorySchema).max(5).optional(),
 });
