@@ -106,7 +106,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
     () => [
       { label: "Profile", href: profileHref, icon: "user" },
       { label: "Discover", href: ROUTES.DISCOVER, icon: "search" },
-      { label: "Short Films", href: ROUTES.SHORT_FILMS, icon: "frames" },
+      { label: "70mm", href: ROUTES.SEVENTY_MM, icon: "frames" },
       { label: "Bookmarks", href: ROUTES.BOOKMARKS, icon: "bookmark" },
       {
         label: "Lists",

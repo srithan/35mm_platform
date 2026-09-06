@@ -1,34 +1,34 @@
 import { UploadedFilmWatch } from "@/features/videos/components/UploadedFilmWatch";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ShortFilmWatchContent, getShortFilmById } from "@/features/short-films";
+import { ShortFilmWatchContent, getShortFilmById } from "@/features/70mm";
 
-interface ShortFilmWatchPageProps {
+interface SeventyMmWatchPageProps {
   params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({
   params,
-}: ShortFilmWatchPageProps): Promise<Metadata> {
+}: SeventyMmWatchPageProps): Promise<Metadata> {
   const { id } = await params;
   const film = getShortFilmById(id);
   if (!film) {
-    return { title: "Short film" };
+    return { title: "70mm" };
   }
 
   return {
     title: film.title,
     description: film.synopsis,
     openGraph: {
-      title: `${film.title} - 35mm Short films`,
+      title: `${film.title} - 70mm on 35mm`,
       description: film.synopsis,
     },
   };
 }
 
-export default async function ShortFilmWatchPage({
+export default async function SeventyMmWatchPage({
   params,
-}: ShortFilmWatchPageProps) {
+}: SeventyMmWatchPageProps) {
   const { id } = await params;
   if (/^[0-9A-HJKMNP-TV-Z]{26}$/.test(id)) return <UploadedFilmWatch filmId={id} />;
   const film = getShortFilmById(id);

@@ -649,7 +649,7 @@ private struct SettingsMediaView: View {
 
           SettingsToggleRow(
             title: "Autoplay",
-            subtitle: "Automatically play videos in feed and short-film surfaces",
+            subtitle: "Automatically play videos in feed and 70mm surfaces",
             isOn: $media.videoAutoplay
           )
           .onChange(of: media.videoAutoplay) { _, _ in save() }

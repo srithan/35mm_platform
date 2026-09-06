@@ -23,10 +23,10 @@ export function ShortFilmUploadContent() {
         aria-label="Breadcrumb"
       >
         <Link
-          href={ROUTES.SHORT_FILMS}
+          href={ROUTES.SEVENTY_MM}
           className="transition hover:text-fg"
         >
-          Short films
+          70mm
         </Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
         <span className="font-medium text-accent">Upload</span>
@@ -35,8 +35,8 @@ export function ShortFilmUploadContent() {
       <div className="mb-8 flex flex-col gap-5 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-xl">
           <h1 className="font-display text-[clamp(1.75rem,4vw,2.5rem)] font-semibold leading-[1.1] tracking-tight text-fg">
-            Upload your{" "}
-            <em className="not-italic text-accent">short film</em>
+            Upload to{" "}
+            <em className="not-italic text-accent">70mm</em>
           </h1>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">
             Share your story with a community of film lovers. Follow the steps

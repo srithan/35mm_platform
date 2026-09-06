@@ -558,7 +558,7 @@ Canonical mobile header:
 Canonical side drawer:
 
 - Profile identity, username, follower/following counts.
-- Profile, Discover, Short Films, Bookmarks, Lists, Diary, Drafts.
+- Profile, Discover, 70mm, Bookmarks, Lists, Diary, Drafts.
 - Divider.
 - Chat, Notifications, Settings and privacy, Help.
 - Route entries whose production feature is gated show no fake content. Hide them or present an explicit product-approved unavailable state.
@@ -590,7 +590,7 @@ Canonical side drawer:
 | Sharing/deep links | Posts, profiles, titles, lists, auth returns | Web + SwiftUI share/navigation | Routes exist; app links required | 10 |
 | Help/legal | Help, terms, privacy, about | Web legal routes | Wired as web content; native presentation decision | 10 |
 | Push notifications | Permission, token registration, routing, badges | Planned | `GATED` pending provider/backend | 11 |
-| Short films/video | Browse, detail, upload/playback | Web future surfaces | `GATED`; Cloudflare Stream absent | Later product phase |
+| 70mm/video | Browse, detail, upload/playback | Web future surfaces | `GATED`; Cloudflare Stream absent | Later product phase |
 | Communities | Community discovery/detail/feed | Web future surfaces | `GATED`; mock-heavy | Later product phase |
 | Festivals | Festival discovery/detail | Web future surfaces | `GATED`; mock-heavy | Later product phase |
 | Letterboxd import | File import and status | Web local workflow | Scope/contract review required | Later product phase |
@@ -1196,7 +1196,7 @@ Decision: Extend the bounded non-secret signup draft to schema 4 with only the l
 | Minimum age/regional DOB policy | Product/legal decision plus server-enforced policy | Public signup release |
 | Production app identifiers/signing | Store/team decision and migration sequencing | Production binaries |
 | Push provider/backend | Production provider, API token registration, routing, privacy | Push notifications only |
-| Video backend | Cloudflare Stream or approved alternative | Short films/video release |
+| Video backend | Cloudflare Stream or approved alternative | 70mm/video release |
 | Mock-heavy communities/festivals | Production contracts, persistence, moderation, pagination | Those feature routes |
 | Phase 1.9 iOS signing account | **Resolved 2026-07-22:** automatic signing created the Personal Team profile; `com.thirtyfivemm.mobile.dev` Debug builds and installs on the connected iPhone 13 Pro | No longer blocks Phase 1.9; embedded-bundle signing/startup and unsupported local Maestro automation are tracked separately |
 | Phase 1.9 iOS embedded-bundle signing | **Resolved 2026-07-22:** Keychain authorization completed; Release configuration signed, installed, launched, and remained alive on the connected iPhone with its embedded Hermes bundle | No longer blocks Phase 1.9; local Maestro physical-iOS automation remains unsupported |

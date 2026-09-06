@@ -31,7 +31,7 @@ export function UploadSuccess({
       </p>
       <div className="mt-7 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
         <Link
-          href={`${ROUTES.SHORT_FILMS}/${filmId}`}
+          href={`${ROUTES.SEVENTY_MM}/${filmId}`}
           className="inline-flex items-center gap-2 rounded-xl border border-border-strong bg-sunken px-5 py-3 text-[14px] font-semibold text-fg-muted transition hover:bg-sunken-2 hover:text-fg"
         >
           <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden />

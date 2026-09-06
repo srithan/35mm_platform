@@ -1,6 +1,6 @@
 # Film and post video uploads
 
-Updated 2026-09-05. Bunny Stream handles uploaded film and post video bytes, encoding and playback. R2 continues to handle images and film thumbnails. Web entry points are the post composer and `/short-films/upload`; published uploaded films use `/short-films/{35mm-film-ULID}`.
+Updated 2026-09-06. Bunny Stream handles uploaded film and post video bytes, encoding and playback. R2 continues to handle images and film thumbnails. Web entry points are the post composer and `/70mm/upload`; published uploaded films use `/70mm/{35mm-film-ULID}`.
 
 ## Account configuration
 
@@ -66,7 +66,7 @@ Bunny playback grants now include a five-minute, file-scoped signed `posterUrl` 
 
 ### Eager web composer video uploads (2026-09-05)
 
-Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. Short-film selection already starts its upload automatically. Uploading does not publish content.
+Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. 70mm film selection already starts its upload automatically. Uploading does not publish content.
 
 This follows existing direct-provider transfer, idempotent upload sessions and bounded processing reconciliation. At the documented 10,000 video selections/day assumption for 1M DAU, timing changes but each selected file still uses one upload session; abandoned selections now consume upload quota/storage and follow existing unpublished-asset retention. No new API routes, counters, caches, indexes, migrations or worker jobs are needed. Existing authorization, mutation rate limits and soft-delete semantics remain in force.
 

@@ -39,7 +39,7 @@ function getProfileShellUsername(pathname: string): string | null {
     case "new":
     case "notifications":
     case "settings":
-    case "short-films":
+    case "70mm":
     case "title":
     case "person":
     case "company":
@@ -87,8 +87,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const isPersonPage = Boolean(pathname?.startsWith("/person/"));
   const isCompanyPage = Boolean(pathname?.startsWith("/company/"));
   const isShortFilmsSection =
-    pathname === ROUTES.SHORT_FILMS ||
-    Boolean(pathname?.startsWith("/short-films/"));
+    pathname === ROUTES.SEVENTY_MM ||
+    Boolean(pathname?.startsWith("/70mm/"));
   const isSettingsSection =
     pathname === "/settings" || Boolean(pathname?.startsWith("/settings/"));
   const isChatSection =

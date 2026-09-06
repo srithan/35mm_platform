@@ -5,7 +5,7 @@ import { apiRequest } from "@/features/feed/api/http";
 import { posterUrl, yearFromDate } from "@/features/discover/lib/tmdb-utils";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import type { FilmResult } from "@/features/feed/components/PostComposer/types";
-import type { ShortFilm } from "@/features/short-films/data/mockShortFilms";
+import type { ShortFilm } from "@/features/70mm/data/mockShortFilms";
 
 export type FilmListSort = "updated" | "popular" | "alpha";
 export type PublicFilmListSort = "popular" | "recent";

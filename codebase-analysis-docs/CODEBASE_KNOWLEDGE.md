@@ -144,7 +144,7 @@ Feature folders:
 - `features/bookmarks`: two-column bookmark page, folder management, and post-to-folder flow backed by feed bookmark endpoints.
 - `features/contribute`: contributor hub, config-driven contribution forms, Zod preflight validation, idempotent submit client, and personal submission tracker backed by `/v1/contributions/submissions`.
 - `features/chat`: rich chat frontend with App Router chat pages, remote client backed by `/v1/chat`, optional mock mode for demos/tests, realtime cache application, and bounded persisted cache for inbox/recent messages.
-- `features/short-films` and `features/videos` include real Bunny film/post uploads and playback; legacy discovery shelves remain mock/static. Festivals and communities remain future-oriented.
+- `features/70mm` and `features/videos` include real Bunny film/post uploads and playback; legacy discovery shelves remain mock/static. Festivals and communities remain future-oriented.
 - `features/title`: title detail pages, largely TMDB/discover oriented. Hero director/creator names and About-tab director, writer, producer, and studio names are linked.
 - `features/company`: TMDB-backed `/company/:id` studio pages for title-page production-company links.
 - `features/letterboxd-import`: local import parsing/storage UI.
@@ -903,7 +903,7 @@ Frontend:
 - Settings UI includes account, privacy, notification, appearance, media, and data/security panels. `/settings` renders a mobile settings index and the desktop account settings layout; section links go to `/settings/account`, `/settings/privacy`, `/settings/notifications`, `/settings/appearance`, `/settings/media`, and `/settings/data-security`. Mobile section pages use a back control instead of the old tab bar. Privacy has nested `/settings/privacy/blocked` and `/settings/privacy/muted` screens with a compact header that shows a back control plus `Blocked` or `Muted`.
 - Account settings change-password flow is client-side UI that calls Clerk `user.updatePassword({ currentPassword, newPassword })`; no 35mm API route or DB write is involved. The modal includes show/hide password controls and a local strength indicator for the new password.
 
-### Discovery, Title Pages, Short Films, Festivals, Communities
+### Discovery, Title Pages, 70mm, Festivals, Communities
 
 Business purpose: browsing and discovery beyond the social feed.
 
@@ -911,7 +911,7 @@ Current state:
 
 - Discover uses TMDB-backed hooks through the Next `/api/tmdb` proxy for fixed editorial shelves. It has no search/filter UI. The streaming shelf combines the account's saved providers into one cached request; service editing remains in Settings. Local/static data remains in some shelves.
 - Title pages live at `/title/[media]/[id]` and are still largely TMDB-oriented.
-- Short films include catalog JSON, watch/upload UI, and upload form, but are out of V1 per architecture.
+- 70mm (formerly short films) includes catalog JSON, watch/upload UI, and upload form, but is out of V1 per architecture.
 - Festivals and communities have rich UI/data mock surfaces but no complete backend wiring.
 - Site-header search uses authenticated `/v1/search`, server-side Meilisearch
   multi-search, bounded Postgres authorization hydration, canonical film links,
@@ -1153,7 +1153,7 @@ Still true gaps:
 - Notification digest email is not implemented.
 - Uploaded film/post video uses Bunny Stream; Cloudflare Stream is not used. See the Bunny video integration section.
 - Chat production rollout depends on keeping AWS Keyspaces and Postgres migrations applied in each environment.
-- Communities/festivals/short films are not production backend features.
+- Communities/festivals/70mm are not production backend features.
 - DB-level ULID checks are missing for text IDs.
 - React Native Phase 1.8 is complete. Phase 1.9 owns first signed physical-device builds and evidence. Corrected embedded-bundle iPhone Release build/sign/install, visible gallery rendering, sustained process, and clean startup logs pass; no physical low/mid-range Android target exists. Reviewed native fixed-profile baselines, measured performance thresholds, auth, onboarding, features, and production profile/signing remain later roadmap items.
 
@@ -1249,7 +1249,7 @@ Uploaded films and post videos now use Bunny Stream through `/v1/videos`; images
 
 The integration follows direct-to-provider media transfer, DB-leased reconciliation, BullMQ background sweeps, cursor pagination and existing post outbox/hybrid fan-out patterns. Bunny fetches a server-only final copy before readiness because client TUS grants can be reused; final copies are independently validated and staging media removed. Provider collection `35mm Video Posts` contains post-purpose uploads; `35mm Films` contains short and indie films. Both staging create and final-copy fetch carry the purpose collection ID, while every existing authoritative status read repairs drift under the per-asset lease. API/worker use seven server-only `BUNNY_STREAM_*` variables, including distinct post/film collection IDs. Playback checks post/profile visibility and issues five-minute iframe grants. Film deletion is soft, with a transaction lock shared by publication/attachment. No public webhook is configured for the local-only API. Authenticated refresh and the worker provide processing checks without a callback.
 
-See [Bunny video integration](../docs/bunny-video-uploads.md) for route contracts, quota and retention details, account configuration, operational limits, and the 1M-DAU capacity assumptions. Native/mobile video clients and unrelated existing short-film mock shelves are not changed by this web/API integration.
+See [Bunny video integration](../docs/bunny-video-uploads.md) for route contracts, quota and retention details, account configuration, operational limits, and the 1M-DAU capacity assumptions. Native/mobile video clients and unrelated existing 70mm mock shelves are not changed by this web/API integration.
 
 
 ### Viewport playback (2026-09-05)
@@ -1267,7 +1267,7 @@ Bunny playback grants now include a five-minute, file-scoped signed `posterUrl` 
 
 ### Eager web composer video uploads (2026-09-05)
 
-Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. Short-film selection already starts its upload automatically. Uploading does not publish content.
+Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. 70mm film selection already starts its upload automatically. Uploading does not publish content.
 
 This follows existing direct-provider transfer, idempotent upload sessions and bounded processing reconciliation. At the documented 10,000 video selections/day assumption for 1M DAU, timing changes but each selected file still uses one upload session; abandoned selections now consume upload quota/storage and follow existing unpublished-asset retention. No new API routes, counters, caches, indexes, migrations or worker jobs are needed. Existing authorization, mutation rate limits and soft-delete semantics remain in force.
 

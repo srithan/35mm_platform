@@ -14,7 +14,7 @@ const RESERVED_USERNAME_SEGMENTS = new Set([
   "new",
   "notifications",
   "settings",
-  "short-films",
+  "70mm",
   "title",
   "person",
   "company",

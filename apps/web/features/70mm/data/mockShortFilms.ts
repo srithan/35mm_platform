@@ -275,7 +275,7 @@ function buildCategoryShelf(bp: CategoryShelfBlueprint): ShortFilmShelf | null {
       description: bp.description,
       gradient: shelfFeaturedGradient(bp.id),
       watermarkLetter: shelfWatermarkFromHeading(bp.heading),
-      href: "/short-films/" + lead.id,
+      href: "/70mm/" + lead.id,
     },
     items: items,
   };
@@ -305,7 +305,7 @@ function buildExtraCategoryShelf(category: ShortFilmCategory): ShortFilmShelf | 
         "Genre-tagged shorts from the merged 35mm feeds. Row may include similar films to keep the shelf full.",
       gradient: shelfFeaturedGradient(sid),
       watermarkLetter: shelfWatermarkFromHeading(heading),
-      href: "/short-films/" + lead.id,
+      href: "/70mm/" + lead.id,
     },
     items: items,
   };
@@ -331,7 +331,7 @@ export const MOCK_SHORT_FILM_SHELVES: ShortFilmShelf[] = (function () {
           "The flagship short-film row — handpicked Staff Picks plus nearby highlights from the same catalog.",
         gradient: shelfFeaturedGradient("staff-picks"),
         watermarkLetter: "S",
-        href: "/short-films/" + (staffLead ? staffLead.id : "1181253306"),
+        href: "/70mm/" + (staffLead ? staffLead.id : "1181253306"),
       },
       items: staffItems,
     },

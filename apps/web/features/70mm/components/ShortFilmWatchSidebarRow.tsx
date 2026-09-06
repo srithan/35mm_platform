@@ -8,7 +8,7 @@ import type { ShortFilm } from "../data/mockShortFilms";
 export function ShortFilmWatchSidebarRow({ film }: { film: ShortFilm }) {
   return (
     <Link
-      href={ROUTES.SHORT_FILM(film.id)}
+      href={ROUTES.SEVENTY_MM_FILM(film.id)}
       className={cn(
         "flex gap-2.5 p-1.5 -mx-1.5 rounded-xl no-underline text-inherit transition-colors",
         "hover:bg-sunken/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"

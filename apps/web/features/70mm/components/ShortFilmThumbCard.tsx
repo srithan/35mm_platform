@@ -8,7 +8,7 @@ import type { ShortFilm } from "../data/mockShortFilms";
 export function ShortFilmThumbCard({ film }: { film: ShortFilm }) {
   return (
     <Link
-      href={ROUTES.SHORT_FILM(film.id)}
+      href={ROUTES.SEVENTY_MM_FILM(film.id)}
       className={cn(
         "group block w-[200px] shrink-0 no-underline text-inherit sm:w-[220px] md:w-[240px]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 rounded-xl"

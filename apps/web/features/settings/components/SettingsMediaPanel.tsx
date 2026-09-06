@@ -172,7 +172,7 @@ export function SettingsMediaPanel({
           />
           <SettingsToggle
             label="Autoplay"
-            description="Automatically play videos in feed and short-film surfaces."
+            description="Automatically play videos in feed and 70mm surfaces."
             checked={watch("videoAutoplay")}
             onChange={(checked) =>
               updateMediaValue("videoAutoplay", checked, "Could not update autoplay.")

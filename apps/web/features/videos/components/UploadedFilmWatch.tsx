@@ -24,7 +24,7 @@ export function UploadedFilmWatch({ filmId }: { filmId: string }) {
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: videoKeys.all });
-      router.push("/short-films");
+      router.push("/70mm");
     },
   });
   if (query.isPending)
@@ -37,7 +37,7 @@ export function UploadedFilmWatch({ filmId }: { filmId: string }) {
     return (
       <div role="alert" className="p-8">
         <p>{query.error.message}</p>
-        <Link href="/short-films" className="mt-4 inline-block text-accent">
+        <Link href="/70mm" className="mt-4 inline-block text-accent">
           Browse films
         </Link>
       </div>
@@ -46,10 +46,10 @@ export function UploadedFilmWatch({ filmId }: { filmId: string }) {
   return (
     <article className="mx-auto max-w-5xl px-4 py-6 md:px-6">
       <Link
-        href="/short-films"
+        href="/70mm"
         className="mb-5 inline-block text-sm text-fg-muted"
       >
-        ← Short films
+        ← 70mm
       </Link>
       <BunnyVideoPlayer assetId={film.assetId} title={film.title} />
       <div className="my-5 flex flex-wrap items-start justify-between gap-4">

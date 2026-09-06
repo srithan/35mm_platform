@@ -106,7 +106,7 @@ export function ShortFilmsHero() {
           </p>
           <div className="mt-5">
             <Link
-              href={ROUTES.SHORT_FILM(current.id)}
+              href={ROUTES.SEVENTY_MM_FILM(current.id)}
               className={cn(
                 "inline-flex items-center gap-2 rounded-full px-5 py-2.5",
                 "bg-white text-[13px] font-semibold text-black no-underline shadow-lg",

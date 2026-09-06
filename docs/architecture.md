@@ -1053,7 +1053,7 @@ Important app routes:
 - `/list/:listId`: list detail.
 - `/suggestions/people`: follow suggestions.
 - `/title/:media/:id`: title detail.
-- `/short-films`, `/short-films/upload`, `/short-films/:id`: short film surfaces.
+- `/70mm`, `/70mm/upload`, `/70mm/:id`: 70mm surfaces (community-uploaded films, shorts, web series).
 
 Next app API routes:
 
@@ -1078,7 +1078,7 @@ Feature ownership:
 - `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
 - `features/contribute`: contributor hub, config-driven Zod-validated forms, API client/hooks, and submissions tracker backed by `/v1/contributions/submissions`.
 - `features/chat`: rich frontend, remote backend client, optional mock mode, chat route pages, realtime cache application, and bounded persisted React Query cache for inbox/recent messages.
-- `features/short-films` and `features/videos`: real Bunny upload/playback modules coexist with legacy mock discovery shelves. Festivals and communities remain future or mock-heavy surfaces.
+- `features/70mm` and `features/videos`: real Bunny upload/playback modules coexist with legacy mock discovery shelves. Festivals and communities remain future or mock-heavy surfaces.
 
 State rules:
 
@@ -1665,7 +1665,7 @@ Highest priority architecture gaps:
 
 Post-V1 or gated surfaces:
 
-- Short films.
+- 70mm (community-uploaded films, shorts, web series).
 - Communities.
 - Festivals.
 - Push notifications.
@@ -1712,7 +1712,7 @@ Uploaded films and post videos now use Bunny Stream through `/v1/videos`; images
 
 The integration follows direct-to-provider media transfer, DB-leased reconciliation, BullMQ background sweeps, cursor pagination and existing post outbox/hybrid fan-out patterns. Bunny fetches a server-only final copy before readiness because client TUS grants can be reused; final copies are independently validated and staging media removed. Provider collection `35mm Video Posts` contains post-purpose uploads; `35mm Films` contains short and indie films. Both staging create and final-copy fetch carry the purpose collection ID, while every existing authoritative status read repairs drift under the per-asset lease. API/worker use seven server-only `BUNNY_STREAM_*` variables, including distinct post/film collection IDs. Playback checks post/profile visibility and issues five-minute iframe grants. Film deletion is soft, with a transaction lock shared by publication/attachment. No public webhook is configured for the local-only API. Authenticated refresh and the worker provide processing checks without a callback.
 
-See [Bunny video integration](./bunny-video-uploads.md) for route contracts, quota and retention details, account configuration, operational limits, and the 1M-DAU capacity assumptions. Native/mobile video clients and unrelated existing short-film mock shelves are not changed by this web/API integration.
+See [Bunny video integration](./bunny-video-uploads.md) for route contracts, quota and retention details, account configuration, operational limits, and the 1M-DAU capacity assumptions. Native/mobile video clients and unrelated existing 70mm mock shelves are not changed by this web/API integration.
 
 
 ### Viewport playback (2026-09-05)
@@ -1730,7 +1730,7 @@ Bunny playback grants now include a five-minute, file-scoped signed `posterUrl` 
 
 ### Eager web composer video uploads (2026-09-05)
 
-Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. Short-film selection already starts its upload automatically. Uploading does not publish content.
+Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. 70mm film selection already starts its upload automatically. Uploading does not publish content.
 
 This follows existing direct-provider transfer, idempotent upload sessions and bounded processing reconciliation. At the documented 10,000 video selections/day assumption for 1M DAU, timing changes but each selected file still uses one upload session; abandoned selections now consume upload quota/storage and follow existing unpublished-asset retention. No new API routes, counters, caches, indexes, migrations or worker jobs are needed. Existing authorization, mutation rate limits and soft-delete semantics remain in force.
 

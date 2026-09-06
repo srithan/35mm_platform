@@ -82,9 +82,9 @@ export function NavLinks({
         </Link>
 
         <Link
-          href={ROUTES.SHORT_FILMS}
-          className={navItemClass(isActive(ROUTES.SHORT_FILMS), useSkeuomorphicActive)}
-          aria-current={isActive(ROUTES.SHORT_FILMS) ? "page" : undefined}
+          href={ROUTES.SEVENTY_MM}
+          className={navItemClass(isActive(ROUTES.SEVENTY_MM), useSkeuomorphicActive)}
+          aria-current={isActive(ROUTES.SEVENTY_MM) ? "page" : undefined}
         >
           <span className={styles.navItemIcon}>
             <svg
@@ -103,7 +103,7 @@ export function NavLinks({
               />
             </svg>
           </span>
-          <span className={styles.navItemText}>Short Films</span>
+          <span className={styles.navItemText}>70mm</span>
         </Link>
 
         <Link

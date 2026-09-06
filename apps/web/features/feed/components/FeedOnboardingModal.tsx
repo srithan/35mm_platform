@@ -16,7 +16,7 @@ const TOPICS = [
   "Kollywood",
   "Mollywood",
   "Auteur Cinema",
-  "Short Films",
+  "70mm",
   "Cinematography",
   "Screenwriting",
   "Directing",

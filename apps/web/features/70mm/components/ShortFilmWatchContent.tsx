@@ -343,10 +343,10 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
             </div>
 
             <Link
-              href={ROUTES.SHORT_FILMS}
+              href={ROUTES.SEVENTY_MM}
               className="mt-4 inline-flex text-[13px] font-semibold text-accent hover:underline no-underline"
             >
-              Browse all short films
+              Browse all on 70mm
             </Link>
           </aside>
         </div>

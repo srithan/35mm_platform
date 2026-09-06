@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils/cn";
 
 export function ShortFilmsUploadStrip() {
   return (
-    <section className="mb-0" aria-labelledby="short-films-upload-heading">
+    <section className="mb-0" aria-labelledby="seventy-mm-upload-heading">
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border border-border bg-sunken/60",
@@ -43,7 +43,7 @@ export function ShortFilmsUploadStrip() {
               For filmmakers
             </p>
             <h2
-              id="short-films-upload-heading"
+              id="seventy-mm-upload-heading"
               className="mt-1 font-display text-[1.2rem] leading-[1.15] tracking-tight text-fg sm:text-[1.35rem]"
             >
               Share your short film
@@ -55,7 +55,7 @@ export function ShortFilmsUploadStrip() {
 
           <div className="shrink-0 sm:self-center">
             <Link
-              href={ROUTES.SHORT_FILMS_UPLOAD}
+              href={ROUTES.SEVENTY_MM_UPLOAD}
               className={cn(
                 "inline-flex h-10 w-full items-center justify-center gap-2 rounded-full px-5 sm:w-auto",
                 "bg-fg text-[13px] font-semibold tracking-[0.01em] text-bg no-underline",

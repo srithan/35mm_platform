@@ -116,7 +116,7 @@ Node engine: `>=22.13.0` (Expo SDK 57 minimum).
 | Feed worker jobs | `feed.fanout`, `feed.rescore`, `feed.pruneFeedItems`, and `counter.increment` are implemented. |
 | Search | Meilisearch is not wired; discover/title/composer still rely heavily on TMDB-backed paths. |
 | Chat | Frontend module exists; authenticated API routes exist, but persistence is not wired and send returns `501`. |
-| Future/mock-heavy surfaces | Short films, communities, festivals, video discovery, and push/email flows are gated or incomplete. |
+| Future/mock-heavy surfaces | 70mm (community uploads), communities, festivals, video discovery, and push/email flows are gated or incomplete. |
 
 ---
 

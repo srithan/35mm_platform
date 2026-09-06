@@ -410,7 +410,7 @@ enum ProfileSidebarItem: String, CaseIterable, Identifiable {
     case .discover:
       return "Discover"
     case .shortFilms:
-      return "Short Films"
+      return "70mm"
     case .bookmarks:
       return "Bookmarks"
     case .lists:

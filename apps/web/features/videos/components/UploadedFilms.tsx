@@ -59,7 +59,7 @@ export function UploadedFilms() {
               .map((film) => (
                 <Link
                   key={film.id}
-                  href={`/short-films/${film.id}`}
+                  href={`/70mm/${film.id}`}
                   className="group block"
                 >
                   <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-xl border border-border bg-sunken">
@@ -94,7 +94,7 @@ export function UploadedFilms() {
                 ? "No published films yet."
                 : "Be first to share a film with the community."}{" "}
               <Link
-                href="/short-films/upload"
+                href="/70mm/upload"
                 className="text-accent underline"
               >
                 Upload a film

@@ -77,7 +77,7 @@ describe("MobileSidebar", () => {
       screen.getByRole("link", { name: "Discover" }).querySelector('[data-icon-name="search"]')
     ).not.toBeNull();
     expect(
-      screen.getByRole("link", { name: "Short Films" }).querySelector('[data-icon-name="frames"]')
+      screen.getByRole("link", { name: "70mm" }).querySelector('[data-icon-name="frames"]')
     ).not.toBeNull();
     expect(container.querySelector('[data-icon-name="chat"]')).not.toBeNull();
 
