@@ -1387,3 +1387,60 @@ This follows existing direct-provider playback and client-only presentation patt
 Post video previews display a labeled loading spinner only during an actual visible playback-authorization request. Once the iframe exists, its poster offers a control to reveal the player; validated Player.js readiness exposes native controls immediately. The application does not label iframe initialization or autoplay requests as buffering. Bunny owns playback/loading indicators, including browser-blocked autoplay and later rebuffering. Processing assets retain a distinct processing spinner. Legacy HTML5 post videos show Play while paused and loading during active play requests, buffering, and seeks. Controls preserve keyboard access and post-click isolation. The last pointer-selected inline Bunny or HTML5 player owns Space/K play-pause, J/Left rewind 10 seconds, L/Right forward 10 seconds, M mute, and F fullscreen shortcuts until the viewer selects elsewhere. Cross-origin Bunny pointer focus is returned to the containing player without intercepting keyboard-only iframe focus, and Player.js seek replies are origin/source validated and correlated. This browser-local path adds constant work per mounted player and no API read, mutation, cache, worker job, schema, or index.
 
 This follows the existing viewport-gated playback and browser-tab playback coordinator patterns. At the documented 20M video impressions/day assumption for 1M DAU, these local UI states add no API reads, writes, polling, or media requests. No new index, cache, mutation, pagination, UGC semantics, or worker change is required.
+
+### Feed-to-detail video continuity (2026-09-06)
+
+The root web layout owns `PostVideoProvider`, shared by the home route and shell
+routes. Post cards render positioning slots; the provider keeps each actual
+Bunny iframe or HTML5 video in a stable body portal keyed by post/media identity.
+Opening detail retains that existing player through route loading and attaches
+it to the destination slot without remounting, reparenting, seeking, or requesting
+another playback grant. Buffer, current time, paused state, and sound survive.
+The former timestamp/seek handoff and destination loading cover are removed.
+
+Slots reserve the measured player height. Resize/scroll observers align the live
+surface with its slot; fixed navigation is clipped out and inert shell content
+hides/disables its players. Explicit forward navigation retains only the selected
+post for at most ten seconds if the destination never attaches. Destination
+attachment clears retention; detached unrelated players are disposed. Account
+changes discard the registry. Existing viewport gating and exclusive playback
+coordination remain in the player components.
+
+Regression tests assert iframe and browsing-context identity across a route gap,
+native video current-time preservation, and cleanup/expiry. A live local Chrome
+check showed active playback advance from 00:10 in feed to 00:13 in detail without
+a replacement/loading player. First visits and genuine network rebuffering still
+use the existing loading UI.
+
+This follows client-only UI state and viewport-gated playback patterns. Work and
+memory scale with mounted video slots, with event-driven positioning (no continuous
+polling). Navigation adds no API/DB reads, writes, or media reload at the documented
+20M video impressions/day assumption for 1M DAU. No new schema, index, cache,
+worker, mutation, pagination, rate-limit, or UGC lifecycle change applies. Chat
+docs and existing architecture diagrams are unaffected.
+
+### Post-back scroll stability (2026-09-06)
+
+Post navigation saves a visible post ID and viewport offset alongside the absolute
+scroll position. Video geometry survives player disposal in a per-account,
+256-entry LRU aspect-ratio cache keyed by post/media identity. Returning slots
+reserve their height in layout effects, adapting to container width and the
+existing 70vh cap. Bunny and native players use the cached ratio while metadata
+loads, so they do not replace the reserved space with default dimensions.
+
+ScrollRestore runs after route children in the root provider and restores once,
+synchronously in a layout effect before paint. If the URL commits before the feed,
+a one-shot DOM-insertion observer waits for the anchor's commit, then restores
+and disconnects before paint. It expires after ten seconds or user input without
+scrolling. Detail cards are excluded from feed anchor matching.
+The former five-second resize/
+mutation correction loop is removed: there are no delayed corrective scrolls.
+The Back button disables Next.js automatic scrolling. Invalid or missing anchors
+fall back to absolute position. Persistent video ownership is unchanged.
+
+This follows client-only presentation state: bounded geometry memory, one saved
+anchor, no polling or new server traffic at 1M+ DAU. No schema, index, API, worker,
+mutation, pagination, or UGC lifecycle changes apply. Account switches discard
+geometry with the provider. Chat docs and diagrams are unchanged. Regression
+coverage asserts geometry reservation before subsequent layout effects,
+synchronous one-shot restoration, and existing route/history behavior.

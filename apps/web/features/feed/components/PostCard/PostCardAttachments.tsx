@@ -2,6 +2,7 @@
 
 import { FeedVideoPlayer } from "@/features/videos/components/FeedVideoPlayer";
 import { BunnyVideoPlayer } from "@/features/videos/components/BunnyVideoPlayer";
+import { PostVideoSlot } from "@/features/videos/components/PostVideoProvider";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import type { NsfwCategory, NsfwStatus } from "@35mm/types";
 import Link from "next/link";
@@ -36,6 +37,7 @@ interface PostCardAttachmentsProps {
   linkPreview?: PostCardLinkPreview | null;
   videoUrls: string[];
   videoAssetId?: string;
+  videoPostId?: string;
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
   imageDimensions?: Array<{ width: number; height: number } | null>;
@@ -77,6 +79,7 @@ export function PostCardAttachments({
   linkPreview,
   videoUrls,
   videoAssetId,
+  videoPostId,
   imageUrls,
   imageBlurhashes,
   imageDimensions = [],
@@ -141,7 +144,9 @@ export function PostCardAttachments({
         </div>
       )}
 
-      {videoAssetId ? <div className="mt-2"><BunnyVideoPlayer assetId={videoAssetId} /></div> : videoUrls[0] ? (
+      {videoPostId && (videoAssetId || videoUrls[0]) ? <div className="mt-2">
+        <PostVideoSlot postId={videoPostId} assetId={videoAssetId} src={videoAssetId ? undefined : videoUrls[0]} />
+      </div> : videoAssetId ? <div className="mt-2"><BunnyVideoPlayer assetId={videoAssetId} /></div> : videoUrls[0] ? (
         <div className="mt-2 overflow-hidden rounded-lg border border-border bg-black">
           <FeedVideoPlayer src={videoUrls[0]} />
         </div>

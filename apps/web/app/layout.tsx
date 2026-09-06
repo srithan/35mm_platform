@@ -14,6 +14,7 @@ import { OfflineStatus } from "@/components/OfflineStatus/OfflineStatus";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { ScrollRestore } from "@/features/feed/components/FeedScrollRestore";
 import { Providers } from "./providers";
+import { PostVideoProvider } from "@/features/videos/components/PostVideoProvider";
 
 // Clerk 7's App Router provider is an async Server Component. Next.js 15
 // supports that runtime contract, while React 18's JSX types do not.
@@ -112,10 +113,9 @@ export default function RootLayout({
         <React18ClerkProvider>
           <Providers>
             <NuqsAdapter>
-              <ScrollRestore />
               <ServiceWorkerRegistration />
               <OfflineStatus />
-              {children}
+              <PostVideoProvider>{children}<ScrollRestore /></PostVideoProvider>
               <Analytics />
               <SpeedInsights />
             </NuqsAdapter>

@@ -7,6 +7,7 @@ import { isStoredRichText } from "@/lib/utils/richContent";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { ROUTES } from "@/lib/constants/routes";
 import { saveScrollPositionForBack } from "../PostPageBackButton";
+import { useRetainPostVideo } from "@/features/videos/components/PostVideoProvider";
 import type { PostVariant } from "./types";
 
 interface PostCardBodyTextProps {
@@ -37,6 +38,7 @@ export function PostCardBodyText({
   suppressedUrl,
 }: PostCardBodyTextProps) {
   const router = useRouter();
+  const retainVideo = useRetainPostVideo();
 
   return (
     <>
@@ -81,6 +83,7 @@ export function PostCardBodyText({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!postId) return;
+                      retainVideo?.(postId);
                       saveScrollPositionForBack();
                       router.push(ROUTES.POST(username, postId));
                     }}

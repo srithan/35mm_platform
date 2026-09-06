@@ -46,6 +46,19 @@ it("defers playback grants for distant posts", () => {
   expect(state.playback).not.toHaveBeenCalled();
   expect(screen.queryByRole("status")).toBeNull();
 });
+it("reserves the cached ratio before a playback grant is available", () => {
+  state.nearby = false;
+  const client = new QueryClient();
+  const { container } = render(<QueryClientProvider client={client}>
+    <BunnyVideoPlayer assetId="asset" initialAspectRatio={0.5625} />
+  </QueryClientProvider>);
+  expect((container.firstElementChild as HTMLElement).style.aspectRatio).toBe("0.5625 / 1");
+  expect(state.playback).not.toHaveBeenCalled();
+});
+it("reserves native video geometry before metadata arrives", () => {
+  const { container } = render(<FeedVideoPlayer src="/video.mp4" initialAspectRatio={0.5625} />);
+  expect(container.querySelector("video")?.style.aspectRatio).toBe("0.5625 / 1");
+});
 it("autoplays muted, pauses offscreen, resumes without reloading, and reacts to preference", async () => {
   const view = setup();
   const frame = await screen.findByTitle("Video") as HTMLIFrameElement;

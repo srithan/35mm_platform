@@ -1,13 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { PROFILE_TAB_SEGMENTS } from "@/features/profile/lib/profileRoutes";
 import {
   SCROLL_KEY,
   RESTORE_FLAG_KEY,
   FROM_PATH_KEY,
+  ANCHOR_KEY,
 } from "./PostPageBackButton";
+import { restorePostScroll } from "../utils/restorePostScroll";
 
 function isSameProfilePage(previousPathname: string, pathname: string): boolean {
   const previousParts = previousPathname.split("/").filter(Boolean);
@@ -39,7 +41,7 @@ export function ScrollRestore() {
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
 
     const previousPathname = previousPathnameRef.current;
@@ -53,19 +55,19 @@ export function ScrollRestore() {
       (shouldRestore === "1" || isPostDetailPage(previousPathname));
 
     if (shouldRestoreCurrentPath) {
+      const anchor = sessionStorage.getItem(ANCHOR_KEY);
+      sessionStorage.removeItem(ANCHOR_KEY);
       sessionStorage.removeItem(RESTORE_FLAG_KEY);
       sessionStorage.removeItem(SCROLL_KEY);
       sessionStorage.removeItem(FROM_PATH_KEY);
-      const y = parseInt(scrollY, 10);
-      if (!isNaN(y)) {
-        const frame = requestAnimationFrame(() => {
-          window.scrollTo(0, y);
-        });
-        return () => cancelAnimationFrame(frame);
+      const y = Number(scrollY);
+      if (Number.isFinite(y) && y >= 0) {
+        return restorePostScroll(y, anchor);
       }
     }
 
     if (shouldRestore === "1") {
+      sessionStorage.removeItem(ANCHOR_KEY);
       sessionStorage.removeItem(RESTORE_FLAG_KEY);
       sessionStorage.removeItem(SCROLL_KEY);
       sessionStorage.removeItem(FROM_PATH_KEY);

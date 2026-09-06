@@ -9,7 +9,8 @@ import { VideoPlaybackOverlay } from "./VideoPlaybackOverlay";
 import { useVideoKeyboardShortcuts } from "../hooks/useVideoKeyboardShortcuts";
 
 /** Legacy direct uploads use the same viewport and preference rules as Stream. */
-export function FeedVideoPlayer({ src }: { src: string }) {
+export function FeedVideoPlayer({ src, initialAspectRatio }: { src: string; initialAspectRatio?: number }) {
+  const [aspectRatio, setAspectRatio] = useState(initialAspectRatio);
   const { ref, nearby, visible } = useVideoVisibility();
   const video = useRef<HTMLVideoElement>(null);
   const settings = useSettingsQuery();
@@ -68,9 +69,14 @@ export function FeedVideoPlayer({ src }: { src: string }) {
     if (!visible) video.current?.pause();
   }, [visible]);
 
-  return <div ref={ref} tabIndex={-1} className="relative overflow-hidden rounded-lg bg-black"
+  return <div ref={ref} tabIndex={-1} data-video-aspect-ratio={aspectRatio} className="relative overflow-hidden rounded-lg bg-black"
     onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
     <video ref={video} src={nearby ? src : undefined} controls playsInline muted={muted}
+      style={{ aspectRatio: aspectRatio ? `${aspectRatio} / 1` : undefined }}
+      onLoadedMetadata={event => {
+        const { videoWidth, videoHeight } = event.currentTarget;
+        if (videoWidth > 0 && videoHeight > 0) setAspectRatio(videoWidth / videoHeight);
+      }}
       onVolumeChange={(event) => {
         if (event.currentTarget.muted !== getMuted()) setMuted(event.currentTarget.muted);
       }}

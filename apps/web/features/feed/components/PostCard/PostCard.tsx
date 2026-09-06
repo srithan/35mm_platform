@@ -27,6 +27,7 @@ import { PostCardQuoteEmbed } from "./PostCardQuoteEmbed";
 import { truncatePostPreview } from "../../utils/truncatePostPreview";
 import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
 import { NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
+import { useRetainPostVideo } from "@/features/videos/components/PostVideoProvider";
 
 function PostCardComponent(props: PostCardProps) {
   const {
@@ -87,6 +88,7 @@ function PostCardComponent(props: PostCardProps) {
   const setQuotedPostOnly = useComposerModalStore((state) => state.setQuotedPostOnly);
   const currentUserId = currentUserQuery.data?.userId;
   const hoverPrefetchDoneRef = useRef(false);
+  const retainVideo = useRetainPostVideo();
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportConfirm, setShowReportConfirm] = useState(false);
@@ -147,6 +149,7 @@ function PostCardComponent(props: PostCardProps) {
 
   const navigateToPost = () => {
     if (!postId) return;
+    retainVideo?.(postId);
     saveScrollPositionForBack();
     router.push(ROUTES.POST(username, postId));
   };
@@ -232,9 +235,10 @@ function PostCardComponent(props: PostCardProps) {
       }
       onMouseEnter={prefetchPostDetail}
       onFocus={prefetchPostDetail}
+      data-post-scroll-anchor={!isPostDetailView ? postId : undefined}
       className={cn(
         "PostCard w-full rounded-lg border-b border-border bg-bg px-4 py-4 transition-colors duration-150",
-        !disableAnimation && "animate-fade-up",
+        !disableAnimation && !resolvedMedia.videoAssetId && !resolvedMedia.videoUrls.length && "animate-fade-up",
         !isPostDetailView && "hover:bg-card-hover",
         postId && !isPostDetailView && "cursor-pointer",
         !disableAnimation && animationDelay && `[animation-delay:${animationDelay}ms]`
@@ -306,6 +310,7 @@ function PostCardComponent(props: PostCardProps) {
             linkPreview={linkPreview}
             videoUrls={resolvedMedia.videoUrls}
             videoAssetId={resolvedMedia.videoAssetId}
+            videoPostId={postId}
             imageUrls={resolvedMedia.imageUrls}
             imageBlurhashes={resolvedMedia.imageBlurhashes}
             imageDimensions={resolvedMedia.imageDimensions}

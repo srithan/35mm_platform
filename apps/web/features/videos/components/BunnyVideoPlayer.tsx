@@ -13,9 +13,10 @@ import { Loader2 } from "lucide-react";
 import { VideoPlaybackOverlay } from "./VideoPlaybackOverlay";
 import { useVideoKeyboardShortcuts } from "../hooks/useVideoKeyboardShortcuts";
 
-export function BunnyVideoPlayer({ assetId, title = "Video" }: {
+export function BunnyVideoPlayer({ assetId, title = "Video", initialAspectRatio }: {
   assetId: string;
   title?: string;
+  initialAspectRatio?: number;
 }) {
   const { userId, isLoaded, getToken } = useAuth();
   const settings = useSettingsQuery();
@@ -54,12 +55,13 @@ export function BunnyVideoPlayer({ assetId, title = "Video" }: {
   }, [playback.data]);
   const width = playback.data?.width;
   const height = playback.data?.height;
+  const aspectRatio = width && height ? width / height : initialAspectRatio;
 
   return (
-    <div ref={ref} tabIndex={-1}
+    <div ref={ref} tabIndex={-1} data-video-aspect-ratio={aspectRatio}
       className="relative mx-auto w-full overflow-hidden rounded-xl bg-neutral-200 text-fg"
-      style={{ aspectRatio: width && height ? `${width} / ${height}` : "16 / 9",
-        maxWidth: width && height ? `min(100%, ${70 * width / height}vh)` : undefined }}
+      style={{ aspectRatio: width && height ? `${width} / ${height}` : aspectRatio ? `${aspectRatio} / 1` : "16 / 9",
+        maxWidth: aspectRatio ? `min(100%, ${70 * aspectRatio}vh)` : undefined }}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}>
       {src ? <BunnyFrame key={src} src={src} posterUrl={playback.data && "posterUrl" in playback.data ? playback.data.posterUrl : undefined} title={title} visible={visible} autoplay={autoplay} rootRef={ref} /> : (
