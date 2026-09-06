@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUpRight, MessageSquare, PenLine } from "lucide-react";
+import { ArrowDown, PenLine } from "lucide-react";
 import { useTitleReviews } from "../hooks/useTitleReviews";
 import { TitleReviewCard } from "./TitleReviewCard";
 
@@ -22,34 +22,39 @@ export function TitleReviewsSection(props: {
     !props.isTv &&
     (props.referenceLoading || (Boolean(props.filmId) && reviews.isPending));
   const failed = props.referenceError || reviews.isError;
+  const hasReviews = uniqueItems.length > 0;
   return (
     <section aria-label="Title reviews">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-muted">
-            The conversation
-          </p>
-          <h2 className="font-display text-3xl leading-tight tracking-tight text-fg sm:text-4xl">
-            After the credits.
-          </h2>
-        </div>
-        {!props.isTv ? (
-          <button
-            type="button"
-            onClick={props.onWriteReview}
-            disabled={props.reviewPending}
-            className="mt-5 inline-flex min-h-10 shrink-0 items-center gap-2 text-sm font-semibold text-fg underline decoration-fg/25 underline-offset-4 hover:decoration-fg focus-visible:outline focus-visible:outline-2 disabled:opacity-50"
-          >
-            <PenLine size={15} aria-hidden />
-            <span className="hidden sm:inline">Your review</span>
-            <span className="sm:hidden">Write</span>
-          </button>
-        ) : null}
-      </div>
-      <div className="mb-1 flex items-center justify-between border-b border-border py-3 text-xs text-fg-muted">
-        <span>Community reviews</span>
-        <span>Latest first</span>
-      </div>
+      {hasReviews ? (
+        <>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-muted">
+                The conversation
+              </p>
+              <h2 className="font-display text-3xl leading-tight tracking-tight text-fg sm:text-4xl">
+                After the credits.
+              </h2>
+            </div>
+            {!props.isTv ? (
+              <button
+                type="button"
+                onClick={props.onWriteReview}
+                disabled={props.reviewPending}
+                className="mt-5 inline-flex min-h-10 shrink-0 items-center gap-2 text-sm font-semibold text-fg underline decoration-fg/25 underline-offset-4 hover:decoration-fg focus-visible:outline focus-visible:outline-2 disabled:opacity-50"
+              >
+                <PenLine size={15} aria-hidden />
+                <span className="hidden sm:inline">Your review</span>
+                <span className="sm:hidden">Write</span>
+              </button>
+            ) : null}
+          </div>
+          <div className="mb-1 flex items-center justify-between border-b border-border py-3 text-xs text-fg-muted">
+            <span>Community reviews</span>
+            <span>Latest first</span>
+          </div>
+        </>
+      ) : null}
       {props.isTv ? (
         <p
           role="status"
@@ -90,26 +95,18 @@ export function TitleReviewsSection(props: {
         </div>
       ) : null}
       {!props.isTv && !loading && !failed && uniqueItems.length === 0 ? (
-        <div className="py-10 sm:py-14">
-          <MessageSquare
-            className="mb-5 h-7 w-7 text-fg-muted"
-            strokeWidth={1.25}
-            aria-hidden
-          />
-          <h3 className="font-display text-2xl text-fg">
-            What stayed with you?
-          </h3>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-fg-muted">
-            No reviews to show yet. Share the scene, feeling, or performance
-            you’re still thinking about.
-          </p>
+        <div className="flex flex-col items-center py-16">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sunken">
+            <PenLine size={20} className="text-fg-muted" strokeWidth={1.5} />
+          </div>
+          <p className="mb-5 text-sm text-fg-muted">No reviews yet</p>
           <button
             type="button"
             disabled={props.reviewPending}
             onClick={props.onWriteReview}
-            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-fg px-5 text-sm font-semibold text-bg disabled:opacity-50"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border-strong px-5 text-sm font-medium text-fg hover:bg-sunken disabled:opacity-50"
           >
-            Write a review <ArrowUpRight size={16} aria-hidden />
+            Write review
           </button>
         </div>
       ) : null}

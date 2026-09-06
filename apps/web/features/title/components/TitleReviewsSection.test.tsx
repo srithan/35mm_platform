@@ -15,16 +15,16 @@ beforeEach(() => {
 describe("title reviews", () => {
   it("offers writing for a true empty result without an invented total", async () => {
     render(<TitleReviewsSection {...props} />);
-    expect(screen.getByText("What stayed with you?")).toBeInTheDocument();
+    expect(screen.getByText("No reviews yet")).toBeInTheDocument();
     expect(screen.queryByText(/1,247/)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Write a review" }));
+    await userEvent.click(screen.getByRole("button", { name: "Write review" }));
     expect(props.onWriteReview).toHaveBeenCalledOnce();
   });
   it("distinguishes errors from an empty community and retries", async () => {
     mocks.query.mockReturnValue({ isPending: false, isError: true, refetch: mocks.retry });
     render(<TitleReviewsSection {...props} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t load reviews");
-    expect(screen.queryByText("What stayed with you?")).not.toBeInTheDocument();
+    expect(screen.queryByText("No reviews yet")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(mocks.retry).toHaveBeenCalledOnce();
   });
@@ -42,11 +42,13 @@ describe("title reviews", () => {
     expect(screen.queryByRole("button", { name: "Write a review" })).not.toBeInTheDocument();
   });
   it("supports keyboard selection of title sections", async () => {
-    const details = vi.fn();
-    render(<TitleContentTabs contentTab="reviews" onSelectOverview={details} onSelectReviews={vi.fn()} />);
+    const selectTab = vi.fn();
+    render(
+      <TitleContentTabs contentTab="reviews" onSelectTab={selectTab} />,
+    );
     screen.getByRole("tab", { name: "Reviews" }).focus();
     await userEvent.keyboard("{ArrowRight}");
-    expect(details).toHaveBeenCalledOnce();
-    expect(screen.getByRole("tab", { name: "Cast & details" })).toHaveFocus();
+    expect(selectTab).toHaveBeenCalledWith("about");
+    expect(screen.getByRole("tab", { name: "About" })).toHaveFocus();
   });
 });

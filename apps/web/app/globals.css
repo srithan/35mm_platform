@@ -958,6 +958,17 @@
         outline: none;
     }
 
+    .title-hero-poster:focus,
+    .title-hero-poster:focus-visible,
+    .title-hero-poster:focus-within {
+        outline: none;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+    }
+
+    .title-hero-poster img:focus-visible {
+        outline: none;
+    }
+
     /* Same default blue focus ring on video / iframes (incl. /video and embedded players). */
     video,
     iframe,

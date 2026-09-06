@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -13,8 +12,9 @@ import { yearFromDate } from "@/features/discover/lib/tmdb-utils";
 import { cn } from "@/lib/utils/cn";
 import type { TitleMedia } from "@/lib/title/paths";
 import { useTitlePageData } from "../hooks/useTitlePageData";
+import { crewByJobs } from "../lib/titleCrew";
 import { sortVideosForDisplay } from "../lib/titleVideos";
-import { TitleContentTabs } from "./TitleContentTabs";
+import { TitleContentTabs, type TitleContentTab } from "./TitleContentTabs";
 import { TitleOverviewContent } from "./TitleOverviewContent";
 import { TitlePageAside } from "./TitlePageAside";
 import { TitlePageHero } from "./TitlePageHero";
@@ -28,7 +28,7 @@ import { resolveTmdbFilm } from "@/features/films/api/filmsApi";
 import { posterUrl } from "@/features/discover/lib/tmdb-utils";
 import { showGlobalFlashToast } from "@/components/FlashToast";
 
-type TitleContentTab = "overview" | "reviews";
+type TitleContentTabState = TitleContentTab;
 
 export function TitlePageView(props: {
   media: TitleMedia;
@@ -40,7 +40,7 @@ export function TitlePageView(props: {
   const { status, detail, videos, recommendations, seasons, errorMessage } =
     useTitlePageData(media, id, tmdbId);
   const [activeVideoKey, setActiveVideoKey] = useState<string | null>(null);
-  const [contentTab, setContentTab] = useState<TitleContentTab>("reviews");
+  const [contentTab, setContentTab] = useState<TitleContentTabState>("reviews");
   const filmReference = useTitleFilmReference(media, id);
   const { getToken, isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
@@ -54,7 +54,6 @@ export function TitlePageView(props: {
     [media, id],
   );
 
-  const goToReviewsTab = useCallback(() => setContentTab("reviews"), []);
 
   useEffect(() => {
     if (status !== "ok" || window.location.hash !== "#reviews") return;
@@ -102,27 +101,9 @@ export function TitlePageView(props: {
     }
   }
 
-  const directors = detail?.credits?.crew
-    ?.filter(function (c) {
-      return c.job === "Director";
-    })
-    .map(function (c) {
-      return c.name;
-    })
-    .join(", ");
-  const creators = detail?.created_by
-    ?.map(function (c) {
-      return c.name;
-    })
-    .join(", ");
-  const writers = detail?.credits?.crew
-    ?.filter(function (c) {
-      return c.job === "Screenplay" || c.job === "Writer";
-    })
-    .map(function (c) {
-      return c.name;
-    })
-    .join(", ");
+  const creditPeople = isTv
+    ? detail?.created_by ?? []
+    : crewByJobs(detail?.credits?.crew, ["Director"]);
 
   const firstYoutube = displayVideos.find(function (v) {
     return v.site === "YouTube" && v.key;
@@ -182,6 +163,18 @@ export function TitlePageView(props: {
     }
   }
 
+  const overviewProps = {
+    detail,
+    isTv,
+    yearStr,
+    certification,
+    seasons,
+    displayVideos,
+    playingKey,
+    onSelectVideoKey: setActiveVideoKey,
+    recommendations,
+  };
+
   return (
     <div className="min-h-full w-full bg-bg">
       <TitlePageHero
@@ -189,7 +182,7 @@ export function TitlePageView(props: {
         isTv={isTv}
         displayTitle={displayTitle}
         metaLine={metaLine}
-        credit={isTv ? creators : directors}
+        creditPeople={creditPeople}
       />
       <div className="mx-auto grid max-w-[1120px] gap-8 px-5 pb-24 pt-8 sm:grid-cols-[184px_minmax(0,1fr)] sm:gap-x-8 lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-x-12">
         <aside className="min-w-0 sm:sticky sm:top-[calc(var(--site-header-sticky-offset,4.5rem)+24px)] sm:self-start">
@@ -217,8 +210,7 @@ export function TitlePageView(props: {
           ) : null}
           <TitleContentTabs
             contentTab={contentTab}
-            onSelectOverview={() => setContentTab("overview")}
-            onSelectReviews={goToReviewsTab}
+            onSelectTab={setContentTab}
           />
           <div
             id="title-reviews-panel"
@@ -243,32 +235,48 @@ export function TitlePageView(props: {
             ) : null}
           </div>
           <div
-            id="title-panel-overview"
+            id="title-panel-about"
             role="tabpanel"
-            aria-labelledby="title-tab-overview"
-            hidden={contentTab !== "overview"}
+            aria-labelledby="title-tab-about"
+            hidden={contentTab !== "about"}
             className={cn(
               MAIN_SECTION_GAP,
-              "pt-8",
-              contentTab !== "overview" && "hidden",
+              "max-w-[680px] pt-8",
+              contentTab !== "about" && "hidden",
             )}
           >
-            {contentTab === "overview" ? (
-              <TitleOverviewContent
-                detail={detail}
-                isTv={isTv}
-                yearStr={yearStr}
-                certification={certification}
-                directors={directors}
-                creators={creators}
-                writers={writers}
-                seasons={seasons}
-                displayVideos={displayVideos}
-                playingKey={playingKey}
-                onSelectVideoKey={setActiveVideoKey}
-                recommendations={recommendations}
-                watchProvidersUS={watchProvidersUS}
-              />
+            {contentTab === "about" ? (
+              <TitleOverviewContent section="about" {...overviewProps} />
+            ) : null}
+          </div>
+          <div
+            id="title-panel-cast"
+            role="tabpanel"
+            aria-labelledby="title-tab-cast"
+            hidden={contentTab !== "cast"}
+            className={cn(
+              MAIN_SECTION_GAP,
+              "max-w-[680px] pt-8",
+              contentTab !== "cast" && "hidden",
+            )}
+          >
+            {contentTab === "cast" ? (
+              <TitleOverviewContent section="cast" {...overviewProps} />
+            ) : null}
+          </div>
+          <div
+            id="title-panel-more"
+            role="tabpanel"
+            aria-labelledby="title-tab-more"
+            hidden={contentTab !== "more"}
+            className={cn(
+              MAIN_SECTION_GAP,
+              "max-w-[680px] pt-8",
+              contentTab !== "more" && "hidden",
+            )}
+          >
+            {contentTab === "more" ? (
+              <TitleOverviewContent section="more" {...overviewProps} />
             ) : null}
           </div>
         </div>

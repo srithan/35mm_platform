@@ -9,6 +9,7 @@ export interface TMDBPerson {
   profile_path: string | null;
   character?: string;
   job?: string;
+  department?: string;
 }
 
 export interface TMDBSearchPerson extends TMDBPerson {
@@ -105,6 +106,8 @@ export interface TMDBMedia {
   first_air_date?: string;
   vote_average: number;
   vote_count: number;
+  popularity?: number;
+  adult?: boolean;
   genre_ids?: number[];
   tagline?: string;
   runtime?: number;

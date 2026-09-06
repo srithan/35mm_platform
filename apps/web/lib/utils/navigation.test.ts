@@ -9,5 +9,6 @@ describe("isUsernameProfilePath", function () {
   it("does not treat unrelated nested routes as profiles", function () {
     expect(isUsernameProfilePath("/teju/post/post-id")).toBe(false);
     expect(isUsernameProfilePath("/settings/privacy")).toBe(false);
+    expect(isUsernameProfilePath("/company/174")).toBe(false);
   });
 });

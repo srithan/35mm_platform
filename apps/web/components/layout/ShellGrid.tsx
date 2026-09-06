@@ -42,6 +42,7 @@ function getProfileShellUsername(pathname: string): string | null {
     case "short-films":
     case "title":
     case "person":
+    case "company":
     case "profile":
       return null;
     default:
@@ -84,6 +85,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   );
   const isTitlePage = Boolean(pathname?.startsWith("/title/"));
   const isPersonPage = Boolean(pathname?.startsWith("/person/"));
+  const isCompanyPage = Boolean(pathname?.startsWith("/company/"));
   const isShortFilmsSection =
     pathname === ROUTES.SHORT_FILMS ||
     Boolean(pathname?.startsWith("/short-films/"));
@@ -114,6 +116,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     isChatSection ||
     isShortFilmsSection ||
     isPersonPage ||
+    isCompanyPage ||
     isTitlePage;
 
   /** Home keeps a fixed 640px center column inside a lg+ three-column strip; shell var stays aligned. */

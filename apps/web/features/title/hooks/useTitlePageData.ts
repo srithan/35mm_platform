@@ -8,6 +8,10 @@ import type {
   TMDBVideo,
 } from "@/lib/tmdb/types";
 import type { TitleMedia } from "@/lib/title/paths";
+import {
+  genreIdsFromTitle,
+  selectRelatedTitles,
+} from "../lib/titleRelated";
 
 const MAX_SEASONS_FETCH = 40;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -23,6 +27,16 @@ function parseRecs(text: string): TMDBMovie[] {
   const d = parseTmdbJsonObject<{ results: TMDBMovie[] }>(text);
   if (!d || !Array.isArray(d.results)) return [];
   return d.results;
+}
+
+function fetchTmdbListText(url: string): Promise<string> {
+  return fetch(url)
+    .then(function (r) {
+      return r.text();
+    })
+    .catch(function () {
+      return "";
+    });
 }
 
 function parseSeason(text: string): TMDBSeasonDetail | null {
@@ -123,18 +137,18 @@ export function useTitlePageData(
               .filter(Boolean)
               .join(",");
           const recUrl = `/api/tmdb/${media}/${id}/recommendations?page=1`;
+          const similarUrl = `/api/tmdb/${media}/${id}/similar?page=1`;
           return Promise.all([
             fetch(detailUrl).then(function (r) {
               return r.text();
             }),
-            fetch(recUrl).then(function (r) {
-              return r.text();
-            }),
+            fetchTmdbListText(recUrl),
+            fetchTmdbListText(similarUrl),
           ]);
         })
         .then(function (result) {
           if (!result) return;
-          const [detailText, recText] = result;
+          const [detailText, recText, similarText] = result;
           if (cancelled) return;
           const detail = parseDetail(detailText);
           if (!detail) {
@@ -151,7 +165,16 @@ export function useTitlePageData(
           const videoResults = detail.videos?.results
             ? detail.videos.results.slice()
             : [];
-          const recommendations = parseRecs(recText);
+          const recommendations = selectRelatedTitles(
+            {
+              id: detail.id,
+              mediaType: media,
+              genreIds: genreIdsFromTitle(detail),
+              originalLanguage: detail.original_language,
+            },
+            parseRecs(recText),
+            parseRecs(similarText),
+          );
 
           if (media !== "tv") {
             setData({

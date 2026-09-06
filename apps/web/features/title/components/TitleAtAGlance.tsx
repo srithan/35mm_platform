@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  Briefcase,
   Building2,
   Calendar,
   Clapperboard,
@@ -14,7 +15,10 @@ import {
   UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import type { TMDBMedia } from "@/lib/tmdb/types";
+import { ROUTES } from "@/lib/constants/routes";
+import type { TMDBMedia, TMDBPerson, TMDBProductionCompany } from "@/lib/tmdb/types";
+import { crewByJobs } from "../lib/titleCrew";
+import { TitleCreditNameLinks } from "./TitleCreditNameLinks";
 import { TitleSectionTitle } from "./titlePageLayoutTokens";
 
 const stroke = 1.75;
@@ -32,7 +36,11 @@ function GlanceMetric(props: { label: string; value: string; icon: ReactNode }) 
   );
 }
 
-function GlanceDetailRow(props: { label: string; value: string; icon: ReactNode }) {
+function GlanceDetailRow(props: {
+  label: string;
+  value: ReactNode;
+  icon: ReactNode;
+}) {
   return (
     <div className="grid min-w-0 gap-1 sm:grid-cols-[8.25rem_minmax(0,1fr)] sm:items-baseline sm:gap-x-8">
       <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-muted">
@@ -44,14 +52,40 @@ function GlanceDetailRow(props: { label: string; value: string; icon: ReactNode 
   );
 }
 
+function personLinks(people: TMDBPerson[]) {
+  return (
+    <TitleCreditNameLinks
+      items={people.map(function (person) {
+        return {
+          id: person.id,
+          name: person.name,
+          href: ROUTES.PERSON(person.id),
+        };
+      })}
+    />
+  );
+}
+
+function studioLinks(companies: TMDBProductionCompany[]) {
+  return (
+    <TitleCreditNameLinks
+      separator=" · "
+      items={companies.map(function (company) {
+        return {
+          id: company.id,
+          name: company.name,
+          href: ROUTES.COMPANY(company.id),
+        };
+      })}
+    />
+  );
+}
+
 type TitleAtAGlanceProps = {
   isTv: boolean;
   yearStr: string;
   certification: string | undefined;
   detail: TMDBMedia;
-  directors: string | undefined;
-  creators: string | undefined;
-  writers: string | undefined;
 };
 
 export function TitleAtAGlance(props: TitleAtAGlanceProps) {
@@ -123,46 +157,51 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
     });
   }
 
-  const studiosText =
-    d.production_companies && d.production_companies.length > 0
-      ? d.production_companies
-          .map(function (c) {
-            return c.name;
-          })
-          .join(" · ")
-      : "";
+  const creators = d.created_by ?? [];
+  const directors = crewByJobs(d.credits?.crew, ["Director"]);
+  const writers = crewByJobs(d.credits?.crew, ["Screenplay", "Writer"]);
+  const producers = crewByJobs(d.credits?.crew, ["Producer"]);
+  const studios = d.production_companies ?? [];
 
-  const detailRows: { key: string; label: string; value: string; icon: ReactNode }[] = [];
+  const detailRows: { key: string; label: string; value: ReactNode; icon: ReactNode }[] = [];
 
-  if (props.creators) {
+  if (creators.length > 0) {
     detailRows.push({
       key: "creators",
       label: "Created by",
-      value: props.creators,
+      value: personLinks(creators),
       icon: <UserCircle className={icoSm} strokeWidth={stroke} />,
     });
   }
-  if (!props.isTv && props.directors) {
+  if (!props.isTv && directors.length > 0) {
     detailRows.push({
       key: "directors",
       label: "Directed by",
-      value: props.directors,
+      value: personLinks(directors),
       icon: <Clapperboard className={icoSm} strokeWidth={stroke} />,
     });
   }
-  if (!props.isTv && props.writers) {
+  if (!props.isTv && writers.length > 0) {
     detailRows.push({
       key: "writers",
       label: "Written by",
-      value: props.writers,
+      value: personLinks(writers),
       icon: <Pencil className={icoSm} strokeWidth={stroke} />,
     });
   }
-  if (studiosText) {
+  if (!props.isTv && producers.length > 0) {
+    detailRows.push({
+      key: "producers",
+      label: "Produced by",
+      value: personLinks(producers),
+      icon: <Briefcase className={icoSm} strokeWidth={stroke} />,
+    });
+  }
+  if (studios.length > 0) {
     detailRows.push({
       key: "studios",
       label: "Studios",
-      value: studiosText,
+      value: studioLinks(studios),
       icon: <Building2 className={icoSm} strokeWidth={stroke} />,
     });
   }

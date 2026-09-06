@@ -62,19 +62,16 @@ describe("title page theme styles", function () {
   it("marks selected trailer without Tailwind's fallback blue ring", function () {
     render(
       <TitleOverviewContent
+        section="about"
         detail={detail}
         isTv={false}
         yearStr="2026"
         certification={undefined}
-        directors={undefined}
-        creators={undefined}
-        writers={undefined}
         seasons={[]}
         displayVideos={[trailer]}
         playingKey={trailer.key}
         onSelectVideoKey={vi.fn()}
         recommendations={[]}
-        watchProvidersUS={undefined}
       />
     );
 
@@ -86,19 +83,16 @@ describe("title page theme styles", function () {
   it("hides More like this card metadata while retaining poster labels", function () {
     render(
       <TitleOverviewContent
+        section="more"
         detail={detail}
         isTv={false}
         yearStr="2026"
         certification={undefined}
-        directors={undefined}
-        creators={undefined}
-        writers={undefined}
         seasons={[]}
         displayVideos={[]}
         playingKey={null}
         onSelectVideoKey={vi.fn()}
         recommendations={[recommendation]}
-        watchProvidersUS={undefined}
       />
     );
 
@@ -107,6 +101,35 @@ describe("title page theme styles", function () {
     expect(
       screen.getByRole("link", { name: "Open Recommended Hidden Film" })
     ).toBeInTheDocument();
+  });
+
+  it("renders more than eight related titles when the shelf is full", function () {
+    const recommendations = Array.from({ length: 16 }, function (_item, index) {
+      return {
+        ...recommendation,
+        id: 300 + index,
+        title: "Related Film " + (index + 1),
+      };
+    });
+
+    render(
+      <TitleOverviewContent
+        section="more"
+        detail={detail}
+        isTv={false}
+        yearStr="2026"
+        certification={undefined}
+        seasons={[]}
+        displayVideos={[]}
+        playingKey={null}
+        onSelectVideoKey={vi.fn()}
+        recommendations={recommendations}
+      />
+    );
+
+    expect(
+      screen.getAllByRole("link", { name: /Open Related Film / })
+    ).toHaveLength(16);
   });
 
   it("provides an accessible score for compact title-page review stars", function () {

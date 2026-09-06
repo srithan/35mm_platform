@@ -17,6 +17,7 @@ const RESERVED_USERNAME_SEGMENTS = new Set([
   "short-films",
   "title",
   "person",
+  "company",
   "profile",
 ]);
 

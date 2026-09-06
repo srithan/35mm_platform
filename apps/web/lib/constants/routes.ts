@@ -33,6 +33,8 @@ export const ROUTES = {
   PERSON: (id: string | number) => `/person/${id}`,
   PERSON_DEPARTMENT: (id: string | number, department: string) =>
     `/person/${id}/${encodeURIComponent(department.toLowerCase())}`,
+  /** TMDB production company id — studio/network catalog page. */
+  COMPANY: (id: string | number) => `/company/${id}`,
   NOTIFICATIONS: "/notifications",
   NOTIFICATIONS_TAB: (tab: string) => `/notifications/${tab}`,
   PROFILE: (username: string) => `/${username}`,

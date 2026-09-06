@@ -1,16 +1,18 @@
 import { LazyImage } from "@/components/LazyImage";
 import { posterUrl, starsFromVote } from "@/features/discover/lib/tmdb-utils";
-import type { TMDBMedia } from "@/lib/tmdb/types";
+import { ROUTES } from "@/lib/constants/routes";
+import type { TMDBMedia, TMDBPerson } from "@/lib/tmdb/types";
 import { titleHeroBackdropUrl } from "../lib/titleHeroImage";
 import { titleKindLabel } from "../lib/titleKindLabel";
 import { TitleCoverBackButton } from "./TitleCoverBackButton";
+import { TitleCreditNameLinks } from "./TitleCreditNameLinks";
 
 type TitlePageHeroProps = {
   detail: TMDBMedia;
   isTv: boolean;
   displayTitle: string;
   metaLine: string;
-  credit?: string;
+  creditPeople: TMDBPerson[];
 };
 
 export function TitlePageHero({
@@ -18,7 +20,7 @@ export function TitlePageHero({
   isTv,
   displayTitle,
   metaLine,
-  credit,
+  creditPeople,
 }: TitlePageHeroProps) {
   const backdrop = titleHeroBackdropUrl(detail.backdrop_path);
   return (
@@ -46,7 +48,7 @@ export function TitlePageHero({
         </div>
       </div>
       <div className="relative mx-auto -mt-16 grid max-w-[1120px] grid-cols-[92px_minmax(0,1fr)] items-end gap-5 px-5 sm:-mt-24 sm:grid-cols-[184px_minmax(0,1fr)] sm:gap-8 lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-12">
-        <div className="aspect-[2/3] self-start overflow-hidden sm:self-end rounded-sm bg-sunken shadow-[0_12px_35px_rgba(0,0,0,0.18)] ring-1 ring-fg/10">
+        <div className="title-hero-poster aspect-[2/3] self-start overflow-hidden sm:self-end rounded-sm bg-sunken shadow-[0_12px_35px_rgba(0,0,0,0.18)] [&_img]:border-0 [&_img]:outline-none [&_img:focus]:outline-none [&_img:focus-visible]:outline-none">
           {detail.poster_path ? (
             <LazyImage
               src={posterUrl(detail.poster_path, "w500") || ""}
@@ -68,10 +70,18 @@ export function TitlePageHero({
           <h1 className="break-words font-display text-[clamp(2rem,5.4vw,4.8rem)] font-normal leading-[0.98] tracking-[-0.045em] text-fg">
             {displayTitle}
           </h1>
-          {credit ? (
+          {creditPeople.length > 0 ? (
             <p className="mt-4 text-sm text-fg-muted">
               {isTv ? "Created by" : "Directed by"}{" "}
-              <span className="font-medium text-fg">{credit}</span>
+              <TitleCreditNameLinks
+                items={creditPeople.map(function (person) {
+                  return {
+                    id: person.id,
+                    name: person.name,
+                    href: ROUTES.PERSON(person.id),
+                  };
+                })}
+              />
             </p>
           ) : null}
           {detail.vote_count > 0 ? (
