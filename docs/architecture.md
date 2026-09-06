@@ -565,9 +565,9 @@ Catalog write pattern:
   absent from the composer body at rest and open from one compact `CW` toolbar
   action or a new advisory detection; its badge retains the selected-category
   count. Feed/detail media uses per-item JSONB flags for mixed galleries,
-  shares local reveal state with the full-screen viewer, and collapses
-  text-only flagged/pending content. These presentation paths add no server
-  read, cache, or aggregate.
+  shares local reveal state with the full-screen viewer, and collapses only
+  flagged content; pending classification remains visible. These paths add no
+  server read, cache, or aggregate.
 - JSONB `media`, text array `media_urls`, JSONB `link_preview`.
 - Timestamps.
 
@@ -1907,3 +1907,13 @@ mutation, pagination, or UGC lifecycle changes apply. Account switches discard
 geometry with the provider. Chat docs and diagrams are unchanged. Regression
 coverage asserts geometry reservation before subsequent layout effects,
 synchronous one-shot restoration, and existing route/history behavior.
+
+### Film title page and community reviews (2026-09-06)
+
+- Web title pages use a 1120px content container independent of SiteHeader, an atmospheric backdrop, overlapping poster, prominent film title/director, and an adjacent action rail (224px on desktop, 184px on tablet, with matching poster and loading columns). Desktop column spacing is 48px; review text remains capped at 680px. Phone layouts collapse watch providers into a disclosure. Synopsis appears once above keyboard-accessible Reviews / Cast & details tabs; reviews are the default. Cast, episodes, trailers, and recommendations mount only when their tab is selected. Loading geometry follows the new composition; motion respects reduced-motion preferences.
+- Removed the title review mock dataset, fabricated totals, client-only likes, and unsupported search/ranking filters. `useTitleReviews` reads existing `GET /v1/feed/films/:filmId/reviews`, latest first, 12 items per cursor page. Empty, unavailable TV, initial loading, and retryable failure states are distinct. Reviews preserve rich-text spoiler and NSFW reveal controls; likes use existing optimistic mutations with rollback and visible errors; replies open the existing post conversation.
+- Review queries are keyed by canonical film ID and authenticated viewer beneath `feedKeys`, so existing post create/edit/delete and interaction cache updates include title reviews. Reference reads use the title query-key factory, with 60-second client freshness and explicit refetch after film resolution. No new Redis cache.
+- Added read-only, IP-rate-limited `GET /v1/films/tmdb/:tmdbId` for legacy numeric movie URLs. Validated positive PostgreSQL integer IDs resolve through the existing unique `films.tmdb_id` index to `{ filmId: string | null }`, restricted to catalog-listed films. A missing reference does not import a film. The endpoint sends `Cache-Control: no-store`; social reads continue to use 35mm film IDs. TV IDs never enter this movie-only bridge.
+- Write review opens the existing log/review composer with canonical film preselected, on desktop and mobile. If necessary, authenticated selection resolves through existing `/v1/films/resolve`. Shared composer state carries and clears initial film context independently of editing or quoting. The title-page entry explicitly creates a review, including short reactions, and requires nonempty text; the general composer retains its existing length-based log/review classification. TMDB aggregate scores are explicitly attributed to TMDB, not represented as 35mm community ratings.
+- Scale assumption: 1M DAU × 5 film-page visits = 5M initial review reads/day (~58/sec average, with production peaks requiring load validation); each request remains an indexed, bounded cursor read. Legacy URLs add at most one bounded indexed reference lookup per client freshness window. Existing `posts_film_type_created_at_id_idx` and unique TMDB index cover these paths; no new index or migration required. Existing server visibility/block/mute/moderation/soft-delete enforcement and BullMQ counter updates are reused. No new UGC mutation endpoint or synchronous counter write.
+- Remaining limitations: TV review persistence is unavailable; aggregate 35mm rating distributions and server-side popular/following review sorts are not implemented. Existing title watched state remains browser-local and watchlist reconciliation is unchanged. No deployment or live database migration is part of this UI change.

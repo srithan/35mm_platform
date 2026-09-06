@@ -66,5 +66,5 @@ export default async function TitlePage({ params }: PageProps) {
   const canonicalId = id.trim().toUpperCase();
   const tmdbId = await resolveMetadataTmdbId(canonicalId);
   if (!tmdbId) notFound();
-  return <TitlePageView media={media} id={canonicalId} tmdbId={tmdbId} />;
+  return <TitlePageView key={media + canonicalId} media={media} id={canonicalId} tmdbId={tmdbId} />;
 }

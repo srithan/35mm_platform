@@ -209,6 +209,7 @@ export interface PostComposerProps {
   onPublishStateChange?: (state: ComposerPublishState) => void;
   editingPost?: EditingPost | null;
   initialMode?: ComposerInitialMode | null;
+  initialFilm?: EditingPost["film"] | null;
 }
 
 export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
@@ -223,6 +224,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       onPublishStateChange,
       editingPost,
       initialMode,
+      initialFilm,
     },
     ref
   ) {
@@ -233,8 +235,22 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [discussionText, setDiscussionText] = useState(() => discussionTextForEditingPost(editingPost));
   const [discussionHeadline, setDiscussionHeadline] = useState(() => discussionHeadlineForEditingPost(editingPost));
   const [logText, setLogText] = useState(() => logTextForEditingPost(editingPost));
-  const [selectedFilm, setSelectedFilm] = useState<FilmResult | null>(() => selectedFilmForEditingPost(editingPost));
-  const [selectedFilmUlid, setSelectedFilmUlid] = useState<string | null>(() => selectedFilmUlidForEditingPost(editingPost));
+  const [selectedFilm, setSelectedFilm] = useState<FilmResult | null>(() => {
+    const editingFilm = selectedFilmForEditingPost(editingPost);
+    if (editingFilm) return editingFilm;
+    if (!initialFilm) return null;
+    return {
+      id: initialFilm.tmdbId ?? 0,
+      title: initialFilm.title,
+      year: initialFilm.year ? String(initialFilm.year) : "",
+      language: "",
+      genres: initialFilm.genres,
+      posterPath: initialFilm.posterUrl,
+    };
+  });
+  const [selectedFilmUlid, setSelectedFilmUlid] = useState<string | null>(
+    () => selectedFilmUlidForEditingPost(editingPost) ?? initialFilm?.id ?? null
+  );
   const [isResolvingFilm, setIsResolvingFilm] = useState(false);
   const [starRating, setStarRating] = useState(() => editingPost?.film?.rating ?? 0);
   const [isRewatch, setIsRewatch] = useState(false);
@@ -494,8 +510,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
   const charCountRemaining = charCountData.max - charCountData.count;
 
-  const isReview = logPlainText.length > REVIEW_THRESHOLD;
-  const showLogFormatBar = logPlainText.length > REVIEW_THRESHOLD;
+  const isTitleReview = Boolean(initialFilm) && !editingPost;
+  const isReview = isTitleReview || logPlainText.length > REVIEW_THRESHOLD;
+  const showLogFormatBar = isReview;
   const pollDuration = useMemo(function () {
     if (!pollDraft) return 0;
     return pollTotalMinutes(pollDraft.durationDays, pollDraft.durationHours, pollDraft.durationMinutes);
@@ -562,10 +579,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       selectedFilm !== null &&
       selectedFilmUlid !== null &&
       !isResolvingFilm &&
+      (!isTitleReview || logPlainText.trim().length > 0) &&
       logPlainText.length <= LOG_MAX_CHARS
     );
   }, [
     editingPost,
+    isTitleReview,
     mode,
     writePlainText,
     images.length,
@@ -609,7 +628,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       discussionPlainText.trim().length > 0 ||
       discussionHeadline.trim().length > 0 ||
       logPlainText.trim().length > 0 ||
-      selectedFilm !== null ||
+      (selectedFilm !== null && (!initialFilm || selectedFilmUlid !== initialFilm.id || starRating > 0 || isRewatch)) ||
       images.length > 0 ||
       videoFile !== null ||
       gifUrl !== null ||
@@ -620,6 +639,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       discussionHeadline,
       logPlainText,
       selectedFilm,
+      selectedFilmUlid,
+      initialFilm,
+      starRating,
+      isRewatch,
       images.length,
       videoFile,
       gifUrl,

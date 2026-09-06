@@ -240,6 +240,19 @@ filmRoutes.post("/resolve", requireAuth, filmResolveRateLimit, async function (c
   return c.json({ filmId });
 });
 
+// Read-only bridge for legacy TMDB title URLs. Social reads still use films.id.
+filmRoutes.get("/tmdb/:tmdbId", filmReadRateLimit, async function (c) {
+  var raw = c.req.param("tmdbId");
+  var tmdbId = Number(raw);
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(tmdbId) || tmdbId <= 0 || tmdbId > 2147483647) {
+    throw badRequest("Invalid TMDB film ID");
+  }
+  var rows = await getDb().select({ filmId: films.id }).from(films)
+    .where(and(eq(films.tmdbId, tmdbId), eq(films.isCatalogListed, true))).limit(1);
+  c.header("Cache-Control", "no-store");
+  return c.json({ filmId: rows[0]?.filmId ?? null });
+});
+
 filmRoutes.get("/:id", filmReadRateLimit, async function (c) {
   var id = c.req.param("id").trim().toUpperCase();
   if (!isValidUlid(id)) throw badRequest("Invalid film ID");

@@ -45,6 +45,8 @@ interface ComposerModalState {
   quotedPost: QuotedPost | null;
   editingPost: EditingPost | null;
   initialMode: ComposerInitialMode | null;
+  initialFilm: EditingPost["film"] | null;
+  openForFilm: (film: NonNullable<EditingPost["film"]>, openModal?: boolean) => void;
   open: (quoted?: QuotedPost, initialMode?: ComposerInitialMode) => void;
   openForEdit: (post: EditingPost) => void;
   close: () => void;
@@ -58,22 +60,27 @@ export var useComposerModalStore = create<ComposerModalState>(function (set) {
     quotedPost: null,
     editingPost: null,
     initialMode: null,
+    initialFilm: null,
+    openForFilm: function (film, openModal = true) {
+      set({ isOpen: openModal, quotedPost: null, editingPost: null, initialMode: "log", initialFilm: film });
+    },
     open: function (quoted, initialMode) {
       set({
         isOpen: true,
         quotedPost: quoted || null,
         editingPost: null,
         initialMode: initialMode ?? null,
+        initialFilm: null,
       });
     },
     openForEdit: function (post) {
-      set({ isOpen: true, quotedPost: null, editingPost: post, initialMode: null });
+      set({ isOpen: true, quotedPost: null, editingPost: post, initialMode: null, initialFilm: null });
     },
     close: function () {
-      set({ isOpen: false, quotedPost: null, editingPost: null, initialMode: null });
+      set({ isOpen: false, quotedPost: null, editingPost: null, initialMode: null, initialFilm: null });
     },
     setQuotedPostOnly: function (quoted) {
-      set({ quotedPost: quoted, editingPost: null, initialMode: null });
+      set({ quotedPost: quoted, editingPost: null, initialMode: null, initialFilm: null });
     },
   };
 });

@@ -109,10 +109,10 @@ describe("title page theme styles", function () {
     ).toBeInTheDocument();
   });
 
-  it("keeps numeric scores beside title-page review stars", function () {
+  it("provides an accessible score for compact title-page review stars", function () {
     render(<TitleReviewStars rating={4.5} />);
 
-    expect(screen.getByText("4.5")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "4.5 out of 5 stars" })).toBeInTheDocument();
     expect(screen.getByText("/ 5")).toBeInTheDocument();
   });
 });

@@ -1,60 +1,65 @@
 import { cn } from "@/lib/utils/cn";
-import { MOCK_TITLE_REVIEW_TOTAL } from "../data/mockTitleReviews";
 
 type Tab = "overview" | "reviews";
-
-type TitleContentTabsProps = {
+export function TitleContentTabs(props: {
   contentTab: Tab;
   onSelectOverview: () => void;
   onSelectReviews: () => void;
-};
-
-export function TitleContentTabs(props: TitleContentTabsProps) {
+}) {
+  const tabs = [
+    {
+      id: "reviews",
+      label: "Reviews",
+      select: props.onSelectReviews,
+      panel: "title-reviews-panel",
+    },
+    {
+      id: "overview",
+      label: "Cast & details",
+      select: props.onSelectOverview,
+      panel: "title-panel-overview",
+    },
+  ] as const;
   return (
     <div
-      className="mt-8 border-b border-border"
       role="tablist"
       aria-label="Title page sections"
+      className="flex gap-8 border-b border-border-strong"
     >
-      <div className="flex gap-8 sm:gap-10">
+      {tabs.map((tab, index) => (
         <button
+          key={tab.id}
           type="button"
-          className={cn(
-            "relative -mb-px border-b-2 border-transparent pb-3 pt-1 text-left text-[15px] transition-colors",
-            props.contentTab === "overview"
-              ? "border-fg font-semibold text-fg"
-              : "font-medium text-fg-muted hover:text-fg/75"
-          )}
           role="tab"
-          id="title-tab-overview"
-          aria-selected={props.contentTab === "overview"}
-          aria-controls="title-panel-overview"
-          tabIndex={props.contentTab === "overview" ? 0 : -1}
-          onClick={props.onSelectOverview}
-        >
-          Overview
-        </button>
-        <button
-          type="button"
+          id={"title-tab-" + tab.id}
+          aria-selected={props.contentTab === tab.id}
+          aria-controls={tab.panel}
+          tabIndex={props.contentTab === tab.id ? 0 : -1}
+          onClick={tab.select}
+          onKeyDown={(event) => {
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? 1
+                  : ["ArrowLeft", "ArrowRight"].includes(event.key)
+                    ? 1 - index
+                    : null;
+            if (next === null) return;
+            event.preventDefault();
+            tabs[next].select();
+            document.getElementById("title-tab-" + tabs[next].id)?.focus();
+          }}
           className={cn(
-            "relative -mb-px flex min-w-0 items-baseline gap-2 border-b-2 border-transparent pb-3 pt-1 text-left text-[15px] transition-colors",
-            props.contentTab === "reviews"
+            "-mb-px min-h-12 border-b-2 px-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4",
+            props.contentTab === tab.id
               ? "border-fg font-semibold text-fg"
-              : "font-medium text-fg-muted hover:text-fg/75"
+              : "border-transparent text-fg-muted hover:text-fg",
           )}
-          role="tab"
-          id="title-tab-reviews"
-          aria-selected={props.contentTab === "reviews"}
-          aria-controls="title-reviews-panel"
-          tabIndex={props.contentTab === "reviews" ? 0 : -1}
-          onClick={props.onSelectReviews}
         >
-          <span>Reviews</span>
-          <span className="text-[13px] font-normal tabular-nums text-fg-muted">
-            {MOCK_TITLE_REVIEW_TOTAL.toLocaleString()}
-          </span>
+          {tab.label}
         </button>
-      </div>
+      ))}
     </div>
   );
 }

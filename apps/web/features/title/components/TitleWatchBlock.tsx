@@ -1,10 +1,8 @@
 import type { TMDBMedia } from "@/lib/tmdb/types";
-import { PANEL, TitleSectionTitle } from "./titlePageLayoutTokens";
+import { TitleSectionTitle } from "./titlePageLayoutTokens";
 
 type WatchBlockProps = {
-  watchProvidersUS: NonNullable<
-    TMDBMedia["watch/providers"]
-  >["results"]["US"];
+  watchProvidersUS: NonNullable<TMDBMedia["watch/providers"]>["results"]["US"];
 };
 
 type WatchProvider = NonNullable<
@@ -66,9 +64,14 @@ export function TitleWatchBlock(props: WatchBlockProps) {
   const hasBuy = w.buy && w.buy.length > 0;
   if (!hasStream && !hasRent && !hasBuy) return null;
   return (
-    <div className={PANEL}>
-      <div className="flex items-center justify-between gap-2 mb-4">
-        <TitleSectionTitle>Where to watch</TitleSectionTitle>
+    <section
+      aria-label="Watch availability in the United States"
+      className="border-t border-border pt-5"
+    >
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+        <TitleSectionTitle className="text-lg">
+          Where to watch
+        </TitleSectionTitle>
         {w.link ? (
           <a
             href={w.link}
@@ -76,7 +79,7 @@ export function TitleWatchBlock(props: WatchBlockProps) {
             rel="noreferrer"
             className="text-[11px] font-medium text-fg/75 hover:underline"
           >
-            JustWatch
+            US · JustWatch
           </a>
         ) : null}
       </div>
@@ -133,6 +136,6 @@ export function TitleWatchBlock(props: WatchBlockProps) {
           </div>
         ) : null}
       </div>
-    </div>
+    </section>
   );
 }

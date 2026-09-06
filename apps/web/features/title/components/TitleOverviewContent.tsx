@@ -9,7 +9,6 @@ import { youtubeThumb } from "../lib/titleVideos";
 import { TitleAtAGlance } from "./TitleAtAGlance";
 import { TitleCastCard } from "./TitleCastCard";
 import { TitleEpisodesPanel } from "./TitleEpisodesPanel";
-import { TitleWatchBlock } from "./TitleWatchBlock";
 import { TitleSectionTitle } from "./titlePageLayoutTokens";
 
 type TitleOverviewContentProps = {
@@ -32,21 +31,9 @@ type TitleOverviewContentProps = {
 
 export function TitleOverviewContent(props: TitleOverviewContentProps) {
   const d = props.detail;
-  const hasWatch =
-    props.watchProvidersUS &&
-    (props.watchProvidersUS.flatrate ||
-      props.watchProvidersUS.rent ||
-      props.watchProvidersUS.buy);
 
   return (
     <div className="flex min-w-0 flex-col gap-12">
-      {d.overview ? (
-        <section>
-          <TitleSectionTitle className="mb-3">About</TitleSectionTitle>
-          <p className="max-w-3xl text-[15px] leading-[1.75] text-fg-muted">{d.overview}</p>
-        </section>
-      ) : null}
-
       <TitleAtAGlance
         isTv={props.isTv}
         yearStr={props.yearStr}
@@ -60,7 +47,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
       {d.credits?.cast && d.credits.cast.length > 0 ? (
         <section>
           <TitleSectionTitle className="mb-3">Cast</TitleSectionTitle>
-          <div className="grid auto-cols-[4.5rem] grid-flow-col grid-rows-2 snap-x snap-proximity gap-x-4 gap-y-5 overflow-x-auto overscroll-x-contain pb-3 pr-4 scrollbar-hide sm:grid-flow-row sm:grid-rows-none sm:grid-cols-6 sm:auto-cols-auto sm:snap-none sm:gap-4 sm:overflow-visible sm:pb-1 sm:pr-0 md:grid-cols-8">
+          <div className="grid auto-cols-[4.5rem] grid-flow-col grid-rows-2 snap-x snap-proximity gap-x-4 gap-y-5 overflow-x-auto overscroll-x-contain pb-3 pr-4 scrollbar-hide sm:grid-flow-row sm:grid-rows-none sm:grid-cols-6 sm:auto-cols-auto sm:snap-none sm:gap-4 sm:overflow-visible sm:pb-1 sm:pr-0 md:grid-cols-6">
             {d.credits.cast.map(function (person, index) {
               return (
                 <TitleCastCard
@@ -128,12 +115,6 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
           </div>
         </section>
       ) : null}
-
-      <div className="lg:hidden">
-        {hasWatch && props.watchProvidersUS ? (
-          <TitleWatchBlock watchProvidersUS={props.watchProvidersUS} />
-        ) : null}
-      </div>
 
       {props.recommendations.length > 0 ? (
         <section aria-label="Related titles from TMDB">

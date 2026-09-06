@@ -691,4 +691,23 @@ describe("PostComposer", () => {
     );
   });
 
+  it("submits a short title review with canonical film identity and requires text", async () => {
+    const user = userEvent.setup();
+    const dirty = vi.fn();
+    render(<PostComposer variant="inline" initialMode="log" onDirtyChange={dirty} initialFilm={{
+      id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", tmdbId: 550, title: "Fight Club",
+      year: 1999, posterUrl: null, genres: ["Drama"], rating: null,
+    }} />);
+    expect(screen.getByText("Fight Club")).toBeInTheDocument();
+    expect(dirty).toHaveBeenLastCalledWith(false);
+    const editor = screen.getByRole("combobox", { name: "What stood out? Performances, craft, themes - spoil carefully." });
+    expect(editor).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByRole("button", { name: "Review" })).toBeDisabled();
+    await user.click(editor);
+    await user.keyboard("That final scene stayed with me.");
+    await user.click(screen.getByRole("button", { name: "Review" }));
+    await waitFor(() => expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ type: "review", film: expect.objectContaining({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV" }) })));
+    expect(mocks.resolveOnboardingFilmsMock).not.toHaveBeenCalled();
+  });
+
 });

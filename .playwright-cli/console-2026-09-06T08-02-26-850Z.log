@@ -1,0 +1,85 @@
+[  773912ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  775174ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  806011ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  807293ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  838314ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  839549ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  870384ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  871783ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  902553ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  903883ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  934769ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  936014ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  966926ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  968250ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[  998995ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1000293ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1031041ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1032341ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1063144ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1064420ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1094911ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1096176ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1127112ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1128483ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1159394ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1160663ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1191461ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1192766ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1223652ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1224882ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1255211ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1256454ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1287834ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1289116ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1320697ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1321932ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1352717ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1353947ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1384769ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1386013ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1391639ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/ping:0
+[ 1391639ms] [WARNING] [chat-presence] heartbeat failed ChatApiError: Too many requests. Please retry later.
+    at chatHttpJson (webpack-internal:///(app-pages-browser)/./features/chat/api/http.ts:75:19) @ webpack-internal:///(app-pages-browser)/./features/chat/realtime/ChatRealtimeProvider.tsx:198
+[ 1416813ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1418089ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1448839ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1449843ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1480658ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1481902ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1512545ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1513790ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1544270ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1545565ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1575801ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1577093ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1607364ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1608671ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1616924ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/ping:0
+[ 1616924ms] [WARNING] [chat-presence] heartbeat failed ChatApiError: Too many requests. Please retry later.
+    at chatHttpJson (webpack-internal:///(app-pages-browser)/./features/chat/api/http.ts:75:19) @ webpack-internal:///(app-pages-browser)/./features/chat/realtime/ChatRealtimeProvider.tsx:198
+[ 1639004ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1640237ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/batch:0
+[ 1661962ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/image?url=https%3A%2F%2Fpub-df46b0aeb8094d80aadf5a2ee8a396a5.r2.dev%2Fusers%2Ffee71bbe-ef41-43ac-82c1-9b4c94bf1eaa%2Favatar%2Fsm_mq1vquoe-c67f36e2-2f7c-4b08-a26b-a722f4f9e15f.webp&w=96&q=75:0
+[ 1663548ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/discover?_rsc=ZmCQ44b92m4mXe_R:0
+[ 1663549ms] [ERROR] Failed to fetch RSC payload for http://localhost:3001/discover. Falling back to browser navigation. TypeError: Failed to fetch
+    at createFetch (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/next@15.5.18_babel-plugin-react-compiler@1.0.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/client/components/router-reducer/fetch-server-response.js:163:33)
+    at async fetchServerResponse (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/next@15.5.18_babel-plugin-react-compiler@1.0.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/client/components/router-reducer/fetch-server-response.js:88:21)
+    at async Object.task (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/next@15.5.18_babel-plugin-react-compiler@1.0.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/client/components/promise-queue.js:30:32) @ webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/next@15.5.18_babel-plugin-react-compiler@1.0.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/next-devtools/userspace/app/errors/intercept-console-error.js:56
+[ 1663563ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/css/app/layout.css?v=1788681816789:0
+[ 1663563ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/css/app/(shell)/layout.css?v=1788681816789:0
+[ 1663563ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/css/app/(shell)/%5Busername%5D/layout.css?v=1788681816789:0
+[ 1663565ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/webpack.js?v=1788681816789:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/main-app.js?v=1788681816789:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app-pages-internals.js:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app/(shell)/layout.js:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app/global-error.js:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app/(shell)/%5Busername%5D/layout.js:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app/layout.js:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app/error.js:0
+[ 1663571ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/_next/static/chunks/app/(auth)/layout.js:0
+[ 1663611ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/favicon/favicon.svg:0
+[ 1663612ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/favicon/favicon-96x96.png:0
+[ 1666613ms] [WARNING] The resource http://localhost:3001/_next/static/css/app/(shell)/layout.css?v=1788681816789 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://localhost:3001/discover:0
+[ 1666613ms] [WARNING] The resource http://localhost:3001/_next/static/css/app/(shell)/%5Busername%5D/layout.css?v=1788681816789 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://localhost:3001/discover:0
+[ 1666613ms] [WARNING] The resource https://polite-werewolf-55.clerk.accounts.dev/npm/@clerk/ui@1/dist/ui.browser.js was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://localhost:3001/discover:0

@@ -14,6 +14,7 @@ export function ComposerModalProvider({
   const closeComposerModal = useComposerModalStore((s) => s.close);
   const quotedPost = useComposerModalStore((s) => s.quotedPost);
   const editingPost = useComposerModalStore((s) => s.editingPost);
+  const initialFilm = useComposerModalStore((s) => s.initialFilm);
   const initialMode = useComposerModalStore((s) => s.initialMode);
   const { user: clerkUser } = useUser();
   const currentUserQuery = useCurrentUserProfile();
@@ -38,6 +39,7 @@ export function ComposerModalProvider({
         quotedPost={quotedPost}
         editingPost={editingPost}
         initialMode={initialMode}
+        initialFilm={initialFilm}
       />
     </>
   );

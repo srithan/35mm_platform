@@ -35,6 +35,7 @@ export function NewPostPage() {
   const composerRef = useRef<PostComposerHandle | null>(null);
   const quotedPost = useComposerModalStore(function (s) { return s.quotedPost; });
   const editingPost = useComposerModalStore(function (s) { return s.editingPost; });
+  const initialFilm = useComposerModalStore((s) => s.initialFilm);
   const initialMode = useComposerModalStore(function (s) { return s.initialMode; });
   const [isDirty, setIsDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -178,6 +179,7 @@ export function NewPostPage() {
             quotedPost={quotedPost}
             editingPost={editingPost}
             initialMode={initialMode}
+            initialFilm={initialFilm}
             onDirtyChange={setIsDirty}
             onSubmit={handlePosted}
             onPublishStateChange={onPublishStateChange}
@@ -266,6 +268,7 @@ export function NewPostPage() {
             quotedPost={quotedPost}
             editingPost={editingPost}
             initialMode={initialMode}
+            initialFilm={initialFilm}
             onDirtyChange={setIsDirty}
             onSubmit={handlePosted}
           />

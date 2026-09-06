@@ -64,12 +64,13 @@ At rest, the category controls are absent from the composer body: one compact
 A new text or image advisory also opens the same panel; dismissing it prevents
 the unchanged advisory from repeatedly reopening it.
 
-Feed galleries derive presentation independently per image. Pending posts
-screen every image; completed scans screen only JSONB media items carrying
-`nsfw: true`. Reveal state is local to the mounted post card and the same index
-set is passed into `ImageViewer`, so zooming a revealed image does not screen it
-again. Text-only flagged/pending posts and comments use a collapsed disclosure
-row. All screening surfaces use existing theme tokens and `color-mix`.
+Feed galleries derive presentation independently per image. Pending posts stay
+visible while classification runs; completed scans screen only JSONB media
+items carrying `nsfw: true`. Reveal state is local to the mounted post card and
+the same index set is passed into `ImageViewer`, so zooming a revealed image
+does not screen it again. Only flagged text posts and comments use a collapsed
+disclosure row. All screening surfaces use existing theme tokens and
+`color-mix`.
 
 ## Scale Assumptions
 

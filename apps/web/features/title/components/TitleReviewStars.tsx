@@ -6,7 +6,7 @@ import { useId } from "react";
 const STAR_D =
   "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z";
 
-const starClass = "h-[18px] w-[18px] shrink-0 sm:h-5 sm:w-5";
+const starClass = "h-3.5 w-3.5 shrink-0";
 
 type TitleReviewStarsProps = { rating: number };
 
@@ -24,7 +24,7 @@ export function TitleReviewStars(props: TitleReviewStarsProps) {
 
   return (
     <div
-      className="inline-flex max-w-full items-center gap-2.5 rounded-[10px] border border-border bg-elevated/50 px-2.5 py-1.5 shadow-sm dark:bg-sunken/40"
+      className="inline-flex max-w-full items-center gap-2"
       role="img"
       aria-label={r + " out of 5 stars"}
     >
@@ -95,16 +95,7 @@ export function TitleReviewStars(props: TitleReviewStarsProps) {
         })}
       </div>
 
-      <div className="h-4 w-px shrink-0 bg-fg/12 dark:bg-fg/15" aria-hidden />
-
-      <div className="flex min-w-0 items-baseline gap-1 tabular-nums">
-        <span className="text-[0.9375rem] font-semibold leading-none tracking-[-0.02em] text-fg sm:text-base">
-          {display}
-        </span>
-        <span className="text-[0.7rem] font-medium uppercase tracking-[0.06em] text-fg/45 sm:text-[11px]">
-          / 5
-        </span>
-      </div>
+      <span className="sr-only">{display}<span>/ 5</span></span>
     </div>
   );
 }

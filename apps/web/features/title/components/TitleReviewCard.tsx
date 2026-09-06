@@ -1,124 +1,155 @@
 "use client";
 
 import Link from "next/link";
-import { Heart } from "lucide-react";
-import type { MouseEvent } from "react";
-import { useCallback, useState } from "react";
+import { Heart, MessageCircle, ArrowUpRight } from "lucide-react";
+import { useState } from "react";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
-import type { MockTitleReview } from "../data/mockTitleReviews";
+import type { Post } from "@/features/feed/types/feed";
+import { useLikePost } from "@/features/feed/hooks/usePostMutations";
+import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
+import {
+  isStoredRichText,
+  storedRichTextToPlainText,
+} from "@/lib/utils/richContent";
+import { RichPostInline } from "@/lib/utils/richPostText";
+import { NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
 import { TitleReviewStars } from "./TitleReviewStars";
 
-const READ_MORE_THRESHOLD = 260;
-
-type LikeState = { liked: boolean; count: number };
-
-type TitleReviewCardProps = { review: MockTitleReview };
-
-export function TitleReviewCard(props: TitleReviewCardProps) {
-  const v = props.review;
-  const profileHref = ROUTES.PROFILE(v.userHandle);
-  const needsReadMore = v.body.length > READ_MORE_THRESHOLD;
+export function TitleReviewCard({ review }: { review: Post }) {
   const [expanded, setExpanded] = useState(false);
-  const [like, setLike] = useState<LikeState>({ liked: false, count: v.likes });
-
-  const toggleLike = useCallback(
-    function (e: MouseEvent<HTMLButtonElement>) {
-      e.preventDefault();
-      e.stopPropagation();
-      setLike(function (s) {
-        if (s.liked) {
-          return { liked: false, count: Math.max(0, s.count - 1) };
-        }
-        return { liked: true, count: s.count + 1 };
-      });
-    },
-    []
-  );
-
+  const { isSignedIn } = useAuth();
+  const { openSignIn } = useClerk();
+  const like = useLikePost(review.id);
+  const textLength = storedRichTextToPlainText(review.body).length;
+  const lengthy = textLength > 360;
+  const shortReaction = textLength <= 180 && !review.headline;
+  const href = ROUTES.POST(review.author.username, review.id);
   return (
-    <article
-      className={cn(
-        "rounded-xl bg-sunken/40 p-3 sm:p-4 dark:bg-sunken/25",
-        "transition-colors hover:bg-sunken/55 dark:hover:bg-sunken/35"
-      )}
-    >
-      <div className="flex gap-3">
+    <article className="py-6 sm:py-7">
+      <div className="flex items-center gap-3">
+        <Link
+          href={ROUTES.PROFILE(review.author.username)}
+          aria-label={review.author.displayName + " profile"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sunken text-sm font-medium text-fg"
+        >
+          {review.author.avatarUrl ? (
+            <img
+              src={review.author.avatarUrl}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            review.author.displayName.charAt(0)
+          )}
+        </Link>
+        <div className="min-w-0 flex-1">
+          <Link
+            href={ROUTES.PROFILE(review.author.username)}
+            className="text-sm font-semibold text-fg hover:underline"
+          >
+            {review.author.displayName}
+          </Link>
+          <p className="text-[11px] text-fg-muted">
+            <time dateTime={review.createdAt}>
+              {new Date(review.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                timeZone: "UTC",
+              })}
+            </time>
+          </p>
+        </div>
+        {review.film?.rating != null ? (
+          <TitleReviewStars rating={review.film.rating} />
+        ) : null}
+      </div>
+      <NsfwTextReveal
+        status={review.nsfw?.status ?? "none"}
+        categories={review.nsfw?.categories ?? []}
+      >
         <div
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white",
-            v.avatarClass
+            "mt-4 break-words text-[16px] leading-[1.75] text-fg",
+            shortReaction &&
+              "font-display text-[22px] leading-[1.45] tracking-[-0.01em]",
+            lengthy && !expanded && "line-clamp-5",
           )}
         >
-          {v.userName.charAt(0)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-            <Link
-              href={profileHref}
-              className="text-[14px] font-bold text-fg hover:underline"
-            >
-              {v.userName}
-              <span className="ml-1.5 font-medium text-fg-muted">
-                @{v.userHandle}
-              </span>
-            </Link>
-            <div className="flex items-center gap-1.5">
-              {v.hasSpoiler ? (
-                <span className="rounded bg-sunken px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-fg-muted">
-                  Spoilers
-                </span>
-              ) : null}
-              <time className="text-[11px] text-fg-muted tabular-nums">{v.dateLabel}</time>
-            </div>
-          </div>
-          <div className="mt-2">
-            <TitleReviewStars rating={v.rating} />
-          </div>
-          <p
-            className={cn(
-              "mt-3 text-base leading-[1.65] text-fg/90 whitespace-pre-wrap",
-              needsReadMore && !expanded && "line-clamp-5"
-            )}
-          >
-            {v.body}
-          </p>
-          {needsReadMore ? (
-            <button
-              type="button"
-              onClick={function (e) {
-                e.preventDefault();
-                setExpanded(!expanded);
-              }}
-              className="mt-2 text-[12px] font-semibold text-fg/90 hover:underline"
-            >
-              {expanded ? "Show less" : "Read more"}
-            </button>
+          {review.headline ? (
+            <h3 className="mb-2 font-display text-2xl">{review.headline}</h3>
           ) : null}
-          <div className="mt-3 flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={toggleLike}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12px] text-fg-muted transition-colors",
-                "hover:bg-sunken/60 hover:text-fg",
-                like.liked && "text-[color:var(--color-like)]"
-              )}
-              aria-pressed={like.liked}
-              aria-label={like.liked ? "Unlike this review" : "Like this review"}
-            >
-              <Heart
-                className="h-3.5 w-3.5"
-                strokeWidth={2}
-                fill={like.liked ? "currentColor" : "none"}
-              />
-              <span>
-                {like.count} {like.count === 1 ? "like" : "likes"}
-              </span>
-            </button>
-          </div>
+          {isStoredRichText(review.body) ? (
+            <RichTextRenderer stored={review.body} />
+          ) : (
+            <span className="whitespace-pre-wrap">
+              <RichPostInline text={review.body} />
+            </span>
+          )}
         </div>
+      </NsfwTextReveal>
+      {lengthy ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+          className="mt-2 min-h-9 text-xs font-semibold text-fg underline underline-offset-4"
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-5 text-xs text-fg-muted">
+        <button
+          type="button"
+          disabled={like.isPending}
+          aria-pressed={review.isLiked}
+          aria-label={
+            review.isLiked ? "Unlike this review" : "Like this review"
+          }
+          onClick={() => {
+            if (!isSignedIn) {
+              openSignIn();
+              return;
+            }
+            like.mutate({ postId: review.id, isLiked: !review.isLiked });
+          }}
+          className={cn(
+            "inline-flex min-h-10 items-center gap-1.5 hover:text-fg disabled:opacity-50",
+            review.isLiked && "text-[var(--color-like)]",
+          )}
+        >
+          <Heart
+            size={15}
+            fill={review.isLiked ? "currentColor" : "none"}
+            aria-hidden
+          />
+          {review.likeCount.toLocaleString()}
+        </button>
+        <Link
+          href={href}
+          className="inline-flex min-h-10 items-center gap-1.5 hover:text-fg"
+        >
+          <MessageCircle size={15} aria-hidden />
+          {review.commentCount > 0
+            ? review.commentCount.toLocaleString() +
+              (review.commentCount === 1 ? " reply" : " replies")
+            : "Reply"}
+        </Link>
+        <Link
+          href={href}
+          className="ml-auto inline-flex min-h-10 items-center gap-1 hover:text-fg"
+        >
+          Full review <ArrowUpRight size={14} aria-hidden />
+        </Link>
       </div>
+      {like.isError ? (
+        <p role="alert" className="mt-2 text-xs text-fg">
+          Couldn’t update your like. Try again.
+        </p>
+      ) : null}
     </article>
   );
 }

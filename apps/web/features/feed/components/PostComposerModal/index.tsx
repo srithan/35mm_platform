@@ -28,6 +28,7 @@ interface PostComposerModalProps {
   quotedPost?: QuotedPost | null;
   editingPost?: EditingPost | null;
   initialMode?: ComposerInitialMode | null;
+  initialFilm?: EditingPost["film"] | null;
 }
 
 const FOCUSABLE =
@@ -94,6 +95,7 @@ export function PostComposerModal({
   quotedPost,
   editingPost,
   initialMode,
+  initialFilm,
 }: PostComposerModalProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -257,6 +259,7 @@ export function PostComposerModal({
                 quotedPost={quotedPost}
                 editingPost={editingPost}
                 initialMode={initialMode}
+                initialFilm={initialFilm}
               />
             </div>
 

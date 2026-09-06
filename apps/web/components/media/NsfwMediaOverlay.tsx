@@ -46,7 +46,7 @@ export function NsfwMediaOverlay({
 }: NsfwMediaOverlayProps) {
   const [localRevealed, setLocalRevealed] = useState(false);
   const revealed = controlledRevealed ?? localRevealed;
-  const hidden = status !== "none" && !revealed;
+  const hidden = status === "flagged" && !revealed;
 
   function reveal() {
     setLocalRevealed(true);
@@ -120,7 +120,7 @@ export function NsfwTextReveal({
   compact = false,
 }: NsfwTextRevealProps) {
   const [revealed, setRevealed] = useState(false);
-  if (status === "none" || revealed) return <>{children}</>;
+  if (status !== "flagged" || revealed) return <>{children}</>;
 
   return (
     <div className={cn(compact ? "mt-1.5" : "mt-2", className)}>

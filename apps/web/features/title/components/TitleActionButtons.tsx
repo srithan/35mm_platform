@@ -31,6 +31,7 @@ type TitleActionButtonsProps = {
   tmdbId: string;
   imdbId: string | null | undefined;
   onWriteReview: () => void;
+  reviewPending?: boolean;
 };
 
 export function TitleActionButtons(props: TitleActionButtonsProps) {
@@ -104,7 +105,7 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
   const isWatchlistPending = watchlistMutation.isPending;
 
   return (
-    <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-col lg:gap-2.5">
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-2.5">
       <button
         type="button"
         onClick={onToggleWatched}
@@ -146,9 +147,9 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
               : "Watchlist"}
         </span>
       </button>
-      <button type="button" onClick={props.onWriteReview} className={cn(btnBase, accent)}>
+      <button type="button" onClick={props.onWriteReview} disabled={props.reviewPending || props.media === "tv"} className={cn(btnBase, accent, "disabled:opacity-50")}>
         <PenLine className={btnIcon} strokeWidth={2.25} />
-        <span>Write review</span>
+        <span>{props.reviewPending ? "Opening…" : props.media === "tv" ? "Film reviews only" : "Write review"}</span>
       </button>
       {props.imdbId ? (
         <a

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { NsfwMediaOverlay } from "./NsfwMediaOverlay";
+import { NsfwMediaOverlay, NsfwTextReveal } from "./NsfwMediaOverlay";
 import { PostImageGallery } from "@/features/feed/components/PostImageGallery";
 
 vi.mock("@/components/ui/BlurImage", function () {
@@ -13,32 +13,29 @@ vi.mock("@/components/ui/BlurImage", function () {
 });
 
 describe("NsfwMediaOverlay", function () {
-  it.each(["flagged", "pending"] as const)(
-    "screens %s media until the viewer reveals it",
-    async function (status) {
-      const user = userEvent.setup();
-      const { container } = render(
-        <NsfwMediaOverlay status={status} categories={["nudity"]}>
-          <img alt="Frame" src="/frame.jpg" />
-        </NsfwMediaOverlay>
-      );
-
-      const root = container.querySelector("[data-nsfw-status]");
-      expect(root).toHaveAttribute("data-nsfw-revealed", "false");
-      expect(screen.getByAltText("Frame")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
-
-      await user.click(screen.getByRole("button", { name: "View" }));
-
-      expect(root).toHaveAttribute("data-nsfw-revealed", "true");
-      expect(screen.queryByRole("button", { name: "View" })).not.toBeInTheDocument();
-      expect(screen.getByAltText("Frame")).toBeInTheDocument();
-    }
-  );
-
-  it("leaves non-sensitive media fully visible", function () {
+  it("screens flagged media until the viewer reveals it", async function () {
+    const user = userEvent.setup();
     const { container } = render(
-      <NsfwMediaOverlay status="none" categories={[]}>
+      <NsfwMediaOverlay status="flagged" categories={["nudity"]}>
+        <img alt="Frame" src="/frame.jpg" />
+      </NsfwMediaOverlay>
+    );
+
+    const root = container.querySelector("[data-nsfw-status]");
+    expect(root).toHaveAttribute("data-nsfw-revealed", "false");
+    expect(screen.getByAltText("Frame")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "View" }));
+
+    expect(root).toHaveAttribute("data-nsfw-revealed", "true");
+    expect(screen.queryByRole("button", { name: "View" })).not.toBeInTheDocument();
+    expect(screen.getByAltText("Frame")).toBeInTheDocument();
+  });
+
+  it.each(["none", "pending"] as const)("leaves %s media fully visible", function (status) {
+    const { container } = render(
+      <NsfwMediaOverlay status={status} categories={[]}>
         <img alt="Frame" src="/frame.jpg" />
       </NsfwMediaOverlay>
     );
@@ -48,6 +45,30 @@ describe("NsfwMediaOverlay", function () {
       "false"
     );
     expect(screen.queryByRole("button", { name: "View" })).not.toBeInTheDocument();
+  });
+
+  it.each(["none", "pending"] as const)("leaves %s text fully visible", function (status) {
+    render(
+      <NsfwTextReveal status={status} categories={[]}>
+        <p>Visible post</p>
+      </NsfwTextReveal>
+    );
+
+    expect(screen.getByText("Visible post")).toBeInTheDocument();
+    expect(screen.queryByText(/may contain sensitive content/i)).not.toBeInTheDocument();
+  });
+
+  it("collapses flagged text until the viewer reveals it", async function () {
+    const user = userEvent.setup();
+    render(
+      <NsfwTextReveal status="flagged" categories={["sensitive"]}>
+        <p>Hidden post</p>
+      </NsfwTextReveal>
+    );
+
+    expect(screen.queryByText("Hidden post")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /may contain sensitive content/i }));
+    expect(screen.getByText("Hidden post")).toBeInTheDocument();
   });
 
   it("screens only flagged entries in a mixed gallery", function () {
