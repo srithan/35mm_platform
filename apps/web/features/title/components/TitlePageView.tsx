@@ -166,7 +166,7 @@ export function TitlePageView(props: {
         metaLine={metaLine}
       />
 
-      <div className="mx-auto max-w-[1300px] px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-10">
+      <div className="mx-auto max-w-[1400px] px-4 pb-24 pt-4 sm:pt-6">
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-x-12">
           <aside className="flex flex-col gap-6 lg:sticky lg:top-[calc(var(--site-header-sticky-offset,4.5rem)+12px)] lg:col-start-2 lg:row-start-2 lg:mt-10">
             <TitlePageAside

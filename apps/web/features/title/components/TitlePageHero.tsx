@@ -52,7 +52,7 @@ export function TitlePageHero(props: TitlePageHeroProps) {
   const metaLine = props.metaLine;
 
   return (
-    <div className="mx-auto w-full max-w-[1300px] px-4 pt-6 sm:px-6 lg:px-10">
+    <div className="mx-auto w-full max-w-[1400px] px-4 pt-6">
       <div className="relative min-h-[300px] w-full overflow-hidden rounded-sm sm:min-h-[460px]">
         <TitleCoverBackButton />
         {heroImgSrc ? (
