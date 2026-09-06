@@ -38,6 +38,8 @@ vi.mock("../../lib/env.js", () => ({
     BUNNY_STREAM_TOKEN_KEY: "test-token",
     BUNNY_STREAM_WEBHOOK_SECRET: "test-webhook",
     BUNNY_STREAM_CDN_HOST: "test.b-cdn.net",
+    BUNNY_STREAM_POST_COLLECTION_ID: "d5f5a4c6-23be-4567-8901-234567890123",
+    BUNNY_STREAM_FILM_COLLECTION_ID: "e5f5a4c6-23be-4567-8901-234567890123",
   }),
 }));
 import { videoRoutes } from "./routes.js";

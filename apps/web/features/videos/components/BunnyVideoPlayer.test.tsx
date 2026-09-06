@@ -288,3 +288,58 @@ it("does not show loading when scrolling a ready video back into view", async ()
     expect(screen.getByTitle("Video")).toBe(frame);
   }
 });
+
+it("keeps inline Bunny shortcuts on the last pointer-selected player", async () => {
+  setup();
+  const frame = await screen.findByTitle("Video") as HTMLIFrameElement;
+  const root = frame.parentElement as HTMLDivElement;
+  const send = vi.spyOn(frame.contentWindow!, "postMessage");
+  const fullscreen = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(root, "requestFullscreen", { configurable: true, value: fullscreen });
+  ready(frame);
+  act(() => window.dispatchEvent(new MessageEvent("message", {
+    origin: "https://iframe.mediadelivery.net", source: frame.contentWindow,
+    data: { context: "player.js", event: "play" },
+  })));
+  send.mockClear();
+
+  fireEvent.pointerEnter(frame);
+  frame.focus();
+  fireEvent.blur(window);
+  await waitFor(() => expect(document.activeElement).toBe(root));
+
+  fireEvent.keyDown(window, { key: " " });
+  expect(JSON.parse(send.mock.calls.at(-1)![0] as string).method).toBe("pause");
+
+  fireEvent.keyDown(window, { key: "ArrowRight" });
+  const seek = JSON.parse(send.mock.calls.at(-1)![0] as string);
+  expect(seek.method).toBe("getCurrentTime");
+  act(() => window.dispatchEvent(new MessageEvent("message", {
+    origin: "https://iframe.mediadelivery.net", source: frame.contentWindow,
+    data: { context: "player.js", event: "getCurrentTime", listener: seek.listener, value: 12 },
+  })));
+  expect(JSON.parse(send.mock.calls.at(-1)![0] as string)).toMatchObject({ method: "setCurrentTime", value: 22 });
+
+  fireEvent.keyDown(window, { key: "m" });
+  expect(useVideoSoundStore.getState().muted).toBe(false);
+  fireEvent.keyDown(window, { key: "f" });
+  expect(fullscreen).toHaveBeenCalledOnce();
+});
+
+it("routes native inline shortcuts only after player interaction", () => {
+  const view = render(<FeedVideoPlayer src="/video.mp4" />);
+  const root = view.container.firstElementChild as HTMLDivElement;
+  const video = view.container.querySelector("video")!;
+  Object.defineProperty(video, "duration", { configurable: true, value: 60 });
+  video.currentTime = 20;
+
+  fireEvent.keyDown(window, { key: "ArrowRight" });
+  expect(video.currentTime).toBe(20);
+  fireEvent.pointerDown(root);
+  fireEvent.keyDown(window, { key: "l" });
+  expect(video.currentTime).toBe(30);
+  fireEvent.keyDown(window, { key: "j" });
+  expect(video.currentTime).toBe(20);
+  fireEvent.keyDown(window, { key: "m" });
+  expect(useVideoSoundStore.getState().muted).toBe(false);
+});

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import {
+  createBunnyVideo,
   playbackUrl,
   providerState,
   reconcileVideo,
@@ -19,6 +20,8 @@ const config: BunnyConfig = {
   BUNNY_STREAM_TOKEN_KEY: "test-player-secret",
   BUNNY_STREAM_WEBHOOK_SECRET: "test-webhook-secret",
   BUNNY_STREAM_CDN_HOST: "test.b-cdn.net",
+  BUNNY_STREAM_POST_COLLECTION_ID: "d5f5a4c6-23be-4567-8901-234567890123",
+  BUNNY_STREAM_FILM_COLLECTION_ID: "e5f5a4c6-23be-4567-8901-234567890123",
 };
 const asset = {
   id: "d5f5a4c6-23be-4567-8901-234567890123",
@@ -40,6 +43,7 @@ const video: BunnyVideo = {
   width: 640,
   height: 360,
   storageSize: 2000,
+  collectionId: config.BUNNY_STREAM_POST_COLLECTION_ID,
 };
 afterEach(() => vi.unstubAllGlobals());
 function database(claim = true, current = asset) {
@@ -64,6 +68,35 @@ function database(claim = true, current = asset) {
   return { db, sets };
 }
 describe("Bunny video security and processing", () => {
+  it("assigns new uploads to the collection for their purpose", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({ ...video, collectionId: null }))
+      .mockResolvedValueOnce(Response.json({ success: true }));
+    vi.stubGlobal("fetch", fetcher);
+    const created = await createBunnyVideo({ ...asset, purpose: "film" }, config);
+    expect(created.collectionId).toBe(config.BUNNY_STREAM_FILM_COLLECTION_ID);
+    expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({
+      title: `35mm:${asset.id}`,
+      collectionId: config.BUNNY_STREAM_FILM_COLLECTION_ID,
+    });
+    expect(JSON.parse(fetcher.mock.calls[1]![1].body)).toEqual({
+      collectionId: config.BUNNY_STREAM_FILM_COLLECTION_ID,
+    });
+  });
+  it("repairs a provider collection mismatch during reconciliation", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({ ...video, collectionId: null }))
+      .mockResolvedValueOnce(Response.json({ success: true }))
+      .mockResolvedValueOnce(Response.json({ success: true, data: { originals: 1000 } }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetcher);
+    const { db } = database();
+    expect((await reconcileVideo(db, asset, config)).state).toBe("ready");
+    expect(fetcher.mock.calls[1]![0]).toContain(`/videos/${asset.providerId}`);
+    expect(JSON.parse(fetcher.mock.calls[1]![1].body)).toEqual({
+      collectionId: config.BUNNY_STREAM_POST_COLLECTION_ID,
+    });
+  });
   it("uses GET status 4 for readiness, never webhook event 3 or 6", () => {
     expect(providerState(video)).toBe("ready");
     expect(providerState({ ...video, status: 3 })).toBe("processing");
@@ -164,7 +197,9 @@ describe("Bunny video security and processing", () => {
     expect(result.providerId).toBeNull();
     expect(result.stagingProviderId).toBe(stage.providerId);
     expect(sets.at(-1)?.finalizationStartedAt).toBeInstanceOf(Date);
-    expect(fetcher.mock.calls[2]?.[0]).toContain("/videos/fetch");
+    expect(fetcher.mock.calls[2]?.[0]).toContain(
+      `/videos/fetch?collectionId=${config.BUNNY_STREAM_POST_COLLECTION_ID}`,
+    );
     const body = JSON.parse(fetcher.mock.calls[2]?.[1].body);
     expect(body.title).toBe(`35mm:sealed:${asset.id}`);
     expect(body.url).toContain(`/${stage.providerId}/original?token=`);

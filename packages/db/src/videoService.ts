@@ -9,6 +9,8 @@ export interface BunnyConfig {
   BUNNY_STREAM_TOKEN_KEY: string;
   BUNNY_STREAM_WEBHOOK_SECRET: string;
   BUNNY_STREAM_CDN_HOST: string;
+  BUNNY_STREAM_POST_COLLECTION_ID: string;
+  BUNNY_STREAM_FILM_COLLECTION_ID: string;
 }
 export type VideoAsset = typeof videoAssets.$inferSelect;
 export type BunnyVideo = {
@@ -20,6 +22,7 @@ export type BunnyVideo = {
   width: number;
   height: number;
   storageSize: number;
+  collectionId: string | null;
 };
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -29,7 +32,10 @@ export function assertBunnyConfig(config: BunnyConfig) {
     !config.BUNNY_STREAM_API_KEY ||
     !config.BUNNY_STREAM_TOKEN_KEY ||
     !config.BUNNY_STREAM_WEBHOOK_SECRET ||
-    !/^[a-z0-9-]+\.b-cdn\.net$/.test(config.BUNNY_STREAM_CDN_HOST)
+    !/^[a-z0-9-]+\.b-cdn\.net$/.test(config.BUNNY_STREAM_CDN_HOST) ||
+    !UUID.test(config.BUNNY_STREAM_POST_COLLECTION_ID) ||
+    !UUID.test(config.BUNNY_STREAM_FILM_COLLECTION_ID) ||
+    config.BUNNY_STREAM_POST_COLLECTION_ID === config.BUNNY_STREAM_FILM_COLLECTION_ID
   ) {
     throw new Error("Bunny Stream server configuration is incomplete");
   }
@@ -124,17 +130,44 @@ export function parseBunnyVideo(raw: unknown, config: BunnyConfig): BunnyVideo {
     !UUID.test(video.guid) ||
     String(video.videoLibraryId) !== config.BUNNY_STREAM_LIBRARY_ID ||
     !Number.isInteger(video.status) ||
-    typeof video.title !== "string"
+    typeof video.title !== "string" ||
+    (video.collectionId !== null &&
+      video.collectionId !== "" &&
+      !UUID.test(video.collectionId))
   )
     throw new Error("Invalid Bunny video response");
   return video;
 }
 export async function createBunnyVideo(asset: VideoAsset, config: BunnyConfig) {
   // Stable server-owned title makes an interrupted create discoverable without creating duplicates.
-  return parseBunnyVideo(
-    await bunnyRequest(config, "", "POST", { title: `35mm:${asset.id}` }),
+  const collectionId = collectionIdFor(asset, config);
+  const video = parseBunnyVideo(
+    await bunnyRequest(config, "", "POST", {
+      title: `35mm:${asset.id}`,
+      collectionId,
+    }),
     config,
   );
+  return ensureBunnyCollection(video, asset, config);
+}
+function collectionIdFor(asset: VideoAsset, config: BunnyConfig) {
+  return asset.purpose === "post"
+    ? config.BUNNY_STREAM_POST_COLLECTION_ID
+    : config.BUNNY_STREAM_FILM_COLLECTION_ID;
+}
+async function ensureBunnyCollection(
+  video: BunnyVideo,
+  asset: VideoAsset,
+  config: BunnyConfig,
+) {
+  const collectionId = collectionIdFor(asset, config);
+  if (video.collectionId === collectionId) return video;
+  const result = (await bunnyRequest(config, `/${video.guid}`, "POST", {
+    collectionId,
+  })) as { success?: boolean };
+  if (result.success !== true)
+    throw new Error("Bunny Stream collection assignment failed");
+  return { ...video, collectionId };
 }
 export function providerState(video: BunnyVideo): VideoAsset["state"] {
   if (
@@ -237,10 +270,11 @@ export async function reconcileVideo(
       return failed ?? asset;
     }
   }
-  const video = parseBunnyVideo(
+  let video = parseBunnyVideo(
     await bunnyRequest(config, `/${providerId}`),
     config,
   );
+  video = await ensureBunnyCollection(video, asset, config);
   let state = providerState(video);
   // An acknowledged transfer must not regress while the provider starts processing.
   if ((asset.stagingProviderId || asset.state === "processing") && state === "uploading") state = "processing";
@@ -304,11 +338,16 @@ export async function reconcileVideo(
       )
       .returning();
     if (!sealing) return asset;
-    await bunnyRequest(config, "/fetch", "POST", {
-      title: `35mm:sealed:${asset.id}`,
-      url: originalVideoUrl(providerId, config),
-      headers: { Referer: "https://iframe.mediadelivery.net/" },
-    });
+    await bunnyRequest(
+      config,
+      `/fetch?collectionId=${encodeURIComponent(collectionIdFor(asset, config))}`,
+      "POST",
+      {
+        title: `35mm:sealed:${asset.id}`,
+        url: originalVideoUrl(providerId, config),
+        headers: { Referer: "https://iframe.mediadelivery.net/" },
+      },
+    );
     return sealing;
   }
   if (state === "ready" && asset.stagingProviderId) {

@@ -6,6 +6,7 @@ import { useVideoSound } from "../hooks/useVideoSound";
 import { useExclusiveVideoPlayback } from "../hooks/useExclusiveVideoPlayback";
 import { useVideoVisibility } from "../hooks/useVideoVisibility";
 import { VideoPlaybackOverlay } from "./VideoPlaybackOverlay";
+import { useVideoKeyboardShortcuts } from "../hooks/useVideoKeyboardShortcuts";
 
 /** Legacy direct uploads use the same viewport and preference rules as Stream. */
 export function FeedVideoPlayer({ src }: { src: string }) {
@@ -42,6 +43,21 @@ export function FeedVideoPlayer({ src }: { src: string }) {
       setError("Video could not play. Try the player controls again.");
     });
   };
+  useVideoKeyboardShortcuts({
+    enabled: nearby,
+    rootRef: ref,
+    playPause: () => {
+      const element = video.current;
+      if (!element) return;
+      if (element.paused) play();
+      else element.pause();
+    },
+    seekBy: (seconds) => {
+      if (!video.current || !Number.isFinite(video.current.duration)) return;
+      video.current.currentTime = Math.max(0, Math.min(video.current.duration, video.current.currentTime + seconds));
+    },
+    toggleMuted: () => setMuted(!getMuted()),
+  });
   const claimPlayback = useExclusiveVideoPlayback({
     eligible: visible && autoplay && nearby,
     play,
@@ -52,7 +68,7 @@ export function FeedVideoPlayer({ src }: { src: string }) {
     if (!visible) video.current?.pause();
   }, [visible]);
 
-  return <div ref={ref} className="relative overflow-hidden rounded-lg bg-black"
+  return <div ref={ref} tabIndex={-1} className="relative overflow-hidden rounded-lg bg-black"
     onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
     <video ref={video} src={nearby ? src : undefined} controls playsInline muted={muted}
       onVolumeChange={(event) => {

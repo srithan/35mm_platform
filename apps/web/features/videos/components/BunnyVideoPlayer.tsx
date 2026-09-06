@@ -11,6 +11,7 @@ import { useExclusiveVideoPlayback } from "../hooks/useExclusiveVideoPlayback";
 import { useVideoVisibility } from "../hooks/useVideoVisibility";
 import { Loader2 } from "lucide-react";
 import { VideoPlaybackOverlay } from "./VideoPlaybackOverlay";
+import { useVideoKeyboardShortcuts } from "../hooks/useVideoKeyboardShortcuts";
 
 export function BunnyVideoPlayer({ assetId, title = "Video" }: {
   assetId: string;
@@ -55,13 +56,13 @@ export function BunnyVideoPlayer({ assetId, title = "Video" }: {
   const height = playback.data?.height;
 
   return (
-    <div ref={ref}
+    <div ref={ref} tabIndex={-1}
       className="relative mx-auto w-full overflow-hidden rounded-xl bg-neutral-200 text-fg"
       style={{ aspectRatio: width && height ? `${width} / ${height}` : "16 / 9",
         maxWidth: width && height ? `min(100%, ${70 * width / height}vh)` : undefined }}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}>
-      {src ? <BunnyFrame key={src} src={src} posterUrl={playback.data && "posterUrl" in playback.data ? playback.data.posterUrl : undefined} title={title} visible={visible} autoplay={autoplay} /> : (
+      {src ? <BunnyFrame key={src} src={src} posterUrl={playback.data && "posterUrl" in playback.data ? playback.data.posterUrl : undefined} title={title} visible={visible} autoplay={autoplay} rootRef={ref} /> : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 text-center">
           {playback.error ? <>
             <p role="alert" className="text-sm">{playback.error.message}</p>
@@ -83,13 +84,18 @@ export function BunnyVideoPlayer({ assetId, title = "Video" }: {
   );
 }
 
-function BunnyFrame({ src, posterUrl, title, visible, autoplay }: {
+function BunnyFrame({ src, posterUrl, title, visible, autoplay, rootRef }: {
   src: string; posterUrl?: string; title: string; visible: boolean; autoplay: boolean;
+  rootRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const { muted, getMuted, setMuted, volume } = useVideoSound();
   const soundRequest = useRef<{ listener: string; muted: boolean } | null>(null);
   const soundSequence = useRef(0);
+  const seekSequence = useRef(0);
+  const seekRequest = useRef<{ listener: string; delta: number } | null>(null);
+  const seekTimeout = useRef<number>();
+  const playing = useRef(false);
   const [ready, setReady] = useState(false);
   const [needsControls, setNeedsControls] = useState(false);
   const [posterFailed, setPosterFailed] = useState(false);
@@ -125,7 +131,7 @@ function BunnyFrame({ src, posterUrl, title, visible, autoplay }: {
   });
 
   useEffect(() => {
-    const send = (method: string, value?: string) => iframe.current?.contentWindow?.postMessage(
+    const send = (method: string, value?: string | number) => iframe.current?.contentWindow?.postMessage(
       JSON.stringify({ context: "player.js", version: "0.0.11", method, value }), origin);
     const receive = (event: MessageEvent) => {
       if (event.origin !== origin || event.source !== iframe.current?.contentWindow) return;
@@ -136,16 +142,28 @@ function BunnyFrame({ src, posterUrl, title, visible, autoplay }: {
           message.context !== "player.js" || !("event" in message)) return;
       if (message.event === "ready") {
         send("addEventListener", "play");
+        send("addEventListener", "pause");
+        send("addEventListener", "ended");
         send("addEventListener", "error");
         setReady(true);
       } else if (message.event === "play") {
+        playing.current = true;
         claimPlayback();
+      } else if (message.event === "pause" || message.event === "ended") {
+        playing.current = false;
       } else if (message.event === "getMuted" && "listener" in message &&
           soundRequest.current && message.listener === soundRequest.current.listener &&
           soundRequest.current.muted === getMuted() && "value" in message &&
           typeof message.value === "boolean") {
         soundRequest.current = null;
         setMuted(message.value);
+      } else if (message.event === "getCurrentTime" && "listener" in message &&
+          seekRequest.current && message.listener === seekRequest.current.listener &&
+          "value" in message && typeof message.value === "number" && Number.isFinite(message.value)) {
+        const nextTime = Math.max(0, message.value + seekRequest.current.delta);
+        seekRequest.current = null;
+        if (seekTimeout.current !== undefined) window.clearTimeout(seekTimeout.current);
+        send("setCurrentTime", nextTime);
       } else if (message.event === "error") {
         setNeedsControls(true);
       }
@@ -191,6 +209,41 @@ function BunnyFrame({ src, posterUrl, title, visible, autoplay }: {
     return () => window.clearTimeout(timeout);
   }, [visible, revealed]);
 
+  useEffect(() => () => {
+    if (seekTimeout.current !== undefined) window.clearTimeout(seekTimeout.current);
+  }, []);
+
+  const send = (method: string, value?: number) => iframe.current?.contentWindow?.postMessage(
+    JSON.stringify({ context: "player.js", version: "0.0.11", method, value }), origin);
+  const activateShortcuts = useVideoKeyboardShortcuts({
+    enabled: ready,
+    rootRef,
+    iframeRef: iframe,
+    playPause: () => {
+      if (playing.current) {
+        playing.current = false;
+        send("pause");
+      } else {
+        playing.current = true;
+        send(getMuted() ? "mute" : "unmute");
+        send("play");
+      }
+    },
+    seekBy: (delta) => {
+      if (seekRequest.current) {
+        seekRequest.current.delta += delta;
+        return;
+      }
+      const listener = `seek-${++seekSequence.current}`;
+      seekRequest.current = { listener, delta };
+      seekTimeout.current = window.setTimeout(() => { seekRequest.current = null; }, 1500);
+      iframe.current?.contentWindow?.postMessage(JSON.stringify({
+        context: "player.js", version: "0.0.11", method: "getCurrentTime", listener,
+      }), origin);
+    },
+    toggleMuted: () => setMuted(!getMuted()),
+  });
+
   return <>
     <iframe ref={iframe} src={initialSrc} title={title}
       aria-hidden={!revealed} tabIndex={revealed ? 0 : -1}
@@ -204,6 +257,7 @@ function BunnyFrame({ src, posterUrl, title, visible, autoplay }: {
     </div>}
     {!revealed && <VideoPlaybackOverlay loading={false} onPlay={() => {
       // Let the provider handle user gestures and report its real buffering state.
+      activateShortcuts();
       setNeedsControls(true);
     }} />}
   </>;
