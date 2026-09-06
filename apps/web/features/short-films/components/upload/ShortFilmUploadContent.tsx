@@ -40,7 +40,7 @@ export function ShortFilmUploadContent() {
           </h1>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">
             Share your story with a community of film lovers. Follow the steps
-            below — your upload will be ready when we connect the backend.
+            below to upload, process, and publish your film.
           </p>
         </div>
         {!upload.isPublished ? (
@@ -51,6 +51,10 @@ export function ShortFilmUploadContent() {
         ) : null}
       </div>
 
+      {upload.error ? <div role="alert" className="mb-5 rounded-xl border border-accent/30 bg-accent/5 p-4 text-sm text-accent">
+        {upload.error}
+        {upload.form.videoFile && !upload.form.videoUploadComplete ? <button type="button" className="ml-3 underline" onClick={() => void upload.startVideoUpload(upload.form.videoFile!)}>Retry upload</button> : null}
+      </div> : null}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
         <div className="min-w-0">
           <AnimatePresence mode="wait">
@@ -64,6 +68,9 @@ export function ShortFilmUploadContent() {
               >
                 <UploadSuccess
                   title={upload.form.title}
+                  filmId={upload.publishedFilmId!}
+                  visibility={upload.form.visibility}
+                  scheduled={Boolean(upload.form.scheduleRelease)}
                   onReset={upload.reset}
                 />
               </motion.div>

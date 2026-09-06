@@ -1,3 +1,6 @@
+import { preparePostVideo } from "../videos/postAttachment.js";
+import { videoAssets } from "@35mm/db/schema";
+import { sha256 } from "@35mm/db/video-service";
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import {
@@ -130,6 +133,67 @@ export function parseProfilePostFeedKind(value: string | undefined): "all" | "re
   if (value == null || value === "all") return "all";
   if (value === "reposts") return "reposts";
   throw badRequest("Invalid profile post feed kind");
+}
+
+export type QuotePostSort = "latest" | "top";
+
+export function parseQuotePostSort(value: string | undefined): QuotePostSort {
+  if (value == null || value === "latest") return "latest";
+  if (value === "top") return "top";
+  throw badRequest("Invalid quote post sort");
+}
+
+type QuotePostCursor = {
+  sort: QuotePostSort;
+  value: string;
+  createdAt: Date;
+  id: string;
+};
+
+function encodeQuotePostCursor(input: QuotePostCursor): string {
+  return Buffer.from(JSON.stringify({
+    s: input.sort,
+    v: input.value,
+    c: input.createdAt.toISOString(),
+    i: input.id,
+  }), "utf8").toString("base64");
+}
+
+function decodeQuotePostCursor(
+  cursorValue: string | undefined,
+  expectedSort: QuotePostSort
+): QuotePostCursor | null {
+  if (!cursorValue) return null;
+  try {
+    var parsed = JSON.parse(Buffer.from(cursorValue, "base64").toString("utf8")) as {
+      s?: unknown;
+      v?: unknown;
+      c?: unknown;
+      i?: unknown;
+    };
+    if (
+      parsed.s !== expectedSort ||
+      typeof parsed.v !== "string" ||
+      typeof parsed.c !== "string" ||
+      typeof parsed.i !== "string" ||
+      parsed.i.length === 0
+    ) {
+      throw new Error("invalid-shape");
+    }
+    var createdAt = new Date(parsed.c);
+    if (Number.isNaN(createdAt.getTime())) throw new Error("invalid-date");
+    if (expectedSort === "top" && !Number.isSafeInteger(Number(parsed.v))) {
+      throw new Error("invalid-score");
+    }
+    return {
+      sort: expectedSort,
+      value: parsed.v,
+      createdAt,
+      id: parsed.i,
+    };
+  } catch (_error) {
+    throw badRequest("Invalid cursor");
+  }
 }
 
 var createPostRateLimit = createRateLimitMiddleware({
@@ -3142,6 +3206,15 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
           }
           return { type, url };
         });
+  const uploadedVideos = normalizedMedia.filter(item => item.type === "video" || item.videoAssetId);
+  if (uploadedVideos.length > 1 || (uploadedVideos.length && normalizedMedia.length !== 1)) {
+    throw badRequest("Attach one video without other media");
+  }
+  const uploadedVideo = uploadedVideos[0];
+  if (uploadedVideo && (uploadedVideo.type !== "video" || !uploadedVideo.videoAssetId || !/^[0-9a-f-]{36}$/i.test(uploadedVideo.videoAssetId))) {
+    throw badRequest("Upload post videos through the video upload flow");
+  }
+  const videoPostHash = uploadedVideo ? sha256(JSON.stringify(input)) : null;
   var normalizedMediaUrls = normalizedMedia
     .filter(function (item) {
       return item.type === "image";
@@ -3158,7 +3231,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     var filmRows = await db
       .select({ id: films.id })
       .from(films)
-      .where(eq(films.id, input.filmId))
+      .where(and(eq(films.isCatalogListed, true), eq(films.id, input.filmId)))
       .limit(1);
 
     if (filmRows.length === 0) {
@@ -3182,6 +3255,20 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
       : "none";
   var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
   var createdPost = await getWriteDb().transaction(async function (tx) {
+    if (uploadedVideo?.videoAssetId) {
+      const [asset] = await tx.select().from(videoAssets)
+        .where(and(eq(videoAssets.id, uploadedVideo.videoAssetId), eq(videoAssets.userId, user.userId), eq(videoAssets.isDeleted, false)))
+        .limit(1).for("update");
+      const attachment = preparePostVideo(asset, user.userId, videoPostHash);
+      if (attachment.replay) return attachment.replay;
+      // Stable application identity: the final provider ID can change during processing.
+      uploadedVideo.url = `/v1/videos/${attachment.asset.id}/playback`;
+      uploadedVideo.width = attachment.asset.width ?? undefined;
+      uploadedVideo.height = attachment.asset.height ?? undefined;
+      delete uploadedVideo.variants;
+      delete uploadedVideo.key;
+      delete uploadedVideo.thumbnailUrl;
+    }
     var insertedRows = await tx
       .insert(posts)
       .values({
@@ -3207,6 +3294,10 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
       throw badRequest("Unable to create post");
     }
     var postCreatedAt = insertedRows[0].createdAt;
+    if (uploadedVideo?.videoAssetId) {
+      await tx.update(videoAssets).set({ postId, postRequestHash: videoPostHash, updatedAt: new Date() })
+        .where(eq(videoAssets.id, uploadedVideo.videoAssetId));
+    }
 
     if (input.poll) {
       var endsAt = new Date(Date.now() + input.poll.durationMinutes * 60 * 1000);
@@ -3288,9 +3379,14 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     }
     await recordCounterDeltas(tx, profileCounterDeltas);
 
-    return { postId, postCreatedAt };
+    return { postId, postCreatedAt, replayed: false };
   });
   var postId = createdPost.postId;
+  if (createdPost.replayed) {
+    var existing = await getPostById(postId, user.userId);
+    if (!existing) throw notFound("Post no longer available");
+    return c.json(existing);
+  }
   wakeCounterOutbox();
 
   await createMentionNotifications({
@@ -3370,6 +3466,165 @@ feedRoutes.get("/posts/:postId", async function (c) {
   return c.json(post);
 });
 
+feedRoutes.get("/posts/:postId/quotes", async function (c) {
+  var postId = c.req.param("postId");
+  var pagination = cursorPaginationSchema.parse({
+    cursor: c.req.query("cursor"),
+    limit: c.req.query("limit"),
+  });
+  var sort = parseQuotePostSort(c.req.query("sort"));
+  var cursor = decodeQuotePostCursor(pagination.cursor, sort);
+  var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var viewerUserId = viewer?.userId ?? null;
+  var viewerIsStaff = isModerationStaffViewer(viewer);
+  var rateLimitResponse = await applyRateLimit(c, {
+    keyPrefix: "feed:post-quotes:read",
+    limit: 120,
+    windowSeconds: 60,
+    identifier: viewerUserId ?? identifyByIp(c),
+  });
+  if (rateLimitResponse) return rateLimitResponse;
+
+  await assertReadablePost(postId, viewerUserId, viewerIsStaff);
+
+  var filters: any[] = [
+    eq(posts.quotedPostId, postId),
+    eq(posts.isRepost, false),
+    eq(posts.isDeleted, false),
+    postModerationAccessSql(viewerUserId, viewerIsStaff),
+    postVisibilitySql(viewerUserId, viewerIsStaff),
+    profileAccessSql(viewerUserId, viewerIsStaff),
+  ];
+  if (viewerUserId) {
+    filters.push(
+      ...blockFiltersForAuthor(viewerUserId, posts.userId),
+      notMutedByViewerSql(viewerUserId, posts.userId)
+    );
+  }
+
+  if (cursor) {
+    if (sort === "top") {
+      var cursorLikeCount = Number(cursor.value);
+      filters.push(or(
+        lt(posts.likeCount, cursorLikeCount),
+        and(
+          eq(posts.likeCount, cursorLikeCount),
+          or(
+            lt(posts.createdAt, cursor.createdAt),
+            and(eq(posts.createdAt, cursor.createdAt), lt(posts.id, cursor.id))
+          )
+        )
+      ));
+    } else {
+      filters.push(compositeCursorSql(posts.createdAt, posts.id, cursor));
+    }
+  }
+
+  var order = sort === "top"
+    ? [desc(posts.likeCount), desc(posts.createdAt), desc(posts.id)]
+    : [desc(posts.createdAt), desc(posts.id)];
+  var rows = await getDb()
+    .select({
+      cursorCreatedAt: posts.createdAt,
+      cursorId: posts.id,
+      id: posts.id,
+      type: posts.type,
+      headline: posts.headline,
+      body: posts.body,
+      visibility: posts.visibility,
+      filmId: posts.filmId,
+      filmTmdbId: films.tmdbId,
+      filmTitle: films.title,
+      filmYear: films.year,
+      filmPosterUrl: films.posterUrl,
+      filmGenres: films.genres,
+      filmRating: posts.filmRating,
+      media: posts.media,
+      mediaUrls: posts.mediaUrls,
+      linkPreview: posts.linkPreview,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      editedAt: posts.editedAt,
+      authorId: profiles.userId,
+      username: profiles.username,
+      displayName: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+      avatarVariants: profiles.avatarVariants,
+      role: profiles.role,
+      roleContext: profiles.roleContext,
+      profileHeadline: profiles.headline,
+      profileHeadlineContext: profiles.headlineContext,
+      filmsLoggedCount: profiles.filmsLoggedCount,
+      likeCount: posts.likeCount,
+      commentCount: posts.commentCount,
+      repostCount: posts.repostCount,
+      bookmarkCount: posts.bookmarkCount,
+      isDeleted: posts.isDeleted,
+      moderationStatus: posts.moderationStatus,
+      nsfwStatus: posts.nsfwStatus,
+      nsfwCategories: posts.nsfwCategories,
+      nsfwSource: posts.nsfwSource,
+      isRepost: posts.isRepost,
+      replyToId: posts.replyToId,
+      quotedPostId: posts.quotedPostId,
+      isLiked: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      isReposted: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postReposts} where ${postReposts.postId} = ${posts.id} and ${postReposts.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      isBookmarked: viewerUserId
+        ? sql<boolean>`exists(select 1 from ${postBookmarks} where ${postBookmarks.postId} = ${posts.id} and ${postBookmarks.userId} = ${viewerUserId})`
+        : sql<boolean>`false`,
+      bookmarkFolderId: viewerUserId
+        ? sql<string | null>`(
+            select ${postBookmarks.folderId}
+            from ${postBookmarks}
+            where ${postBookmarks.postId} = ${posts.id}
+              and ${postBookmarks.userId} = ${viewerUserId}
+            limit 1
+          )`
+        : sql<string | null>`null`,
+    })
+    .from(posts)
+    .innerJoin(profiles, eq(profiles.userId, posts.userId))
+    .leftJoin(films, eq(films.id, posts.filmId))
+    .where(and(...filters))
+    .orderBy(...order)
+    .limit(pagination.limit + 1);
+
+  var pageRows = rows.slice(0, pagination.limit);
+  var pageRowsWithCounters = await applyVisiblePostCountersToRows(pageRows);
+  var hydratedRows = await hydratePostsForRows(
+    pageRowsWithCounters,
+    viewerUserId,
+    viewerIsStaff
+  );
+  var items = await Promise.all(hydratedRows.map(function (row) {
+    return toPostItem(row, viewerUserId, {
+      body: row._preloadedBody,
+      headline: row._preloadedHeadline,
+      poll: row._preloadedPoll,
+    });
+  }));
+  var hasMore = rows.length > pagination.limit;
+  var tail = pageRows[pageRows.length - 1];
+  var nextCursor = hasMore && tail
+    ? encodeQuotePostCursor({
+        sort,
+        value: sort === "top" ? String(tail.likeCount) : tail.cursorCreatedAt.toISOString(),
+        createdAt: tail.cursorCreatedAt,
+        id: tail.cursorId,
+      })
+    : null;
+
+  c.header(
+    "Cache-Control",
+    viewerUserId ? "private, no-store" : "public, s-maxage=30, stale-while-revalidate=60"
+  );
+  return c.json({ items, nextCursor, hasMore });
+});
+
 feedRoutes.get("/films/:filmId/reviews", async function (c) {
   var filmId = c.req.param("filmId").trim();
   if (!isValidUlid(filmId)) throw badRequest("filmId must be a 35mm ULID");
@@ -3393,7 +3648,7 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
   var filmRows = await getDb()
     .select({ id: films.id })
     .from(films)
-    .where(eq(films.id, filmId))
+    .where(and(eq(films.isCatalogListed, true), eq(films.id, filmId)))
     .limit(1);
   if (filmRows.length === 0) throw notFound("Film not found");
 
@@ -3923,7 +4178,7 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
     var filmRows = await db
       .select({ id: films.id })
       .from(films)
-      .where(eq(films.id, filmIdToPersist))
+      .where(and(eq(films.isCatalogListed, true), eq(films.id, filmIdToPersist)))
       .limit(1);
 
     if (filmRows.length === 0) {

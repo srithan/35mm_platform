@@ -1,5 +1,6 @@
 import type { AccentColorOption } from "@/lib/theme/accentColors";
 import type { ThemeOption } from "@/lib/theme/ThemeProvider";
+import type { StreamingServiceId } from "@35mm/types/streaming-services";
 
 export interface ProfileSettings {
   displayName: string;
@@ -50,6 +51,7 @@ export interface MediaSettings {
   videoAutoplay: boolean;
   alwaysShowCaptions: boolean;
   captionStyle: VideoCaptionStyle;
+  startWithSound: boolean;
   quietMode: boolean;
 }
 
@@ -59,6 +61,11 @@ export interface UserSettings {
   notifications: NotificationSettings;
   appearance: AppearanceSettings;
   media: MediaSettings;
+  streamingServices: StreamingServicesSettings;
+}
+
+export interface StreamingServicesSettings {
+  serviceIds: StreamingServiceId[];
 }
 
 export type UpdateProfileInput = ProfileSettings;
@@ -66,3 +73,4 @@ export type UpdatePrivacyInput = PrivacySettings;
 export type UpdateNotificationsInput = NotificationSettings;
 export type UpdateAppearanceInput = Partial<AppearanceSettings>;
 export type UpdateMediaInput = MediaSettings;
+export type UpdateStreamingServicesInput = StreamingServicesSettings;

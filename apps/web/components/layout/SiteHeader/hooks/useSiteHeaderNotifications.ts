@@ -10,6 +10,7 @@ import {
   markNotificationUnread,
 } from "@/features/notifications/api/notificationsApi";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
+import { isMainNotificationItem } from "@/features/notifications/utils/mainNotification";
 import type { NotificationPage } from "@35mm/types";
 import type { HeaderNotifRow } from "../types";
 
@@ -29,7 +30,7 @@ export function useSiteHeaderNotifications() {
     staleTime: 15_000,
     gcTime: 5 * 60_000,
   });
-  const notifRows = (notifRowsQuery.data?.items ?? []) as HeaderNotifRow[];
+  const notifRows = (notifRowsQuery.data?.items ?? []).filter(isMainNotificationItem) as HeaderNotifRow[];
 
   const unreadRowsQuery = useQuery({
     queryKey: notificationsKeys.unread(),
@@ -44,7 +45,7 @@ export function useSiteHeaderNotifications() {
     staleTime: 15_000,
     gcTime: 5 * 60_000,
   });
-	  const unreadRows = unreadRowsQuery.data?.items ?? [];
+	  const unreadRows = (unreadRowsQuery.data?.items ?? []).filter(isMainNotificationItem);
 
 	  const followRequestsQuery = useQuery({
 	    queryKey: notificationsKeys.followRequestTotal(),

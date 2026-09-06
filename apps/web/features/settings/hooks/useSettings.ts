@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVideoSoundStore } from "@/stores/useVideoSoundStore";
 import { useAuth } from "@clerk/nextjs";
 import {
   getSettings,
@@ -7,6 +8,7 @@ import {
   updateNotifications,
   updatePrivacy,
   updateProfile,
+  updateStreamingServices,
 } from "../api/settingsApi";
 import { settingsKeys } from "./queryKeys";
 import { feedKeys } from "@/features/feed/hooks/queryKeys";
@@ -18,6 +20,7 @@ import type {
   UpdateNotificationsInput,
   UpdatePrivacyInput,
   UpdateProfileInput,
+  UpdateStreamingServicesInput,
   UserSettings,
 } from "../types/settings";
 
@@ -210,6 +213,10 @@ export function useUpdateMediaMutation() {
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
       const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
+      if (previous?.media.startWithSound !== input.startWithSound ||
+          previous?.media.quietMode !== input.quietMode) {
+        useVideoSoundStore.setState({ scope: null });
+      }
 
       if (previous) {
         queryClient.setQueryData<UserSettings>(settingsKeys.detail(), {
@@ -230,6 +237,38 @@ export function useUpdateMediaMutation() {
       }
     },
     onSuccess: (next) => {
+      queryClient.setQueryData(settingsKeys.detail(), next);
+    },
+  });
+}
+
+export function useUpdateStreamingServicesMutation() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  return useMutation<UserSettings, Error, UpdateStreamingServicesInput, MutationContext>({
+    mutationFn: async function (input) {
+      return updateStreamingServices(input, await getToken());
+    },
+    onMutate: async function (input) {
+      await queryClient.cancelQueries({ queryKey: settingsKeys.detail() });
+      const previous = queryClient.getQueryData<UserSettings>(settingsKeys.detail());
+
+      if (previous) {
+        queryClient.setQueryData<UserSettings>(settingsKeys.detail(), {
+          ...previous,
+          streamingServices: input,
+        });
+      }
+
+      return { previous };
+    },
+    onError: function (_error, _variables, context) {
+      if (context?.previous) {
+        queryClient.setQueryData(settingsKeys.detail(), context.previous);
+      }
+    },
+    onSuccess: function (next) {
       queryClient.setQueryData(settingsKeys.detail(), next);
     },
   });

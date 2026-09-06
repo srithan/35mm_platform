@@ -7,34 +7,30 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import * as z from "zod/v4";
-import { ArrowRight, Check, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, X } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useSignIn, useSignUp } from "@clerk/nextjs/legacy";
-import { clerkSignIn, clerkSignUp } from "@/features/auth/lib/auth-client";
+import {
+  clerkResendSignInCode,
+  clerkSignIn,
+  clerkSignUp,
+  clerkVerifySignInCode,
+} from "@/features/auth/lib/auth-client";
 import { ROUTES } from "@/lib/constants/routes";
 import { LandingHero } from "./LandingHero";
 import styles from "./LandingPage.module.css";
 
-const LANDING_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
-const SOCIAL_PROOF_FACES = [
-  "/landing/social-faces/face-01.jpg",
-  "/landing/social-faces/face-02.jpg",
-  "/landing/social-faces/face-03.jpg",
-  "/landing/social-faces/face-04.jpg",
-  "/landing/social-faces/face-05.jpg",
-  "/landing/social-faces/face-06.jpg",
-  "/landing/social-faces/face-07.jpg",
-  "/landing/social-faces/face-08.jpg",
-  "/landing/social-faces/face-09.jpg",
-];
+const LANDING_API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: "Enter your name" }),
   username: z
     .string()
     .min(2, { message: "Use at least 2 characters" })
-    .regex(/^[a-zA-Z0-9._]+$/, { message: "Letters, numbers, dots and underscores only" }),
+    .regex(/^[a-zA-Z0-9._]+$/, {
+      message: "Letters, numbers, dots and underscores only",
+    }),
   email: z.string().email({ message: "Enter a valid email" }),
   password: z.string().min(8, { message: "Use at least 8 characters" }),
 });
@@ -73,17 +69,29 @@ type AuthPanelProps = {
   loginForm: ReturnType<typeof useForm<LoginValues>>;
   signupError: string | null;
   loginError: string | null;
+  needsLoginVerification: boolean;
+  loginVerificationCode: string;
+  loginVerificationTarget: string | null;
   usernameCheck: UsernameCheck;
   usernameStatus: string;
   usernameIsBlocked: boolean;
   showSignupPassword: boolean;
   showLoginPassword: boolean;
-  setShowSignupPassword: (value: boolean | ((previous: boolean) => boolean)) => void;
-  setShowLoginPassword: (value: boolean | ((previous: boolean) => boolean)) => void;
+  setShowSignupPassword: (
+    value: boolean | ((previous: boolean) => boolean),
+  ) => void;
+  setShowLoginPassword: (
+    value: boolean | ((previous: boolean) => boolean),
+  ) => void;
   isSignupLoading: boolean;
   isLoginLoading: boolean;
   onSignupSubmit: (data: SignupValues) => void;
   onLoginSubmit: (data: LoginValues) => void;
+  onLoginVerificationCodeChange: (value: string) => void;
+  onLoginVerificationSubmit: () => void;
+  onLoginVerificationResend: () => void;
+  onLoginVerificationCancel: () => void;
+  onClose: () => void;
 };
 
 function LandingAuthPanel(props: AuthPanelProps) {
@@ -94,6 +102,9 @@ function LandingAuthPanel(props: AuthPanelProps) {
     loginForm,
     signupError,
     loginError,
+    needsLoginVerification,
+    loginVerificationCode,
+    loginVerificationTarget,
     usernameCheck,
     usernameStatus,
     usernameIsBlocked,
@@ -105,10 +116,23 @@ function LandingAuthPanel(props: AuthPanelProps) {
     isLoginLoading,
     onSignupSubmit,
     onLoginSubmit,
+    onLoginVerificationCodeChange,
+    onLoginVerificationSubmit,
+    onLoginVerificationResend,
+    onLoginVerificationCancel,
+    onClose,
   } = props;
 
   return (
     <div className={styles.authPanel}>
+      <button
+        type="button"
+        onClick={onClose}
+        className={styles.closeButton}
+        aria-label="Close account panel"
+      >
+        <X size={20} aria-hidden />
+      </button>
       <div className={styles.authHeader}>
         <h2>{mode === "signup" ? "Join 35mm" : "Log in to 35mm"}</h2>
         <p>
@@ -119,28 +143,11 @@ function LandingAuthPanel(props: AuthPanelProps) {
       </div>
 
       {mode === "signup" ? (
-        <div className={styles.authProof} aria-label="What happens after joining">
-          <div className={styles.authProofFaces} aria-hidden>
-            {SOCIAL_PROOF_FACES.map(function (src, index) {
-              return (
-                <Image
-                  key={src}
-                  src={src}
-                  alt=""
-                  width={48}
-                  height={48}
-                  className={styles.authProofFace}
-                  priority={index < 4}
-                />
-              );
-            })}
-          </div>
-          <p>Join these and 11,183 other film lovers.</p>
-        </div>
-      ) : null}
-
-      {mode === "signup" ? (
-        <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className={styles.authForm} noValidate>
+        <form
+          onSubmit={signupForm.handleSubmit(onSignupSubmit)}
+          className={styles.authForm}
+          noValidate
+        >
           {signupError ? (
             <p className={styles.formAlert} role="alert">
               {signupError}
@@ -155,11 +162,17 @@ function LandingAuthPanel(props: AuthPanelProps) {
               {...signupForm.register("fullName")}
               aria-label="Full name"
               placeholder="Agnès Varda"
-              className={signupForm.formState.errors.fullName ? styles.inputError : undefined}
+              className={
+                signupForm.formState.errors.fullName
+                  ? styles.inputError
+                  : undefined
+              }
               aria-invalid={Boolean(signupForm.formState.errors.fullName)}
             />
             {signupForm.formState.errors.fullName ? (
-              <p className={styles.fieldError}>{signupForm.formState.errors.fullName.message}</p>
+              <p className={styles.fieldError}>
+                {signupForm.formState.errors.fullName.message}
+              </p>
             ) : null}
           </div>
 
@@ -167,7 +180,9 @@ function LandingAuthPanel(props: AuthPanelProps) {
             <div
               className={
                 styles.usernameField +
-                (signupForm.formState.errors.username ? " " + styles.inputError : "")
+                (signupForm.formState.errors.username
+                  ? " " + styles.inputError
+                  : "")
               }
             >
               <span className={styles.usernamePrefix}>35mm.in/</span>
@@ -178,7 +193,10 @@ function LandingAuthPanel(props: AuthPanelProps) {
                 {...signupForm.register("username")}
                 aria-label="Username"
                 placeholder="agnes"
-                aria-invalid={Boolean(signupForm.formState.errors.username) || usernameCheck === "taken"}
+                aria-invalid={
+                  Boolean(signupForm.formState.errors.username) ||
+                  usernameCheck === "taken"
+                }
               />
               {usernameStatus ? (
                 <span
@@ -187,21 +205,29 @@ function LandingAuthPanel(props: AuthPanelProps) {
                     " " +
                     (usernameCheck === "free"
                       ? styles.usernameStatusFree
-                      : usernameCheck === "taken" || usernameCheck === "short" || usernameCheck === "error"
+                      : usernameCheck === "taken" ||
+                          usernameCheck === "short" ||
+                          usernameCheck === "error"
                         ? styles.usernameStatusBad
                         : styles.usernameStatusNeutral)
                   }
                   aria-live="polite"
                 >
-                  {usernameCheck === "free" ? <Check size={12} aria-hidden /> : null}
+                  {usernameCheck === "free" ? (
+                    <Check size={12} aria-hidden />
+                  ) : null}
                   {usernameStatus}
                 </span>
               ) : null}
             </div>
             {signupForm.formState.errors.username ? (
-              <p className={styles.fieldError}>{signupForm.formState.errors.username.message}</p>
+              <p className={styles.fieldError}>
+                {signupForm.formState.errors.username.message}
+              </p>
             ) : usernameCheck === "error" ? (
-              <p className={styles.fieldError}>Couldn’t check this username. Try editing it again.</p>
+              <p className={styles.fieldError}>
+                Couldn’t check this username. Try editing it again.
+              </p>
             ) : null}
           </div>
 
@@ -213,11 +239,17 @@ function LandingAuthPanel(props: AuthPanelProps) {
               {...signupForm.register("email")}
               aria-label="Email"
               placeholder="agnes@example.com"
-              className={signupForm.formState.errors.email ? styles.inputError : undefined}
+              className={
+                signupForm.formState.errors.email
+                  ? styles.inputError
+                  : undefined
+              }
               aria-invalid={Boolean(signupForm.formState.errors.email)}
             />
             {signupForm.formState.errors.email ? (
-              <p className={styles.fieldError}>{signupForm.formState.errors.email.message}</p>
+              <p className={styles.fieldError}>
+                {signupForm.formState.errors.email.message}
+              </p>
             ) : null}
           </div>
 
@@ -230,7 +262,11 @@ function LandingAuthPanel(props: AuthPanelProps) {
                 {...signupForm.register("password")}
                 aria-label="Password"
                 placeholder="At least 8 characters"
-                className={signupForm.formState.errors.password ? styles.inputError : undefined}
+                className={
+                  signupForm.formState.errors.password
+                    ? styles.inputError
+                    : undefined
+                }
                 aria-invalid={Boolean(signupForm.formState.errors.password)}
               />
               <button
@@ -241,13 +277,17 @@ function LandingAuthPanel(props: AuthPanelProps) {
                   });
                 }}
                 className={styles.passwordToggle}
-                aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showSignupPassword ? "Hide password" : "Show password"
+                }
               >
                 {showSignupPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
             {signupForm.formState.errors.password ? (
-              <p className={styles.fieldError}>{signupForm.formState.errors.password.message}</p>
+              <p className={styles.fieldError}>
+                {signupForm.formState.errors.password.message}
+              </p>
             ) : null}
           </div>
 
@@ -271,71 +311,145 @@ function LandingAuthPanel(props: AuthPanelProps) {
           </p>
         </form>
       ) : (
-        <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className={styles.authForm} noValidate>
+        <form
+          onSubmit={
+            needsLoginVerification
+              ? function (event) {
+                  event.preventDefault();
+                  onLoginVerificationSubmit();
+                }
+              : loginForm.handleSubmit(onLoginSubmit)
+          }
+          className={styles.authForm}
+          noValidate
+        >
           {loginError ? (
             <p className={styles.formAlert} role="alert">
               {loginError}
             </p>
           ) : null}
 
-          <div className={styles.field}>
-            <input
-              id="landing-identifier"
-              type="text"
-              autoComplete="username"
-              {...loginForm.register("identifier")}
-              aria-label="Username or email"
-              placeholder="agnes or agnes@example.com"
-              className={loginForm.formState.errors.identifier ? styles.inputError : undefined}
-              aria-invalid={Boolean(loginForm.formState.errors.identifier)}
-            />
-            {loginForm.formState.errors.identifier ? (
-              <p className={styles.fieldError}>{loginForm.formState.errors.identifier.message}</p>
-            ) : null}
-          </div>
-
-          <div className={styles.field}>
-            <div className={styles.forgotRow}>
-              <Link href={ROUTES.AUTH_FORGOT}>Forgot password?</Link>
-            </div>
-            <div className={styles.passwordField}>
+          {needsLoginVerification ? (
+            <div className={styles.field}>
+              <p className={styles.verificationCopy}>
+                Enter the code sent to{" "}
+                {loginVerificationTarget ?? "your email address"}.
+              </p>
               <input
-                id="landing-login-password"
-                type={showLoginPassword ? "text" : "password"}
-                autoComplete="current-password"
-                {...loginForm.register("password")}
-                aria-label="Password"
-                placeholder="Your password"
-                className={loginForm.formState.errors.password ? styles.inputError : undefined}
-                aria-invalid={Boolean(loginForm.formState.errors.password)}
-              />
-              <button
-                type="button"
-                onClick={function () {
-                  setShowLoginPassword(function (previous) {
-                    return !previous;
-                  });
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={loginVerificationCode}
+                onChange={function (event) {
+                  onLoginVerificationCodeChange(event.target.value);
                 }}
-                className={styles.passwordToggle}
-                aria-label={showLoginPassword ? "Hide password" : "Show password"}
-              >
-                {showLoginPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
+                aria-label="Verification code"
+                placeholder="Verification code"
+              />
             </div>
-            {loginForm.formState.errors.password ? (
-              <p className={styles.fieldError}>{loginForm.formState.errors.password.message}</p>
-            ) : null}
-          </div>
+          ) : (
+            <>
+              <div className={styles.field}>
+                <input
+                  id="landing-identifier"
+                  type="text"
+                  autoComplete="username"
+                  {...loginForm.register("identifier")}
+                  aria-label="Username or email"
+                  placeholder="agnes or agnes@example.com"
+                  className={
+                    loginForm.formState.errors.identifier
+                      ? styles.inputError
+                      : undefined
+                  }
+                  aria-invalid={Boolean(loginForm.formState.errors.identifier)}
+                />
+                {loginForm.formState.errors.identifier ? (
+                  <p className={styles.fieldError}>
+                    {loginForm.formState.errors.identifier.message}
+                  </p>
+                ) : null}
+              </div>
 
-          <button type="submit" disabled={isLoginLoading} className={styles.submitButton}>
+              <div className={styles.field}>
+                <div className={styles.forgotRow}>
+                  <Link href={ROUTES.AUTH_FORGOT}>Forgot password?</Link>
+                </div>
+                <div className={styles.passwordField}>
+                  <input
+                    id="landing-login-password"
+                    type={showLoginPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    {...loginForm.register("password")}
+                    aria-label="Password"
+                    placeholder="Your password"
+                    className={
+                      loginForm.formState.errors.password
+                        ? styles.inputError
+                        : undefined
+                    }
+                    aria-invalid={Boolean(loginForm.formState.errors.password)}
+                  />
+                  <button
+                    type="button"
+                    onClick={function () {
+                      setShowLoginPassword(function (previous) {
+                        return !previous;
+                      });
+                    }}
+                    className={styles.passwordToggle}
+                    aria-label={
+                      showLoginPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff size={17} />
+                    ) : (
+                      <Eye size={17} />
+                    )}
+                  </button>
+                </div>
+                {loginForm.formState.errors.password ? (
+                  <p className={styles.fieldError}>
+                    {loginForm.formState.errors.password.message}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={
+              isLoginLoading ||
+              (needsLoginVerification && !loginVerificationCode.trim())
+            }
+            className={styles.submitButton}
+          >
             {isLoginLoading ? (
               <span className={styles.spinner} aria-label="Logging in" />
             ) : (
               <>
-                Log in <ArrowRight size={17} aria-hidden />
+                {needsLoginVerification ? "Verify and log in" : "Log in"}{" "}
+                <ArrowRight size={17} aria-hidden />
               </>
             )}
           </button>
+
+          {needsLoginVerification ? (
+            <div className={styles.verificationActions}>
+              <button
+                type="button"
+                onClick={onLoginVerificationResend}
+                disabled={isLoginLoading}
+              >
+                Resend code
+              </button>
+              <button type="button" onClick={onLoginVerificationCancel}>
+                Use another account
+              </button>
+            </div>
+          ) : null}
         </form>
       )}
 
@@ -358,7 +472,11 @@ export function LandingPage() {
   const router = useRouter();
   const { isLoaded: authIsLoaded, isSignedIn } = useAuth();
   const { signUp: clerkSignUpObject, isLoaded: signUpLoaded } = useSignUp();
-  const { signIn: clerkSignInObject, setActive, isLoaded: signInLoaded } = useSignIn();
+  const {
+    signIn: clerkSignInObject,
+    setActive,
+    isLoaded: signInLoaded,
+  } = useSignIn();
   const [mode, setMode] = useState<AuthMode>("signup");
   const [usernameCheck, setUsernameCheck] = useState<UsernameCheck>("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
@@ -367,7 +485,12 @@ export function LandingPage() {
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const authAsideRef = useRef<HTMLElement | null>(null);
+  const [needsLoginVerification, setNeedsLoginVerification] = useState(false);
+  const [loginVerificationCode, setLoginVerificationCode] = useState("");
+  const [loginVerificationTarget, setLoginVerificationTarget] = useState<
+    string | null
+  >(null);
+  const authDialogRef = useRef<HTMLDialogElement | null>(null);
   const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usernameRequestRef = useRef<AbortController | null>(null);
   const usernameCheckSequenceRef = useRef(0);
@@ -410,22 +533,34 @@ export function LandingPage() {
 
       try {
         const response = await fetch(
-          LANDING_API_URL + "/v1/usernames/" + encodeURIComponent(trimmed) + "/available",
-          { signal: controller.signal }
+          LANDING_API_URL +
+            "/v1/usernames/" +
+            encodeURIComponent(trimmed) +
+            "/available",
+          { signal: controller.signal },
         );
         if (!response.ok) {
           throw new Error("Username check returned " + response.status);
         }
         const data: unknown = await response.json();
-        if (!data || typeof data !== "object" || !("available" in data) || typeof data.available !== "boolean") {
+        if (
+          !data ||
+          typeof data !== "object" ||
+          !("available" in data) ||
+          typeof data.available !== "boolean"
+        ) {
           throw new Error("Username check returned an invalid response");
         }
         if (requestSequence !== usernameCheckSequenceRef.current) return;
         setUsernameCheck(data.available ? "free" : "taken");
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         if (requestSequence !== usernameCheckSequenceRef.current) return;
-        console.error("[LandingPage] Username availability check failed", error);
+        console.error(
+          "[LandingPage] Username availability check failed",
+          error,
+        );
         setUsernameCheck("error");
       } finally {
         if (usernameRequestRef.current === controller) {
@@ -439,7 +574,7 @@ export function LandingPage() {
     function () {
       checkUsername(watchedUsername);
     },
-    [watchedUsername, checkUsername]
+    [watchedUsername, checkUsername],
   );
 
   useEffect(function () {
@@ -456,20 +591,27 @@ export function LandingPage() {
         completeSessionNavigation(ROUTES.HOME);
       }
     },
-    [authIsLoaded, isSignedIn]
+    [authIsLoaded, isSignedIn],
   );
 
   const showAuth = useCallback(function (nextMode: AuthMode) {
     setMode(nextMode);
     window.requestAnimationFrame(function () {
-      authAsideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const dialog = authDialogRef.current;
+      if (dialog && !dialog.open) dialog.showModal();
     });
+  }, []);
+
+  const closeAuth = useCallback(function () {
+    authDialogRef.current?.close();
   }, []);
 
   const onSignupSubmit = async function (data: SignupValues) {
     if (!signUpLoaded || !clerkSignUpObject) return;
     if (usernameCheck !== "free") {
-      setSignupError("Choose an available username before creating your account.");
+      setSignupError(
+        "Choose an available username before creating your account.",
+      );
       return;
     }
 
@@ -513,8 +655,49 @@ export function LandingPage() {
       return;
     }
 
+    if (result.data.status === "needs_verification") {
+      setNeedsLoginVerification(true);
+      setLoginVerificationTarget(result.data.safeIdentifier);
+      loginForm.resetField("password");
+      return;
+    }
+
     await setActive({ session: clerkSignInObject.createdSessionId });
     completeSessionNavigation(ROUTES.HOME);
+  };
+
+  const onLoginVerificationSubmit = async function () {
+    if (!clerkSignInObject || !setActive || !loginVerificationCode.trim())
+      return;
+    setLoginError(null);
+    setIsLoginLoading(true);
+    const result = await clerkVerifySignInCode(
+      clerkSignInObject,
+      loginVerificationCode,
+    );
+    setIsLoginLoading(false);
+    if (!result.ok) {
+      setLoginError(result.message);
+      return;
+    }
+    await setActive({ session: clerkSignInObject.createdSessionId });
+    completeSessionNavigation(ROUTES.HOME);
+  };
+
+  const onLoginVerificationResend = async function () {
+    if (!clerkSignInObject) return;
+    setLoginError(null);
+    setIsLoginLoading(true);
+    const result = await clerkResendSignInCode(clerkSignInObject);
+    setIsLoginLoading(false);
+    if (!result.ok) setLoginError(result.message);
+  };
+
+  const onLoginVerificationCancel = function () {
+    setNeedsLoginVerification(false);
+    setLoginVerificationCode("");
+    setLoginVerificationTarget(null);
+    setLoginError(null);
   };
 
   const usernameIsBlocked =
@@ -525,48 +708,83 @@ export function LandingPage() {
 
   return (
     <main className={styles.root}>
-      <div className={styles.backdropTexture} aria-hidden />
-      <div className={styles.shell}>
-        <LandingHero
-          onJoin={function () {
-            showAuth("signup");
-          }}
-          onLogin={function () {
-            showAuth("login");
-          }}
-        />
+      <LandingHero
+        onJoin={function () {
+          showAuth("signup");
+        }}
+        onLogin={function () {
+          showAuth("login");
+        }}
+      />
 
-        <aside ref={authAsideRef} id="landing-auth" className={styles.authAside} aria-label="Account access">
-          <LandingAuthPanel
-            mode={mode}
-            setMode={setMode}
-            signupForm={signupForm}
-            loginForm={loginForm}
-            signupError={signupError}
-            loginError={loginError}
-            usernameCheck={usernameCheck}
-            usernameStatus={usernameStatusLabel(usernameCheck)}
-            usernameIsBlocked={usernameIsBlocked}
-            showSignupPassword={showSignupPassword}
-            showLoginPassword={showLoginPassword}
-            setShowSignupPassword={setShowSignupPassword}
-            setShowLoginPassword={setShowLoginPassword}
-            isSignupLoading={isSignupLoading}
-            isLoginLoading={isLoginLoading}
-            onSignupSubmit={onSignupSubmit}
-            onLoginSubmit={onLoginSubmit}
-          />
+      <dialog
+        ref={authDialogRef}
+        className={styles.authDialog}
+        aria-label="Account access"
+        onCancel={closeAuth}
+        onClick={function (event) {
+          if (event.target === event.currentTarget) closeAuth();
+        }}
+      >
+        <div className={styles.authModal}>
+          <section className={styles.authVisual} aria-hidden>
+            <Image
+              src="/landing/cinema-after-screening.webp"
+              alt=""
+              fill
+              sizes="28rem"
+              className={styles.authVisualImage}
+            />
+            <div className={styles.authVisualShade} />
+            <span className={styles.authVisualBrand}>35mm.</span>
+            <p>
+              The film ends.
+              <br />
+              Your circle keeps talking.
+            </p>
+          </section>
 
-          <footer className={styles.footer}>
-            <span>© 35mm.in</span>
-            <nav aria-label="Legal">
-              <Link href="/privacy">Privacy</Link>
-              <Link href="/terms">Terms</Link>
-              <Link href="/help">Help</Link>
-            </nav>
-          </footer>
-        </aside>
-      </div>
+          <aside id="landing-auth" className={styles.authAside}>
+            <span className={styles.sheetHandle} aria-hidden />
+            <LandingAuthPanel
+              mode={mode}
+              setMode={setMode}
+              signupForm={signupForm}
+              loginForm={loginForm}
+              signupError={signupError}
+              loginError={loginError}
+              needsLoginVerification={needsLoginVerification}
+              loginVerificationCode={loginVerificationCode}
+              loginVerificationTarget={loginVerificationTarget}
+              usernameCheck={usernameCheck}
+              usernameStatus={usernameStatusLabel(usernameCheck)}
+              usernameIsBlocked={usernameIsBlocked}
+              showSignupPassword={showSignupPassword}
+              showLoginPassword={showLoginPassword}
+              setShowSignupPassword={setShowSignupPassword}
+              setShowLoginPassword={setShowLoginPassword}
+              isSignupLoading={isSignupLoading}
+              isLoginLoading={isLoginLoading}
+              onSignupSubmit={onSignupSubmit}
+              onLoginSubmit={onLoginSubmit}
+              onLoginVerificationCodeChange={setLoginVerificationCode}
+              onLoginVerificationSubmit={onLoginVerificationSubmit}
+              onLoginVerificationResend={onLoginVerificationResend}
+              onLoginVerificationCancel={onLoginVerificationCancel}
+              onClose={closeAuth}
+            />
+
+            <footer className={styles.footer}>
+              <span>© 35mm.in</span>
+              <nav aria-label="Legal">
+                <Link href="/privacy">Privacy</Link>
+                <Link href="/terms">Terms</Link>
+                <Link href="/help">Help</Link>
+              </nav>
+            </footer>
+          </aside>
+        </div>
+      </dialog>
     </main>
   );
 }

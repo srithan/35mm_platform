@@ -1,6 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { Rest } from "ably";
 import { createDb, notifications, profiles } from "@35mm/db";
+import { isMainNotificationType } from "@35mm/db/notification-service";
 import { loadWorkerEnv } from "../lib/env.js";
 import { sendNotificationEmail } from "./notificationEmail.js";
 
@@ -158,6 +159,9 @@ export async function runNotificationPublishJob(payload: NotificationPublishJobP
   }
 
   var row = rows[0];
+  if (!isMainNotificationType(row.type)) {
+    return false;
+  }
   if (!row.bundleCount || row.bundleCount < 1) {
     return false;
   }

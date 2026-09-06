@@ -43,7 +43,7 @@ export const notificationSettingsSchema = z.object({
 });
 
 export const appearanceSettingsSchema = z.object({
-  theme: z.enum(["auto", "light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"]),
+  theme: z.enum(["auto", "light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie", "letterboxd"]),
   accentColor: z.enum([
     "theme",
     "warm-red",
@@ -62,6 +62,7 @@ export const mediaSettingsSchema = z.object({
   videoAutoplay: z.boolean(),
   alwaysShowCaptions: z.boolean(),
   captionStyle: z.enum(["default", "large", "high_contrast"]),
+  startWithSound: z.boolean(),
   quietMode: z.boolean(),
 });
 

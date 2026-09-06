@@ -9,6 +9,7 @@ import {
   users,
 } from "@35mm/db/schema";
 import {
+  publicFilmListFiltersSchema,
   cloneFilmListSchema,
   createFilmListSchema,
   cursorPaginationSchema,
@@ -28,17 +29,37 @@ import type {
 } from "@35mm/types";
 import { getDb, getWriteDb } from "../../lib/db.js";
 import { enqueueListCloneJob } from "../../lib/jobs.js";
-import { badRequest, forbidden, notFound, serviceUnavailable } from "../../lib/errors.js";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+} from "../../lib/errors.js";
 import { getOptionalAuthUser, requireAuth } from "../../lib/middleware.js";
 import { createUlid, isValidUlid } from "../../lib/ulid.js";
-import { ensureWatchlistForUser, nextListPosition, resolveFilmId } from "../../lib/filmLists.js";
-import { recordCounterDeltas, wakeCounterOutbox } from "../../lib/counterOutbox.js";
-import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
+import {
+  ensureWatchlistForUser,
+  nextListPosition,
+  resolveFilmId,
+} from "../../lib/filmLists.js";
+import {
+  recordCounterDeltas,
+  wakeCounterOutbox,
+} from "../../lib/counterOutbox.js";
+import { applyVisibleFilmListCountersToRows } from "../../lib/filmListCounters.js";
+import {
+  createRateLimitMiddleware,
+  identifyByUserId,
+} from "../../lib/rateLimit.js";
 import { resolveProfileAvatarUrl, type AvatarVariants } from "../media/url.js";
 
 export var listRoutes = new Hono();
 
-function userRateLimit(keyPrefix: string, limit: number, windowSeconds: number) {
+function userRateLimit(
+  keyPrefix: string,
+  limit: number,
+  windowSeconds: number,
+) {
   return createRateLimitMiddleware({
     keyPrefix,
     limit,
@@ -120,7 +141,10 @@ function assertUlidParam(value: string, label: string): string {
 }
 
 function encodeListCursor(input: ListCursor): string {
-  return Buffer.from(JSON.stringify({ v: input.value, i: input.id }), "utf8").toString("base64");
+  return Buffer.from(
+    JSON.stringify({ v: input.value, i: input.id }),
+    "utf8",
+  ).toString("base64");
 }
 
 function decodeListCursor(cursor: string | undefined): ListCursor | null {
@@ -130,7 +154,11 @@ function decodeListCursor(cursor: string | undefined): ListCursor | null {
       v?: unknown;
       i?: unknown;
     };
-    if (typeof parsed.v !== "string" || typeof parsed.i !== "string" || parsed.i.length === 0) {
+    if (
+      typeof parsed.v !== "string" ||
+      typeof parsed.i !== "string" ||
+      parsed.i.length === 0
+    ) {
       throw new Error("invalid-shape");
     }
     return { value: parsed.v, id: parsed.i };
@@ -143,7 +171,9 @@ function listEntrySortPosition(position: number | null): number {
   return position == null ? -1 : position;
 }
 
-function decodeListEntryCursor(cursor: string | null | undefined): ListEntryCursor | null {
+function decodeListEntryCursor(
+  cursor: string | null | undefined,
+): ListEntryCursor | null {
   if (!cursor) return null;
   try {
     var parsed = JSON.parse(Buffer.from(cursor, "base64").toString("utf8")) as {
@@ -151,7 +181,13 @@ function decodeListEntryCursor(cursor: string | null | undefined): ListEntryCurs
       a?: unknown;
       i?: unknown;
     };
-    if (typeof parsed.p !== "number" || !Number.isFinite(parsed.p) || typeof parsed.a !== "string" || typeof parsed.i !== "string" || parsed.i.length === 0) {
+    if (
+      typeof parsed.p !== "number" ||
+      !Number.isFinite(parsed.p) ||
+      typeof parsed.a !== "string" ||
+      typeof parsed.i !== "string" ||
+      parsed.i.length === 0
+    ) {
       throw new Error("invalid-shape");
     }
 
@@ -173,11 +209,14 @@ function encodeListEntryCursor(cursor: ListEntryCursor): string {
       a: cursor.addedAt,
       i: cursor.id,
     }),
-    "utf8"
+    "utf8",
   ).toString("base64");
 }
 
-function canViewList(row: { visibility: "public" | "private"; userId: string; isDeleted: boolean }, viewerId: string | null): boolean {
+function canViewList(
+  row: { visibility: "public" | "private"; userId: string; isDeleted: boolean },
+  viewerId: string | null,
+): boolean {
   if (row.isDeleted) return false;
   if (row.visibility === "public") return true;
   return viewerId === row.userId;
@@ -188,18 +227,31 @@ async function ownerFromRow(row: ListRow): Promise<PublicUser> {
     id: row.userId,
     username: row.ownerUsername,
     displayName: row.ownerDisplayName,
-    avatarUrl: await resolveProfileAvatarUrl(row.ownerAvatarUrl, row.userId, row.ownerAvatarVariants, "sm"),
-    avatarUrlLg: await resolveProfileAvatarUrl(row.ownerAvatarUrl, row.userId, row.ownerAvatarVariants, "lg"),
+    avatarUrl: await resolveProfileAvatarUrl(
+      row.ownerAvatarUrl,
+      row.userId,
+      row.ownerAvatarVariants,
+      "sm",
+    ),
+    avatarUrlLg: await resolveProfileAvatarUrl(
+      row.ownerAvatarUrl,
+      row.userId,
+      row.ownerAvatarVariants,
+      "lg",
+    ),
     role: row.ownerRole,
     roleContext: row.ownerRoleContext,
     filmsLoggedCount: row.ownerFilmsLoggedCount,
   };
 }
 
-async function posterUrlsForListIds(listIds: string[]): Promise<Record<string, Array<string | null>>> {
+async function posterUrlsForListIds(
+  listIds: string[],
+): Promise<Record<string, Array<string | null>>> {
   if (listIds.length === 0) return {};
 
-  var rows = (await getDb().execute(sql`
+  var rows = (
+    (await getDb().execute(sql`
     select list_id, poster_url
     from (
       select
@@ -211,13 +263,17 @@ async function posterUrlsForListIds(listIds: string[]): Promise<Record<string, A
         ) as row_number_idx
       from ${filmListEntries}
       inner join ${films} on ${films.id} = ${filmListEntries.filmId}
-      where ${filmListEntries.listId} in (${sql.join(listIds.map(function (id) {
-        return sql`${id}`;
-      }), sql`, `)})
+      where ${filmListEntries.listId} in (${sql.join(
+        listIds.map(function (id) {
+          return sql`${id}`;
+        }),
+        sql`, `,
+      )})
     ) ranked
-    where row_number_idx <= 3
+    where row_number_idx <= 4
     order by list_id, row_number_idx
-  `) as { rows: Array<{ list_id: string; poster_url: string | null }> }).rows;
+  `)) as { rows: Array<{ list_id: string; poster_url: string | null }> }
+  ).rows;
 
   var byList: Record<string, Array<string | null>> = {};
   for (var index = 0; index < listIds.length; index += 1) {
@@ -236,7 +292,7 @@ async function posterUrlsForListIds(listIds: string[]): Promise<Record<string, A
 async function toSummary(
   row: ListRow,
   viewerId: string | null,
-  posterUrlsByListId: Record<string, Array<string | null>>
+  posterUrlsByListId: Record<string, Array<string | null>>,
 ): Promise<FilmListSummary> {
   return {
     id: row.id,
@@ -260,13 +316,21 @@ async function toSummary(
   };
 }
 
+async function withVisibleListCounters<T extends ListRow>(row: T): Promise<T> {
+  var rows = await applyVisibleFilmListCountersToRows(getDb(), [row]);
+  return rows[0] ?? row;
+}
+
 function normalizeListPosterIds(listIds: string[]) {
   return Array.from(new Set(listIds)).filter(function (value) {
     return value.length > 0;
   });
 }
 
-async function selectListById(listId: string, viewerId: string | null): Promise<ListRow> {
+async function selectListById(
+  listId: string,
+  viewerId: string | null,
+): Promise<ListRow> {
   var db = getDb();
   var rows = await db
     .select({
@@ -300,12 +364,16 @@ async function selectListById(listId: string, viewerId: string | null): Promise<
     .innerJoin(profiles, eq(profiles.userId, filmLists.userId))
     .leftJoin(
       filmListLikes,
-      and(eq(filmListLikes.listId, filmLists.id), viewerId ? eq(filmListLikes.userId, viewerId) : sql`false`)
+      and(
+        eq(filmListLikes.listId, filmLists.id),
+        viewerId ? eq(filmListLikes.userId, viewerId) : sql`false`,
+      ),
     )
     .where(eq(filmLists.id, listId))
     .limit(1);
 
-  if (rows.length === 0 || !canViewList(rows[0], viewerId)) throw notFound("List not found");
+  if (rows.length === 0 || !canViewList(rows[0], viewerId))
+    throw notFound("List not found");
   return rows[0];
 }
 
@@ -315,7 +383,7 @@ async function listEntries(
     cursor?: string | null;
     limit: number;
   },
-  dbContext: ListEntriesDbContext = getDb()
+  dbContext: ListEntriesDbContext = getDb(),
 ): Promise<FilmListEntriesPage> {
   var parsedCursor = decodeListEntryCursor(pagination.cursor ?? null);
   var orderPosition = sql<number>`coalesce(${filmListEntries.position}, -1)`;
@@ -324,13 +392,13 @@ async function listEntries(
         gt(orderPosition, listEntrySortPosition(parsedCursor.position)),
         and(
           eq(orderPosition, listEntrySortPosition(parsedCursor.position)),
-          gt(filmListEntries.addedAt, new Date(parsedCursor.addedAt))
+          gt(filmListEntries.addedAt, new Date(parsedCursor.addedAt)),
         ),
         and(
           eq(orderPosition, listEntrySortPosition(parsedCursor.position)),
           eq(filmListEntries.addedAt, new Date(parsedCursor.addedAt)),
-          gt(filmListEntries.id, parsedCursor.id)
-        )
+          gt(filmListEntries.id, parsedCursor.id),
+        ),
       )
     : undefined;
 
@@ -349,7 +417,11 @@ async function listEntries(
     .from(filmListEntries)
     .innerJoin(films, eq(films.id, filmListEntries.filmId))
     .where(and(eq(filmListEntries.listId, listId), cursorWhere))
-    .orderBy(asc(orderPosition), asc(filmListEntries.addedAt), asc(filmListEntries.id))
+    .orderBy(
+      asc(orderPosition),
+      asc(filmListEntries.addedAt),
+      asc(filmListEntries.id),
+    )
     .limit(pagination.limit + 1);
 
   var pageRows = rows.slice(0, pagination.limit);
@@ -382,8 +454,139 @@ async function listEntries(
         : null,
     hasMore: pageHasMore,
   };
-
 }
+
+listRoutes.get("/", async function (c) {
+  var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
+  var pagination = cursorPaginationSchema.parse({
+    cursor: c.req.query("cursor") ?? undefined,
+    limit: c.req.query("limit") ?? 24,
+  });
+  var sort = c.req.query("sort") ?? "popular";
+  if (sort !== "popular" && sort !== "recent") {
+    throw badRequest("Invalid sort");
+  }
+
+  var parsedFilters = publicFilmListFiltersSchema.safeParse({
+    q: c.req.query("q"), format: c.req.query("format"), size: c.req.query("size"),
+  });
+  if (!parsedFilters.success) throw badRequest("Invalid list filters");
+  var filters = parsedFilters.data;
+
+  var cursor = decodeListCursor(pagination.cursor);
+  var viewerId = viewer?.userId ?? null;
+  var cursorWhere: ReturnType<typeof or>;
+
+  if (cursor && sort === "popular") {
+    var likeCount = Number(cursor.value);
+    if (!Number.isSafeInteger(likeCount) || likeCount < 0) {
+      throw badRequest("Invalid cursor");
+    }
+    cursorWhere = or(
+      lt(filmLists.likeCount, likeCount),
+      and(eq(filmLists.likeCount, likeCount), lt(filmLists.id, cursor.id)),
+    );
+  } else if (cursor) {
+    var createdAt = new Date(cursor.value);
+    if (Number.isNaN(createdAt.getTime())) {
+      throw badRequest("Invalid cursor");
+    }
+    cursorWhere = or(
+      lt(filmLists.createdAt, createdAt),
+      and(eq(filmLists.createdAt, createdAt), lt(filmLists.id, cursor.id)),
+    );
+  }
+
+  var order =
+    sort === "popular"
+      ? [desc(filmLists.likeCount), desc(filmLists.id)]
+      : [desc(filmLists.createdAt), desc(filmLists.id)];
+
+  var rows = await getDb()
+    .select({
+      id: filmLists.id,
+      userId: filmLists.userId,
+      type: filmLists.type,
+      title: filmLists.title,
+      description: filmLists.description,
+      visibility: filmLists.visibility,
+      isRanked: filmLists.isRanked,
+      tags: filmLists.tags,
+      shareSlug: filmLists.shareSlug,
+      likeCount: filmLists.likeCount,
+      commentCount: filmLists.commentCount,
+      entryCount: filmLists.entryCount,
+      clonedFromListId: filmLists.clonedFromListId,
+      isDeleted: filmLists.isDeleted,
+      createdAt: filmLists.createdAt,
+      updatedAt: filmLists.updatedAt,
+      ownerUsername: profiles.username,
+      ownerDisplayName: profiles.displayName,
+      ownerAvatarUrl: profiles.avatarUrl,
+      ownerAvatarVariants: profiles.avatarVariants,
+      ownerRole: profiles.role,
+      ownerRoleContext: profiles.roleContext,
+      ownerFilmsLoggedCount: profiles.filmsLoggedCount,
+      isLiked: filmListLikes.userId,
+    })
+    .from(filmLists)
+    .innerJoin(profiles, eq(profiles.userId, filmLists.userId))
+    .leftJoin(
+      filmListLikes,
+      and(
+        eq(filmListLikes.listId, filmLists.id),
+        viewerId ? eq(filmListLikes.userId, viewerId) : sql`false`,
+      ),
+    )
+    .where(
+      and(
+        eq(filmLists.visibility, "public"),
+        eq(filmLists.type, "custom"),
+        eq(filmLists.isDeleted, false),
+        filters.q ? sql`to_tsvector('simple', ${filmLists.title}) @@ plainto_tsquery('simple', ${filters.q})` : undefined,
+        filters.format === "all" ? undefined : eq(filmLists.isRanked, filters.format === "ranked"),
+        filters.size === "short" ? lt(filmLists.entryCount, 10)
+          : filters.size === "medium" ? and(sql`${filmLists.entryCount} >= 10`, sql`${filmLists.entryCount} <= 50`)
+          : filters.size === "long" ? gt(filmLists.entryCount, 50) : undefined,
+        cursorWhere,
+      ),
+    )
+    .orderBy(...order)
+    .limit(pagination.limit + 1);
+
+  var pageRows = rows.slice(0, pagination.limit);
+  var visiblePageRows = await applyVisibleFilmListCountersToRows(
+    getDb(),
+    pageRows,
+  );
+  var posterUrlsByListId = await posterUrlsForListIds(
+    normalizeListPosterIds(
+      pageRows.map(function (row) {
+        return row.id;
+      }),
+    ),
+  );
+  var summaries = await Promise.all(
+    visiblePageRows.map(function (row) {
+      return toSummary(row, viewerId, posterUrlsByListId);
+    }),
+  );
+  var last = pageRows[pageRows.length - 1];
+  var nextCursor =
+    rows.length > pagination.limit && last
+      ? encodeListCursor(
+          sort === "popular"
+            ? { value: String(last.likeCount), id: last.id }
+            : { value: last.createdAt.toISOString(), id: last.id },
+        )
+      : null;
+
+  return c.json({
+    items: summaries,
+    nextCursor,
+    hasMore: nextCursor != null,
+  } satisfies FilmListPage);
+});
 
 listRoutes.get("/profile/:username", async function (c) {
   var username = c.req.param("username").toLowerCase().trim();
@@ -412,23 +615,32 @@ listRoutes.get("/profile/:username", async function (c) {
   var baseWhere = and(
     eq(filmLists.userId, targetUserId),
     eq(filmLists.isDeleted, false),
-    isOwner ? undefined : eq(filmLists.visibility, "public")
+    isOwner ? undefined : eq(filmLists.visibility, "public"),
   );
   var cursorWhere =
     cursor && sort === "updated"
       ? or(
           lt(filmLists.updatedAt, new Date(cursor.value)),
-          and(eq(filmLists.updatedAt, new Date(cursor.value)), lt(filmLists.id, cursor.id))
+          and(
+            eq(filmLists.updatedAt, new Date(cursor.value)),
+            lt(filmLists.id, cursor.id),
+          ),
         )
       : cursor && sort === "popular"
         ? or(
             lt(filmLists.likeCount, Number(cursor.value)),
-            and(eq(filmLists.likeCount, Number(cursor.value)), lt(filmLists.id, cursor.id))
+            and(
+              eq(filmLists.likeCount, Number(cursor.value)),
+              lt(filmLists.id, cursor.id),
+            ),
           )
         : cursor && sort === "alpha"
           ? or(
               sql`lower(${filmLists.title}) > ${cursor.value}`,
-              and(sql`lower(${filmLists.title}) = ${cursor.value}`, lt(filmLists.id, cursor.id))
+              and(
+                sql`lower(${filmLists.title}) = ${cursor.value}`,
+                lt(filmLists.id, cursor.id),
+              ),
             )
           : undefined;
 
@@ -470,20 +682,30 @@ listRoutes.get("/profile/:username", async function (c) {
     .innerJoin(profiles, eq(profiles.userId, filmLists.userId))
     .leftJoin(
       filmListLikes,
-      and(eq(filmListLikes.listId, filmLists.id), viewerId ? eq(filmListLikes.userId, viewerId) : sql`false`)
+      and(
+        eq(filmListLikes.listId, filmLists.id),
+        viewerId ? eq(filmListLikes.userId, viewerId) : sql`false`,
+      ),
     )
     .where(and(baseWhere, cursorWhere))
     .orderBy(...order)
     .limit(pagination.limit + 1);
 
   var pageRows = rows.slice(0, pagination.limit);
-  var posterUrlsByListId = await posterUrlsForListIds(normalizeListPosterIds(pageRows.map(function (row) {
-    return row.id;
-  })));
+  var visiblePageRows = await applyVisibleFilmListCountersToRows(db, pageRows);
+  var posterUrlsByListId = await posterUrlsForListIds(
+    normalizeListPosterIds(
+      pageRows.map(function (row) {
+        return row.id;
+      }),
+    ),
+  );
 
-  var summaries = await Promise.all(pageRows.map(function (row) {
-    return toSummary(row, viewerId, posterUrlsByListId);
-  }));
+  var summaries = await Promise.all(
+    visiblePageRows.map(function (row) {
+      return toSummary(row, viewerId, posterUrlsByListId);
+    }),
+  );
   var last = pageRows[pageRows.length - 1];
   var nextCursor =
     rows.length > pagination.limit && last
@@ -492,7 +714,7 @@ listRoutes.get("/profile/:username", async function (c) {
             ? { value: String(last.likeCount), id: last.id }
             : sort === "alpha"
               ? { value: last.title.toLowerCase(), id: last.id }
-              : { value: last.updatedAt.toISOString(), id: last.id }
+              : { value: last.updatedAt.toISOString(), id: last.id },
         )
       : null;
 
@@ -516,7 +738,10 @@ listRoutes.get("/films/:filmId", async function (c) {
   var cursorWhere = cursor
     ? or(
         lt(filmLists.likeCount, Number(cursor.value)),
-        and(eq(filmLists.likeCount, Number(cursor.value)), lt(filmLists.id, cursor.id))
+        and(
+          eq(filmLists.likeCount, Number(cursor.value)),
+          lt(filmLists.id, cursor.id),
+        ),
       )
     : undefined;
 
@@ -554,28 +779,39 @@ listRoutes.get("/films/:filmId", async function (c) {
       filmListLikes,
       and(
         eq(filmListLikes.listId, filmLists.id),
-        viewer ? eq(filmListLikes.userId, viewer.userId) : sql`false`
-      )
+        viewer ? eq(filmListLikes.userId, viewer.userId) : sql`false`,
+      ),
     )
     .where(
       and(
         eq(filmListEntries.filmId, filmId),
         eq(filmLists.visibility, "public"),
         eq(filmLists.isDeleted, false),
-        cursorWhere
-      )
+        cursorWhere,
+      ),
     )
-    .orderBy(desc(filmLists.likeCount), desc(filmLists.updatedAt), desc(filmLists.id))
+    .orderBy(
+      desc(filmLists.likeCount),
+      desc(filmLists.updatedAt),
+      desc(filmLists.id),
+    )
     .limit(pagination.limit + 1);
 
   var pageRows = rows.slice(0, pagination.limit);
-  var posterUrlsByListId = await posterUrlsForListIds(normalizeListPosterIds(pageRows.map(function (row) {
-    return row.id;
-  })));
+  var visiblePageRows = await applyVisibleFilmListCountersToRows(db, pageRows);
+  var posterUrlsByListId = await posterUrlsForListIds(
+    normalizeListPosterIds(
+      pageRows.map(function (row) {
+        return row.id;
+      }),
+    ),
+  );
 
-  var summaries = await Promise.all(pageRows.map(function (row) {
-    return toSummary(row, viewer?.userId ?? null, posterUrlsByListId);
-  }));
+  var summaries = await Promise.all(
+    visiblePageRows.map(function (row) {
+      return toSummary(row, viewer?.userId ?? null, posterUrlsByListId);
+    }),
+  );
   var last = pageRows[pageRows.length - 1];
   var nextCursor =
     rows.length > pagination.limit && last
@@ -597,29 +833,37 @@ listRoutes.get("/me/watchlist", requireAuth, async function (c) {
     cursor: c.req.query("cursor") ?? undefined,
     limit: c.req.query("limit") ?? undefined,
   });
-  var summary = await toSummary(row, user.userId, await posterUrlsForListIds([row.id]));
+  var visibleRow = await withVisibleListCounters(row);
+  var summary = await toSummary(
+    visibleRow,
+    user.userId,
+    await posterUrlsForListIds([row.id]),
+  );
   var entriesPage = await listEntries(row.id, pagination);
 
-  return c.json(
-    {
-      ...summary,
-      entries: entriesPage.items,
-      entriesPage,
-      clonedFromListId: null,
-    } satisfies FilmListDetail
-  );
+  return c.json({
+    ...summary,
+    entries: entriesPage.items,
+    entriesPage,
+    clonedFromListId: null,
+  } satisfies FilmListDetail);
 });
 
-listRoutes.post("/films/resolve", requireAuth, listWriteRateLimit, async function (c) {
-  var input = watchlistFilmSchema.parse(await c.req.json());
-  var filmId = await resolveFilmId({
-    filmId: input.filmId,
-    film: input.film,
-    catalogFilm: input.catalogFilm,
-  });
+listRoutes.post(
+  "/films/resolve",
+  requireAuth,
+  listWriteRateLimit,
+  async function (c) {
+    var input = watchlistFilmSchema.parse(await c.req.json());
+    var filmId = await resolveFilmId({
+      filmId: input.filmId,
+      film: input.film,
+      catalogFilm: input.catalogFilm,
+    });
 
-  return c.json({ filmId });
-});
+    return c.json({ filmId });
+  },
+);
 
 listRoutes.get("/:listId", async function (c) {
   var listId = assertUlidParam(c.req.param("listId"), "listId");
@@ -629,16 +873,19 @@ listRoutes.get("/:listId", async function (c) {
     limit: c.req.query("limit") ?? undefined,
   });
   var row = await selectListById(listId, viewer?.userId ?? null);
-  var summary = await toSummary(row, viewer?.userId ?? null, await posterUrlsForListIds([row.id]));
-  var entriesPage = await listEntries(row.id, pagination);
-  return c.json(
-    {
-      ...summary,
-      entries: entriesPage.items,
-      entriesPage,
-      clonedFromListId: row.clonedFromListId,
-    } satisfies FilmListDetail
+  var visibleRow = await withVisibleListCounters(row);
+  var summary = await toSummary(
+    visibleRow,
+    viewer?.userId ?? null,
+    await posterUrlsForListIds([row.id]),
   );
+  var entriesPage = await listEntries(row.id, pagination);
+  return c.json({
+    ...summary,
+    entries: entriesPage.items,
+    entriesPage,
+    clonedFromListId: row.clonedFromListId,
+  } satisfies FilmListDetail);
 });
 
 listRoutes.post("/", requireAuth, listWriteRateLimit, async function (c) {
@@ -661,288 +908,408 @@ listRoutes.post("/", requireAuth, listWriteRateLimit, async function (c) {
   });
 
   var row = await selectListById(id, user.userId);
-  return c.json(await toSummary(row, user.userId, await posterUrlsForListIds([row.id])), 201);
-});
-
-listRoutes.patch("/:listId", requireAuth, listWriteRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var input = updateFilmListSchema.parse(await c.req.json());
-  var row = await selectListById(listId, user.userId);
-  if (row.userId !== user.userId) throw forbidden("You do not own this list");
-
-  var updates: Record<string, unknown> = { updatedAt: new Date() };
-  if (row.type === "watchlist") {
-    if (input.visibility !== undefined) updates.visibility = input.visibility;
-  } else {
-    if (input.title !== undefined) updates.title = input.title;
-    if (input.description !== undefined) updates.description = input.description;
-    if (input.visibility !== undefined) updates.visibility = input.visibility;
-    if (input.isRanked !== undefined) updates.isRanked = input.isRanked;
-    if (input.tags !== undefined) updates.tags = cleanTags(input.tags);
-  }
-
-  await getDb().update(filmLists).set(updates).where(eq(filmLists.id, listId));
   return c.json(
-    await toSummary(await selectListById(listId, user.userId), user.userId, await posterUrlsForListIds([listId]))
+    await toSummary(row, user.userId, await posterUrlsForListIds([row.id])),
+    201,
   );
 });
 
-listRoutes.delete("/:listId", requireAuth, listWriteRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var row = await selectListById(listId, user.userId);
-  if (row.userId !== user.userId) throw forbidden("You do not own this list");
-  if (row.type === "watchlist") throw forbidden("Watchlist cannot be deleted");
+listRoutes.patch(
+  "/:listId",
+  requireAuth,
+  listWriteRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var input = updateFilmListSchema.parse(await c.req.json());
+    var row = await selectListById(listId, user.userId);
+    if (row.userId !== user.userId) throw forbidden("You do not own this list");
 
-  await getDb()
-    .update(filmLists)
-    .set({ isDeleted: true, updatedAt: new Date() })
-    .where(eq(filmLists.id, listId));
-
-  return c.json({ ok: true });
-});
-
-listRoutes.post("/:listId/entries", requireAuth, listEntryRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var input = filmListEntrySchema.parse(await c.req.json());
-  var row = await selectListById(listId, user.userId);
-  if (row.userId !== user.userId) throw forbidden("You do not own this list");
-  if (row.type === "watchlist" && input.note) throw badRequest("Watchlist entries cannot have notes");
-
-  var filmId = await resolveFilmId({ filmId: input.filmId, film: input.film, catalogFilm: input.catalogFilm });
-  var position = input.position ?? await nextListPosition(listId);
-  var entryId = createUlid();
-  var inserted = await getWriteDb().transaction(async function (tx) {
-    var rows = await tx
-      .insert(filmListEntries)
-      .values({
-        id: entryId,
-        listId,
-        filmId,
-        position,
-        note: row.type === "watchlist" ? null : input.note ?? null,
-      })
-      .onConflictDoNothing()
-      .returning({ id: filmListEntries.id });
-
-    if (rows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "film_lists",
-        targetId: listId,
-        counterName: "entryCount",
-        delta: 1,
-      });
+    var updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (row.type === "watchlist") {
+      if (input.visibility !== undefined) updates.visibility = input.visibility;
+    } else {
+      if (input.title !== undefined) updates.title = input.title;
+      if (input.description !== undefined)
+        updates.description = input.description;
+      if (input.visibility !== undefined) updates.visibility = input.visibility;
+      if (input.isRanked !== undefined) updates.isRanked = input.isRanked;
+      if (input.tags !== undefined) updates.tags = cleanTags(input.tags);
     }
 
-    return rows;
-  });
-  if (inserted.length > 0) wakeCounterOutbox();
+    await getDb()
+      .update(filmLists)
+      .set(updates)
+      .where(eq(filmLists.id, listId));
+    return c.json(
+      await toSummary(
+        await withVisibleListCounters(
+          await selectListById(listId, user.userId),
+        ),
+        user.userId,
+        await posterUrlsForListIds([listId]),
+      ),
+    );
+  },
+);
 
-  return c.json({ ok: true, entryId: inserted[0]?.id ?? null, filmId, duplicate: inserted.length === 0 });
-});
+listRoutes.delete(
+  "/:listId",
+  requireAuth,
+  listWriteRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var row = await selectListById(listId, user.userId);
+    if (row.userId !== user.userId) throw forbidden("You do not own this list");
+    if (row.type === "watchlist")
+      throw forbidden("Watchlist cannot be deleted");
 
-listRoutes.patch("/:listId/entries/reorder", requireAuth, listEntryRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var input = reorderFilmListEntriesSchema.parse(await c.req.json());
-  var row = await selectListById(listId, user.userId);
-  if (row.userId !== user.userId) throw forbidden("You do not own this list");
+    await getDb()
+      .update(filmLists)
+      .set({ isDeleted: true, updatedAt: new Date() })
+      .where(eq(filmLists.id, listId));
 
-  var entryIds = input.entries.map(function (entry) {
-    return entry.entryId;
-  });
-  var db = getDb();
-  var ownedRows = await db
-    .select({ id: filmListEntries.id })
-    .from(filmListEntries)
-    .where(and(eq(filmListEntries.listId, listId), inArray(filmListEntries.id, entryIds)));
-  if (ownedRows.length !== entryIds.length) throw badRequest("One or more entries are not in this list");
+    return c.json({ ok: true });
+  },
+);
 
-  await getWriteDb().transaction(async function (tx) {
-    for (var entry of input.entries) {
+listRoutes.post(
+  "/:listId/entries",
+  requireAuth,
+  listEntryRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var input = filmListEntrySchema.parse(await c.req.json());
+    var row = await selectListById(listId, user.userId);
+    if (row.userId !== user.userId) throw forbidden("You do not own this list");
+    if (row.type === "watchlist" && input.note)
+      throw badRequest("Watchlist entries cannot have notes");
+
+    var filmId = await resolveFilmId({
+      filmId: input.filmId,
+      film: input.film,
+      catalogFilm: input.catalogFilm,
+    });
+    var position = input.position ?? (await nextListPosition(listId));
+    var entryId = createUlid();
+    var inserted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .insert(filmListEntries)
+        .values({
+          id: entryId,
+          listId,
+          filmId,
+          position,
+          note: row.type === "watchlist" ? null : (input.note ?? null),
+        })
+        .onConflictDoNothing()
+        .returning({ id: filmListEntries.id });
+
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "film_lists",
+          targetId: listId,
+          counterName: "entryCount",
+          delta: 1,
+        });
+      }
+
+      return rows;
+    });
+    if (inserted.length > 0) wakeCounterOutbox();
+
+    return c.json({
+      ok: true,
+      entryId: inserted[0]?.id ?? null,
+      filmId,
+      duplicate: inserted.length === 0,
+    });
+  },
+);
+
+listRoutes.patch(
+  "/:listId/entries/reorder",
+  requireAuth,
+  listEntryRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var input = reorderFilmListEntriesSchema.parse(await c.req.json());
+    var row = await selectListById(listId, user.userId);
+    if (row.userId !== user.userId) throw forbidden("You do not own this list");
+
+    var entryIds = input.entries.map(function (entry) {
+      return entry.entryId;
+    });
+    var db = getDb();
+    var ownedRows = await db
+      .select({ id: filmListEntries.id })
+      .from(filmListEntries)
+      .where(
+        and(
+          eq(filmListEntries.listId, listId),
+          inArray(filmListEntries.id, entryIds),
+        ),
+      );
+    if (ownedRows.length !== entryIds.length)
+      throw badRequest("One or more entries are not in this list");
+
+    await getWriteDb().transaction(async function (tx) {
+      for (var entry of input.entries) {
+        await tx
+          .update(filmListEntries)
+          .set({ position: entry.position })
+          .where(
+            and(
+              eq(filmListEntries.listId, listId),
+              eq(filmListEntries.id, entry.entryId),
+            ),
+          );
+      }
+      await tx
+        .update(filmLists)
+        .set({ updatedAt: new Date() })
+        .where(eq(filmLists.id, listId));
+    });
+
+    return c.json({ ok: true });
+  },
+);
+
+listRoutes.patch(
+  "/:listId/entries/:entryId",
+  requireAuth,
+  listEntryRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var entryId = c.req.param("entryId");
+    var input = updateFilmListEntrySchema.parse(await c.req.json());
+    var row = await selectListById(listId, user.userId);
+    if (row.userId !== user.userId) throw forbidden("You do not own this list");
+    if (row.type === "watchlist" && input.note)
+      throw badRequest("Watchlist entries cannot have notes");
+
+    var updates: Record<string, unknown> = {};
+    if (input.note !== undefined)
+      updates.note = row.type === "watchlist" ? null : input.note;
+    if (input.position !== undefined) updates.position = input.position;
+    if (Object.keys(updates).length === 0)
+      throw badRequest("No changes provided");
+
+    await getWriteDb().transaction(async function (tx) {
       await tx
         .update(filmListEntries)
-        .set({ position: entry.position })
-        .where(and(eq(filmListEntries.listId, listId), eq(filmListEntries.id, entry.entryId)));
-    }
-    await tx.update(filmLists).set({ updatedAt: new Date() }).where(eq(filmLists.id, listId));
-  });
-
-  return c.json({ ok: true });
-});
-
-listRoutes.patch("/:listId/entries/:entryId", requireAuth, listEntryRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var entryId = c.req.param("entryId");
-  var input = updateFilmListEntrySchema.parse(await c.req.json());
-  var row = await selectListById(listId, user.userId);
-  if (row.userId !== user.userId) throw forbidden("You do not own this list");
-  if (row.type === "watchlist" && input.note) throw badRequest("Watchlist entries cannot have notes");
-
-  var updates: Record<string, unknown> = {};
-  if (input.note !== undefined) updates.note = row.type === "watchlist" ? null : input.note;
-  if (input.position !== undefined) updates.position = input.position;
-  if (Object.keys(updates).length === 0) throw badRequest("No changes provided");
-
-  await getWriteDb().transaction(async function (tx) {
-    await tx
-      .update(filmListEntries)
-      .set(updates)
-      .where(and(eq(filmListEntries.listId, listId), eq(filmListEntries.id, entryId)));
-    await tx.update(filmLists).set({ updatedAt: new Date() }).where(eq(filmLists.id, listId));
-  });
-
-  return c.json({ ok: true });
-});
-
-listRoutes.delete("/:listId/entries/:entryId", requireAuth, listEntryRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var entryId = c.req.param("entryId");
-  var row = await selectListById(listId, user.userId);
-  if (row.userId !== user.userId) throw forbidden("You do not own this list");
-
-  var deleted = await getWriteDb().transaction(async function (tx) {
-    var rows = await tx
-      .delete(filmListEntries)
-      .where(and(eq(filmListEntries.listId, listId), eq(filmListEntries.id, entryId)))
-      .returning({ id: filmListEntries.id });
-    if (rows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "film_lists",
-        targetId: listId,
-        counterName: "entryCount",
-        delta: -1,
-      });
-    }
-    return rows;
-  });
-  if (deleted.length > 0) wakeCounterOutbox();
-
-  return c.json({ ok: true });
-});
-
-listRoutes.post("/:listId/like", requireAuth, listInteractionRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  var row = await selectListById(listId, user.userId);
-  if (row.userId === user.userId) throw badRequest("You cannot like your own list");
-
-  var inserted = await getWriteDb().transaction(async function (tx) {
-    var rows = await tx
-      .insert(filmListLikes)
-      .values({ listId, userId: user.userId })
-      .onConflictDoNothing()
-      .returning({ userId: filmListLikes.userId });
-    if (rows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "film_lists",
-        targetId: listId,
-        counterName: "likeCount",
-        delta: 1,
-      });
-    }
-    return rows;
-  });
-  if (inserted.length > 0) wakeCounterOutbox();
-
-  return c.json({ ok: true, isLiked: true });
-});
-
-listRoutes.delete("/:listId/like", requireAuth, listInteractionRateLimit, async function (c) {
-  var user = c.get("user");
-  var listId = assertUlidParam(c.req.param("listId"), "listId");
-  await selectListById(listId, user.userId);
-  var deleted = await getWriteDb().transaction(async function (tx) {
-    var rows = await tx
-      .delete(filmListLikes)
-      .where(and(eq(filmListLikes.listId, listId), eq(filmListLikes.userId, user.userId)))
-      .returning({ userId: filmListLikes.userId });
-    if (rows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "film_lists",
-        targetId: listId,
-        counterName: "likeCount",
-        delta: -1,
-      });
-    }
-    return rows;
-  });
-  if (deleted.length > 0) wakeCounterOutbox();
-
-  return c.json({ ok: true, isLiked: false });
-});
-
-listRoutes.post("/:listId/clone", requireAuth, listCloneRateLimit, async function (c) {
-  var user = c.get("user");
-  var sourceListId = assertUlidParam(c.req.param("listId"), "listId");
-  var input = cloneFilmListSchema.parse(await c.req.json().catch(function () {
-    return {};
-  }));
-  var source = await selectListById(sourceListId, user.userId);
-  var pagination = { cursor: null as string | null, limit: LIST_ENTRIES_PAGE_SIZE };
-  var id = createUlid();
-
-  await getWriteDb().transaction(async function (tx) {
-    await tx.insert(filmLists).values({
-      id,
-      userId: user.userId,
-      type: "custom",
-      title: input.title ?? `${source.title} copy`,
-      description: source.description,
-      visibility: input.visibility,
-      isRanked: source.isRanked,
-      tags: source.tags,
-      shareSlug: `${user.username}-${id.toLowerCase()}`,
-      entryCount: 0,
-      clonedFromListId: source.id,
-    });
-
-    var entries = await listEntries(sourceListId, pagination, tx);
-
-    if (entries.items.length === 0) return;
-
-    var insertRows = entries.items.map(function (entry) {
-      return {
-        id: createUlid(),
-        listId: id,
-        filmId: entry.film.id,
-        position: entry.position,
-        note: entry.note,
-      };
-    });
-
-    var insertedRows = await tx
-      .insert(filmListEntries)
-      .values(insertRows)
-      .onConflictDoNothing({
-        target: [filmListEntries.listId, filmListEntries.filmId],
-      })
-      .returning({ id: filmListEntries.id });
-
-    await tx.update(filmLists).set({ entryCount: insertedRows.length }).where(eq(filmLists.id, id));
-
-    if (entries.nextCursor) {
-      var queued = await enqueueListCloneJob({
-        sourceListId,
-        targetListId: id,
-        cursor: entries.nextCursor,
-      });
-
-      if (!queued) {
-        throw serviceUnavailable(
-          "LIST_CLONE_QUEUE_UNAVAILABLE",
-          "List clone queue is unavailable; retry the mutation"
+        .set(updates)
+        .where(
+          and(
+            eq(filmListEntries.listId, listId),
+            eq(filmListEntries.id, entryId),
+          ),
         );
-      }
-    }
-  });
+      await tx
+        .update(filmLists)
+        .set({ updatedAt: new Date() })
+        .where(eq(filmLists.id, listId));
+    });
 
-  return c.json(await toSummary(await selectListById(id, user.userId), user.userId, await posterUrlsForListIds([id])), 201);
-});
+    return c.json({ ok: true });
+  },
+);
+
+listRoutes.delete(
+  "/:listId/entries/:entryId",
+  requireAuth,
+  listEntryRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var entryId = c.req.param("entryId");
+    var row = await selectListById(listId, user.userId);
+    if (row.userId !== user.userId) throw forbidden("You do not own this list");
+
+    var deleted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .delete(filmListEntries)
+        .where(
+          and(
+            eq(filmListEntries.listId, listId),
+            eq(filmListEntries.id, entryId),
+          ),
+        )
+        .returning({ id: filmListEntries.id });
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "film_lists",
+          targetId: listId,
+          counterName: "entryCount",
+          delta: -1,
+        });
+      }
+      return rows;
+    });
+    if (deleted.length > 0) wakeCounterOutbox();
+
+    return c.json({ ok: true });
+  },
+);
+
+listRoutes.post(
+  "/:listId/like",
+  requireAuth,
+  listInteractionRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    var row = await selectListById(listId, user.userId);
+    if (row.userId === user.userId)
+      throw badRequest("You cannot like your own list");
+
+    var inserted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .insert(filmListLikes)
+        .values({ listId, userId: user.userId })
+        .onConflictDoNothing()
+        .returning({ userId: filmListLikes.userId });
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "film_lists",
+          targetId: listId,
+          counterName: "likeCount",
+          delta: 1,
+        });
+      }
+      return rows;
+    });
+    if (inserted.length > 0) wakeCounterOutbox();
+
+    return c.json({ ok: true, isLiked: true });
+  },
+);
+
+listRoutes.delete(
+  "/:listId/like",
+  requireAuth,
+  listInteractionRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var listId = assertUlidParam(c.req.param("listId"), "listId");
+    await selectListById(listId, user.userId);
+    var deleted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .delete(filmListLikes)
+        .where(
+          and(
+            eq(filmListLikes.listId, listId),
+            eq(filmListLikes.userId, user.userId),
+          ),
+        )
+        .returning({ userId: filmListLikes.userId });
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "film_lists",
+          targetId: listId,
+          counterName: "likeCount",
+          delta: -1,
+        });
+      }
+      return rows;
+    });
+    if (deleted.length > 0) wakeCounterOutbox();
+
+    return c.json({ ok: true, isLiked: false });
+  },
+);
+
+listRoutes.post(
+  "/:listId/clone",
+  requireAuth,
+  listCloneRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var sourceListId = assertUlidParam(c.req.param("listId"), "listId");
+    var input = cloneFilmListSchema.parse(
+      await c.req.json().catch(function () {
+        return {};
+      }),
+    );
+    var source = await selectListById(sourceListId, user.userId);
+    var pagination = {
+      cursor: null as string | null,
+      limit: LIST_ENTRIES_PAGE_SIZE,
+    };
+    var id = createUlid();
+
+    await getWriteDb().transaction(async function (tx) {
+      await tx.insert(filmLists).values({
+        id,
+        userId: user.userId,
+        type: "custom",
+        title: input.title ?? `${source.title} copy`,
+        description: source.description,
+        visibility: input.visibility,
+        isRanked: source.isRanked,
+        tags: source.tags,
+        shareSlug: `${user.username}-${id.toLowerCase()}`,
+        entryCount: 0,
+        clonedFromListId: source.id,
+      });
+
+      var entries = await listEntries(sourceListId, pagination, tx);
+
+      if (entries.items.length === 0) return;
+
+      var insertRows = entries.items.map(function (entry) {
+        return {
+          id: createUlid(),
+          listId: id,
+          filmId: entry.film.id,
+          position: entry.position,
+          note: entry.note,
+        };
+      });
+
+      var insertedRows = await tx
+        .insert(filmListEntries)
+        .values(insertRows)
+        .onConflictDoNothing({
+          target: [filmListEntries.listId, filmListEntries.filmId],
+        })
+        .returning({ id: filmListEntries.id });
+
+      await tx
+        .update(filmLists)
+        .set({ entryCount: insertedRows.length })
+        .where(eq(filmLists.id, id));
+
+      if (entries.nextCursor) {
+        var queued = await enqueueListCloneJob({
+          sourceListId,
+          targetListId: id,
+          cursor: entries.nextCursor,
+        });
+
+        if (!queued) {
+          throw serviceUnavailable(
+            "LIST_CLONE_QUEUE_UNAVAILABLE",
+            "List clone queue is unavailable; retry the mutation",
+          );
+        }
+      }
+    });
+
+    return c.json(
+      await toSummary(
+        await selectListById(id, user.userId),
+        user.userId,
+        await posterUrlsForListIds([id]),
+      ),
+      201,
+    );
+  },
+);
 
 listRoutes.get("/watchlist/films/:filmId", requireAuth, async function (c) {
   var user = c.get("user");
@@ -951,7 +1318,12 @@ listRoutes.get("/watchlist/films/:filmId", requireAuth, async function (c) {
   var rows = await getDb()
     .select({ id: filmListEntries.id })
     .from(filmListEntries)
-    .where(and(eq(filmListEntries.listId, watchlistId), eq(filmListEntries.filmId, filmId)))
+    .where(
+      and(
+        eq(filmListEntries.listId, watchlistId),
+        eq(filmListEntries.filmId, filmId),
+      ),
+    )
     .limit(1);
 
   return c.json({
@@ -962,58 +1334,83 @@ listRoutes.get("/watchlist/films/:filmId", requireAuth, async function (c) {
   } satisfies WatchlistStatus);
 });
 
-listRoutes.post("/watchlist/films", requireAuth, listEntryRateLimit, async function (c) {
-  var user = c.get("user");
-  var input = watchlistFilmSchema.parse(await c.req.json());
-  var filmId = await resolveFilmId({ filmId: input.filmId, film: input.film, catalogFilm: input.catalogFilm });
-  var watchlistId = await ensureWatchlistForUser(user.userId);
-  var position = await nextListPosition(watchlistId);
-  var inserted = await getWriteDb().transaction(async function (tx) {
-    var rows = await tx
-      .insert(filmListEntries)
-      .values({ id: createUlid(), listId: watchlistId, filmId, position, note: null })
-      .onConflictDoNothing()
-      .returning({ id: filmListEntries.id });
-    if (rows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "film_lists",
-        targetId: watchlistId,
-        counterName: "entryCount",
-        delta: 1,
-      });
-    }
-    return rows;
-  });
-  if (inserted.length > 0) wakeCounterOutbox();
+listRoutes.post(
+  "/watchlist/films",
+  requireAuth,
+  listEntryRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var input = watchlistFilmSchema.parse(await c.req.json());
+    var filmId = await resolveFilmId({
+      filmId: input.filmId,
+      film: input.film,
+      catalogFilm: input.catalogFilm,
+    });
+    var watchlistId = await ensureWatchlistForUser(user.userId);
+    var position = await nextListPosition(watchlistId);
+    var inserted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .insert(filmListEntries)
+        .values({
+          id: createUlid(),
+          listId: watchlistId,
+          filmId,
+          position,
+          note: null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: filmListEntries.id });
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "film_lists",
+          targetId: watchlistId,
+          counterName: "entryCount",
+          delta: 1,
+        });
+      }
+      return rows;
+    });
+    if (inserted.length > 0) wakeCounterOutbox();
 
-  return c.json({
-    filmId,
-    isInWatchlist: true,
-    watchlistId,
-    entryId: inserted[0]?.id ?? null,
-  } satisfies WatchlistStatus);
-});
+    return c.json({
+      filmId,
+      isInWatchlist: true,
+      watchlistId,
+      entryId: inserted[0]?.id ?? null,
+    } satisfies WatchlistStatus);
+  },
+);
 
-listRoutes.delete("/watchlist/films/:filmId", requireAuth, listEntryRateLimit, async function (c) {
-  var user = c.get("user");
-  var filmId = assertUlidParam(c.req.param("filmId"), "filmId");
-  var watchlistId = await ensureWatchlistForUser(user.userId);
-  var deleted = await getWriteDb().transaction(async function (tx) {
-    var rows = await tx
-      .delete(filmListEntries)
-      .where(and(eq(filmListEntries.listId, watchlistId), eq(filmListEntries.filmId, filmId)))
-      .returning({ id: filmListEntries.id });
-    if (rows.length > 0) {
-      await recordCounterDeltas(tx, {
-        targetTable: "film_lists",
-        targetId: watchlistId,
-        counterName: "entryCount",
-        delta: -1,
-      });
-    }
-    return rows;
-  });
-  if (deleted.length > 0) wakeCounterOutbox();
+listRoutes.delete(
+  "/watchlist/films/:filmId",
+  requireAuth,
+  listEntryRateLimit,
+  async function (c) {
+    var user = c.get("user");
+    var filmId = assertUlidParam(c.req.param("filmId"), "filmId");
+    var watchlistId = await ensureWatchlistForUser(user.userId);
+    var deleted = await getWriteDb().transaction(async function (tx) {
+      var rows = await tx
+        .delete(filmListEntries)
+        .where(
+          and(
+            eq(filmListEntries.listId, watchlistId),
+            eq(filmListEntries.filmId, filmId),
+          ),
+        )
+        .returning({ id: filmListEntries.id });
+      if (rows.length > 0) {
+        await recordCounterDeltas(tx, {
+          targetTable: "film_lists",
+          targetId: watchlistId,
+          counterName: "entryCount",
+          delta: -1,
+        });
+      }
+      return rows;
+    });
+    if (deleted.length > 0) wakeCounterOutbox();
 
-  return c.json({ ok: true, isInWatchlist: false });
-});
+    return c.json({ ok: true, isInWatchlist: false });
+  },
+);

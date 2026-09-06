@@ -140,7 +140,7 @@ async function loadFilmDocuments(ids: string[]): Promise<FilmSearchDocument[]> {
       f."poster_url",
       f."updated_at"
     from "films" f
-    where f."id" in (${sqlList(ids)})
+    where f."id" in (${sqlList(ids)}) and f."is_catalog_listed" = true
   `);
   return result.rows.map(function (row) {
     return {

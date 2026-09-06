@@ -65,14 +65,13 @@ export const ACCEPTED_VIDEO_TYPES = [
   "video/mp4",
   "video/quicktime",
   "video/webm",
-  "video/x-msvideo",
   "video/x-matroska",
 ];
 
-export const ACCEPTED_VIDEO_EXTENSIONS = ["MP4", "MOV", "WebM", "AVI", "MKV"];
+export const ACCEPTED_VIDEO_EXTENSIONS = ["MP4", "MOV", "WebM", "MKV"];
 
-export const MAX_VIDEO_SIZE_GB = 10;
-export const MAX_RUNTIME_MINUTES = 40;
+export const MAX_VIDEO_SIZE_GB = 20;
+export const MAX_RUNTIME_MINUTES = 240;
 export const MAX_GENRES = 3;
 export const MAX_TAGS = 10;
 

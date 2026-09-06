@@ -11,7 +11,6 @@ import {
   Repeat2,
   Shield,
   ShieldAlert,
-  Smile,
   UserCheck,
   UserPlus,
 } from "lucide-react";
@@ -50,7 +49,6 @@ const NOTIF_KIND_ICON = {
   reply: MessageCircle,
   repost: Repeat2,
   film_logged: Film,
-  chat_reaction: Smile,
   report_status_update: Shield,
   content_moderated: ShieldAlert,
   content_under_review: Eye,
@@ -255,7 +253,9 @@ export function NotificationDropdown({
                       <NotificationDropdownEmpty />
                     ) : notifRows.length === 0 ? null : (
                       notifRows.map(function (row) {
-                        const IconGlyph = NOTIF_KIND_ICON[row.type];
+                        const IconGlyph = NOTIF_KIND_ICON[
+                          row.type as keyof typeof NOTIF_KIND_ICON
+                        ] ?? MessageCircle;
                         const isTogglingRead =
                           (markOneMutation.isPending && markOneMutation.variables === row.id) ||
                           (markUnreadMutation.isPending &&

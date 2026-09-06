@@ -15,6 +15,10 @@
     "./notification-service": {
       "types": "./src/notificationService.ts",
       "default": "./src/notificationService.ts"
+    },
+    "./video-service": {
+      "types": "./src/videoService.ts",
+      "default": "./src/videoService.ts"
     }
   },
   "scripts": {

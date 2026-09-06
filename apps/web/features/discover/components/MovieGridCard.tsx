@@ -25,8 +25,10 @@ function MiniStar({ filled }: { filled: boolean }) {
   return (
     <div
       className={cn(
-        "w-[7px] h-[7px] shrink-0",
-        filled ? "bg-accent" : "bg-white/30"
+      "w-[7px] h-[7px] shrink-0",
+      filled
+        ? "bg-[var(--color-rating-star,var(--accent))]"
+        : "bg-[var(--color-rating-star-empty,rgba(255,255,255,0.3))]"
       )}
       style={{
         clipPath:

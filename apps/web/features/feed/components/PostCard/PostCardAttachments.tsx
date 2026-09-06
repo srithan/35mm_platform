@@ -1,5 +1,7 @@
 "use client";
 
+import { FeedVideoPlayer } from "@/features/videos/components/FeedVideoPlayer";
+import { BunnyVideoPlayer } from "@/features/videos/components/BunnyVideoPlayer";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import type { NsfwCategory, NsfwStatus } from "@35mm/types";
 import Link from "next/link";
@@ -33,6 +35,7 @@ interface PostCardAttachmentsProps {
   shouldRenderLinkPreviewCard: boolean;
   linkPreview?: PostCardLinkPreview | null;
   videoUrls: string[];
+  videoAssetId?: string;
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
   imageDimensions?: Array<{ width: number; height: number } | null>;
@@ -73,6 +76,7 @@ export function PostCardAttachments({
   shouldRenderLinkPreviewCard,
   linkPreview,
   videoUrls,
+  videoAssetId,
   imageUrls,
   imageBlurhashes,
   imageDimensions = [],
@@ -137,9 +141,9 @@ export function PostCardAttachments({
         </div>
       )}
 
-      {videoUrls[0] ? (
+      {videoAssetId ? <div className="mt-2"><BunnyVideoPlayer assetId={videoAssetId} /></div> : videoUrls[0] ? (
         <div className="mt-2 overflow-hidden rounded-lg border border-border bg-black">
-          <video src={videoUrls[0]} controls className="w-full h-auto" />
+          <FeedVideoPlayer src={videoUrls[0]} />
         </div>
       ) : null}
 

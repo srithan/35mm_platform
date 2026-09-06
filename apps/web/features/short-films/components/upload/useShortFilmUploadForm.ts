@@ -7,6 +7,18 @@ import {
   type UploadStep,
   type Visibility,
 } from "./types";
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  uploadVideo,
+  publishFilm,
+  forgetVideoUpload,
+} from "@/features/videos/api/videoApi";
+import { videoKeys } from "@/features/videos/hooks/queryKeys";
+import {
+  presignProfileMediaUpload,
+  uploadToPresignedUrl,
+} from "@/features/profile/api/mediaApi";
 import { MAX_GENRES, MAX_TAGS } from "./constants";
 
 function formatFileSize(bytes: number): string {
@@ -19,77 +31,147 @@ function formatFileSize(bytes: number): string {
 export function useShortFilmUploadForm() {
   const [step, setStep] = useState<UploadStep>(1);
   const [form, setForm] = useState<ShortFilmUploadForm>(INITIAL_UPLOAD_FORM);
-  const [isPublished, setIsPublished] = useState(false);
-  const uploadTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(function () {
-    return function () {
-      if (uploadTimerRef.current) {
-        clearInterval(uploadTimerRef.current);
-      }
-    };
-  }, []);
-
-  const clearUploadTimer = useCallback(function () {
-    if (uploadTimerRef.current) {
-      clearInterval(uploadTimerRef.current);
-      uploadTimerRef.current = null;
-    }
-  }, []);
-
-  const startVideoUpload = useCallback(
-    function (file: File) {
-      clearUploadTimer();
-      setForm(function (prev) {
-        return {
-          ...prev,
-          videoFile: file,
-          videoUploadProgress: 0,
-          videoUploadComplete: false,
-        };
+  const { getToken, userId } = useAuth();
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      return uploadVideo({
+        file,
+        purpose: "film",
+        ownerId: userId ?? "",
+        getToken,
+        signal: abortRef.current?.signal,
+        onProgress: (pct) =>
+          setForm((prev) => ({ ...prev, videoUploadProgress: pct })),
+        onProcessing: () => setProcessing(true),
       });
-
-      var pct = 0;
-      uploadTimerRef.current = setInterval(function () {
-        pct += Math.floor(Math.random() * 9) + 3;
-        if (pct >= 100) {
-          pct = 100;
-          clearUploadTimer();
-          setForm(function (prev) {
-            return {
-              ...prev,
-              videoUploadProgress: 100,
-              videoUploadComplete: true,
-            };
-          });
-        } else {
-          setForm(function (prev) {
-            return { ...prev, videoUploadProgress: pct };
-          });
-        }
-      }, 160);
     },
-    [clearUploadTimer]
+  });
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      if (!uploadMutation.data || !form.videoUploadComplete)
+        throw new Error("Upload and process your film first.");
+      const token = await getToken();
+      let thumbnailUrl: string | null = null;
+      if (form.thumbnailFile) {
+        if (
+          !["image/jpeg", "image/png", "image/webp"].includes(
+            form.thumbnailFile.type,
+          ) ||
+          form.thumbnailFile.size > 12 * 1024 * 1024
+        ) {
+          throw new Error("Thumbnail must be JPG, PNG or WebP, up to 12 MB.");
+        }
+        const signed = await presignProfileMediaUpload(
+          {
+            kind: "post_media",
+            contentType: form.thumbnailFile.type,
+            contentLength: form.thumbnailFile.size,
+          },
+          token,
+        );
+        await uploadToPresignedUrl({
+          uploadUrl: signed.uploadUrl,
+          contentType: signed.contentType,
+          blob: form.thumbnailFile,
+        });
+        thumbnailUrl = signed.publicUrl;
+      }
+      return publishFilm(
+        uploadMutation.data.id,
+        {
+          title: form.title,
+          description: form.description,
+          tagline: form.tagline,
+          director: form.director,
+          year: form.year ? Number(form.year) : null,
+          language: form.language,
+          country: form.country,
+          genres: form.genres,
+          contentRating: form.contentRating,
+          tags: form.tags,
+          festivalNotes: form.festivalNotes,
+          visibility: form.visibility,
+          releaseAt: form.scheduleRelease
+            ? new Date(form.scheduleRelease).toISOString()
+            : null,
+          thumbnailUrl,
+        },
+        token,
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: videoKeys.all }),
+  });
+  const isPublished = publishMutation.isSuccess;
+  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => {
+    return () => {
+      if (form.thumbnailPreviewUrl)
+        URL.revokeObjectURL(form.thumbnailPreviewUrl);
+    };
+  }, [form.thumbnailPreviewUrl]);
+  const cancelUpload = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+  const startVideoUpload = useCallback(
+    async function (file: File) {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setError(null);
+      setProcessing(false);
+      setForm((prev) => ({
+        ...prev,
+        videoFile: file,
+        videoUploadProgress: 0,
+        videoUploadComplete: false,
+      }));
+      try {
+        const asset = await uploadMutation.mutateAsync(file);
+        if (controller.signal.aborted) return;
+        setForm((prev) => ({
+          ...prev,
+          videoUploadComplete: true,
+          videoUploadProgress: 100,
+          runtime: asset.durationSeconds
+            ? String(Math.ceil(asset.durationSeconds / 60))
+            : "",
+        }));
+        setProcessing(false);
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setError(
+            cause instanceof Error ? cause.message : "Video upload failed",
+          );
+          setProcessing(false);
+        }
+      }
+    },
+    [uploadMutation.mutateAsync],
   );
-
   const removeVideo = useCallback(
     function () {
-      clearUploadTimer();
-      setForm(function (prev) {
-        return {
-          ...prev,
-          videoFile: null,
-          videoUploadProgress: 0,
-          videoUploadComplete: false,
-        };
-      });
+      abortRef.current?.abort();
+      if (form.videoFile) forgetVideoUpload(form.videoFile);
+      uploadMutation.reset();
+      setError(null);
+      setProcessing(false);
+      setForm((prev) => ({
+        ...prev,
+        videoFile: null,
+        videoUploadProgress: 0,
+        videoUploadComplete: false,
+      }));
     },
-    [clearUploadTimer]
+    [form.videoFile, uploadMutation.reset],
   );
 
   const setField = useCallback(function <K extends keyof ShortFilmUploadForm>(
     key: K,
-    value: ShortFilmUploadForm[K]
+    value: ShortFilmUploadForm[K],
   ) {
     setForm(function (prev) {
       return { ...prev, [key]: value };
@@ -161,9 +243,12 @@ export function useShortFilmUploadForm() {
     });
   }, []);
 
-  const setVisibility = useCallback(function (visibility: Visibility) {
-    setField("visibility", visibility);
-  }, [setField]);
+  const setVisibility = useCallback(
+    function (visibility: Visibility) {
+      setField("visibility", visibility);
+    },
+    [setField],
+  );
 
   const goToStep = useCallback(function (next: UploadStep) {
     setStep(next);
@@ -172,24 +257,37 @@ export function useShortFilmUploadForm() {
     }
   }, []);
 
-  const publish = useCallback(function () {
-    setIsPublished(true);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }, []);
-
-  const reset = useCallback(function () {
-    clearUploadTimer();
-    setForm(function (prev) {
-      if (prev.thumbnailPreviewUrl) {
-        URL.revokeObjectURL(prev.thumbnailPreviewUrl);
+  const publish = useCallback(
+    async function () {
+      setError(null);
+      try {
+        await publishMutation.mutateAsync();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : "Could not publish film",
+        );
       }
-      return INITIAL_UPLOAD_FORM;
-    });
-    setStep(1);
-    setIsPublished(false);
-  }, [clearUploadTimer]);
+    },
+    [publishMutation.mutateAsync],
+  );
+
+  const reset = useCallback(
+    function () {
+      cancelUpload();
+      setForm(function (prev) {
+        if (prev.thumbnailPreviewUrl) {
+          URL.revokeObjectURL(prev.thumbnailPreviewUrl);
+        }
+        return INITIAL_UPLOAD_FORM;
+      });
+      setStep(1);
+      publishMutation.reset();
+      uploadMutation.reset();
+      setError(null);
+    },
+    [cancelUpload],
+  );
 
   const step1Valid = form.videoUploadComplete;
   const step2Valid =
@@ -207,6 +305,10 @@ export function useShortFilmUploadForm() {
     step,
     form,
     isPublished,
+    error,
+    processing,
+    isPublishing: publishMutation.isPending,
+    publishedFilmId: publishMutation.data?.filmId,
     step1Valid,
     step2Valid,
     step3Valid,

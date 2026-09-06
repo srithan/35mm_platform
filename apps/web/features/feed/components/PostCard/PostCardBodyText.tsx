@@ -1,11 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
 import { isStoredRichText } from "@/lib/utils/richContent";
 import { RichPostBodyWithFilmRef, RichPostInline } from "@/lib/utils/richPostText";
 import { ROUTES } from "@/lib/constants/routes";
-import { useRouter } from "next/navigation";
+import { saveScrollPositionForBack } from "../PostPageBackButton";
 import type { PostVariant } from "./types";
 
 interface PostCardBodyTextProps {
@@ -80,6 +81,7 @@ export function PostCardBodyText({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!postId) return;
+                      saveScrollPositionForBack();
                       router.push(ROUTES.POST(username, postId));
                     }}
                   >

@@ -17,6 +17,7 @@ vi.mock("@/lib/hooks/useIsDesktopMd", function () {
 function renderPostActions(options?: {
   initialReposted?: boolean;
   onQuote?: () => void;
+  onViewQuotes?: () => void;
   onRepostToggle?: (state: { isReposted: boolean }) => void;
 }) {
   return render(
@@ -26,6 +27,7 @@ function renderPostActions(options?: {
       reposts={1_200}
       initialReposted={options?.initialReposted}
       onQuote={options?.onQuote ?? vi.fn()}
+      onViewQuotes={options?.onViewQuotes}
       onRepostToggle={options?.onRepostToggle ?? vi.fn()}
     />
   );
@@ -82,5 +84,15 @@ describe("PostActions repost options", function () {
     fireEvent.click(screen.getByRole("button", { name: "Repost" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Undo repost" }));
     expect(onRepostToggle).toHaveBeenCalledWith({ isReposted: false });
+  });
+
+  it("opens the quote index from the repost menu", function () {
+    const onViewQuotes = vi.fn();
+    renderPostActions({ onViewQuotes });
+
+    fireEvent.click(screen.getByRole("button", { name: "Repost" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View quotes" }));
+
+    expect(onViewQuotes).toHaveBeenCalledOnce();
   });
 });

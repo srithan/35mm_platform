@@ -3,7 +3,11 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchFeed, type ProfileFeedKind } from "../api/feedApi";
 import { feedKeys } from "./queryKeys";
 
-export function useFeed(username?: string, profileFeedKind: ProfileFeedKind = "all") {
+export function useFeed(
+  username?: string,
+  profileFeedKind: ProfileFeedKind = "all",
+  enabled = true
+) {
   const { getToken, isLoaded } = useAuth();
 
   return useInfiniteQuery({
@@ -17,7 +21,7 @@ export function useFeed(username?: string, profileFeedKind: ProfileFeedKind = "a
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: isLoaded,
+    enabled: isLoaded && enabled,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     retry: 2,

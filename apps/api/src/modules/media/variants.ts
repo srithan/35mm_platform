@@ -3,6 +3,7 @@ import { getR2ObjectKeyFromUrl } from "./url.js";
 export type PostMediaItem = {
   type: "image" | "video" | "film_embed" | "none";
   url: string;
+  videoAssetId?: string;
   key?: string;
   thumbnailUrl?: string;
   altText?: string;
@@ -67,6 +68,8 @@ export function normalizePostMediaItem(value: unknown): PostMediaItem | null {
     normalized.nsfwCategories = value.nsfwCategories.slice() as PostMediaItem["nsfwCategories"];
   }
 
+  var videoAssetId = cleanString(value.videoAssetId);
+  if (videoAssetId) normalized.videoAssetId = videoAssetId;
   var key = cleanString(value.key);
   if (key) normalized.key = key;
 

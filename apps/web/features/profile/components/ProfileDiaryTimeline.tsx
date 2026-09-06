@@ -6,6 +6,7 @@ import { FilmPoster } from "@/components/FilmPoster";
 import { StarRating } from "@/components/StarRating";
 import { useFeed } from "@/features/feed/hooks/useFeed";
 import type { Post } from "@/features/feed/types/feed";
+import { storedRichTextToPlainText } from "@/lib/utils/richContent";
 
 function isDiaryPost(post: Post) {
   return (
@@ -189,7 +190,7 @@ export function ProfileDiaryTimeline({
           var filmTitle = post.film?.title ?? "Untitled film";
           var filmYear = post.film?.year;
           var rating = post.film?.rating ?? 0;
-          var body = post.body.trim();
+          var body = storedRichTextToPlainText(post.body).trim();
           var autoBody = defaultDiaryBody(post);
           var showBody = body.length > 0 && body !== autoBody;
           var meta = [filmYear ? String(filmYear) : null, post.type === "review" ? "Review" : "Log"]
@@ -234,8 +235,7 @@ export function ProfileDiaryTimeline({
                     </h4>
                     {rating > 0 ? (
                       <div className="mt-0.5 flex items-center gap-1.5 rounded-full border border-border bg-bg px-2 py-1">
-                        <StarRating rating={rating} size="sm" />
-                        <span className="text-[11px] text-fg-muted">{rating.toFixed(1)}</span>
+                        <StarRating rating={rating} size="lg" />
                       </div>
                     ) : null}
                   </div>

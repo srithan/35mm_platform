@@ -13,6 +13,7 @@ export const PROFILE_THEME_OPTIONS: { id: ThemeOption; label: string; swatch: st
   { id: "auto", label: "Auto", swatch: "linear-gradient(90deg, #faf9f7 0 50%, #1f1d1a 50% 100%)" },
   { id: "light", label: "Light", swatch: "#faf9f7" },
   { id: "dark", label: "Dark", swatch: "#1f1d1a" },
+  { id: "letterboxd", label: "Letterboxd", swatch: "linear-gradient(135deg, #14181c 0 55%, #00c030 55% 100%)" },
   { id: "matinee", label: "Matinee", swatch: "linear-gradient(135deg, #f7f2e9 0 55%, #c2473a 55% 100%)" },
   { id: "matrix", label: "Matrix", swatch: "#0f2d1b" },
   { id: "oppenheimer-bw", label: "Oppenheimer B&W", swatch: "linear-gradient(135deg, #f4f4f1, #1d1d1b)" },

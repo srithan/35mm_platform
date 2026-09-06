@@ -1,7 +1,15 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, profiles, follows, profileFollowApprovalOutbox, posts, films } from "@35mm/db/schema";
+import {
+  users,
+  profiles,
+  follows,
+  profileFollowApprovalOutbox,
+  posts,
+  films,
+  catalogTitles,
+} from "@35mm/db/schema";
 import { getDb, getWriteDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
 import { requireAuth, getOptionalAuthUser } from "../../lib/middleware.js";
@@ -444,14 +452,6 @@ type ProfileStatsActivityDay = {
   count: number;
 };
 
-type ProfileStatsDiaryEntry = {
-  postId: string;
-  type: "log" | "review";
-  createdAt: string;
-  rating: number | null;
-  film: ProfileStatsFilm;
-};
-
 function postVisibilityForStatsSql(viewerUserId: string | null, targetUserId: string) {
   if (viewerUserId === targetUserId) return sql<boolean>`true`;
   if (!viewerUserId) return eq(posts.visibility, "public");
@@ -475,19 +475,34 @@ function emptyProfileStatsPayload(input: {
   username: string;
   filmsLoggedCount: number;
   memberSince: string | null;
+  selectedYear: number | null;
 }): ProfileStatsCachePayload {
   return {
     username: input.username,
+    selectedYear: input.selectedYear,
+    availableYears: [],
     filmsLoggedCount: input.filmsLoggedCount,
     hoursWatched: 0,
+    runtimeKnownCount: 0,
     averageRating: null,
+    ratedCount: 0,
+    uniqueFilmsCount: 0,
+    rewatchCount: 0,
+    thisYearCount: 0,
     reviewsWrittenCount: 0,
     reviewLikeCount: 0,
     memberSince: input.memberSince,
     favoriteFilms: [],
     genres: [],
     activity: [],
-    recentDiary: [],
+    ratingDistribution: [],
+    decades: [],
+    directors: [],
+    artists: [],
+    musicDirectors: [],
+    countries: [],
+    languages: [],
+    mostWatchedFilms: [],
     cachedAt: new Date().toISOString(),
   };
 }
@@ -530,6 +545,18 @@ function toFiniteNumber(value: unknown): number {
 
 profileRoutes.get("/:username/stats", async function (c) {
   var username = c.req.param("username").toLowerCase().trim();
+  var yearParam = c.req.query("year")?.trim();
+  var currentYear = new Date().getUTCFullYear();
+  var selectedYear = yearParam == null || yearParam === "" ? null : Number(yearParam);
+  if (
+    selectedYear !== null &&
+    (!/^\d{4}$/.test(yearParam ?? "") ||
+      !Number.isInteger(selectedYear) ||
+      selectedYear < 1888 ||
+      selectedYear > currentYear)
+  ) {
+    throw badRequest(`year must be between 1888 and ${currentYear}`);
+  }
   var db = getDb();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var viewerUserId = viewer?.userId ?? null;
@@ -575,6 +602,7 @@ profileRoutes.get("/:username/stats", async function (c) {
       username: profile.username,
       filmsLoggedCount: 0,
       memberSince: null,
+      selectedYear,
     }));
   }
 
@@ -583,7 +611,11 @@ profileRoutes.get("/:username/stats", async function (c) {
     !profile.isPrivate &&
     profile.moderationStatus === "visible" &&
     !(await isModerationProfileStatsDirty(profile.userId));
-  var cacheKey = profileStatsCacheKey({ username: profile.username, viewerId: null });
+  var cacheKey = profileStatsCacheKey({
+    username: profile.username,
+    viewerId: null,
+    year: selectedYear,
+  });
   if (canUsePublicGuestCache) {
     c.header("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     var cached = await getProfileStatsCache(cacheKey);
@@ -609,37 +641,44 @@ profileRoutes.get("/:username/stats", async function (c) {
     )
   );
   var diaryFilter = sql<boolean>`${posts.type} in ('log', 'review') and ${posts.isRepost} = false`;
+  var statsPostFilters =
+    selectedYear === null
+      ? basePostFilters
+      : and(
+          basePostFilters,
+          sql`${posts.createdAt} >= make_timestamptz(${selectedYear}, 1, 1, 0, 0, 0, 'UTC')`,
+          sql`${posts.createdAt} < make_timestamptz(${selectedYear + 1}, 1, 1, 0, 0, 0, 'UTC')`
+        );
 
-  var [aggregateRows, recentDiaryRows, genreResult, activityResult] = await Promise.all([
+  var [
+    aggregateRows,
+    genreResult,
+    activityResult,
+    dimensionResult,
+    peopleResult,
+    mostWatchedRows,
+    availableYearResult,
+  ] = await Promise.all([
     db
       .select({
         filmsLoggedCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null)::integer`,
-        hoursWatched: sql<number>`coalesce(sum(${films.runtime}) filter (where ${diaryFilter} and ${posts.filmId} is not null), 0)::integer`,
+        hoursWatched: sql<number>`round(coalesce(sum(coalesce(${films.runtime}, ${catalogTitles.runtimeMinutes})) filter (where ${diaryFilter} and ${posts.filmId} is not null), 0) / 60.0)::integer`,
+        runtimeKnownCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null and coalesce(${films.runtime}, ${catalogTitles.runtimeMinutes}) is not null)::integer`,
         averageRating: sql<number | null>`avg((${posts.filmRating}::numeric) / 2.0) filter (where ${diaryFilter} and ${posts.filmRating} is not null)`,
+        ratedCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmRating} is not null)::integer`,
+        uniqueFilmsCount: sql<number>`count(distinct ${posts.filmId}) filter (where ${diaryFilter} and ${posts.filmId} is not null)::integer`,
+        rewatchCount: sql<number>`greatest(count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null) - count(distinct ${posts.filmId}) filter (where ${diaryFilter} and ${posts.filmId} is not null), 0)::integer`,
+        thisYearCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null and ${posts.createdAt} >= date_trunc('year', now()))::integer`,
         reviewsWrittenCount: sql<number>`count(*) filter (where ${posts.type} = 'review')::integer`,
         reviewLikeCount: sql<number>`coalesce(sum(${posts.likeCount}) filter (where ${posts.type} = 'review'), 0)::integer`,
       })
       .from(posts)
       .leftJoin(films, eq(films.id, posts.filmId))
-      .where(basePostFilters),
-    db
-      .select({
-        postId: posts.id,
-        type: posts.type,
-        createdAt: posts.createdAt,
-        rating: posts.filmRating,
-        filmId: films.id,
-        tmdbId: films.tmdbId,
-        imdbId: films.imdbId,
-        title: films.title,
-        year: films.year,
-        posterUrl: films.posterUrl,
-      })
-      .from(posts)
-      .innerJoin(films, eq(films.id, posts.filmId))
-      .where(and(basePostFilters, diaryFilter))
-      .orderBy(desc(posts.createdAt), desc(posts.id))
-      .limit(4),
+      .leftJoin(
+        catalogTitles,
+        and(eq(catalogTitles.legacyFilmId, posts.filmId), eq(catalogTitles.status, "active"))
+      )
+      .where(statsPostFilters),
     db.execute<{
       name: string;
       count: number;
@@ -649,7 +688,7 @@ profileRoutes.get("/:username/stats", async function (c) {
         select unnest(${films.genres}) as genre
         from ${posts}
         inner join ${films} on ${films.id} = ${posts.filmId}
-        where ${basePostFilters}
+        where ${statsPostFilters}
           and ${diaryFilter}
           and array_length(${films.genres}, 1) > 0
       ) genre_rows
@@ -666,11 +705,147 @@ profileRoutes.get("/:username/stats", async function (c) {
         to_char(date_trunc('day', ${posts.createdAt} at time zone 'UTC'), 'YYYY-MM-DD') as date,
         count(*)::integer as count
       from ${posts}
-      where ${basePostFilters}
+      where ${statsPostFilters}
         and ${diaryFilter}
-        and ${posts.createdAt} >= now() - interval '364 days'
+        and ${posts.createdAt} >= ${
+          selectedYear === null
+            ? sql`now() - interval '364 days'`
+            : sql`make_timestamptz(${selectedYear}, 1, 1, 0, 0, 0, 'UTC')`
+        }
+        and ${posts.createdAt} < ${
+          selectedYear === null
+            ? sql`now() + interval '1 day'`
+            : sql`make_timestamptz(${selectedYear + 1}, 1, 1, 0, 0, 0, 'UTC')`
+        }
       group by 1
       order by 1 asc
+    `),
+    db.execute<{
+      category: "rating" | "decade" | "country" | "language";
+      name: string;
+      count: number;
+    }>(sql`
+      with logged_films as materialized (
+        select
+          ${posts.filmRating} as rating,
+          coalesce(${films.year}, ${catalogTitles.startYear}) as release_year,
+          nullif(trim(coalesce(${films.country}, ${catalogTitles.primaryCountry})), '') as country,
+          nullif(trim(coalesce(${films.language}, ${catalogTitles.primaryLanguage})), '') as language
+        from ${posts}
+        inner join ${films} on ${films.id} = ${posts.filmId}
+        left join ${catalogTitles}
+          on ${catalogTitles.legacyFilmId} = ${posts.filmId}
+          and ${catalogTitles.status} = 'active'
+        where ${statsPostFilters} and ${diaryFilter}
+      )
+      (select 'rating'::text as category, rating::text as name, count(*)::integer as count
+        from logged_films where rating is not null group by rating order by rating asc)
+      union all
+      (select 'decade'::text, ((release_year / 10) * 10)::text, count(*)::integer
+        from logged_films where release_year between 1880 and 2200
+        group by ((release_year / 10) * 10) order by ((release_year / 10) * 10) asc)
+      union all
+      (select 'country'::text, country, count(*)::integer
+        from logged_films where country is not null group by country order by count(*) desc, country asc limit 8)
+      union all
+      (select 'language'::text, language, count(*)::integer
+        from logged_films where language is not null group by language order by count(*) desc, language asc limit 8)
+    `),
+    db.execute<{
+      category: "director" | "artist" | "musicDirector";
+      name: string;
+      count: number;
+    }>(sql`
+      with logged as materialized (
+        select ${posts.filmId} as film_id, count(*)::integer as watches
+        from ${posts}
+        where ${statsPostFilters} and ${diaryFilter} and ${posts.filmId} is not null
+        group by ${posts.filmId}
+      ), credited_people as (
+        select distinct
+          logged.film_id,
+          logged.watches,
+          catalog_people.id as person_id,
+          catalog_people.primary_name as name,
+          case
+            when catalog_credits.department = 'cast' then 'artist'
+            when catalog_credits.department = 'directing' then 'director'
+            when catalog_credits.department = 'music' then 'musicDirector'
+          end as category
+        from logged
+        inner join catalog_titles
+          on catalog_titles.legacy_film_id = logged.film_id
+          and catalog_titles.status = 'active'
+        inner join catalog_credits
+          on catalog_credits.title_id = catalog_titles.id
+          and catalog_credits.status = 'active'
+          and catalog_credits.department in ('cast', 'directing', 'music')
+        inner join catalog_people
+          on catalog_people.id = catalog_credits.person_id
+          and catalog_people.status = 'active'
+      ), legacy_directors as (
+        select
+          logged.film_id,
+          logged.watches,
+          null::text as person_id,
+          trim(${films.director}) as name,
+          'director'::text as category
+        from logged
+        inner join ${films} on ${films.id} = logged.film_id
+        where nullif(trim(${films.director}), '') is not null
+          and not exists (
+            select 1
+            from catalog_titles
+            inner join catalog_credits
+              on catalog_credits.title_id = catalog_titles.id
+              and catalog_credits.status = 'active'
+              and catalog_credits.department = 'directing'
+            where catalog_titles.legacy_film_id = logged.film_id
+              and catalog_titles.status = 'active'
+          )
+      ), ranked as (
+        select
+          category,
+          name,
+          sum(watches)::integer as count,
+          row_number() over (partition by category order by sum(watches) desc, name asc) as rank
+        from (
+          select * from credited_people
+          union all
+          select * from legacy_directors
+        ) people
+        where category is not null and nullif(trim(name), '') is not null
+        group by category, name
+      )
+      select category, name, count
+      from ranked
+      where rank <= 10
+      order by category asc, rank asc
+    `),
+    db
+      .select({
+        id: films.id,
+        tmdbId: films.tmdbId,
+        imdbId: films.imdbId,
+        title: films.title,
+        year: films.year,
+        posterUrl: films.posterUrl,
+        watches: sql<number>`count(*)::integer`,
+        lastWatchedAt: sql<Date>`max(${posts.createdAt})`,
+      })
+      .from(posts)
+      .innerJoin(films, eq(films.id, posts.filmId))
+      .where(and(statsPostFilters, diaryFilter))
+      .groupBy(films.id, films.tmdbId, films.imdbId, films.title, films.year, films.posterUrl)
+      .having(sql`count(*) > 1`)
+      .orderBy(desc(sql`count(*)`), desc(sql`max(${posts.createdAt})`), films.id)
+      .limit(6),
+    db.execute<{ year: number }>(sql`
+      select extract(year from ${posts.createdAt} at time zone 'UTC')::integer as year
+      from ${posts}
+      where ${basePostFilters} and ${diaryFilter}
+      group by 1
+      order by 1 desc
     `),
   ]);
 
@@ -732,41 +907,65 @@ profileRoutes.get("/:username/stats", async function (c) {
     };
   });
 
-  var recentDiary: ProfileStatsDiaryEntry[] = recentDiaryRows
-    .filter(function (row) {
-      return row.type === "log" || row.type === "review";
-    })
-    .map(function (row) {
-      var entryType: "log" | "review" = row.type === "review" ? "review" : "log";
-      return {
-        postId: row.postId,
-        type: entryType,
-        createdAt: row.createdAt.toISOString(),
-        rating: row.rating == null ? null : row.rating / 2,
-        film: {
-          id: row.filmId,
-          tmdbId: row.tmdbId,
-          imdbId: row.imdbId,
-          title: row.title,
-          year: row.year,
-          posterUrl: row.posterUrl,
-        },
-      };
-    });
+  function namedCounts(category: string) {
+    return dimensionResult.rows
+      .filter(function (row) { return row.category === category; })
+      .map(function (row) { return { name: String(row.name), count: toFiniteNumber(row.count) }; });
+  }
+
+  function peopleCounts(category: string) {
+    return peopleResult.rows
+      .filter(function (row) { return row.category === category; })
+      .map(function (row) { return { name: String(row.name), count: toFiniteNumber(row.count) }; });
+  }
+
+  var ratingDistribution = dimensionResult.rows
+    .filter(function (row) { return row.category === "rating"; })
+    .map(function (row) { return { rating: toFiniteNumber(row.name) / 2, count: toFiniteNumber(row.count) }; });
+  var decades = dimensionResult.rows
+    .filter(function (row) { return row.category === "decade"; })
+    .map(function (row) { return { decade: toFiniteNumber(row.name), count: toFiniteNumber(row.count) }; });
+  var mostWatchedFilms = mostWatchedRows.map(function (row) {
+    return {
+      id: row.id,
+      tmdbId: row.tmdbId,
+      imdbId: row.imdbId,
+      title: row.title,
+      year: row.year,
+      posterUrl: row.posterUrl,
+      watches: toFiniteNumber(row.watches),
+    };
+  });
 
   var payload: ProfileStatsCachePayload = {
     username: profile.username,
+    selectedYear,
+    availableYears: availableYearResult.rows.map(function (row) {
+      return toFiniteNumber(row.year);
+    }),
     filmsLoggedCount: toFiniteNumber(aggregate?.filmsLoggedCount),
     hoursWatched: toFiniteNumber(aggregate?.hoursWatched),
+    runtimeKnownCount: toFiniteNumber(aggregate?.runtimeKnownCount),
     averageRating:
       aggregate?.averageRating == null ? null : Math.round(toFiniteNumber(aggregate.averageRating) * 10) / 10,
+    ratedCount: toFiniteNumber(aggregate?.ratedCount),
+    uniqueFilmsCount: toFiniteNumber(aggregate?.uniqueFilmsCount),
+    rewatchCount: toFiniteNumber(aggregate?.rewatchCount),
+    thisYearCount: toFiniteNumber(aggregate?.thisYearCount),
     reviewsWrittenCount: toFiniteNumber(aggregate?.reviewsWrittenCount),
     reviewLikeCount: toFiniteNumber(aggregate?.reviewLikeCount),
     memberSince,
     favoriteFilms,
     genres,
     activity,
-    recentDiary,
+    ratingDistribution,
+    decades,
+    directors: peopleCounts("director"),
+    artists: peopleCounts("artist"),
+    musicDirectors: peopleCounts("musicDirector"),
+    countries: namedCounts("country"),
+    languages: namedCounts("language"),
+    mostWatchedFilms,
     cachedAt: new Date().toISOString(),
   };
 

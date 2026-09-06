@@ -239,6 +239,8 @@
     /* ── Brand / Accent (primary UI emphasis = light on dark bg) ── */
     --color-accent: var(--color-text);
     --color-accent-hover: var(--neutral-800);
+    --color-rating-star: #00c030;
+    --color-rating-star-empty: rgba(0, 192, 48, 0.2);
 
     /* Keep checked switch thumb consistent with light theme. */
     --switch-thumb-on: #ffffff;
@@ -290,6 +292,81 @@
     --discover-shelf-bg: #1a1917;
     --discover-placeholder: #2d2b28;
     --discover-tab-active: var(--color-accent);
+
+    color-scheme: dark;
+}
+
+/* ── Letterboxd-inspired Theme ── */
+[data-theme="letterboxd"] {
+    --neutral-50: #1b2228;
+    --neutral-100: #202830;
+    --neutral-200: #2c3440;
+    --neutral-300: #3c4856;
+    --neutral-400: #556677;
+    --neutral-500: #9aabba;
+    --neutral-600: #aabbcc;
+    --neutral-700: #c8d4df;
+    --neutral-800: #e0e8ef;
+    --neutral-900: #f2f5f7;
+
+    --color-bg: #14181c;
+    --color-bg-elevated: #1b2228;
+    --color-bg-sunken: #101418;
+    --color-bg-sunken-2: #202830;
+    --color-bg-hover: #242e38;
+    --color-bg-active: #2c3440;
+    --color-card-hover: #1b2228;
+    --color-border: #303c48;
+    --color-border-strong: #556677;
+    --color-skeleton: #2c3440;
+    --color-skeleton-strong: #3c4856;
+    --color-focus-ring: #00c030;
+
+    --color-accent: #00c030;
+    --color-accent-hover: #35d65d;
+    --color-social-accent: #40bcf4;
+    --color-social-accent-hover: #80d4fa;
+    --color-social-accent-bg: rgba(64, 188, 244, 0.12);
+    --color-like: #ff982e;
+    --color-like-bg: rgba(255, 152, 46, 0.12);
+    --color-repost: #00c030;
+    --color-repost-bg: rgba(0, 192, 48, 0.12);
+    --color-success: #00c030;
+    --color-warning: #ff982e;
+    --color-rating-star: #00c030;
+    --color-rating-star-empty: rgba(0, 192, 48, 0.2);
+
+    --composer-primary: #00c030;
+    --composer-primary-hover: #35d65d;
+    --composer-primary-fg: #101418;
+    --composer-publish-bg: #00c030;
+    --composer-publish-bg-hover: #35d65d;
+    --composer-publish-fg: #101418;
+    --switch-track-on: #00c030;
+    --switch-thumb-on: #101418;
+    --color-film-red: #ff982e;
+    --color-film-gold: #00c030;
+    --color-film-gold-hover: #35d65d;
+    --color-unread-badge: #ff982e;
+    --color-poster-bg-from: #101418;
+    --color-poster-bg-to: #2c3440;
+    --color-poster-stroke: #556677;
+    --color-cover-end: #202830;
+    --color-heat-1: #17482b;
+    --color-heat-2: #237840;
+    --color-heat-3: #00a82a;
+    --color-shockingly-green: #00c030;
+    --color-lt-green: #35d65d;
+
+    --discover-hero-bg: #101418;
+    --discover-hero-border: var(--border);
+    --discover-shelf-bg: #1b2228;
+    --discover-placeholder: #2c3440;
+    --chat-accent: #40bcf4;
+    --chat-accent-hover: #80d4fa;
+    --chat-own-bubble: linear-gradient(135deg, #22526a 0%, #183d50 100%);
+    --chat-unread-badge: #ff982e;
+    --chat-unread-badge-fg: #101418;
 
     color-scheme: dark;
 }
@@ -2574,6 +2651,11 @@ body {
 
 /* ── Spoiler: iMessage-style invisible ink (canvas grain overlay) ── */
 @layer components {
+    /* Hover surface excludes nested reply thread rendered beneath it. */
+    .CommentCardHover:hover {
+        background-color: var(--color-card-hover);
+    }
+
     .spoiler-ink {
         position: relative;
         display: inline;

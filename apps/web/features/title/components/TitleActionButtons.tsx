@@ -23,7 +23,7 @@ const secondary =
   "border border-border bg-elevated text-fg shadow-sm " +
   "hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--accent)_8%,var(--elevated))] hover:shadow-md";
 const accent =
-  "border border-transparent bg-accent text-white shadow-sm hover:bg-[var(--color-accent-hover)] hover:shadow-md";
+  "border border-transparent bg-accent text-bg shadow-sm hover:bg-[var(--color-accent-hover)] hover:shadow-md";
 
 type TitleActionButtonsProps = {
   detail: TMDBMovie;

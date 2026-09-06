@@ -30,7 +30,7 @@ type SupportedJobName =
 
 var queue: Queue | null = null;
 
-function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
+export function connectionFromRedisUrl(redisUrl: string, maxRetriesPerRequest: number | null = 1): ConnectionOptions {
   var parsed = new URL(redisUrl);
   var isTls = parsed.protocol === "rediss:";
   return {
@@ -38,7 +38,7 @@ function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
     port: parsed.port ? Number(parsed.port) : isTls ? 6379 : 6379,
     username: decodeURIComponent(parsed.username || "default"),
     password: decodeURIComponent(parsed.password || ""),
-    maxRetriesPerRequest: 1,
+    maxRetriesPerRequest,
     enableReadyCheck: false,
     ...(isTls ? { tls: {} } : {}),
   };

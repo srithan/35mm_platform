@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { TMDBMovie, TMDBGenre } from "@/lib/tmdb/types";
+import type { TMDBMovie, TMDBGenre, TMDBMultiSearchResult } from "@/lib/tmdb/types";
 import type { DiscoverMoodId } from "../lib/discoverMoodFilters";
 import {
   buildDiscoverExploreUrl,
@@ -117,9 +117,9 @@ export function useTopRated() {
   return { movies: query.data?.results ?? [], loading: query.isLoading };
 }
 
-export function useStreamingNow(providerId: number | null) {
+export function useStreamingNow(providerIds: readonly number[]) {
   const query = useQuery({
-    queryKey: discoverKeys.streamingNow(providerId),
+    queryKey: discoverKeys.streamingNow(providerIds),
     queryFn: () => {
       const params = new URLSearchParams({
         page: "1",
@@ -128,8 +128,8 @@ export function useStreamingNow(providerId: number | null) {
         with_watch_monetization_types: "flatrate",
         include_adult: "false",
       });
-      if (providerId != null) {
-        params.set("with_watch_providers", String(providerId));
+      if (providerIds.length > 0) {
+        params.set("with_watch_providers", providerIds.join("|"));
       }
       return fetchJson<{ results: TMDBMovie[] }>(
         `/api/tmdb/discover/movie?${params.toString()}`
@@ -148,7 +148,7 @@ export function useSearchMulti(query: string) {
   const searchQuery = useQuery({
     queryKey: discoverKeys.searchMulti(normalizedQuery),
     queryFn: () =>
-      fetchJson<{ results: TMDBMovie[] }>(
+      fetchJson<{ results: TMDBMultiSearchResult[] }>(
         `/api/tmdb/search/multi?query=${encodeURIComponent(normalizedQuery)}&include_adult=false`
       ),
     enabled: normalizedQuery.length > 0,
@@ -156,7 +156,7 @@ export function useSearchMulti(query: string) {
   });
 
   return {
-    movies: normalizedQuery.length > 0 ? searchQuery.data?.results ?? [] : [],
+    results: normalizedQuery.length > 0 ? searchQuery.data?.results ?? [] : [],
     loading: normalizedQuery.length > 0 ? searchQuery.isLoading : false,
   };
 }

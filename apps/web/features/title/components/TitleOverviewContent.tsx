@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LazyImage } from "@/components/LazyImage";
 import { posterUrl, yearFromDate } from "@/features/discover/lib/tmdb-utils";
 import { tmdbItemToTitlePath } from "@/lib/title/paths";
+import { SHOW_POSTER_CARD_METADATA } from "@/lib/constants/uiFlags";
 import { cn } from "@/lib/utils/cn";
 import type { TMDBMovie, TMDBSeasonDetail, TMDBVideo } from "@/lib/tmdb/types";
 import { youtubeThumb } from "../lib/titleVideos";
@@ -108,7 +109,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
                       "w-28 shrink-0 overflow-hidden rounded-sm text-left",
                       "border border-border bg-elevated shadow-sm transition-[background-color,border-color,box-shadow]",
                       props.playingKey === v.key
-                        ? "ring-2 ring-film-gold/50"
+                        ? "border-film-gold"
                         : "hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--accent)_8%,var(--elevated))] hover:shadow"
                     )}
                   >
@@ -149,6 +150,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
                       title: item.title,
                       media_type: item.media_type,
                     })}
+                    aria-label={"Open " + (item.title || item.name || "title")}
                     className="group block"
                   >
                     <div className="relative aspect-[2/3] w-full overflow-hidden rounded-sm bg-sunken transition-transform duration-300 group-hover:-translate-y-1">
@@ -161,12 +163,16 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
                         />
                       ) : null}
                     </div>
-                    <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-snug text-fg group-hover:underline group-hover:underline-offset-2">
-                      {item.title || item.name}
-                    </p>
-                    <p className="mt-0.5 text-[12px] text-fg/55">
-                      {yearFromDate(item.release_date || item.first_air_date || "")}
-                    </p>
+                    {SHOW_POSTER_CARD_METADATA ? (
+                      <>
+                        <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-snug text-fg group-hover:underline group-hover:underline-offset-2">
+                          {item.title || item.name}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-fg/55">
+                          {yearFromDate(item.release_date || item.first_air_date || "")}
+                        </p>
+                      </>
+                    ) : null}
                   </Link>
                 </li>
               );

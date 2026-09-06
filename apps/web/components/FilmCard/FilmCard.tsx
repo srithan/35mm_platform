@@ -19,8 +19,8 @@ export interface FilmCardProps {
 const CARD_BG = "#0d0806";
 const TITLE_COLOR = "#faf9f7";
 // Brighter star colors — the dark card needs more contrast
-const STAR_FILLED = "#e8735a";
-const STAR_EMPTY = "rgba(232, 115, 90, 0.25)";
+const STAR_FILLED = "var(--color-rating-star, #e8735a)";
+const STAR_EMPTY = "var(--color-rating-star-empty, rgba(232, 115, 90, 0.25))";
 
 const GRAIN_BG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
@@ -148,7 +148,7 @@ function FilmCardStarRow({ ratingInt }: { ratingInt: number }) {
           return (
             <span
               key={i}
-              style={{ fontSize: 14, color: STAR_FILLED, filter: "drop-shadow(0 0 4px rgba(232,115,90,0.5))" }}
+              style={{ fontSize: 14, color: STAR_FILLED }}
             >
               ★
             </span>
@@ -160,7 +160,7 @@ function FilmCardStarRow({ ratingInt }: { ratingInt: number }) {
               <span style={{ color: STAR_EMPTY }}>★</span>
               <span
                 className="absolute left-0 top-0 overflow-hidden"
-                style={{ color: STAR_FILLED, width: "50%", filter: "drop-shadow(0 0 4px rgba(232,115,90,0.5))" }}
+                style={{ color: STAR_FILLED, width: "50%" }}
               >
                 ★
               </span>

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ShellGrid } from "@/components/layout/ShellGrid";
-import { ScrollRestore } from "@/features/feed/components/FeedScrollRestore";
 import { FeedWithComposer } from "@/features/feed/components/FeedWithComposer";
 import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
 import { LandingPage } from "@/features/landing/components/LandingPage";
@@ -32,7 +31,6 @@ export default async function RootPage() {
 
   return (
     <>
-      <ScrollRestore />
       <OnboardingGate />
       <a href="#main-content" className="sr-only">
         Skip to main content

@@ -9,10 +9,11 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { EmptyState } from "@/components/EmptyState";
-import { fetchFeed } from "../api/feedApi";
-import type { ProfileFeedKind } from "../api/feedApi";
+import { fetchFeed, fetchQuotePosts } from "../api/feedApi";
+import type { ProfileFeedKind, QuotePostSort } from "../api/feedApi";
 import { useConnectionPreferences } from "../hooks/useConnectionPreferences";
 import { useFeed } from "../hooks/useFeed";
+import { useQuotePosts } from "../hooks/useQuotePosts";
 import { feedKeys } from "../hooks/queryKeys";
 import type { Post } from "../types/feed";
 import { PostCard } from "./PostCard";
@@ -46,6 +47,8 @@ interface InfinitePostListProps {
   emptyState?: React.ComponentProps<typeof EmptyState>;
   postTypes?: Array<Post["type"]>;
   postFilter?: (post: Post) => boolean;
+  quotePostId?: string;
+  quoteSort?: QuotePostSort;
 }
 const PREFETCH_MAX_PAGES = 3;
 const SCROLL_FAST_THRESHOLD_PX_PER_SEC = 1_300;
@@ -57,12 +60,18 @@ export function InfinitePostList({
   emptyState,
   postTypes,
   postFilter,
+  quotePostId,
+  quoteSort = "latest",
 }: InfinitePostListProps) {
   const queryClient = useQueryClient();
   const { getToken, isLoaded: isAuthLoaded } = useAuth();
   const connection = useConnectionPreferences();
   const [scrollMargin, setScrollMargin] = useState(0);
   const virtualListStartRef = useRef<HTMLDivElement>(null);
+  const isQuoteFeed = Boolean(quotePostId);
+  const feedQuery = useFeed(username, profileFeedKind, !isQuoteFeed);
+  const quoteQuery = useQuotePosts(quotePostId, quoteSort, isQuoteFeed);
+  const activeQuery = isQuoteFeed ? quoteQuery : feedQuery;
   const {
     data,
     fetchNextPage,
@@ -73,7 +82,7 @@ export function InfinitePostList({
     isError,
     error,
     refetch,
-  } = useFeed(username, profileFeedKind);
+  } = activeQuery;
 
   const posts = useMemo(function () {
     return deduplicateFeedPosts(data?.pages.flatMap((page) => page.posts) ?? []);
@@ -97,9 +106,10 @@ export function InfinitePostList({
   );
   const queryKey = useMemo(
     function () {
+      if (quotePostId) return feedKeys.quotes(quotePostId, quoteSort);
       return username ? feedKeys.profile(username, profileFeedKind) : feedKeys.home();
     },
-    [profileFeedKind, username]
+    [profileFeedKind, quotePostId, quoteSort, username]
   );
   const prefetchInFlightRef = useRef(false);
   const prefetchScrollVelocityRef = useRef(0);
@@ -166,12 +176,19 @@ export function InfinitePostList({
         const prefetchedPage = await queryClient.fetchQuery({
           queryKey: pageRef,
           queryFn: function () {
-            return fetchFeed({
-              cursor,
-              username,
-              profileFeedKind,
-              token: token ?? undefined,
-            });
+            return quotePostId
+              ? fetchQuotePosts({
+                  postId: quotePostId,
+                  sort: quoteSort,
+                  cursor,
+                  token: token ?? undefined,
+                })
+              : fetchFeed({
+                  cursor,
+                  username,
+                  profileFeedKind,
+                  token: token ?? undefined,
+                });
           },
           staleTime: 30_000,
           gcTime: 5 * 60_000,
@@ -198,6 +215,8 @@ export function InfinitePostList({
     queryKey,
     getToken,
     profileFeedKind,
+    quotePostId,
+    quoteSort,
     username,
   ]);
 

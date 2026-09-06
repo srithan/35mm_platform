@@ -172,6 +172,11 @@ function PostCardComponent(props: PostCardProps) {
     openComposer(quotedPost);
   };
 
+  const viewQuotes = () => {
+    if (!postId) return;
+    router.push(ROUTES.POST_QUOTES(username, postId));
+  };
+
   const handleCardClick = (e: React.MouseEvent) => {
     if (!postId) return;
     if ((e.target as HTMLElement).closest("a, button")) return;
@@ -300,6 +305,7 @@ function PostCardComponent(props: PostCardProps) {
             shouldRenderLinkPreviewCard={shouldRenderLinkPreviewCard}
             linkPreview={linkPreview}
             videoUrls={resolvedMedia.videoUrls}
+            videoAssetId={resolvedMedia.videoAssetId}
             imageUrls={resolvedMedia.imageUrls}
             imageBlurhashes={resolvedMedia.imageBlurhashes}
             imageDimensions={resolvedMedia.imageDimensions}
@@ -344,6 +350,7 @@ function PostCardComponent(props: PostCardProps) {
                 initialReposted={initialReposted}
                 onCommentClick={postId ? navigateToPost : undefined}
                 onQuote={postId ? quotePost : undefined}
+                onViewQuotes={postId ? viewQuotes : undefined}
               />
             }
           />
@@ -361,6 +368,7 @@ function PostCardComponent(props: PostCardProps) {
             initialReposted={initialReposted}
             onCommentClick={postId ? navigateToPost : undefined}
             onQuote={postId ? quotePost : undefined}
+            onViewQuotes={postId ? viewQuotes : undefined}
           />
         </PostCardHeader>
       </div>

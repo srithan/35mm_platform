@@ -2,20 +2,34 @@ import { getRedisClient } from "./redis.js";
 
 const PROFILE_STATS_CACHE_TTL_SECONDS = 60;
 const PROFILE_STATS_INDEX_TTL_SECONDS = 10 * 60;
-const CACHE_NS = "profile-stats:v1";
+const CACHE_NS = "profile-stats:v3";
 
 export type ProfileStatsCachePayload = {
   username: string;
+  selectedYear: number | null;
+  availableYears: number[];
   filmsLoggedCount: number;
   hoursWatched: number;
+  runtimeKnownCount: number;
   averageRating: number | null;
+  ratedCount: number;
+  uniqueFilmsCount: number;
+  rewatchCount: number;
+  thisYearCount: number;
   reviewsWrittenCount: number;
   reviewLikeCount: number;
   memberSince: string | null;
   favoriteFilms: unknown[];
   genres: unknown[];
   activity: unknown[];
-  recentDiary: unknown[];
+  ratingDistribution: unknown[];
+  decades: unknown[];
+  directors: unknown[];
+  artists: unknown[];
+  musicDirectors: unknown[];
+  countries: unknown[];
+  languages: unknown[];
+  mostWatchedFilms: unknown[];
   cachedAt: string;
 };
 
@@ -37,11 +51,13 @@ function authorIndexKey(authorUserId: string): string {
 export function profileStatsCacheKey(input: {
   username: string;
   viewerId: string | null;
+  year: number | null;
 }): string {
   return [
     CACHE_NS,
     `username:${normalizePart(input.username.toLowerCase())}`,
     `viewer:${viewerPart(input.viewerId)}`,
+    `year:${normalizePart(input.year ?? "all")}`,
   ].join(":");
 }
 
@@ -50,16 +66,30 @@ function isProfileStatsPayload(value: unknown): value is ProfileStatsCachePayloa
   var payload = value as Partial<ProfileStatsCachePayload>;
   return (
     typeof payload.username === "string" &&
+    (payload.selectedYear === null || typeof payload.selectedYear === "number") &&
+    Array.isArray(payload.availableYears) &&
     typeof payload.filmsLoggedCount === "number" &&
     typeof payload.hoursWatched === "number" &&
+    typeof payload.runtimeKnownCount === "number" &&
     (payload.averageRating === null || typeof payload.averageRating === "number") &&
+    typeof payload.ratedCount === "number" &&
+    typeof payload.uniqueFilmsCount === "number" &&
+    typeof payload.rewatchCount === "number" &&
+    typeof payload.thisYearCount === "number" &&
     typeof payload.reviewsWrittenCount === "number" &&
     typeof payload.reviewLikeCount === "number" &&
     (payload.memberSince === null || typeof payload.memberSince === "string") &&
     Array.isArray(payload.favoriteFilms) &&
     Array.isArray(payload.genres) &&
     Array.isArray(payload.activity) &&
-    Array.isArray(payload.recentDiary) &&
+    Array.isArray(payload.ratingDistribution) &&
+    Array.isArray(payload.decades) &&
+    Array.isArray(payload.directors) &&
+    Array.isArray(payload.artists) &&
+    Array.isArray(payload.musicDirectors) &&
+    Array.isArray(payload.countries) &&
+    Array.isArray(payload.languages) &&
+    Array.isArray(payload.mostWatchedFilms) &&
     typeof payload.cachedAt === "string"
   );
 }

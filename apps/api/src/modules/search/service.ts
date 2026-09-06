@@ -90,7 +90,7 @@ async function hydrateFilms(ids: string[]): Promise<SiteSearchResult[]> {
       genres: films.genres,
     })
     .from(films)
-    .where(inArray(films.id, ids));
+    .where(and(eq(films.isCatalogListed, true), inArray(films.id, ids)));
   return ranked(ids, rows).map(function (row) {
     return {
       id: row.id,

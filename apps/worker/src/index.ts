@@ -1,3 +1,4 @@
+import { enqueuePendingVideoChecks, runVideoReconcile } from "./jobs/videoReconcile.js";
 import { Queue, QueueEvents, Worker, type Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import {
@@ -62,6 +63,8 @@ function connectionFromRedisUrl(redisUrl: string): ConnectionOptions {
 }
 
 async function handleJob(job: Job, queue: Queue): Promise<unknown> {
+  if (job.name === "video.reconcile") return runVideoReconcile(job.data);
+  if (job.name === "video.sweep") return enqueuePendingVideoChecks(queue);
   if (job.name === "media.process") {
     var payload = job.data as MediaProcessJobPayload;
     if (!payload || typeof payload !== "object") {
@@ -236,6 +239,10 @@ async function main() {
     connection,
   });
   outboxQueue = schedulerQueue;
+  if (env.BUNNY_STREAM_LIBRARY_ID) {
+    await schedulerQueue.add("video.sweep", {}, { jobId: "video.sweep-repeat", repeat: { every: 60000 },
+      attempts: 5, backoff: { type: "exponential", delay: 10000 }, removeOnComplete: true, removeOnFail: 100 });
+  }
 
   var worker = new Worker(WORKER_QUEUE_NAME, function (job) {
     return handleJob(job, schedulerQueue);

@@ -27,30 +27,40 @@ export function CommentCardDeleted({
 }: CommentCardDeletedProps) {
   const [repliesExpanded, setRepliesExpanded] = useState(false);
   const hasReplies = comment.replies && comment.replies.length > 0;
-  const { containerStyle } = getCommentThreadStyles(depth);
+  const { containerStyle, contentStyle, repliesStyle } = getCommentThreadStyles(depth);
 
   return (
     <div
       id={`comment-${comment.id}`}
       className={cn(
-        "CommentCard w-full bg-bg px-4 py-4 animate-fade-up border-b border-border transition-colors duration-150 hover:bg-card-hover last:border-b-0",
+        "CommentCard w-full bg-bg animate-fade-up border-b border-border last:border-b-0",
         depth > 0 && "border-l-2 border-l-border"
       )}
       style={containerStyle}
     >
-      <p className="text-[13px] italic text-fg-muted">This comment was deleted</p>
+      <div
+        className={cn(
+          "CommentCardHover bg-bg px-4 pt-4 transition-colors duration-150",
+          !hasReplies && "pb-4"
+        )}
+        style={contentStyle}
+      >
+        <p className="text-[13px] italic text-fg-muted">This comment was deleted</p>
+      </div>
       {hasReplies ? (
-        <CommentCardReplies
-          replies={comment.replies!}
-          postId={postId}
-          postBookmarked={postBookmarked}
-          postBookmarkFolderId={postBookmarkFolderId}
-          depth={depth}
-          expanded={repliesExpanded}
-          onExpand={() => setRepliesExpanded(true)}
-          truncateText={truncateText}
-          onReplySubmit={onReplySubmit}
-        />
+        <div className="bg-bg pb-4 pr-4" style={repliesStyle}>
+          <CommentCardReplies
+            replies={comment.replies!}
+            postId={postId}
+            postBookmarked={postBookmarked}
+            postBookmarkFolderId={postBookmarkFolderId}
+            depth={depth}
+            expanded={repliesExpanded}
+            onExpand={() => setRepliesExpanded(true)}
+            truncateText={truncateText}
+            onReplySubmit={onReplySubmit}
+          />
+        </div>
       ) : null}
     </div>
   );

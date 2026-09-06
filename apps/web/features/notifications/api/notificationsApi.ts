@@ -1,5 +1,6 @@
 import type { NotificationPage } from "@35mm/types";
 import { apiRequest } from "@/features/feed/api/http";
+import { isMainNotificationItem } from "@/features/notifications/utils/mainNotification";
 
 interface FetchNotificationsParams {
   token?: string | null;
@@ -21,9 +22,14 @@ export async function fetchNotifications(params: FetchNotificationsParams): Prom
     query.set("unreadOnly", "true");
   }
 
-  return apiRequest<NotificationPage>(`/v1/me/notifications?${query.toString()}`, {
+  var page = await apiRequest<NotificationPage>(`/v1/me/notifications?${query.toString()}`, {
     token: params.token,
   });
+
+  return {
+    ...page,
+    items: page.items.filter(isMainNotificationItem),
+  };
 }
 
 export async function markNotificationRead(params: {

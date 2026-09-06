@@ -52,6 +52,7 @@ interface PostActionsProps {
   bookmarkDisabled?: boolean;
   onRepostToggle?: (state: { isReposted: boolean }) => void;
   onQuote?: () => void;
+  onViewQuotes?: () => void;
   hideRepostSaveLabels?: boolean;
   showReplyOption?: boolean;
   hideZeroCounts?: boolean;
@@ -81,6 +82,7 @@ export function PostActions({
   bookmarkDisabled = false,
   onRepostToggle,
   onQuote,
+  onViewQuotes,
   hideRepostSaveLabels = false,
   showReplyOption = false,
   hideZeroCounts = false,
@@ -228,6 +230,15 @@ export function PostActions({
               icon: <Icon name="quote" strokeWidth={1.7} />,
               onSelect: onQuote,
             },
+            ...(onViewQuotes
+              ? [{
+                  id: "view-quotes",
+                  label: "View quotes",
+                  icon: <Icon key="view-quotes-icon" name="chat" strokeWidth={1.6} />,
+                  dividerBefore: true,
+                  onSelect: onViewQuotes,
+                }]
+              : []),
           ]}
           trigger={function ({ ref, isOpen, toggle, onKeyDown, menuId }) {
             return (

@@ -1,0 +1,102 @@
+# Film and post video uploads
+
+Updated 2026-09-05. Bunny Stream handles uploaded film and post video bytes, encoding and playback. R2 continues to handle images and film thumbnails. Web entry points are the post composer and `/short-films/upload`; published uploaded films use `/short-films/{35mm-film-ULID}`.
+
+## Account configuration
+
+Library `35mm-video` (744940), CDN `vz-202e3908-db5.b-cdn.net`. Free H.264 encoding, 240p–1080p, MP4 fallback, original retention, and multiple audio tracks are enabled. Early Play and direct play are disabled. Embed token authentication, CDN token authentication, and blocking direct URL access are enabled. The player sends an origin referrer; direct server verification must supply a referrer as well as a valid token.
+
+API and worker require these **server-only** variables: `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_STREAM_TOKEN_KEY`, `BUNNY_STREAM_WEBHOOK_SECRET`, `BUNNY_STREAM_CDN_HOST`. The webhook secret is the Stream library's read-only API key used by Bunny's v1 HMAC signatures. Never expose these through `NEXT_PUBLIC_*`, logs or API responses. Local credentials are in ignored environment files; examples contain no credentials.
+
+The API is local only by user choice. No dashboard webhook URL is configured. Authenticated refresh checks work without a public callback; `pnpm dev:worker` also runs durable pending-video sweeps. When a public API is deployed, configure `https://<api-host>/v1/videos/webhook/744940`. The route verifies the exact body, v1 signature version, HMAC-SHA256 algorithm and library ID before its shared rate limit. It treats events as hints and retrieves authoritative provider state: GET status 4 is finished, while webhook event numbers have different meanings.
+
+## Upload and publication
+
+1. Authenticated `POST /v1/videos/uploads` reserves a `video_assets` row using a client UUID idempotency key and request hash. A unique owner/key index prevents duplicate reservations; stable provider titles recover interrupted provider creation. New upload sessions are limited to 20/user/day, writes to 20/user/minute. Existing session retries do not spend daily creation quota.
+2. A 24-hour asset-scoped TUS signature sends bytes directly to Bunny in 8 MiB chunks. `tus-js-client` is dynamically imported. The browser retains up to 20 non-secret session identities for 24 hours in session storage, permitting same-tab reload/reselection recovery. Cancellation stops transfer; network retry resumes from the acknowledged offset. Successful transfer receipts avoid re-uploading when the completion response is lost.
+3. `POST /:id/complete` records processing, not readiness. `POST /:id/refresh` is owner-only, limited to 12/user/minute, and acquires a DB lease limiting Bunny queries to once per asset/minute. The UI checks every 15 seconds for at most one hour; retry continues checking the saved upload. The worker handles closed tabs.
+4. Validate original stored bytes and encoded dimensions/duration against the declaration. Post videos: 120 MiB and 10 minutes. Films: 20 GiB and four hours. MP4, MOV, WebM and MKV only. These are declaration and post-processing limits: Bunny's signed TUS protocol does not enforce an application-specified byte quota during transfer.
+5. **Finalization protects published bytes.** Bunny allows a still-valid TUS grant to upload again to the same video ID. The application therefore asks Bunny to fetch the staged original into a server-only final video, using a signed source URL and a reserved finalization attempt. The final copy is independently processed and checked. Its credentials are never issued to clients. The staged copy is removed before readiness; interrupted copy requests recover by a distinct stable title, avoiding duplicate copy submissions. Copy/encoding happens inside Bunny, never through the API process. This incurs a second encoding pass and overlapping storage while processing.
+6. Film publish locks the asset and creates a canonical `films.id` ULID once. Details live in `video_assets`; `films.is_catalog_listed=false` keeps uploads out of general catalog, onboarding favorites, review attachments, lists, search hydration/indexing and catalog backfill. Uploaded-film discovery has its own access-controlled routes. Retrying publish returns the existing film ID. Post creation locks and consumes one acknowledged processing or ready owned post-purpose asset in the existing post transaction; a request hash rejects changed duplicate submissions. Existing counter outbox and hybrid feed fan-out handle downstream post effects.
+
+## Reads, privacy and deletion
+
+- `GET /v1/videos/films` uses `(release_at,id)` cursor pagination, default 20, maximum 40. `mine=true` requires authentication. Public discovery excludes future, private, unlisted, deleted and non-ready films and applies profile privacy/moderation/block checks.
+- `GET /v1/videos/films/:filmId` permits released public/unlisted films subject to profile access, plus the owner's films. `GET /:id/status` is owner-only.
+- `GET /:id/playback` rechecks author/profile blocks, privacy and moderation; attached posts must also remain visible and undeleted. It returns a five-minute signed iframe grant, not a public HLS URL. Read routes are rate-limited and `private, no-store`. Web fetches playback only on interaction; React Query keys include the viewer, and grants have no retained client cache after unmount. Already-issued grants can remain valid until expiration.
+- `DELETE /:id` locks the owned asset and soft-deletes it. Attached video deletion goes through post deletion. No film/post UGC rows are hard-deleted. Final provider media is retained behind denied application access after soft deletion; failed/abandoned provider uploads are retained for operational review, so storage retention must be included in capacity/billing monitoring. Pending uploads fail after 48 hours rather than poll forever.
+- Film thumbnail images use the existing R2 public image path. Private film metadata/playback are protected; thumbnail URLs are not access-controlled image storage. Do not put confidential imagery in thumbnails.
+
+## Scale and indexes
+
+At 1M DAU, assume 1% upload one video/day (10,000 uploads) and 10% request playback (100,000 grants/day). Bytes and encoding bypass app servers; playback is bounded indexed DB reads plus a local hash, with no per-viewer Bunny call. Film lists use indexed cursor pages. No synchronous counters or per-item DB calls are added. Existing post outbox/fan-out remains unchanged.
+
+`video.sweep` selects at most 500 due assets per minute; `video.reconcile` uses deduplicated BullMQ jobs, five retries, exponential backoff and the same DB lease. Completed/failed jobs are removed so later sweeps can retry transient outages. This schedules at most 720,000 checks/day; 10,000 uploads averaging 20 checks across both encoding passes need about 200,000/day. Longer uploads, higher upload share, or queue contention require worker concurrency/capacity sizing and pending-age monitoring. This is a capacity assumption, not a 1M-user load-test result.
+
+Migration `0062_bunny_video_uploads.sql` creates `video_assets` with primary key, unique owner/idempotency, library/provider, film and post indexes; creator-created index; partial creator-film and public-film release cursor indexes; partial pending-work index. The same indexes exist in Drizzle. It adds the catalog visibility flag and staging/finalization columns. The additive migration has been applied directly to the configured local-development database and can be replayed with `IF NOT EXISTS`; the full historical migration ledger was not advanced or repaired by this task.
+
+No shared Redis read cache is added. Publish/delete invalidate the web video query family; playback reauthorizes every new grant. Existing feed caches contain only video asset IDs and never grant access themselves.
+
+## Provider references
+
+- [TUS uploads](https://bunny.net/docs/stream/tus-resumable-uploads)
+- [Embed token authentication](https://bunny.net/docs/stream/token-authentication)
+- [Webhooks](https://bunny.net/docs/stream/webhooks)
+- [Fetch video](https://bunny.net/docs/api-reference/stream/manage-videos/fetch-video)
+
+## Verification record
+
+2026-09-05: synthetic MP4 uploaded through the signed TUS API and through the signed-in 35mm film form. Both provider encoding and server-only finalization completed. The film was published privately with a canonical ULID, played to its 2.048-second end in the embedded browser player (readyState 4, no media error), and then soft-deleted using the owner UI. Guest film detail/playback and general catalog lookup returned 404. Unsigned CDN playback returned 403; unsigned iframe rendering showed a 403 page, while signed/referrer-bearing embed requests loaded the player. Focused server tests cover signatures, processing states, quotas, copy finalization and route boundaries; composer/media tests cover post video upload progress and asset references. Web/API/worker typechecks passed. This does not constitute load testing or native-client verification.
+
+
+### Viewport playback (2026-09-05)
+
+Web uploaded-video players load their signed iframe within 300px of the viewport without a click-to-load gate. The shared React Query appearance/media autoplay preference controls muted playback at 50% visibility; leaving the viewport or hiding the document pauses playback. Bunny Player.js messages validate both origin and iframe source, and scrolling does not reload the iframe or reset its position. Native HTML5 legacy post uploads follow the same visibility/preference rules. External YouTube/Vimeo link previews retain their separate click-to-embed behavior.
+
+`VideoPlayback` includes nullable `width` and `height` from the already-authorized asset row. The wrapper uses that ratio, caps portrait height at 70vh, and disables Bunny's internal responsive wrapper to avoid conflicting aspect ratios and exposed iframe margins. No crop is applied; bars encoded into source footage remain part of the video.
+
+Scale: assuming 20 video impressions per DAU, 1M DAU implies about 20M bounded playback authorization reads/day (~232/s average before traffic peaks). Only nearby players request grants; scrolling an existing player adds no API reads. Settings use the existing five-minute shared query cache, with existing mutation updates; grants retain zero cache lifetime after unmount. Media bytes go directly through Bunny CDN. This follows existing direct-provider delivery and authorized playback patterns; adds no mutation, UGC write, pagination, database index, migration, or worker job.
+
+
+### Video startup presentation (2026-09-05)
+
+Bunny playback grants now include a five-minute, file-scoped signed `posterUrl` for the generated `thumbnail.jpg`. The same authorized asset read creates both grants; no provider API call or additional DB read is added. The UI shows a labeled loading spinner during the actual visible authorization request, then a poster with a control to reveal the player during initialization. Muted autoplay is set on the initial embed URL when visible and enabled, and subsequent changes still use Player.js without reloading. The iframe becomes visible and keyboard-accessible on validated Player.js readiness. Its own controls report paused, playing, and buffering states; an autoplay request does not imply buffering. Before readiness, the poster provides a control to reveal the player. Provider errors or eight seconds of visible initialization also expose controls. Poster load failure falls back to the neutral surface. CDN poster delivery adds at most one image request per mounted player; no migration, index, mutation, worker, or new cache is introduced.
+
+### Eager web composer video uploads (2026-09-05)
+
+Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. Short-film selection already starts its upload automatically. Uploading does not publish content.
+
+This follows existing direct-provider transfer, idempotent upload sessions and bounded processing reconciliation. At the documented 10,000 video selections/day assumption for 1M DAU, timing changes but each selected file still uses one upload session; abandoned selections now consume upload quota/storage and follow existing unpublished-asset retention. No new API routes, counters, caches, indexes, migrations or worker jobs are needed. Existing authorization, mutation rate limits and soft-delete semantics remain in force.
+
+
+### Automatic post-transfer processing recovery (2026-09-05)
+
+Post and film selection already starts transfer and processing independently of publication. The shared web uploader now enters processing UI immediately after byte transfer, before the completion acknowledgement. Completion and status refresh recover network errors, HTTP 408/429 and server failures with at most five attempts per request and 15/30/60/60-second delays inside the existing one-hour processing wait. Permanent failures surface immediately; cancellation stops pending retries. Post continues to await the same draft upload promise. No publish request is needed to trigger recovery, and completed bytes are not uploaded again.
+
+This retains direct-provider transfer, idempotent completion and DB-leased reconciliation. At 10,000 uploads/day, healthy request volume is unchanged; each affected completion/status request adds at most four retries, spaced to avoid tight loops. Existing rate limits and provider leases remain enforced. No new routes, schema/indexes, cache, worker jobs or UGC writes. Regression coverage verifies both upload purposes, automatic recovery, bounded failure and cancellation; provider end-to-end behavior is not revalidated by these unit tests.
+
+
+### Publish posts before video playback is ready (2026-09-05)
+
+Post uploads now resolve after the idempotent `/v1/videos/:id/complete` acknowledgement, which returns `VideoAssetStatus`; film uploads still wait for readiness. Post creation accepts owned, undeleted post-purpose assets in `processing` or `ready` under the existing row lock. It retains the request hash/replay guard even if processing later fails, and stores the stable application playback path plus asset ID rather than a staging provider URL. Selection starts uploading; Post awaits byte transfer/acknowledgement only. Composer removal or closure does not cancel server processing after acknowledgement.
+
+`GET /v1/videos/:id/playback` checks the same author, post visibility, moderation, block and deletion rules before returning either the existing signed ready grant or `{ state: "processing" | "failed", message, width, height }`. Pending/failed results never include media grants and remain `private, no-store`. `VideoPlaybackResult` is the shared union. The feed shows a processing placeholder, checks every 15 seconds only while visible in an active tab, and stops after 40 successful checks, readiness, failure or a request error. Check status starts another bounded interval; request errors expose Retry. Failed processing leaves the published text/post intact with an unavailable-video message; the uploader must upload again. No unvalidated staging playback is exposed. Acknowledged processing state cannot regress to uploading while the provider initializes.
+
+Durability uses the existing indexed pending-video sweep and leased reconciliation/final-copy validation. `pnpm dev:videos` runs only video jobs on the dedicated `35mm-video-jobs` BullMQ queue; deployed workers can use `pnpm --filter @35mm/worker start:videos` after build. The full worker still supports video jobs on `35mm-jobs`; either runner can process pending assets after all browser tabs close. If both run, the shared DB lease prevents duplicate provider work. At least one runner must remain running. The default `pnpm dev` still starts web/API only. No public webhook is configured for the local API, so the worker is required for unattended completion. The standalone video worker uses existing DB, queue and Bunny environment settings and logs queue/job failures.
+
+Scale: direct-to-provider bytes, BullMQ jobs, indexed DB leases, existing post idempotency and hybrid feed fan-out are preserved. At the existing 10,000 uploads/day assumption, upload/encoding work is unchanged; publication no longer waits on it. Assuming 100,000 visible pending-player sessions/day, the 40-check ceiling adds at most 4M bounded authorization/status reads/day (~46/s average before peaks); real concurrency still needs load testing. Pending reads never call Bunny or mutate data. No new table, index, cache or migration is required; asset primary-key lookups and the existing pending-work index cover the change. Existing mutation rate limits, cursor pagination, async counters and soft-delete rules remain in force. Chat behavior is unaffected.
+
+Verification: 90 focused web/API/worker tests passed (including processing-to-playback transitions, post submission before readiness, authorization, upload acknowledgement, idempotent replay, and durable sweeps). Web/API/worker typechecks passed. The dedicated local video worker was started and reported ready. No new live upload/publication was performed for this change.
+
+### Web embedded player controls (2026-09-05)
+
+`BunnyVideoPlayer` disables AirPlay with the supported `disableAirplay=true` embed parameter and explicitly denies picture-in-picture through iframe Permissions Policy. The application has no SharePlay integration. Bunny's library-level `Controls` setting owns the rendered legacy player toolbar; the toolbar enables 10s Backward, 10s Forward, Current Time and Duration, while retaining existing play/pause, progress, captions, mute, volume, settings and fullscreen controls. Rewind/forward use the legacy player's 10-second seek interval; including both time controls displays elapsed time and total duration. These library settings were saved through the Bunny dashboard; the scoped Stream API key cannot manage library settings. New libraries must apply the same toolbar configuration in Bunny Player settings. Verified in the live local film page: forward moves paused playback from 00:00 to 00:10, rewind returns to 00:00, total duration remains 00:26, and PiP/AirPlay controls are absent. The 20 focused player tests and web typecheck pass.
+
+This follows existing direct-provider playback and client-only presentation patterns. At the existing 20M video impressions/day assumption for 1M DAU, these flags add zero API/DB reads or writes. No new index, schema, cache, worker, mutation, pagination or UGC lifecycle change applies. Chat and architecture diagrams are unaffected.
+
+
+### Video playback affordances (2026-09-05)
+
+Post video previews display a labeled loading spinner only during an actual visible playback-authorization request. Once the iframe exists, its poster offers a control to reveal the player; validated Player.js readiness exposes native controls immediately. The application does not label iframe initialization or autoplay requests as buffering. Bunny owns playback/loading indicators, including browser-blocked autoplay and later rebuffering. Processing assets retain a distinct processing spinner. Legacy HTML5 post videos show Play while paused and loading during active play requests, buffering, and seeks. Controls preserve keyboard access and post-click isolation.
+
+This follows the existing viewport-gated playback and browser-tab playback coordinator patterns. At the documented 20M video impressions/day assumption for 1M DAU, these local UI states add no API reads, writes, polling, or media requests. No new index, cache, mutation, pagination, UGC semantics, or worker change is required.

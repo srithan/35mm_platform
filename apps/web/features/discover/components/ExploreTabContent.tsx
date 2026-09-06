@@ -1,45 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
+import {
+  DEFAULT_STREAMING_SERVICE_IDS,
+  streamingProviderIds,
+} from "@35mm/types/streaming-services";
 import { HeroCard } from "./HeroCard";
 import { FilmShelf } from "./FilmShelf";
-import { SearchResultsView } from "./SearchResultsView";
-import { EmptyState } from "@/components/EmptyState";
 import {
   MoodGridAisles,
   RankedFilmAisle,
   SprocketDivider,
   StreamingNowAisle,
   TicketDivider,
-  type StreamingProviderId,
 } from "./DiscoverAisles";
 import {
   usePopular,
   useNowPlaying,
-  useSearchMulti,
   useStreamingNow,
   useTopRated,
   useTrending,
 } from "../hooks/useDiscoverData";
 import type { TMDBMovie } from "@/lib/tmdb/types";
-import type { DiscoverMoodId } from "../lib/discoverMoodFilters";
-import {
-  discoverUsesTvMedia,
-  type DiscoverExploreFiltersState,
-} from "../lib/discoverExploreFilters";
+import { DEFAULT_DISCOVER_EXPLORE_FILTERS } from "../lib/discoverExploreFilters";
 import {
   DiscoverHeroSkeleton,
   DiscoverShelfSkeleton,
 } from "./DiscoverSkeletons";
+import { useSettingsQuery } from "@/features/settings/hooks/useSettings";
 
 interface ExploreTabContentProps {
   onOpenDetail: (film: TMDBMovie) => void;
-  searchQuery: string;
-  genreId: number | null;
-  moodId: DiscoverMoodId;
-  exploreFilters: DiscoverExploreFiltersState;
-  activeFilterCount: number;
-  onClearFilters: () => void;
 }
 
 function uniqueFilms(films: TMDBMovie[]) {
@@ -64,32 +55,32 @@ function filmsByGenre(films: TMDBMovie[], genreIds: number[]) {
 
 export function ExploreTabContent({
   onOpenDetail,
-  searchQuery,
-  genreId,
-  moodId,
-  exploreFilters,
-  activeFilterCount,
-  onClearFilters,
 }: ExploreTabContentProps) {
-  const [streamingProviderId, setStreamingProviderId] =
-    useState<StreamingProviderId>(null);
+  const settingsQuery = useSettingsQuery();
+  const selectedServiceIds =
+    settingsQuery.data?.streamingServices?.serviceIds ??
+    DEFAULT_STREAMING_SERVICE_IDS;
+  const selectedProviderIds = useMemo(
+    function resolveSelectedProviderIds() {
+      return streamingProviderIds(selectedServiceIds);
+    },
+    [selectedServiceIds]
+  );
   const { movies: popular, loading: popularLoading } = usePopular(
-    genreId,
-    moodId,
-    exploreFilters
+    null,
+    "all",
+    DEFAULT_DISCOVER_EXPLORE_FILTERS
   );
   const { movies: nowPlaying, loading: nowPlayingLoading } = useNowPlaying(
-    genreId,
-    moodId,
-    exploreFilters
+    null,
+    "all",
+    DEFAULT_DISCOVER_EXPLORE_FILTERS
   );
   const { movies: trending, loading: trendingLoading } = useTrending();
   const { movies: topRated, loading: topRatedLoading } = useTopRated();
   const { movies: streamingNow, loading: streamingNowLoading } =
-    useStreamingNow(streamingProviderId);
-  const usesTv = discoverUsesTvMedia(exploreFilters.typeId);
-  const recentShelfTitle = usesTv ? "Recently aired" : "Now playing";
-  const { movies: searchResults, loading: searchLoading } = useSearchMulti(searchQuery);
+    useStreamingNow(selectedProviderIds);
+  const recentShelfTitle = "Now playing";
 
   const editorPick = popular[0];
   const featuredRelease = nowPlaying[1];
@@ -113,18 +104,6 @@ export function ExploreTabContent({
   const rankedFilms = uniqueFilms(topRated).slice(0, 10);
   const streamingFilms = uniqueFilms(streamingNow).slice(0, 8);
 
-  const isSearchActive = searchQuery.trim().length > 0;
-  const hasAnyShelf =
-    Boolean(editorPick) ||
-    Boolean(featuredRelease) ||
-    trendingFilms.length > 0 ||
-    rankedFilms.length > 0 ||
-    streamingFilms.length > 0 ||
-    popularFilms.length > 0 ||
-    newAndNear.length > 0 ||
-    sciFiDramaMystery.length > 0 ||
-    adventureFantasyHistory.length > 0;
-  const showFilteredEmptyState = !isSearchActive && activeFilterCount > 0 && !hasAnyShelf;
   const showPopularSkeleton = popularLoading && popular.length === 0;
   const showNowPlayingSkeleton = nowPlayingLoading && nowPlaying.length === 0;
   const showTrendingSkeleton = trendingLoading && trending.length === 0;
@@ -132,23 +111,7 @@ export function ExploreTabContent({
 
   return (
     <div className="w-full pb-8 pt-5">
-      {isSearchActive ? (
-        <SearchResultsView
-          query={searchQuery.trim()}
-          movies={searchResults}
-          loading={searchLoading}
-          onFilmClick={onOpenDetail}
-        />
-      ) : showFilteredEmptyState ? (
-        <EmptyState
-          size="lg"
-          icon={<span className="text-[24px]">🎞️</span>}
-          headline="No films match your filters"
-          subline="Try adjusting or clearing your filters"
-          primaryCta={{ label: "Clear filters", onClick: onClearFilters }}
-        />
-      ) : (
-        <>
+      <>
           {editorPick ? (
             <div>
               <HeroCard
@@ -163,15 +126,11 @@ export function ExploreTabContent({
 
           <SprocketDivider />
 
-          {streamingFilms.length > 0 || streamingNowLoading ? (
-            <StreamingNowAisle
-              films={streamingFilms}
-              loading={streamingNowLoading}
-              activeProviderId={streamingProviderId}
-              onProviderChange={setStreamingProviderId}
-              onFilmClick={onOpenDetail}
-            />
-          ) : null}
+          <StreamingNowAisle
+            films={streamingFilms}
+            loading={streamingNowLoading}
+            onFilmClick={onOpenDetail}
+          />
 
           <TicketDivider className="my-10" />
 
@@ -283,8 +242,7 @@ export function ExploreTabContent({
               />
             </div>
           ) : null}
-        </>
-      )}
+      </>
     </div>
   );
 }

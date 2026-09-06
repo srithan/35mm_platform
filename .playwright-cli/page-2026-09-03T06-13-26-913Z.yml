@@ -1,0 +1,42 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - region [ref=e3]:
+      - generic [ref=e4]:
+        - img "Film lovers talking outside a cinema after an evening screening" [ref=e5]
+        - link "35mm home" [ref=e7] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e9]:
+          - paragraph [ref=e10]: Made for the people who stay after the credits
+          - heading "Cinema has always been social." [level=2] [ref=e11]
+        - paragraph [ref=e14]:
+          - strong [ref=e15]: Find your circle.
+          - text: Friends, critics, and filmmakers—all in one place.
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: Already on 35mm?
+          - button "Log in" [ref=e19] [cursor=pointer]
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: Your post-credits conversation
+          - heading [level=1] [ref=e22]:
+            - text: The film ends.
+            - emphasis [ref=e23]: Your circle keeps talking.
+          - paragraph [ref=e24]: Follow friends, critics, and filmmakers. Share what moved you, find your next watch, and stay for the conversation.
+          - button "Join 35mm" [ref=e25] [cursor=pointer]
+          - paragraph [ref=e28]: Free to join. Built for film people.
+          - generic "What people do on 35mm" [ref=e29]:
+            - generic [ref=e30]: Watch
+            - generic [ref=e31]: Share
+            - generic [ref=e32]: Follow
+            - generic [ref=e33]: Belong
+        - generic [ref=e34]:
+          - generic [ref=e35]: © 35mm.in
+          - navigation "About 35mm" [ref=e36]:
+            - link "About" [ref=e37] [cursor=pointer]:
+              - /url: /about
+            - link "Privacy" [ref=e38] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e39] [cursor=pointer]:
+              - /url: /terms
+  - button "Open Tanstack query devtools" [ref=e90] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e144] [cursor=pointer]
+  - alert [ref=e148]

@@ -12,6 +12,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { OfflineStatus } from "@/components/OfflineStatus/OfflineStatus";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { ScrollRestore } from "@/features/feed/components/FeedScrollRestore";
 import { Providers } from "./providers";
 
 // Clerk 7's App Router provider is an async Server Component. Next.js 15
@@ -111,6 +112,7 @@ export default function RootLayout({
         <React18ClerkProvider>
           <Providers>
             <NuqsAdapter>
+              <ScrollRestore />
               <ServiceWorkerRegistration />
               <OfflineStatus />
               {children}

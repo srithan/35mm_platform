@@ -174,6 +174,7 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
       { id: "auto", label: "Auto", enabled: true, selectableId: "auto" },
       { id: "light", label: "Light", enabled: true, selectableId: "light" },
       { id: "dark", label: "Dark", enabled: true, selectableId: "dark" },
+      { id: "letterboxd", label: "Letterboxd", enabled: true, selectableId: "letterboxd" },
       { id: "matinee", label: "Matinee", enabled: true, selectableId: "matinee" },
       { id: "matrix", label: "Matrix", enabled: true, selectableId: "matrix" },
       { id: "grain", label: "35mm Grain", enabled: false },
@@ -253,6 +254,18 @@ export function ThemePicker({ value, onChange }: { value: ThemeOption; onChange:
                 <div className="flex-1 p-1.5">
                   <div className="h-2.5 bg-fg/10 rounded w-full mb-1.5" />
                   <div className="h-1.5 bg-fg/5 rounded w-4/5" />
+                </div>
+              </div>
+            ) : opt.id === "letterboxd" ? (
+              <div className="flex-1 bg-[#14181c] flex flex-col w-full">
+                <div className="h-2.5 bg-[#2c3440] flex items-center px-1.5 gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#ff8000]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#00c030]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#40bcf4]" />
+                </div>
+                <div className="flex-1 p-1.5">
+                  <div className="h-2.5 bg-[#aabbcc]/30 rounded w-full mb-1.5" />
+                  <div className="h-1.5 bg-[#00c030] rounded w-4/5" />
                 </div>
               </div>
             ) : opt.id === "matinee" ? (

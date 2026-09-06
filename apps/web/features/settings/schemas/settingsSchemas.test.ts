@@ -75,6 +75,7 @@ describe("settings schemas", () => {
         videoAutoplay: true,
         alwaysShowCaptions: false,
         captionStyle: "default",
+        startWithSound: false,
         quietMode: false,
       }).success
     ).toBe(true);

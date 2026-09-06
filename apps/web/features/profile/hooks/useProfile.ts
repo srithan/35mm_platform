@@ -1,7 +1,13 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { feedKeys } from "@/features/feed/hooks/queryKeys";
 import { privacyKeys } from "@/features/settings/hooks/queryKeys";
@@ -35,17 +41,18 @@ export function usePublicProfile(username: string) {
   });
 }
 
-export function useProfileStats(username: string) {
+export function useProfileStats(username: string, year: number | null = null) {
   var { getToken, isLoaded } = useAuth();
 
   return useQuery({
-    queryKey: profileKeys.stats(username),
+    queryKey: profileKeys.stats(username, year),
     queryFn: async function () {
-      return fetchProfileStats(username, await getToken());
+      return fetchProfileStats(username, await getToken(), year);
     },
     enabled: isLoaded && username.trim().length > 0,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
     retry: 1,
   });
 }

@@ -6,9 +6,15 @@ import { ROUTES } from "@/lib/constants/routes";
 
 export function UploadSuccess({
   title,
+  filmId,
+  visibility,
+  scheduled,
   onReset,
 }: {
   title: string;
+  filmId: string;
+  visibility: string;
+  scheduled: boolean;
   onReset: () => void;
 }) {
   return (
@@ -18,26 +24,18 @@ export function UploadSuccess({
       </div>
       <h2 className="font-display text-[clamp(1.75rem,4vw,2rem)] font-semibold tracking-tight text-fg">
         Your film is{" "}
-        <em className="not-italic text-accent">live!</em>
+        <em className="not-italic text-accent">{scheduled ? "scheduled!" : "published!"}</em>
       </h2>
       <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-fg-muted">
-        {title ? (
-          <>
-            <strong className="font-semibold text-fg">{title}</strong> is queued
-            for publishing. Once the backend is connected, it will appear in Short
-            Films for everyone to watch.
-          </>
-        ) : (
-          "Your upload is queued. Once the backend is connected, it will appear in Short Films."
-        )}
+        <strong className="font-semibold text-fg">{title}</strong> {scheduled ? "is scheduled for release." : visibility === "private" ? "is private. Only you can watch it." : visibility === "unlisted" ? "is unlisted. Share its link with your audience." : "is ready to watch in Short films."}
       </p>
       <div className="mt-7 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
         <Link
-          href={ROUTES.SHORT_FILMS}
+          href={`${ROUTES.SHORT_FILMS}/${filmId}`}
           className="inline-flex items-center gap-2 rounded-xl border border-border-strong bg-sunken px-5 py-3 text-[14px] font-semibold text-fg-muted transition hover:bg-sunken-2 hover:text-fg"
         >
           <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden />
-          Browse short films
+          View your film
         </Link>
         <button
           type="button"

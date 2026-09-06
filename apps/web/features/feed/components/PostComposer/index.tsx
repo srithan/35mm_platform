@@ -35,6 +35,7 @@ import { useUpdatePost } from "../../hooks/usePostMutations";
 import { fetchLinkPreview, type CreatePostInput } from "../../api/postsApi";
 import type { EditingPost } from "@/stores/useComposerModalStore";
 import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboardingApi";
+import { useDraftVideoUpload } from "@/features/videos/hooks/useDraftVideoUpload";
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { hasVisibleRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
@@ -57,6 +58,7 @@ import {
 import { ContentWarningControls } from "./ContentWarningControls";
 import { detectNsfwTextHint } from "../../lib/nsfwTextHint";
 import { classifyStagedImage } from "../../lib/nsfwImageHint";
+import { VideoAttachment } from "./VideoAttachment";
 
 const GiphyGifPicker = dynamic(
   () => import("@/features/gif/components/GiphyGifPicker").then((module) => module.GiphyGifPicker),
@@ -68,7 +70,8 @@ const POLL_TEXT_MAX_CHARS = 140;
 const DISCUSSION_HEADLINE_MAX_CHARS = 120;
 const DISCUSSION_BODY_MAX_CHARS = 3000;
 const POST_COMPOSER_EMOJI_STYLE = "apple" as const;
-const VIDEO_PREVIEW_CLASS = "mx-auto max-h-[min(42vh,360px)] max-w-full rounded-md object-contain bg-black";
+const MAX_VIDEO_BYTES = 120 * 1024 * 1024;
+const SUPPORTED_VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
 
 function posterUrlForFilm(film: FilmResult): string | null {
   if (!film.posterPath) return null;
@@ -145,7 +148,7 @@ function isGifMediaUrl(url: string): boolean {
   return lower.endsWith(".gif") || lower.includes("giphy.com") || lower.includes("tenor.com");
 }
 
-function normalizeImageContentType(value: string | null | undefined): string {
+function normalizeMediaContentType(value: string | null | undefined): string {
   var raw = (value || "").toLowerCase().trim();
   if (!raw) return "image/jpeg";
 
@@ -157,7 +160,8 @@ function normalizeImageContentType(value: string | null | undefined): string {
     normalized === "image/gif" ||
     normalized === "image/avif" ||
     normalized === "image/heic" ||
-    normalized === "image/heif"
+    normalized === "image/heif" ||
+    SUPPORTED_VIDEO_TYPES.has(normalized)
   ) {
     return normalized;
   }
@@ -237,6 +241,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [images, setImages] = useState<File[]>([]);
   const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>(() => existingMediaUrlsForEditingPost(editingPost));
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const videoUpload = useDraftVideoUpload(videoFile);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [pollDraft, setPollDraft] = useState<PollDraft | null>(null);
   const [linkPreview, setLinkPreview] = useState<{
@@ -635,6 +640,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
     setImages([]);
     setVideoFile(null);
+
     setGifUrl(null);
     setPollDraft(null);
     setShowDropZone(false);
@@ -786,6 +792,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           return [...current, ...pastedImageFiles].slice(0, 9);
         });
         setVideoFile(null);
+
         setGifUrl(null);
         setShowDropZone(false);
         return;
@@ -819,6 +826,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             year: Number.parseInt(film.year, 10) || null,
             posterUrl: posterUrlForFilm(film),
             genres: film.genres,
+            runtime: film.runtime ?? null,
+            language: film.language,
+            country: film.country ?? null,
           },
         ],
         await getToken()
@@ -872,11 +882,29 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setImages([]);
     setExistingMediaUrls([]);
     setVideoFile(null);
+
     setGifUrl(null);
     setLinkPreview(null);
     setLinkPreviewPresentationWasOverridden(false);
     setShowDropZone(false);
     setShowGifPicker(false);
+  }, []);
+
+  const handleVideoSelect = useCallback(function (file: File) {
+    if (!SUPPORTED_VIDEO_TYPES.has(file.type.toLowerCase())) {
+      setSubmitError("Choose an MP4 or WebM video.");
+      return;
+    }
+    if (file.size > MAX_VIDEO_BYTES) {
+      setSubmitError("Video must be 120 MB or smaller.");
+      return;
+    }
+    setSubmitError(null);
+
+    setVideoFile(file);
+    setImages([]);
+    setGifUrl(null);
+    setShowDropZone(false);
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -887,7 +915,10 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setIsSubmitting(true);
 
     try {
-    async function uploadPostMedia(file: File): Promise<{
+    async function uploadPostMedia(
+      file: File,
+      onProgress?: (progress: number) => void
+    ): Promise<{
       type: "image" | "video";
       url: string;
       originalUrl: string;
@@ -903,7 +934,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       var presign = await presignProfileMediaUpload(
         {
           kind: "post_media",
-          contentType: normalizeImageContentType(file.type),
+          contentType: normalizeMediaContentType(file.type),
           contentLength: file.size,
         },
         token
@@ -913,6 +944,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         uploadUrl: presign.uploadUrl,
         contentType: presign.contentType,
         blob: file,
+        onProgress: onProgress
+          ? function (progress) {
+              onProgress(progress.percent);
+            }
+          : undefined,
       });
 
       var isVideo = presign.contentType.startsWith("video/");
@@ -932,12 +968,18 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     if (mode !== "log" && !pollDraft) {
       if (images.length > 0) {
         var imageFiles = images.slice(0, 9);
-        media = await Promise.all(imageFiles.map(uploadPostMedia));
+        media = await Promise.all(
+          imageFiles.map(function (file) {
+            return uploadPostMedia(file);
+          })
+        );
         mediaUrls = media
           .filter((item) => item.type === "image")
           .map((item) => item.url);
       } else if (videoFile) {
-        var uploadedVideo = await uploadPostMedia(videoFile);
+        var uploadedAsset = await videoUpload.ensureUpload(videoFile);
+        var uploadedVideo = { type: "video" as const, videoAssetId: uploadedAsset.id,
+          url: `/v1/videos/${uploadedAsset.id}/playback` };
         media = [uploadedVideo];
         mediaUrls = [uploadedVideo.url];
       } else if (gifUrl) {
@@ -1096,6 +1138,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setImages([]);
     setExistingMediaUrls([]);
     setVideoFile(null);
+
     setGifUrl(null);
     setPollDraft(null);
     setLinkPreview(null);
@@ -1110,11 +1153,15 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setImageNsfwHintCategories([]);
     setIsContentWarningOpen(false);
     setDismissedNsfwHint("");
+    } catch (err) {
+
+      setSubmitError(err instanceof Error ? err.message : "Failed to upload media");
     } finally {
       setIsSubmitting(false);
     }
   }, [
     canPost,
+    videoUpload.ensureUpload,
     isSubmitting,
     createPostMutation,
     editingPost,
@@ -1251,10 +1298,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 onChange={(e) => {
                   var file = e.target.files?.[0] ?? null;
                   if (!file) return;
-                  setVideoFile(file);
-                  setImages([]);
-                  setGifUrl(null);
-                  setShowDropZone(false);
+                  handleVideoSelect(file);
                   e.target.value = "";
                 }}
               />
@@ -1371,6 +1415,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               setGifUrl(url);
               setImages([]);
               setVideoFile(null);
+
               setShowDropZone(false);
             }}
             anchorRef={gifBtnRef}
@@ -1672,28 +1717,20 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 </div>
               ) : null}
               {videoFile ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <div className="relative">
-                    <video
-                      src={URL.createObjectURL(videoFile)}
-                      controls
-                      className={VIDEO_PREVIEW_CLASS}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow-md backdrop-blur-sm transition-colors hover:bg-black/80"
-                      onClick={() => setVideoFile(null)}
-                      aria-label="Remove video"
-                      title="Remove video"
-                    >
-                      <Icon name="x" className="h-4 w-4" strokeWidth={2.25} />
-                    </button>
-                  </div>
-                </div>
+                <VideoAttachment
+                  file={videoFile}
+                  phase={videoUpload.phase}
+                  progress={videoUpload.progress}
+                  error={videoUpload.error}
+                  onRetry={videoUpload.retry}
+                  removeDisabled={isSubmitting}
+                  onRemove={function () {
+                    setVideoFile(null);
+
+                  }}
+                />
               ) : images.length === 0 && gifUrl == null && existingVideoUrl ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video src={existingVideoUrl} controls className={VIDEO_PREVIEW_CLASS} />
-                </div>
+                <VideoAttachment src={existingVideoUrl} />
               ) : null}
               {gifUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
@@ -1812,13 +1849,20 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 </div>
               ) : null}
               {videoFile ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video src={URL.createObjectURL(videoFile)} controls className={VIDEO_PREVIEW_CLASS} />
-                </div>
+                <VideoAttachment
+                  file={videoFile}
+                  phase={videoUpload.phase}
+                  progress={videoUpload.progress}
+                  error={videoUpload.error}
+                  onRetry={videoUpload.retry}
+                  removeDisabled={isSubmitting}
+                  onRemove={function () {
+                    setVideoFile(null);
+
+                  }}
+                />
               ) : images.length === 0 && gifUrl == null && existingVideoUrl ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">
-                  <video src={existingVideoUrl} controls className={VIDEO_PREVIEW_CLASS} />
-                </div>
+                <VideoAttachment src={existingVideoUrl} />
               ) : null}
               {gifUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-border bg-sunken p-2">

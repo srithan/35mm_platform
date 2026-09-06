@@ -10,11 +10,12 @@ export type ThemeOption =
   | "matinee"
   | "matrix"
   | "oppenheimer-bw"
-  | "barbie";
-type ResolvedTheme = "light" | "dark" | "matinee" | "matrix" | "oppenheimer-bw" | "barbie";
+  | "barbie"
+  | "letterboxd";
+type ResolvedTheme = "light" | "dark" | "matinee" | "matrix" | "oppenheimer-bw" | "barbie" | "letterboxd";
 
 const STORAGE_KEY = "35mm-theme";
-const THEMES: ResolvedTheme[] = ["light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"];
+const THEMES: ResolvedTheme[] = ["light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie", "letterboxd"];
 
 type React18NextThemesProviderProps = {
   children?: ReactNode;
@@ -32,7 +33,7 @@ const React18NextThemesProvider =
   NextThemesProvider as unknown as ComponentType<React18NextThemesProviderProps>;
 
 interface ThemeContextValue {
-  /** User preference: auto | light | dark | matinee | matrix | oppenheimer-bw | barbie */
+  /** User preference: auto | light | dark | matinee | matrix | oppenheimer-bw | barbie | letterboxd */
   theme: ThemeOption;
   /** Actual applied theme after resolving "auto" */
   resolvedTheme: ResolvedTheme;

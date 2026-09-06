@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 import {
   comments,
@@ -390,7 +390,10 @@ notificationsRoutes.get("/me/notifications", requireAuth, async function (c) {
   });
 
   var cursor = decodedCursor(parsed.cursor);
-  var filters = [eq(notifications.recipientId, user.userId) as SQL<boolean>];
+  var filters = [
+    eq(notifications.recipientId, user.userId) as SQL<boolean>,
+    ne(notifications.type, "chat_reaction") as SQL<boolean>,
+  ];
 
   if (parsed.unreadOnly) {
     filters.push(eq(notifications.isRead, false) as SQL<boolean>);

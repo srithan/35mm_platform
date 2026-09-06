@@ -58,13 +58,21 @@ function isMandatoryModerationType(type: NotificationType): boolean {
   return type === "report_status_update" || type === "content_moderated" || type === "content_under_review";
 }
 
+/**
+ * Chat owns its inbox, unread counters, and realtime activity. Keep the legacy
+ * enum value readable for old rows, but never admit it to the main notification
+ * pipeline.
+ */
+export function isMainNotificationType(type: string): boolean {
+  return type !== "chat_reaction";
+}
+
 function canPreferenceNotify(type: NotificationType, settings: NotificationSettings): boolean {
   if (isMandatoryModerationType(type)) return true;
   if (type === "follow" || type === "follow_request" || type === "follow_request_approved") return settings.notifyNewFollowers;
   if (type === "like" || type === "repost") return settings.notifyLikesOnPosts;
   if (type === "comment" || type === "reply") return settings.notifyCommentsAndReplies;
   if (type === "mention") return settings.notifyMentions;
-  if (type === "chat_reaction") return true;
   return false;
 }
 
@@ -84,6 +92,7 @@ function mergeActorIds(current: string[] | null, nextActorId: string | null): st
 
 export function createNotificationService(dependencies: NotificationServiceDependencies) {
   async function shouldEmit(input: NotificationInput): Promise<boolean> {
+    if (!isMainNotificationType(input.type)) return false;
     if (isMandatoryModerationType(input.type)) return true;
     if (input.actorId && input.actorId === input.recipientId) return false;
     var db = dependencies.getDb();

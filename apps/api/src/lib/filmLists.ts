@@ -110,7 +110,7 @@ export async function resolveFilmId(input: {
     var existingById = await db
       .select({ id: films.id })
       .from(films)
-      .where(eq(films.id, input.filmId))
+      .where(and(eq(films.isCatalogListed, true), eq(films.id, input.filmId)))
       .limit(1);
     if (existingById.length === 0) throw notFound("Film not found");
     return existingById[0].id;
@@ -162,12 +162,36 @@ export async function resolveFilmId(input: {
   }
 
   var existingByTmdb = await db
-    .select({ id: films.id })
+    .select({
+      id: films.id,
+      year: films.year,
+      runtime: films.runtime,
+      posterUrl: films.posterUrl,
+      genres: films.genres,
+      language: films.language,
+      country: films.country,
+    })
     .from(films)
     .where(eq(films.tmdbId, input.film.tmdbId))
     .limit(1);
 
-  if (existingByTmdb.length > 0) return existingByTmdb[0].id;
+  if (existingByTmdb.length > 0) {
+    var existing = existingByTmdb[0];
+    var metadataPatch: Partial<typeof films.$inferInsert> = {};
+    if (existing.year == null && input.film.year != null) metadataPatch.year = input.film.year;
+    if (existing.runtime == null && input.film.runtime != null) metadataPatch.runtime = input.film.runtime;
+    if (existing.posterUrl == null && input.film.posterUrl) metadataPatch.posterUrl = input.film.posterUrl;
+    if (existing.genres.length === 0 && input.film.genres.length > 0) metadataPatch.genres = input.film.genres;
+    if (existing.language == null && input.film.language) metadataPatch.language = input.film.language;
+    if (existing.country == null && input.film.country) metadataPatch.country = input.film.country;
+    if (Object.keys(metadataPatch).length > 0) {
+      await db
+        .update(films)
+        .set({ ...metadataPatch, updatedAt: new Date() })
+        .where(eq(films.id, existing.id));
+    }
+    return existing.id;
+  }
 
   var id = createUlid();
   if (!isValidUlid(id)) {
@@ -181,8 +205,11 @@ export async function resolveFilmId(input: {
       tmdbId: input.film.tmdbId,
       title: input.film.title,
       year: input.film.year ?? null,
+      runtime: input.film.runtime ?? null,
       posterUrl: input.film.posterUrl ?? null,
       genres: input.film.genres,
+      language: input.film.language ?? null,
+      country: input.film.country ?? null,
       source: "tmdb_import",
     })
     .onConflictDoNothing()

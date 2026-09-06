@@ -1,0 +1,86 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - region [ref=e3]:
+      - img "Film lovers talking outside a cinema after an evening screening" [ref=e4]
+      - generic [ref=e6]:
+        - link "35mm home" [ref=e7] [cursor=pointer]:
+          - /url: /
+        - paragraph [ref=e9]: The social network for cinema
+        - navigation "Landing page" [ref=e10]:
+          - link "Tonight on 35mm" [ref=e11] [cursor=pointer]:
+            - /url: "#tonight"
+          - button "Log in" [ref=e12] [cursor=pointer]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - paragraph [ref=e15]: Your post-credits conversation
+          - heading [level=1] [ref=e16]:
+            - text: The film ends.
+            - emphasis [ref=e17]: Your circle keeps talking.
+          - paragraph [ref=e18]: Follow friends, critics, and filmmakers. Share what moved you, find your next watch, and stay for the conversation.
+          - generic [ref=e19]:
+            - button "Join 35mm" [ref=e20] [cursor=pointer]
+            - button "I already have an account" [ref=e23] [cursor=pointer]
+          - paragraph [ref=e26]: 11,183 film people already inside
+        - generic "Preview of the 35mm social feed" [ref=e27]:
+          - generic [ref=e29]:
+            - strong [ref=e30]: Lena replied
+            - generic [ref=e31]: “That last shot changed it for me.”
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - strong [ref=e34]: Your circle
+              - generic [ref=e35]: 23 watching now
+            - generic "People in your circle" [ref=e37]:
+              - generic [ref=e38]: Your take
+              - generic [ref=e44]: Maya
+              - generic [ref=e47]: Lena
+              - generic [ref=e50]: Arun
+              - generic [ref=e53]: Jonah
+            - generic [ref=e56]:
+              - generic [ref=e57]: What did you watch?
+              - button [aria-hidden] [ref=e58] [cursor=pointer]: Post
+            - article [ref=e59]:
+              - generic [ref=e61]:
+                - strong [ref=e62]: Maya Okonkwo
+                - generic [ref=e63]: "@maya.frames · 12m"
+              - paragraph [ref=e68]: Quiet ending. Huge feeling. Anyone else read it as freedom, not loneliness?
+              - generic [ref=e69]:
+                - generic [ref=e71]: PerfectDays
+                - generic [ref=e73]:
+                  - generic [ref=e74]: Watched tonight
+                  - heading "Perfect Days" [level=2] [ref=e75]
+                  - paragraph [ref=e76]: 2023 · Wim Wenders
+                  - generic [ref=e77]: "4.5"
+              - generic "Post activity" [ref=e80]:
+                - generic [ref=e81]: "18"
+                - generic [ref=e84]: "7"
+                - generic [ref=e90]: "84"
+              - paragraph [ref=e97]:
+                - strong [ref=e98]: Arun
+                - text: It felt like choosing his life again.
+          - generic [ref=e103]:
+            - strong [ref=e104]: Your list found its people
+            - generic [ref=e105]: 14 saves in the last hour
+      - generic [ref=e106]:
+        - generic [ref=e107]: Tonight on 35mm
+        - generic [ref=e109]:
+          - article [ref=e110]:
+            - generic [ref=e112]: Perfect Days
+            - generic [ref=e113]:
+              - heading "Perfect Days" [level=2] [ref=e114]
+              - paragraph [ref=e115]: Maya called the ending freedom, not loneliness.
+              - generic [ref=e116]: 18 replies
+          - article [ref=e119]:
+            - generic [ref=e121]: Past Lives
+            - generic [ref=e122]:
+              - heading "Past Lives" [level=2] [ref=e123]
+              - paragraph [ref=e124]: Noah’s last walk has the whole circle divided.
+              - generic [ref=e125]: 4.6 from friends
+          - article [ref=e128]:
+            - generic [ref=e130]: In the Mood for Love
+            - generic [ref=e131]:
+              - heading "In the Mood for Love" [level=2] [ref=e132]
+              - paragraph [ref=e133]: A frame-by-frame thread on color, memory, and restraint.
+              - generic [ref=e134]: 32 replies
+  - button "Open Tanstack query devtools" [ref=e187] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e241] [cursor=pointer]
+  - alert [ref=e245]

@@ -44,7 +44,6 @@ import { createRateLimitMiddleware } from "../../lib/rateLimit.js";
 import { createUlid } from "../../lib/ulid.js";
 import { tryGetKeyspacesClient } from "../../lib/keyspaces.js";
 import { enqueueChatJob } from "../../lib/jobs.js";
-import { createNotification } from "../../lib/notifications.js";
 import {
   clearTyping,
   getActivityVisibilityCache,
@@ -458,34 +457,6 @@ async function isActiveThreadMember(threadId: string, userId: string): Promise<b
     )
     .limit(1);
   return rows.length > 0;
-}
-
-async function createChatReactionNotification(input: {
-  threadId: string;
-  messageId: string;
-  actorId: string;
-  recipientId: string;
-}): Promise<void> {
-  if (input.actorId === input.recipientId) return;
-  if (!(await isActiveThreadMember(input.threadId, input.recipientId))) return;
-
-  try {
-    await createNotification({
-      recipientId: input.recipientId,
-      actorId: input.actorId,
-      type: "chat_reaction",
-      entityType: "chat_thread",
-      entityId: input.threadId,
-    });
-  } catch (error) {
-    console.warn("[chat.notifications] reaction notification failed", {
-      threadId: input.threadId,
-      messageId: input.messageId,
-      actorId: input.actorId,
-      recipientId: input.recipientId,
-      error,
-    });
-  }
 }
 
 async function publishChatReactionUnread(input: {
@@ -1167,12 +1138,6 @@ chatRoutes.post("/messages/:messageId/reactions", reactionRateLimit, async funct
       actorId: viewer.userId,
       recipientId: row.sender_id,
       emoji: body.emoji,
-    });
-    await createChatReactionNotification({
-      threadId,
-      messageId,
-      actorId: viewer.userId,
-      recipientId: row.sender_id,
     });
     if (!published || reactionUnread?.inboxPublished === false) {
       await enqueueChatJob("chat.messageUpdated", {

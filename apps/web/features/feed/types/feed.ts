@@ -30,6 +30,7 @@ export type PostMediaType = "image" | "video" | "film_embed" | "none";
 export interface PostMedia {
   type: PostMediaType;
   url: string;
+  videoAssetId?: string;
   key?: string;
   thumbnailUrl?: string;
   altText?: string;

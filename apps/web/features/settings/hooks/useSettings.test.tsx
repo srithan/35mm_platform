@@ -52,6 +52,7 @@ const fixture = {
     videoAutoplay: true,
     alwaysShowCaptions: false,
     captionStyle: "default" as const,
+    startWithSound: false,
     quietMode: false,
   },
 };
@@ -290,12 +291,14 @@ describe("useSettings mutations", () => {
       await result.current.mutateAsync({
         ...initial.media,
         videoDefaultQuality: "high",
+        startWithSound: true,
         videoAutoplay: false,
       });
     });
 
     const cached = queryClient.getQueryData<SettingsState>(settingsKeys.detail());
     expect(cached?.media.videoDefaultQuality).toBe("high");
+    expect(cached?.media.startWithSound).toBe(true);
     expect(cached?.media.videoAutoplay).toBe(false);
     expect(cached?.appearance.videoAutoplay).toBe(false);
   });

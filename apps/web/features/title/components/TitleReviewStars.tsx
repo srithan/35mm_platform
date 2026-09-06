@@ -43,7 +43,7 @@ export function TitleReviewStars(props: TitleReviewStarsProps) {
               >
                 <path
                   d={STAR_D}
-                  fill="var(--color-accent)"
+                  fill="var(--color-rating-star, var(--color-accent))"
                   className="drop-shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:drop-shadow-[0_1px_0_rgba(0,0,0,0.2)]"
                 />
               </svg>
@@ -67,8 +67,8 @@ export function TitleReviewStars(props: TitleReviewStarsProps) {
                     y2="0"
                     gradientUnits="userSpaceOnUse"
                   >
-                    <stop offset="50%" stopColor="var(--color-accent)" />
-                    <stop offset="50%" stopColor="var(--neutral-300)" />
+                    <stop offset="50%" stopColor="var(--color-rating-star, var(--color-accent))" />
+                    <stop offset="50%" stopColor="var(--color-rating-star-empty, var(--neutral-300))" />
                   </linearGradient>
                 </defs>
                 <path d={STAR_D} fill={"url(#" + gradId + ")"} />

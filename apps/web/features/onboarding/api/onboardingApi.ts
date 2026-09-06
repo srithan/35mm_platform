@@ -20,6 +20,9 @@ export interface ResolveTmdbFilmInput {
   year: number | null;
   posterUrl: string | null;
   genres: string[];
+  runtime?: number | null;
+  language?: string | null;
+  country?: string | null;
 }
 
 export interface OnboardingSuggestionUser {

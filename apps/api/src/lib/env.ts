@@ -31,6 +31,11 @@ export function loadEnv() {
   var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 
   return {
+    BUNNY_STREAM_LIBRARY_ID: process.env.BUNNY_STREAM_LIBRARY_ID ?? "",
+    BUNNY_STREAM_API_KEY: process.env.BUNNY_STREAM_API_KEY ?? "",
+    BUNNY_STREAM_TOKEN_KEY: process.env.BUNNY_STREAM_TOKEN_KEY ?? "",
+    BUNNY_STREAM_WEBHOOK_SECRET: process.env.BUNNY_STREAM_WEBHOOK_SECRET ?? "",
+    BUNNY_STREAM_CDN_HOST: process.env.BUNNY_STREAM_CDN_HOST ?? "",
     DATABASE_URL: requireEnv("DATABASE_URL"),
     CLERK_SECRET_KEY: requireEnv("CLERK_SECRET_KEY"),
     STUDIO_CLERK_SECRET_KEY: process.env.STUDIO_CLERK_SECRET_KEY ?? "",

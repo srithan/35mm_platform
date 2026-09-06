@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { resolvePostMedia } from "./resolvePostMedia";
 
 describe("resolvePostMedia", function () {
+  it("keeps a protected video asset as an attachment without treating its URL as an image", () => {
+    const resolved = resolvePostMedia([{ type: "video", url: "/v1/videos/video-id/playback", videoAssetId: "video-id" }], [], [], undefined);
+    expect(resolved.videoAssetId).toBe("video-id");
+    expect(resolved.hasAttachedMedia).toBe(true);
+    expect(resolved.imageUrls).toEqual([]);
+  });
   it("preserves stored image dimensions for stable feed layout", function () {
     const resolved = resolvePostMedia(
       [{

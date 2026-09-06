@@ -161,6 +161,55 @@ export var cursorPaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export var filmCatalogSortSchema = z.enum([
+  "popular",
+  "recently_added",
+  "title_asc",
+  "year_desc",
+  "year_asc",
+]);
+
+export var filmCatalogMoodSchema = z.enum([
+  "all",
+  "light",
+  "cry",
+  "edge",
+  "think",
+  "short",
+  "late",
+  "together",
+]);
+
+export var filmCatalogTypeSchema = z.enum([
+  "all",
+  "movie",
+  "tv_show",
+  "web_series",
+  "short_film",
+  "documentary",
+  "mini_series",
+]);
+
+export var filmCatalogDurationSchema = z.enum([
+  "any",
+  "under_90",
+  "90_to_120",
+  "over_120",
+]);
+
+export var filmCatalogQuerySchema = z.object({
+  cursor: z.string().min(1).max(1000).optional(),
+  limit: z.coerce.number().int().min(1).max(48).default(24),
+  q: z.string().trim().max(100).default(""),
+  sort: filmCatalogSortSchema.default("popular"),
+  mood: filmCatalogMoodSchema.default("all"),
+  type: filmCatalogTypeSchema.default("all"),
+  genre: z.string().trim().max(40).default(""),
+  decade: z.coerce.number().int().min(1870).max(2200).optional(),
+  language: z.string().trim().max(12).regex(/^[a-zA-Z-]*$/).default(""),
+  duration: filmCatalogDurationSchema.default("any"),
+});
+
 export var moderationContentTypeSchema = z.enum(["post", "comment", "profile"]);
 export var moderationReportReasonSchema = z.enum([
   "spam",
@@ -253,6 +302,7 @@ export var moderationUserParamsSchema = z.object({
 var postMediaItemSchema = z.object({
   type: z.enum(["image", "video", "film_embed", "none"]),
   url: z.string().min(1).max(1000),
+  videoAssetId: z.string().uuid().optional(),
   key: z.string().max(1000).optional(),
   thumbnailUrl: z.string().max(1000).optional(),
   altText: z.string().max(300).optional(),
@@ -616,6 +666,9 @@ export var resolveOnboardingTmdbFilmSchema = z.object({
   year: z.number().int().min(1800).max(2200).nullable().optional(),
   posterUrl: z.string().trim().max(500).nullable().optional(),
   genres: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
+  runtime: z.number().int().min(1).max(24 * 60).nullable().optional(),
+  language: z.string().trim().max(80).nullable().optional(),
+  country: z.string().trim().max(120).nullable().optional(),
 });
 
 export var resolveOnboardingTmdbFilmsSchema = z.object({
@@ -1391,6 +1444,7 @@ export var catalogEditQueueQuerySchema = catalogReadPageQuerySchema.extend({
 });
 
 export type CursorPaginationInput = z.infer<typeof cursorPaginationSchema>;
+export type FilmCatalogQueryInput = z.infer<typeof filmCatalogQuerySchema>;
 export type CreateReportInput = z.infer<typeof createReportSchema>;
 export type ModerationReportParamsInput = z.infer<typeof moderationReportParamsSchema>;
 export type ModerationContentParamsInput = z.infer<typeof moderationContentParamsSchema>;
@@ -1450,3 +1504,12 @@ export type CatalogCreditsQueryInput = z.infer<typeof catalogCreditsQuerySchema>
 export type CatalogMediaQueryInput = z.infer<typeof catalogMediaQuerySchema>;
 export type CatalogCompanyTitlesQueryInput = z.infer<typeof catalogCompanyTitlesQuerySchema>;
 export type CatalogEditQueueQueryInput = z.infer<typeof catalogEditQueueQuerySchema>;
+
+/** Public list browsing uses server-side filters before cursor pagination. */
+export const publicFilmListFiltersSchema = z.object({
+  q: z.string().trim().max(100).default(""),
+  format: z.enum(["all", "ranked", "unranked"]).default("all"),
+  size: z.enum(["all", "short", "medium", "long"]).default("all"),
+});
+
+export * from "./video.js";

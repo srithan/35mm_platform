@@ -1,4 +1,5 @@
 import type { UserSettings } from "../types/settings";
+import { DEFAULT_STREAMING_SERVICE_IDS } from "@35mm/types/streaming-services";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -45,7 +46,11 @@ const DEFAULT_SETTINGS: UserSettings = {
     videoAutoplay: true,
     alwaysShowCaptions: false,
     captionStyle: "default",
+    startWithSound: false,
     quietMode: false,
+  },
+  streamingServices: {
+    serviceIds: DEFAULT_STREAMING_SERVICE_IDS,
   },
 };
 

@@ -13,6 +13,7 @@ export interface ResolvedPostMedia {
   viewerBlurhashes: Array<string | null>;
   hasAttachedMedia: boolean;
   videoUrls: string[];
+  videoAssetId?: string;
   imageUrls: string[];
   imageBlurhashes: Array<string | null>;
   imageDimensions: Array<{ width: number; height: number } | null>;
@@ -77,11 +78,11 @@ export function resolvePostMedia(
     };
   });
 
-  const videoUrls = displayMediaEntries
+  const videoUrls = (media?.filter(item => item.type === "video" && !item.videoAssetId).map(item => item.url) ?? []).concat(displayMediaEntries
     .map(function (entry) {
       return entry.url;
     })
-    .filter(isVideoUrl);
+    .filter(isVideoUrl));
 
   const imageEntries = displayMediaEntries.filter(function (entry) {
     return !videoUrls.includes(entry.url);
@@ -92,7 +93,8 @@ export function resolvePostMedia(
     normalizedViewerMediaUrls,
     galleryBlurhashes,
     viewerBlurhashes,
-    hasAttachedMedia: normalizedMediaUrls.length > 0,
+    hasAttachedMedia: normalizedMediaUrls.length > 0 || Boolean(media?.some(item => item.type === "video")),
+    videoAssetId: media?.find(item => item.type === "video")?.videoAssetId,
     videoUrls,
     imageUrls: imageEntries.map(function (entry) {
       return entry.url;

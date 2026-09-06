@@ -8,6 +8,12 @@ import type { FilmResult } from "@/features/feed/components/PostComposer/types";
 import type { ShortFilm } from "@/features/short-films/data/mockShortFilms";
 
 export type FilmListSort = "updated" | "popular" | "alpha";
+export type PublicFilmListSort = "popular" | "recent";
+export type PublicFilmListFilters = {
+  q?: string;
+  format?: "all" | "ranked" | "unranked";
+  size?: "all" | "short" | "medium" | "long";
+};
 
 export type TmdbFilmPayload = {
   tmdbId: number;
@@ -78,6 +84,24 @@ export async function fetchProfileLists(params: {
     `/v1/lists/profile/${encodeURIComponent(params.username)}?${query.toString()}`,
     { token: params.token }
   );
+}
+
+export async function fetchPublicLists(params: PublicFilmListFilters & {
+  sort?: PublicFilmListSort;
+  cursor?: string;
+  token?: string | null;
+}): Promise<FilmListPage> {
+  var query = new URLSearchParams({
+    sort: params.sort ?? "popular",
+    limit: "24",
+  });
+  if (params.q?.trim()) query.set("q", params.q.trim());
+  if (params.format && params.format !== "all") query.set("format", params.format);
+  if (params.size && params.size !== "all") query.set("size", params.size);
+  if (params.cursor) query.set("cursor", params.cursor);
+  return apiRequest<FilmListPage>(`/v1/lists?${query.toString()}`, {
+    token: params.token,
+  });
 }
 
 export async function fetchList(

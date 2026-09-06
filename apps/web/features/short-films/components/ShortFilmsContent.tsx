@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadedFilms } from "@/features/videos/components/UploadedFilms";
 import { MOCK_SHORT_FILM_SHELVES } from "../data/mockShortFilms";
 import { ShortFilmsHero } from "./ShortFilmsHero";
 import { ShortFilmsShelfRow } from "./ShortFilmsShelfRow";
@@ -16,6 +17,7 @@ export function ShortFilmsContent() {
         <div className={SHOW_UPLOAD_STRIP ? "mt-8 md:mt-10" : "hidden"} aria-hidden={!SHOW_UPLOAD_STRIP}>
           <ShortFilmsUploadStrip />
         </div>
+        <UploadedFilms />
         <div className="mt-10 md:mt-12">
           {MOCK_SHORT_FILM_SHELVES.map(function (shelf) {
             return <ShortFilmsShelfRow key={shelf.id} shelf={shelf} />;

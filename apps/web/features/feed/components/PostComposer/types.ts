@@ -14,6 +14,8 @@ export interface FilmResult {
   language: string;
   genres: string[];
   posterPath: string | null;
+  runtime?: number | null;
+  country?: string | null;
 }
 
 export interface ComposerState {

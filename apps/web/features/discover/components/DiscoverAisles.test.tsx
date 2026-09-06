@@ -33,43 +33,49 @@ const films: TMDBMovie[] = [
 ];
 
 describe("StreamingNowAisle", () => {
-  it("uses touch-friendly horizontal rails on mobile and keeps provider state accessible", () => {
-    const onProviderChange = vi.fn();
+  it("shows editorial streaming titles without filter controls", () => {
     const onFilmClick = vi.fn();
 
     render(
       <StreamingNowAisle
         films={films}
         loading={false}
-        activeProviderId={8}
-        onProviderChange={onProviderChange}
         onFilmClick={onFilmClick}
       />,
     );
 
-    const providerGroup = screen.getByRole("group", {
-      name: "Streaming services",
-    });
-    expect(providerGroup).toHaveClass("w-max", "sm:flex-wrap");
-    expect(screen.getByRole("button", { name: "Netflix" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.queryByRole("group", { name: "Filter by streaming service" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit your services" })).not.toBeInTheDocument();
 
-    const titleRail = screen.getByRole("list", { name: "Streaming titles" });
+    const titleRail = screen.getByRole("list", {
+      name: "Streaming titles across your services",
+    });
     expect(titleRail).toHaveClass("flex", "sm:grid");
-    expect(screen.getByText("The Test Feature").closest("li")).toHaveClass(
+    expect(screen.queryByText("Streaming")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Test Feature")).not.toBeInTheDocument();
+    expect(screen.queryByText("2024")).not.toBeInTheDocument();
+    expect(screen.queryByText("2025 · Series")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open The Test Feature" }).closest("li")).toHaveClass(
       "w-[122px]",
       "sm:w-auto",
     );
-    expect(screen.getByText("2024")).toBeInTheDocument();
-    expect(screen.getByText("2025 · Series")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "MUBI" }));
-    expect(onProviderChange).toHaveBeenCalledWith(11);
-
-    fireEvent.click(screen.getByText("The Test Feature"));
+    fireEvent.click(screen.getByRole("button", { name: "Open The Test Feature" }));
     expect(onFilmClick).toHaveBeenCalledWith(films[0]);
+  });
+
+  it("shows a quiet empty state for the saved service lineup", () => {
+    render(
+      <StreamingNowAisle
+        films={[]}
+        loading={false}
+        onFilmClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No streaming titles found for your saved services.",
+    );
   });
 });
 

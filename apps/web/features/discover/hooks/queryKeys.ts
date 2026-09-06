@@ -16,8 +16,8 @@ export const discoverKeys = {
   ) => ["discover", "now-playing", genreId, moodId, exploreFilters] as const,
   trending: () => ["discover", "trending"] as const,
   topRated: () => ["discover", "top-rated"] as const,
-  streamingNow: (providerId: number | null) =>
-    ["discover", "streaming-now", providerId] as const,
+  streamingNow: (providerIds: readonly number[]) =>
+    ["discover", "streaming-now", [...providerIds].sort(function (a, b) { return a - b; })] as const,
   searchMulti: (query: string) => ["discover", "search-multi", query.trim().toLowerCase()] as const,
   popularTv: () => ["discover", "tv", "popular"] as const,
   topRatedTv: () => ["discover", "tv", "top-rated"] as const,

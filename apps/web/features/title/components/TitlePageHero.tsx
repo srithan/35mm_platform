@@ -15,8 +15,10 @@ function HeroStar({
   half?: boolean;
   onDark?: boolean;
 }) {
-  const emptyC = onDark ? "rgba(255,255,255,0.22)" : "var(--neutral-300)";
-  const fullC = "var(--color-film-gold)";
+  const emptyC = onDark
+    ? "var(--color-rating-star-empty, rgba(255,255,255,0.22))"
+    : "var(--color-rating-star-empty, var(--neutral-300))";
+  const fullC = "var(--color-rating-star, var(--color-film-gold))";
   return (
     <div
       className="h-2.5 w-2.5 shrink-0"
@@ -51,7 +53,7 @@ export function TitlePageHero(props: TitlePageHeroProps) {
 
   return (
     <div className="mx-auto w-full max-w-[1300px] px-4 pt-6 sm:px-6 lg:px-10">
-      <div className="relative min-h-[300px] w-full overflow-hidden rounded-sm border border-fg/85 sm:min-h-[460px]">
+      <div className="relative min-h-[300px] w-full overflow-hidden rounded-sm sm:min-h-[460px]">
         <TitleCoverBackButton />
         {heroImgSrc ? (
           <div className="absolute inset-0 scale-[1.03] will-change-transform sm:scale-100">
@@ -79,7 +81,7 @@ export function TitlePageHero(props: TitlePageHeroProps) {
             <div
               className={cn(
                 "w-24 shrink-0 sm:w-[12rem] md:w-[13.25rem]",
-                "relative aspect-[2/3] translate-y-1 overflow-hidden rounded-sm border-2 border-bg",
+                "relative aspect-[2/3] translate-y-1 overflow-hidden rounded-sm",
                 "shadow-[0_20px_50px_rgba(0,0,0,0.45)] sm:translate-y-2"
               )}
             >

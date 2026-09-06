@@ -33,7 +33,9 @@ function getProfileShellUsername(pathname: string): string | null {
     case "contribute":
     case "discover":
     case "drafts":
+    case "films":
     case "for-you":
+    case "lists":
     case "new":
     case "notifications":
     case "settings":
@@ -57,6 +59,16 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const [sidebarViewportTop, setSidebarViewportTop] = useState(0);
   const mobilePageContentRef = useRef<HTMLDivElement | null>(null);
   const [profileRailDisabled, setProfileRailDisabled] = useState(false);
+  const [navigationPathnames, setNavigationPathnames] = useState<{
+    current: string | null;
+    previous: string | null;
+  }>(function () {
+    return { current: pathname, previous: null };
+  });
+  const previousPathname =
+    navigationPathnames.current === pathname
+      ? navigationPathnames.previous
+      : navigationPathnames.current;
   const openSidebar = useCallback(function () {
     setSidebarViewportTop(window.scrollY);
     setSidebarOpen(true);
@@ -66,9 +78,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   }, []);
   const shellLayoutContextValue = useMemo(
     function () {
-      return { profileRailDisabled, setProfileRailDisabled };
+      return { profileRailDisabled, setProfileRailDisabled, previousPathname };
     },
-    [profileRailDisabled, setProfileRailDisabled]
+    [previousPathname, profileRailDisabled, setProfileRailDisabled]
   );
   const isTitlePage = Boolean(pathname?.startsWith("/title/"));
   const isPersonPage = Boolean(pathname?.startsWith("/person/"));
@@ -81,6 +93,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === ROUTES.CHAT || Boolean(pathname?.startsWith("/chat/"));
   const isContributeSection =
     pathname === ROUTES.CONTRIBUTE || Boolean(pathname?.startsWith("/contribute/"));
+  const isListDetailPage = Boolean(pathname?.startsWith("/list/"));
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isNewPostPage = pathname === ROUTES.NEW_POST;
   const isHomePage = pathname === "/";
@@ -91,6 +104,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   const isWideMainContent =
     pathname === "/discover" ||
+    pathname === ROUTES.FILMS ||
+    pathname === ROUTES.LISTS ||
+    isListDetailPage ||
     isContributeSection ||
     pathname === ROUTES.BOOKMARKS ||
     pathname === ROUTES.SUGGESTIONS_PEOPLE ||
@@ -102,6 +118,16 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   /** Home keeps a fixed 640px center column inside a lg+ three-column strip; shell var stays aligned. */
   const shellMainMaxWidth = isWideMainContent ? "1400px" : "640px";
+
+  useLayoutEffect(
+    function trackPreviousPathname() {
+      setNavigationPathnames(function (current) {
+        if (current.current === pathname) return current;
+        return { current: pathname, previous: current.current };
+      });
+    },
+    [pathname]
+  );
 
   useLayoutEffect(
     function () {
@@ -138,6 +164,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   /** Profiles use a horizontal tab strip only below `lg`; wide layout uses left rail instead. */
   const hasStickyBarBelow =
     pathname === "/discover" ||
+    pathname === ROUTES.FILMS ||
+    pathname === ROUTES.LISTS ||
     pathname?.startsWith("/profile") ||
     isContributeSection ||
     (isProfileUsernamePage && isDesktopLg !== true) ||

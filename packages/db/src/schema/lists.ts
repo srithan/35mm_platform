@@ -47,6 +47,24 @@ export var filmLists = pgTable(
     return {
       userUpdatedAtIdx: index("film_lists_user_updated_at_idx").on(table.userId, table.updatedAt),
       publicUpdatedAtIdx: index("film_lists_public_updated_at_idx").on(table.visibility, table.updatedAt),
+      publicBrowsePopularIdx: index("film_lists_public_browse_popular_idx")
+        .on(table.likeCount, table.id)
+        .where(sql`${table.visibility} = 'public' and ${table.type} = 'custom' and ${table.isDeleted} = false`),
+      publicBrowseCreatedIdx: index("film_lists_public_browse_created_idx")
+        .on(table.createdAt, table.id)
+        .where(sql`${table.visibility} = 'public' and ${table.type} = 'custom' and ${table.isDeleted} = false`),
+      publicTitleSearchIdx: index("film_lists_public_title_search_idx")
+        .using("gin", sql`to_tsvector('simple', ${table.title})`)
+        .where(sql`${table.visibility} = 'public' and ${table.type} = 'custom' and ${table.isDeleted} = false`),
+      publicFormatPopularIdx: index("film_lists_public_format_popular_idx")
+        .on(table.isRanked, table.likeCount, table.id)
+        .where(sql`${table.visibility} = 'public' and ${table.type} = 'custom' and ${table.isDeleted} = false`),
+      publicFormatCreatedIdx: index("film_lists_public_format_created_idx")
+        .on(table.isRanked, table.createdAt, table.id)
+        .where(sql`${table.visibility} = 'public' and ${table.type} = 'custom' and ${table.isDeleted} = false`),
+      publicSizeIdx: index("film_lists_public_size_idx")
+        .on(table.entryCount)
+        .where(sql`${table.visibility} = 'public' and ${table.type} = 'custom' and ${table.isDeleted} = false`),
       shareSlugIdx: uniqueIndex("film_lists_share_slug_idx").on(table.shareSlug),
       oneWatchlistPerUserIdx: uniqueIndex("film_lists_one_watchlist_per_user_idx")
         .on(table.userId)

@@ -137,6 +137,7 @@ function normalizeMedia(raw: Record<string, unknown>): Post["media"] {
       if (!url) continue;
 
       var next: Post["media"][number] = { type, url };
+      if (typeof item.videoAssetId === "string") next.videoAssetId = item.videoAssetId;
       var key = asString(item.key);
       var thumbnailUrl = asString(item.thumbnailUrl);
       var altText = asString(item.altText);

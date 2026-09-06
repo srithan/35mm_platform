@@ -32,7 +32,9 @@ const StarIcon = ({
     className={cn(
       "w-5 h-5 transition-all duration-150 cursor-pointer",
       filled
-        ? (isHoverPreview ? "text-[#c8952a]" : "text-film-gold")
+        ? isHoverPreview
+          ? "text-[var(--color-rating-star,#c8952a)]"
+          : "text-[var(--color-rating-star,var(--color-film-gold))]"
         : "text-border"
     )}
     fill="currentColor"

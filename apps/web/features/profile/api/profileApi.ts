@@ -72,26 +72,51 @@ export interface ProfileStatsActivityDay {
   count: number;
 }
 
-export interface ProfileStatsDiaryEntry {
-  postId: string;
-  type: "log" | "review";
-  createdAt: string;
-  rating: number | null;
-  film: ProfileStatsFilm;
+export interface ProfileStatsRatingBucket {
+  rating: number;
+  count: number;
+}
+
+export interface ProfileStatsNamedCount {
+  name: string;
+  count: number;
+}
+
+export interface ProfileStatsDecade {
+  decade: number;
+  count: number;
+}
+
+export interface ProfileStatsMostWatchedFilm extends ProfileStatsFilm {
+  watches: number;
 }
 
 export interface ProfileStatsSummary {
   username: string;
+  selectedYear: number | null;
+  availableYears: number[];
   filmsLoggedCount: number;
   hoursWatched: number;
+  runtimeKnownCount: number;
   averageRating: number | null;
+  ratedCount: number;
+  uniqueFilmsCount: number;
+  rewatchCount: number;
+  thisYearCount: number;
   reviewsWrittenCount: number;
   reviewLikeCount: number;
   memberSince: string | null;
   favoriteFilms: ProfileStatsFilm[];
   genres: ProfileStatsGenre[];
   activity: ProfileStatsActivityDay[];
-  recentDiary: ProfileStatsDiaryEntry[];
+  ratingDistribution: ProfileStatsRatingBucket[];
+  decades: ProfileStatsDecade[];
+  directors: ProfileStatsNamedCount[];
+  artists: ProfileStatsNamedCount[];
+  musicDirectors: ProfileStatsNamedCount[];
+  countries: ProfileStatsNamedCount[];
+  languages: ProfileStatsNamedCount[];
+  mostWatchedFilms: ProfileStatsMostWatchedFilm[];
   cachedAt: string;
 }
 
@@ -147,10 +172,12 @@ export async function fetchCurrentUserProfile(token: string | null): Promise<Cur
 
 export async function fetchProfileStats(
   username: string,
-  token?: string | null
+  token?: string | null,
+  year?: number | null
 ): Promise<ProfileStatsSummary> {
+  var yearQuery = year == null ? "" : `?year=${encodeURIComponent(String(year))}`;
   return apiRequest<ProfileStatsSummary>(
-    "/v1/profiles/" + encodeURIComponent(username) + "/stats",
+    "/v1/profiles/" + encodeURIComponent(username) + "/stats" + yearQuery,
     {
       token,
     }

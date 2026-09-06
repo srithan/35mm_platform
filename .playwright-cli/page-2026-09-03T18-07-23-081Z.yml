@@ -1,0 +1,63 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - region [ref=e3]:
+      - img "Film lovers talking outside a cinema after an evening screening" [ref=e4]
+      - generic [ref=e6]:
+        - link "35mm home" [ref=e7] [cursor=pointer]:
+          - /url: /
+        - navigation "Account access" [ref=e9]:
+          - button "Log in" [ref=e10] [cursor=pointer]
+          - button "Join 35mm" [ref=e11] [cursor=pointer]
+      - generic [ref=e12]:
+        - heading "The film ends. Your circle keeps talking." [level=1] [ref=e13]: The film ends.Your circle keeps talking.
+        - paragraph [ref=e14]: Follow friends, critics, and filmmakers. Share what moved you and find your next watch.
+        - button "Join 35mm — it’s free" [ref=e15] [cursor=pointer]
+        - paragraph [ref=e18]: A social network for film lovers.
+    - dialog "Account access" [ref=e128]:
+      - generic [ref=e129]:
+        - generic [aria-hidden] [ref=e130]:
+          - generic [ref=e132]: 35mm.
+          - paragraph [ref=e133]: The film ends. Your circle keeps talking.
+        - complementary [ref=e134]:
+          - generic [ref=e135]:
+            - button "Close account panel" [active] [ref=e136] [cursor=pointer]
+            - generic [ref=e140]:
+              - heading "Join 35mm" [level=2] [ref=e141]
+              - paragraph [ref=e142]: Create your account, then choose the first voices in your film circle.
+            - generic [ref=e143]:
+              - textbox "Full name" [ref=e145]:
+                - /placeholder: Agnès Varda
+              - generic [ref=e147]:
+                - generic [ref=e148]: 35mm.in/
+                - textbox "Username" [ref=e149]:
+                  - /placeholder: agnes
+              - textbox "Email" [ref=e151]:
+                - /placeholder: agnes@example.com
+              - generic [ref=e153]:
+                - textbox "Password" [ref=e154]:
+                  - /placeholder: At least 8 characters
+                - button "Show password" [ref=e155] [cursor=pointer]
+              - button "Join 35mm" [ref=e159] [cursor=pointer]
+              - paragraph [ref=e162]:
+                - text: By joining, you agree to the
+                - link "Terms" [ref=e163] [cursor=pointer]:
+                  - /url: /terms
+                - text: and
+                - link "Privacy Policy" [ref=e164] [cursor=pointer]:
+                  - /url: /privacy
+                - text: .
+            - generic [ref=e165]:
+              - generic [ref=e166]: Already a member?
+              - button "Log in" [ref=e167] [cursor=pointer]
+          - generic [ref=e168]:
+            - generic [ref=e169]: © 35mm.in
+            - navigation "Legal" [ref=e170]:
+              - link "Privacy" [ref=e171] [cursor=pointer]:
+                - /url: /privacy
+              - link "Terms" [ref=e172] [cursor=pointer]:
+                - /url: /terms
+              - link "Help" [ref=e173] [cursor=pointer]:
+                - /url: /help
+  - button "Open Tanstack query devtools" [ref=e69] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e123] [cursor=pointer]
+  - alert [ref=e127]

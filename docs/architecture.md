@@ -136,21 +136,23 @@ Node engine: `>=22.13.0`.
 
 ### Frontend: `apps/web`
 
-| Concern | Choice |
-|---|---|
-| Framework | Next.js 15 App Router |
-| React | React 18 |
-| Styling | Tailwind CSS v3 with CSS variable tokens |
-| Server state | TanStack React Query v5 |
-| Client/UI state | Zustand v5 and local component state |
-| Auth | Clerk |
-| Forms | React Hook Form + Zod |
-| Rich text | TipTap |
-| Animation | Framer Motion |
-| 3D/WebGL | Three.js with component-scoped postprocessing and lil-gui preview controls |
-| URL state | nuqs |
-| Analytics | Vercel Analytics + Speed Insights |
-| Tests | Vitest + Testing Library + Happy DOM |
+Web development uses `next dev` (webpack in Next.js 15), matching the production build. The existing webpack `resolve.extensionAlias` maps Node-compatible `.js`/`.mjs` imports in shared TypeScript packages to their source files. Do not add `--turbopack` without equivalent extension resolution; it bypasses this configuration and breaks imports such as `@35mm/validators`' `./dateOfBirth.js`.
+
+| Concern         | Choice                                                                     |
+| --------------- | -------------------------------------------------------------------------- |
+| Framework       | Next.js 15 App Router                                                      |
+| React           | React 18                                                                   |
+| Styling         | Tailwind CSS v3 with CSS variable tokens                                   |
+| Server state    | TanStack React Query v5                                                    |
+| Client/UI state | Zustand v5 and local component state                                       |
+| Auth            | Clerk                                                                      |
+| Forms           | React Hook Form + Zod                                                      |
+| Rich text       | TipTap                                                                     |
+| Animation       | Framer Motion                                                              |
+| 3D/WebGL        | Three.js with component-scoped postprocessing and lil-gui preview controls |
+| URL state       | nuqs                                                                       |
+| Analytics       | Vercel Analytics + Speed Insights                                          |
+| Tests           | Vitest + Testing Library + Happy DOM                                       |
 
 Design conventions:
 
@@ -164,15 +166,15 @@ Design conventions:
 
 ### Studio: `apps/studio`
 
-| Concern | Choice |
-|---|---|
-| Framework | Next.js App Router |
-| Purpose | Internal platform/content operations |
-| Auth | Dedicated Clerk app configuration |
-| Server state | TanStack Query |
-| Client/UI state | Zustand and local component state |
-| Forms | React Hook Form + Zod 4 through `@hookform/resolvers/zod` |
-| Styling | Tailwind CSS with shadcn-style primitives |
+| Concern         | Choice                                                    |
+| --------------- | --------------------------------------------------------- |
+| Framework       | Next.js App Router                                        |
+| Purpose         | Internal platform/content operations                      |
+| Auth            | Dedicated Clerk app configuration                         |
+| Server state    | TanStack Query                                            |
+| Client/UI state | Zustand and local component state                         |
+| Forms           | React Hook Form + Zod 4 through `@hookform/resolvers/zod` |
+| Styling         | Tailwind CSS with shadcn-style primitives                 |
 
 Studio uses the same Zod 4 and Hook Form resolver major versions as the public web workspace so pnpm's monorepo type resolution cannot mix Zod 3 schemas with Zod 4 resolver declarations.
 
@@ -182,43 +184,43 @@ The moderation console (`/moderation` queue + `/moderation/:contentType/:content
 
 ### API: `apps/api`
 
-| Concern | Choice |
-|---|---|
-| Framework | Hono v4 |
-| Contract style | REST, chosen over tRPC for Swift/Kotlin/native compatibility |
-| ORM | Drizzle ORM |
-| Database | Neon Postgres through `@neondatabase/serverless`; HTTP driver for general reads and pooled Neon driver for transaction-required writes |
-| Auth | Clerk backend token verification |
-| Webhooks | Svix for Clerk webhooks |
-| Validation | Zod from `packages/validators` |
-| Queues | BullMQ producer |
-| Cache/rate limits | Upstash Redis REST |
-| Media upload | Cloudflare R2 presigned PUT |
+| Concern           | Choice                                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework         | Hono v4                                                                                                                                |
+| Contract style    | REST, chosen over tRPC for Swift/Kotlin/native compatibility                                                                           |
+| ORM               | Drizzle ORM                                                                                                                            |
+| Database          | Neon Postgres through `@neondatabase/serverless`; HTTP driver for general reads and pooled Neon driver for transaction-required writes |
+| Auth              | Clerk backend token verification                                                                                                       |
+| Webhooks          | Svix for Clerk webhooks                                                                                                                |
+| Validation        | Zod from `packages/validators`                                                                                                         |
+| Queues            | BullMQ producer                                                                                                                        |
+| Cache/rate limits | Upstash Redis REST                                                                                                                     |
+| Media upload      | Cloudflare R2 presigned PUT                                                                                                            |
 
 ### Worker: `apps/worker`
 
-| Concern | Choice |
-|---|---|
-| Runtime | Long-running Node process |
-| Queue | BullMQ |
-| Broker | Upstash Redis protocol URL |
-| Image processing | Sharp |
-| Blurhash | `blurhash` |
-| Storage | Cloudflare R2 |
+| Concern          | Choice                      |
+| ---------------- | --------------------------- |
+| Runtime          | Long-running Node process   |
+| Queue            | BullMQ                      |
+| Broker           | Upstash Redis protocol URL  |
+| Image processing | Sharp                       |
+| Blurhash         | `blurhash`                  |
+| Storage          | Cloudflare R2               |
 | Realtime publish | Ably REST for notifications |
 
 Local dev note: BullMQ workers emit continuous blocking Redis commands while idle. Use `pnpm dev:worker` only when testing queued jobs, or set `WORKER_ENABLED=false` to exit before Redis connections are opened. Worker requires explicit `QUEUE_REDIS_URL` (or queue REST credentials) and never falls back to cache Redis, preventing silent producer/consumer queue divergence.
 
 ### iOS: `apps/ios`
 
-| Concern | Choice |
-|---|---|
-| App | SwiftUI app target `ThirtyFiveMM` |
-| Auth | ClerkKit |
-| Networking | Shared `APIClient` over REST with Clerk bearer auth |
-| Realtime | Ably Swift SDK, optional/noop when `ABLY_API_KEY` is absent |
-| Image loading | Kingfisher |
-| Tests | `ThirtyFiveMMTests` XCTest target |
+| Concern       | Choice                                                      |
+| ------------- | ----------------------------------------------------------- |
+| App           | SwiftUI app target `ThirtyFiveMM`                           |
+| Auth          | ClerkKit                                                    |
+| Networking    | Shared `APIClient` over REST with Clerk bearer auth         |
+| Realtime      | Ably Swift SDK, optional/noop when `ABLY_API_KEY` is absent |
+| Image loading | Kingfisher                                                  |
+| Tests         | `ThirtyFiveMMTests` XCTest target                           |
 
 App-wide design tokens live in `apps/ios/ThirtyFiveMM/Core/DesignSystem.swift`: brand accent `#c2473a` (also wired into `AccentColor.colorset`), like/repost action colors, a 4pt spacing scale, corner-radius scale, canonical avatar sizes, and semantic Dynamic Type font aliases (`.appWordmark`, `.appScreenTitle`, `.appAuthorName`, etc.). Color themes mirror web `data-theme` values through `Core/Theme.swift` (`auto | light | dark | matinee | matrix | oppenheimer-bw | barbie`) with accent overrides; `ThemeManager` is local authority (UserDefaults, like web localStorage) — settings GET never overrides a persisted theme (that caused NEW→OLD→NEW flashes when Settings recreated mid-save). Appearance saves apply `ThemeManager` first, PATCH in the background, and merge the client request over stale responses. Switches snap `UIWindow.overrideUserInterfaceStyle` (not `.preferredColorScheme`) before publishing an atomic `ThemeSnapshot`, with static light/dark palettes. Window / tab-host / `themedBackground()` fill behind the floating tab bar with the palette; the `UITabBar` view stays clear and SwiftUI must not use `.toolbarBackground(.visible, for: .tabBar)` on iOS 26 (that expands into a content-covering bottom slab). `SettingsViewModel` is app-scoped on `AppEnvironment` so it survives destination recreation; settings sections push as `AppRoute.settingsSection` on the tab `NavigationStack` path so theme rebuilds cannot pop Appearance. Active `ThemePalette` is injected via `@Environment(\.theme)` at `RootView`. Shell chrome, feed cards, notifications, and profile header/tab surfaces consume that palette (not `Color(.systemBackground)` / `.label`) so custom themes actually paint. Auth/onboarding marketing screens intentionally keep their own display styling.
 
@@ -290,19 +292,19 @@ Phase 1.2 adds Jest 29.7 through `jest-expo` 57.0.2 and React Native Testing Lib
 
 ### External Services
 
-| Service | Status | Usage |
-|---|---:|---|
-| Clerk | Wired | Web auth, API bearer verification, webhooks |
-| Neon Postgres | Wired | Source-of-truth relational data |
-| Cloudflare R2 | Wired | Originals and processed media variants |
-| Upstash Redis | Wired | Split Redis databases for feed/catalog/profile/TMDB cache, rate limits, BullMQ broker, suggestions cache, and chat unread/typing/presence |
-| BullMQ | Partially wired | Media processing, notifications, suggestions, async counters, feed fanout, and site-search indexing implemented; notification digest remains partial |
-| Ably | Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions |
-| TMDB | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports |
-| Cloudflare Images | Optional | Delivery layer for processed images |
-| Cloudflare Stream | Not wired | Future video streaming |
-| Meilisearch | Partially wired | Site-header films/users/posts search; normalized catalog people/company indexing remains pending |
-| Resend | Partially wired | Transactional notification emails from the worker; digest remains future work |
+| Service           |                  Status | Usage                                                                                                                                                |
+| ----------------- | ----------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clerk             |                   Wired | Web auth, API bearer verification, webhooks                                                                                                          |
+| Neon Postgres     |                   Wired | Source-of-truth relational data                                                                                                                      |
+| Cloudflare R2     |                   Wired | Originals and processed media variants                                                                                                               |
+| Upstash Redis     |                   Wired | Split Redis databases for feed/catalog/profile/TMDB cache, rate limits, BullMQ broker, suggestions cache, and chat unread/typing/presence            |
+| BullMQ            |         Partially wired | Media processing, notifications, suggestions, async counters, feed fanout, and site-search indexing implemented; notification digest remains partial |
+| Ably              |         Partially wired | Worker can publish notifications; clients have noop/Ably transport abstractions                                                                      |
+| TMDB              | Wired as fallback/proxy | Discovery/autocomplete/cold-start imports                                                                                                            |
+| Cloudflare Images |                Optional | Delivery layer for processed images                                                                                                                  |
+| Cloudflare Stream |               Not wired | Future video streaming                                                                                                                               |
+| Meilisearch       |         Partially wired | Site-header films/users/posts search; normalized catalog people/company indexing remains pending                                                     |
+| Resend            |         Partially wired | Transactional notification emails from the worker; digest remains future work                                                                        |
 
 ---
 
@@ -433,6 +435,7 @@ Source of truth: `packages/db/src/schema/*`.
 - Notification preferences.
 - Theme and accent color. Theme values currently accepted by settings are `auto`, `light`, `dark`, `matinee`, `matrix`, `oppenheimer-bw`, and `barbie`.
 - Media playback preferences: video autoplay, default quality, captions default, caption display style, and quiet mode.
+- Discover streaming-service preferences: an ordered, bounded array of shared logical service IDs. User-defined order is preserved through validation, storage, and the Discover filter shelf. The web maps these IDs to TMDB provider IDs; the catalog is fixed-size, so no index or pagination is required.
 
 ### Film Catalog
 
@@ -667,7 +670,7 @@ Automatic moderation enforcement:
 `notifications`
 
 - Recipient, optional actor, `actor_ids` bundle array.
-- Type enum also includes `film_logged`, `chat_reaction`, `report_status_update`, `content_moderated`, and `content_under_review`.
+- Type enum also includes `film_logged`, `report_status_update`, `content_moderated`, and `content_under_review`. Legacy `chat_reaction` rows remain schema-readable, but main notification writes, reads, mutations, email, and realtime reject them because chat owns its activity channel.
 - Entity ID/type, JSONB metadata, nullable idempotent `source_key`, read state, bundle count, created timestamp.
 - Unread bundle writes are indexed by partial index `notifications_unread_bundle_lookup_idx` on
   `(recipient_id, type, entity_type, entity_id, created_at)` with `WHERE is_read = false`.
@@ -698,6 +701,7 @@ Automatic moderation enforcement:
 - Denormalized like/comment/entry counts.
 - Soft delete and cloned-from reference.
 - Partial unique index enforces one active watchlist per user.
+- Partial `(like_count, id)` and `(created_at, id)` indexes cover popular/recent public custom-list browsing without scanning private, deleted, or watchlist rows.
 
 `film_list_entries`
 
@@ -781,7 +785,8 @@ Profiles, follows, moderation:
 - `GET /v1/profiles/search`
 - `GET /v1/profiles/:username`
 - `GET /v1/profiles/:username/stats`
-  - returns real profile stats for visible logged films, runtime hours, average rating, review counts/likes, favorite films, genre breakdown, last-12-month activity, and recent diary rows
+  - accepts an optional validated `year` query and returns available activity years plus real stats for visible logged films: runtime hours, runtime coverage, unique-film and rewatch counts, rating distribution, review counts/likes, favorite and most-watched films, release decades, genres, credited directors/cast/music people, countries, languages, and period activity
+  - runtime hours divide stored minutes by 60 and use active `catalog_titles.runtime_minutes` as fallback; TMDB film resolution hydrates missing runtime/language/country metadata through the existing cached, rate-limited detail proxy
   - enforces profile privacy, blocks, and per-post visibility server-side; public guest payloads are Redis-cached for 60 seconds and invalidated on author post mutations and post-owner interactions
 - `PATCH /v1/profiles/me`
   - switching a private profile to public writes one `profile_follow_approval_outbox` row in the same DB transaction as profile visibility, and `counter.outbox` drains it through bounded `profile.followApproval` batches
@@ -854,6 +859,7 @@ Feed, posts, comments, polls:
 
 Lists and watchlists:
 
+- `GET /v1/lists` (public custom lists; `popular | recent`; bounded cursor pages)
 - `GET /v1/lists/profile/:username`
 - `GET /v1/lists/films/:filmId`
 - `GET /v1/lists/me/watchlist`
@@ -888,6 +894,7 @@ Settings:
 - `PATCH /v1/me/settings/profile`
 - `PATCH /v1/me/settings/appearance`
 - `PATCH /v1/me/settings/media`
+- `PATCH /v1/me/settings/streaming-services`
 
 `PATCH /v1/me/settings/profile` treats Clerk and `profiles.username` as one consistency boundary. Username
 changes reserve `profiles.pending_username` in a row-locked transaction, update Clerk through the secret that
@@ -991,7 +998,7 @@ Chat:
 - `POST /v1/chat/presence/ping`
 - `POST /v1/chat/presence/batch`
 
-Chat uses hybrid storage. Postgres stores `chat_threads`, `chat_participants`, `chat_member_state`, and `chat_thread_meta`; AWS Keyspaces stores `thirtyFiveMM.messages`, `thirtyFiveMM.message_edits`, and high-scale `thirtyFiveMM.message_reactions`. Redis stores unread counters, typing indicators in a short-lived sorted set, online presence with a 65 second TTL, last-seen presence markers retained for 35 days, and cached `showActivityStatus` privacy flags. Inbox/presence reads use batched Redis `MGET` instead of per-thread/per-user loops, and presence batch responses enforce activity-status privacy server-side. Inbox previews display and sort by the latest of per-member `chat_member_state.last_message_at` and thread-level `chat_thread_meta.last_message_at`, with `0034_chat_member_activity_backfill` repairing existing member activity rows; new sends upsert per-member activity state for active participants and first-time reaction notifications upsert it for the recipient. The API publishes latency-sensitive chat realtime events directly to Ably after durable state is written: new message thread events, small-conversation inbox unread updates, message edit/reaction updates, typing, and read receipts. First-time chat reaction adds also create `chat_reaction` notifications for the original message sender, increment that sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch. BullMQ jobs `chat.deliver`, `chat.messageUpdated`, `chat.readReceipt`, and `chat.typing` remain fallback/asynchronous paths for publish failures, large inbox fanout, and delete/update recovery. The web `ChatRealtimeProvider` subscribes to those channels when `NEXT_PUBLIC_ABLY_API_KEY` is configured, patches active-thread messages and inbox unread rows, and sends throttled presence heartbeats while signed in. On desktop, signed-in users also get a route-independent floating chat inbox mounted from `app/providers.tsx` outside `/chat`; opening a thread there registers that thread as the active realtime subscription so messages, typing, and read receipts update in place without navigating to `/chat`. Chat headers batch-read active thread member presence to render online, active-ago, and offline labels without persisting presence query cache. Read receipt snapshots use normal stale React Query reads without polling; typing snapshots are development-only fallback when realtime is not configured. A future ScyllaDB Cloud migration can swap the Cassandra contact point while preserving schema and query shapes.
+Chat uses hybrid storage. Postgres stores `chat_threads`, `chat_participants`, `chat_member_state`, and `chat_thread_meta`; AWS Keyspaces stores `thirtyFiveMM.messages`, `thirtyFiveMM.message_edits`, and high-scale `thirtyFiveMM.message_reactions`. Redis stores unread counters, typing indicators in a short-lived sorted set, online presence with a 65 second TTL, last-seen presence markers retained for 35 days, and cached `showActivityStatus` privacy flags. Inbox/presence reads use batched Redis `MGET` instead of per-thread/per-user loops, and presence batch responses enforce activity-status privacy server-side. Inbox previews display and sort by the latest of per-member `chat_member_state.last_message_at` and thread-level `chat_thread_meta.last_message_at`, with `0034_chat_member_activity_backfill` repairing existing member activity rows; new sends upsert per-member activity state for active participants and first-time reaction activity upserts it for the recipient. The API publishes latency-sensitive chat realtime events directly to Ably after durable state is written: new message thread events, small-conversation inbox unread updates, message edit/reaction updates, typing, and read receipts. First-time chat reaction adds increment the original message sender's chat unread count, update thread activity metadata, and publish an inbox `thread.updated` patch; they never enter the main notification table or realtime channel. BullMQ jobs `chat.deliver`, `chat.messageUpdated`, `chat.readReceipt`, and `chat.typing` remain fallback/asynchronous paths for publish failures, large inbox fanout, and delete/update recovery. The web `ChatRealtimeProvider` subscribes to those channels when `NEXT_PUBLIC_ABLY_API_KEY` is configured, patches active-thread messages and inbox unread rows, and sends throttled presence heartbeats while signed in. On desktop, signed-in users also get a route-independent floating chat inbox mounted from `app/providers.tsx` outside `/chat`; opening a thread there registers that thread as the active realtime subscription so messages, typing, and read receipts update in place without navigating to `/chat`. Chat headers batch-read active thread member presence to render online, active-ago, and offline labels without persisting presence query cache. Read receipt snapshots use normal stale React Query reads without polling; typing snapshots are development-only fallback when realtime is not configured. A future ScyllaDB Cloud migration can swap the Cassandra contact point while preserving schema and query shapes.
 `POST /v1/chat/threads` now resolves existing DM threads by deterministic pair identity (`chat_threads.dm_member_low`, `chat_threads.dm_member_high`) and a partial unique pair index, not by scanning viewer inbox participants.
 
 ---
@@ -1003,7 +1010,8 @@ Root app:
 - `app/layout.tsx`: global metadata, Clerk provider, React Query providers, fonts, analytics, service worker, offline status.
 - `app/providers.tsx`: QueryClient, theme provider, accent color provider, notification realtime provider, chat realtime provider, global new-chat provider, desktop floating chat inbox, title badge, sound player, toast host.
 - `middleware.ts`: public route definitions, guest-only auth page redirects, and Clerk protection.
-- `app/(shell)/layout.tsx`: authenticated shell, auth bootstrap, onboarding gate, scroll restoration, shared layout grid.
+- `app/layout.tsx`: global providers and pathname-aware scroll ownership. Genuine page changes start at the top; same-profile tab URLs preserve their shared sticky position, and an explicit post-detail return restores only its recorded source feed path.
+- `app/(shell)/layout.tsx`: authenticated shell, auth bootstrap, onboarding gate, and shared layout grid.
 - `components/layout/ShellGrid.tsx`: owns responsive shell composition. On mobile, opening `MobileSidebar` reveals a fixed underlay by translating route content horizontally (`min(82vw, 320px)`) while `MobileHeader`, `MobileTabBar`, and the fixed scrim receive the same X offset independently. Keeping fixed chrome outside the transformed content wrapper preserves viewport anchoring; open-state clipping uses the current scroll offset plus `100dvh`, keeping both left corners rounded even when the feed is taller than the viewport. The UI moves in sync with no vertical translation or scale. Outside the open-sidebar state, one shared scroll-direction listener hides `MobileHeader` and `MobileTabBar` on downward scroll and restores them on upward scroll or near the page top; opening the sidebar pins the header visible. On profile-tab routes, hidden scroll chrome swaps the standard header controls for a compact fixed profile header with a back control and centered username, preserving the measured sticky offset used by `ProfileTabs`. The exposed page is dimmed/inert and closes the menu on tap, while the dialog traps focus and supports Escape. `MobileSidebar` mirrors native iOS hierarchy and styling: static profile identity, regular Profile/Discover/Short Films/Bookmarks/Lists/Diary/Drafts rows, a divider, then compact Chat/Notifications/Settings and privacy/Help rows with rounded system typography and semantic colors.
 - At `xl`, the home shell uses its previously reserved left rail for `ProfileCompletionWidget`. Signed-in users with missing avatar, cover, bio, or location see a restrained four-detail progress card; completed details remain visible as subdued confirmation, and fully completed profiles render no widget. Each missing row deep-links to the owner profile with a validated `editProfile` target. The existing edit dialog opens, scrolls/focuses the requested control, and briefly highlights it. The dialog includes the existing cover upload/crop flow in a compact editor variant, so all four completion actions share one accessible editing surface. `GET /v1/me` returns four completion booleans computed from profile columns in its unique `user_id` lookup; the shell reuses that React Query record and adds no home-page request. Existing profile/media mutations and their rate limits remain authoritative. At 1M+ DAU this adds constant response bytes and no query, N+1 path, cache, queue job, schema change, or index.
 
@@ -1015,16 +1023,27 @@ Route groups:
 
 Important app routes:
 
-- `/`: session-aware root. Signed-out visitors receive a fixed-light, responsive split landing surface with
-  local cinematic artwork and embedded Clerk-backed signup/login forms; signed-in visitors receive the
-  authenticated home feed. `app/page.tsx` is the sole owner of `/`; no `(shell)/page.tsx` duplicate exists,
-  preventing ambiguous App Router manifests in production. The signed-out path performs only the debounced username-availability read after
-  username input—there is no TMDB/poster-carousel fetch on initial render.
+- `/`: session-aware root. Signed-out visitors receive a restrained, single-field cinematic landing surface:
+  original local artwork, centered product promise, one primary join action, and minimal account navigation.
+  Join/login opens the existing Clerk-backed flows in a centered two-column desktop modal with a decorative
+  cinematic panel and dedicated form panel; mobile web presents the same flow as a bottom action sheet with
+  internal scrolling and safe-area padding. Password sign-in handles Clerk's legacy `needs_second_factor` and
+  current `needs_client_trust` responses by preparing the available email-code factor, showing the masked
+  destination, and activating the session only after Clerk accepts the code; the standalone `/login` form uses
+  the same auth operations and continuation. This adds at most one bounded factor-preparation request and one
+  verification request when Clerk challenges a new browser, with no 35mm API, database, cache, queue, schema,
+  or index impact. No simulated feed, engagement
+  data, ornamental content modules, or initial media API request appears on the landing surface. Signed-in visitors receive the
+  authenticated home feed. `app/page.tsx` is the sole owner
+  of `/`; no `(shell)/page.tsx` duplicate exists, preventing ambiguous App Router manifests in production. The
+  signed-out path performs only the debounced username-availability read after username input. Hero media ships from `public/landing`, so page traffic adds no
+  third-party image dependency or per-request media API work.
 - `/landing`: compatibility URL that redirects to `/`.
 - `/new`: post composer page.
 - `/:username`: profile.
 - `/:username/post/:postid`: post detail.
 - `/:username/reposts`, `/:username/diary`, `/:username/lists`, `/:username/stats`: profile tabs.
+- `/lists`: standalone public-list discovery with popular/recent cursor streams and poster-stack cards; Discover, Lists, and Contribute share the sticky below-header section navigation.
 - `/discover`: discovery.
 - `/notifications`: notifications.
 - `/bookmarks`: two-column bookmarks surface with folder navigation, create/rename/delete folder controls, folder-filtered saved posts, and loading skeletons.
@@ -1047,18 +1066,18 @@ Feature ownership:
 - `features/audio-rooms`: `The Lobby` right-rail presentation contract and empty state. A future production room service can supply bounded summaries and an open-room handler without changing the widget layout; realtime audio/signaling remains out of scope and unwired.
 - `features/profile`: public profile, Posts/Reposts/Diary/Lists/Stats routing, edit profile, follow state, media upload, connections, blocks/mutes. Reposts uses a dedicated React Query key and the server-side `kind=reposts` cursor feed. Mobile profile identity and actions render together in `ProfileHeader`: circular share/overflow controls align beside the cover-overlapping avatar, while full-width message/follow/edit capsules follow the profile details; tablet/desktop placement remains unchanged.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime. Realtime handles normal freshness; no-Ably fallback invalidates notification queries every 30 seconds without duplicate 5-second component polling.
-- `features/lists`: film lists and watchlists.
+- `features/lists`: film lists, watchlists, public list discovery, and optimistic list-like interactions.
 - `features/settings`: account, privacy, notifications, appearance, media, data/security settings.
   Account settings include a client-side change-password modal backed by Clerk `user.updatePassword`.
 - `features/onboarding`: role, favorite films, favorite genres, follow suggestions.
   Onboarding follow suggestions are a bounded seed query over active public profiles, exclude already-followed/blocked/muted accounts, and rank by denormalized profile activity rather than live follower-count aggregation.
-- `features/discover`: TMDB-backed browsing and search, with hero/aisle presentation, provider-filtered streaming rows through the TMDB proxy, and semantic theme tokens.
-- `app/(shell)/person/[id]`: TMDB-backed cast/crew profile display, cached by Next revalidation and used for metadata/display only.
+- `features/discover`: editorial TMDB-backed browsing with hero/aisle presentation and semantic theme tokens. `/discover` has no catalog search or filter controls; those belong to `/films`. Its streaming shelf reads the account's bounded saved-service lineup as one combined provider request without exposing session filter pills or an inline settings editor.
+- `app/(shell)/person/[id]` and `app/(shell)/person/[id]/[department]`: TMDB-backed cast/crew profile display, cached by Next revalidation and used for metadata/display only. Filmography preserves a title independently across each contributed department and merges multiple jobs within the same title/department. `PERSON_PAGE_USE_TWO_COLUMN_LAYOUT` switches between a wide profile-header layout and a compact poster grid beside a profile sidebar. Department selection uses canonical paths such as `/person/85720/actor` and `/person/85720/producer`; the selected role drives both page headline and metadata title. A minimal, URL-backed filter rail narrows bounded TMDB credit data by media format, decade, and genre, and sorts it by release date, rating, or popularity without additional requests.
 - `features/bookmarks`: bookmark page, folder management, and post-to-folder flow over feed bookmark API.
 - `features/contribute`: contributor hub, config-driven Zod-validated forms, API client/hooks, and submissions tracker backed by `/v1/contributions/submissions`.
 - `features/chat`: rich frontend, remote backend client, optional mock mode, chat route pages, realtime cache application, and bounded persisted React Query cache for inbox/recent messages.
 - `features/title`: title pages.
-- `features/short-films`, `features/festivals`, `features/communities`, `features/videos`: future or mock-heavy product surfaces.
+- `features/short-films` and `features/videos`: real Bunny upload/playback modules coexist with legacy mock discovery shelves. Festivals and communities remain future or mock-heavy surfaces.
 
 State rules:
 
@@ -1126,13 +1145,13 @@ Current feed behavior:
 - Authenticated home feed cursors include score, post ID, ranking timestamp, the materialized row creation time when a row came from `feed_items`, and an explicit hot/cold phase marker. When a retained page is exhausted, one bounded existence probe determines whether direct history remains; a cold-marked cursor then bypasses feed cache and reads from `posts` for the viewer's own posts plus accepted followees. If the retained feed is empty, that direct read happens in the same request.
 - Reposts are materialized as activity rows for fan-out, ranking, profile pagination, and idempotent undo, but feed/profile responses normalize each activity to the original post ID, content, author, counters, and viewer interaction flags. Normalized duplicates in a page are collapsed in one bounded in-memory pass, keeping the highest-ranked occurrence and aggregating at most two named reposters plus the denormalized `repost_count`. The nullable `repostContext` carries `users`, `totalCount`, and original-row provenance so clients render “You reposted” for the current viewer, otherwise “x reposted”, “x and y reposted”, or “x, y and n others reposted” above one unchanged original post card. Web and iOS also collapse the same source across already-loaded cursor pages, preventing a page boundary from reintroducing the duplicate without another database query.
 - Web feed post previews use one word-safe 400-grapheme cutoff independent of rendered width; short posts therefore remain complete on both desktop and mobile, while genuinely long posts truncate at the same content position and link to the untruncated detail view. Grapheme segmentation prevents emoji splitting. Post cards no longer run per-card text layout measurement; comment expansion retains its separate line-based behavior. Infinite feeds use one window-virtualized render path from the first page instead of swapping DOM strategy after a row threshold. Stored media width/height reserves single-image geometry before decode, metadata-free legacy rows retain a bounded fallback ratio, and virtual row ResizeObserver updates are animation-frame batched. Work stays O(visible rows + overscan) as loaded cursor history grows, with no new API read, database query, cache, worker job, schema, or index.
-- Quote posts are normal authored posts whose `quoted_post_id` points to the canonical source. `createPostSchema` validates the UUID and the API re-authorizes/canonicalizes the source server-side before insert. Feed/detail/profile/bookmark responses expose a bounded, non-recursive `quotedPost` preview (original author, rich text, media, film, link preview, and poll) plus `quotedPostUnavailable`; web and iOS render it inside the quote card and use a tombstone when the source is deleted or inaccessible.
+- Quote posts are normal authored posts whose `quoted_post_id` points to the canonical source. `createPostSchema` validates the UUID and the API re-authorizes/canonicalizes the source server-side before insert. Feed/detail/profile/bookmark responses expose a bounded, non-recursive `quotedPost` preview (original author, rich text, media, film, link preview, and poll) plus `quotedPostUnavailable`; web and iOS render it inside the quote card and use a tombstone when the source is deleted or inaccessible. Web exposes `/:username/post/:postId/quotes` from each repost menu. Its feed-width page calls rate-limited `GET /v1/feed/posts/:postId/quotes`, applies source and quote visibility/moderation/block/mute policy, excludes simple repost activity, and supports `latest` or `top` (most liked) cursor order. Latest uses `posts_quoted_post_id_created_at_id_idx`; top uses partial `posts_quoted_post_id_like_count_created_at_id_idx`. Each request remains one bounded page plus existing batched hydration, so viral quote threads scale with page size rather than total quote count at 1M+ DAU. This is a read-only surface: no new mutation, counter, queue job, or UGC deletion behavior.
 - Repost and quote sources for a page share one bounded primary-key `IN` query, followed by the existing batched poll and rich-mention hydration; there is no per-post/N+1 read. Source access checks cover post visibility, deletion/moderation, original-profile privacy/moderation, blocks, and mutes. Cached quote previews are rechecked against moderation read status and tombstoned when access is revoked; cached aggregated repost proof rechecks every named actor and removes hidden identities while preserving a separately visible original. Feed/profile response caches use the shared `FEED_CACHE_NAMESPACE` (`feed-cache:v5`) constant in API and worker so writes and invalidations cannot drift across namespaces.
 - Authenticated home feed cursor ranking timestamps keep score-formula rows stable across pages.
 - Authenticated home feeds that include high-follower live rows cache the final per-viewer merged page with the normal feed payload TTL and also cache the viewer-independent slice: recent rows for each high-follower author, keyed by author ID.
 - `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaults to 45 seconds. This intentionally allows high-follower author scores/counters/profile fields to be up to TTL seconds stale in exchange for sharing one cached author slice across many followers.
 - `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaults to 100 rows per author. Deep pagination beyond the cached slice falls back to a direct per-author DB query for that rare page.
-- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/post/follower/following counters, and film list like/entry counters. Post create/delete and repost create/delete write the profile `postCount` delta in the same transaction as the post mutation. Creating or deleting a canonical-film `log`/`review`, plus editing one across the film-attached boundary, writes the matching `filmsLoggedCount` delta in that same transaction. Reposts never count as diary logs. Profile detail and `/v1/me` overlay pending profile film/follow deltas for read-after-write consistency while BullMQ drains the durable outbox; web diary mutations invalidate active profile and current-user queries so the refreshed header consumes that overlay immediately.
+- `counter.increment` is implemented for post like/comment/repost/bookmark counters, comment likes, poll totals/options, profile films/post/follower/following counters, and film list like/comment/entry counters. Post create/delete and repost create/delete write the profile `postCount` delta in the same transaction as the post mutation. Creating or deleting a canonical-film `log`/`review`, plus editing one across the film-attached boundary, writes the matching `filmsLoggedCount` delta in that same transaction. Reposts never count as diary logs. Profile detail and `/v1/me` overlay pending profile film/follow deltas for read-after-write consistency while BullMQ drains the durable outbox; film-list detail, watchlist, profile-list, film-list, and public-list reads apply the same indexed pending-delta overlay in one bounded query per response. Web diary and list mutations invalidate their active query keys so refreshed UI consumes the overlay immediately.
 - `counter.outbox`: worker drains pending rows with row locks, batches by target/counter, and now loops until empty or a configured time budget (`COUNTER_OUTBOX_LOOP_BUDGET_MS`) before ending. If a full batch is processed and backlog remains, worker self-enqueues follow-up `counter.outbox` work to keep up with burst writes.
 - Counter jobs are durable through `counter_jobs`: API counter-touching mutations write outbox rows in the same transaction as the fact mutation, then best-effort enqueue `counter.outbox` to wake the worker. The worker deletes processed `counter_jobs` rows and decrements `counter_job_deltas`, and also drains `profile_follow_approval_outbox` rows in the same loop and re-schedules `profile.followApproval` pages when needed. If BullMQ is unavailable, the repeatable `counter.outbox` worker job still drains pending DB rows when the queue returns. Manual reconciliation path: `pnpm --filter @35mm/worker reconcile:counters -- --scope=<scope> --id=<id>`; profile reconciliation repairs both `post_count` and `films_logged_count`.
 
@@ -1199,7 +1218,7 @@ Creation path:
 5. Worker reads notification and actor profiles.
 6. Worker publishes Ably `notification.new` to `user:{recipientId}:notifications`.
 
-`chat_reaction` notifications use `entityType=chat_thread` and link back to the chat thread. They are created only for first reaction adds by an actor, not duplicate retries or reaction removals.
+Chat activity has a strict channel boundary: reactions update only chat inbox metadata, chat unread counters, and chat realtime events. Main notification creation rejects `chat_reaction`; main list/count/read mutations filter legacy rows; worker email/realtime publishing and web realtime parsing reject them as defense in depth.
 
 Client path:
 
@@ -1230,6 +1249,8 @@ Upload path:
 5. Post/profile update stores the resulting public original URL and object key. Post creation does not store future variant URLs before the worker has written them, so new image posts render from the original immediately.
 6. Profile avatar/cover updates enqueue `media.process` so the worker can generate profile media variants.
 
+Web post composer accepts one MP4 or WebM video up to the API's 120 MB limit, renders the local object URL in an HTML5 player before and during publish, and reports byte progress from the direct presigned PUT. Video transfer therefore bypasses API compute and memory at 1M+ DAU; the API handles only the existing rate-limited presign and bounded post mutation. No new database query, cache, worker job, or index is required. The current R2 original remains the stored media URL until a dedicated Bunny.net, Cloudflare Stream, or AWS video pipeline is selected.
+
 Processing path:
 
 1. API enqueues `media.process` for post media and profile avatar/cover uploads.
@@ -1259,7 +1280,7 @@ Limits:
 
 Current gap:
 
-- Cloudflare Stream is not wired.
+- Uploaded film/post video uses Bunny Stream; Cloudflare Stream is not used. See the Bunny video integration section.
 - AVIF generation is deferred.
 
 ---
@@ -1278,10 +1299,10 @@ Feed cache:
 
 Profile stats cache:
 
-- Namespace: `profile-stats:v1`.
+- Namespace: `profile-stats:v3`; cache keys include selected year.
 - Public guest stats for public profiles are cached by username for 60 seconds and indexed by author user ID.
 - Authenticated stats are not cached because follower state and owner/private post visibility change the aggregate payload.
-- Author post create/edit/delete, post-owner interaction invalidation, and profile edits clear the author stats cache. Profile stats queries use `posts_user_type_created_at_idx` for per-user log/review scans and keep recent diary rows bounded.
+- Author post create/edit/delete, post-owner interaction invalidation, and profile edits clear every author/year stats key through the author index set. Profile stats queries use `posts_user_type_created_at_idx` for per-user log/review scans; credit lookup uses `catalog_titles_legacy_film_idx` and `catalog_credits_title_department_idx`; top film and metadata rankings are bounded. No new index is required.
 
 Catalog read cache:
 
@@ -1377,6 +1398,14 @@ Current:
   expose cursor-based setup/backfill scripts. See `docs/search.md`.
 - Film results and `/v1/films/:id` use canonical `films.id`; the existing title
   presentation resolves TMDB metadata behind that canonical URL.
+- Web `/films` provides one paginated catalog surface over 35mm movie records
+  plus TMDB fallback. Its type filter supports all titles, movies, TV shows,
+  keyword-classified web series, short films, documentaries, and miniseries.
+  TMDB movie/TV identities remain distinct during merge and deduplication.
+  Popularity is default ordering; matching 35mm records retain canonical IDs
+  in their TMDB-ranked positions instead of receiving source priority. Later
+  pages append without re-sorting rendered cards and load only through the
+  explicit catalog control, preventing scroll-anchor fetch loops.
 
 Remaining target:
 
@@ -1385,6 +1414,8 @@ Remaining target:
   - `users`
   - `posts`
 - Add normalized catalog people/company search projection.
+- Move 35mm-native TV/web-series browsing from TMDB fallback onto normalized
+  `catalog_titles`; legacy `films` rows currently represent movies only.
 - Composer film search should prefer 35mm film catalog search once populated.
 - TMDB should remain fallback/autocomplete only.
 
@@ -1626,10 +1657,10 @@ Highest priority architecture gaps:
 4. Add DB-level checks for ULID-shaped text IDs where practical.
 5. Finish notification digest scheduling; transactional Resend notification email is wired.
 6. Wire Cloudflare Stream if production video is in scope.
-8. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
-9. Validate migrations against current Drizzle schema in real environments.
-10. Define audited appeals, unsuspend, and unban actions if account reinstatement enters scope.
-11. Continue React Native Phase 2 with Login and Clerk session-task/MFA handling. Email verification, resend cooldown, change-email recovery, Clerk session activation, and the authenticated DOB completion bridge are implemented. Embedded-bundle iPhone build/sign/install, visible gallery rendering, sustained process, and clean startup logs are verified; representative physical Android evidence remains deferred by user and must still precede public release.
+7. Audit all TMDB-backed title/discover paths for canonical 35mm ID compliance.
+8. Validate migrations against current Drizzle schema in real environments.
+9. Define audited appeals, unsuspend, and unban actions if account reinstatement enters scope.
+10. Continue React Native Phase 2 with Login and Clerk session-task/MFA handling. Email verification, resend cooldown, change-email recovery, Clerk session activation, and the authenticated DOB completion bridge are implemented. Embedded-bundle iPhone build/sign/install, visible gallery rendering, sustained process, and clean startup logs are verified; representative physical Android evidence remains deferred by user and must still precede public release.
 
 Post-V1 or gated surfaces:
 
@@ -1652,3 +1683,170 @@ Post-V1 or gated surfaces:
 - Use feature query key factories.
 - Keep REST contracts stable and native-client friendly.
 - Keep schema, validators, shared types, API routes, frontend adapters, and worker side effects aligned in the same change.
+
+### Public list browsing — 2026-09-05
+
+`/lists` uses a compact search/filter toolbar and a Create List card as the first grid item, matching the list-card column width and stretching to the row height, retaining the authenticated list editor. `GET /v1/lists` accepts `q` (trimmed, max 100 characters; whole-word title search), `format=all|ranked|unranked`, and `size=all|short|medium|long` (under 10, 10–50, over 50 films), alongside existing popular/recent sort and cursor pagination. Filters apply in SQL before pagination; React Query keys include all filters, and search waits 300 ms after typing. Empty results retain creation and reset controls.
+
+Scale assumption: 1M DAU × 5 browse/search requests = 5M reads/day (~58 average requests/sec; peak load requires production query-plan/load verification). Pages default to 24, retain the existing hard maximum of 100, use denormalized entry/like counters, and batch summary hydration. Migration `0061_public_list_filters` adds a partial GIN title-search index, ranked/sort indexes, and an entry-count index, mirrored in Drizzle. Existing popular/recent indexes remain. PostgreSQL maintains indexes on writes; no new Redis cache or invalidation path. Existing mutation rate limits, async counters, soft deletes and auth remain in force; no new mutations. Apply migration before deployment; no live database migration or production load test performed in this change.
+
+### Web Letterboxd-inspired appearance (2026-09-05)
+
+The web theme provider, Settings Appearance picker, and profile appearance menu
+support `letterboxd`: blue-charcoal surfaces, green primary actions/ratings,
+blue social links, and orange activity accents. Existing `data-accent` overrides
+remain available. The authenticated, rate-limited settings appearance PATCH and
+GET allowlist persist and return this preference using `user_settings.theme`.
+This addition is web-only; native theme palettes retain their existing options.
+
+This follows the existing CSS semantic-token and per-user settings patterns.
+At 1M+ DAU, rendering adds no reads or writes; choosing a theme uses the existing
+idempotent per-user settings update. No new query, cache, index, schema migration,
+UGC, list endpoint, or worker job is introduced.
+
+
+## Bunny Stream film and post uploads (2026-09-05)
+
+Uploaded films and post videos now use Bunny Stream through `/v1/videos`; images remain on R2. Web has resumable uploads, processing status, creator/public uploaded-film lists, canonical ULID film watch routes, and authorized signed playback in post/quote cards. `video_assets` is the ownership/status/publication source of truth. Migration 0062 adds its idempotency, provider, post/film, cursor and pending-work indexes plus `films.is_catalog_listed` to isolate uploaded-film metadata from public catalog paths.
+
+The integration follows direct-to-provider media transfer, DB-leased reconciliation, BullMQ background sweeps, cursor pagination and existing post outbox/hybrid fan-out patterns. Bunny fetches a server-only final copy before readiness because client TUS grants can be reused; final copies are independently validated and staging media removed. Playback checks post/profile visibility and issues five-minute iframe grants. Film deletion is soft, with a transaction lock shared by publication/attachment. API/worker use five server-only `BUNNY_STREAM_*` variables; no public webhook is configured for the local-only API. Authenticated refresh and the worker provide processing checks without a callback.
+
+See [Bunny video integration](./bunny-video-uploads.md) for route contracts, quota and retention details, account configuration, operational limits, and the 1M-DAU capacity assumptions. Native/mobile video clients and unrelated existing short-film mock shelves are not changed by this web/API integration.
+
+
+### Viewport playback (2026-09-05)
+
+Web uploaded-video players load their signed iframe within 300px of the viewport without a click-to-load gate. The shared React Query appearance/media autoplay preference controls muted playback at 50% visibility; leaving the viewport or hiding the document pauses playback. Bunny Player.js messages validate both origin and iframe source, and scrolling does not reload the iframe or reset its position. Native HTML5 legacy post uploads follow the same visibility/preference rules. External YouTube/Vimeo link previews retain their separate click-to-embed behavior.
+
+`VideoPlayback` includes nullable `width` and `height` from the already-authorized asset row. The wrapper uses that ratio, caps portrait height at 70vh, and disables Bunny's internal responsive wrapper to avoid conflicting aspect ratios and exposed iframe margins. No crop is applied; bars encoded into source footage remain part of the video.
+
+Scale: assuming 20 video impressions per DAU, 1M DAU implies about 20M bounded playback authorization reads/day (~232/s average before traffic peaks). Only nearby players request grants; scrolling an existing player adds no API reads. Settings use the existing five-minute shared query cache, with existing mutation updates; grants retain zero cache lifetime after unmount. Media bytes go directly through Bunny CDN. This follows existing direct-provider delivery and authorized playback patterns; adds no mutation, UGC write, pagination, database index, migration, or worker job.
+
+
+### Video startup presentation (2026-09-05)
+
+Bunny playback grants now include a five-minute, file-scoped signed `posterUrl` for the generated `thumbnail.jpg`. The same authorized asset read creates both grants; no provider API call or additional DB read is added. The UI shows a labeled loading spinner during the actual visible authorization request, then a poster with a control to reveal the player during initialization. The initial embed URL disables autoplay; the shared playback coordinator starts the selected ready player through Player.js without reloading. The iframe becomes visible and keyboard-accessible on validated Player.js readiness. Its own controls report paused, playing, and buffering states; an autoplay request does not imply buffering. Before readiness, the poster provides a control to reveal the player. Provider errors or eight seconds of visible initialization also expose controls. Poster load failure falls back to the neutral surface. CDN poster delivery adds at most one image request per mounted player; no migration, index, mutation, worker, or new cache is introduced.
+
+### Eager web composer video uploads (2026-09-05)
+
+Selecting a valid post video starts the existing direct-to-Bunny upload while the user writes. The composer retains one upload promise per selected file; Post awaits that same upload and processing result, including after a post request fails. Completed media is not uploaded again. Background errors expose Retry upload; removing/replacing media or unmounting cancels transfer and ignores stale callbacks. Short-film selection already starts its upload automatically. Uploading does not publish content.
+
+This follows existing direct-provider transfer, idempotent upload sessions and bounded processing reconciliation. At the documented 10,000 video selections/day assumption for 1M DAU, timing changes but each selected file still uses one upload session; abandoned selections now consume upload quota/storage and follow existing unpublished-asset retention. No new API routes, counters, caches, indexes, migrations or worker jobs are needed. Existing authorization, mutation rate limits and soft-delete semantics remain in force.
+
+
+### Automatic post-transfer processing recovery (2026-09-05)
+
+Post and film selection already starts transfer and processing independently of publication. The shared web uploader now enters processing UI immediately after byte transfer, before the completion acknowledgement. Completion and status refresh recover network errors, HTTP 408/429 and server failures with at most five attempts per request and 15/30/60/60-second delays inside the existing one-hour processing wait. Permanent failures surface immediately; cancellation stops pending retries. Post continues to await the same draft upload promise. No publish request is needed to trigger recovery, and completed bytes are not uploaded again.
+
+This retains direct-provider transfer, idempotent completion and DB-leased reconciliation. At 10,000 uploads/day, healthy request volume is unchanged; each affected completion/status request adds at most four retries, spaced to avoid tight loops. Existing rate limits and provider leases remain enforced. No new routes, schema/indexes, cache, worker jobs or UGC writes. Regression coverage verifies both upload purposes, automatic recovery, bounded failure and cancellation; provider end-to-end behavior is not revalidated by these unit tests.
+
+### Shared web video sound preference (2026-09-05)
+
+Bunny and legacy HTML5 post players share `useVideoSoundStore`, a session-only Zustand UI preference. The saved media preference controls initial sound; changing mute in any player applies to mounted players and newly loaded posts across client-side navigation. Full page reload restores the saved account default. Scrolling no longer forces sound off. HTML5 native volume events update the store; visible, ready Bunny frames report mute state through correlated Player.js `getMuted` messages every 500ms because the standard does not expose a volume-change event. Origin/source validation and stale-response checks protect synchronization. Sound changes do not reload embeds or restart playback; existing visibility and autoplay settings still control play/pause. Browser restrictions can still require a playback gesture.
+
+This follows the UI-only Zustand pattern. At 1M+ DAU, sound synchronization adds zero server reads/writes or media requests: only mounted players subscribe and visible Bunny frames exchange two local messages per second. Playback-control synchronization requires no server calls; persistence of the saved default is described below.
+
+
+### Exclusive web video playback (2026-09-05)
+
+Bunny and native feed players share a browser-tab playback coordinator. The first ready, at-least-half-visible autoplay candidate retains ownership while eligible. Leaving the viewport, hiding the tab, disabling autoplay, or unmounting pauses that owner before starting another eligible player. Native play events and validated Bunny Player.js play events transfer ownership for manual playback. Embeds always initialize with autoplay disabled so simultaneous mounts cannot bypass selection. Existing session sound preferences remain shared.
+
+This is client-only UI coordination, bounded by mounted players. At 1M+ DAU it adds zero API reads/writes, database queries, media authorization requests, or worker jobs; existing nearby loading and CDN delivery remain unchanged. No index, migration, cache invalidation, mutation rate limiter, UGC deletion, or pagination changes apply.
+
+
+### Publish posts before video playback is ready (2026-09-05)
+
+Post uploads now resolve after the idempotent `/v1/videos/:id/complete` acknowledgement, which returns `VideoAssetStatus`; film uploads still wait for readiness. Post creation accepts owned, undeleted post-purpose assets in `processing` or `ready` under the existing row lock. It retains the request hash/replay guard even if processing later fails, and stores the stable application playback path plus asset ID rather than a staging provider URL. Selection starts uploading; Post awaits byte transfer/acknowledgement only. Composer removal or closure does not cancel server processing after acknowledgement.
+
+`GET /v1/videos/:id/playback` checks the same author, post visibility, moderation, block and deletion rules before returning either the existing signed ready grant or `{ state: "processing" | "failed", message, width, height }`. Pending/failed results never include media grants and remain `private, no-store`. `VideoPlaybackResult` is the shared union. The feed shows a processing placeholder, checks every 15 seconds only while visible in an active tab, and stops after 40 successful checks, readiness, failure or a request error. Check status starts another bounded interval; request errors expose Retry. Failed processing leaves the published text/post intact with an unavailable-video message; the uploader must upload again. No unvalidated staging playback is exposed. Acknowledged processing state cannot regress to uploading while the provider initializes.
+
+Durability uses the existing indexed pending-video sweep and leased reconciliation/final-copy validation. `pnpm dev:videos` runs only video jobs on the dedicated `35mm-video-jobs` BullMQ queue; deployed workers can use `pnpm --filter @35mm/worker start:videos` after build. The full worker still supports video jobs on `35mm-jobs`; either runner can process pending assets after all browser tabs close. If both run, the shared DB lease prevents duplicate provider work. At least one runner must remain running. The default `pnpm dev` still starts web/API only. No public webhook is configured for the local API, so the worker is required for unattended completion. The standalone video worker uses existing DB, queue and Bunny environment settings and logs queue/job failures.
+
+Scale: direct-to-provider bytes, BullMQ jobs, indexed DB leases, existing post idempotency and hybrid feed fan-out are preserved. At the existing 10,000 uploads/day assumption, upload/encoding work is unchanged; publication no longer waits on it. Assuming 100,000 visible pending-player sessions/day, the 40-check ceiling adds at most 4M bounded authorization/status reads/day (~46/s average before peaks); real concurrency still needs load testing. Pending reads never call Bunny or mutate data. No new table, index, cache or migration is required; asset primary-key lookups and the existing pending-work index cover the change. Existing mutation rate limits, cursor pagination, async counters and soft-delete rules remain in force. Chat behavior is unaffected.
+
+
+### Database migration reconciliation — 2026-09-05
+
+Live verification and repair targeted the Neon `neondb` database on endpoint
+`ep-cool-salad-ainq92ec`, shared by the local API, worker, and studio configuration.
+This does not verify separately configured deployment databases or AWS Keyspaces.
+
+- Applied missing `0011_rich_text_comments`: replaced the legacy 1,000-character
+  comment check with the schema/validator-aligned 100,000-character check.
+- Applied `0057`, `0058`, `0060`, and `0061`: all 17 missing quote, public-list,
+  and film-catalog indexes were built with `CREATE INDEX CONCURRENTLY`, a five-second
+  lock timeout, and a two-minute statement timeout per statement. Existing Drizzle
+  index definitions already cover these indexes; no application contract changed.
+- Replayed the idempotent `0059` and `0062` migrations and verified their indexes.
+  Streaming preferences and Bunny video schema had existed without ledger records.
+- Reconciled six older missing ledger entries (`0008`, `0009`, `0010`, `0012`,
+  `0018`, and `0019_notification_email_preferences`) after checking required live
+  columns, indexes, and enum values. Later migrations supersede some original
+  definitions, notably follow-suggestion user IDs; those historical DDL statements
+  were not replayed.
+- Final ledger has all 64 journal entries through `0062`; no missing entries and no
+  invalid or unready public indexes. The comment constraint was read back and verified.
+- Historical stored checksums differ from current files for `0022`, `0023`, and
+  `0040`. Original hashes were retained, not rewritten to imply historical SQL
+  provenance. Counter-job columns/check/indexes and catalog-title-genre columns,
+  primary key, and sort index were inspected. This is not proof of historical data
+  backfills; no counter backfill was rerun against ongoing asynchronous jobs.
+
+This is a database maintenance repair, not a new feature. It restores existing
+indexed, cursor-paginated read paths at the documented 1M+ DAU target; adds no
+request-time writes, counters, cache, API routes, or UGC deletion. Concurrent index
+builds preserve normal writes. Query-load testing was not performed. Migration
+ledger snapshots were saved locally under `/tmp/35mm-migration-repair/`; these
+contain migration metadata only and are not a database/data backup. Do not modify
+historical migration hashes merely to clear checksum differences.
+
+### Saved video sound default (2026-09-05)
+
+Media settings now include `startWithSound`, persisted as
+`user_settings.video_start_with_sound` (migration `0063`, default false).
+The authenticated, rate-limited `PATCH /v1/settings/media` validates a boolean
+and assigns it idempotently; omitted values preserve existing preferences.
+The settings response and web form include the field. React Query remains the
+source of saved settings and is updated optimistically with rollback on failure.
+Bunny and legacy HTML5 players derive their initial mute state from this value.
+Zustand holds only playback-control overrides scoped to account/default, never
+the persisted setting. Reload restores the saved default; changing the setting
+updates mounted players without reloading embeds. Browser autoplay policy can
+still require a manual Play gesture; controls remain available.
+
+Scale: assuming one settings read per active session and 1% of 1M DAU changing
+this preference daily, this adds no playback-time server calls and about 10,000
+indexed single-user writes/day. Reads reuse the existing five-minute settings
+query cache; mutation success replaces that cache and failures roll back.
+The unique user_id index already supports the update; no new index or worker.
+No UGC, list endpoint, counters, or pagination changes. Chat docs/diagrams unchanged.
+
+Migration 0063 was applied and its boolean/default/not-null definition verified against the database configured by the local API on 2026-09-05. Other deployment databases must apply the migration before deploying this settings query.
+
+### Unified video sound control (2026-09-05)
+
+Media settings expose one Video sound selector: Muted, Low volume, Normal volume.
+It saves the existing startWithSound/quietMode pair in one request: false/false,
+true/true, or true/false respectively. Existing muted+quiet preferences display
+Muted until changed. No schema or API contract migration is required.
+Bunny Player.js and HTML5 players apply 30% for Low volume and 100% for Normal
+volume on initialization and when the volume preference changes; manual player
+volume adjustments are not overwritten on ordinary renders or scrolling.
+Device-controlled browsers may retain hardware volume control.
+This extends the existing React Query settings and session UI override patterns.
+At 1M+ DAU, there are no additional server reads/writes beyond the existing
+single settings mutation, with existing auth, rate limiting and rollback.
+No new index, worker, cache, UGC semantics or pagination changes.
+
+### Web embedded player controls (2026-09-05)
+
+`BunnyVideoPlayer` disables AirPlay with the supported `disableAirplay=true` embed parameter and explicitly denies picture-in-picture through iframe Permissions Policy. The application has no SharePlay integration. Bunny's library-level `Controls` setting owns the rendered legacy player toolbar; the toolbar enables 10s Backward, 10s Forward, Current Time and Duration, while retaining existing play/pause, progress, captions, mute, volume, settings and fullscreen controls. Rewind/forward use the legacy player's 10-second seek interval; including both time controls displays elapsed time and total duration. These library settings were saved through the Bunny dashboard; the scoped Stream API key cannot manage library settings. New libraries must apply the same toolbar configuration in Bunny Player settings. Verified in the live local film page: forward moves paused playback from 00:00 to 00:10, rewind returns to 00:00, total duration remains 00:26, and PiP/AirPlay controls are absent. The 20 focused player tests and web typecheck pass.
+
+This follows existing direct-provider playback and client-only presentation patterns. At the existing 20M video impressions/day assumption for 1M DAU, these flags add zero API/DB reads or writes. No new index, schema, cache, worker, mutation, pagination or UGC lifecycle change applies. Chat and architecture diagrams are unaffected.
+
+
+### Video playback affordances (2026-09-05)
+
+Post video previews display a labeled loading spinner only during an actual visible playback-authorization request. Once the iframe exists, its poster offers a control to reveal the player; validated Player.js readiness exposes native controls immediately. The application does not label iframe initialization or autoplay requests as buffering. Bunny owns playback/loading indicators, including browser-blocked autoplay and later rebuffering. Processing assets retain a distinct processing spinner. Legacy HTML5 post videos show Play while paused and loading during active play requests, buffering, and seeks. Controls preserve keyboard access and post-click isolation.
+
+This follows the existing viewport-gated playback and browser-tab playback coordinator patterns. At the documented 20M video impressions/day assumption for 1M DAU, these local UI states add no API reads, writes, polling, or media requests. No new index, cache, mutation, pagination, UGC semantics, or worker change is required.

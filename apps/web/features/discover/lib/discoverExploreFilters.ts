@@ -77,8 +77,19 @@ export type DiscoverDecadeId =
   | "2020s"
   | "2010s"
   | "2000s"
-  /** 1990s and earlier (single bucket for compact UI). */
-  | "pre_2000";
+  | "1990s"
+  | "1980s"
+  | "1970s"
+  | "1960s"
+  | "1950s"
+  | "1940s"
+  | "1930s"
+  | "1920s"
+  | "1910s"
+  | "1900s"
+  | "1890s"
+  | "1880s"
+  | "1870s";
 
 /** US theatrical (approximate; NR / unrated is loosely supported by TMDB). */
 export type DiscoverCertificationId =
@@ -131,7 +142,19 @@ export const DISCOVER_DECADE_OPTIONS: { id: DiscoverDecadeId; label: string }[] 
     { id: "2020s", label: "2020s" },
     { id: "2010s", label: "2010s" },
     { id: "2000s", label: "2000s" },
-    { id: "pre_2000", label: "90s & older" },
+    { id: "1990s", label: "1990s" },
+    { id: "1980s", label: "1980s" },
+    { id: "1970s", label: "1970s" },
+    { id: "1960s", label: "1960s" },
+    { id: "1950s", label: "1950s" },
+    { id: "1940s", label: "1940s" },
+    { id: "1930s", label: "1930s" },
+    { id: "1920s", label: "1920s" },
+    { id: "1910s", label: "1910s" },
+    { id: "1900s", label: "1900s" },
+    { id: "1890s", label: "1890s" },
+    { id: "1880s", label: "1880s" },
+    { id: "1870s", label: "1870s" },
   ];
 
 export const DISCOVER_CERT_OPTIONS: {
@@ -197,19 +220,11 @@ function decadeToReleaseRange(
   decadeId: DiscoverDecadeId
 ): { gte: string; lte: string } | null {
   if (decadeId === "any") return null;
-  if (decadeId === "2020s") {
-    return { gte: "2020-01-01", lte: "2029-12-31" };
-  }
-  if (decadeId === "2010s") {
-    return { gte: "2010-01-01", lte: "2019-12-31" };
-  }
-  if (decadeId === "2000s") {
-    return { gte: "2000-01-01", lte: "2009-12-31" };
-  }
-  if (decadeId === "pre_2000") {
-    return { gte: "1900-01-01", lte: "1999-12-31" };
-  }
-  return null;
+  const startYear = Number.parseInt(decadeId, 10);
+  return {
+    gte: `${startYear}-01-01`,
+    lte: `${startYear + 9}-12-31`,
+  };
 }
 
 function applyRatingPreset(

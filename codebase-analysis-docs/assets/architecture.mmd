@@ -8,6 +8,8 @@ flowchart LR
   Redis["Upstash Redis\ncache + BullMQ broker"]
   Keyspaces["AWS Keyspaces\nchat messages + edits"]
   Worker["BullMQ worker\napps/worker"]
+  VideoWorker["Optional dedicated video worker\n35mm-video-jobs / apps/worker/src/videos.ts"]
+  Bunny["Bunny Stream\nupload staging + final copies + signed playback"]
   R2["Cloudflare R2\nmedia originals + variants"]
   Ably["Ably\nnotifications channel"]
   TMDB["TMDB\ncold-start search/fallback"]
@@ -29,3 +31,13 @@ flowchart LR
   Worker --> R2
   Worker --> Ably
   Browser -->|optional realtime subscribe| Ably
+
+  Browser -->|signed resumable TUS upload| Bunny
+  Browser -->|authorized iframe playback| Bunny
+  Hono -->|create, finalize, verify status| Bunny
+  Worker -->|leased reconciliation| Bunny
+  Bunny -.->|signed webhook when API deployed| Hono
+
+  VideoWorker -->|bounded sweep + leased state updates| Neon
+  VideoWorker -->|consume video jobs| Redis
+  VideoWorker -->|finalize and verify| Bunny

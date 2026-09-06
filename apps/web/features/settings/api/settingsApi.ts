@@ -4,6 +4,7 @@ import type {
   UpdateNotificationsInput,
   UpdatePrivacyInput,
   UpdateProfileInput,
+  UpdateStreamingServicesInput,
   UserSettings,
 } from "../types/settings";
 import { apiRequest } from "@/features/feed/api/http";
@@ -90,6 +91,17 @@ export async function updateMedia(
   token: string | null
 ): Promise<UserSettings> {
   return apiRequest<UserSettings>("/v1/me/settings/media", {
+    method: "PATCH",
+    token,
+    body: input,
+  });
+}
+
+export async function updateStreamingServices(
+  input: UpdateStreamingServicesInput,
+  token: string | null
+): Promise<UserSettings> {
+  return apiRequest<UserSettings>("/v1/me/settings/streaming-services", {
     method: "PATCH",
     token,
     body: input,

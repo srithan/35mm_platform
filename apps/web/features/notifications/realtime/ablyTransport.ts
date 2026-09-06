@@ -22,7 +22,6 @@ const ALLOWED_NOTIFICATION_TYPES: readonly NotificationType[] = [
   "mention",
   "repost",
   "film_logged",
-  "chat_reaction",
   "report_status_update",
   "content_moderated",
   "content_under_review",

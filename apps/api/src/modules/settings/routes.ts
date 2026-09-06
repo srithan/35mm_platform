@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { eq, sql } from "drizzle-orm";
 import { users, profiles, userSettings, type NotificationEmailPreferences } from "@35mm/db/schema";
+import {
+  DEFAULT_STREAMING_SERVICE_IDS,
+  normalizeStreamingServiceIds,
+} from "@35mm/types/streaming-services";
 import { isReservedUsername, usernameSchema } from "@35mm/validators";
 import { getDb } from "../../lib/db.js";
 import { requireAuth } from "../../lib/middleware.js";
@@ -39,12 +43,14 @@ interface SettingsRecord {
   videoDefaultQuality: string | null;
   videoAlwaysShowCaptions: boolean;
   videoCaptionStyle: string | null;
+  videoStartWithSound: boolean;
   videoQuietMode: boolean;
+  streamingServiceIds: string[];
 }
 
 function isValidTheme(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
-  return ["auto", "light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie"].includes(value);
+  return ["auto", "light", "dark", "matinee", "matrix", "oppenheimer-bw", "barbie", "letterboxd"].includes(value);
 }
 
 var VALID_ACCENT_COLORS = [
@@ -185,6 +191,7 @@ function isLegacySettingsSchemaError(err: unknown): boolean {
     message.includes("video_always_show_captions") ||
     message.includes("video_caption_style") ||
     message.includes("video_quiet_mode") ||
+    message.includes("streaming_service_ids") ||
     message.includes("accent_color") ||
     message.includes("notification_email_preferences")
   );
@@ -219,7 +226,9 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
         videoDefaultQuality: userSettings.videoDefaultQuality,
         videoAlwaysShowCaptions: userSettings.videoAlwaysShowCaptions,
         videoCaptionStyle: userSettings.videoCaptionStyle,
+        videoStartWithSound: userSettings.videoStartWithSound,
         videoQuietMode: userSettings.videoQuietMode,
+        streamingServiceIds: userSettings.streamingServiceIds,
       })
       .from(users)
       .innerJoin(profiles, eq(profiles.userId, users.id))
@@ -272,7 +281,9 @@ async function fetchSettingsForUser(userId: string): Promise<SettingsRecord> {
       videoDefaultQuality: "auto",
       videoAlwaysShowCaptions: false,
       videoCaptionStyle: "default",
+      videoStartWithSound: false,
       videoQuietMode: false,
+      streamingServiceIds: DEFAULT_STREAMING_SERVICE_IDS,
     };
   }
 }
@@ -313,7 +324,13 @@ function formatSettings(record: SettingsRecord) {
       captionStyle: isValidVideoCaptionStyle(record.videoCaptionStyle)
         ? record.videoCaptionStyle
         : "default",
+      startWithSound: record.videoStartWithSound,
       quietMode: record.videoQuietMode,
+    },
+    streamingServices: {
+      serviceIds:
+        normalizeStreamingServiceIds(record.streamingServiceIds) ??
+        DEFAULT_STREAMING_SERVICE_IDS,
     },
   } as const;
 }
@@ -629,6 +646,13 @@ settingsRoutes.patch("/media", requireAuth, settingsWriteRateLimit, async functi
     updates.videoCaptionStyle = captionStyle;
   }
 
+  if (body.startWithSound !== undefined) {
+    if (typeof body.startWithSound !== "boolean") {
+      throw badRequest("startWithSound must be true or false");
+    }
+    updates.videoStartWithSound = body.startWithSound;
+  }
+
   if (body.quietMode !== undefined) {
     var quietMode = ensureBooleanish(body.quietMode);
     if (quietMode === null) {
@@ -650,6 +674,38 @@ settingsRoutes.patch("/media", requireAuth, settingsWriteRateLimit, async functi
       }
       throw err;
     }
+  }
+
+  var record = await fetchSettingsForUser(user.userId);
+  return c.json(formatSettings(record));
+});
+
+settingsRoutes.patch("/streaming-services", requireAuth, settingsWriteRateLimit, async function (c) {
+  var user = c.get("user");
+  var body = await c.req.json().catch(function () {
+    return null;
+  });
+  var serviceIds = normalizeStreamingServiceIds(
+    isObjectRecord(body) ? body.serviceIds : null
+  );
+
+  if (serviceIds === null) {
+    throw badRequest("serviceIds must contain only supported streaming service IDs");
+  }
+
+  try {
+    await getDb()
+      .update(userSettings)
+      .set({
+        streamingServiceIds: serviceIds,
+        updatedAt: new Date(),
+      })
+      .where(eq(userSettings.userId, user.userId));
+  } catch (err) {
+    if (isLegacySettingsSchemaError(err)) {
+      throw badRequest("Streaming service settings are unavailable until database migrations are applied.");
+    }
+    throw err;
   }
 
   var record = await fetchSettingsForUser(user.userId);

@@ -8,7 +8,6 @@ import {
   Link2,
   Lock,
   Play,
-  Save,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -171,18 +170,12 @@ export function StepPublish({ upload }: { upload: ShortFilmUploadFormApi }) {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border-strong bg-sunken px-5 py-3 text-[14px] font-semibold text-fg-muted transition hover:bg-sunken-2 hover:text-fg"
-          >
-            <Save className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-            Save draft
-          </button>
-          <button
-            type="button"
             onClick={upload.publish}
+            disabled={upload.isPublishing || !upload.step1Valid || !upload.step2Valid || !upload.step3Valid}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-fg px-6 py-3.5 text-[15px] font-bold text-bg shadow-lg shadow-fg/10 transition hover:-translate-y-0.5 hover:opacity-90"
           >
             <Play className="h-4 w-4 fill-current" strokeWidth={2.2} aria-hidden />
-            Publish film
+            {upload.isPublishing ? "Publishing…" : "Publish film"}
           </button>
         </div>
       </div>

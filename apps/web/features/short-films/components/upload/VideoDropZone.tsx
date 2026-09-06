@@ -19,7 +19,7 @@ export function VideoDropZone({ upload }: { upload: ShortFilmUploadFormApi }) {
     function (files: FileList | null) {
       var file = files?.[0];
       if (!file) return;
-      if (!file.type.startsWith("video/")) return;
+
       startVideoUpload(file);
     },
     [startVideoUpload]
@@ -39,7 +39,7 @@ export function VideoDropZone({ upload }: { upload: ShortFilmUploadFormApi }) {
             </p>
             <p className="mt-0.5 text-[12px] text-fg-muted">
               {formatFileSize(form.videoFile.size)}
-              {uploading ? " · Uploading…" : " · Ready"}
+              {upload.processing ? " · Processing video…" : uploading ? " · Uploading…" : " · Ready"}
             </p>
           </div>
           <button
@@ -63,7 +63,7 @@ export function VideoDropZone({ upload }: { upload: ShortFilmUploadFormApi }) {
           </div>
           <div className="mt-2 flex items-center justify-between text-[12px]">
             <span className="text-fg-muted">
-              {form.videoUploadComplete ? "Upload complete" : "Uploading…"}
+              {form.videoUploadComplete ? "Ready to publish" : upload.processing ? "Preparing playback…" : "Uploading…"}
             </span>
             <span className="font-bold tabular-nums text-accent">
               {form.videoUploadProgress}%

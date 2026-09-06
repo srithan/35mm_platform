@@ -54,7 +54,7 @@ export function CommentCard({
     comment.authorId !== currentUserQuery.data?.userId;
   const authorHandle = `@${comment.username}`;
   const hasReplies = comment.replies && comment.replies.length > 0;
-  const { containerStyle } = getCommentThreadStyles(depth);
+  const { containerStyle, contentStyle, repliesStyle } = getCommentThreadStyles(depth);
   const displayText = storedRichTextToPlainText(comment.text);
   const { cleanedText, previews } = extractVideoPreviews(displayText);
   const renderText = isStoredRichText(comment.text) ? comment.text : cleanedText;
@@ -140,87 +140,97 @@ export function CommentCard({
     <div
       id={`comment-${comment.id}`}
       className={cn(
-        "CommentCard w-full bg-bg px-4 py-4 animate-fade-up border-b border-border transition-colors duration-150 hover:bg-card-hover last:border-b-0",
+        "CommentCard w-full bg-bg animate-fade-up border-b border-border last:border-b-0",
         depth > 0 && "border-l-2 border-l-border"
       )}
       style={containerStyle}
     >
-      <div className="flex items-start min-w-0">
-        <CommentCardHeader comment={comment} depth={depth} menu={moreMenu}>
-          <NsfwTextReveal
-            status={comment.nsfw?.status ?? "none"}
-            categories={comment.nsfw?.categories ?? []}
-            compact
-          >
-            <CommentCardBody
-              isEditing={isEditing}
-              editDraft={editDraft}
-              isSaving={updateCommentMutation.isPending}
-              cleanedText={renderText}
-              gifUrl={comment.gifUrl}
-              previews={previews}
-              expanded={expanded}
-              isOverflowing={isOverflowing}
-              truncatedText={truncatedText}
-              bodyRef={bodyRef}
-              measureRef={measureRef}
-              onEditDraftChange={setEditDraft}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={() => {
-                setIsEditing(false);
-                setEditDraft(comment.text);
-              }}
-              onExpand={() => setExpanded(true)}
-              onCollapse={() => setExpanded(false)}
-            />
-          </NsfwTextReveal>
+      <div
+        className={cn(
+          "CommentCardHover bg-bg px-4 pt-4 transition-colors duration-150",
+          !hasReplies && "pb-4"
+        )}
+        style={contentStyle}
+      >
+        <div className="flex items-start min-w-0">
+          <CommentCardHeader comment={comment} depth={depth} menu={moreMenu}>
+            <NsfwTextReveal
+              status={comment.nsfw?.status ?? "none"}
+              categories={comment.nsfw?.categories ?? []}
+              compact
+            >
+              <CommentCardBody
+                isEditing={isEditing}
+                editDraft={editDraft}
+                isSaving={updateCommentMutation.isPending}
+                cleanedText={renderText}
+                gifUrl={comment.gifUrl}
+                previews={previews}
+                expanded={expanded}
+                isOverflowing={isOverflowing}
+                truncatedText={truncatedText}
+                bodyRef={bodyRef}
+                measureRef={measureRef}
+                onEditDraftChange={setEditDraft}
+                onSaveEdit={handleSaveEdit}
+                onCancelEdit={() => {
+                  setIsEditing(false);
+                  setEditDraft(comment.text);
+                }}
+                onExpand={() => setExpanded(true)}
+                onCollapse={() => setExpanded(false)}
+              />
+            </NsfwTextReveal>
 
-          <CommentCardActionsBar
-            postId={postId}
-            commentId={comment.id}
-            likeCount={comment.likeCount}
-            replyCount={comment.replyCount}
-            liked={comment.liked}
-            depth={depth}
-            onCommentClick={() => setRepliesExpanded((value) => !value)}
-            onReplyClick={() => {
-              setRepliesExpanded(true);
-              setReplyBoxOpen((value) => !value);
-            }}
-          />
-
-          <CommentCardReplyComposer
-            open={replyBoxOpen}
-            depth={depth}
-            username={comment.username}
-            displayName={comment.displayName}
-            replyText={replyText}
-            gifUrl={replyGifUrl}
-            onReplyTextChange={setReplyText}
-            onGifChange={setReplyGifUrl}
-            onSubmit={handleReplySubmit}
-            onCancel={function () {
-              setReplyBoxOpen(false);
-              setReplyText("");
-              setReplyGifUrl(null);
-            }}
-          />
-
-          {hasReplies ? (
-            <CommentCardReplies
-              replies={comment.replies!}
+            <CommentCardActionsBar
               postId={postId}
-              postBookmarked={postBookmarked}
-              postBookmarkFolderId={postBookmarkFolderId}
+              commentId={comment.id}
+              likeCount={comment.likeCount}
+              replyCount={comment.replyCount}
+              liked={comment.liked}
               depth={depth}
-              expanded={repliesExpanded}
-              onExpand={() => setRepliesExpanded(true)}
-              truncateText={truncateText}
-              onReplySubmit={onReplySubmit}
+              onCommentClick={() => setRepliesExpanded((value) => !value)}
+              onReplyClick={() => {
+                setRepliesExpanded(true);
+                setReplyBoxOpen((value) => !value);
+              }}
             />
-          ) : null}
-        </CommentCardHeader>
+
+            <CommentCardReplyComposer
+              open={replyBoxOpen}
+              depth={depth}
+              username={comment.username}
+              displayName={comment.displayName}
+              replyText={replyText}
+              gifUrl={replyGifUrl}
+              onReplyTextChange={setReplyText}
+              onGifChange={setReplyGifUrl}
+              onSubmit={handleReplySubmit}
+              onCancel={function () {
+                setReplyBoxOpen(false);
+                setReplyText("");
+                setReplyGifUrl(null);
+              }}
+            />
+          </CommentCardHeader>
+        </div>
       </div>
+
+      {hasReplies ? (
+        <div className="bg-bg pb-4 pr-4" style={repliesStyle}>
+          <CommentCardReplies
+            replies={comment.replies!}
+            postId={postId}
+            postBookmarked={postBookmarked}
+            postBookmarkFolderId={postBookmarkFolderId}
+            depth={depth}
+            expanded={repliesExpanded}
+            onExpand={() => setRepliesExpanded(true)}
+            truncateText={truncateText}
+            onReplySubmit={onReplySubmit}
+          />
+        </div>
+      ) : null}
 
       <CommentCardOverlays
         postId={postId}

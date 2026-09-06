@@ -189,6 +189,17 @@ onboardingRoutes.post("/onboarding/films/resolve", requireAuth, onboardingWriteR
       .limit(1);
 
     if (existingRows.length > 0) {
+      if (filmInput.runtime || filmInput.language || filmInput.country) {
+        await db
+          .update(films)
+          .set({
+            runtime: sql`coalesce(${films.runtime}, ${filmInput.runtime ?? null})`,
+            language: sql`coalesce(${films.language}, ${filmInput.language ?? null})`,
+            country: sql`coalesce(${films.country}, ${filmInput.country ?? null})`,
+            updatedAt: new Date(),
+          })
+          .where(eq(films.id, existingRows[0].id));
+      }
       ids.push(existingRows[0].id);
       continue;
     }
@@ -208,6 +219,9 @@ onboardingRoutes.post("/onboarding/films/resolve", requireAuth, onboardingWriteR
         year: filmInput.year ?? null,
         posterUrl: filmInput.posterUrl ?? null,
         genres: filmInput.genres,
+        runtime: filmInput.runtime ?? null,
+        language: filmInput.language ?? null,
+        country: filmInput.country ?? null,
         source: "tmdb_import",
       })
       .onConflictDoNothing()
@@ -260,7 +274,7 @@ onboardingRoutes.post("/me/onboarding", requireAuth, onboardingWriteRateLimit, a
     var filmRows = await db
       .select({ id: films.id })
       .from(films)
-      .where(inArray(films.id, favoriteFilmIds));
+      .where(and(eq(films.isCatalogListed, true), inArray(films.id, favoriteFilmIds)));
 
     if (filmRows.length !== favoriteFilmIds.length) {
       throw badRequest("favoriteFilmIds contain unknown film IDs");

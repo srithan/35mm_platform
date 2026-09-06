@@ -3,6 +3,7 @@ import { adaptPostToFeedType } from "./adapters";
 import { apiRequest } from "./http";
 
 export type ProfileFeedKind = "all" | "reposts";
+export type QuotePostSort = "latest" | "top";
 
 export interface FetchFeedParams {
   cursor?: string;
@@ -24,6 +25,34 @@ export async function fetchFeed(params: FetchFeedParams): Promise<FeedPage> {
     : `/v1/feed?${query.toString()}`;
   const page = await apiRequest<{ items: unknown[]; nextCursor: string | null; hasMore: boolean }>(
     path,
+    { token: params.token }
+  );
+
+  return {
+    posts: page.items.map((item): Post =>
+      adaptPostToFeedType(item as Parameters<typeof adaptPostToFeedType>[0])
+    ),
+    nextCursor: page.nextCursor,
+    hasMore: page.hasMore,
+  };
+}
+
+export interface FetchQuotePostsParams {
+  postId: string;
+  sort?: QuotePostSort;
+  cursor?: string;
+  limit?: number;
+  token?: string | null;
+}
+
+export async function fetchQuotePosts(params: FetchQuotePostsParams): Promise<FeedPage> {
+  const query = new URLSearchParams({
+    limit: String(params.limit ?? 20),
+    sort: params.sort ?? "latest",
+  });
+  if (params.cursor) query.set("cursor", params.cursor);
+  const page = await apiRequest<{ items: unknown[]; nextCursor: string | null; hasMore: boolean }>(
+    `/v1/feed/posts/${encodeURIComponent(params.postId)}/quotes?${query.toString()}`,
     { token: params.token }
   );
 

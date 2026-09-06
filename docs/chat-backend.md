@@ -39,7 +39,7 @@ This split keeps common inbox reads cheap:
 - Message page reads query Keyspaces by `(thread_id, bucket)` and descending `message_id`.
 - Message send writes one Keyspaces row plus one Postgres summary upsert.
 - Message send also upserts `chat_member_state.last_message_at` for active participants so inbox ordering stays on the per-user metadata path.
-- First-time reaction notifications upsert `chat_member_state.last_message_at` for the recipient because they update inbox activity and unread state.
+- First-time reaction activity upserts `chat_member_state.last_message_at` for the recipient because reactions update the chat inbox and chat unread state. Chat activity never enters the main notification pipeline.
 - Worker jobs hydrate Keyspaces rows only when realtime publishing needs a payload.
 
 The tradeoff is cross-store consistency. A send touches Keyspaces, Postgres, Redis, and BullMQ. The code orders writes so the message row is created before the thread summary and delivery job. If realtime fails, persisted reads still work.
@@ -584,7 +584,7 @@ Behavior:
 - Writes the full reactions map back to `messages.reactions`.
 - Publishes `message.reaction` directly to `thread:{threadId}` after persistence.
 - Enqueues `chat.messageUpdated` with type `reaction` only when direct publish fails.
-- Creates a `chat_reaction` notification for the message sender only on the first reaction add by that actor, increments that sender's chat unread count, updates `chat_thread_meta` and recipient `chat_member_state.last_message_at` with reaction activity, and publishes `thread.updated` to `user:{recipientId}:inbox` so header badges and unread rows update in realtime. Self-reactions, duplicate retries, inactive recipients, and reaction removals do not create notifications or unread increments.
+- On the first reaction add by that actor, increments the sender's chat unread count, updates `chat_thread_meta` and recipient `chat_member_state.last_message_at`, and publishes `thread.updated` to `user:{recipientId}:inbox` so chat badges and unread rows update in realtime. Chat reactions never create main notifications. Self-reactions, duplicate retries, inactive recipients, and reaction removals do not create chat unread activity.
 - Returns the updated hydrated message so clients can patch the active thread
   cache without a follow-up read.
 

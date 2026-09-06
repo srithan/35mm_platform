@@ -5,6 +5,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { useTheme } from "@/lib/theme/useTheme";
 import { useAuth } from "@clerk/nextjs";
+import { DEFAULT_STREAMING_SERVICE_IDS } from "@35mm/types/streaming-services";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -161,7 +162,11 @@ export function SettingsContent({
       videoAutoplay: true,
       alwaysShowCaptions: false,
       captionStyle: "default",
+      startWithSound: false,
       quietMode: false,
+    },
+    streamingServices: {
+      serviceIds: DEFAULT_STREAMING_SERVICE_IDS,
     },
   };
 

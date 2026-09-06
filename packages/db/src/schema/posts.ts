@@ -53,6 +53,7 @@ export type PostFilm = {
 export type PostMedia = {
   type: "image" | "video" | "film_embed" | "none";
   url: string;
+  videoAssetId?: string;
   key?: string;
   thumbnailUrl?: string;
   altText?: string;
@@ -162,6 +163,16 @@ export var posts = pgTable(
       quotedPostCreatedAtIdx: index("posts_quoted_post_id_created_at_id_idx")
         .on(table.quotedPostId, table.createdAt.desc(), table.id.desc())
         .where(sql`${table.quotedPostId} is not null and ${table.isDeleted} = false`),
+      quotedPostLikesIdx: index("posts_quoted_post_id_like_count_created_at_id_idx")
+        .on(
+          table.quotedPostId,
+          table.likeCount.desc(),
+          table.createdAt.desc(),
+          table.id.desc()
+        )
+        .where(
+          sql`${table.quotedPostId} is not null and ${table.isRepost} = false and ${table.isDeleted} = false`
+        ),
     };
   }
 );

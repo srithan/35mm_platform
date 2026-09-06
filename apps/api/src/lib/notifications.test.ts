@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { isMainNotificationType } from "@35mm/db/notification-service";
 
 async function importNotificationsWithExecute(execute: ReturnType<typeof vi.fn>) {
   vi.doMock("./db.js", function () {
@@ -31,5 +32,13 @@ describe("notification read mutations", function () {
 
     expect(updated).toBe(5007);
     expect(execute).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("main notification boundary", function () {
+  it("rejects chat-owned activity", function () {
+    expect(isMainNotificationType("chat_reaction")).toBe(false);
+    expect(isMainNotificationType("like")).toBe(true);
+    expect(isMainNotificationType("content_moderated")).toBe(true);
   });
 });

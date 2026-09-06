@@ -1,0 +1,285 @@
+[     729ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_compiled_react-dom_118a5282._.js:14537
+[     980ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[     980ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1022ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1022ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1036ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1036ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1042ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1042ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1046ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1046ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1051ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1051ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1055ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1055ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1060ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1060ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1067ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1067ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1070ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1070ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1074ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1074ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1077ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1077ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1081ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1081ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1084ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1084ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1091ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1091ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1094ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1094ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1098ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://polite-werewolf-55.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:11
+[    1101ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1101ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1105ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1105ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1109ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1109ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1114ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[    1116ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1116ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1119ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1119ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1123ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1123ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1126ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1127ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1130ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1130ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1133ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1133ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1136ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1136ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1140ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1140ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1143ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1143ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1146ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1146ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1149ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1149ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1153ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1153ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1157ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1157ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1165ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1165ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1167ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1167ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1168ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1168ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1169ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1169ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1170ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1171ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1172ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1172ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1173ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1173ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1174ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1174ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1175ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1175ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1176ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1176ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1177ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1177ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[    1428ms] [LOG] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    1428ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /login, path: /login} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    1428ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /login, path: /login} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    1429ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/login?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fdiscover color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/login?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fdiscover, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497014140} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    1429ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/login?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fdiscover color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/login?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fdiscover, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497014140} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[    1432ms] [LOG] %c[Vercel Speed Insights]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[    1901ms] [LOG] [Fast Refresh] done in 892ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[    2002ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[    2133ms] [LOG] [Fast Refresh] done in 231ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[   13142ms] [ERROR] Failed to load resource: the server responded with a status of 422 () @ https://polite-werewolf-55.clerk.accounts.dev/v1/client/sign_ins?__clerk_api_version=2026-05-12&_clerk_js_version=6.31.0&__clerk_db_jwt=dvb_3IqfRqhOX26shQHdX1mWiDxnQWu:0
+[   19050ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[   19108ms] [LOG] [Fast Refresh] done in 159ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[   27232ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_compiled_react-dom_118a5282._.js:14537
+[   27347ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27347ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27399ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27399ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27422ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27422ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27439ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27439ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27453ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27453ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27471ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27471ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27481ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://polite-werewolf-55.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:11
+[   27488ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27488ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27506ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27506ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27515ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27515ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27519ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27519ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27524ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27524ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27533ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27533ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27537ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27537ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27541ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27541ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27546ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27546ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27550ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27550ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27554ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27554ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27558ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27558ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27562ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27562ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27567ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27567ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27571ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27571ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27576ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27576ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27581ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27581ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27585ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27585ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27600ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27600ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27604ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27604ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27608ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27608ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27612ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27612ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27617ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27617ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27621ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27621ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27627ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27627ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27634ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27634ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27642ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27642ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[   27717ms] [LOG] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   27717ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /, path: /} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   27717ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /, path: /} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   27717ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497040428} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   27717ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497040428} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   27717ms] [LOG] %c[Vercel Speed Insights]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[   29209ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_7c7ba7ff._.js:2445
+[   29232ms] [LOG] [FilmCard] extracted rgb: 70, 48, 33 sat: 0.53 @ http://localhost:3000/_next/static/chunks/apps_web_components_7c7ba7ff._.js:2483
+[   29237ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ http://localhost:3000/_next/static/chunks/apps_web_components_7c7ba7ff._.js:2445
+[   29238ms] [LOG] [FilmCard] extracted rgb: 32, 42, 53 sat: 0.40 @ http://localhost:3000/_next/static/chunks/apps_web_components_7c7ba7ff._.js:2483
+[   48188ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[   48227ms] [LOG] [Fast Refresh] done in 141ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[   48343ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[   48409ms] [LOG] [Fast Refresh] done in 166ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[   48505ms] [LOG] %c[Vercel Speed Insights]%c [vitals] color: rgb(120, 120, 120) color: inherit {speed: 4g, metrics: Array(4), scriptVersion: 0.1.3, sdkName: @vercel/speed-insights/next, sdkVersion: 1.3.1} /_vercel/speed-insights/vitals @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[   48572ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/discover color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/discover, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497061257} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   64483ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[   64671ms] [LOG] [Fast Refresh] done in 288ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[   67496ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/lists color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/lists, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497080206} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   73901ms] [ERROR] Failed to load resource: the server responded with a status of 429 (Too Many Requests) @ http://localhost:4000/v1/chat/presence/ping:0
+[   73901ms] [WARNING] [chat-presence] heartbeat failed ChatApiError: Too many requests. Please retry later.
+    at chatHttpJson (http://localhost:3000/_next/static/chunks/apps_web_3e8eacf1._.js:2684:19) @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:745
+[   75596ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[   76219ms] [LOG] [Fast Refresh] done in 724ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[   76247ms] [WARNING] Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element: JSHandle@node @ http://localhost:3000/_next/static/chunks/b4b53_next_20d92f0a._.js:1722
+[   76254ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/contribute color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/contribute, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497088963} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[   76321ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[   76381ms] [LOG] [Fast Refresh] done in 161ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  133840ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  134489ms] [LOG] [Fast Refresh] done in 750ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  134591ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  134658ms] [LOG] [Fast Refresh] done in 169ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  134935ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  134955ms] [LOG] [Fast Refresh] done in 121ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  279173ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  279216ms] [LOG] [Fast Refresh] done in 144ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  281103ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  281824ms] [LOG] [Fast Refresh] done in 822ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  281926ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  281999ms] [LOG] [Fast Refresh] done in 175ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  330923ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  331420ms] [LOG] [Fast Refresh] done in 594ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  331623ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  331748ms] [LOG] [Fast Refresh] done in 226ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  386581ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  387120ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_c8c997ce._.js:34
+[  387125ms] [LOG] [Fast Refresh] done in 638ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  387228ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_c8c997ce._.js:34
+[  388034ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_compiled_react-dom_118a5282._.js:14537
+[  388212ms] [WARNING] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview @ https://polite-werewolf-55.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:11
+[  388216ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388216ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388274ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388274ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388293ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388293ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388309ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388309ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388322ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388322ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388338ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388338ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388349ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388349ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388359ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388359ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388374ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388374ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388377ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388377ms] [WARNING] [chat-realtime] noop transport: auth/profile user is not ready @ http://localhost:3000/_next/static/chunks/apps_web_features_chat_realtime_547d524b._.js:592
+[  388544ms] [LOG] %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[  388544ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /contribute, path: /contribute} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[  388544ms] [LOG] %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {route: /contribute, path: /contribute} @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[  388544ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/contribute color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/contribute, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497401256} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[  388544ms] [LOG] %c[Vercel Web Analytics]%c [view] http://localhost:3000/contribute color: rgb(120, 120, 120) color: inherit {o: http://localhost:3000/contribute, sv: 0.1.3, sdkn: @vercel/analytics/next, sdkv: 1.6.1, ts: 1788497401256} /_vercel/insights/view @ https://va.vercel-scripts.com/v1/script.debug.js:0
+[  388546ms] [LOG] %c[Vercel Speed Insights]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit @ https://va.vercel-scripts.com/v1/speed-insights/script.debug.js:0
+[  398034ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  398232ms] [LOG] [Fast Refresh] done in 299ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  410365ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  410603ms] [LOG] [Fast Refresh] done in 339ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  427446ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  427522ms] [LOG] [Fast Refresh] done in 178ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  452856ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  452872ms] [LOG] [Fast Refresh] done in 117ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  454946ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  455000ms] [LOG] [Fast Refresh] done in 156ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  460482ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  460484ms] [LOG] [Fast Refresh] done in 102ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  485088ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  485476ms] [LOG] [Fast Refresh] done in 487ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  515914ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  516378ms] [LOG] [Fast Refresh] done in 563ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  559326ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  559419ms] [LOG] [Fast Refresh] done in 175ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  569744ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  569925ms] [LOG] [Fast Refresh] done in 282ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  578934ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  579399ms] [LOG] [Fast Refresh] done in 554ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  604473ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  604539ms] [LOG] [Fast Refresh] done in 167ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816
+[  615535ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5956
+[  615568ms] [LOG] [Fast Refresh] done in 133ms @ http://localhost:3000/_next/static/chunks/b4b53_next_dist_client_03dc7489._.js:5816

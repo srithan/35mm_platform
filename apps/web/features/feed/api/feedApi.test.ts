@@ -1,11 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { feedKeys } from "../hooks/queryKeys";
-import { fetchFeed } from "./feedApi";
+import { fetchFeed, fetchQuotePosts } from "./feedApi";
 
 const http = vi.hoisted(function () {
   return {
     apiRequest: vi.fn(),
   };
+});
+
+describe("fetchQuotePosts", function () {
+  beforeEach(function () {
+    http.apiRequest.mockReset();
+    http.apiRequest.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+  });
+
+  it("requests a cursor-paginated quote feed with server-side sorting", async function () {
+    await fetchQuotePosts({
+      postId: "post/id",
+      sort: "top",
+      cursor: "next page",
+      token: "token",
+    });
+
+    expect(http.apiRequest).toHaveBeenCalledWith(
+      "/v1/feed/posts/post%2Fid/quotes?limit=20&sort=top&cursor=next+page",
+      { token: "token" }
+    );
+  });
+
+  it("partitions latest and top quote pages in the query cache", function () {
+    expect(feedKeys.quotes("post-id", "latest")).not.toEqual(
+      feedKeys.quotes("post-id", "top")
+    );
+  });
 });
 
 vi.mock("./http", function () {

@@ -1,49 +1,45 @@
-**Comparison Target**
+# Discover streaming services — design QA
 
-- Source visual truth: `/var/folders/l7/51db3s7s7rq62syqfh92v8yw0000gn/T/TemporaryItems/NSIRD_screencaptureui_vT9QOm/Screenshot 2026-07-21 at 19.38.49.png`, `/var/folders/l7/51db3s7s7rq62syqfh92v8yw0000gn/T/codex-clipboard-25984d26-dc6f-4fe4-abfb-915f0fcb7b3b.png`, and `/var/folders/l7/51db3s7s7rq62syqfh92v8yw0000gn/T/codex-clipboard-262866dd-e0fa-4c0b-aec3-7aedc5173cb7.png`.
-- Rendered implementation: `/private/tmp/35mm-notifications-qa-refined.png` and `/private/tmp/35mm-follow-requests-qa.png`.
-- Combined comparison evidence: `/private/tmp/35mm-notifications-comparison.png` and `/private/tmp/35mm-follow-requests-comparison.png`.
-- Viewport/state: light appearance, iPhone simulator Activity screen with authenticated real notification data; follow-request summary and response rows rendered at a 393 x 852 point phone viewport because the authenticated account had no pending requests.
-- Pixels/density: notification reference 546 x 1016; notification implementation 1206 x 2622 (402 x 874 points at 3x). Follow-request detail reference 1170 x 2532; implementation 1179 x 2556 (393 x 852 points at 3x). Side-by-side comparisons normalize each pair to a common 1200-pixel height while preserving aspect ratio.
+## Evidence
 
-**Findings**
+- Source visual truth: `/Users/srithan/.codex/generated_images/01a06adc-7e05-73a0-873f-3cd63f060535/exec-bf4d4600-8f76-4412-98ae-f5be25e24634.png`
+- Browser-rendered modal implementation: `/Users/srithan/Documents/20-29 Coding/22 - Startup Projects/22.6 35mm_Prod.async/35mm_platform/design-qa-implementation.png`
+- Browser-rendered shelf implementation after user clarification: `/Users/srithan/Documents/20-29 Coding/22 - Startup Projects/22.6 35mm_Prod.async/35mm_platform/design-qa-shelf-implementation.png`
+- Route and state: authenticated `http://localhost:3000/discover`, light theme, streaming-service modal open with the default four-service lineup.
+- Viewport: Chrome content viewport approximately 1728 × 1026 CSS px on a 2× display. The saved full-display implementation capture is 3456 × 2234 px; source is 1487 × 1058 px. The comparison input rendered both at a common display width and judged the shared modal crop, avoiding false differences from density and browser chrome.
+- Primary interactions tested: open/close, initial focus, search filtering, add, remove, unchanged disabled save, optimistic shelf refresh, server rollback, visible failed-save recovery, per-service shelf filtering, and return to the combined lineup.
+- Console checked: no feature-owned runtime errors. Remaining console noise comes from installed browser extensions, the existing chat no-op transport, Clerk development-key warning, and an existing hero-image LCP warning.
 
-- No actionable P0, P1, or P2 differences remain.
-- Fonts and typography: the implementation preserves the reference hierarchy with semibold actor names, lighter action/time copy, strong date-group labels, and single-line truncation for dense follow-request identity rows. It uses the app's existing system/body typography instead of importing the reference app's brand font.
-- Spacing and layout rhythm: compact notification rows, 48-point actor media, 44-point trailing thumbnails, full-width hairline separators, and tightly controlled date-group spacing now match the reference density without reintroducing filled notification cards.
-- Colors and visual tokens: the screen remains inside 35mm's light theme and semantic text/border/accent tokens. The external reference's blue action color was intentionally not copied because the existing product accent owns interactive emphasis.
-- Image quality and asset fidelity: live actor avatars and post/film artwork use the existing Kingfisher pipeline, circular avatar masks, and aspect-fill trailing artwork. The follow-request render uses test fixture initials only to inspect layout; production rows use real API avatar URLs.
-- Copy and content: actor, action, and time read as one sentence; resolved film/post context sits beneath it; the gateway says `Follow requests` and summarizes the first username plus the denormalized remainder; the destination exposes direct `Accept` and `Decline` actions.
+## Full-view comparison
 
-**Focused Region Evidence**
+The implementation preserves the source hierarchy: editorial heading, full-width search, compact selected lineup, restrained hairline separation, logo-led service grid, count, and paired footer actions. It intentionally uses the product's semantic light-theme tokens and warm-red action color. Following user clarification, the Discover shelf keeps a compact row of logo-only pills beneath the heading; text-heavy provider labels remain removed.
 
-- The follow-request gateway and action rows were inspected separately at 393 x 852 points because these components were not present in the live account state. This confirmed avatar overlap, one-line summary copy, chevron/unread affordance, identity truncation, and side-by-side action-button fit.
-- No additional crop was needed for notification rows: the full-view comparison keeps actor, copy, trailing media, separator, and more control readable at the same time.
+## Focused comparison
 
-**Comparison History**
+The modal is the dominant readable region in both captures, so the shared modal crop was sufficient without a second crop. Typography uses the product's display serif and mono labels; spacing follows the source's broad horizontal rhythm; colors use `bg`, `elevated`, `border`, `fg`, and `film-red` tokens; provider imagery uses real TMDB logo assets rather than drawn approximations; copy matches the approved direction. Square provider marks are an intentional compact adaptation of the source wordmarks and avoid the label-heavy layout the user rejected.
 
-- Iteration 1: P2 spacing drift. `/private/tmp/35mm-notifications-qa.png` showed oversized vertical gaps created by native `Section` header spacing, materially reducing notification density.
-- Fix: replaced list sections with explicit header rows and exact horizontal/vertical padding while retaining cursor loading and swipe actions.
-- Post-fix evidence: `/private/tmp/35mm-notifications-qa-refined.png` and `/private/tmp/35mm-notifications-comparison.png` show compact, consistent group rhythm with no gray content boxes.
+## Findings
 
-**Interaction and Accessibility Checks**
+- No actionable P0, P1, or P2 visual differences remain.
+- P3: the implementation close control is quieter than the source's boxed oversized close control. This better matches the existing 35mm dialog system and avoids adding another visually dominant shape.
 
-- Activity-tab navigation and authenticated notification loading were exercised in Simulator against the local API.
-- All/Unread filtering, mark-all-read, row open, swipe read state, the independent 44-point more control, follow-request navigation, cursor loading, pull-to-refresh, and Accept/Decline remain wired to production paths.
-- Notification rows expose combined accessibility labels/read state; follow-request gateway and response buttons have explicit labels and minimum practical touch targets.
+## Comparison history
 
-**Implementation Checklist**
+1. Initial browser interaction found a P1 recovery issue: when a save failed because the local database migration was not applied, optimistic rollback reset the modal draft and cleared its error message.
+2. Fixed the modal so draft initialization happens only on the closed-to-open transition. Parent preference updates while open no longer erase the draft or error.
+3. Post-fix browser evidence confirmed the selected draft remains visible and `Services could not be saved. Try again.` appears after rollback. The clean modal was then reopened and captured at the same desktop state for the final visual comparison.
+4. User clarified that service pills should remain visible on the shelf. Restored them as 64 × 48 CSS-pixel light-mode capsules containing only 32 × 32 provider marks. Post-fix browser evidence confirms all four default services remain legible without reintroducing space-heavy labels.
+5. Made those pills functional shelf filters. A compact grid control represents all saved services; each provider mark switches only the streaming shelf to that provider, exposes a pressed state, and leaves the persisted lineup untouched. Live browser evidence confirmed Netflix returned a distinct eight-title set and the grid control restored the combined results.
 
-- [x] Remove gray notification-content containers.
-- [x] Separate every notification with a full-width border.
-- [x] Keep notification media on the trailing edge.
-- [x] Add an independent more control backed by the shared bottom sheet.
-- [x] Add the follow-request gateway above activity.
-- [x] Add the cursor-paginated follow-request response screen.
-- [x] Verify production build, focused behavior tests, and visual comparisons.
+## Implementation checklist
 
-**Follow-up Polish**
-
-- No P3 visual changes are required for this scope.
+- [x] Keep compact logo-only service pills; remove their visible text labels.
+- [x] Make each service pill selectable, with an accessible active state and an all-services reset.
+- [x] Add `Edit your services` in the shelf header.
+- [x] Use a light-theme, searchable, logo-only selector.
+- [x] Support add, remove, cancel, save, empty search, loading, and error states.
+- [x] Persist a bounded per-user preference and refetch only the provider-keyed streaming query.
+- [x] Verify keyboard focus and modal semantics.
+- [x] Verify focused component tests and cross-package type checks.
 
 final result: passed

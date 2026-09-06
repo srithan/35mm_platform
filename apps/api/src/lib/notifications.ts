@@ -1,4 +1,4 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, ne, sql } from "drizzle-orm";
 import { notifications } from "@35mm/db/schema";
 import { createNotificationService } from "@35mm/db/notification-service";
 import { getDb } from "./db.js";
@@ -33,14 +33,19 @@ export async function getUnreadNotificationCount(recipientId: string): Promise<n
   var rows = await getDb()
     .select({ count: count() })
     .from(notifications)
-    .where(and(eq(notifications.recipientId, recipientId), eq(notifications.isRead, false)));
+    .where(and(
+      eq(notifications.recipientId, recipientId),
+      eq(notifications.isRead, false),
+      ne(notifications.type, "chat_reaction")
+    ));
   return numericCount(rows[0]?.count);
 }
 
 export async function markNotificationRead(recipientId: string, notificationId: string): Promise<boolean> {
   var updated = await getDb().update(notifications).set({ isRead: true }).where(and(
     eq(notifications.recipientId, recipientId),
-    eq(notifications.id, notificationId)
+    eq(notifications.id, notificationId),
+    ne(notifications.type, "chat_reaction")
   )).returning({ id: notifications.id });
   return updated.length > 0;
 }
@@ -48,7 +53,8 @@ export async function markNotificationRead(recipientId: string, notificationId: 
 export async function markNotificationUnread(recipientId: string, notificationId: string): Promise<boolean> {
   var updated = await getDb().update(notifications).set({ isRead: false }).where(and(
     eq(notifications.recipientId, recipientId),
-    eq(notifications.id, notificationId)
+    eq(notifications.id, notificationId),
+    ne(notifications.type, "chat_reaction")
   )).returning({ id: notifications.id });
   return updated.length > 0;
 }
@@ -66,6 +72,7 @@ export async function markAllNotificationsRead(recipientId: string): Promise<num
         from ${notifications}
         where ${notifications.recipientId} = ${recipientId}
           and ${notifications.isRead} = false
+          and ${notifications.type} <> 'chat_reaction'
           and ${notifications.createdAt} <= ${readCutoff}
         limit ${MARK_ALL_NOTIFICATIONS_READ_BATCH_SIZE}
       ),
@@ -76,6 +83,7 @@ export async function markAllNotificationsRead(recipientId: string): Promise<num
         where ${notifications.id} = unread.id
           and ${notifications.recipientId} = ${recipientId}
           and ${notifications.isRead} = false
+          and ${notifications.type} <> 'chat_reaction'
           and ${notifications.createdAt} <= ${readCutoff}
         returning 1
       )

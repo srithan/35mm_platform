@@ -1,0 +1,118 @@
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { TMDBMovie, TMDBVideo } from "@/lib/tmdb/types";
+import { TitleActionButtons } from "./TitleActionButtons";
+import { TitleOverviewContent } from "./TitleOverviewContent";
+import { TitleReviewStars } from "./TitleReviewStars";
+
+vi.mock("@/features/lists/hooks/useLists", function () {
+  return {
+    useWatchlistMutation: function () {
+      return { isPending: false, mutate: vi.fn() };
+    },
+  };
+});
+
+const detail: TMDBMovie = {
+  id: 101,
+  media_type: "movie",
+  title: "Test Film",
+  poster_path: null,
+  backdrop_path: null,
+  overview: "",
+  release_date: "2026-01-01",
+  vote_average: 8,
+  vote_count: 100,
+};
+
+const trailer: TMDBVideo = {
+  id: "trailer-1",
+  key: "youtube-key",
+  name: "Official trailer",
+  official: true,
+  site: "YouTube",
+  type: "Trailer",
+};
+
+const recommendation: TMDBMovie = {
+  ...detail,
+  id: 202,
+  title: "Recommended Hidden Film",
+  poster_path: "/recommendation.jpg",
+  release_date: "2025-01-01",
+};
+
+describe("title page theme styles", function () {
+  it("uses theme background as accent-button foreground", function () {
+    render(
+      <TitleActionButtons
+        detail={detail}
+        media="movie"
+        tmdbId="101"
+        imdbId={null}
+        onWriteReview={vi.fn()}
+      />
+    );
+
+    const writeReview = screen.getByRole("button", { name: "Write review" });
+    expect(writeReview).toHaveClass("bg-accent", "text-bg");
+    expect(writeReview).not.toHaveClass("text-white");
+  });
+
+  it("marks selected trailer without Tailwind's fallback blue ring", function () {
+    render(
+      <TitleOverviewContent
+        detail={detail}
+        isTv={false}
+        yearStr="2026"
+        certification={undefined}
+        directors={undefined}
+        creators={undefined}
+        writers={undefined}
+        seasons={[]}
+        displayVideos={[trailer]}
+        playingKey={trailer.key}
+        onSelectVideoKey={vi.fn()}
+        recommendations={[]}
+        watchProvidersUS={undefined}
+      />
+    );
+
+    const selectedTrailer = screen.getByRole("button", { name: "Official trailer" });
+    expect(selectedTrailer).toHaveClass("border-film-gold");
+    expect(selectedTrailer).not.toHaveClass("ring-2", "ring-film-gold/50");
+  });
+
+  it("hides More like this card metadata while retaining poster labels", function () {
+    render(
+      <TitleOverviewContent
+        detail={detail}
+        isTv={false}
+        yearStr="2026"
+        certification={undefined}
+        directors={undefined}
+        creators={undefined}
+        writers={undefined}
+        seasons={[]}
+        displayVideos={[]}
+        playingKey={null}
+        onSelectVideoKey={vi.fn()}
+        recommendations={[recommendation]}
+        watchProvidersUS={undefined}
+      />
+    );
+
+    expect(screen.queryByText("Recommended Hidden Film")).not.toBeInTheDocument();
+    expect(screen.queryByText("2025")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open Recommended Hidden Film" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps numeric scores beside title-page review stars", function () {
+    render(<TitleReviewStars rating={4.5} />);
+
+    expect(screen.getByText("4.5")).toBeInTheDocument();
+    expect(screen.getByText("/ 5")).toBeInTheDocument();
+  });
+});

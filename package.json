@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @35mm/web --filter @35mm/api dev",
+    "dev:videos": "pnpm --filter @35mm/worker dev:videos",
     "dev:all": "pnpm --parallel --filter @35mm/web --filter @35mm/studio --filter @35mm/api --filter @35mm/worker dev",
     "dev:web": "pnpm --filter @35mm/web dev",
     "dev:studio": "pnpm --filter @35mm/studio dev",

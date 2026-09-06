@@ -1,49 +1,16 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { Repeat2 } from "lucide-react";
 import { InfinitePostList } from "@/features/feed/components/InfinitePostList";
-import { StatBox } from "./StatBox";
-import { ActivityHeatmap } from "./ActivityHeatmap";
-import { GenreBreakdown } from "./GenreBreakdown";
-import { DiaryRow } from "./DiaryRow";
-import { formatCount } from "@/lib/utils/formatCount";
 import { ROUTES } from "@/lib/constants/routes";
-import { FavouriteFilms } from "./FavouriteFilms";
 import { useCurrentUserProfile } from "../hooks/useCurrentUserProfile";
 import { useProfileStats } from "../hooks/useProfile";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import type { ProfileTab } from "@/features/profile/lib/profileRoutes";
 import { ProfileDiaryTimeline } from "./ProfileDiaryTimeline";
 import { ProfileListsPanel } from "@/features/lists/components/ProfileListsPanel";
-
-function formatMemberSince(value: string | null): string {
-  if (!value) return "Member history unavailable";
-  var dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return "Member history unavailable";
-  return `Watching since ${dt.getUTCFullYear()}`;
-}
-
-function formatHoursSub(hours: number): string {
-  if (hours <= 0) return "No runtime data yet";
-  var days = Math.floor(hours / 24);
-  if (days <= 0) return "< 1 day of screen time";
-  return `≈ ${formatCount(days)} ${days === 1 ? "day" : "days"} of screen time`;
-}
-
-function formatAverageRating(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return "—";
-  return `✦ ${value.toFixed(1)}`;
-}
-
-function formatDiaryDate(iso: string): string {
-  var dt = new Date(iso);
-  if (Number.isNaN(dt.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(dt).toUpperCase();
-}
+import { ProfileStatsDashboard } from "./ProfileStatsDashboard";
 
 function RepostsEmptyArtwork() {
   return (
@@ -166,7 +133,8 @@ export function ProfileTabContent({
 }
 
 function ProfileStatsTab(props: { username: string; displayName?: string }) {
-  var statsQuery = useProfileStats(props.username);
+  var [selectedYear, setSelectedYear] = useState<number | null>(null);
+  var statsQuery = useProfileStats(props.username, selectedYear);
 
   if (statsQuery.isLoading) {
     return (
@@ -204,70 +172,12 @@ function ProfileStatsTab(props: { username: string; displayName?: string }) {
     );
   }
 
-  var stats = statsQuery.data;
-
   return (
-    <div>
-      <div className="grid grid-cols-2 gap-px bg-border border-b border-border">
-        <StatBox
-          value={formatCount(stats.filmsLoggedCount)}
-          label="Films logged"
-          sub={formatMemberSince(stats.memberSince)}
-        />
-        <StatBox
-          value={formatCount(stats.hoursWatched)}
-          label="Hours watched"
-          sub={formatHoursSub(stats.hoursWatched)}
-        />
-        <StatBox
-          value={formatAverageRating(stats.averageRating)}
-          label="Average rating"
-          sub={stats.averageRating == null ? "No ratings yet" : "Across rated logs and reviews"}
-          className="text-[32px]"
-        />
-        <StatBox
-          value={formatCount(stats.reviewsWrittenCount)}
-          label="Reviews written"
-          sub={`${formatCount(stats.reviewLikeCount)} total ${stats.reviewLikeCount === 1 ? "like" : "likes"}`}
-        />
-      </div>
-      <FavouriteFilms films={stats.favoriteFilms} />
-      <ActivityHeatmap activity={stats.activity} />
-      <GenreBreakdown genres={stats.genres} />
-      <div className="py-5 px-10 border-b border-border">
-        <div className="text-[10px] tracking-[0.1em] uppercase text-fg-muted mb-1">
-          Recent diary
-        </div>
-      </div>
-      {stats.recentDiary.length === 0 ? (
-        <div className="px-10 py-5 border-b border-border text-xs text-fg-muted">
-          {props.displayName ?? props.username} hasn&apos;t logged any films yet
-        </div>
-      ) : (
-        stats.recentDiary.map(function (entry) {
-          var film = entry.film;
-          var meta = [film.year ? String(film.year) : null, entry.type === "review" ? "Review" : "Log"]
-            .filter(Boolean)
-            .join(" · ");
-          return (
-            <DiaryRow
-              key={entry.postId}
-              date={formatDiaryDate(entry.createdAt)}
-              title={film.title}
-              meta={meta}
-              posterSrc={film.posterUrl}
-              imdbId={film.imdbId}
-              rating={entry.rating}
-            />
-          );
-        })
-      )}
-      <Link
-        href={ROUTES.PROFILE_DIARY(props.username)}
-        className="block py-8 text-center text-xs text-fg-muted cursor-pointer hover:text-fg transition-colors"
-      >
-        View full diary →
-      </Link>
-    </div>
+    <ProfileStatsDashboard
+      stats={statsQuery.data}
+      displayName={props.displayName ?? props.username}
+      selectedYear={selectedYear}
+      onYearChange={setSelectedYear}
+    />
   );
 }

@@ -9,6 +9,8 @@ export const ROUTES = {
   CHAT: "/chat",
   CHAT_WITH: (chatId: string) => `/chat/${encodeURIComponent(chatId.toLowerCase())}`,
   DISCOVER: "/discover",
+  FILMS: "/films",
+  LISTS: "/lists",
   COMMUNITIES: "/communities",
   COMMUNITY: (slug: string) => `/communities/${slug}`,
   SHORT_FILMS: "/short-films",
@@ -29,6 +31,8 @@ export const ROUTES = {
   TITLE: (media: "movie" | "tv", id: string | number) => `/title/${media}/${id}`,
   /** TMDB person id — dedicated page links out to more detail. */
   PERSON: (id: string | number) => `/person/${id}`,
+  PERSON_DEPARTMENT: (id: string | number, department: string) =>
+    `/person/${id}/${encodeURIComponent(department.toLowerCase())}`,
   NOTIFICATIONS: "/notifications",
   NOTIFICATIONS_TAB: (tab: string) => `/notifications/${tab}`,
   PROFILE: (username: string) => `/${username}`,
@@ -38,6 +42,7 @@ export const ROUTES = {
   LIST: (listId: string) => `/list/${listId}`,
   PROFILE_STATS: (username: string) => `/${username}/stats`,
   POST: (username: string, postId: string) => `/${username}/post/${postId}`,
+  POST_QUOTES: (username: string, postId: string) => `/${username}/post/${postId}/quotes`,
   SETTINGS: "/settings",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_APPEARANCE: "/settings/appearance",
@@ -55,7 +60,6 @@ export const ROUTES = {
   CONTRIBUTE: "/contribute",
   CONTRIBUTE_FORM: (slug: string) => `/contribute/${slug}`,
   CONTRIBUTE_SUBMISSIONS: "/contribute/submissions",
-  DISCOVER_TAB: (tab: string) => `/discover/${tab}`,
   /** Discover search by hashtag (query param; page may narrow results later). */
   DISCOVER_TAG: (tag: string) => `/discover?tag=${encodeURIComponent(tag)}`,
 } as const;

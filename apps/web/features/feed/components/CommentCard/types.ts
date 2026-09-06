@@ -49,8 +49,11 @@ export function getCommentThreadStyles(depth: number) {
       depth > 0
         ? {
             marginLeft: `${threadInsetPx}px`,
-            paddingLeft: "8px",
           }
         : {},
+    contentStyle: depth > 0 ? { paddingLeft: "8px" } : {},
+    repliesStyle: {
+      paddingLeft: depth > 0 ? "48px" : "64px",
+    },
   };
 }

@@ -81,7 +81,7 @@ export function ListCard({
             <button
               type="button"
               onClick={onToggle}
-              className="block min-w-0 flex-1 text-left font-display text-[15px] font-semibold hover:text-accent"
+              className="block min-w-0 flex-1 text-left text-[15px] font-semibold hover:text-accent"
             >
               {list.title}
             </button>

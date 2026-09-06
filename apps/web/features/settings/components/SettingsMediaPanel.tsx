@@ -25,6 +25,13 @@ type SelectOption<T extends string> = {
   label: string;
 };
 
+type VideoSoundMode = "muted" | "low" | "normal";
+const SOUND_OPTIONS: SelectOption<VideoSoundMode>[] = [
+  { value: "muted", label: "Muted" },
+  { value: "low", label: "Low volume" },
+  { value: "normal", label: "Normal volume" },
+];
+
 const QUALITY_OPTIONS: SelectOption<VideoDefaultQuality>[] = [
   { value: "auto", label: "Auto" },
   { value: "data_saver", label: "Data saver" },
@@ -70,6 +77,7 @@ function MediaSelectRow<T extends string>({
       </div>
       <div className="relative shrink-0">
         <select
+          aria-label={label}
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value as T)}
@@ -171,6 +179,24 @@ export function SettingsMediaPanel({
             }
             disabled={isSaving}
           />
+          <MediaSelectRow
+            label="Video sound"
+            description="Choose how videos sound when they start. Your choice is saved for future visits."
+            value={!watch("startWithSound") ? "muted" : watch("quietMode") ? "low" : "normal"}
+            options={SOUND_OPTIONS}
+            disabled={isSaving}
+            onChange={(value) => {
+              if (isSaving) return;
+              const nextValues = {
+                ...getValues(),
+                startWithSound: value !== "muted",
+                quietMode: value === "low",
+              };
+              setValue("startWithSound", nextValues.startWithSound, { shouldDirty: true });
+              setValue("quietMode", nextValues.quietMode, { shouldDirty: true });
+              void saveValues(nextValues, "Could not update video sound.");
+            }}
+          />
           <SettingsToggle
             label="Always show captions"
             description="Show captions by default when a video includes them."
@@ -197,15 +223,6 @@ export function SettingsMediaPanel({
                 "Could not update caption display."
               )
             }
-          />
-          <SettingsToggle
-            label="Quiet mode"
-            description="Start videos at a lower volume when sound is enabled."
-            checked={watch("quietMode")}
-            onChange={(checked) =>
-              updateMediaValue("quietMode", checked, "Could not update quiet mode.")
-            }
-            disabled={isSaving}
           />
         </div>
         {submitError ? (

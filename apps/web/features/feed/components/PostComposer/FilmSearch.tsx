@@ -69,6 +69,7 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<FilmResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [resolvingFilmId, setResolvingFilmId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [panelStyle, setPanelStyle] = useState<{
     top: number;
@@ -188,12 +189,40 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
   }, [query]);
 
   const handleSelect = useCallback(
-    (film: FilmResult) => {
-      onSelect(film);
+    async (film: FilmResult) => {
+      if (resolvingFilmId !== null) return;
+      setResolvingFilmId(film.id);
+      var enrichedFilm = film;
+      try {
+        var response = await fetch(`/api/tmdb/movie/${film.id}`);
+        if (response.ok) {
+          var detail = (await response.json()) as {
+            runtime?: number | null;
+            production_countries?: Array<{ name?: string }>;
+          };
+          enrichedFilm = {
+            ...film,
+            runtime: detail.runtime ?? null,
+            country: detail.production_countries?.[0]?.name ?? null,
+          };
+        } else {
+          console.warn("[film-metadata] TMDB detail unavailable", {
+            tmdbId: film.id,
+            status: response.status,
+          });
+        }
+      } catch (error) {
+        console.warn("[film-metadata] TMDB detail request failed", {
+          tmdbId: film.id,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      onSelect(enrichedFilm);
       setQuery("");
       setIsOpen(false);
+      setResolvingFilmId(null);
     },
-    [onSelect]
+    [onSelect, resolvingFilmId]
   );
 
   if (isHidden) return null;
@@ -231,8 +260,9 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
               <button
                 key={film.id}
                 type="button"
-                onClick={() => handleSelect(film)}
-                className="film-option w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-sunken transition-colors"
+                disabled={resolvingFilmId !== null}
+                onClick={() => void handleSelect(film)}
+                className="film-option w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-sunken transition-colors disabled:cursor-wait disabled:opacity-60"
               >
                 {getPosterUrl(film.posterPath) ? (
                   <div className="w-8 h-11 rounded-sm overflow-hidden flex-shrink-0">
@@ -258,7 +288,7 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
                 )}
                 <div>
                   <div className="text-[13px] font-medium text-fg leading-snug">
-                    {film.title}
+                    {resolvingFilmId === film.id ? "Loading film…" : film.title}
                   </div>
                   <div className="text-[11px] text-fg-muted mt-0.5">
                     {film.language}

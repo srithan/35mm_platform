@@ -1,3 +1,4 @@
+import { UploadedFilmWatch } from "@/features/videos/components/UploadedFilmWatch";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShortFilmWatchContent, getShortFilmById } from "@/features/short-films";
@@ -29,6 +30,7 @@ export default async function ShortFilmWatchPage({
   params,
 }: ShortFilmWatchPageProps) {
   const { id } = await params;
+  if (/^[0-9A-HJKMNP-TV-Z]{26}$/.test(id)) return <UploadedFilmWatch filmId={id} />;
   const film = getShortFilmById(id);
   if (!film) notFound();
   return <ShortFilmWatchContent film={film} />;

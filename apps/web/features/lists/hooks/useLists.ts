@@ -9,6 +9,7 @@ import {
   createFilmList,
   deleteFilmList,
   fetchList,
+  fetchPublicLists,
   fetchProfileLists,
   likeFilmList,
   removeFromWatchlist,
@@ -19,9 +20,33 @@ import {
   updateListEntry,
   type CatalogFilmPayload,
   type FilmListSort,
+  type PublicFilmListSort,
+  type PublicFilmListFilters,
   type TmdbFilmPayload,
 } from "../api/listsApi";
 import { listKeys } from "./queryKeys";
+
+export function usePublicLists(sort: PublicFilmListSort, filters: PublicFilmListFilters = {}) {
+  var { getToken, isLoaded } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: listKeys.public(sort, filters),
+    queryFn: async function ({ pageParam }) {
+      return fetchPublicLists({
+        ...filters,
+        sort,
+        cursor: pageParam as string | undefined,
+        token: await getToken(),
+      });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: function (lastPage) {
+      return lastPage.nextCursor ?? undefined;
+    },
+    enabled: isLoaded,
+    staleTime: 30_000,
+  });
+}
 
 export function useProfileLists(username: string, sort: FilmListSort) {
   var { getToken, isLoaded } = useAuth();

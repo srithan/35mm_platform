@@ -407,6 +407,55 @@
       "when": 1788310800000,
       "tag": "0056_comment_giphy_gifs",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1788397200000,
+      "tag": "0057_post_quote_popularity_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1788473613000,
+      "tag": "0058_public_list_browse_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1788566400000,
+      "tag": "0059_streaming_service_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1788652800000,
+      "tag": "0060_film_catalog_browse_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1788652800001,
+      "tag": "0061_public_list_filters",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1788652800002,
+      "tag": "0062_bunny_video_uploads",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1788652800003,
+      "tag": "0063_video_sound_preference",
+      "breakpoints": true
     }
   ]
 }

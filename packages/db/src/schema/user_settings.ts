@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { users } from "./users.js";
 
 export var userSettings = pgTable("user_settings", {
@@ -34,7 +35,12 @@ export var userSettings = pgTable("user_settings", {
   videoDefaultQuality: text("video_default_quality").default("auto").notNull(),
   videoAlwaysShowCaptions: boolean("video_always_show_captions").default(false).notNull(),
   videoCaptionStyle: text("video_caption_style").default("default").notNull(),
+  videoStartWithSound: boolean("video_start_with_sound").default(false).notNull(),
   videoQuietMode: boolean("video_quiet_mode").default(false).notNull(),
+  streamingServiceIds: text("streaming_service_ids")
+    .array()
+    .default(sql`ARRAY['netflix', 'prime-video', 'hulu', 'max']::text[]`)
+    .notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

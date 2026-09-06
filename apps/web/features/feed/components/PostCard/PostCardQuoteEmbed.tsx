@@ -1,5 +1,6 @@
 "use client";
 
+import { BunnyVideoPlayer } from "@/features/videos/components/BunnyVideoPlayer";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Film, LockKeyhole } from "lucide-react";
@@ -12,6 +13,7 @@ import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
 import { cn } from "@/lib/utils/cn";
 import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
 import type { QuotedPost } from "../../types/feed";
+import { saveScrollPositionForBack } from "../PostPageBackButton";
 import { postMediaGridCellClassName } from "../postMediaGridLayout";
 import { NsfwMediaOverlay, NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
 
@@ -71,6 +73,7 @@ export function PostCardQuoteEmbed({
   const quoteNsfw = post.nsfw ?? { status: "none" as const, categories: [], source: null };
 
   const navigate = () => {
+    saveScrollPositionForBack();
     router.push(href);
   };
 
@@ -220,7 +223,7 @@ export function PostCardQuoteEmbed({
                     : postMediaGridCellClassName(media.length, index)
                 )}
               >
-                {item.type === "video" ? (
+                {item.type === "video" && item.videoAssetId ? <BunnyVideoPlayer assetId={item.videoAssetId} /> : item.type === "video" ? (
                   <video
                     src={item.url}
                     poster={item.thumbnailUrl}

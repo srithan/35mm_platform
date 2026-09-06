@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Copy, Heart, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Heart,
+  LayoutGrid,
+  LayoutList,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import type { FilmListEntry } from "@35mm/types";
+import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
@@ -11,6 +20,7 @@ import { FilmPoster } from "@/components/FilmPoster";
 import type { FilmResult } from "@/features/feed/components/PostComposer/types";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
+import { useShellLayout } from "@/components/layout/ShellLayoutContext";
 import { formatListMeta } from "../lib/listMeta";
 import { useFilmList, useListMutations } from "../hooks/useLists";
 import { ListEntriesPanel } from "./ListEntriesPanel";
@@ -21,7 +31,9 @@ import { joinListTags, parseListTags } from "../lib/listMeta";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-function nextPositions(entries: FilmListEntry[]): Array<{ entryId: string; position: number }> {
+function nextPositions(
+  entries: FilmListEntry[],
+): Array<{ entryId: string; position: number }> {
   return entries.map(function (entry, index) {
     return { entryId: entry.id, position: (index + 1) * 10 };
   });
@@ -32,8 +44,12 @@ type ListDetailContentProps = {
   isOwnProfile?: boolean;
 };
 
-export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: ListDetailContentProps) {
+export function ListDetailContent({
+  listId,
+  isOwnProfile: isOwnProfileProp,
+}: ListDetailContentProps) {
   const router = useRouter();
+  const { previousPathname } = useShellLayout();
   const listQuery = useFilmList(listId);
   const list = listQuery.data ?? null;
   const isOwner = isOwnProfileProp ?? list?.isOwner ?? false;
@@ -44,17 +60,24 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [pendingFilm, setPendingFilm] = useState<FilmResult | null>(null);
   const [editingEntry, setEditingEntry] = useState<FilmListEntry | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const posters = useMemo(
     function () {
       if (!list) return [null, null, null];
-      return (list.posterUrls.length ? list.posterUrls : [null, null, null]).slice(0, 3);
+      return (
+        list.posterUrls.length ? list.posterUrls : [null, null, null]
+      ).slice(0, 3);
     },
-    [list]
+    [list],
   );
 
   if (listQuery.isLoading) {
-    return <div className="px-6 py-10 text-[13px] text-fg-muted">Loading list...</div>;
+    return (
+      <div className="px-6 py-10 text-[13px] text-fg-muted">
+        Loading list...
+      </div>
+    );
   }
 
   if (listQuery.isError || !list) {
@@ -69,6 +92,7 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
   }
 
   const resolvedList = list;
+  const visibleEntryCount = Math.max(list.entryCount, list.entries.length);
 
   function handleEditorSubmit(values: ListEditorValues) {
     var patch: Parameters<typeof mutations.updateList.mutate>[0]["patch"] = {
@@ -86,7 +110,7 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
         onSuccess: function () {
           setEditorOpen(false);
         },
-      }
+      },
     );
   }
 
@@ -108,7 +132,12 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
     if (editingEntry) {
       mutations.updateEntry.mutate(
         { id: resolvedList.id, entryId: editingEntry.id, note },
-        { onSuccess: function () { setNoteModalOpen(false); setEditingEntry(null); } }
+        {
+          onSuccess: function () {
+            setNoteModalOpen(false);
+            setEditingEntry(null);
+          },
+        },
       );
       return;
     }
@@ -124,7 +153,7 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
           setNoteModalOpen(false);
           setPendingFilm(null);
         },
-      }
+      },
     );
   }
 
@@ -135,139 +164,281 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
     var temp = entries[entryIndex];
     entries[entryIndex] = entries[nextIndex];
     entries[nextIndex] = temp;
-    mutations.reorderEntries.mutate({ id: resolvedList.id, entries: nextPositions(entries) });
+    mutations.reorderEntries.mutate({
+      id: resolvedList.id,
+      entries: nextPositions(entries),
+    });
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 md:px-6 lg:px-10">
-      <div className="border-b border-border pb-6">
-        <div className="flex gap-3">
-          {posters.map(function (src, i) {
-            return (
-              <div key={i} className="relative z-[3] -mr-2 w-14 shrink-0 last:mr-0">
-                <FilmPoster src={src} alt="" size="list" className="shadow-sm" />
-              </div>
-            );
-          })}
-        </div>
-
-        <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
-          {list.isRanked ? "Community ranked" : list.type === "watchlist" ? "Watchlist" : "Film list"}
-        </p>
-        <h1 className="mt-2 font-display text-5xl font-semibold leading-none text-fg">{list.title}</h1>
-        <p className="mt-3 text-[13px] text-fg-muted">
-          by{" "}
-          <UsernameLink username={list.owner.username} displayName={list.owner.displayName} />
-        </p>
-        {list.description ? (
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-fg-muted">{list.description}</p>
-        ) : null}
-        <p className="mt-3 font-mono text-[12px] text-fg-muted">{formatListMeta(list)}</p>
-      </div>
-
-      {list.tags.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {list.tags.map(function (tag) {
-            return (
-              <span
-                key={tag}
-                className="rounded-full border border-border bg-sunken px-2.5 py-0.5 text-[11px] font-medium text-fg-muted"
+    <div className="mx-auto w-full max-w-[1240px] px-4 py-6 md:px-6 lg:px-10 lg:py-8">
+      <div className="grid rounded-2xl bg-sunken/35 shadow-[0_18px_55px_rgba(0,0,0,0.05)] lg:grid-cols-[300px_minmax(0,1fr)] lg:items-stretch">
+        <aside className="rounded-t-2xl bg-sunken/70 p-5 md:p-6 lg:order-1 lg:rounded-l-2xl lg:rounded-r-none">
+          <div className="lg:sticky lg:top-[calc(var(--site-header-sticky-offset,4.5rem)+1.5rem)]">
+            {previousPathname ? (
+              <button
+                type="button"
+                onClick={function () {
+                  router.back();
+                }}
+                className="mb-5 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[12px] font-semibold text-fg-muted transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg"
               >
-                {tag}
-              </span>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {!isOwner && list.visibility === "public" ? (
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              className={cn(list.isLiked && "border-accent/40 text-accent")}
-              onClick={function () {
-                mutations.toggleLike.mutate({ id: list.id, isLiked: list.isLiked });
-              }}
-            >
-              <Heart className={cn("mr-1.5 h-3.5 w-3.5", list.isLiked && "fill-current")} />
-              {list.isLiked ? "Liked" : "Like"}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={function () {
-                mutations.cloneList.mutate(
-                  { id: list.id },
-                  {
-                    onSuccess: function (cloned) {
-                      router.push(ROUTES.LIST(cloned.id));
-                    },
-                  }
-                );
-              }}
-            >
-              <Copy className="mr-1.5 h-3.5 w-3.5" />
-              Clone
-            </Button>
-          </>
-        ) : null}
-        {isOwner ? (
-          <>
-            <Button variant="secondary" size="sm" onClick={function () { setEditorOpen(true); }}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit
-            </Button>
-            {list.type !== "watchlist" ? (
-              <Button variant="danger" size="sm" onClick={function () { setDeleteOpen(true); }}>
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Delete
-              </Button>
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                Back
+              </button>
             ) : null}
-          </>
-        ) : null}
-        <Link
-          href={ROUTES.PROFILE_LISTS(list.owner.username)}
-          className="inline-flex h-8 items-center rounded-full border border-border px-4 text-[12px] font-semibold text-fg-muted no-underline transition-colors hover:text-fg"
-        >
-          All lists
-        </Link>
-      </div>
 
-      <div className="mt-8 border-y border-border">
-        <ListEntriesPanel
-          list={list}
-          isOwner={isOwner}
-          hasMoreEntries={Boolean(list.entriesPage?.hasMore)}
-          isLoadingMoreEntries={listQuery.isFetchingNextPage}
-          onLoadMoreEntries={function () {
-            if (listQuery.hasNextPage) void listQuery.fetchNextPage();
-          }}
-          onAddFilm={isOwner ? handleAddFilm : undefined}
-          onEditNote={
-            isOwner && list.type !== "watchlist"
-              ? function (entry) {
-                  setEditingEntry(entry);
-                  setPendingFilm(null);
-                  setNoteModalOpen(true);
-                }
-              : undefined
-          }
-          onMoveEntry={isOwner ? handleMoveEntry : undefined}
-          onRemoveEntry={
-            isOwner
-              ? function (entryId) {
-                  mutations.removeEntry.mutate({ id: list.id, entryId });
-                }
-              : undefined
-          }
-        />
+            <div className="flex gap-3">
+              {posters.map(function (src, i) {
+                return (
+                  <div
+                    key={i}
+                    className="relative z-[3] -mr-2 w-14 shrink-0 last:mr-0"
+                  >
+                    <FilmPoster
+                      src={src}
+                      alt=""
+                      size="list"
+                      className="shadow-sm"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+              {list.isRanked
+                ? "Community ranked"
+                : list.type === "watchlist"
+                  ? "Watchlist"
+                  : "Film list"}
+            </p>
+            <h1 className="mt-2 text-3xl font-bold leading-[1.05] tracking-tight text-fg sm:text-4xl lg:text-[32px]">
+              {list.title}
+            </h1>
+            <div className="mt-3 flex items-center gap-2">
+              <Link
+                href={ROUTES.PROFILE(list.owner.username)}
+                aria-label={`View ${list.owner.displayName}'s profile`}
+                className="shrink-0 rounded-full transition-opacity hover:opacity-80"
+              >
+                <Avatar
+                  src={list.owner.avatarUrl}
+                  initial={list.owner.displayName.charAt(0)}
+                  size="sm"
+                  className="h-7 w-7 text-[10px]"
+                />
+              </Link>
+              <p className="text-[13px] text-fg-muted">
+                <UsernameLink
+                  username={list.owner.username}
+                  displayName={list.owner.displayName}
+                  className="font-semibold text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
+                />
+              </p>
+            </div>
+            {list.description ? (
+              <p className="mt-4 text-[14px] leading-relaxed text-fg-muted">
+                {list.description}
+              </p>
+            ) : null}
+            <p className="mt-4 text-[12px] font-medium leading-relaxed text-fg-muted">
+              {formatListMeta({ ...list, entryCount: visibleEntryCount })}
+            </p>
+
+            {list.tags.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {list.tags.map(function (tag) {
+                  return (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-border bg-sunken px-2.5 py-0.5 text-[11px] font-medium text-fg-muted"
+                    >
+                      {tag}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap gap-2 lg:flex-col">
+              {!isOwner && list.visibility === "public" ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className={cn(
+                      "lg:w-full",
+                      list.isLiked && "border-accent/40 text-accent",
+                    )}
+                    onClick={function () {
+                      mutations.toggleLike.mutate({
+                        id: list.id,
+                        isLiked: list.isLiked,
+                      });
+                    }}
+                  >
+                    <Heart
+                      className={cn(
+                        "mr-1.5 h-3.5 w-3.5",
+                        list.isLiked && "fill-current",
+                      )}
+                    />
+                    {list.isLiked ? "Liked" : "Like"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="lg:w-full"
+                    onClick={function () {
+                      mutations.cloneList.mutate(
+                        { id: list.id },
+                        {
+                          onSuccess: function (cloned) {
+                            router.push(ROUTES.LIST(cloned.id));
+                          },
+                        },
+                      );
+                    }}
+                  >
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Clone
+                  </Button>
+                </>
+              ) : null}
+              {isOwner ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="lg:w-full"
+                    onClick={function () {
+                      setEditorOpen(true);
+                    }}
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                  {list.type !== "watchlist" ? (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      className="lg:w-full"
+                      onClick={function () {
+                        setDeleteOpen(true);
+                      }}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+              <Link
+                href={ROUTES.PROFILE_LISTS(list.owner.username)}
+                className="inline-flex h-8 items-center justify-center rounded-full border border-border px-4 text-[12px] font-semibold text-fg-muted no-underline transition-colors hover:text-fg lg:w-full"
+              >
+                All lists
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+        <section
+          className="min-w-0 p-4 sm:p-5 md:p-6 lg:order-2 lg:p-8"
+          aria-labelledby="list-films-heading"
+        >
+          <div className="flex items-center justify-between gap-4 pb-3">
+            <div>
+              <h2
+                id="list-films-heading"
+                className="text-[15px] font-bold text-fg"
+              >
+                Films
+              </h2>
+              <p className="mt-0.5 text-[11px] text-fg-muted">
+                {visibleEntryCount}{" "}
+                {visibleEntryCount === 1 ? "title" : "titles"}
+              </p>
+            </div>
+            <div
+              className="flex items-center rounded-full border border-border bg-sunken p-0.5"
+              role="group"
+              aria-label="Film view"
+            >
+              <button
+                type="button"
+                onClick={function () {
+                  setViewMode("list");
+                }}
+                aria-label="List view"
+                aria-pressed={viewMode === "list"}
+                className={cn(
+                  "flex h-7 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                  viewMode === "list"
+                    ? "bg-bg text-fg shadow-sm"
+                    : "text-fg-muted hover:text-fg",
+                )}
+              >
+                <LayoutList className="h-3.5 w-3.5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={function () {
+                  setViewMode("grid");
+                }}
+                aria-label="Grid view"
+                aria-pressed={viewMode === "grid"}
+                className={cn(
+                  "flex h-7 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                  viewMode === "grid"
+                    ? "bg-bg text-fg shadow-sm"
+                    : "text-fg-muted hover:text-fg",
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <ListEntriesPanel
+              list={list}
+              isOwner={isOwner}
+              viewMode={viewMode}
+              hasMoreEntries={Boolean(list.entriesPage?.hasMore)}
+              isLoadingMoreEntries={listQuery.isFetchingNextPage}
+              onLoadMoreEntries={function () {
+                if (listQuery.hasNextPage) void listQuery.fetchNextPage();
+              }}
+              onAddFilm={isOwner ? handleAddFilm : undefined}
+              onEditNote={
+                isOwner && list.type !== "watchlist"
+                  ? function (entry) {
+                      setEditingEntry(entry);
+                      setPendingFilm(null);
+                      setNoteModalOpen(true);
+                    }
+                  : undefined
+              }
+              onMoveEntry={isOwner ? handleMoveEntry : undefined}
+              onRemoveEntry={
+                isOwner
+                  ? function (entryId) {
+                      mutations.removeEntry.mutate({ id: list.id, entryId });
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        </section>
       </div>
 
       <ListEditorModal
         open={editorOpen}
-        onClose={function () { setEditorOpen(false); }}
+        onClose={function () {
+          setEditorOpen(false);
+        }}
         mode="edit"
         listType={list.type}
         initialValues={{
@@ -292,12 +463,16 @@ export function ListDetailContent({ listId, isOwnProfile: isOwnProfileProp }: Li
         initialNote={editingEntry?.note ?? ""}
         submitLabel={editingEntry ? "Save note" : "Add film"}
         onSubmit={handleNoteSubmit}
-        isSubmitting={mutations.addEntry.isPending || mutations.updateEntry.isPending}
+        isSubmitting={
+          mutations.addEntry.isPending || mutations.updateEntry.isPending
+        }
       />
 
       <ConfirmDialog
         open={deleteOpen}
-        onClose={function () { setDeleteOpen(false); }}
+        onClose={function () {
+          setDeleteOpen(false);
+        }}
         onConfirm={function () {
           mutations.deleteList.mutate(list.id, {
             onSuccess: function () {

@@ -24,6 +24,7 @@ export interface PostCardAttachedFilm {
 }
 
 export interface PostCardMediaItem {
+  videoAssetId?: string;
   type: "image" | "video" | "film_embed" | "none";
   url: string;
   width?: number;

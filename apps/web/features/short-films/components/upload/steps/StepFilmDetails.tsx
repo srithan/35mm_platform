@@ -88,14 +88,12 @@ export function StepFilmDetails({ upload }: { upload: ShortFilmUploadFormApi }) 
               className={uploadInputClass()}
             />
           </UploadFormField>
-          <UploadFormField label="Runtime" className="mb-0">
+          <UploadFormField label="Runtime (minutes)" className="mb-0">
             <input
               type="text"
               value={form.runtime}
-              placeholder="e.g. 18:45"
-              onChange={function (e) {
-                upload.setField("runtime", e.target.value);
-              }}
+              readOnly
+              aria-label="Runtime detected from video"
               className={uploadInputClass()}
             />
           </UploadFormField>

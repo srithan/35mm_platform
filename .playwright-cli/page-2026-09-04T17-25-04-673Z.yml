@@ -1,0 +1,36 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e4]:
+    - link "35mm" [ref=e5] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - heading [level=1] [ref=e9]:
+          - text: Welcome
+          - emphasis [ref=e10]: back.
+        - paragraph [ref=e11]: Sign in to your account to continue.
+      - generic [ref=e12]:
+        - textbox "username or email" [ref=e14]
+        - generic [ref=e16]:
+          - textbox "Your password" [ref=e17]
+          - button [ref=e18] [cursor=pointer]
+        - button "Log in" [disabled] [ref=e22] [cursor=pointer]
+      - paragraph [ref=e25]:
+        - link "Forgot password?" [ref=e26] [cursor=pointer]:
+          - /url: /forgot
+      - paragraph [ref=e28]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=e29] [cursor=pointer]:
+          - /url: /signup
+    - contentinfo [ref=e30]:
+      - link "About" [ref=e31] [cursor=pointer]:
+        - /url: /about
+      - generic [aria-hidden] [ref=e32]: ·
+      - link "Privacy" [ref=e33] [cursor=pointer]:
+        - /url: /privacy
+      - generic [aria-hidden] [ref=e34]: ·
+      - link "Terms" [ref=e35] [cursor=pointer]:
+        - /url: /terms
+      - generic [aria-hidden] [ref=e36]: ·
+      - link "Help" [ref=e37] [cursor=pointer]:
+        - /url: /help

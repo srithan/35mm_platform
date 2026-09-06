@@ -1,4 +1,4 @@
-import { asc, gt } from "drizzle-orm";
+import { and, eq, asc, gt } from "drizzle-orm";
 import { films } from "@35mm/db/schema";
 import { initDb, getDb } from "../lib/db.js";
 import { batchStageCatalogEdits } from "../modules/catalog/mutations.js";
@@ -42,7 +42,7 @@ async function main() {
     var rows = await getDb()
       .select()
       .from(films)
-      .where(cursor ? gt(films.id, cursor) : undefined)
+      .where(and(eq(films.isCatalogListed, true), cursor ? gt(films.id, cursor) : undefined))
       .orderBy(asc(films.id))
       .limit(chunkSize);
 

@@ -2,8 +2,8 @@
 
 import { useId } from "react";
 import { LazyImage } from "@/components/LazyImage";
+import { SHOW_POSTER_CARD_METADATA } from "@/lib/constants/uiFlags";
 import type { TMDBMovie } from "@/lib/tmdb/types";
-import { cn } from "@/lib/utils/cn";
 import { posterUrl, starsFromVote, yearFromDate } from "../lib/tmdb-utils";
 
 type FilmClickHandler = (film: TMDBMovie) => void;
@@ -48,83 +48,24 @@ export function TicketDivider({ className = "" }: { className?: string }) {
   );
 }
 
-export const STREAMING_PROVIDER_OPTIONS = [
-  { id: null, label: "All" },
-  { id: 8, label: "Netflix" },
-  { id: 9, label: "Prime Video" },
-  { id: 15, label: "Hulu" },
-  { id: 1899, label: "Max" },
-  { id: 11, label: "MUBI" },
-] as const;
-
-export type StreamingProviderId =
-  (typeof STREAMING_PROVIDER_OPTIONS)[number]["id"];
-
 export function StreamingNowAisle({
   films,
   loading,
-  activeProviderId,
-  onProviderChange,
   onFilmClick,
 }: {
   films: TMDBMovie[];
   loading: boolean;
-  activeProviderId: StreamingProviderId;
-  onProviderChange: (providerId: StreamingProviderId) => void;
   onFilmClick: FilmClickHandler;
 }) {
-  const activeProvider = STREAMING_PROVIDER_OPTIONS.find(function (provider) {
-    return provider.id === activeProviderId;
-  });
-  const badgeLabel =
-    activeProviderId == null
-      ? "Streaming"
-      : (activeProvider?.label ?? "Streaming");
-
-  if (films.length === 0 && !loading) return null;
-
   return (
     <section aria-labelledby="streaming-now-heading">
-      <div className="mb-4 flex items-baseline justify-between gap-4">
+      <div className="mb-5">
         <h3
           id="streaming-now-heading"
           className="font-display text-xl font-semibold leading-tight text-fg sm:text-2xl"
         >
           What&apos;s streaming right now
         </h3>
-        <span className="hidden font-mono text-[11px] text-fg-muted sm:inline">
-          Filtered to your services
-        </span>
-      </div>
-      <div className="scrollbar-hide -mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
-        <div
-          role="group"
-          aria-label="Streaming services"
-          className="flex w-max gap-2 pb-0.5 sm:w-auto sm:flex-wrap"
-        >
-          {STREAMING_PROVIDER_OPTIONS.map(function (provider) {
-            const selected = provider.id === activeProviderId;
-            return (
-              <button
-                key={provider.label}
-                type="button"
-                aria-pressed={selected}
-                onClick={function () {
-                  onProviderChange(provider.id);
-                }}
-                className={cn(
-                  "inline-flex min-h-[34px] shrink-0 items-center rounded-full px-3 text-xs font-semibold",
-                  "transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] motion-reduce:transform-none motion-reduce:transition-none",
-                  selected
-                    ? "bg-fg text-bg"
-                    : "border border-fg/15 text-fg hover:border-fg/30 hover:bg-sunken/60",
-                )}
-              >
-                {provider.label}
-              </button>
-            );
-          })}
-        </div>
       </div>
       <div className="scrollbar-hide -mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
         {loading && films.length === 0 ? (
@@ -142,9 +83,9 @@ export function StreamingNowAisle({
               );
             })}
           </div>
-        ) : (
+        ) : films.length > 0 ? (
           <ul
-            aria-label="Streaming titles"
+            aria-label="Streaming titles across your services"
             className="flex items-start gap-3.5 pb-2 sm:grid sm:grid-cols-4 sm:gap-4 md:grid-cols-8"
           >
             {films.slice(0, 8).map(function (film) {
@@ -159,29 +100,29 @@ export function StreamingNowAisle({
                 >
                   <button
                     type="button"
+                    aria-label={"Open " + titleFor(film)}
                     onClick={function () {
                       onFilmClick(film);
                     }}
                     className="group block w-full rounded-[7px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/30 focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:rounded-sm"
                   >
-                    <span className="relative block">
-                      <LazyImage
-                        src={posterUrl(film.poster_path, "w342")}
-                        alt={titleFor(film)}
-                        aspectRatio="2/3"
-                        className="w-full rounded-[7px] transition-all duration-300 sm:rounded-sm sm:group-hover:-translate-y-1.5 sm:group-hover:-rotate-[0.4deg] sm:group-hover:shadow-[0_18px_30px_-18px_rgba(28,26,23,0.45)] motion-reduce:transition-none"
-                        sizes="(min-width: 768px) 12vw, (min-width: 640px) 23vw, 122px"
-                      />
-                      <span className="absolute bottom-[7px] left-[7px] rounded bg-bg/85 px-1.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg shadow-sm ring-1 ring-fg/10 backdrop-blur-md">
-                        {badgeLabel}
-                      </span>
-                    </span>
-                    <span className="mt-2 block line-clamp-2 text-xs font-semibold leading-snug text-fg">
-                      {titleFor(film)}
-                    </span>
-                    {metadata ? (
-                      <span className="mt-1 block truncate text-[10.5px] leading-none text-fg-muted">
-                        {metadata}
+                    <LazyImage
+                      src={posterUrl(film.poster_path, "w342")}
+                      alt={titleFor(film)}
+                      aspectRatio="2/3"
+                      className="w-full rounded-[7px] transition-all duration-300 sm:rounded-sm sm:group-hover:-translate-y-1.5 sm:group-hover:-rotate-[0.4deg] sm:group-hover:shadow-[0_18px_30px_-18px_rgba(28,26,23,0.45)] motion-reduce:transition-none"
+                      sizes="(min-width: 768px) 12vw, (min-width: 640px) 23vw, 122px"
+                    />
+                    {SHOW_POSTER_CARD_METADATA ? (
+                      <span className="mt-2 block">
+                        <span className="block line-clamp-2 text-xs font-semibold leading-snug text-fg">
+                          {titleFor(film)}
+                        </span>
+                        {metadata ? (
+                          <span className="mt-1 block truncate text-[10.5px] leading-none text-fg-muted">
+                            {metadata}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </button>
@@ -189,6 +130,15 @@ export function StreamingNowAisle({
               );
             })}
           </ul>
+        ) : (
+          <div
+            role="status"
+            className="flex min-h-32 items-center justify-center rounded-sm border border-dashed border-border bg-elevated px-5 text-center"
+          >
+            <p className="max-w-sm text-[13px] leading-relaxed text-fg-muted">
+              No streaming titles found for your saved services.
+            </p>
+          </div>
         )}
       </div>
     </section>

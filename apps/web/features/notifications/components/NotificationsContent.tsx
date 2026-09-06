@@ -20,6 +20,7 @@ import {
 } from "@/features/notifications/api/notificationsApi";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { getNotificationDestination } from "@/features/notifications/utils/notificationDestination";
+import { isMainNotificationItem } from "@/features/notifications/utils/mainNotification";
 import type { NotificationItem as ApiNotificationItem, NotificationPage } from "@35mm/types";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
@@ -174,8 +175,6 @@ function activityText(item: ApiNotificationItem): NotificationTextPart[] {
   } else if (item.type === "film_logged") {
     textParts.push({ type: "text", value: " logged " });
     textParts.push({ type: item.entity?.title ? "film" : "strong", value: item.entity?.title ?? "a film you logged" });
-  } else if (item.type === "chat_reaction") {
-    textParts.push({ type: "text", value: " reacted to your message" });
   } else {
     textParts.push({ type: "text", value: " interacted with you" });
   }
@@ -337,7 +336,10 @@ export function NotificationsContent() {
   });
 
   const data = notificationsQuery.data as NotificationPage | undefined;
-  const hasItems = (data?.items?.length ?? 0) > 0;
+  const mainItems = useMemo(function () {
+    return data?.items?.filter(isMainNotificationItem) ?? [];
+  }, [data?.items]);
+  const hasItems = mainItems.length > 0;
 
   const markOne = useMutation({
     mutationFn: async function (notificationId: string) {
@@ -486,11 +488,7 @@ export function NotificationsContent() {
   });
 
   const groups = useMemo(function () {
-    if (!data?.items) {
-      return [] as NotificationGroupRecord[];
-    }
-
-	    const items = data.items
+	    const items = mainItems
 	      .filter(function (item) {
 	        return item.type !== "follow_request";
 	      })
@@ -498,11 +496,11 @@ export function NotificationsContent() {
     const grouped = groupNotificationsByDate(items);
 
     return grouped;
-  }, [data]);
+  }, [mainItems]);
 
-  const unreadCount = data?.items?.filter(function (item) {
+  const unreadCount = mainItems.filter(function (item) {
     return !item.isRead;
-  }).length ?? 0;
+  }).length;
 
   const noNotificationRows = notificationsQuery.isLoading && !hasItems;
 

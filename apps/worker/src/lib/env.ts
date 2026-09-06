@@ -8,6 +8,11 @@ function requireEnv(name: string): string {
 
 export function loadWorkerEnv() {
   return {
+    BUNNY_STREAM_LIBRARY_ID: process.env.BUNNY_STREAM_LIBRARY_ID ?? "",
+    BUNNY_STREAM_API_KEY: process.env.BUNNY_STREAM_API_KEY ?? "",
+    BUNNY_STREAM_TOKEN_KEY: process.env.BUNNY_STREAM_TOKEN_KEY ?? "",
+    BUNNY_STREAM_WEBHOOK_SECRET: process.env.BUNNY_STREAM_WEBHOOK_SECRET ?? "",
+    BUNNY_STREAM_CDN_HOST: process.env.BUNNY_STREAM_CDN_HOST ?? "",
     DATABASE_URL: requireEnv("DATABASE_URL"),
     R2_ACCOUNT_ID: requireEnv("R2_ACCOUNT_ID"),
     R2_ACCESS_KEY_ID: requireEnv("R2_ACCESS_KEY_ID"),

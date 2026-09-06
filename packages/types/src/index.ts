@@ -14,6 +14,14 @@ export {
   parseFeedItemsRetentionDays,
 } from "./feedRetention.js";
 export { FEED_CACHE_NAMESPACE } from "./feedCacheNamespace.js";
+export {
+  DEFAULT_STREAMING_SERVICE_IDS,
+  STREAMING_SERVICES,
+  isStreamingServiceId,
+  normalizeStreamingServiceIds,
+  streamingProviderIds,
+  type StreamingServiceId,
+} from "./streamingServices.js";
 
 export type PostId = string;
 export type MessageId = string;
@@ -123,6 +131,7 @@ export interface FeedPost {
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
+    videoAssetId?: string;
     key?: string;
     thumbnailUrl?: string;
     altText?: string;
@@ -272,6 +281,46 @@ export interface FilmListFilm {
   year: number | null;
   posterUrl: string | null;
   genres: string[];
+}
+
+export type FilmCatalogSort =
+  | "popular"
+  | "recently_added"
+  | "title_asc"
+  | "year_desc"
+  | "year_asc";
+
+export type FilmCatalogType =
+  | "all"
+  | "movie"
+  | "tv_show"
+  | "web_series"
+  | "short_film"
+  | "documentary"
+  | "mini_series";
+
+export type FilmCatalogMediaType = "movie" | "tv";
+
+export interface FilmCatalogItem {
+  id: string;
+  tmdbId: number | null;
+  mediaType: FilmCatalogMediaType;
+  title: string;
+  originalTitle: string | null;
+  year: number | null;
+  runtime: number | null;
+  posterUrl: string | null;
+  genres: string[];
+  director: string | null;
+  language: string | null;
+  country: string | null;
+  isVerified: boolean;
+}
+
+export interface FilmCatalogPage {
+  items: FilmCatalogItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface FilmListEntry {
@@ -1035,3 +1084,5 @@ export interface NotificationUnreadCount {
 }
 
 export type { FollowSuggestion, SuggestionsResponse } from "./suggestions.js";
+
+export * from "./video.js";

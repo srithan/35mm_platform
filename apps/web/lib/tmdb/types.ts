@@ -11,6 +11,12 @@ export interface TMDBPerson {
   job?: string;
 }
 
+export interface TMDBSearchPerson extends TMDBPerson {
+  media_type: "person";
+  known_for_department?: string;
+  known_for?: TMDBMedia[];
+}
+
 export interface TMDBCredits {
   cast: TMDBPerson[];
   crew: TMDBPerson[];
@@ -89,6 +95,9 @@ export interface TMDBMedia {
   media_type?: "movie" | "tv";
   title?: string;
   name?: string;
+  original_title?: string;
+  original_name?: string;
+  original_language?: string;
   poster_path: string | null;
   backdrop_path: string | null;
   overview: string;
@@ -118,6 +127,8 @@ export interface TMDBMedia {
 }
 
 export type TMDBMovie = TMDBMedia;
+
+export type TMDBMultiSearchResult = TMDBMovie | TMDBSearchPerson;
 
 export interface TMDBEpisode {
   id: number;

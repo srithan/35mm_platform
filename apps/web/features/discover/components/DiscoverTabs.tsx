@@ -1,29 +1,31 @@
 "use client";
 
-import { cn } from "@/lib/utils/cn";
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
+import { ROUTES } from "@/lib/constants/routes";
 
-export type DiscoverTab = "Explore" | "Now Playing" | "TV Shows";
+export type DiscoverSection = "discover" | "films" | "lists" | "contribute";
 
-const TABS: DiscoverTab[] = ["Explore", "TV Shows", "Now Playing"];
+const TABS = [
+  { id: "discover", label: "Discover", href: ROUTES.DISCOVER },
+  { id: "films", label: "Films", href: ROUTES.FILMS },
+  { id: "lists", label: "Lists", href: ROUTES.LISTS },
+  { id: "contribute", label: "Contribute", href: ROUTES.CONTRIBUTE },
+] as const;
 
 interface DiscoverTabsProps {
-  active: DiscoverTab;
-  onSelect: (tab: DiscoverTab) => void;
+  active: DiscoverSection;
 }
 
-export function DiscoverTabs({ active, onSelect }: DiscoverTabsProps) {
-  const tabs = TABS.map((tab) => ({ id: tab, label: tab, onClick: () => onSelect(tab) }));
-
+export function DiscoverTabs({ active }: DiscoverTabsProps) {
   return (
     <TopStickyBar
-      tabs={tabs}
+      tabs={TABS}
       activeTabId={active}
-      navAriaLabel="Discover sections"
-      rootClassName="w-full pt-0 pb-0"
-      tabsListClassName=""
+      navAriaLabel="Explore 35mm"
+      rootClassName="w-full bg-bg pb-0 pt-0"
+      tabsListClassName="px-4 sm:px-6 lg:px-10"
       tabClassName="min-w-max flex-shrink-0 py-3.5 text-[14px] tracking-[0.02em] md:flex-none"
-      activeTabClassName={cn("text-fg font-semibold", "border-accent")}
+      activeTabClassName="border-accent font-semibold text-fg"
       inactiveTabClassName="text-fg-muted hover:text-fg font-medium"
     />
   );

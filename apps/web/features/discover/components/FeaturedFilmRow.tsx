@@ -28,10 +28,10 @@ function Star({ filled, half }: { filled?: boolean; half?: boolean }) {
         clipPath:
           "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
         background: half
-          ? "linear-gradient(90deg, var(--accent) 50%, var(--border) 50%)"
+          ? "linear-gradient(90deg, var(--color-rating-star, var(--accent)) 50%, var(--color-rating-star-empty, var(--border)) 50%)"
           : filled
-            ? "var(--accent)"
-            : "var(--border)",
+            ? "var(--color-rating-star, var(--accent))"
+            : "var(--color-rating-star-empty, var(--border))",
       }}
     />
   );

@@ -7,6 +7,7 @@ import { postComposerWritePrompt } from "./writePrompt";
 import { presignProfileMediaUpload, uploadToPresignedUrl } from "@/features/profile/api/mediaApi";
 
 const mocks = vi.hoisted(() => ({
+  uploadVideo: vi.fn(),
   createPostMutateAsync: vi.fn(async () => ({})),
   updatePostMutateAsync: vi.fn(async () => ({})),
   resolveOnboardingFilmsMock: vi.fn(async () => ["01ARZ3NDEKTSV4RRFFQ69G5FAV"]),
@@ -32,7 +33,7 @@ const mocks = vi.hoisted(() => ({
 const WRITE_PLACEHOLDER = postComposerWritePrompt("Test User");
 
 vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ getToken: vi.fn(async () => "test-token") }),
+  useAuth: () => ({ userId: "user_1", getToken: vi.fn(async () => "test-token") }),
   useUser: () => ({ user: { fullName: "Test User", username: "testuser", imageUrl: null } }),
 }));
 
@@ -67,6 +68,8 @@ vi.mock("@/features/feed/api/mentionsApi", () => ({
 vi.mock("@/features/onboarding/api/onboardingApi", () => ({
   resolveOnboardingFilmsFromTmdb: mocks.resolveOnboardingFilmsMock,
 }));
+
+vi.mock("@/features/videos/api/videoApi", () => ({ uploadVideo: mocks.uploadVideo }));
 
 vi.mock("@/features/profile/api/mediaApi", () => ({
   presignProfileMediaUpload: vi.fn(),
@@ -105,9 +108,18 @@ beforeAll(() => {
     unobserve() {}
   }
   vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: vi.fn(() => "blob:video-preview"),
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: vi.fn(),
+  });
 });
 
 beforeEach(() => {
+  mocks.uploadVideo.mockReset();
   mocks.createPostMutateAsync.mockClear();
   mocks.updatePostMutateAsync.mockClear();
   mocks.resolveOnboardingFilmsMock.mockClear();
@@ -393,6 +405,113 @@ describe("PostComposer", () => {
       key: "users/user_1/post_media/photo.jpg",
     });
     expect(input.media[0]?.variants).toBeUndefined();
+  });
+
+  it("publishes after upload acknowledgement while video is still processing", async () => {
+    var finishUpload: (() => void) | undefined;
+    mocks.uploadVideo.mockImplementation(async (params) => {
+      params.onProgress(42);
+      await new Promise<void>(resolve => { finishUpload = resolve; });
+      params.onProgress(100);
+      return { id: "video-asset-id", state: "processing", width: 640, height: 360 };
+    });
+
+    const user = userEvent.setup();
+    const { container } = render(<PostComposer variant="inline" />);
+    const input = container.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]');
+    expect(input).not.toBeNull();
+
+    const file = new File([new Uint8Array(1024 * 1024)], "scene.mp4", { type: "video/mp4" });
+    fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
+
+    expect(await screen.findByLabelText("Attached video")).toBeInTheDocument();
+    expect(container.querySelector('video[src="blob:video-preview"]')).not.toBeNull();
+    expect(mocks.createPostMutateAsync).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(screen.getByRole("progressbar", { name: "Video upload progress" })).toHaveAttribute(
+        "aria-valuenow",
+        "42"
+      );
+    });
+    expect(screen.getByText(/Uploading video · 42%/)).toBeInTheDocument();
+    expect(mocks.uploadVideo).toHaveBeenCalledWith(expect.objectContaining({ file, purpose: "post", ownerId: "user_1" }));
+
+    await user.click(screen.getByRole("button", { name: "Post" }));
+    expect(mocks.uploadVideo).toHaveBeenCalledTimes(1);
+    expect(mocks.createPostMutateAsync).not.toHaveBeenCalled();
+    finishUpload?.();
+    await waitFor(() => {
+      expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          media: [
+            expect.objectContaining({
+              type: "video",
+              url: "/v1/videos/video-asset-id/playback",
+              videoAssetId: "video-asset-id",
+            }),
+          ],
+        })
+      );
+    });
+  });
+
+  it("keeps completed uploads ready until Post without uploading twice", async () => {
+    mocks.uploadVideo.mockResolvedValue({ id: "ready-asset", state: "ready" });
+    const user = userEvent.setup();
+    const { container } = render(<PostComposer variant="inline" />);
+    const input = container.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]')!;
+    fireEvent.change(input, { target: { files: [new File(["video"], "scene.mp4", { type: "video/mp4" })] } });
+    expect(await screen.findByText(/Video ready to post/)).toBeInTheDocument();
+    expect(mocks.createPostMutateAsync).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Post" }));
+    await waitFor(() => expect(mocks.createPostMutateAsync).toHaveBeenCalled());
+    expect(mocks.uploadVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows background failures and retries before posting", async () => {
+    mocks.uploadVideo.mockRejectedValueOnce(new Error("Network unavailable"))
+      .mockResolvedValueOnce({ id: "retried-asset", state: "ready" });
+    const user = userEvent.setup();
+    const { container } = render(<PostComposer variant="inline" />);
+    const input = container.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]')!;
+    fireEvent.change(input, { target: { files: [new File(["video"], "scene.mp4", { type: "video/mp4" })] } });
+    expect(await screen.findByText("Network unavailable")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry upload" }));
+    expect(await screen.findByText(/Video ready to post/)).toBeInTheDocument();
+    expect(mocks.uploadVideo).toHaveBeenCalledTimes(2);
+    expect(mocks.createPostMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("cancels removed uploads and ignores late progress", async () => {
+    let params!: Parameters<typeof import("@/features/videos/api/videoApi").uploadVideo>[0];
+    mocks.uploadVideo.mockImplementation((input) => {
+      params = input;
+      return new Promise(() => {});
+    });
+    const user = userEvent.setup();
+    const { container, unmount } = render(<PostComposer variant="inline" />);
+    const input = container.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]')!;
+    fireEvent.change(input, { target: { files: [new File(["video"], "scene.mp4", { type: "video/mp4" })] } });
+    await user.click(screen.getByRole("button", { name: "Remove video" }));
+    expect(params.signal?.aborted).toBe(true);
+    params.onProgress(88);
+    expect(screen.queryByLabelText("Attached video")).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { files: [new File(["new"], "other.mp4", { type: "video/mp4" })] } });
+    unmount();
+    expect(params.signal?.aborted).toBe(true);
+  });
+
+  it("rejects unsupported video formats before upload", async () => {
+    const { container } = render(<PostComposer variant="inline" />);
+    const input = container.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]');
+    const file = new File(["video"], "scene.mov", { type: "video/quicktime" });
+
+    fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
+
+    expect(await screen.findByText("Choose an MP4 or WebM video.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Attached video")).not.toBeInTheDocument();
+    expect(presignProfileMediaUpload).not.toHaveBeenCalled();
   });
 
   it("opens mention autocomplete and inserts stable mention node", async () => {
