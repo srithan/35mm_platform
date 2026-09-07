@@ -1,5 +1,6 @@
 flowchart LR
   Browser["Browser / Next.js app"]
+  Mobile["Expo / React Native app\napps/mobile"]
   Studio["Studio / internal admin app"]
   NextApi["Next app API routes\n/api/tmdb, /api/notifications"]
   Hono["Hono API\napps/api"]
@@ -15,6 +16,7 @@ flowchart LR
   TMDB["TMDB\ncold-start search/fallback"]
 
   Browser -->|React Query + fetch| Hono
+  Mobile -->|React Query + authenticated REST| Hono
   Studio -->|admin fetch| Hono
   Studio -->|direct operational reads/writes| Neon
   Browser -->|server route proxy| NextApi
@@ -34,6 +36,8 @@ flowchart LR
 
   Browser -->|signed resumable TUS upload| Bunny
   Browser -->|authorized iframe playback| Bunny
+  Mobile -->|bounded resumable TUS upload| Bunny
+  Mobile -->|authorized WebView playback| Bunny
   Hono -->|create, finalize, verify status| Bunny
   Worker -->|leased reconciliation| Bunny
   Bunny -.->|signed webhook when API deployed| Hono

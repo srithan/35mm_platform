@@ -1,5 +1,6 @@
-import type { CSSProperties, Ref, WheelEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, MouseEvent, Ref, TouchEvent, WheelEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -87,10 +88,17 @@ export function NotificationDropdown({
   markUnreadMutation,
   onTrapWheel,
 }: NotificationDropdownProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<NotificationDropdownView>("main");
   const [direction, setDirection] = useState<NotificationDropdownDirection>("forward");
   const [lockedPanelHeight, setLockedPanelHeight] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<CSSProperties | null>(null);
+
+  useEffect(function () {
+    setMounted(true);
+  }, []);
 
   useEffect(
     function () {
@@ -98,6 +106,32 @@ export function NotificationDropdown({
       setView("main");
       setDirection("forward");
       setLockedPanelHeight(null);
+    },
+    [open]
+  );
+
+  useLayoutEffect(
+    function () {
+      if (!open) return;
+
+      function updatePanelPosition() {
+        const trigger = triggerRef.current;
+        if (!trigger) return;
+        const rect = trigger.getBoundingClientRect();
+        setPanelPosition({
+          position: "fixed",
+          top: rect.bottom + 8,
+          right: Math.max(16, window.innerWidth - rect.right),
+        });
+      }
+
+      updatePanelPosition();
+      window.addEventListener("resize", updatePanelPosition);
+      window.addEventListener("scroll", updatePanelPosition, true);
+      return function () {
+        window.removeEventListener("resize", updatePanelPosition);
+        window.removeEventListener("scroll", updatePanelPosition, true);
+      };
     },
     [open]
   );
@@ -149,55 +183,32 @@ export function NotificationDropdown({
     setLockedPanelHeight(null);
   }
 
-  const panelStyle: CSSProperties | undefined =
-    view === "follow-requests" && lockedPanelHeight != null
+  const panelStyle: CSSProperties | undefined = {
+    ...panelPosition,
+    ...(view === "follow-requests" && lockedPanelHeight != null
       ? {
           height: lockedPanelHeight,
           minHeight: lockedPanelHeight,
           maxHeight: lockedPanelHeight,
         }
-      : undefined;
+      : null),
+  };
 
-  return (
-    <div className={styles.notifWrap} id="notif-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={styles.btnNotif}
-        id="btn-notif"
-        aria-label="Notifications"
-        aria-expanded={open}
-        onClick={handleToggle}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path
-            d="M6 10C6 6.69 8.69 4 12 4C15.31 4 18 6.69 18 10V16.5L20.5 18.5H3.5L6 16.5V10Z"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M10 21.5C10 22.33 10.9 23 12 23C13.1 23 14 22.33 14 21.5"
-            strokeLinecap="round"
-          />
-          <line x1="12" y1="1" x2="12" y2="4" strokeLinecap="round" />
-        </svg>
-        {Number(unreadRowsQuery.data?.items.length ?? 0) + followRequestTotal > 0 ? (
-          <span
-            className={cn(styles.btnNotifBadge, "unread-notification-badge")}
-            id="notif-badge"
-          >
-            {unreadBadgeCount}
-          </span>
-        ) : null}
-      </button>
+  function stopPortalMouseDown(event: MouseEvent<HTMLDivElement>) {
+    event.stopPropagation();
+  }
 
-      {open ? (
+  function stopPortalTouchMove(event: TouchEvent<HTMLDivElement>) {
+    event.stopPropagation();
+  }
+
+  function handlePanelWheel(event: WheelEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    onTrapWheel(event);
+  }
+
+  const panel = open && mounted
+    ? createPortal(
         <div
           ref={panelRef}
           className={cn(
@@ -209,7 +220,9 @@ export function NotificationDropdown({
           role="dialog"
           aria-label={view === "follow-requests" ? "Follow requests" : "Notifications"}
           style={panelStyle}
-          onWheel={onTrapWheel}
+          onMouseDown={stopPortalMouseDown}
+          onTouchMove={stopPortalTouchMove}
+          onWheel={handlePanelWheel}
         >
           <div className={styles.notifPanelArrow} aria-hidden />
           <div className={styles.notifPanelViewport}>
@@ -363,8 +376,52 @@ export function NotificationDropdown({
               ) : null}
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div className={styles.notifWrap} id="notif-wrap" ref={wrapRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={styles.btnNotif}
+        id="btn-notif"
+        aria-label="Notifications"
+        aria-expanded={open}
+        onClick={handleToggle}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path
+            d="M6 10C6 6.69 8.69 4 12 4C15.31 4 18 6.69 18 10V16.5L20.5 18.5H3.5L6 16.5V10Z"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M10 21.5C10 22.33 10.9 23 12 23C13.1 23 14 22.33 14 21.5"
+            strokeLinecap="round"
+          />
+          <line x1="12" y1="1" x2="12" y2="4" strokeLinecap="round" />
+        </svg>
+        {Number(unreadRowsQuery.data?.items.length ?? 0) + followRequestTotal > 0 ? (
+          <span
+            className={cn(styles.btnNotifBadge, "unread-notification-badge")}
+            id="notif-badge"
+          >
+            {unreadBadgeCount}
+          </span>
+        ) : null}
+      </button>
+
+      {panel}
     </div>
   );
 }

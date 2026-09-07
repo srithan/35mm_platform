@@ -116,7 +116,7 @@ function WelcomeContent() {
             accessibilityHint="Create your 35mm account"
             fullWidth
             label="Start your journey"
-            onPress={() => router.push("./signup/name")}
+            onPress={() => router.push("/signup/name")}
             size="large"
             testID="welcome-start"
           />
@@ -128,7 +128,7 @@ function WelcomeContent() {
               accessibilityHint="Open 35mm account login"
               accessibilityRole="link"
               hitSlop={8}
-              onPress={() => router.push("./login")}
+              onPress={() => router.push("/login")}
               style={styles.inlineLink}
               testID="welcome-login"
             >

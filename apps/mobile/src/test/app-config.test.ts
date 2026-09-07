@@ -105,6 +105,29 @@ describe("mobile app variants", () => {
     },
   );
 
+  it("keeps video media capabilities foreground-only", () => {
+    process.env.APP_VARIANT = "development";
+
+    const config = createExpoConfig(CONFIG_CONTEXT);
+
+    expect(config.plugins?.[7]).toEqual([
+      "expo-image-picker",
+      {
+        photosPermission:
+          "Allow 35mm to access videos you choose to attach to posts.",
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ]);
+    expect(config.plugins?.[8]).toEqual([
+      "expo-video",
+      {
+        supportsBackgroundPlayback: false,
+        supportsPictureInPicture: false,
+      },
+    ]);
+  });
+
   it.each([undefined, "", "production", "Development"])(
     "rejects missing or unsupported APP_VARIANT value %p",
     (value) => {

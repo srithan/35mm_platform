@@ -1,6 +1,6 @@
 # Film and post video uploads
 
-Updated 2026-09-06. Bunny Stream handles uploaded film and post video bytes, encoding and playback. R2 continues to handle images and film thumbnails. Web entry points are the post composer and `/70mm/upload`; published uploaded films use `/70mm/{35mm-film-ULID}`.
+Updated 2026-09-06. Bunny Stream handles uploaded film and post video bytes, encoding and playback. R2 continues to handle images and film thumbnails. Web entry points are the post composer and `/70mm/upload`; React Native uses the authenticated Home feed/composer for post videos; published uploaded films use `/70mm/{35mm-film-ULID}`.
 
 ## Account configuration
 
@@ -14,6 +14,7 @@ The API is local only by user choice. No dashboard webhook URL is configured. Au
 
 1. Authenticated `POST /v1/videos/uploads` reserves a `video_assets` row using a client UUID idempotency key and request hash. A unique owner/key index prevents duplicate reservations; stable provider titles recover interrupted provider creation. New upload sessions are limited to 20/user/day, writes to 20/user/minute. Existing session retries do not spend daily creation quota.
 2. A 24-hour asset-scoped TUS signature sends bytes directly to Bunny in 8 MiB chunks. `tus-js-client` is dynamically imported. The browser retains up to 20 non-secret session identities for 24 hours in session storage, permitting same-tab reload/reselection recovery. Cancellation stops transfer; network retry resumes from the acknowledged offset. Successful transfer receipts avoid re-uploading when the completion response is lost.
+   React Native implements the same protocol directly with bounded `expo-file-system` slices and `expo/fetch`; AsyncStorage retains the same bounded non-secret identity policy without persisting file URIs, user IDs, signatures, or playback grants.
 3. `POST /:id/complete` records processing, not readiness. `POST /:id/refresh` is owner-only, limited to 12/user/minute, and acquires a DB lease limiting Bunny queries to once per asset/minute. The UI checks every 15 seconds for at most one hour; retry continues checking the saved upload. The worker handles closed tabs.
 4. Validate original stored bytes and encoded dimensions/duration against the declaration. Post videos: 120 MiB and 10 minutes. Films: 20 GiB and four hours. MP4, MOV, WebM and MKV only. These are declaration and post-processing limits: Bunny's signed TUS protocol does not enforce an application-specified byte quota during transfer.
 5. **Finalization protects published bytes.** Bunny allows a still-valid TUS grant to upload again to the same video ID. The application therefore asks Bunny to fetch the staged original into a server-only final video, using a signed source URL and a reserved finalization attempt. The final copy is independently processed and checked. Its credentials are never issued to clients. The staged copy is removed before readiness; interrupted copy requests recover by a distinct stable title, avoiding duplicate copy submissions. Copy/encoding happens inside Bunny, never through the API process. This incurs a second encoding pass and overlapping storage while processing.

@@ -55,6 +55,12 @@ it("keeps native video playback position through navigation", () => {
   expect(video.currentTime).toBe(17);
 });
 
+it("keeps portaled video below shell dropdown layers", () => {
+  render(<PostVideoProvider><Route /></PostVideoProvider>);
+  const surface = document.querySelector("[data-post-video='post']") as HTMLElement | null;
+  expect(surface?.style.zIndex).toBe("var(--z-post-video)");
+});
+
 it("disposes players on unrelated navigation instead of leaving audio running", async () => {
   const view = render(<PostVideoProvider><Route /></PostVideoProvider>);
   state.path = "/settings";

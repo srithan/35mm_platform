@@ -5,13 +5,13 @@ index c4f3b6bf3dab6666687b91b8545effb854fd2711..5afea4492550bda7f73e1aebd7e30baf
 @@ -1,4 +1,5 @@
  require 'json'
 +require 'shellwords'
-
+ 
  package = JSON.parse(File.read(File.join(__dir__, '..', 'package.json')))
-
+ 
 @@ -34,10 +35,10 @@ Pod::Spec.new do |s|
      s.source_files = "**/*.{h,m,swift}"
    end
-
+ 
 -  env_vars = ENV['PROJECT_ROOT'] ? "PROJECT_ROOT=#{ENV['PROJECT_ROOT']} " : ""
 +  env_vars = ENV['PROJECT_ROOT'] ? "PROJECT_ROOT=#{Shellwords.escape(ENV['PROJECT_ROOT'])} " : ""
    script_phase = {

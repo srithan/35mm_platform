@@ -37,6 +37,8 @@ export const EXPLICIT_CONFIG_PLUGIN_NAMES = [
   "expo-build-properties",
   "expo-system-ui",
   "expo-splash-screen",
+  "expo-image-picker",
+  "expo-video",
   "./plugins/with-expo-constants-project-root.cjs",
   "./plugins/with-retained-expo-modules-provider.cjs",
   "./plugins/with-quoted-react-native-bundle-script.cjs",
@@ -120,9 +122,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
         },
       ],
-      EXPLICIT_CONFIG_PLUGIN_NAMES[7],
-      EXPLICIT_CONFIG_PLUGIN_NAMES[8],
+      [
+        EXPLICIT_CONFIG_PLUGIN_NAMES[7],
+        {
+          photosPermission:
+            "Allow 35mm to access videos you choose to attach to posts.",
+          cameraPermission: false,
+          microphonePermission: false,
+        },
+      ],
+      [
+        EXPLICIT_CONFIG_PLUGIN_NAMES[8],
+        {
+          supportsBackgroundPlayback: false,
+          supportsPictureInPicture: false,
+        },
+      ],
       EXPLICIT_CONFIG_PLUGIN_NAMES[9],
+      EXPLICIT_CONFIG_PLUGIN_NAMES[10],
+      EXPLICIT_CONFIG_PLUGIN_NAMES[11],
     ],
     experiments: {
       typedRoutes: true,

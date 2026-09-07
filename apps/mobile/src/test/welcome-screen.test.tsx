@@ -86,8 +86,8 @@ describe("WelcomeScreen", () => {
     await fireEvent.press(view.getByTestId("welcome-start"));
     await fireEvent.press(view.getByTestId("welcome-login"));
 
-    expect(push).toHaveBeenNthCalledWith(1, "./signup/name");
-    expect(push).toHaveBeenNthCalledWith(2, "./login");
+    expect(push).toHaveBeenNthCalledWith(1, "/signup/name");
+    expect(push).toHaveBeenNthCalledWith(2, "/login");
     expect(openUrl).not.toHaveBeenCalled();
   });
 

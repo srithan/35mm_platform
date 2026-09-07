@@ -24,10 +24,10 @@ const rootPackageJson = JSON.parse(
   readFileSync(resolve(repositoryRoot, "package.json"), "utf8"),
 );
 const expoConstantsPatchPath =
-  rootPackageJson.pnpm?.patchedDependencies?.["expo-constants@57.0.7"];
+  rootPackageJson.pnpm?.patchedDependencies?.["expo-constants@57.0.17"];
 assert.equal(
   expoConstantsPatchPath,
-  "patches/expo-constants@57.0.7.patch",
+  "patches/expo-constants@57.0.17.patch",
   "Expo Constants path-safe build patch must remain pinned.",
 );
 const expoConstantsPatch = readFileSync(
@@ -43,6 +43,22 @@ assert.match(
   expoConstantsPatch,
   /PROJECT_DIR_BASENAME=\$\(basename "\$PROJECT_DIR"\)/,
   "Expo Constants app-config generation must preserve a project path containing spaces.",
+);
+const expoModulesJsiPatchPath =
+  rootPackageJson.pnpm?.patchedDependencies?.["expo-modules-jsi@57.0.8"];
+assert.equal(
+  expoModulesJsiPatchPath,
+  "patches/expo-modules-jsi@57.0.8.patch",
+  "ExpoModulesJSI nested-build signing patch must remain pinned.",
+);
+const expoModulesJsiPatch = readFileSync(
+  resolve(repositoryRoot, expoModulesJsiPatchPath),
+  "utf8",
+);
+assert.match(
+  expoModulesJsiPatch,
+  /CODE_SIGNING_ALLOWED=NO/,
+  "ExpoModulesJSI nested XCFramework builds must not attempt local signing.",
 );
 
 function run(command, args, options = {}) {

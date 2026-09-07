@@ -27,9 +27,9 @@
     "@expo-google-fonts/dm-serif-display": "0.4.2",
     "lucide-react-native": "1.25.0",
     "react": "19.2.3",
-    "react-native": "0.86.0",
+    "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-reanimated": "4.5.0",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4"
   },
@@ -41,9 +41,9 @@
     "@types/react": "~19.2.2",
     "lucide-react-native": "1.25.0",
     "react": "19.2.3",
-    "react-native": "0.86.0",
+    "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-reanimated": "4.5.0",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "typescript": "~6.0.3"

@@ -40,8 +40,8 @@ cleaned, renamed, or otherwise changed by mobile CNG commands.
 - A dependency/plugin change must update the reviewed plugin/autolinking baseline
   in `scripts/native-generation-policy.mjs`, then pass isolated generation for
   both development and preview variants.
-- The repository path may contain spaces. `expo-constants@57.0.7` is pinned to
-  the reviewed pnpm patch at `patches/expo-constants@57.0.7.patch`, and the
+- The repository path may contain spaces. `expo-constants@57.0.17` is pinned to
+  the reviewed pnpm patch at `patches/expo-constants@57.0.17.patch`, and the
   35mm-owned quoted-bundle-script plugin safely rewrites Expo's generated Xcode
   bundle-phase invocation. The dependency patch preserves both the CocoaPods
   script path and `PROJECT_DIR` as single shell arguments; without the latter,
@@ -49,6 +49,11 @@ cleaned, renamed, or otherwise changed by mobile CNG commands.
   contains spaces. Native policy and isolated generation fail if these
   path-safety guards drift; never edit the generated Xcode project to retain
   them.
+- The File Provider-backed repository path carries Finder metadata that nested
+  ExpoModulesJSI XCFramework builds must not sign. The reviewed
+  `expo-modules-jsi@57.0.8` patch sets `CODE_SIGNING_ALLOWED=NO` only on that
+  nested library build; final app/framework signing remains unchanged and the
+  native policy fails if the patch disappears.
 - Xcode 26 Release dead-code stripping removes Expo's string-discovered
   `ExpoModulesProvider` unless the app references its type directly. The
   retained-provider plugin uses a synchronous AppDelegate mod with one exact
@@ -110,6 +115,13 @@ direct device evidence. Physical-iOS smoke builds use an embedded Release
 CoreDevice's supported app argument remains `--initialUrl <url>`;
 `devicectl --payload-url` is unrelated. Do not retain a workstation IP address
 in app config or generated native source.
+
+Post-video support explicitly configures Expo Image Picker for selected library
+videos only: camera and microphone permission prompts are disabled. Expo Video
+has background playback and picture-in-picture disabled. File System performs
+bounded local reads, React Native WebView hosts only validated signed Bunny
+embeds, and FlashList supplies recycler-backed feed rendering. These native
+dependency/config changes require fresh development and preview binaries.
 
 ## Commands
 

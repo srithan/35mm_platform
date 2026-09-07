@@ -167,7 +167,7 @@ function PlayerSurface({ session, path, rememberGeometry }: { session: Session; 
     };
   });
   return <div ref={surface} data-post-video={session.media.postId}
-    style={{ position: "fixed", zIndex: 10, visibility: "hidden" }}>
+    style={{ position: "fixed", zIndex: "var(--z-post-video)", visibility: "hidden" }}>
     {session.media.assetId
       ? <BunnyVideoPlayer assetId={session.media.assetId} initialAspectRatio={session.aspectRatio} />
       : session.media.src ? <FeedVideoPlayer src={session.media.src} initialAspectRatio={session.aspectRatio} /> : null}

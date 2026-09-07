@@ -2,10 +2,10 @@
 
 > Canonical plan, progress ledger, and continuation contract for the shared iOS and Android app.
 >
-> Last updated: 2026-07-24
-> Document status: Phase 2 implementation active; launch handoff, root auth/bootstrap, Welcome, and five-step signup through verified authenticated completion are complete; physical Android evidence deferred by user
+> Last updated: 2026-09-06
+> Document status: Phase 2 remains active; the user-prioritized Phase 4 feed slice now renders mixed posts, native rich text, More actions, and cursor-paged comment detail; physical Android evidence remains deferred by user
 > Current phase: Phase 2 — Launch, Welcome, and account lifecycle
-> Next unblocked task: Implement Login and Clerk session-task/MFA handling
+> Next unblocked task: Implement forgot-password, reset-code, new-password, and completion flows
 
 ## 1. Document contract
 
@@ -172,10 +172,10 @@ Version baseline was reverified against official Expo, React Native, and Android
 | Concern | Planned choice |
 |---|---|
 | Workspace | `apps/mobile`, package name `@35mm/mobile` |
-| Framework | Expo SDK 57 (`expo` 57.0.8 at scaffold) |
-| Runtime | React Native 0.86.0, New Architecture/Fabric only |
+| Framework | Expo SDK 57 (`expo` 57.0.20; scaffolded at 57.0.8) |
+| Runtime | React Native 0.86.3, New Architecture/Fabric only |
 | React | React 19.2.3, isolated from existing React 18 workspaces through pnpm peer/type resolution |
-| Routing | Expo Router 57.0.8 with typed routes; universal/app links remain later-phase work |
+| Routing | Expo Router 57.0.19 with typed routes; universal/app links remain later-phase work |
 | Server state | TanStack React Query v5 |
 | UI state | Zustand v5 and local component state |
 | Auth | `@clerk/expo` custom flows; no beta prebuilt native auth UI |
@@ -568,7 +568,7 @@ Canonical side drawer:
 
 | Domain | Planned mobile scope | Primary references | Backend readiness | Phase |
 |---|---|---|---|---:|
-| Auth | Launch, root bootstrap, Welcome, Signup Name/username, Signup Email, Signup Password, and Signup DOB complete; verify, login, MFA, forgot/reset remain | Web auth + SwiftUI Intro/Auth | Clerk and secure DOB completion bridge wired | 2 |
+| Auth | Launch, root bootstrap, Welcome, verified signup, password Login, session activation, and email-code challenge handling complete; forgot/reset and social sign-in remain | Web auth + SwiftUI Intro/Auth | Clerk and secure DOB completion bridge wired | 2 |
 | Onboarding | Role, films, genres, people | Web complete flow + SwiftUI coordinator | Wired | 3 |
 | Shell | Header, five tabs, drawer, deep links | Mobile web shell + SwiftUI shell | Client-only | 4 |
 | Feed | Home feed, refresh, cursor paging, repost proof, quotes, polls, media/link cards | Web feed + SwiftUI Feed | Wired | 4 |
@@ -905,7 +905,7 @@ Exit criterion: themed component gallery and bootstrap shell render identically,
 - [x] Signup Password step.
 - [x] Signup DOB step and secure post-verification persistence.
 - [x] Email verification/resend/change-email flow.
-- [ ] Login and Clerk session-task/MFA handling.
+- [x] Login and Clerk session-task/MFA handling.
 - [ ] Forgot password, reset code, new password, and completion flows.
 - [ ] Auth process-death, offline, throttling, expiry, accessibility, and visual tests.
 - [x] Cross-layer DOB validation/privacy tests and documented release-age-policy blocker.
@@ -926,6 +926,7 @@ Exit criterion: verified new account reaches a populated Home shell through exis
 
 ### Phase 4 — Authenticated shell and feed vertical slice
 
+- [x] Video-post vertical slice: cursor feed, signed Bunny playback, eager resumable upload, processing states, visibility, optimistic interactions, sharing, and owner soft-delete.
 - [ ] Five-tab custom bottom navigation.
 - [ ] Shared header, scroll chrome, drawer, and deep-link shell.
 - [ ] Home feed with cursor pagination, refresh, skeletons, cache, and retry.
@@ -1034,16 +1035,16 @@ A slice is not complete until:
 | Product direction | Complete |
 | Canonical plan | Complete |
 | Agent auto-discovery contract | Complete |
-| `apps/mobile` workspace | Phase 2 active: Expo SDK 57 foundation plus OS launch handoff, Clerk/API bootstrap routing, signed-in recovery, signed-out Welcome, and five-step signup through verified authenticated completion are implemented; later account and product routes remain |
-| Mobile unit/integration tests | Jest/`jest-expo` and React Native Testing Library wired; discovery is bounded to `src`, and 90 mobile cases cover root/Router/config/UI, provider composition, token-to-transport injection, runtime validation, state/lifecycle/retry boundaries, cache allowlisting/account cleanup, launch/bootstrap recovery, deterministic foundation accessibility/state transitions, Welcome content/navigation/legal behavior, all five signup steps, draft migration/privacy/restoration, volatile-secret process recreation, username debounce/cancellation/error recovery, Clerk payload privacy/resume, code paste/autofill/cooldown/resend/change-email/expiry behavior, session-before-profile-completion ordering, verified completion retry/recovery with or without a retained SignUp resource, matching-user recovery routing, keyboard/autofill/password-manager metadata, accessible password visibility, duplicate-action blocking, variant-specific Apple Sign-In capability, and recent-bundle auto-launch preference; 29 token invariants and 6 API-client cases run in package checks |
+| `apps/mobile` workspace | Phase 2 active: Expo SDK 57 foundation, auth/bootstrap, Welcome, verified signup, and password Login are implemented. Authenticated onboarded users now reach the production cursor-paged mixed-post feed, video composer, and post-detail/comment reader while the complete Phase 4 shell remains pending |
+| Mobile unit/integration tests | Jest/`jest-expo` and React Native Testing Library wired; discovery is bounded to `src`, and 111 mobile cases cover Login/session challenges, native rich-text rendering, PostCard surface/action/comment entry, UUID post-detail routing, cursor comment contracts/tree bounds, signed video contract rejection, plus bounded and resumed TUS transfer; 29 token invariants and 6 API-client cases run in package checks |
 | Shared mobile design system | Token/theme foundation, `packages/mobile-ui`, local font loading, safe-area/theme/toast provider composition, and persisted theme preference are complete |
 | Native quality harnesses | Deterministic internal gallery, Maestro smoke/screenshot flows, fixed iOS/Android visual profiles, fail-closed PNG comparison, and measured release-performance result validation are wired; the development-client Maestro smoke flow passes on the Pixel 6/API 36 emulator. Device syslog and LLDB corrected the iOS black-screen diagnosis to a stripped generated Expo module provider, then exposed an empty Expo Constants bundle caused by an upstream unquoted path. The corrected Release binary retains the provider, embeds valid Expo config, visibly renders the gallery on the connected iPhone 13 Pro, remains alive, and emits none of the prior fatal signatures. Maestro 2.7.0 does not support local physical-iOS execution. Reviewed fixed-profile baselines and release-performance evidence remain unclaimed |
-| Auth/onboarding implementation | Phase 2 active: launch handoff, root Clerk/API/onboarding bootstrap with retry/sign-out recovery, signed-out Welcome, and signup through email verification, session activation, protected DOB persistence, and onboarding-status confirmation are complete; login, password recovery, and onboarding screens remain |
-| Authenticated feature implementation | Not started |
+| Auth/onboarding implementation | Phase 2 active: launch handoff, root Clerk/API/onboarding bootstrap with retry/sign-out recovery, signed-out Welcome, signup completion, and password Login with Clerk session activation plus safe email-code challenge handling are complete; password recovery, social sign-in, and onboarding screens remain |
+| Authenticated feature implementation | User-prioritized Phase 4 feed slice implemented: real cursor feed, recycler virtualization, native rendering for text/rich text, image/video, film, link, poll, quote, and tombstone payloads; full-card navigation; More action sheets; comment counts; a UUID-validated post-detail route; and cursor-paged three-level comment reading. Video playback/composer, optimistic like/repost/bookmark, share, and owner soft-delete remain wired. Full shell, comment writes/likes, poll voting, media viewer, complete parity, and performance/device evidence remain |
 | Native builds | Native config, iOS/Android Hermes bundles, and isolated two-variant CNG output at Android API 24/36 and iOS 17.0 verified. Development omits Sign in with Apple for Personal Team provisioning and disables recent-bundle auto-launch; preview retains Apple Sign-In. CocoaPods, JDK 17, Android Studio/SDK/ADB/emulator, Maestro, and EAS CLI are installed; a Pixel 6/API 36 AVD exists; the Android development debug binary builds, installs, bundles through Metro, and passes Maestro smoke. The `com.thirtyfivemm.mobile.dev` Release app now embeds Hermes plus valid Expo Constants config, retains the generated Expo provider, passes strict signing checks, installs, launches, visibly renders, and survives sustained checks on the connected iPhone 13 Pro. The root supplies an explicit loading surface during Clerk, query-scope, or font bootstrap and does not block routes on theme hydration. Repository paths containing spaces are protected by the retained Podfile/plugin and dependency patches. No physical Android device is available. EAS is optional while local builds are used |
 | Store/release configuration | Internal development/preview EAS profiles configured; production identity/signing remain blocked |
 
-Current next task is **Phase 2: implement Login and Clerk session-task/MFA handling**. Email verification, resend cooldown, change-email recovery, Clerk session activation, protected DOB persistence, onboarding-status confirmation, and retryable process-recreation recovery are complete. Physical iOS is complete with visible-surface, process-survival, signature, embedded-bundle/config, and clean startup-log evidence. The user explicitly deferred unavailable physical Android hardware on 2026-07-23 and reiterated that instruction on 2026-07-24 so Phase 2 implementation can proceed; signed Android hardware evidence remains mandatory before public release and is not claimed.
+Current next task is **Phase 2: implement forgot-password, reset-code, new-password, and completion flows**. Password Login now has a real Expo Router route, privacy-safe Clerk credential errors, duplicate-submit protection, created-session validation/activation, and forward-compatible email-code challenge verification/resend handling. Apple and Google remain enabled in Clerk but need separately configured native provider flows. Physical iOS is complete with visible-surface, process-survival, signature, embedded-bundle/config, and clean startup-log evidence. The user explicitly deferred unavailable physical Android hardware on 2026-07-23 and reiterated that instruction on 2026-07-24 so Phase 2 implementation can proceed; signed Android hardware evidence remains mandatory before public release and is not claimed.
 
 ## 24. Decision log
 
@@ -1189,6 +1190,20 @@ Decision: Accept signup completion only from Clerk's returned `complete` status 
 
 Decision: Extend the bounded non-secret signup draft to schema 4 with only the last email-code send timestamp and verified completion Clerk user ID. Persist neither verification codes nor session IDs/tokens. Bind root recovery to the matching active Clerk user, keep DOB until the protected `/v1/me` → `PATCH /v1/profiles/me` → `/v1/me/onboarding-status` sequence succeeds, and clear the draft only after exact DOB persistence and onboarding-status confirmation. The current root remains the canonical onboarding-status router until Phase 3 supplies its production onboarding destination.
 
+### 2026-09-06 — Phase 2 password Login and simulator build refresh
+
+Decision: Make `/login` an explicit Expo Router route rather than a relative Welcome destination. Keep password and verification code in component memory only, let Clerk remain the sole credential/session authority, accept success only with a created session ID, and activate that exact session before returning through the root bootstrap gate. Map credential rejection without revealing whether an identity exists, lock duplicate actions, and support Clerk email-code second-factor/client-trust states with a 30-second resend cooldown. The current Clerk environment has no second factor configured; this handling is retained for safe future account-policy changes. Native Apple and Google remain separate provider flows because development disables the Apple entitlement and Google native configuration is not installed.
+
+Decision: Refresh the SDK 57 patch line used by the development build to Expo 57.0.20, React Native 0.86.3, Reanimated 4.5.1, and Worklets 0.10.1. Keep the Expo Constants space-path patch on 57.0.17 and add a narrowly scoped ExpoModulesJSI nested-build signing patch so generated iOS dependencies can compile under the repository's File Provider-backed path. These are native binary changes; generated `apps/mobile/ios` may be refreshed, while retained `apps/ios` remains untouched.
+
+### 2026-09-06 — Mixed PostCard, rich text, and comment-detail read path
+
+Decision: Replace the video-only feed renderer with one memoized mixed `PostCard` that consumes the existing `FeedPost` contract, while keeping video playback isolated behind its existing player. Render the versioned TipTap payload through a bounded native-text tree using a focused `@35mm/validators/rich-text` export; malformed or over-complex payloads fail visibly and never expose serialized storage syntax. Every live card exposes a More action sheet, and the comment action navigates by canonical post ULID to a thin Expo Router detail route.
+
+Replacement decision: Direct schema and live-feed evidence invalidate the preceding post-ULID route rule. `posts.id` is a PostgreSQL UUID and `films.id` is the ULID-shaped domain identity. The React Native post-detail boundary accepts one canonical UUID route segment, normalizes casing, rejects arrays/malformed values before an API request, and lets the server remain authoritative for visibility/existence. Non-control PostCard taps and the comment action open the route; nested controls keep their independent actions. The earlier decision remains above as corrected history.
+
+Decision: Read comments from the existing flat cursor endpoint in pages of 20, validate the response before caching, deduplicate page overlap, and build at most the server-supported three display levels on-device. Do not expose comment creation in this slice: the current create-comment endpoint is rate-limited and soft-delete semantics exist, but it does not yet provide the repository-required idempotency contract. Comment creation/replies remain blocked until that server contract and client retry key are implemented together.
+
 ## 25. Blocker log
 
 | Blocker | Required resolution | Blocks |
@@ -1196,17 +1211,49 @@ Decision: Extend the bounded non-secret signup draft to schema 4 with only the l
 | Minimum age/regional DOB policy | Product/legal decision plus server-enforced policy | Public signup release |
 | Production app identifiers/signing | Store/team decision and migration sequencing | Production binaries |
 | Push provider/backend | Production provider, API token registration, routing, privacy | Push notifications only |
-| Video backend | Cloudflare Stream or approved alternative | 70mm/video release |
+| Video backend | **Resolved 2026-09-05:** Bunny Stream, `video_assets`, signed TUS/playback, final-copy reconciliation, and worker durability are wired | No longer blocks post video; remaining 70mm mobile product UI is roadmap work |
 | Mock-heavy communities/festivals | Production contracts, persistence, moderation, pagination | Those feature routes |
+| Mobile comment-create idempotency | Add a server-enforced idempotency-key contract and dedupe behavior to the existing rate-limited comment-create endpoint, then wire the same stable key through mobile retries | React Native comment/reply creation; comment reading is available |
 | Phase 1.9 iOS signing account | **Resolved 2026-07-22:** automatic signing created the Personal Team profile; `com.thirtyfivemm.mobile.dev` Debug builds and installs on the connected iPhone 13 Pro | No longer blocks Phase 1.9; embedded-bundle signing/startup and unsupported local Maestro automation are tracked separately |
 | Phase 1.9 iOS embedded-bundle signing | **Resolved 2026-07-22:** Keychain authorization completed; Release configuration signed, installed, launched, and remained alive on the connected iPhone with its embedded Hermes bundle | No longer blocks Phase 1.9; local Maestro physical-iOS automation remains unsupported |
 | Phase 1.9 iOS Expo-module-retaining build | **Resolved 2026-07-22:** the signed Release app retains `ExpoModulesProvider`, embeds a valid Expo Constants config, installs and visibly renders on the connected iPhone 13 Pro, survives sustained checks, and has clean startup logs | No longer blocks Phase 1.9; local Maestro physical-iOS automation remains unsupported |
 | Phase 1.9 physical Android device | **Deferred by user 2026-07-23 and reiterated 2026-07-24:** connect and trust one representative low/mid-range Android device with USB or approved network debugging when hardware becomes available | Signed Android physical installation and public-release hardware evidence; does not block Phase 2 implementation |
 | Local/cloud native build and evidence access | **Resolved 2026-07-22:** CocoaPods, JDK 17, Android Studio/SDK/ADB/emulator, Maestro, and EAS CLI are installed; Clerk and a health-checked LAN development API origin are configured locally. EAS authentication is optional because the approved local build path works | No longer blocks Phase 1.9; physical-device evidence remains separately blocked |
 | Retained SwiftUI product-ID drift | Resolve whether the user/Xcode change from approved `com.35mm.app` to `com.35mm.com` should be reverted or approved through the separate production identity decision; do not modify `apps/ios` during React Native work | Aggregate `mobile:check` native-policy stage; React Native config/generation/build tests pass independently |
-| Existing Studio React runtime mismatch | Align `apps/studio` Next.js 16/Clerk async provider types with a React version that supports async JSX components | Repository-wide `pnpm typecheck` and `pnpm lint`; mobile and all non-Studio workspace checks pass |
+| Existing Studio Zod resolver mismatch | Align `apps/studio` React Hook Form resolver and the workspace Zod major version in `FilmForm.tsx` | Repository-wide `pnpm lint`; mobile and all non-Studio typecheck gates pass |
 
 ## 26. Work log
+
+### 2026-09-06 — React Native post-detail UUID navigation repair
+
+- Corrected the Expo Router post-detail boundary to validate the UUID contract defined by `posts.id` instead of applying the ULID shape reserved for film IDs. The exact live-feed ID shape that previously rendered “Invalid post” now reaches `PostDetailScreen`; malformed, array, and path-like parameters still fail closed before any request.
+- Made non-control PostCard surface taps open post detail, matching web and retained SwiftUI behavior. Existing comment navigation uses the same callback, while nested More, external-link, video, and interaction controls remain their own press targets; the detail card itself remains non-navigating.
+- Added route and component regression coverage for a real UUID, casing normalization, hostile/array rejection, full-card navigation, and nested More isolation. All 26 mobile suites and 111 assertions pass; strict mobile TypeScript and Expo lint pass. A live iPhone 16 Pro/iOS 18.5 simulator check against Metro and the local API opened the first post by tapping its body, rendered the authoritative post plus its real comment, returned to Home, and opened More without navigating. The known Clerk `MESSAGEPORT` handle still keeps the complete Jest process open after all assertions finish, so it was stopped after the success summary; focused route/card suites exit cleanly apart from the existing React 19 action-sheet test warnings.
+- Architecture/scale: this follows the existing thin Expo Router, indexed post-primary-key read, cached-detail, cursor-comment, hybrid-feed, denormalized-counter, rate-limit, idempotency, and soft-delete paths. It adds no API/DB/Redis/cache/queue/worker behavior, mutation, schema, migration, or index. At 1M+ DAU it changes only local route validation and tap handling; every detail visit remains one bounded primary-key read plus cursor-bounded comments. Architecture and codebase knowledge were corrected; chat and Mermaid topology docs do not change, no native dependency/configuration changed, and retained `apps/ios` was not modified.
+
+### 2026-09-06 — Mixed feed rendering and comment-detail repair
+
+- Replaced the authenticated feed's video-only card with a memoized mixed `PostCard` for text/discussion/log/review/image payloads. Versioned rich text is parsed through the shared validator and rendered as bounded native text with bold, italic, underline, strike, spoiler, link, mention, and hard-break handling; malformed payloads show an explicit unavailable state instead of raw JSON.
+- Added the missing More control and shared action sheet to every card, with share/bookmark actions and owner-only soft-delete confirmation. Added comment icon/count navigation, a canonical `/post/[postId]` route, cached post detail, cursor-paged comment reads, client-side deduplication, three-level reply indentation, deleted/GIF/rich-text comment presentation, refresh, pagination, empty, offline, private, and error states. Optimistic interaction updates now keep feed and exact post-detail caches aligned without invalidating comment pages.
+- Extracted the existing rich-text contract to focused `@35mm/validators/rich-text` package access so React Native does not import the full validator barrel. Added component/contract tests for serialized rich-text suppression and marks, More/comment wiring, hostile comment counts, cursor envelopes, page deduplication, and the depth bound. No production fake data or fallback content was introduced, and retained `apps/ios` was not modified.
+- Architecture/scale: the existing hybrid feed, cursor pagination, denormalized counters, rate-limited/idempotent interactions, and post soft-delete behavior are unchanged. Feed and comment pages are capped at 20; FlashList bounds mounted work; comment construction is linear in loaded items and deduplicated by ID. Existing `comments_post_moderation_created_at_id_idx` and post primary/indexed paths cover reads. No API route, schema, migration, worker job, cache, mutation, or index was added. Comment writes stay unexposed until the existing endpoint gains idempotency.
+- Verification passed: `@35mm/validators` build/typecheck; API and web typechecks; the API rich-text validator suite; mobile strict TypeScript, Expo lint, two-variant config, and quality contracts; plus 25 mobile suites/109 tests, including the four new feed/comment cases. A live iPhone 16 Pro/iOS 18.5 simulator smoke check against the local API visibly confirmed decoded rich text, comment icons/counts, More controls on multiple cards, and the rendered Share/Bookmark action sheet. Jest reports one existing Clerk `MESSAGEPORT` test handle from the password-Login import after all assertions pass; focused feed/comment suites exit cleanly. Aggregate `pnpm mobile:check` passes token, API-client, mobile-UI, mobile type/lint/config/quality, and Expo Constants checks, then stops only at the documented user-owned retained SwiftUI `com.35mm.com` product-ID drift. No native dependency/configuration changed, so native generation/binaries were not refreshed for this JavaScript-only repair.
+
+### 2026-09-06 — Phase 2 Login route and visible iOS simulator verification
+
+- Replaced broken relative Welcome links with canonical `/login` and `/signup/name` routes and added the missing Login route, fixed-light screen, username/email plus password fields, accessible secure-entry controls, loading/error states, create-account navigation, and exact Clerk session activation back through the root bootstrap gate.
+- Added privacy-safe credential errors, duplicate-action locking, no secret persistence, created-session validation, and email-code challenge verification/resend recovery with a bounded 30-second client cooldown. The live native Clerk environment was re-read without retaining secrets: password is enabled and no second factor is currently configured; Apple and Google remain enabled but require separate native-provider wiring.
+- Updated Expo SDK 57 patch releases needed by the iOS build, aligned `@35mm/mobile-ui` React Native/Reanimated peers, retained the space-safe Expo Constants generation patch, and added a scoped nested ExpoModulesJSI signing override for the File Provider-backed repository path. Regenerated only disposable `apps/mobile/ios`; retained `apps/ios` was not modified.
+- Architecture/scale: Clerk remains credential and session authority; Login adds no 35mm API route, DB/Redis/cache/queue/worker work, UGC mutation, pagination surface, or database index. At 1M+ DAU, auth traffic scales linearly with user-initiated attempts and Clerk applies server-side abuse controls; the client emits one attempt per locked action and stores no credential/session material outside Clerk SecureStore.
+- Verification passed: Expo dependency compatibility; strict mobile and mobile-UI typechecks; Expo lint; both variant config validation; all 23 mobile suites/105 tests; Expo Constants path generation; isolated development/preview native generation; a fresh native iOS Debug build/install; and live iPhone 16 Pro/iOS 18.5 simulator navigation from Welcome to the rendered Login form without the prior unmatched-route error. Aggregate native policy reaches only the documented user-owned retained SwiftUI `com.35mm.com` identity drift after the React Native patch and generation checks pass.
+
+### 2026-09-06 — Phase 4 React Native video-post vertical slice
+
+- Added the first authenticated product surface for onboarded accounts: a FlashList cursor feed with refresh/pagination/error/offline/empty states, video cards, account autoplay/sound policy, one active viewport player, app-background pause, Reduce Motion autoplay suppression, signed Bunny iframe playback, poster/manual play, fullscreen provider controls, processing polling bounded to 40 successful checks, and retry/failure states.
+- Added a full-screen video composer with foreground-only media-library permission, local native preview, MP4/MOV/WebM/MKV and 120 MiB/10-minute validation, eager direct Bunny TUS upload in fixed 8 MiB file slices, bounded retry/provider-offset reconciliation, 24-hour/20-entry non-secret upload-session recovery, cancellation, progress, processing publication, visibility, and idempotent post creation. Added optimistic like/repost/bookmark rollback, canonical sharing, and owner soft-delete through existing server routes.
+- Reused `@35mm/types`, exposed the focused shared video validator export, added strict mobile runtime parsers, React Query server-state keys, and SDK-compatible Image Picker, File System, Video, WebView, and FlashList dependencies. Expo config explicitly denies camera/microphone access and background/PiP video; native policy baselines and both isolated development/preview generations were updated. `apps/ios` was not modified.
+- Architecture pattern: existing cursor feed/hybrid fan-out, async denormalized counters, idempotent rate-limited post/video mutations, UGC soft-delete, direct-to-provider transfer, signed authorization, and leased BullMQ reconciliation. At 1M DAU, existing assumptions remain 10,000 uploads/day and up to 20M authorization reads/day; app servers never proxy video bytes. Feed work stays recycler-backed and cursor-bounded; upload memory is bounded to one 8 MiB slice. Existing `video_assets` primary/pending indexes cover the path; no migration or new index is required.
+- Verification passed: mobile strict typecheck; Expo lint; config validation; all 22 mobile suites/100 tests; focused bounded/resumed TUS and hostile-contract tests; every non-Studio workspace typecheck; isolated two-variant native generation; and fresh iOS/Android Hermes production exports. Repository lint reaches the documented existing Studio Zod resolver mismatch after mobile passes; aggregate native policy still stops at the documented user-owned retained SwiftUI `com.35mm.com` drift. Physical iOS/Android video playback, upload, visual parity, memory/frame profiling, and E2E remain unverified, so the broader Phase 4 checklist is not marked complete.
 
 ### 2026-07-22 — Canonical plan created
 

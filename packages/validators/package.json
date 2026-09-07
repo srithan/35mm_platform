@@ -21,6 +21,14 @@
     "./date-of-birth": {
       "types": "./src/dateOfBirth.ts",
       "default": "./src/dateOfBirth.ts"
+    },
+    "./video": {
+      "types": "./src/video.ts",
+      "default": "./src/video.ts"
+    },
+    "./rich-text": {
+      "types": "./src/richText.ts",
+      "default": "./src/richText.ts"
     }
   },
   "scripts": {

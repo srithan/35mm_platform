@@ -508,7 +508,7 @@ export interface TextFieldProps extends TextInputProps {
   readonly errorMessage?: string;
   readonly leadingIcon?: AppIconName;
   readonly trailing?: ReactNode;
-  readonly inputRef?: Ref<TextInput>;
+  readonly inputRef?: Ref<{ focus: () => void }>;
   readonly containerStyle?: StyleProp<ViewStyle>;
 }
 
@@ -558,7 +558,7 @@ export function TextField({
         ) : null}
         <TextInput
           {...props}
-          ref={inputRef}
+          ref={inputRef as Ref<TextInput>}
           accessibilityLabel={props.accessibilityLabel ?? label}
           editable={editable}
           multiline={multiline}

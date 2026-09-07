@@ -193,7 +193,10 @@
     /* Space between centered 640 feed and fixed suggestions rail */
     --home-sidebar-gap: 2rem;
 
-    /* Stacking — modal backdrops above headers, drawers, dropdowns, and z-[9999] toasts/banners */
+    /* Stacking — media stays below shell chrome; modals stay above headers, drawers, dropdowns, and z-[9999] toasts/banners */
+    --z-post-video: 20;
+    --z-site-header: 300;
+    --z-shell-dropdown: 340;
     --z-modal: 20000;
     --z-modal-lightbox: 20001;
     /* Post composer (portal) — above other modals/lightboxes so backdrop always wins */
