@@ -6,6 +6,7 @@ import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/
 import { PostComposerTrigger } from "./PostComposerTrigger";
 import type { PostComposerTriggerUser } from "./PostComposerTrigger";
 import { InlinePostComposer } from "./InlinePostComposer";
+import { FEED_DESKTOP_COLUMN_FRAME_CLASS } from "./feedDesktopColumnFrame";
 
 interface FeedWithComposerProps {
   user?: PostComposerTriggerUser & { handle?: string };
@@ -56,7 +57,9 @@ export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
           suppressDefaultAvatar={suppressDefaultAvatar}
         />
       )}
-      {children}
+      <div className={FEED_DESKTOP_COLUMN_FRAME_CLASS}>
+        {children}
+      </div>
     </>
   );
 }

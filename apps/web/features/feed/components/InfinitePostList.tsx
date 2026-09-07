@@ -8,6 +8,7 @@ import {
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import { FEED_DESKTOP_COLUMN_START_CLASS } from "./feedDesktopColumnFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { fetchFeed, fetchQuotePosts } from "../api/feedApi";
 import type { ProfileFeedKind, QuotePostSort } from "../api/feedApi";
@@ -338,6 +339,7 @@ export function InfinitePostList({
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
+                className={virtualRow.index === 0 ? FEED_DESKTOP_COLUMN_START_CLASS : undefined}
                 style={{
                   position: "absolute",
                   top: 0,
@@ -505,7 +507,9 @@ function PostCardSkeleton({
 function FeedSkeleton() {
   return (
     <div>
-      <PostCardSkeleton animationDelay={0} />
+      <div className={FEED_DESKTOP_COLUMN_START_CLASS}>
+        <PostCardSkeleton animationDelay={0} />
+      </div>
       <PostCardSkeleton showFilm animationDelay={60} />
       <PostCardSkeleton animationDelay={120} />
     </div>

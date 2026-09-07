@@ -137,7 +137,7 @@ export function CommentCardMoreMenu({
             aria-controls={menuId}
             aria-haspopup="menu"
             className={cn(
-              "group flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-fg-muted transition-all duration-150",
+              "group flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-fg-muted transition-all duration-150",
               "hover:border-border hover:bg-hover hover:text-fg active:scale-95",
               isOpen &&
                 "border-border bg-sunken text-fg shadow-[inset_0_1px_0_rgb(255_255_255/45%)]"

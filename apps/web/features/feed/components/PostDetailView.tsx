@@ -5,6 +5,10 @@ import { ApiRequestError } from "../api/http";
 import { useComments } from "../hooks/useComments";
 import { usePost } from "../hooks/usePost";
 import { CommentSection } from "./CommentSection";
+import {
+  FEED_DESKTOP_COLUMN_FRAME_CLASS,
+  FEED_DESKTOP_COLUMN_START_CLASS,
+} from "./feedDesktopColumnFrame";
 import { PostCard } from "./PostCard";
 import { PostPageBackButton } from "./PostPageBackButton";
 import { useConnectionPreferences } from "../hooks/useConnectionPreferences";
@@ -116,85 +120,95 @@ export function PostDetailView({
       <div className="pl-4">
         <PostPageBackButton />
       </div>
-      <PostCard
-        postId={post.id}
-        variant={legacy.variant ?? postToVariant(post)}
-        sourcePostType={post.type}
-        username={post.author.username}
-        userId={post.author.id}
-        displayName={post.author.displayName}
-        handle={legacy.handle ?? `@${post.author.username}`}
-        timestamp={legacy.timestamp ?? formatPostTime(post.createdAt)}
-        avatarInitial={legacy.avatarInitial ?? post.author.displayName.charAt(0).toUpperCase()}
-        avatarBg={legacy.avatarBg}
-        avatarColor={legacy.avatarColor}
-        avatarUrl={post.author.avatarUrl}
-        headline={post.headline}
-        text={post.body}
-        editBody={post.body}
-        filmRef={legacy.filmRef ?? undefined}
-        filmCard={legacy.filmCard ?? filmCard}
-        attachedFilm={post.film}
-        mediaUrls={resolvePostImageUrls(post, "feed")}
-        viewerMediaUrls={resolvePostImageUrls(post, "full")}
-        poll={post.poll}
-        saveData={connection.saveData}
-        linkPreview={post.linkPreview}
-        imageSrc={legacy.imageSrc ?? image?.url}
-        imageCaption={legacy.imageCaption ?? image?.altText}
-        media={post.media}
-        nsfw={post.nsfw ?? { status: "none", categories: [], source: null }}
-        likeCount={post.likeCount}
-        repostCount={post.repostCount}
-        quoteCount={post.quoteCount}
-        liked={post.isLiked}
-        reposted={post.isReposted}
-        repostContext={post.repostContext}
-        quotedPost={post.quotedPost}
-        quotedPostUnavailable={post.quotedPostUnavailable}
-        bookmarked={post.isBookmarked}
-        bookmarkFolderId={post.bookmarkFolderId}
-        commentCount={post.commentCount}
-        replyPreview={legacy.replyPreview}
-        replyCount={legacy.replyCount}
-        role={post.author.role}
-        roleContext={post.author.roleContext}
-        filmsLoggedCount={post.author.filmsLoggedCount}
-      />
-      <CommentSection
-        comments={comments}
-        isLoading={commentsQuery.isLoading}
-        hasMore={commentsHasMore}
-        isFetchingMore={commentsQuery.isFetchingNextPage}
-        onLoadMore={() => void commentsQuery.fetchNextPage()}
-        postId={postId}
-        postUsername={username}
-        postBookmarked={post.isBookmarked}
-        postBookmarkFolderId={post.bookmarkFolderId}
-        truncateComments={false}
-      />
+      <div className={FEED_DESKTOP_COLUMN_FRAME_CLASS}>
+        <div className={FEED_DESKTOP_COLUMN_START_CLASS}>
+        <PostCard
+          postId={post.id}
+          variant={legacy.variant ?? postToVariant(post)}
+          sourcePostType={post.type}
+          username={post.author.username}
+          userId={post.author.id}
+          displayName={post.author.displayName}
+          handle={legacy.handle ?? `@${post.author.username}`}
+          timestamp={legacy.timestamp ?? formatPostTime(post.createdAt)}
+          avatarInitial={legacy.avatarInitial ?? post.author.displayName.charAt(0).toUpperCase()}
+          avatarBg={legacy.avatarBg}
+          avatarColor={legacy.avatarColor}
+          avatarUrl={post.author.avatarUrl}
+          headline={post.headline}
+          text={post.body}
+          editBody={post.body}
+          filmRef={legacy.filmRef ?? undefined}
+          filmCard={legacy.filmCard ?? filmCard}
+          attachedFilm={post.film}
+          mediaUrls={resolvePostImageUrls(post, "feed")}
+          viewerMediaUrls={resolvePostImageUrls(post, "full")}
+          poll={post.poll}
+          saveData={connection.saveData}
+          linkPreview={post.linkPreview}
+          imageSrc={legacy.imageSrc ?? image?.url}
+          imageCaption={legacy.imageCaption ?? image?.altText}
+          media={post.media}
+          nsfw={post.nsfw ?? { status: "none", categories: [], source: null }}
+          likeCount={post.likeCount}
+          repostCount={post.repostCount}
+          quoteCount={post.quoteCount}
+          liked={post.isLiked}
+          reposted={post.isReposted}
+          repostContext={post.repostContext}
+          quotedPost={post.quotedPost}
+          quotedPostUnavailable={post.quotedPostUnavailable}
+          bookmarked={post.isBookmarked}
+          bookmarkFolderId={post.bookmarkFolderId}
+          commentCount={post.commentCount}
+          replyPreview={legacy.replyPreview}
+          replyCount={legacy.replyCount}
+          role={post.author.role}
+          roleContext={post.author.roleContext}
+          filmsLoggedCount={post.author.filmsLoggedCount}
+        />
+        </div>
+        <CommentSection
+          comments={comments}
+          isLoading={commentsQuery.isLoading}
+          hasMore={commentsHasMore}
+          isFetchingMore={commentsQuery.isFetchingNextPage}
+          onLoadMore={() => void commentsQuery.fetchNextPage()}
+          postId={postId}
+          postUsername={username}
+          postBookmarked={post.isBookmarked}
+          postBookmarkFolderId={post.bookmarkFolderId}
+          truncateComments={false}
+        />
+      </div>
     </div>
   );
 }
 
 function PostDetailSkeleton() {
   return (
-    <div className="flex flex-col gap-4 px-4 py-8">
-      <div className="h-6 w-20 rounded bg-skeleton animate-pulse" />
-      <div className="bg-elevated rounded-2xl shadow-sm p-5 animate-pulse">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-skeleton" />
-          <div className="flex flex-col gap-2">
-            <div className="w-32 h-3 rounded bg-skeleton" />
-            <div className="w-20 h-3 rounded bg-skeleton" />
+    <div className="pt-4">
+      <div className="px-4 py-2">
+        <div className="h-6 w-20 rounded bg-skeleton animate-pulse" />
+      </div>
+      <div className={FEED_DESKTOP_COLUMN_FRAME_CLASS}>
+        <div className={`flex flex-col gap-4 px-4 py-8 ${FEED_DESKTOP_COLUMN_START_CLASS}`}>
+          <div className="bg-elevated rounded-2xl shadow-sm p-5 animate-pulse">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-skeleton" />
+              <div className="flex flex-col gap-2">
+                <div className="w-32 h-3 rounded bg-skeleton" />
+                <div className="w-20 h-3 rounded bg-skeleton" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="w-full h-3 rounded bg-skeleton" />
+              <div className="w-4/5 h-3 rounded bg-skeleton" />
+            </div>
           </div>
-        </div>
-        <div className="space-y-2">
-          <div className="w-full h-3 rounded bg-skeleton" />
-          <div className="w-4/5 h-3 rounded bg-skeleton" />
+          <CommentsSkeleton />
         </div>
       </div>
-      <CommentsSkeleton />
     </div>
   );
 }

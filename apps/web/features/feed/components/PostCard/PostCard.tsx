@@ -244,7 +244,7 @@ function PostCardComponent(props: PostCardProps) {
       onFocus={prefetchPostDetail}
       data-post-scroll-anchor={!isPostDetailView ? postId : undefined}
       className={cn(
-        "PostCard w-full rounded-lg border-b border-border bg-bg px-4 py-4 transition-colors duration-150",
+        "PostCard w-full border-b-2 border-border bg-bg px-4 py-4 transition-colors duration-150",
         !disableAnimation && !resolvedMedia.videoAssetId && !resolvedMedia.videoUrls.length && "animate-fade-up",
         !isPostDetailView && "hover:bg-card-hover",
         postId && !isPostDetailView && "cursor-pointer",
