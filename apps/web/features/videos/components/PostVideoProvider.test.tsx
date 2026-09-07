@@ -61,6 +61,74 @@ it("keeps portaled video below shell dropdown layers", () => {
   expect(surface?.style.zIndex).toBe("var(--z-post-video)");
 });
 
+function mockRect(box: { top: number; left: number; width: number; height: number }): DOMRect {
+  return {
+    x: box.left,
+    y: box.top,
+    top: box.top,
+    left: box.left,
+    width: box.width,
+    height: box.height,
+    right: box.left + box.width,
+    bottom: box.top + box.height,
+    toJSON: function () {
+      return {};
+    },
+  } as DOMRect;
+}
+
+it("clips portaled video below sticky page chrome in the same column", () => {
+  const nav = document.createElement("nav");
+  nav.id = "site-nav";
+  document.body.appendChild(nav);
+  const chrome = document.createElement("nav");
+  chrome.setAttribute("data-sticky-chrome", "");
+  document.body.appendChild(chrome);
+
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.id === "site-nav") return mockRect({ top: 0, left: 0, width: 1200, height: 72 });
+    if (this.getAttribute("data-sticky-chrome") !== null) {
+      return mockRect({ top: 72, left: 0, width: 640, height: 52 });
+    }
+    if (this.hasAttribute("data-post-video") || this.hasAttribute("data-post-video-slot")) {
+      return mockRect({ top: 80, left: 0, width: 600, height: 200 });
+    }
+    return mockRect({ top: 0, left: 0, width: 0, height: 0 });
+  });
+
+  render(<PostVideoProvider><Route /></PostVideoProvider>);
+  const surface = document.querySelector("[data-post-video='post']") as HTMLElement | null;
+  expect(surface?.style.clipPath).toBe("inset(44px 0 0)");
+  nav.remove();
+  chrome.remove();
+});
+
+it("ignores sticky chrome in a different column when clipping portaled video", () => {
+  const nav = document.createElement("nav");
+  nav.id = "site-nav";
+  document.body.appendChild(nav);
+  const chrome = document.createElement("nav");
+  chrome.setAttribute("data-sticky-chrome", "");
+  document.body.appendChild(chrome);
+
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.id === "site-nav") return mockRect({ top: 0, left: 0, width: 1200, height: 72 });
+    if (this.getAttribute("data-sticky-chrome") !== null) {
+      return mockRect({ top: 72, left: 800, width: 240, height: 400 });
+    }
+    if (this.hasAttribute("data-post-video") || this.hasAttribute("data-post-video-slot")) {
+      return mockRect({ top: 40, left: 0, width: 600, height: 200 });
+    }
+    return mockRect({ top: 0, left: 0, width: 0, height: 0 });
+  });
+
+  render(<PostVideoProvider><Route /></PostVideoProvider>);
+  const surface = document.querySelector("[data-post-video='post']") as HTMLElement | null;
+  expect(surface?.style.clipPath).toBe("inset(32px 0 0)");
+  nav.remove();
+  chrome.remove();
+});
+
 it("disposes players on unrelated navigation instead of leaving audio running", async () => {
   const view = render(<PostVideoProvider><Route /></PostVideoProvider>);
   state.path = "/settings";

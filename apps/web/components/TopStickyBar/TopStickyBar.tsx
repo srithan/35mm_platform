@@ -117,6 +117,7 @@ export function TopStickyBar({
   return (
     <nav
       aria-label={navAriaLabel}
+      data-sticky-chrome=""
       className={cn(
         "sticky top-0 z-40 bg-bg border-b border-border md:top-[var(--site-header-sticky-offset,4.5rem)]",
         "md:mb-4",

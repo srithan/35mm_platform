@@ -86,6 +86,7 @@ export function ProfileTabs(props: {
     <nav
       ref={navRef}
       aria-label="Profile sections"
+      data-sticky-chrome=""
       className={cn(
         "sticky z-40 border-b border-border bg-bg backdrop-blur-md backdrop-saturate-150 supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg)_96%,var(--elevated))]",
         "top-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))]",

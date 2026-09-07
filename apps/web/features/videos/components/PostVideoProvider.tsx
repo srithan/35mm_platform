@@ -17,6 +17,29 @@ type Registry = {
 const Context = createContext<Registry | null>(null);
 const mediaKey = (media: Media) => JSON.stringify([media.postId, media.assetId ?? null, media.src ?? null]);
 
+function shellNavClipBottom(): number {
+  const nav = document.getElementById(window.innerWidth >= 768 ? "site-nav" : "mobile-site-nav");
+  if (!nav || nav.getAttribute("aria-hidden") === "true") return 0;
+  return nav.getBoundingClientRect().bottom;
+}
+
+function stickyChromeClipBottom(videoRect: DOMRect): number {
+  let bottom = 0;
+  for (const chrome of document.querySelectorAll("[data-sticky-chrome]")) {
+    const box = chrome.getBoundingClientRect();
+    if (box.width <= 0 || box.height <= 0) continue;
+    if (box.right <= videoRect.left || box.left >= videoRect.right) continue;
+    bottom = Math.max(bottom, box.bottom);
+  }
+  return bottom;
+}
+
+/** Portaled media must not cover the shell nav or in-flow sticky page chrome. */
+function portaledVideoClipInset(videoRect: DOMRect): number {
+  const clipBottom = Math.max(shellNavClipBottom(), stickyChromeClipBottom(videoRect));
+  return Math.max(0, clipBottom - videoRect.top);
+}
+
 /** The shell owns players; routes own only their positions. Never reparent a live iframe. */
 export function PostVideoProvider({ children }: { children: ReactNode }) {
   const { userId } = useAuth();
@@ -123,10 +146,7 @@ function PlayerSurface({ session, path, rememberGeometry }: { session: Session; 
       element.style.visibility = rect.width > 0 ? "visible" : "hidden";
       element.inert = Boolean(slot.element.closest("[inert]"));
       if (element.inert) element.style.visibility = "hidden";
-      // Portaled media must not cover the shell's fixed navigation.
-      const nav = document.getElementById(window.innerWidth >= 768 ? "site-nav" : "mobile-site-nav");
-      const top = nav && nav.getAttribute("aria-hidden") !== "true" ? nav.getBoundingClientRect().bottom : 0;
-      element.style.clipPath = `inset(${Math.max(0, top - rect.top)}px 0 0)`;
+      element.style.clipPath = `inset(${portaledVideoClipInset(rect)}px 0 0)`;
       const height = element.getBoundingClientRect().height;
       if (height > 0 && Math.abs(height - slot.element.getBoundingClientRect().height) > 0.5) {
         slot.element.style.height = `${height}px`;
@@ -156,6 +176,9 @@ function PlayerSurface({ session, path, rememberGeometry }: { session: Session; 
     }
     const mobileNav = document.getElementById("mobile-site-nav");
     if (mobileNav) attributes.observe(mobileNav, { attributes: true, attributeFilter: ["aria-hidden"] });
+    for (const chrome of document.querySelectorAll("[data-sticky-chrome]")) {
+      observer.observe(chrome);
+    }
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
     return () => {

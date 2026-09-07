@@ -50,6 +50,14 @@ describe("ProfileTabs", function () {
     });
   });
 
+  it("marks the tab bar as sticky chrome for portaled video clipping", function () {
+    render(<ProfileTabs username="CinemaFan" />);
+
+    expect(screen.getByRole("navigation", { name: "Profile sections" })).toHaveAttribute(
+      "data-sticky-chrome"
+    );
+  });
+
   it("keeps mobile labels collapsed except for the active tab", function () {
     render(<ProfileTabs username="CinemaFan" />);
 
