@@ -127,7 +127,7 @@ export function TitleOverviewContent(props: TitleOverviewContentProps) {
       <p className="mb-4 font-mono text-[11px] text-fg-muted">
         Ranked from TMDB recommendations and similar titles
       </p>
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-4">
+      <ul className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-4 md:grid-cols-4">
         {props.recommendations.slice(0, RELATED_TITLE_LIMIT).map(function (item) {
           return (
             <li key={item.id + "-" + (item.title || item.name || "")}>

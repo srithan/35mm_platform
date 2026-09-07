@@ -441,6 +441,30 @@ describe("PostComposer", () => {
     expect(screen.getByLabelText("Quoted post media")).toBeInTheDocument();
   });
 
+  it("aligns the quoted post with composer text on the full-page mobile composer", () => {
+    render(
+      <PostComposer
+        variant="fullPage"
+        postPrimaryPlacement="header"
+        quotedPost={{
+          postId: "11111111-1111-4111-8111-111111111112",
+          displayName: "Original Author",
+          handle: "@original",
+          avatarInitial: "O",
+          text: "Original post body",
+        }}
+      />
+    );
+
+    const quoted = screen.getByTestId("composer-quoted-post");
+    const editor = screen.getByRole("combobox", { name: WRITE_PLACEHOLDER }).closest(".rich-text-editor");
+
+    expect(quoted).not.toHaveClass("mx-4");
+    expect(quoted).not.toHaveClass("ml-4");
+    expect(quoted).not.toHaveClass("ml-[52px]");
+    expect(quoted.parentElement).toBe(editor?.parentElement);
+  });
+
   it("accepts pasted clipboard image files", async () => {
     render(<PostComposer variant="inline" />);
     const textarea = screen.getByPlaceholderText(WRITE_PLACEHOLDER);

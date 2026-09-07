@@ -1823,6 +1823,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   }}
                 />
               ) : null}
+              {hasVisibleQuotedPost && quotedPost ? (
+                <ComposerQuotedPostPreview quotedPost={quotedPost} />
+              ) : null}
             </div>
           )}
 
@@ -2031,13 +2034,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           ) : null}
         </div>
         </div>
-
-        {hasVisibleQuotedPost && quotedPost ? (
-          <ComposerQuotedPostPreview
-            quotedPost={quotedPost}
-            className={cn("mx-4 mb-3", isFullPage ? "ml-4" : "ml-[52px]")}
-          />
-        ) : null}
       </div>
 
       {linkPreviewError ? (

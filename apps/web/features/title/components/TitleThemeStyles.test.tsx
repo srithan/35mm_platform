@@ -101,6 +101,8 @@ describe("title page theme styles", function () {
     expect(
       screen.getByRole("link", { name: "Open Recommended Hidden Film" })
     ).toBeInTheDocument();
+    expect(screen.getByRole("list")).toHaveClass("grid-cols-3");
+    expect(screen.getByRole("list")).not.toHaveClass("grid-cols-2");
   });
 
   it("renders more than eight related titles when the shelf is full", function () {
