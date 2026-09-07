@@ -953,6 +953,13 @@ button.composer-trigger-card:focus-visible {
         color: var(--fg);
     }
 
+    @media (max-width: 767px) {
+        .edit-profile-form .edit-profile-input {
+            font-size: 16px;
+            line-height: 1.4;
+        }
+    }
+
     .edit-profile-form .edit-profile-input::placeholder {
         color: var(--fg-faint);
     }

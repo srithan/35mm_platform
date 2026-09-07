@@ -106,7 +106,7 @@ export function ForgotPasswordPage() {
                   autoComplete="email"
                   {...emailForm.register("email")}
                   placeholder="your@email.com"
-                  className="w-full py-3.5 px-5 bg-[var(--auth-input-bg)] border border-[var(--auth-input-border)] rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/40"
+                  className="w-full py-3.5 px-5 bg-[var(--auth-input-bg)] border border-[var(--auth-input-border)] rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/40"
                 />
                 {emailForm.formState.errors.email ? (
                   <p className="text-red-400 text-[0.75rem] ml-4 mt-1.5">

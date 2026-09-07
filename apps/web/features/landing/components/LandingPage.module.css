@@ -354,6 +354,8 @@
 .field > input,
 .passwordField > input {
   padding: 0.72rem 0.85rem;
+  /* iOS Safari zooms the page when a focused control is under 16px. */
+  font-size: 1rem;
 }
 .field > input::placeholder,
 .passwordField > input::placeholder,
@@ -398,7 +400,7 @@
   border: 0;
   padding: 0.7rem 0.35rem;
   font: inherit;
-  font-size: 0.86rem;
+  font-size: 1rem;
   color: var(--ink);
   background: transparent;
   outline: none;

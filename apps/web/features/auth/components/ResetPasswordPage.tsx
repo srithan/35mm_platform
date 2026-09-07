@@ -106,7 +106,7 @@ export function ResetPasswordPage() {
                   autoComplete="new-password"
                   {...form.register("newPassword")}
                   placeholder="New password"
-                  className="w-full py-3.5 pl-5 pr-12 bg-[var(--auth-input-bg)] border border-[var(--auth-input-border)] rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/40"
+                  className="w-full py-3.5 pl-5 pr-12 bg-[var(--auth-input-bg)] border border-[var(--auth-input-border)] rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/40"
                 />
                 <button
                   type="button"
@@ -132,7 +132,7 @@ export function ResetPasswordPage() {
                   autoComplete="new-password"
                   {...form.register("confirmPassword")}
                   placeholder="Re-enter new password"
-                  className="w-full py-3.5 pl-5 pr-12 bg-[var(--auth-input-bg)] border border-[var(--auth-input-border)] rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/40"
+                  className="w-full py-3.5 pl-5 pr-12 bg-[var(--auth-input-bg)] border border-[var(--auth-input-border)] rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/40"
                 />
                 <button
                   type="button"

@@ -144,7 +144,7 @@ export function SignupForm() {
             autoComplete="name"
             {...form.register("fullName")}
             placeholder="Full name"
-            className={`w-full py-3.5 px-4 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.fullName ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
+            className={`w-full py-3.5 px-4 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.fullName ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
           />
           {form.formState.errors.fullName ? (
             <p className="text-red-400 text-[0.75rem] ml-4 mt-1.5">
@@ -157,7 +157,7 @@ export function SignupForm() {
           <div
             className={`flex items-center bg-[var(--auth-input-bg)] border rounded-full overflow-hidden transition-[border-color] focus-within:border-[var(--auth-accent)]/50 ${form.formState.errors.username ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
           >
-            <span className="py-3 pl-4 pr-1 text-[var(--auth-fg)]/35 text-[0.95rem] whitespace-nowrap select-none">
+            <span className="py-3 pl-4 pr-1 text-[var(--auth-fg)]/35 text-base whitespace-nowrap select-none">
               35mm/
             </span>
             <input
@@ -165,7 +165,7 @@ export function SignupForm() {
               autoComplete="username"
               {...form.register("username")}
               placeholder="username"
-              className="flex-1 py-3.5 pl-0 pr-2 bg-transparent border-0 text-[var(--auth-fg)] text-[0.95rem] outline-none min-w-0 placeholder:text-[var(--auth-fg)]/45"
+              className="flex-1 py-3.5 pl-0 pr-2 bg-transparent border-0 text-[var(--auth-fg)] text-base outline-none min-w-0 placeholder:text-[var(--auth-fg)]/45"
             />
             <div
               className={`pr-4 flex items-center transition-all duration-300 ${usernameCheck ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 pointer-events-none"}`}
@@ -204,7 +204,7 @@ export function SignupForm() {
             autoComplete="email"
             {...form.register("email")}
             placeholder="your@email.com"
-            className={`w-full py-3.5 px-4 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.email ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
+            className={`w-full py-3.5 px-4 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.email ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
           />
           {form.formState.errors.email ? (
             <p className="text-red-400 text-[0.75rem] ml-4 mt-1.5">
@@ -220,7 +220,7 @@ export function SignupForm() {
               autoComplete="new-password"
               {...form.register("password")}
               placeholder="Password (8+ characters)"
-              className={`w-full py-3.5 pl-4 pr-12 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.password ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
+              className={`w-full py-3.5 pl-4 pr-12 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.password ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
             />
             <button
               type="button"
@@ -248,7 +248,7 @@ export function SignupForm() {
               autoComplete="new-password"
               {...form.register("confirmPassword")}
               placeholder="Confirm password"
-              className={`w-full py-3.5 pl-4 pr-12 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.confirmPassword ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
+              className={`w-full py-3.5 pl-4 pr-12 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.confirmPassword ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
             />
             <button
               type="button"

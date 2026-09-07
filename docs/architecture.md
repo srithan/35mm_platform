@@ -1029,7 +1029,8 @@ Important app routes:
   original local artwork, centered product promise, one primary join action, and minimal account navigation.
   Join/login opens the existing Clerk-backed flows in a centered two-column desktop modal with a decorative
   cinematic panel and dedicated form panel; mobile web presents the same flow as a bottom action sheet with
-  internal scrolling and safe-area padding. Password sign-in handles Clerk's legacy `needs_second_factor` and
+  internal scrolling and safe-area padding. Auth fields use 16px type so iOS Safari does not zoom the page
+  on focus. Password sign-in handles Clerk's legacy `needs_second_factor` and
   current `needs_client_trust` responses by preparing the available email-code factor, showing the masked
   destination, and activating the session only after Clerk accepts the code; the standalone `/login` form uses
   the same auth operations and continuation. This adds at most one bounded factor-preparation request and one
@@ -1066,7 +1067,7 @@ Feature ownership:
 
 - `features/feed`: composer, feed, post cards, comments, polls, mutations.
 - `features/audio-rooms`: `The Lobby` right-rail presentation contract and empty state. A future production room service can supply bounded summaries and an open-room handler without changing the widget layout; realtime audio/signaling remains out of scope and unwired.
-- `features/profile`: public profile, Posts/Reposts/Diary/Lists/Stats routing, edit profile, follow state, media upload, connections, blocks/mutes. Reposts uses a dedicated React Query key and the server-side `kind=reposts` cursor feed. Mobile profile identity and actions render together in `ProfileHeader`: circular share/overflow controls align beside the cover-overlapping avatar, while full-width message/follow/edit capsules follow the profile details; tablet/desktop placement remains unchanged.
+- `features/profile`: public profile, Posts/Reposts/Diary/Lists/Stats routing, edit profile, follow state, media upload, connections, blocks/mutes. Reposts uses a dedicated React Query key and the server-side `kind=reposts` cursor feed. Mobile profile identity and actions render together in `ProfileHeader`: circular share/overflow controls align beside the cover-overlapping avatar, while full-width message/follow/edit capsules follow the profile details; tablet/desktop placement remains unchanged. The edit-profile dialog stays a centered form on `md+` and becomes a bottom action-sheet form on mobile web: 32pt sheet corners, drag handle, visual-viewport keyboard lift, 16px fields, and equal-width Cancel/Save actions. Dirty close still uses the existing discard confirmation. This is presentation-only and adds no network, database, cache, queue, schema, or index work.
 - `features/notifications`: notification list/dropdown, mark-read flows, realtime. Realtime handles normal freshness; no-Ably fallback invalidates notification queries every 30 seconds without duplicate 5-second component polling.
 - `features/lists`: film lists, watchlists, public list discovery, and optimistic list-like interactions.
 - `features/settings`: account, privacy, notifications, appearance, media, data/security settings.

@@ -17,6 +17,8 @@ import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { LocationAutocomplete } from "./LocationAutocomplete";
 import { DatePicker } from "@/components/DatePicker/DatePicker";
 import { cn } from "@/lib/utils/cn";
+import { useIsDesktopMd } from "@/lib/hooks/useIsDesktopMd";
+import { useVisualViewportKeyboardInset } from "@/lib/hooks/useVisualViewportKeyboardInset";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   fetchUsernameAvailability,
@@ -225,6 +227,9 @@ export function EditProfileModal({
   const { getToken } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const isDesktopMd = useIsDesktopMd();
+  const isSheet = isDesktopMd !== true;
+  const keyboardInset = useVisualViewportKeyboardInset();
   const displayNameRef = useRef<HTMLInputElement | null>(null);
   const avatarTargetRef = useRef<HTMLDivElement | null>(null);
   const coverTargetRef = useRef<HTMLDivElement | null>(null);
@@ -289,6 +294,23 @@ export function EditProfileModal({
       });
     }
   }, [open, initialData, reset]);
+
+  useEffect(
+    function syncSheetKeyboardInset() {
+      if (!open || !isSheet) {
+        document.documentElement.style.removeProperty("--edit-profile-keyboard-inset");
+        return;
+      }
+      document.documentElement.style.setProperty(
+        "--edit-profile-keyboard-inset",
+        String(keyboardInset) + "px"
+      );
+      return function () {
+        document.documentElement.style.removeProperty("--edit-profile-keyboard-inset");
+      };
+    },
+    [isSheet, keyboardInset, open]
+  );
 
   useEffect(
     function focusRequestedProfileField() {
@@ -488,15 +510,40 @@ export function EditProfileModal({
         onClose={requestClose}
         title="Edit profile"
         description="Update how you appear across 35mm."
-        className="max-w-xl font-sans"
-        contentClassName="flex max-h-[min(44rem,calc(100vh-5.5rem))] flex-col !p-0"
+        variant={isSheet ? "bottomSheet" : "centered"}
+        className={cn(
+          "font-sans",
+          isSheet
+            ? "max-w-none !max-h-[min(92dvh,calc(100dvh-var(--edit-profile-keyboard-inset,0px)))]"
+            : "max-w-xl"
+        )}
+        containerClassName={
+          isSheet ? "pb-[var(--edit-profile-keyboard-inset,0px)]" : undefined
+        }
+        headerClassName={isSheet ? "border-b-0 px-5 pb-2 pt-0" : undefined}
+        descriptionClassName={isSheet ? "sr-only" : undefined}
+        contentClassName={cn(
+          "flex flex-col !p-0",
+          isSheet
+            ? "min-h-0 max-h-none flex-1 !overflow-hidden"
+            : "max-h-[min(44rem,calc(100vh-5.5rem))]"
+        )}
         initialFocusRef={displayNameRef}
       >
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="flex min-h-0 flex-1 flex-col"
+          onFocusCapture={function (event) {
+            if (!isSheet) return;
+            var target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            if (!target.matches("input, textarea, select")) return;
+            window.requestAnimationFrame(function () {
+              target.scrollIntoView({ block: "center", behavior: "smooth" });
+            });
+          }}
         >
-          <div className="edit-profile-form min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+          <div className="edit-profile-form min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5">
             <EditProfileSection
               title="Profile imagery"
               description="Choose the images people remember you by."
@@ -886,13 +933,21 @@ export function EditProfileModal({
             ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border bg-bg px-5 py-3.5 sm:px-6">
+          <div
+            className={cn(
+              "flex shrink-0 border-t border-border px-5 py-3.5 sm:px-6",
+              isSheet
+                ? "grid grid-cols-2 gap-3 bg-sunken"
+                : "items-center justify-end gap-2 bg-bg"
+            )}
+          >
             <Button
               type="button"
-              variant="ghost"
+              variant={isSheet ? "secondary" : "ghost"}
               size="sm"
               onClick={requestClose}
               disabled={isSubmitting}
+              className={isSheet ? "h-11 w-full" : undefined}
             >
               Cancel
             </Button>
@@ -907,6 +962,7 @@ export function EditProfileModal({
                 !canSaveUsername ||
                 bioRemaining < 0
               }
+              className={isSheet ? "h-11 w-full" : undefined}
             >
               {isSubmitting ? "Saving…" : "Save changes"}
             </Button>

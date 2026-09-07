@@ -172,7 +172,7 @@ export function LoginForm() {
               }}
               aria-label="Verification code"
               placeholder="Verification code"
-              className="w-full rounded-full border border-[var(--auth-input-border)] bg-[var(--auth-input-bg)] px-4 py-3.5 text-center font-mono text-[0.95rem] tracking-[0.2em] text-[var(--auth-fg)] outline-none transition-[border-color] placeholder:font-sans placeholder:tracking-normal placeholder:text-[var(--auth-fg)]/45 focus:border-[var(--auth-accent)]/50"
+              className="w-full rounded-full border border-[var(--auth-input-border)] bg-[var(--auth-input-bg)] px-4 py-3.5 text-center font-mono text-base tracking-[0.2em] text-[var(--auth-fg)] outline-none transition-[border-color] placeholder:font-sans placeholder:tracking-normal placeholder:text-[var(--auth-fg)]/45 focus:border-[var(--auth-accent)]/50"
             />
           </>
         ) : (
@@ -183,7 +183,7 @@ export function LoginForm() {
                 autoComplete="username"
                 {...form.register("identifier")}
                 placeholder="username or email"
-                className={`w-full py-3.5 px-4 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.identifier ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
+                className={`w-full py-3.5 px-4 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.identifier ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
               />
               {form.formState.errors.identifier ? (
                 <p className="text-red-400 text-[0.75rem] ml-4 mt-1.5">
@@ -199,7 +199,7 @@ export function LoginForm() {
                   autoComplete="current-password"
                   {...form.register("password")}
                   placeholder="Your password"
-                  className={`w-full py-3.5 pl-4 pr-12 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-[0.95rem] outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.password ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
+                  className={`w-full py-3.5 pl-4 pr-12 bg-[var(--auth-input-bg)] border rounded-full text-[var(--auth-fg)] font-sans text-base outline-none transition-[border-color] focus:border-[var(--auth-accent)]/50 placeholder:text-[var(--auth-fg)]/45 ${form.formState.errors.password ? "border-red-500/50" : "border-[var(--auth-input-border)]"}`}
                 />
                 <button
                   type="button"

@@ -13,6 +13,10 @@ const mocks = vi.hoisted(function () {
   };
 });
 
+const viewport = vi.hoisted(function () {
+  return { isDesktopMd: true as boolean | null };
+});
+
 vi.mock("@clerk/nextjs", function () {
   return {
     useAuth: function () {
@@ -37,15 +41,33 @@ vi.mock("../api/profileApi", function () {
   };
 });
 
+vi.mock("@/lib/hooks/useIsDesktopMd", function () {
+  return {
+    useIsDesktopMd: function () {
+      return viewport.isDesktopMd;
+    },
+  };
+});
+
 vi.mock("@/components/Dialog/Dialog", function () {
   return {
     Dialog: function (props: {
       title?: string;
       description?: string;
       children: React.ReactNode;
+      variant?: string;
+      className?: string;
     }) {
       return (
-        <div role="dialog" aria-label={props.title}>
+        <div
+          role="dialog"
+          aria-label={props.title}
+          data-modal-variant={props.variant ?? "centered"}
+          className={props.className}
+        >
+          {props.variant === "bottomSheet" ? (
+            <div data-bottom-sheet-handle />
+          ) : null}
           {props.description ? <p>{props.description}</p> : null}
           {props.children}
         </div>
@@ -131,7 +153,35 @@ function renderModal(
 
 describe("EditProfileModal", function () {
   afterEach(function () {
+    viewport.isDesktopMd = true;
     vi.clearAllMocks();
+  });
+
+  it("renders as a bottom action sheet below the md breakpoint", async function () {
+    viewport.isDesktopMd = false;
+    renderModal();
+    await act(async function () {
+      await Promise.resolve();
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Edit profile" });
+    expect(dialog).toHaveAttribute("data-modal-variant", "bottomSheet");
+    expect(dialog.querySelector("[data-bottom-sheet-handle]")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveClass("h-11");
+    expect(screen.getByRole("button", { name: "Save changes" })).toHaveClass("h-11");
+  });
+
+  it("keeps the centered dialog on desktop", async function () {
+    viewport.isDesktopMd = true;
+    renderModal();
+    await act(async function () {
+      await Promise.resolve();
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Edit profile" });
+    expect(dialog).toHaveAttribute("data-modal-variant", "centered");
+    expect(dialog.querySelector("[data-bottom-sheet-handle]")).toBeNull();
+    expect(screen.getByRole("button", { name: "Cancel" })).not.toHaveClass("h-11");
   });
 
   it("uses the page surface instead of gray sunken field containers", async function () {
