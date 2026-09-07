@@ -156,6 +156,7 @@ function parseFeedPost(value: unknown): FeedPost {
     commentCount: count(source.commentCount, "FeedPost.commentCount"),
     repostCount: count(source.repostCount, "FeedPost.repostCount"),
     bookmarkCount: count(source.bookmarkCount, "FeedPost.bookmarkCount"),
+    quoteCount: source.quoteCount == null ? 0 : count(source.quoteCount, "FeedPost.quoteCount"),
     isLiked: boolean(source.isLiked, "FeedPost.isLiked"),
     isReposted: boolean(source.isReposted, "FeedPost.isReposted"),
     isBookmarked: boolean(source.isBookmarked, "FeedPost.isBookmarked"),

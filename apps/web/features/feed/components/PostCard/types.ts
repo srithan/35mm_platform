@@ -27,6 +27,8 @@ export interface PostCardMediaItem {
   videoAssetId?: string;
   type: "image" | "video" | "film_embed" | "none";
   url: string;
+  thumbnailUrl?: string;
+  altText?: string;
   width?: number;
   height?: number;
   blurhash?: string;
@@ -127,6 +129,7 @@ export interface PostCardProps {
   linkPreview?: PostCardLinkPreview | null;
   likeCount: number;
   repostCount: number;
+  quoteCount?: number;
   liked?: boolean;
   bookmarked?: boolean;
   bookmarkFolderId?: string | null;

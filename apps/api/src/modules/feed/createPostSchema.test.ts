@@ -11,6 +11,48 @@ describe("createPostSchema quote relation", function () {
     expect(result.success).toBe(true);
   });
 
+  it("rejects quotes on discussion, log, and review posts", function () {
+    var quotedPostId = "11111111-1111-4111-8111-111111111112";
+    var film = {
+      id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      title: "Fight Club",
+      year: 1999,
+      posterUrl: null,
+      genres: [],
+      rating: null,
+    };
+
+    function expectQuotedPostRejected(input: Record<string, unknown>) {
+      var result = createPostSchema.safeParse(input);
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(
+        result.error.issues.some(function (issue) {
+          return issue.path[0] === "quotedPostId";
+        })
+      ).toBe(true);
+    }
+
+    expectQuotedPostRejected({
+      type: "discussion",
+      headline: "What did you think?",
+      body: "Let's talk about it.",
+      quotedPostId,
+    });
+    expectQuotedPostRejected({
+      type: "log",
+      body: "Logged it.",
+      quotedPostId,
+      film,
+    });
+    expectQuotedPostRejected({
+      type: "review",
+      body: "A longer review that stays on a regular quote path should still fail.",
+      quotedPostId,
+      film,
+    });
+  });
+
   it("rejects a malformed quoted source id", function () {
     var result = createPostSchema.safeParse({
       type: "text",

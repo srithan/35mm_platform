@@ -1224,6 +1224,12 @@ Decision: Read comments from the existing flat cursor endpoint in pages of 20, v
 
 ## 26. Work log
 
+### 2026-09-07 — Shared FeedPost `quoteCount` and web View quotes gate
+
+- Added denormalized `posts.quote_count` plus `FeedPost.quoteCount` so clients can hide empty quote indexes without a live `COUNT()` on feed reads. Create/soft-delete of a non-repost quote writes the source counter through the existing `counter.outbox` path; pending deltas overlay the same way as like/repost/bookmark. Web `PostCard` now passes `View quotes` only when `quoteCount > 0`.
+- Mobile runtime parser accepts the new field and defaults missing payloads to 0 so rolling deploys stay valid. No React Native UI, navigation, native config, or `apps/ios` change.
+- Architecture/scale: one integer column, one grouped pending-delta overlay already used by post counters, and two extra outbox rows on quote create/delete. At 1M+ DAU this stays per-post and linear; quote index pagination is unchanged.
+
 ### 2026-09-06 — React Native post-detail UUID navigation repair
 
 - Corrected the Expo Router post-detail boundary to validate the UUID contract defined by `posts.id` instead of applying the ULID shape reserved for film IDs. The exact live-feed ID shape that previously rendered “Invalid post” now reaches `PostDetailScreen`; malformed, array, and path-like parameters still fail closed before any request.

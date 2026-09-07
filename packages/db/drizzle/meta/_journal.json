@@ -456,6 +456,13 @@
       "when": 1788652800003,
       "tag": "0063_video_sound_preference",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1788800000000,
+      "tag": "0064_post_quote_count",
+      "breakpoints": true
     }
   ]
 }

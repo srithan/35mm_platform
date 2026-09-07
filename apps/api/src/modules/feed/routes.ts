@@ -295,10 +295,10 @@ function isMissingActorIdsColumnError(err: unknown): boolean {
   );
 }
 
-type PostCounterName = "likeCount" | "commentCount" | "repostCount" | "bookmarkCount";
+type PostCounterName = "likeCount" | "commentCount" | "repostCount" | "bookmarkCount" | "quoteCount";
 type PostCounterFields = Record<PostCounterName, number>;
 
-var POST_COUNTER_NAMES: PostCounterName[] = ["likeCount", "commentCount", "repostCount", "bookmarkCount"];
+var POST_COUNTER_NAMES: PostCounterName[] = ["likeCount", "commentCount", "repostCount", "bookmarkCount", "quoteCount"];
 
 function applyPendingPostCounterDeltas(
   base: PostCounterFields,
@@ -309,6 +309,7 @@ function applyPendingPostCounterDeltas(
     commentCount: Math.max(0, Number(base.commentCount ?? 0) + Number(deltas.commentCount ?? 0)),
     repostCount: Math.max(0, Number(base.repostCount ?? 0) + Number(deltas.repostCount ?? 0)),
     bookmarkCount: Math.max(0, Number(base.bookmarkCount ?? 0) + Number(deltas.bookmarkCount ?? 0)),
+    quoteCount: Math.max(0, Number(base.quoteCount ?? 0) + Number(deltas.quoteCount ?? 0)),
   };
 }
 
@@ -790,6 +791,7 @@ async function selectReferencedPostRows(
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -1727,6 +1729,7 @@ type PostItemRow = {
   commentCount: number;
   repostCount: number;
   bookmarkCount: number;
+  quoteCount: number;
   isDeleted: boolean;
   moderationStatus: "visible" | "hidden" | "removed";
   nsfwStatus: "none" | "pending" | "flagged";
@@ -1838,6 +1841,7 @@ async function toPostItem(
     commentCount: Number(row.commentCount ?? 0),
     repostCount: Number(row.repostCount ?? 0),
     bookmarkCount: Number(row.bookmarkCount ?? 0),
+    quoteCount: Number(row.quoteCount ?? 0),
     isLiked: Boolean(row.isLiked),
     isReposted: Boolean(row.isReposted),
     isBookmarked: Boolean(row.isBookmarked),
@@ -1933,6 +1937,7 @@ export type CachedHighFollowerAuthorRow = {
   commentCount: number;
   repostCount: number;
   bookmarkCount: number;
+  quoteCount?: number;
   isDeleted: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";
   nsfwStatus?: "none" | "pending" | "flagged";
@@ -2119,6 +2124,7 @@ function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFol
     commentCount: Number(row.commentCount ?? 0),
     repostCount: Number(row.repostCount ?? 0),
     bookmarkCount: Number(row.bookmarkCount ?? 0),
+    quoteCount: Number(row.quoteCount ?? 0),
     isDeleted: row.isDeleted,
     moderationStatus: row.moderationStatus,
     nsfwStatus: row.nsfwStatus,
@@ -2141,6 +2147,7 @@ function homeRowFromCachedHighFollowerAuthorRow(
     nsfwStatus: row.nsfwStatus ?? "none",
     nsfwCategories: row.nsfwCategories ?? [],
     nsfwSource: row.nsfwSource ?? null,
+    quoteCount: Number(row.quoteCount ?? 0),
     createdAt,
     updatedAt: new Date(row.updatedAt),
     editedAt: row.editedAt ? new Date(row.editedAt) : null,
@@ -2253,6 +2260,7 @@ async function selectLiveHomeFeedRows(input: {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -2411,6 +2419,7 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -2652,6 +2661,7 @@ async function getPostById(
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -2938,6 +2948,7 @@ feedRoutes.get("/", async function (c) {
           commentCount: posts.commentCount,
           repostCount: posts.repostCount,
           bookmarkCount: posts.bookmarkCount,
+          quoteCount: posts.quoteCount,
           isDeleted: posts.isDeleted,
           moderationStatus: posts.moderationStatus,
           nsfwStatus: posts.nsfwStatus,
@@ -3130,6 +3141,7 @@ feedRoutes.get("/", async function (c) {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -3377,6 +3389,14 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         delta: filmsLoggedDelta,
       });
     }
+    if (quotedPostId) {
+      profileCounterDeltas.push({
+        targetTable: "posts",
+        targetId: quotedPostId,
+        counterName: "quoteCount",
+        delta: 1,
+      });
+    }
     await recordCounterDeltas(tx, profileCounterDeltas);
 
     return { postId, postCreatedAt, replayed: false };
@@ -3559,6 +3579,7 @@ feedRoutes.get("/posts/:postId/quotes", async function (c) {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -3705,6 +3726,7 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -3897,6 +3919,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -4043,6 +4066,7 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
       isDeleted: posts.isDeleted,
       moderationStatus: posts.moderationStatus,
       nsfwStatus: posts.nsfwStatus,
@@ -4115,6 +4139,7 @@ feedRoutes.delete("/posts/:postId", requireAuth, postEditRateLimit, async functi
         type: posts.type,
         filmId: posts.filmId,
         isRepost: posts.isRepost,
+        quotedPostId: posts.quotedPostId,
       });
 
     if (deletedRows.length > 0) {
@@ -4133,6 +4158,14 @@ feedRoutes.delete("/posts/:postId", requireAuth, postEditRateLimit, async functi
           targetId: user.userId,
           counterName: "filmsLoggedCount",
           delta: filmsLoggedDelta,
+        });
+      }
+      if (deletedRows[0].quotedPostId && !deletedRows[0].isRepost) {
+        profileCounterDeltas.push({
+          targetTable: "posts",
+          targetId: deletedRows[0].quotedPostId,
+          counterName: "quoteCount",
+          delta: -1,
         });
       }
       await recordCounterDeltas(tx, profileCounterDeltas);
@@ -4445,6 +4478,7 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, postInteractionRateLimit, a
         commentCount: posts.commentCount,
         repostCount: posts.repostCount,
         bookmarkCount: posts.bookmarkCount,
+        quoteCount: posts.quoteCount,
       })
       .from(posts)
       .where(eq(posts.id, postId))
@@ -4454,6 +4488,7 @@ feedRoutes.post("/posts/:postId/likes", requireAuth, postInteractionRateLimit, a
       commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
       repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
       bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+      quoteCount: Number(currentPostRows[0]?.quoteCount ?? 0),
     });
 
     if (inserted.length > 0) {
@@ -4541,6 +4576,7 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, postInteractionRateLimit,
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
     })
     .from(posts)
     .where(eq(posts.id, postId))
@@ -4550,6 +4586,7 @@ feedRoutes.delete("/posts/:postId/likes", requireAuth, postInteractionRateLimit,
     commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
     repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
     bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+    quoteCount: Number(currentPostRows[0]?.quoteCount ?? 0),
   });
 
   if (deleted.length > 0) {
@@ -5121,6 +5158,7 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, postInteractionRateLimi
           commentCount: posts.commentCount,
           repostCount: posts.repostCount,
           bookmarkCount: posts.bookmarkCount,
+          quoteCount: posts.quoteCount,
         })
         .from(posts)
         .where(eq(posts.id, postId))
@@ -5130,6 +5168,7 @@ feedRoutes.post("/posts/:postId/bookmarks", requireAuth, postInteractionRateLimi
         commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
         repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
         bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+        quoteCount: Number(currentPostRows[0]?.quoteCount ?? 0),
       });
 
       return c.json({
@@ -5370,6 +5409,7 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, postInteractionRateLi
       commentCount: posts.commentCount,
       repostCount: posts.repostCount,
       bookmarkCount: posts.bookmarkCount,
+      quoteCount: posts.quoteCount,
     })
     .from(posts)
     .where(eq(posts.id, postId))
@@ -5379,6 +5419,7 @@ feedRoutes.delete("/posts/:postId/bookmarks", requireAuth, postInteractionRateLi
     commentCount: Number(currentPostRows[0]?.commentCount ?? 0),
     repostCount: Number(currentPostRows[0]?.repostCount ?? 0),
     bookmarkCount: Number(currentPostRows[0]?.bookmarkCount ?? 0),
+    quoteCount: Number(currentPostRows[0]?.quoteCount ?? 0),
   });
 
   return c.json({

@@ -212,6 +212,7 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
     areLinkPreviewsEqual(prev.linkPreview, next.linkPreview) &&
     prev.likeCount === next.likeCount &&
     prev.repostCount === next.repostCount &&
+    prev.quoteCount === next.quoteCount &&
     prev.liked === next.liked &&
     prev.bookmarked === next.bookmarked &&
     prev.bookmarkFolderId === next.bookmarkFolderId &&

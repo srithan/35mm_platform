@@ -48,6 +48,7 @@ describe("PostActions repost options", function () {
     const menu = screen.getByRole("menu", { name: "Repost options" });
     expect(within(menu).getByRole("menuitem", { name: "Repost" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Quote" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "View quotes" })).not.toBeInTheDocument();
   });
 
   it("renders repost options as a bottom action sheet on mobile", function () {
@@ -59,6 +60,7 @@ describe("PostActions repost options", function () {
     const sheet = screen.getByRole("dialog", { name: "Repost options" });
     expect(within(sheet).getByRole("menuitem", { name: "Repost" })).toBeInTheDocument();
     expect(within(sheet).getByRole("menuitem", { name: "Quote" })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("menuitem", { name: "View quotes" })).not.toBeInTheDocument();
   });
 
   it("runs selected action and exposes undo when already reposted", function () {

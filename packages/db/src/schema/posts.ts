@@ -112,6 +112,7 @@ export var posts = pgTable(
     commentCount: integer("comment_count").default(0).notNull(),
     repostCount: integer("repost_count").default(0).notNull(),
     bookmarkCount: integer("bookmark_count").default(0).notNull(),
+    quoteCount: integer("quote_count").default(0).notNull(),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     moderationStatus: moderationContentStatusEnum("moderation_status").default("visible").notNull(),
     nsfwStatus: text("nsfw_status")

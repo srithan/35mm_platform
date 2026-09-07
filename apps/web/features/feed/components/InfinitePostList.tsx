@@ -264,6 +264,7 @@ export function InfinitePostList({
         nsfw: post.nsfw ?? { status: "none", categories: [], source: null },
         likeCount: post.likeCount,
         repostCount: post.repostCount,
+        quoteCount: post.quoteCount,
         liked: post.isLiked,
         bookmarked: post.isBookmarked,
         bookmarkFolderId: post.bookmarkFolderId,

@@ -45,6 +45,7 @@ const diaryPost: Post = {
   commentCount: 0,
   repostCount: 0,
   bookmarkCount: 0,
+  quoteCount: 0,
   isLiked: false,
   isReposted: false,
   isBookmarked: false,

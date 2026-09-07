@@ -93,6 +93,7 @@ export interface Post {
   commentCount: number;
   repostCount: number;
   bookmarkCount: number;
+  quoteCount: number;
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;

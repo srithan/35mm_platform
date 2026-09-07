@@ -1,6 +1,5 @@
 "use client";
 
-import { BunnyVideoPlayer } from "@/features/videos/components/BunnyVideoPlayer";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Film, LockKeyhole } from "lucide-react";
@@ -10,12 +9,11 @@ import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
 import { isStoredRichText, storedRichTextToPlainText } from "@/lib/utils/richContent";
 import { RichPostInline } from "@/lib/utils/richPostText";
 import { shouldLoadRemoteImageUnoptimized } from "@/lib/utils/remoteImageHosts";
-import { cn } from "@/lib/utils/cn";
 import { suppressLinkPreviewUrl } from "@/lib/utils/linkPreviewPresentation";
 import type { QuotedPost } from "../../types/feed";
 import { saveScrollPositionForBack } from "../PostPageBackButton";
-import { postMediaGridCellClassName } from "../postMediaGridLayout";
-import { NsfwMediaOverlay, NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
+import { NsfwTextReveal } from "@/components/media/NsfwMediaOverlay";
+import { QuotedPostMediaGrid } from "../QuotedPostMediaGrid";
 
 function formatQuoteTime(iso: string): string {
   const then = Date.parse(iso);
@@ -194,60 +192,7 @@ export function PostCardQuoteEmbed({
       </div>
       </NsfwTextReveal>
 
-      {media.length > 0 ? (
-        <div
-          className={media.length === 1 ? "grid" : "grid grid-cols-2 gap-px bg-border"}
-          aria-label="Quoted post media"
-        >
-          {media.map(function (item, index) {
-            const status =
-              quoteNsfw.status === "pending"
-                ? "pending"
-                : item.nsfw
-                  ? "flagged"
-                  : "none";
-            return (
-              <NsfwMediaOverlay
-                key={`${item.url}-${index}`}
-                status={status}
-                categories={
-                  item.nsfwCategories && item.nsfwCategories.length > 0
-                    ? item.nsfwCategories
-                    : quoteNsfw.categories
-                }
-                compact
-                className={cn(
-                  "relative bg-sunken",
-                  media.length === 1
-                    ? "aspect-video"
-                    : postMediaGridCellClassName(media.length, index)
-                )}
-              >
-                {item.type === "video" && item.videoAssetId ? <BunnyVideoPlayer assetId={item.videoAssetId} /> : item.type === "video" ? (
-                  <video
-                    src={item.url}
-                    poster={item.thumbnailUrl}
-                    className="h-full w-full object-cover"
-                    controls
-                    playsInline
-                    preload="metadata"
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                ) : (
-                  <Image
-                    src={item.variants?.feed ?? item.url}
-                    alt={item.altText ?? ""}
-                    fill
-                    sizes={media.length === 1 ? "(max-width: 640px) 85vw, 520px" : "(max-width: 640px) 42vw, 260px"}
-                    className="object-cover"
-                    unoptimized={shouldLoadRemoteImageUnoptimized(item.variants?.feed ?? item.url)}
-                  />
-                )}
-              </NsfwMediaOverlay>
-            );
-          })}
-        </div>
-      ) : null}
+      <QuotedPostMediaGrid media={media} nsfw={quoteNsfw} />
     </div>
   );
 }

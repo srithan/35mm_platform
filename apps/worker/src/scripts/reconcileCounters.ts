@@ -87,6 +87,11 @@ async function reconcilePosts(database: Db, id: string | null, dryRun: boolean):
     );
     var repostCount = await countRows(database, postReposts, eq(postReposts.postId, row.id));
     var bookmarkCount = await countRows(database, postBookmarks, eq(postBookmarks.postId, row.id));
+    var quoteCount = await countRows(
+      database,
+      posts,
+      sql`${posts.quotedPostId} = ${row.id} and ${posts.isRepost} = false and ${posts.isDeleted} = false`
+    );
 
     console.log("[reconcile:counters] posts", {
       id: row.id,
@@ -94,13 +99,14 @@ async function reconcilePosts(database: Db, id: string | null, dryRun: boolean):
       commentCount,
       repostCount,
       bookmarkCount,
+      quoteCount,
       dryRun,
     });
 
     if (!dryRun) {
       await database
         .update(posts)
-        .set({ likeCount, commentCount, repostCount, bookmarkCount, updatedAt: new Date() })
+        .set({ likeCount, commentCount, repostCount, bookmarkCount, quoteCount, updatedAt: new Date() })
         .where(eq(posts.id, row.id));
     }
   }

@@ -59,6 +59,7 @@ import { ContentWarningControls } from "./ContentWarningControls";
 import { detectNsfwTextHint } from "../../lib/nsfwTextHint";
 import { classifyStagedImage } from "../../lib/nsfwImageHint";
 import { VideoAttachment } from "./VideoAttachment";
+import { ComposerQuotedPostPreview } from "./ComposerQuotedPostPreview";
 
 const GiphyGifPicker = dynamic(
   () => import("@/features/gif/components/GiphyGifPicker").then((module) => module.GiphyGifPicker),
@@ -228,7 +229,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     },
     ref
   ) {
-  const resolvedInitialMode = initialMode ?? "write";
+  const isQuoteComposer = Boolean(quotedPost?.postId);
+  const resolvedInitialMode = isQuoteComposer ? "write" : (initialMode ?? "write");
   const initialComposerMode = modeForEditingPost(editingPost, resolvedInitialMode);
   const [mode, setMode] = useState<ComposerMode>(initialComposerMode);
   const [writeText, setWriteText] = useState(() => writeTextForEditingPost(editingPost));
@@ -346,7 +348,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     const name = quotedPost.displayName?.trim() ?? "";
     const handle = quotedPost.handle?.trim() ?? "";
     const text = quotedPost.text?.trim() ?? "";
-    return name.length > 0 || handle.length > 0 || text.length > 0;
+    const hasMedia = Boolean(quotedPost.media && quotedPost.media.length > 0);
+    const hasLinkPreview = Boolean(quotedPost.linkPreview);
+    return name.length > 0 || handle.length > 0 || text.length > 0 || hasMedia || hasLinkPreview;
   }, [quotedPost]);
   const resolvedExistingMediaUrls = useMemo(
     function () {
@@ -738,7 +742,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     videoFile != null ||
     gifUrl != null ||
     composerVideoPreview != null;
-  const compactComposeBody = (hasComposerMedia || pollDraft !== null) && !isFullPage;
+  const compactComposeBody =
+    (hasComposerMedia || pollDraft !== null || hasVisibleQuotedPost) && !isFullPage;
 
   function focusWriteTextarea() {
     writeEditor?.commands.focus("end", { scrollIntoView: false });
@@ -1117,7 +1122,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       };
     }
 
-    if (quotedPost?.postId) {
+    if (quotedPost?.postId && mode === "write") {
       input.quotedPostId = quotedPost.postId;
     }
     if (!editingPost && authorNsfwCategories.length > 0) {
@@ -1549,10 +1554,21 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             ? "shadow-[0_4px_24px_rgba(0,0,0,0.08)] ring-1 ring-border"
             : "shadow-sm hover:shadow-md"),
         isModal &&
-          "flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--composer-bg)]"
+          "relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--composer-bg)]"
       )}
     >
-      {/* Mode tabs */}
+      {isQuoteComposer && isModal && onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-[21px] z-20 w-8 h-8 rounded-full bg-sunken hover:bg-hover flex items-center justify-center text-fg-muted hover:text-fg transition-colors"
+          aria-label="Close"
+        >
+          <Icon name="x" className="w-[18px] h-[18px]" strokeWidth={2} />
+        </button>
+      ) : null}
+
+      {!isQuoteComposer ? (
       <div
         className={cn(
           "flex w-full min-w-0 flex-shrink-0 items-center",
@@ -1618,6 +1634,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           </button>
         )}
       </div>
+      ) : null}
 
       <div
         data-composer-scroll-region={isModal ? "" : undefined}
@@ -1634,7 +1651,13 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         <div
           className={cn(
             "flex gap-0",
-            fixedMobileToolbar ? "px-3 pb-3 pt-2" : isFullPage ? "px-3 pb-4 pt-3" : "px-4 pb-4 pt-5"
+            fixedMobileToolbar
+              ? "px-3 pb-3 pt-2"
+              : isFullPage
+                ? "px-3 pb-4 pt-3"
+                : isQuoteComposer && isModal
+                  ? "px-4 pb-4 pt-[25px] pr-14"
+                  : "px-4 pb-4 pt-5"
           )}
         >
         {/* Avatar */}
@@ -1674,17 +1697,21 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                 autoFocus={mode === "write"}
                 placeholder={writePlaceholder}
                 className={cn(
-                  isFullPage
-                    ? fixedMobileToolbar
-                      ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] overflow-y-auto text-[20px] font-normal leading-[1.35]"
-                      : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45]"
-                    : isModal
-                      ? compactComposeBody
-                        ? "min-h-[3rem] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
-                        : "min-h-[170px] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
-                      : compactComposeBody
-                        ? "min-h-[3rem] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
-                        : "min-h-[140px] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                  hasVisibleQuotedPost
+                    ? isFullPage
+                      ? "min-h-[1.35em] text-[20px] font-normal leading-[1.35]"
+                      : "min-h-[1.625em] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                    : isFullPage
+                      ? fixedMobileToolbar
+                        ? "h-[6.75rem] min-h-[6.75rem] max-h-[6.75rem] overflow-y-auto text-[20px] font-normal leading-[1.35]"
+                        : "min-h-[3.25rem] text-[20px] font-normal leading-[1.45]"
+                      : isModal
+                        ? compactComposeBody
+                          ? "min-h-[3rem] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                          : "min-h-[170px] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                        : compactComposeBody
+                          ? "min-h-[3rem] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
+                          : "min-h-[140px] text-[19px] font-medium leading-relaxed [&_.ProseMirror_p.is-editor-empty:first-child:before]:font-medium"
                 )}
               />
               {fixedMobileToolbar && (
@@ -2005,29 +2032,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
         </div>
         </div>
 
-        {/* Quoted post embed */}
-        {hasVisibleQuotedPost && quotedPost && (
-          <div
-            className={cn(
-              "mx-4 mb-3 rounded-xl border border-border bg-sunken overflow-hidden",
-              isFullPage ? "ml-4" : "ml-[52px]"
-            )}
-          >
-            <div className="px-3.5 py-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-5 h-5 rounded-full bg-border flex items-center justify-center text-[10px] font-sans font-semibold text-fg-light flex-shrink-0">
-                  {quotedPost.avatarInitial}
-                </div>
-                <span className="text-[13px] font-semibold text-fg truncate">{quotedPost.displayName}</span>
-                <span className="text-[12px] text-fg-muted truncate">{quotedPost.handle}</span>
-                {quotedPost.timestamp && (
-                  <span className="text-[11px] text-fg-muted ml-auto flex-shrink-0">{quotedPost.timestamp}</span>
-                )}
-              </div>
-              <p className="text-[13px] leading-relaxed text-fg-light line-clamp-3">{quotedPost.text}</p>
-            </div>
-          </div>
-        )}
+        {hasVisibleQuotedPost && quotedPost ? (
+          <ComposerQuotedPostPreview
+            quotedPost={quotedPost}
+            className={cn("mx-4 mb-3", isFullPage ? "ml-4" : "ml-[52px]")}
+          />
+        ) : null}
       </div>
 
       {linkPreviewError ? (

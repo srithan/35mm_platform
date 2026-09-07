@@ -75,6 +75,7 @@
     --composer-radius: 1rem;
     --composer-dialog-radius: var(--composer-radius);
     --composer-control-radius: 9999px;
+    --composer-trigger-shadow: 0 0 24px 0 #e4e8f7cc;
     --button-spinner-track: color-mix(in srgb, var(--composer-primary-fg) 18%, var(--composer-primary));
     --button-spinner-tip: var(--composer-primary-fg);
     --accent-button-spinner-track: color-mix(in srgb, #ffffff 20%, var(--accent));
@@ -296,6 +297,8 @@
     --discover-placeholder: #2d2b28;
     --discover-tab-active: var(--color-accent);
 
+    --composer-trigger-shadow: 0 0 24px 0 rgba(0, 0, 0, 0.45);
+
     color-scheme: dark;
 }
 
@@ -370,6 +373,7 @@
     --chat-own-bubble: linear-gradient(135deg, #22526a 0%, #183d50 100%);
     --chat-unread-badge: #ff982e;
     --chat-unread-badge-fg: #101418;
+    --composer-trigger-shadow: 0 0 24px 0 rgba(0, 0, 0, 0.45);
 
     color-scheme: dark;
 }
@@ -591,6 +595,7 @@
     --discover-shelf-bg: #030a05;
     --discover-placeholder: #051409;
     --discover-tab-active: #00ff41;
+    --composer-trigger-shadow: 0 0 24px 0 rgba(0, 0, 0, 0.45);
 
     color-scheme: dark;
 }
@@ -687,6 +692,7 @@
     --landing-dark: #0a0a0a;
     --landing-red: #d0d0d0;
     --landing-red-light: #f0f0f0;
+    --composer-trigger-shadow: 0 0 24px 0 rgba(0, 0, 0, 0.45);
 
     color-scheme: dark;
 }
@@ -878,6 +884,18 @@
 [data-theme="barbie"] .unread-notification-badge {
     background: #ff36af;
     color: #ffffff;
+}
+
+.composer-trigger-card {
+    box-shadow: var(--composer-trigger-shadow);
+}
+
+button.composer-trigger-card:is(:focus, :focus-visible, :active) {
+    box-shadow: var(--composer-trigger-shadow);
+}
+
+button.composer-trigger-card:focus-visible {
+    box-shadow: var(--composer-trigger-shadow), 0 0 0 2px var(--color-focus-ring);
 }
 
 * {

@@ -368,6 +368,7 @@ export function adaptPostToFeedType(raw: unknown): Post {
     commentCount: asNumber(root.commentCount, 0),
     repostCount: asNumber(root.repostCount, asNumber(root.reposts, 0)),
     bookmarkCount: asNumber(root.bookmarkCount, 0),
+    quoteCount: asNumber(root.quoteCount, 0),
     isLiked: Boolean(root.isLiked ?? root.liked),
     isReposted: Boolean(root.isReposted),
     isBookmarked: Boolean(root.isBookmarked),

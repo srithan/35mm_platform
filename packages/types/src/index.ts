@@ -190,6 +190,7 @@ export interface FeedPost {
   commentCount: number;
   repostCount: number;
   bookmarkCount: number;
+  quoteCount: number;
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;

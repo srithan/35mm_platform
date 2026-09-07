@@ -91,6 +91,7 @@ export type CounterName =
   | "commentCount"
   | "repostCount"
   | "bookmarkCount"
+  | "quoteCount"
   | "totalVotes"
   | "voteCount"
   | "entryCount"

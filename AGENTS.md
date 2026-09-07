@@ -138,7 +138,7 @@ Important current behavior:
 - `feed.pruneFeedItems` deletes old materialized rows in indexed chunks and relies on short feed cache TTL instead of per-viewer prune invalidation.
 - Authenticated home feed cursor shape includes score, post ID, ranking timestamp, and materialized retention anchor when relevant.
 - High-follower author slices are cached separately with `FEED_HIGH_FOLLOWER_CACHE_TTL_SECONDS` defaulting to 45 seconds and `FEED_HIGH_FOLLOWER_CACHE_POST_LIMIT` defaulting to 100.
-- Counter jobs cover post like/comment/repost/bookmark counters, comment likes, poll totals/options, and film list like/entry counters.
+- Counter jobs cover post like/comment/repost/bookmark/quote counters, comment likes, poll totals/options, and film list like/entry counters.
 - Manual counter reconciliation path:
 
 ```bash

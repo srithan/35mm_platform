@@ -28,6 +28,7 @@ export type CounterName =
   | "commentCount"
   | "repostCount"
   | "bookmarkCount"
+  | "quoteCount"
   | "totalVotes"
   | "voteCount"
   | "entryCount"
@@ -105,7 +106,7 @@ function assertPayload(value: unknown): CounterIncrementJobPayload {
 
 function assertSupportedCounter(payload: CounterIncrementJobPayload): void {
   var allowed: Record<CounterTargetTable, CounterName[]> = {
-    posts: ["likeCount", "commentCount", "repostCount", "bookmarkCount"],
+    posts: ["likeCount", "commentCount", "repostCount", "bookmarkCount", "quoteCount"],
     comments: ["likeCount"],
     post_polls: ["totalVotes"],
     poll_options: ["voteCount"],
@@ -146,6 +147,9 @@ async function applyCounterDelta(
     }
     if (payload.counterName === "bookmarkCount") {
       return database.update(posts).set({ bookmarkCount: positiveDelta(posts.bookmarkCount, delta), updatedAt: now }).where(eq(posts.id, payload.targetId));
+    }
+    if (payload.counterName === "quoteCount") {
+      return database.update(posts).set({ quoteCount: positiveDelta(posts.quoteCount, delta), updatedAt: now }).where(eq(posts.id, payload.targetId));
     }
   }
 

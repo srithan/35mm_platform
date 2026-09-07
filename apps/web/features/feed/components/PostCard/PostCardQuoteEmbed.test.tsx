@@ -12,6 +12,14 @@ vi.mock("@/components/Avatar", function () {
   return { Avatar: () => <span data-testid="quote-avatar" /> };
 });
 
+vi.mock("@/features/videos/components/BunnyVideoPlayer", function () {
+  return {
+    BunnyVideoPlayer: function BunnyVideoPlayer({ assetId }: { assetId: string }) {
+      return <div data-testid="quoted-video-player" data-asset-id={assetId} />;
+    },
+  };
+});
+
 describe("PostCardQuoteEmbed", function () {
   it("renders original author, content, and media and navigates to the source", function () {
     render(
@@ -84,6 +92,39 @@ describe("PostCardQuoteEmbed", function () {
 
     expect(screen.getByText("Texas is scorching today.")).toBeInTheDocument();
     expect(screen.queryByText(/35MM_RICH_TEXT_V1/)).not.toBeInTheDocument();
+  });
+
+  it("renders a quoted native video player", function () {
+    render(
+      <PostCardQuoteEmbed
+        post={{
+          id: "source-post",
+          type: "text",
+          author: {
+            id: "source-user",
+            username: "srithan",
+            displayName: "Srithan Reddy Savela",
+            avatarUrl: null,
+            isFollowing: false,
+          },
+          body: "Still can't get out of the #VAS vibe. What a film!",
+          media: [
+            {
+              type: "video",
+              url: "/v1/videos/vas-video/playback",
+              videoAssetId: "vas-video",
+            },
+          ],
+          mediaUrls: [],
+          linkPreview: null,
+          poll: null,
+          film: null,
+          createdAt: "2026-09-05T16:00:00.000Z",
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("quoted-video-player")).toHaveAttribute("data-asset-id", "vas-video");
   });
 
   it("uses the portrait pair layout for two quoted images", function () {

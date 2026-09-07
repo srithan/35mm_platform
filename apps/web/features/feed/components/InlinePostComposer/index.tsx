@@ -59,23 +59,22 @@ export function InlinePostComposer({
 
   if (isExpanded) {
     return (
-      <div
-        ref={expandedRef}
-        className={cn(
-          "InlinePostComposer pb-4",
-          // Keep a clean rounded border, but drop the composer's shadow/focus ring
-          // so it embeds nicely in the feed.
-          "[&>div]:!rounded-[var(--composer-radius)] [&>div]:!shadow-none [&>div]:!ring-0"
-        )}
-      >
-        <PostComposer
-          variant="inline"
-          onDirtyChange={(dirty) => {
-            isDirtyRef.current = dirty;
-          }}
-          onSubmit={() => setIsExpanded(false)}
-          onClose={() => setIsExpanded(false)}
-        />
+      <div ref={expandedRef} className="InlinePostComposer pb-4">
+        <div
+          className={cn(
+            "composer-trigger-card rounded-[var(--composer-radius)]",
+            "[&>div]:!rounded-[var(--composer-radius)] [&>div]:overflow-hidden [&>div]:!shadow-none [&>div]:!ring-0"
+          )}
+        >
+          <PostComposer
+            variant="inline"
+            onDirtyChange={(dirty) => {
+              isDirtyRef.current = dirty;
+            }}
+            onSubmit={() => setIsExpanded(false)}
+            onClose={() => setIsExpanded(false)}
+          />
+        </div>
       </div>
     );
   }
@@ -83,16 +82,8 @@ export function InlinePostComposer({
   return (
     <div className="InlinePostComposer pb-4">
       <div
-        className={cn(
-          "group relative overflow-hidden rounded-2xl border border-[var(--composer-border)] bg-[var(--composer-bg)]",
-          "shadow-sm transition-shadow duration-150 hover:shadow-md"
-        )}
+        className="composer-trigger-card group rounded-2xl border border-[var(--composer-border)] bg-[var(--composer-bg)]"
       >
-        <span
-          className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-accent"
-          aria-hidden
-        />
-
         <button
           type="button"
           onClick={() => setIsExpanded(true)}

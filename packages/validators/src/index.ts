@@ -334,6 +334,18 @@ export var createPostSchema = z
       }
     }
 
+    if (
+      post.quotedPostId &&
+      post.type !== "text" &&
+      post.type !== "image"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["quotedPostId"],
+        message: "Quotes are only supported on regular posts",
+      });
+    }
+
     if (!post.poll) return;
     if (post.type !== "text") {
       ctx.addIssue({

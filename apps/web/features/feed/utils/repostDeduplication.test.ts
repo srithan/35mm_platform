@@ -24,6 +24,7 @@ function post(input: {
     commentCount: 0,
     repostCount: input.repostCount,
     bookmarkCount: 0,
+    quoteCount: 0,
     isLiked: false,
     isReposted: true,
     isBookmarked: false,

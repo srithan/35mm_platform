@@ -18,7 +18,7 @@ function validateCounterDelta(payload: CounterIncrementJobPayload): void {
   }
 
   var allowed: Record<CounterIncrementJobPayload["targetTable"], CounterIncrementJobPayload["counterName"][]> = {
-    posts: ["likeCount", "commentCount", "repostCount", "bookmarkCount"],
+    posts: ["likeCount", "commentCount", "repostCount", "bookmarkCount", "quoteCount"],
     comments: ["likeCount"],
     post_polls: ["totalVotes"],
     poll_options: ["voteCount"],

@@ -81,10 +81,10 @@ export function PostComposerTrigger({
         type="button"
         onClick={onOpen}
         className={cn(
-          "w-full cursor-pointer border-0 border-b border-[var(--composer-border)] bg-[var(--composer-bg)] text-left",
+          "composer-trigger-card w-full cursor-pointer border-0 border-b border-[var(--composer-border)] bg-[var(--composer-bg)] text-left",
           "rounded-[var(--composer-radius)] pt-2 transition-[border-color,box-shadow] duration-150 ease-out",
           "hover:border-[var(--border-strong)]",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+          "focus:outline-none focus-visible:outline-none"
         )}
         aria-label="Create new post"
       >

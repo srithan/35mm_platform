@@ -71,6 +71,24 @@ vi.mock("@/features/onboarding/api/onboardingApi", () => ({
 
 vi.mock("@/features/videos/api/videoApi", () => ({ uploadVideo: mocks.uploadVideo }));
 
+vi.mock("@/features/videos/components/BunnyVideoPlayer", () => ({
+  BunnyVideoPlayer: function BunnyVideoPlayer({
+    assetId,
+    initialAspectRatio,
+  }: {
+    assetId: string;
+    initialAspectRatio?: number;
+  }) {
+    return (
+      <div
+        data-testid="quoted-video-player"
+        data-asset-id={assetId}
+        data-initial-aspect-ratio={initialAspectRatio}
+      />
+    );
+  },
+}));
+
 vi.mock("@/features/profile/api/mediaApi", () => ({
   presignProfileMediaUpload: vi.fn(),
   uploadToPresignedUrl: vi.fn(),
@@ -297,6 +315,68 @@ describe("PostComposer", () => {
     });
   });
 
+  it("shows discussion and log modes for a regular compose", () => {
+    render(<PostComposer variant="inline" />);
+
+    expect(screen.getByRole("button", { name: "Discussion" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log / Review" })).toBeInTheDocument();
+  });
+
+  it("hides discussion and log modes when quoting", () => {
+    render(
+      <PostComposer
+        variant="inline"
+        initialMode="log"
+        quotedPost={{
+          postId: "11111111-1111-4111-8111-111111111112",
+          displayName: "Original Author",
+          handle: "@original",
+          avatarInitial: "O",
+          text: "Original post body",
+        }}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Write" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Discussion" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Log / Review" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: WRITE_PLACEHOLDER })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: WRITE_PLACEHOLDER }).closest(".rich-text-editor")).toHaveClass(
+      "min-h-[1.625em]"
+    );
+    expect(screen.getByRole("combobox", { name: WRITE_PLACEHOLDER }).closest(".rich-text-editor")).not.toHaveClass(
+      "min-h-[140px]"
+    );
+  });
+
+  it("collapses the mode-tab header gap when quoting in the modal", () => {
+    const { container } = render(
+      <PostComposer
+        variant="modal"
+        onClose={() => undefined}
+        quotedPost={{
+          postId: "11111111-1111-4111-8111-111111111112",
+          displayName: "Original Author",
+          handle: "@original",
+          avatarInitial: "O",
+          text: "Original post body",
+        }}
+      />
+    );
+
+    const contentRow = container.querySelector("[data-composer-scroll-region] > div");
+
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Write" })).not.toBeInTheDocument();
+    expect(contentRow).toHaveClass("pt-[25px]", "pr-14");
+    expect(screen.getByRole("combobox", { name: WRITE_PLACEHOLDER }).closest(".rich-text-editor")).toHaveClass(
+      "min-h-[1.625em]"
+    );
+    expect(screen.getByRole("combobox", { name: WRITE_PLACEHOLDER }).closest(".rich-text-editor")).not.toHaveClass(
+      "min-h-[170px]"
+    );
+  });
+
   it("submits the quoted source post id", async () => {
     const user = userEvent.setup();
     const quotedPostId = "11111111-1111-4111-8111-111111111112";
@@ -324,6 +404,41 @@ describe("PostComposer", () => {
         expect.objectContaining({ quotedPostId })
       );
     });
+  });
+
+  it("shows the quoted source video in the composer preview", async () => {
+    render(
+      <PostComposer
+        variant="inline"
+        quotedPost={{
+          postId: "11111111-1111-4111-8111-111111111112",
+          displayName: "Srithan Reddy Savela",
+          handle: "@srithan",
+          avatarInitial: "S",
+          text: "Still can't get out of the #VAS vibe. What a film!",
+          timestamp: "2d",
+          media: [
+            {
+              type: "video",
+              url: "/v1/videos/vas-video/playback",
+              videoAssetId: "vas-video",
+              width: 1080,
+              height: 1920,
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByText("Still can't get out of the #VAS vibe. What a film!")).toBeInTheDocument();
+    expect(screen.getByTestId("composer-quoted-post")).toHaveClass("bg-bg", "border-border-strong");
+    expect(screen.getByText("Still can't get out of the #VAS vibe. What a film!")).toHaveClass("text-fg");
+    expect(screen.getByTestId("quoted-video-player")).toHaveAttribute("data-asset-id", "vas-video");
+    expect(screen.getByTestId("quoted-video-player")).toHaveAttribute(
+      "data-initial-aspect-ratio",
+      "0.5625"
+    );
+    expect(screen.getByLabelText("Quoted post media")).toBeInTheDocument();
   });
 
   it("accepts pasted clipboard image files", async () => {

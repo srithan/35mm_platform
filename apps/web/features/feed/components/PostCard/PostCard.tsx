@@ -15,6 +15,7 @@ import { fetchPost } from "../../api/postsApi";
 import { feedKeys } from "../../hooks/queryKeys";
 import type { PostCardProps } from "./types";
 import { resolvePostMedia } from "./resolvePostMedia";
+import { buildComposerQuotedPost } from "./buildComposerQuotedPost";
 import { arePostCardPropsEqual } from "./postCardPropsEqual";
 import { PostCardHeader } from "./PostCardHeader";
 import { PostCardMoreMenu } from "./PostCardMoreMenu";
@@ -61,6 +62,7 @@ function PostCardComponent(props: PostCardProps) {
     linkPreview,
     likeCount,
     repostCount,
+    quoteCount = 0,
     liked: initialLiked = false,
     bookmarked: initialBookmarked = false,
     bookmarkFolderId: initialBookmarkFolderId = null,
@@ -157,14 +159,19 @@ function PostCardComponent(props: PostCardProps) {
   const quotePost = () => {
     if (!postId) return;
 
-    const quotedPost = {
+    const quotedPost = buildComposerQuotedPost({
       postId,
       displayName: displayName ?? username,
       handle,
       avatarInitial,
+      avatarUrl,
       text: displayText,
       timestamp,
-    };
+      media,
+      resolvedMedia,
+      linkPreview,
+      nsfw,
+    });
 
     if (window.matchMedia("(max-width: 767px)").matches) {
       setQuotedPostOnly(quotedPost);
@@ -355,7 +362,7 @@ function PostCardComponent(props: PostCardProps) {
                 initialReposted={initialReposted}
                 onCommentClick={postId ? navigateToPost : undefined}
                 onQuote={postId ? quotePost : undefined}
-                onViewQuotes={postId ? viewQuotes : undefined}
+                onViewQuotes={postId && quoteCount > 0 ? viewQuotes : undefined}
               />
             }
           />
@@ -373,7 +380,7 @@ function PostCardComponent(props: PostCardProps) {
             initialReposted={initialReposted}
             onCommentClick={postId ? navigateToPost : undefined}
             onQuote={postId ? quotePost : undefined}
-            onViewQuotes={postId ? viewQuotes : undefined}
+            onViewQuotes={postId && quoteCount > 0 ? viewQuotes : undefined}
           />
         </PostCardHeader>
       </div>
