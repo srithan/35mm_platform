@@ -1407,9 +1407,15 @@ another playback grant. Buffer, current time, paused state, and sound survive.
 The former timestamp/seek handoff and destination loading cover are removed.
 
 Slots reserve the measured player height. Resize/scroll observers align the live
-surface with its slot; fixed site navigation and in-flow sticky page chrome
+surface with its slot, converting `getBoundingClientRect` into `visualViewport`
+coordinates so a collapsing Safari chrome does not offset `position: fixed`.
+Fixed site navigation and in-flow sticky page chrome
 (`data-sticky-chrome` on profile tabs and `TopStickyBar`) are clipped out, and
-inert shell content hides/disables its players. Explicit forward navigation retains only the selected
+inert shell content hides/disables its players. Narrow viewports and coarse
+pointers skip the body portal and render the player in the post card: WebKit
+pauses scroll-linked JS during momentum scrolling, so a fixed overlay smears,
+drifts, and punches through mobile chrome. Feed-to-detail iframe continuity
+stays desktop-only. Explicit forward navigation retains only the selected
 post for at most ten seconds if the destination never attaches. Destination
 attachment clears retention; detached unrelated players are disposed. Account
 changes discard the registry. Existing viewport gating and exclusive playback

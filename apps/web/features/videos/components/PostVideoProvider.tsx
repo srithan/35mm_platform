@@ -16,6 +16,35 @@ type Registry = {
 };
 const Context = createContext<Registry | null>(null);
 const mediaKey = (media: Media) => JSON.stringify([media.postId, media.assetId ?? null, media.src ?? null]);
+/**
+ * Body-fixed players are JS-synced to a slot. WebKit pauses that sync during
+ * momentum scroll and `position:fixed` uses visualViewport, so the iframe
+ * smears, drifts, and punches through sticky chrome. Keep those players in flow.
+ */
+const IN_FLOW_VIDEO_QUERY = "(max-width: 767px), (hover: none) and (pointer: coarse)";
+
+function prefersInFlowVideo(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(IN_FLOW_VIDEO_QUERY).matches;
+}
+
+function usePortaledVideo(): boolean {
+  const [portaled, setPortaled] = useState(() => !prefersInFlowVideo());
+  useLayoutEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(IN_FLOW_VIDEO_QUERY);
+    const sync = () => setPortaled(!media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  return portaled;
+}
+
+function visualViewportOffset(): { left: number; top: number } {
+  const viewport = window.visualViewport;
+  return { left: viewport?.offsetLeft ?? 0, top: viewport?.offsetTop ?? 0 };
+}
 
 function shellNavClipBottom(): number {
   const nav = document.getElementById(window.innerWidth >= 768 ? "site-nav" : "mobile-site-nav");
@@ -48,6 +77,7 @@ export function PostVideoProvider({ children }: { children: ReactNode }) {
 
 function PlayerRegistry({ children }: { children: ReactNode }) {
   const path = usePathname();
+  const portaled = usePortaledVideo();
   const sessions = useRef(new Map<string, Session>());
   // Geometry survives player disposal, not playback grants or DOM. Bounded per account.
   const geometry = useRef(new Map<string, number>());
@@ -100,7 +130,12 @@ function PlayerRegistry({ children }: { children: ReactNode }) {
       session.retainedFrom = session.media.postId === postId ? path : undefined;
     }
   }, [path]);
-  const registry = useMemo<Registry>(() => ({ attach, retain }), [attach, retain]);
+  const registry = useMemo<Registry | null>(() => portaled ? { attach, retain } : null, [portaled, attach, retain]);
+  useLayoutEffect(() => {
+    if (portaled || !sessions.current.size) return;
+    sessions.current.clear();
+    notify();
+  }, [portaled, notify]);
   useLayoutEffect(() => {
     let removed = false;
     for (const [key, session] of sessions.current) {
@@ -122,7 +157,7 @@ function PlayerRegistry({ children }: { children: ReactNode }) {
   }, []);
   return <Context.Provider value={registry}>
     {children}
-    {typeof document !== "undefined" && createPortal(
+    {portaled && typeof document !== "undefined" && createPortal(
       Array.from(sessions.current, ([key, session]) =>
         <PlayerSurface key={key} session={session} path={path} rememberGeometry={rememberGeometry} />), document.body)}
   </Context.Provider>;
@@ -140,13 +175,16 @@ function PlayerSurface({ session, path, rememberGeometry }: { session: Session; 
         ?? slots.find(slot => slot.element.isConnected);
       if (!slot) return; // During navigation the live surface keeps its last position.
       const rect = slot.element.getBoundingClientRect();
-      element.style.left = `${rect.left}px`;
-      element.style.top = `${rect.top}px`;
+      const viewport = visualViewportOffset();
+      element.style.left = `${rect.left - viewport.left}px`;
+      element.style.top = `${rect.top - viewport.top}px`;
       element.style.width = `${rect.width}px`;
       element.style.visibility = rect.width > 0 ? "visible" : "hidden";
       element.inert = Boolean(slot.element.closest("[inert]"));
       if (element.inert) element.style.visibility = "hidden";
-      element.style.clipPath = `inset(${portaledVideoClipInset(rect)}px 0 0)`;
+      const clip = `inset(${portaledVideoClipInset(rect)}px 0 0)`;
+      element.style.clipPath = clip;
+      element.style.setProperty("-webkit-clip-path", clip);
       const height = element.getBoundingClientRect().height;
       if (height > 0 && Math.abs(height - slot.element.getBoundingClientRect().height) > 0.5) {
         slot.element.style.height = `${height}px`;
@@ -181,12 +219,17 @@ function PlayerSurface({ session, path, rememberGeometry }: { session: Session; 
     }
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("scroll", schedule);
+    viewport?.addEventListener("resize", schedule);
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
       attributes.disconnect();
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
+      viewport?.removeEventListener("resize", schedule);
     };
   });
   return <div ref={surface} data-post-video={session.media.postId}

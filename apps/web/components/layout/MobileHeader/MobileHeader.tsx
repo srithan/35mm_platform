@@ -94,7 +94,7 @@ export function MobileHeader({
       id="mobile-site-nav"
       aria-hidden={!headerVisible}
       className={cn(
-        "md:hidden fixed top-0 left-0 right-0 z-50 min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] flex items-center justify-between pt-[max(0.75rem,env(safe-area-inset-top))]",
+        "md:hidden fixed top-0 left-0 right-0 z-50 isolate min-h-14 py-3 pl-4 pr-[calc(1rem+var(--app-scrollbar-gutter,0px))] flex items-center justify-between pt-[max(0.75rem,env(safe-area-inset-top))]",
         "transition-[transform,opacity,border-radius] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         compactProfileVisible ? "bg-bg" : "bg-bg/95 backdrop-blur-md",
         sidebarOpen

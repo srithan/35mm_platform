@@ -13,8 +13,23 @@ vi.mock("./BunnyVideoPlayer", () => ({ BunnyVideoPlayer: () => {
 } }));
 vi.mock("./FeedVideoPlayer", () => ({ FeedVideoPlayer: () => <video data-testid="native" /> }));
 
+function stubMatchMedia(matches: boolean) {
+  vi.stubGlobal("matchMedia", function () {
+    return {
+      matches,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent() { return false; },
+      onchange: null,
+    };
+  });
+}
+
 beforeEach(() => {
   state.path = "/"; state.mounts = 0; state.unmounts = 0;
+  stubMatchMedia(false);
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -59,6 +74,33 @@ it("keeps portaled video below shell dropdown layers", () => {
   render(<PostVideoProvider><Route /></PostVideoProvider>);
   const surface = document.querySelector("[data-post-video='post']") as HTMLElement | null;
   expect(surface?.style.zIndex).toBe("var(--z-post-video)");
+});
+
+it("renders the player in flow on mobile and touch viewports", () => {
+  stubMatchMedia(true);
+  render(<PostVideoProvider><Route /></PostVideoProvider>);
+  expect(document.querySelector("[data-post-video]")).toBeNull();
+  expect(document.querySelector("[data-post-video-slot]")).toBeNull();
+  expect(screen.getByTitle("Video")).toBeInTheDocument();
+});
+
+it("places portaled video in visualViewport coordinates", () => {
+  vi.stubGlobal("visualViewport", {
+    offsetLeft: 12,
+    offsetTop: 40,
+    addEventListener() {},
+    removeEventListener() {},
+  });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.hasAttribute("data-post-video") || this.hasAttribute("data-post-video-slot")) {
+      return mockRect({ top: 80, left: 100, width: 600, height: 200 });
+    }
+    return mockRect({ top: 0, left: 0, width: 0, height: 0 });
+  });
+  render(<PostVideoProvider><Route /></PostVideoProvider>);
+  const surface = document.querySelector("[data-post-video='post']") as HTMLElement | null;
+  expect(surface?.style.left).toBe("88px");
+  expect(surface?.style.top).toBe("40px");
 });
 
 function mockRect(box: { top: number; left: number; width: number; height: number }): DOMRect {
