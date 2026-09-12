@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
-import { notFound } from "next/navigation";
-import { TitlePageView } from "@/features/title/components/TitlePageView";
+import { notFound, permanentRedirect } from "next/navigation";
+import { ROUTES } from "@/lib/constants/routes";
 import { fetchTmdbTitleMetadata } from "@/lib/tmdb/serverTmdbTitleMeta";
 import { isTitleMedia } from "@/lib/title/paths";
 
@@ -28,7 +28,11 @@ const resolveMetadataTmdbId = unstable_cache(async function (
     return typeof film.tmdbId === "number" && film.tmdbId > 0
       ? String(film.tmdbId)
       : null;
-  } catch {
+  } catch (error) {
+    console.error("[legacy-title] film lookup unavailable", {
+      id: canonicalId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }, ["film-tmdb-reference"], { revalidate: 300 });
@@ -66,5 +70,7 @@ export default async function TitlePage({ params }: PageProps) {
   const canonicalId = id.trim().toUpperCase();
   const tmdbId = await resolveMetadataTmdbId(canonicalId);
   if (!tmdbId) notFound();
-  return <TitlePageView key={media + canonicalId} media={media} id={canonicalId} tmdbId={tmdbId} />;
+  const title = await fetchTmdbTitleMetadata(media, tmdbId);
+  if (!title) notFound();
+  permanentRedirect(ROUTES.TITLE(media, title.title));
 }

@@ -363,6 +363,19 @@ export async function getCatalogTitle(id: string): Promise<CatalogTitleDetail> {
   };
 }
 
+export async function getCatalogTitleBySlug(slug: string): Promise<CatalogTitleDetail> {
+  var rows = await getDb().execute(sql`
+    select "id"
+    from "catalog_titles"
+    where "slug" = ${slug}
+      and "status" = 'active'
+    limit 1
+  `);
+  var id = (rows.rows ?? [])[0]?.id;
+  if (typeof id !== "string") throw notFound("Catalog title not found");
+  return getCatalogTitle(id);
+}
+
 async function getCatalogTitleCard(id: string): Promise<CatalogTitleCard | null> {
   var rows = await getDb().execute(sql`
     select ${titleSelect("t")}, ${mediaSelect("m")}
@@ -737,6 +750,19 @@ export async function getCatalogPerson(id: string): Promise<CatalogPersonDetail>
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
   };
+}
+
+export async function getCatalogPersonBySlug(slug: string): Promise<CatalogPersonDetail> {
+  var rows = await getDb().execute(sql`
+    select "id"
+    from "catalog_people"
+    where "slug" = ${slug}
+      and "status" = 'active'
+    limit 1
+  `);
+  var id = (rows.rows ?? [])[0]?.id;
+  if (typeof id !== "string") throw notFound("Catalog person not found");
+  return getCatalogPerson(id);
 }
 
 export async function getPersonCredits(id: string, query: CatalogCreditsQueryInput): Promise<CatalogCreditPage> {

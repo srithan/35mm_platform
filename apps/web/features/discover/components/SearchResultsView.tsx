@@ -5,6 +5,7 @@ import { LazyImage } from "@/components/LazyImage";
 import { EmptyState } from "@/components/EmptyState";
 import { ROUTES } from "@/lib/constants/routes";
 import { tmdbItemToTitlePath } from "@/lib/title/paths";
+import { personRoleForKnownDepartment } from "@/lib/routing/personRoles";
 import { posterUrl, yearFromDate } from "../lib/tmdb-utils";
 import type { TMDBMultiSearchResult, TMDBSearchPerson } from "@/lib/tmdb/types";
 import { DiscoverSearchResultsSkeleton } from "./DiscoverSkeletons";
@@ -53,7 +54,10 @@ export function SearchResultsView({
             ? result.known_for_department || "Person"
             : yearFromDate(result.release_date || result.first_air_date || "");
           const href = person
-            ? ROUTES.PERSON(result.id)
+            ? ROUTES.PERSON_ROLE(
+                result.slug || String(result.id),
+                personRoleForKnownDepartment(result.known_for_department),
+              )
             : tmdbItemToTitlePath(result);
 
           return (

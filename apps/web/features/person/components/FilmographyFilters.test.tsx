@@ -16,7 +16,7 @@ describe("FilmographyFilters", function () {
   it("renders direct text controls without native boxed selects", function () {
     const { container } = render(
       <FilmographyFilters
-        personId="123"
+        personSlug="Gal Gadot"
         department="actor"
         departments={[
           { slug: "actor", label: "Acting", count: 55 },
@@ -49,19 +49,19 @@ describe("FilmographyFilters", function () {
       buildFilmographyFilterDestination({
         currentQuery: "media=movie&department=acting&ref=discover",
         department: "actor",
-        personId: "123",
+        personSlug: "Gal Gadot",
         value: "producer",
       }),
-    ).toBe("/person/123/producer?media=movie&ref=discover");
+    ).toBe("/producer/gal-gadot?media=movie&ref=discover");
 
     expect(
       buildFilmographyFilterDestination({
         currentQuery: "media=movie&ref=discover",
         department: "producer",
         filterKey: "media",
-        personId: "123",
+        personSlug: "Gal Gadot",
         value: "all",
       }),
-    ).toBe("/person/123/producer?ref=discover");
+    ).toBe("/producer/gal-gadot?ref=discover");
   });
 });

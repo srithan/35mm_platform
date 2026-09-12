@@ -712,6 +712,12 @@ export interface CatalogTitleDetail extends CatalogTitleCard {
   updatedAt: string;
 }
 
+export interface CatalogPersonIdentity {
+  tmdbId: number;
+  slug: string;
+  name: string;
+}
+
 export interface CatalogPersonCard {
   id: string;
   status: CatalogEntityStatus;

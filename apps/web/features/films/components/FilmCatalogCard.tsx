@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { FilmPoster } from "@/components/FilmPoster";
 import { ROUTES } from "@/lib/constants/routes";
 import type { FilmCatalogDisplayItem } from "../api/filmsApi";
@@ -20,19 +20,35 @@ function FilmOpenTarget({
   onOpen?: (film: FilmCatalogDisplayItem) => void;
 }) {
   var label = `${isOpening ? "Opening" : "Open"} ${film.title}${film.year ? ` (${film.year})` : ""}`;
-  if (film.source === "35mm") {
-    return <Link href={ROUTES.TITLE(film.mediaType, film.id)} aria-label={label} className={className}>{children}</Link>;
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (isOpening) {
+      event.preventDefault();
+      return;
+    }
+    if (
+      film.source === "tmdb" &&
+      onOpen &&
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      onOpen(film);
+    }
   }
+
   return (
-    <button
-      type="button"
+    <Link
+      href={ROUTES.TITLE(film.mediaType, film.title)}
       aria-label={label}
-      disabled={isOpening}
-      onClick={function () { onOpen?.(film); }}
-      className={className}
+      aria-disabled={isOpening || undefined}
+      onClick={handleClick}
+      className={`${className}${isOpening ? " cursor-wait opacity-70" : ""}`}
     >
       {children}
-    </button>
+    </Link>
   );
 }
 

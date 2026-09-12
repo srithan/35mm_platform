@@ -19,8 +19,16 @@ import {
   type PersonCredit,
 } from "@/features/person/lib/filmography";
 import { ROUTES } from "@/lib/constants/routes";
+import {
+  isPersonRoleSlug,
+  normalizePersonRoleSlug,
+  personRoleForKnownDepartment,
+  type PersonRoleSlug,
+} from "@/lib/routing/personRoles";
 import { PERSON_PAGE_USE_TWO_COLUMN_LAYOUT } from "@/lib/constants/uiFlags";
 import { TMDB_IMAGE_BASE } from "@/lib/tmdb/constants";
+import { resolveTmdbPersonSlug } from "@/lib/tmdb/serverTmdbSlug";
+import { resolvePersonIdentities } from "@/lib/tmdb/personIdentity";
 
 export type PersonPageRequest = {
   id: string;
@@ -63,10 +71,13 @@ export async function getPersonPageMetadata({
   routeDepartment,
   legacyQueryDepartment,
 }: PersonPageRequest): Promise<Metadata> {
-  if (!/^\d+$/.test(id)) {
-    return { title: "Person" };
-  }
-  const person = await fetchPerson(id);
+  const requested = requestedDepartmentSlug(
+    routeDepartment,
+    legacyQueryDepartment,
+  );
+  const personId = await resolvePersonIdForRole(id, requested);
+  if (!personId) return { title: "Person" };
+  const person = await fetchPerson(personId);
   if (!person) return { title: "Person " + id };
 
   const departments = buildFilmographyDepartments({
@@ -74,10 +85,6 @@ export async function getPersonPageMetadata({
     movieCredits: person.movie_credits,
     tvCredits: person.tv_credits,
   });
-  const requested = requestedDepartmentSlug(
-    routeDepartment,
-    legacyQueryDepartment,
-  );
   const selected =
     departments.find((item) => item.slug === requested) || departments[0];
   return {
@@ -110,6 +117,47 @@ async function fetchPerson(id: string): Promise<PersonDetail | null> {
   return isPersonDetail(data) ? data : null;
 }
 
+async function resolvePersonIdForRole(
+  identifier: string,
+  role: string | undefined,
+): Promise<string | null> {
+  if (/^\d+$/.test(identifier)) return identifier;
+  const normalizedRole = role ? normalizePersonRoleSlug(role) : null;
+  return (
+    await resolveTmdbPersonSlug(
+      identifier,
+      normalizedRole && isPersonRoleSlug(normalizedRole)
+        ? normalizedRole
+        : undefined,
+    )
+  )?.id ?? null;
+}
+
+export async function getPersonCanonicalIdentity(
+  identifier: string,
+  expectedRole?: PersonRoleSlug,
+): Promise<{ id: string; slug: string; name: string; role: PersonRoleSlug } | null> {
+  const personId = await resolvePersonIdForRole(identifier, expectedRole);
+  if (!personId) return null;
+  const person = await fetchPerson(personId);
+  if (!person) return null;
+  const [identity] = await resolvePersonIdentities({ kind: "person", id: Number(personId) });
+  if (!identity) throw new Error("Person catalog identity is missing");
+  const roles = buildFilmographyDepartments({
+    knownForDepartment: person.known_for_department,
+    movieCredits: person.movie_credits,
+    tvCredits: person.tv_credits,
+  });
+  return {
+    id: personId,
+    slug: identity.slug,
+    name: person.name,
+    role:
+      (roles[0]?.slug as PersonRoleSlug | undefined) ||
+      personRoleForKnownDepartment(person.known_for_department),
+  };
+}
+
 function creditDate(credit: PersonCredit): string {
   return credit.release_date || credit.first_air_date || "";
 }
@@ -121,7 +169,7 @@ function creditTitle(credit: PersonCredit): string {
 function creditHref(credit: PersonCredit): string {
   const media =
     credit.media_type === "tv" || credit.first_air_date ? "tv" : "movie";
-  return ROUTES.TITLE(media, credit.id);
+  return ROUTES.TITLE(media, creditTitle(credit));
 }
 
 function profileImage(path: string | null): string | null {
@@ -137,17 +185,7 @@ function requestedDepartmentSlug(
     : legacyQueryDepartment;
   const requested = routeDepartment || queryDepartment;
   if (!requested) return undefined;
-  const aliases: Record<string, string> = {
-    "filmography-acting": "actor",
-    acting: "actor",
-    "filmography-production": "producer",
-    production: "producer",
-    "filmography-directing": "director",
-    directing: "director",
-    "filmography-writing": "writer",
-    writing: "writer",
-  };
-  return aliases[requested.toLowerCase()] || requested.toLowerCase();
+  return normalizePersonRoleSlug(requested);
 }
 
 export async function PersonPageContent({
@@ -156,11 +194,10 @@ export async function PersonPageContent({
   legacyQueryDepartment,
   filterQuery = {},
 }: PersonPageRequest) {
-  if (!/^\d+$/.test(id)) {
-    notFound();
-  }
+  const personId = await resolvePersonIdForRole(id, routeDepartment);
+  if (!personId) notFound();
 
-  const person = await fetchPerson(id);
+  const person = await fetchPerson(personId);
   if (!person) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
@@ -172,7 +209,7 @@ export async function PersonPageContent({
           filmography and photos.
         </p>
         <a
-          href={TMDB_PERSON + id}
+          href={TMDB_PERSON + personId}
           target="_blank"
           rel="noreferrer"
           className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-elevated px-4 py-2.5 text-[13px] font-semibold text-fg transition hover:border-fg/30"
@@ -239,8 +276,11 @@ export async function PersonPageContent({
     filters.genre !== "all";
   const useTwoColumnLayout = PERSON_PAGE_USE_TWO_COLUMN_LAYOUT;
   const sharePath = selectedDepartment
-    ? ROUTES.PERSON_DEPARTMENT(id, selectedDepartment.slug)
-    : ROUTES.PERSON(id);
+    ? ROUTES.PERSON_ROLE(id, selectedDepartment.slug)
+    : ROUTES.PERSON_ROLE(
+        id,
+        personRoleForKnownDepartment(person.known_for_department),
+      );
   const shareTitle = selectedDepartment
     ? filmographyPageTitle(selectedDepartment.label, person.name) + " on 35mm"
     : person.name + " on 35mm";
@@ -355,7 +395,7 @@ export async function PersonPageContent({
               </p>
             </div>
             <FilmographyFilters
-              personId={id}
+              personSlug={id}
               department={selectedDepartment.slug}
               filters={filters}
               decades={decades}
@@ -418,7 +458,7 @@ export async function PersonPageContent({
                 Showing {visibleCredits.length} of{" "}
                 {filteredCredits.length} matching titles.{" "}
                 <a
-                  href={TMDB_PERSON + id}
+                  href={TMDB_PERSON + personId}
                   target="_blank"
                   rel="noreferrer"
                   className="font-semibold text-fg underline decoration-border underline-offset-4 hover:decoration-fg"

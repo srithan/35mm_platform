@@ -1280,6 +1280,10 @@ export var catalogIdParamSchema = z.object({
   id: z.string().trim().regex(ULID_RE),
 });
 
+export var catalogSlugParamSchema = z.object({
+  slug: z.string().trim().min(1).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+});
+
 export var catalogReadPageQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -1305,6 +1309,16 @@ export var catalogTitleSearchQuerySchema = catalogReadPageQuerySchema.extend({
     });
   }
 });
+
+export var catalogPersonSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.enum(["movie", "tv", "person"]), id: z.number().int().positive().max(2147483647) }),
+  z.object({ kind: z.literal("search"), query: z.string().trim().min(1).max(200),
+    mode: z.enum(["person", "multi"]).default("person"),
+    page: z.number().int().min(1).max(500).default(1),
+    language: z.string().regex(/^[a-z]{2}-[A-Z]{2}$/).default("en-US"),
+    includeAdult: z.boolean().default(false),
+  }),
+]);
 
 export var catalogPeopleSearchQuerySchema = catalogReadPageQuerySchema.extend({
   query: z.string().trim().min(1).max(200).optional(),
@@ -1393,6 +1407,7 @@ export type CatalogMergeEntitiesInput = z.infer<typeof catalogMergeEntitiesSchem
 export type CatalogWorkflowPayloadInput = z.infer<typeof catalogWorkflowPayloadSchema>;
 export type CatalogHistoryQueryInput = z.infer<typeof catalogHistoryQuerySchema>;
 export type CatalogIdParamInput = z.infer<typeof catalogIdParamSchema>;
+export type CatalogSlugParamInput = z.infer<typeof catalogSlugParamSchema>;
 export type CatalogReadPageQueryInput = z.infer<typeof catalogReadPageQuerySchema>;
 export type SiteSearchQueryInput = z.infer<typeof siteSearchQuerySchema>;
 export type CatalogTitleSearchQueryInput = z.infer<typeof catalogTitleSearchQuerySchema>;

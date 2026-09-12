@@ -7,6 +7,7 @@ import type { TMDBMovie } from "@/lib/tmdb/types";
 import { SHOW_POSTER_CARD_METADATA } from "@/lib/constants/uiFlags";
 import { tmdbMovieToFilmPayload } from "@/features/lists/api/listsApi";
 import { useWatchlistMutation } from "@/features/lists/hooks/useLists";
+import { FilmTitleLink } from "./FilmTitleLink";
 
 interface FilmShelfProps {
   title: string;
@@ -56,11 +57,11 @@ export function FilmShelf({
               className="group w-[116px] flex-shrink-0 text-left sm:w-[132px] lg:w-[148px]"
             >
               <div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--discover-placeholder)] shadow-sm ring-1 ring-black/5 transition-all duration-300 group-hover:-translate-y-1.5 group-hover:-rotate-[0.4deg] group-hover:shadow-[0_18px_30px_-18px_rgba(28,26,23,0.45)]">
-                <button
-                  type="button"
-                  onClick={() => onFilmClick(film)}
+                <FilmTitleLink
+                  film={film}
+                  onOpen={onFilmClick}
                   className="block h-full w-full"
-                  aria-label={"Open " + (film.title || film.name || "title")}
+                  ariaLabel={"Open " + (film.title || film.name || "title")}
                 >
                   <LazyImage
                     src={posterUrl(film.poster_path)}
@@ -68,7 +69,7 @@ export function FilmShelf({
                     aspectRatio="2/3"
                     className="h-full w-full"
                   />
-                </button>
+                </FilmTitleLink>
                 <button
                   type="button"
                   onClick={function () {
@@ -83,9 +84,9 @@ export function FilmShelf({
                 </button>
               </div>
               {SHOW_POSTER_CARD_METADATA ? (
-                <button
-                  type="button"
-                  onClick={() => onFilmClick(film)}
+                <FilmTitleLink
+                  film={film}
+                  onOpen={onFilmClick}
                   className="mt-2 block w-full text-left"
                 >
                   <div className="line-clamp-2 text-[13px] leading-snug text-fg">
@@ -94,7 +95,7 @@ export function FilmShelf({
                   <div className="mt-0.5 text-[10.5px] text-fg-muted">
                     {yearFromDate(film.release_date || film.first_air_date || "")}
                   </div>
-                </button>
+                </FilmTitleLink>
               ) : null}
             </div>
           );

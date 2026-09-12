@@ -5,6 +5,8 @@ export interface TMDBGenre {
 
 export interface TMDBPerson {
   id: number;
+  /** Catalog-owned slug, shared across every role for this person. */
+  slug?: string;
   name: string;
   profile_path: string | null;
   character?: string;

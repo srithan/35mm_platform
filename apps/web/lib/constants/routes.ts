@@ -1,3 +1,6 @@
+import { toUrlSlug } from "@/lib/routing/slugs";
+import { normalizePersonRoleSlug } from "@/lib/routing/personRoles";
+
 export const ROUTES = {
   HOME: "/",
   AUTH_LOGIN: "/login",
@@ -24,15 +27,15 @@ export const ROUTES = {
   CAREERS: "/careers",
   HELP: "/help",
   WAITLIST: "/waitlist",
-  /**
-   * TMDB-backed title: `movie` or `tv` (numeric id; media disambiguates ID collisions).
-   * Films, shorts, docs use `movie`; series / mini-series / web series use `tv`.
-   */
-  TITLE: (media: "movie" | "tv", id: string | number) => `/title/${media}/${id}`,
-  /** TMDB person id — dedicated page links out to more detail. */
-  PERSON: (id: string | number) => `/person/${id}`,
-  PERSON_DEPARTMENT: (id: string | number, department: string) =>
-    `/person/${id}/${encodeURIComponent(department.toLowerCase())}`,
+  /** Public title URL. Catalog-owned slugs disambiguate duplicate names. */
+  TITLE: (media: "movie" | "tv", titleOrSlug: string) =>
+    `/${media === "movie" ? "film" : "tv"}/${toUrlSlug(titleOrSlug)}`,
+  /** Legacy title URL retained only for permanent redirects. */
+  LEGACY_TITLE: (media: "movie" | "tv", id: string | number) =>
+    `/title/${media}/${id}`,
+  /** Clean role/name person URL. Resolution must never guess between duplicates. */
+  PERSON_ROLE: (nameOrSlug: string, role: string) =>
+    `/${encodeURIComponent(normalizePersonRoleSlug(role))}/${toUrlSlug(nameOrSlug)}`,
   /** TMDB production company id — studio/network catalog page. */
   COMPANY: (id: string | number) => `/company/${id}`,
   NOTIFICATIONS: "/notifications",

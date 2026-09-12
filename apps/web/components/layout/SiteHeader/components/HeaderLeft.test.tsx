@@ -44,7 +44,7 @@ describe("HeaderLeft search", function () {
     push.mockReset();
   });
 
-  it("renders real API results and navigates with canonical film ID", async function () {
+  it("renders real API results and navigates with canonical title slug", async function () {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -59,7 +59,7 @@ describe("HeaderLeft search", function () {
     expect(await screen.findByText("Alien")).toBeInTheDocument();
     await user.click(screen.getByText("Alien"));
     expect(push).toHaveBeenCalledWith(
-      "/title/movie/01HX0000000000000000000000"
+      "/film/alien"
     );
   });
 });

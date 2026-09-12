@@ -16,6 +16,7 @@ const results: TMDBMultiSearchResult[] = [
     id: 123,
     media_type: "person",
     name: "Paola Fernández",
+    slug: "paola-fernandez",
     profile_path: "/paola.jpg",
     known_for_department: "Acting",
   },
@@ -44,7 +45,7 @@ describe("SearchResultsView", function () {
 
     expect(screen.getByRole("link", { name: /Paola Fernández/ })).toHaveAttribute(
       "href",
-      "/person/123"
+      "/actor/paola-fernandez"
     );
     expect(screen.getByRole("img", { name: "Paola Fernández" })).toHaveAttribute(
       "src",
@@ -53,7 +54,7 @@ describe("SearchResultsView", function () {
     expect(screen.getByText("Acting")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Film/ })).toHaveAttribute(
       "href",
-      "/title/movie/456"
+      "/film/test-film"
     );
   });
 });

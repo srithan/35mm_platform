@@ -5,6 +5,7 @@ import { LazyImage } from "@/components/LazyImage";
 import { heroUrl, starsFromVote, yearFromDate } from "../lib/tmdb-utils";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import { cn } from "@/lib/utils/cn";
+import { FilmTitleLink } from "./FilmTitleLink";
 
 interface HeroCardProps {
   film: TMDBMovie;
@@ -37,21 +38,21 @@ export function HeroCard({
     programNote.slice(0, 180) + (programNote.length > 180 ? "..." : "");
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={function () {
-        onOpenDetail(film);
-      }}
-      onKeyDown={function (e) {
-        if (e.key === "Enter") onOpenDetail(film);
-      }}
+    <article
       className={cn(
-        "group grid w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] lg:grid-cols-5",
+        "group relative grid w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] lg:grid-cols-5",
         "cursor-pointer bg-[var(--discover-placeholder)] text-left shadow-sm",
         "transition-shadow hover:shadow-[0_18px_34px_-18px_rgba(28,26,23,0.5)]"
       )}
     >
+      <FilmTitleLink
+        film={film}
+        onOpen={onOpenDetail}
+        ariaLabel={"Open " + (film.title || film.name || "title")}
+        className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/30 focus-visible:ring-inset"
+      >
+        <span className="sr-only">{film.title || film.name || "Open title"}</span>
+      </FilmTitleLink>
       <div className="relative aspect-[4/3] overflow-hidden text-white sm:aspect-video lg:col-span-3">
         <div className="absolute inset-0">
           <LazyImage
@@ -100,21 +101,14 @@ export function HeroCard({
             </div>
           </div>
 
-          <div
-            className="flex flex-wrap items-center gap-2"
-            onClick={function (e) {
-              e.stopPropagation();
-            }}
-          >
-            <button
-              type="button"
-              onClick={function () {
-                onOpenDetail(film);
-              }}
+          <div className="relative z-20 flex flex-wrap items-center gap-2">
+            <FilmTitleLink
+              film={film}
+              onOpen={onOpenDetail}
               className="inline-flex min-h-10 items-center justify-center rounded-full bg-[var(--color-film-red)] px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)]"
             >
               Details
-            </button>
+            </FilmTitleLink>
             <button
               type="button"
               onClick={function () {
@@ -178,6 +172,6 @@ export function HeroCard({
           </div>
         </div>
       </aside>
-    </div>
+    </article>
   );
 }

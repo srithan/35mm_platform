@@ -55,12 +55,14 @@ describe("StreamingNowAisle", () => {
     expect(screen.queryByText("The Test Feature")).not.toBeInTheDocument();
     expect(screen.queryByText("2024")).not.toBeInTheDocument();
     expect(screen.queryByText("2025 · Series")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open The Test Feature" }).closest("li")).toHaveClass(
+    const filmLink = screen.getByRole("link", { name: "Open The Test Feature" });
+    expect(filmLink).toHaveAttribute("href", "/film/the-test-feature");
+    expect(filmLink.closest("li")).toHaveClass(
       "w-[122px]",
       "sm:w-auto",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open The Test Feature" }));
+    fireEvent.click(filmLink);
     expect(onFilmClick).toHaveBeenCalledWith(films[0]);
   });
 
@@ -117,7 +119,9 @@ describe("MoodGridAisles", () => {
     expect(screen.getAllByText("Genre program")).toHaveLength(2);
     expect(screen.getAllByText("1 film")).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole("button", { name: "The Test Feature" }));
+    const filmLink = screen.getByRole("link", { name: "The Test Feature" });
+    expect(filmLink).toHaveAttribute("href", "/film/the-test-feature");
+    fireEvent.click(filmLink);
     expect(onFilmClick).toHaveBeenCalledWith(films[0]);
   });
 });

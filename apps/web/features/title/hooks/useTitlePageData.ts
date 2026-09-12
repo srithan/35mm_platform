@@ -132,7 +132,7 @@ export function useTitlePageData(
             media +
             "/" +
             id +
-            "?append_to_response=" +
+            "?person_slugs=1&append_to_response=" +
             ["credits", "watch/providers", "external_ids", cert, "videos", extra]
               .filter(Boolean)
               .join(",");

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { attachPersonSlugs } from "@/lib/tmdb/personIdentity";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
-const CACHE_NAMESPACE = "tmdb-proxy:v1";
+const CACHE_NAMESPACE = "tmdb-proxy:v3";
 const RATE_LIMIT_NAMESPACE = "rate-limit:v1:tmdb-proxy";
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_REQUESTS = 120;
@@ -262,7 +263,7 @@ export async function GET(
 
   // Forward query params (e.g. page, with_genres)
   request.nextUrl.searchParams.forEach((value, key) => {
-    if (key !== "path") url.searchParams.set(key, value);
+    if (key !== "path" && key !== "person_slugs") url.searchParams.set(key, value);
   });
 
   const cacheKey = cacheKeyFor(url);
@@ -299,6 +300,8 @@ export async function GET(
     if (!res.ok) {
       return NextResponse.json(data, { status: res.status });
     }
+
+    data = await attachPersonSlugs(path, request.nextUrl.searchParams, data);
 
     try {
       await setCachedResponse(

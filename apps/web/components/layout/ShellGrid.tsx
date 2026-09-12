@@ -18,6 +18,7 @@ import { MobileScrollChromeListener } from "@/components/layout/MobileScrollChro
 import { ComposerModalProvider } from "@/components/layout/PostComposerModalContext";
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
+import { isPersonRolePath } from "@/lib/routing/personRoles";
 import { HomeSuggestionsSidebar } from "@/features/feed/components/HomeSuggestionsSidebar";
 import { HomeProfileCompletionSidebar } from "@/features/profile/components/HomeProfileCompletionSidebar";
 import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
@@ -83,8 +84,13 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     },
     [previousPathname, profileRailDisabled, setProfileRailDisabled]
   );
-  const isTitlePage = Boolean(pathname?.startsWith("/title/"));
-  const isPersonPage = Boolean(pathname?.startsWith("/person/"));
+  const isTitlePage = Boolean(
+    pathname?.startsWith("/film/") ||
+      pathname?.startsWith("/tv/") ||
+      pathname?.startsWith("/title/"),
+  );
+  const isPersonPage =
+    Boolean(pathname?.startsWith("/person/")) || isPersonRolePath(pathname);
   const isCompanyPage = Boolean(pathname?.startsWith("/company/"));
   const isShortFilmsSection =
     pathname === ROUTES.SEVENTY_MM ||

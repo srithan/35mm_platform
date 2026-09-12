@@ -16,7 +16,7 @@ export function TitleCastCard(props: TitleCastCardProps) {
   const person = props.person;
   return (
     <Link
-      href={ROUTES.PERSON(person.id)}
+      href={ROUTES.PERSON_ROLE(person.slug || String(person.id), "actor")}
       className={cn(TITLE_CAST_CARD_SHELL, props.className)}
     >
       <div className={TITLE_CAST_AVATAR_SHELL}>

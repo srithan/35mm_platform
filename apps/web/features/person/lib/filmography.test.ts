@@ -31,7 +31,7 @@ describe("filmography headings", function () {
 });
 
 describe("buildFilmographyDepartments", function () {
-  it("keeps one title in each contributed department and merges roles within a department", function () {
+  it("keeps one title in each credited role and merges equivalent jobs", function () {
     const departments = buildFilmographyDepartments({
       knownForDepartment: "Acting",
       movieCredits: {
@@ -66,8 +66,8 @@ describe("buildFilmographyDepartments", function () {
     });
 
     expect(departments.map((department) => department.label)).toEqual([
-      "Acting",
-      "Production",
+      "Actor",
+      "Producer",
     ]);
     expect(departments.map((department) => department.slug)).toEqual([
       "actor",
@@ -111,6 +111,42 @@ describe("buildFilmographyDepartments", function () {
     expect(departments[0]?.items.map((credit) => credit.media_type)).toEqual([
       "movie",
       "tv",
+    ]);
+  });
+
+  it("builds separate filmographies for specialist jobs", function () {
+    const roles = buildFilmographyDepartments({
+      movieCredits: {
+        crew: [
+          {
+            id: 1,
+            title: "Stunt Film",
+            department: "Crew",
+            job: "Stunt Coordinator",
+            poster_path: null,
+          },
+          {
+            id: 2,
+            title: "Decorated Film",
+            department: "Art",
+            job: "Set Decoration",
+            poster_path: null,
+          },
+          {
+            id: 3,
+            title: "Practical Film",
+            department: "Crew",
+            job: "Special Effects Supervisor",
+            poster_path: null,
+          },
+        ],
+      },
+    });
+
+    expect(roles.map((role) => role.slug)).toEqual([
+      "sets-decoration",
+      "stunts",
+      "special-effects",
     ]);
   });
 });

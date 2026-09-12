@@ -149,7 +149,7 @@ export function useSearchMulti(query: string) {
     queryKey: discoverKeys.searchMulti(normalizedQuery),
     queryFn: () =>
       fetchJson<{ results: TMDBMultiSearchResult[] }>(
-        `/api/tmdb/search/multi?query=${encodeURIComponent(normalizedQuery)}&include_adult=false`
+        `/api/tmdb/search/multi?person_slugs=1&query=${encodeURIComponent(normalizedQuery)}&include_adult=false`
       ),
     enabled: normalizedQuery.length > 0,
     staleTime: DISCOVER_STALE_TIME_MS,

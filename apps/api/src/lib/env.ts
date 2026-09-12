@@ -31,6 +31,7 @@ export function loadEnv() {
   var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 
   return {
+    TMDB_API_KEY: process.env.TMDB_API_KEY ?? "",
     BUNNY_STREAM_LIBRARY_ID: process.env.BUNNY_STREAM_LIBRARY_ID ?? "",
     BUNNY_STREAM_API_KEY: process.env.BUNNY_STREAM_API_KEY ?? "",
     BUNNY_STREAM_TOKEN_KEY: process.env.BUNNY_STREAM_TOKEN_KEY ?? "",

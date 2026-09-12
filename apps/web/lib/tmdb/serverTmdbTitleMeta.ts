@@ -4,7 +4,7 @@ type TitleMeta = {
 };
 
 /**
- * Server-only: Open Graph + metadata for `/title/[media]/[id]`.
+ * Server-only: Open Graph metadata and legacy-title redirect lookup.
  * Uses `TMDB_API_KEY` (same as `/api/tmdb` proxy).
  */
 export async function fetchTmdbTitleMetadata(

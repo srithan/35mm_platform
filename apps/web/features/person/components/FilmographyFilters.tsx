@@ -29,7 +29,7 @@ type DestinationInput = {
   currentQuery: string;
   department: string;
   filterKey?: QueryFilterKey;
-  personId: string;
+  personSlug: string;
   value: string;
 };
 
@@ -66,7 +66,7 @@ export function buildFilmographyFilterDestination({
   currentQuery,
   department,
   filterKey,
-  personId,
+  personSlug,
   value,
 }: DestinationInput): string {
   const next = new URLSearchParams(currentQuery);
@@ -79,7 +79,7 @@ export function buildFilmographyFilterDestination({
   }
 
   return destinationWithQuery(
-    ROUTES.PERSON_DEPARTMENT(personId, nextDepartment),
+    ROUTES.PERSON_ROLE(personSlug, nextDepartment),
     next,
   );
 }
@@ -166,7 +166,7 @@ export function FilmographyFilters(props: {
   departments: DepartmentOption[];
   filters: FilmographyFilterValues;
   genres: FilmographyGenreOption[];
-  personId: string;
+  personSlug: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -186,7 +186,7 @@ export function FilmographyFilters(props: {
       buildFilmographyFilterDestination({
         currentQuery: searchParams.toString(),
         department: props.department,
-        personId: props.personId,
+        personSlug: props.personSlug,
         value,
       }),
     );
@@ -198,7 +198,7 @@ export function FilmographyFilters(props: {
         currentQuery: searchParams.toString(),
         department: props.department,
         filterKey: key,
-        personId: props.personId,
+        personSlug: props.personSlug,
         value,
       }),
     );

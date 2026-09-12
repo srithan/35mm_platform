@@ -53,7 +53,9 @@ describe("FilmShelf", function () {
     expect(screen.queryByText("2026")).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Hidden Metadata Film" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Hidden Metadata Film" }));
+    const titleLink = screen.getByRole("link", { name: "Open Hidden Metadata Film" });
+    expect(titleLink).toHaveAttribute("href", "/film/hidden-metadata-film");
+    fireEvent.click(titleLink);
     expect(onFilmClick).toHaveBeenCalledWith(film);
   });
 });

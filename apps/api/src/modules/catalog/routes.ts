@@ -8,8 +8,10 @@ import {
   catalogEditQueueQuerySchema,
   catalogHistoryQuerySchema,
   catalogIdParamSchema,
+  catalogSlugParamSchema,
   catalogMediaQuerySchema,
   catalogPeopleSearchQuerySchema,
+  catalogPersonSourceSchema,
   catalogReadPageQuerySchema,
   catalogTitleSearchQuerySchema,
   catalogWorkflowPayloadSchema,
@@ -17,7 +19,8 @@ import {
 } from "@35mm/validators";
 import { badRequest, forbidden } from "../../lib/errors.js";
 import { requireAuth, type AuthUser } from "../../lib/middleware.js";
-import { createRateLimitMiddleware, identifyByUserId } from "../../lib/rateLimit.js";
+import { createRateLimitMiddleware, identifyByIp, identifyByUserId } from "../../lib/rateLimit.js";
+import { resolvePersonSource } from "./personIdentity.js";
 import { roleCanWriteCatalog, studioRoleForUser } from "../../lib/studioAuth.js";
 import {
   applyCatalogEdit,
@@ -36,7 +39,9 @@ import {
   getCatalogEdit,
   getCatalogEditQueue,
   getCatalogPerson,
+  getCatalogPersonBySlug,
   getCatalogTitle,
+  getCatalogTitleBySlug,
   getCompanyTitles,
   getEntityAliases,
   getEntityHistory,
@@ -173,6 +178,14 @@ function parseId(c: Context): string {
   }
 }
 
+function parseSlug(c: Context): string {
+  try {
+    return catalogSlugParamSchema.parse({ slug: c.req.param("slug") }).slug;
+  } catch (error) {
+    throw badRequest(zodMessage(error));
+  }
+}
+
 function parseQuery<T>(schema: { parse: (value: unknown) => T }, value: unknown): T {
   try {
     return schema.parse(value);
@@ -201,6 +214,12 @@ catalogRoutes.get("/titles", async function (c) {
     externalProvider: c.req.query("externalProvider"),
     externalId: c.req.query("externalId"),
     }));
+  });
+});
+
+catalogRoutes.get("/titles/by-slug/:slug", async function (c) {
+  return cachedCatalogRead(c, async function () {
+    return getCatalogTitleBySlug(parseSlug(c));
   });
 });
 
@@ -270,6 +289,23 @@ catalogRoutes.get("/people", async function (c) {
     cursor: c.req.query("cursor"),
     limit: c.req.query("limit"),
     }));
+  });
+});
+
+catalogRoutes.post("/people/resolve", createRateLimitMiddleware({
+  keyPrefix: "catalog:person-resolve", limit: 60, windowSeconds: 60, identify: identifyByIp,
+}), async function (c) {
+  let body: unknown;
+  try { body = await c.req.json(); }
+  catch { throw badRequest("Invalid JSON body"); }
+  const source = parseQuery(catalogPersonSourceSchema, body);
+  c.header("Cache-Control", "no-store");
+  return c.json({ items: await resolvePersonSource(source) });
+});
+
+catalogRoutes.get("/people/by-slug/:slug", async function (c) {
+  return cachedCatalogRead(c, async function () {
+    return getCatalogPersonBySlug(parseSlug(c));
   });
 });
 

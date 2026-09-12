@@ -78,7 +78,10 @@ export function TitlePageHero({
                   return {
                     id: person.id,
                     name: person.name,
-                    href: ROUTES.PERSON(person.id),
+                    href: ROUTES.PERSON_ROLE(
+                      person.slug || String(person.id),
+                      isTv ? "creator" : "director",
+                    ),
                   };
                 })}
               />

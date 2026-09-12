@@ -33,6 +33,7 @@ describe("TitlePageHero", function () {
           {
             id: 525,
             name: "Christopher Nolan",
+            slug: "christopher-nolan",
             profile_path: null,
             job: "Director",
           },
@@ -43,7 +44,7 @@ describe("TitlePageHero", function () {
     expect(screen.getByText(/Directed by/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Christopher Nolan" })).toHaveAttribute(
       "href",
-      "/person/525",
+      "/director/christopher-nolan",
     );
   });
 });

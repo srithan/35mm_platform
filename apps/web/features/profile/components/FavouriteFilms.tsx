@@ -31,7 +31,7 @@ function PosterCard(props: { film: ProfileStatsFilm }) {
 
   return (
     <Link
-      href={ROUTES.TITLE("movie", props.film.tmdbId)}
+      href={ROUTES.TITLE("movie", props.film.title)}
       className="min-w-0 cursor-pointer group"
       title={props.film.title}
     >

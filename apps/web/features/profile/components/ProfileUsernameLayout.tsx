@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { isPersonRolePath } from "@/lib/routing/personRoles";
 import { ProfileShellClient } from "./ProfileShellClient";
 
 export function ProfileUsernameLayout(props: {
@@ -10,7 +11,7 @@ export function ProfileUsernameLayout(props: {
   var pathname = usePathname();
   var isPostDetail = pathname != null && /\/post\//.test(pathname);
 
-  if (isPostDetail) {
+  if (isPostDetail || isPersonRolePath(pathname)) {
     return props.children;
   }
 

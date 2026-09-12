@@ -27,7 +27,7 @@ export function HeaderLeft() {
           sublabel: details.join(" · "),
           type: "film",
           imageUrl: item.posterUrl,
-          href: ROUTES.TITLE("movie", item.id),
+          href: ROUTES.TITLE("movie", item.title),
         };
       }
       if (item.type === "user") {

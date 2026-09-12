@@ -549,6 +549,12 @@ describeDb("catalog public read routes with real Postgres", function () {
     });
     expect(detail.body.primaryMedia.id).toBe(ids.mediaMain);
 
+    var titleBySlug = await json<JsonRecord>(
+      "/v1/catalog/titles/by-slug/" + runSlug + "-title-alpha",
+    );
+    expect(titleBySlug.status).toBe(200);
+    expect(titleBySlug.body.id).toBe(ids.titleMain);
+
     var merged = await json<JsonRecord>("/v1/catalog/titles/" + ids.titleMerged);
     expect(merged.status).toBe(200);
     expect(merged.body.status).toBe("merged");
@@ -608,6 +614,12 @@ describeDb("catalog public read routes with real Postgres", function () {
       biography: "Performer fixture",
       externalIds: [expect.objectContaining({ id: ids.externalPersonMain, provider: "imdb", externalId: externalPersonMainId })],
     });
+
+    var personBySlug = await json<JsonRecord>(
+      "/v1/catalog/people/by-slug/" + runSlug + "-person-active",
+    );
+    expect(personBySlug.status).toBe(200);
+    expect(personBySlug.body.id).toBe(ids.personMain);
 
     var mergedPerson = await json<JsonRecord>("/v1/catalog/people/" + ids.personMerged);
     expect(mergedPerson.status).toBe(200);

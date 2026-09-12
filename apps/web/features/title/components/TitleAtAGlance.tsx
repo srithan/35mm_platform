@@ -52,14 +52,14 @@ function GlanceDetailRow(props: {
   );
 }
 
-function personLinks(people: TMDBPerson[]) {
+function personLinks(people: TMDBPerson[], role: string) {
   return (
     <TitleCreditNameLinks
       items={people.map(function (person) {
         return {
           id: person.id,
           name: person.name,
-          href: ROUTES.PERSON(person.id),
+          href: ROUTES.PERSON_ROLE(person.slug || String(person.id), role),
         };
       })}
     />
@@ -169,7 +169,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
     detailRows.push({
       key: "creators",
       label: "Created by",
-      value: personLinks(creators),
+      value: personLinks(creators, "creator"),
       icon: <UserCircle className={icoSm} strokeWidth={stroke} />,
     });
   }
@@ -177,7 +177,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
     detailRows.push({
       key: "directors",
       label: "Directed by",
-      value: personLinks(directors),
+      value: personLinks(directors, "director"),
       icon: <Clapperboard className={icoSm} strokeWidth={stroke} />,
     });
   }
@@ -185,7 +185,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
     detailRows.push({
       key: "writers",
       label: "Written by",
-      value: personLinks(writers),
+      value: personLinks(writers, "writer"),
       icon: <Pencil className={icoSm} strokeWidth={stroke} />,
     });
   }
@@ -193,7 +193,7 @@ export function TitleAtAGlance(props: TitleAtAGlanceProps) {
     detailRows.push({
       key: "producers",
       label: "Produced by",
-      value: personLinks(producers),
+      value: personLinks(producers, "producer"),
       icon: <Briefcase className={icoSm} strokeWidth={stroke} />,
     });
   }

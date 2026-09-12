@@ -17,6 +17,7 @@ const detail: TMDBMedia = {
       {
         id: 525,
         name: "Christopher Nolan",
+        slug: "christopher-nolan",
         profile_path: null,
         job: "Director",
         department: "Directing",
@@ -24,9 +25,18 @@ const detail: TMDBMedia = {
       {
         id: 559,
         name: "Emma Thomas",
+        slug: "emma-thomas",
         profile_path: null,
         job: "Producer",
         department: "Production",
+      },
+      {
+        id: 60208,
+        name: "Mark Gibson",
+        slug: "mark-gibson",
+        profile_path: null,
+        job: "Writer",
+        department: "Writing",
       },
     ],
   },
@@ -37,7 +47,7 @@ const detail: TMDBMedia = {
 };
 
 describe("TitleAtAGlance", function () {
-  it("links director, producer, and studio names", function () {
+  it("links credited people by role and stable identity", function () {
     render(
       <TitleAtAGlance
         isTv={false}
@@ -49,11 +59,15 @@ describe("TitleAtAGlance", function () {
 
     expect(screen.getByRole("link", { name: "Christopher Nolan" })).toHaveAttribute(
       "href",
-      "/person/525",
+      "/director/christopher-nolan",
     );
     expect(screen.getByRole("link", { name: "Emma Thomas" })).toHaveAttribute(
       "href",
-      "/person/559",
+      "/producer/emma-thomas",
+    );
+    expect(screen.getByRole("link", { name: "Mark Gibson" })).toHaveAttribute(
+      "href",
+      "/writer/mark-gibson",
     );
     expect(screen.getByRole("link", { name: "Syncopy" })).toHaveAttribute(
       "href",

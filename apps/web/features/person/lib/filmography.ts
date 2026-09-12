@@ -91,16 +91,34 @@ const GENRE_NAMES: Record<number, string> = {
 
 const FILMOGRAPHY_HEADING_PREFIXES: Record<string, string> = {
   Acting: "Films starring",
+  Actor: "Films starring",
+  Creator: "Titles created by",
   Directing: "Films directed by",
+  Director: "Films directed by",
   Writing: "Films written by",
+  Writer: "Films written by",
   Production: "Films produced by",
+  Producer: "Films produced by",
   Editing: "Films edited by",
+  Editor: "Films edited by",
   Camera: "Films photographed by",
+  Cinematographer: "Films photographed by",
+  Composer: "Films composed by",
+  "Production Designer": "Films designed by",
+  "Art Director": "Films art-directed by",
+  "Set Decoration": "Films with sets decorated by",
+  Costume: "Films with costumes by",
+  Makeup: "Films with makeup by",
   Sound: "Films with sound by",
   Art: "Films with art direction by",
   "Costume & Make-Up": "Films with costume and makeup by",
   "Visual Effects": "Films with visual effects by",
+  "Special Effects": "Films with special effects by",
+  Stunts: "Films with stunts by",
   Lighting: "Films lit by",
+  Casting: "Films cast by",
+  Choreography: "Films choreographed by",
+  Animation: "Films animated by",
   Crew: "Films featuring work by",
 };
 
@@ -110,6 +128,35 @@ const FILMOGRAPHY_ROLE_LABELS: Record<string, string> = {
   Writing: "Writer",
   Production: "Producer",
   Editing: "Editor",
+};
+
+const ROLE_LABELS: Record<PersonRoleSlug, string> = {
+  actor: "Actor",
+  creator: "Creator",
+  director: "Director",
+  writer: "Writer",
+  producer: "Producer",
+  editor: "Editor",
+  cinematographer: "Cinematographer",
+  composer: "Composer",
+  "production-designer": "Production Designer",
+  "art-director": "Art Director",
+  "sets-decoration": "Set Decoration",
+  costume: "Costume",
+  makeup: "Makeup",
+  "visual-effects": "Visual Effects",
+  "special-effects": "Special Effects",
+  stunts: "Stunts",
+  lighting: "Lighting",
+  sound: "Sound",
+  casting: "Casting",
+  choreography: "Choreography",
+  animation: "Animation",
+  camera: "Camera",
+  art: "Art",
+  production: "Production",
+  "costume-and-makeup": "Costume & Make-Up",
+  crew: "Crew",
 };
 
 export function filmographyRoleLabel(department: string): string {
@@ -127,19 +174,33 @@ export function filmographyPageTitle(
   return filmographyHeadingPrefix(department) + " " + personName;
 }
 
-const DEPARTMENT_ORDER = [
-  "Acting",
-  "Directing",
-  "Writing",
-  "Production",
-  "Editing",
-  "Camera",
-  "Sound",
-  "Art",
-  "Costume & Make-Up",
-  "Visual Effects",
-  "Lighting",
-  "Crew",
+const ROLE_ORDER: PersonRoleSlug[] = [
+  "actor",
+  "creator",
+  "director",
+  "writer",
+  "producer",
+  "editor",
+  "cinematographer",
+  "composer",
+  "production-designer",
+  "art-director",
+  "sets-decoration",
+  "costume",
+  "makeup",
+  "casting",
+  "stunts",
+  "choreography",
+  "animation",
+  "visual-effects",
+  "special-effects",
+  "lighting",
+  "sound",
+  "camera",
+  "art",
+  "production",
+  "costume-and-makeup",
+  "crew",
 ];
 
 function creditDate(credit: PersonCredit): string {
@@ -273,41 +334,18 @@ export function filterAndSortFilmographyCredits(
   });
 }
 
-function departmentSlug(department: string): string {
-  const roleSlugs: Record<string, string> = {
-    Acting: "actor",
-    Directing: "director",
-    Writing: "writer",
-    Production: "producer",
-    Editing: "editor",
-    Camera: "camera",
-    Sound: "sound",
-    Art: "art",
-    "Costume & Make-Up": "costume-and-makeup",
-    "Visual Effects": "visual-effects",
-    Lighting: "lighting",
-    Crew: "crew",
-  };
-  if (roleSlugs[department]) return roleSlugs[department];
-  return department
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 function sortedDepartments(
-  labels: string[],
+  roles: PersonRoleSlug[],
   knownForDepartment?: string | null,
-): string[] {
-  const preferred = knownForDepartment?.trim();
-  return labels.sort(function (a, b) {
+): PersonRoleSlug[] {
+  const preferred = personRoleForKnownDepartment(knownForDepartment);
+  return roles.sort(function (a, b) {
     if (preferred && a === preferred) return -1;
     if (preferred && b === preferred) return 1;
-    const aIndex = DEPARTMENT_ORDER.indexOf(a);
-    const bIndex = DEPARTMENT_ORDER.indexOf(b);
-    const aRank = aIndex === -1 ? DEPARTMENT_ORDER.length : aIndex;
-    const bRank = bIndex === -1 ? DEPARTMENT_ORDER.length : bIndex;
+    const aIndex = ROLE_ORDER.indexOf(a);
+    const bIndex = ROLE_ORDER.indexOf(b);
+    const aRank = aIndex === -1 ? ROLE_ORDER.length : aIndex;
+    const bRank = bIndex === -1 ? ROLE_ORDER.length : bIndex;
     return aRank - bRank || a.localeCompare(b);
   });
 }
@@ -315,19 +353,24 @@ function sortedDepartments(
 export function buildFilmographyDepartments(
   input: FilmographyInput,
 ): FilmographyDepartment[] {
-  const grouped = new Map<string, Map<string, FilmographyCredit>>();
+  const grouped = new Map<PersonRoleSlug, Map<string, FilmographyCredit>>();
 
   function addCredits(
     credits: PersonCredit[] | undefined,
     mediaType: "movie" | "tv",
-    castDepartment?: "Acting",
+    isCast = false,
   ) {
     for (const credit of credits ?? []) {
-      const department = castDepartment || credit.department?.trim() || "Crew";
+      const roleSlug = personRoleForCredit({
+        department: credit.department,
+        isCast,
+        job: credit.job,
+      });
       const role =
-        (castDepartment ? credit.character : credit.job)?.trim() || department;
+        (isCast ? credit.character : credit.job)?.trim() ||
+        ROLE_LABELS[roleSlug];
       const departmentCredits =
-        grouped.get(department) ?? new Map<string, FilmographyCredit>();
+        grouped.get(roleSlug) ?? new Map<string, FilmographyCredit>();
       const key = mediaType + ":" + credit.id;
       const existing = departmentCredits.get(key);
 
@@ -342,20 +385,20 @@ export function buildFilmographyDepartments(
           roles: [role],
         });
       }
-      grouped.set(department, departmentCredits);
+      grouped.set(roleSlug, departmentCredits);
     }
   }
 
-  addCredits(input.movieCredits?.cast, "movie", "Acting");
+  addCredits(input.movieCredits?.cast, "movie", true);
   addCredits(input.movieCredits?.crew, "movie");
-  addCredits(input.tvCredits?.cast, "tv", "Acting");
+  addCredits(input.tvCredits?.cast, "tv", true);
   addCredits(input.tvCredits?.crew, "tv");
 
   return sortedDepartments(
     Array.from(grouped.keys()),
     input.knownForDepartment,
-  ).map(function (label) {
-    const items = Array.from(grouped.get(label)?.values() ?? []).sort(
+  ).map(function (slug) {
+    const items = Array.from(grouped.get(slug)?.values() ?? []).sort(
       function (a, b) {
         return (
           creditDate(b).localeCompare(creditDate(a)) ||
@@ -363,6 +406,11 @@ export function buildFilmographyDepartments(
         );
       },
     );
-    return { label, slug: departmentSlug(label), items };
+    return { label: ROLE_LABELS[slug], slug, items };
   });
 }
+import {
+  personRoleForCredit,
+  personRoleForKnownDepartment,
+  type PersonRoleSlug,
+} from "@/lib/routing/personRoles";

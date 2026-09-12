@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
-import { catalogTitleSearchQuerySchema } from "@35mm/validators";
+import { catalogSlugParamSchema, catalogTitleSearchQuerySchema } from "@35mm/validators";
 import { decodeCatalogReadCursor, encodeCatalogReadCursor } from "./readService.js";
 
 describe("catalog read cursors", function () {
@@ -20,6 +20,13 @@ describe("catalog validators", function () {
   it("caps title search limit at 100", function () {
     expect(function () {
       catalogTitleSearchQuerySchema.parse({ limit: "101" });
+    }).toThrow();
+  });
+
+  it("accepts canonical slugs and rejects path-like values", function () {
+    expect(catalogSlugParamSchema.parse({ slug: "breaking-bad" }).slug).toBe("breaking-bad");
+    expect(function () {
+      catalogSlugParamSchema.parse({ slug: "../breaking-bad" });
     }).toThrow();
   });
 });
@@ -62,6 +69,7 @@ describe("catalog route source trust", function () {
     });
     vi.doMock("../../lib/rateLimit.js", function () {
       return {
+        identifyByIp: function () { return "ip"; },
         identifyByUserId: function () {
           return "user";
         },
@@ -185,6 +193,7 @@ describe("catalog route source trust", function () {
     });
     vi.doMock("../../lib/rateLimit.js", function () {
       return {
+        identifyByIp: function () { return "ip"; },
         identifyByUserId: function () {
           return "user";
         },
@@ -285,6 +294,7 @@ describe("catalog route source trust", function () {
     });
     vi.doMock("../../lib/rateLimit.js", function () {
       return {
+        identifyByIp: function () { return "ip"; },
         identifyByUserId: function () {
           return "user";
         },

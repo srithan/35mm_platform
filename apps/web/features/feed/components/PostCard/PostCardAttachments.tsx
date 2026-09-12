@@ -65,8 +65,8 @@ interface PostCardAttachmentsProps {
 }
 
 function getFilmTitleHref(film: PostCardAttachedFilm | null | undefined): string | null {
-  if (!film?.tmdbId) return null;
-  return ROUTES.TITLE("movie", film.tmdbId);
+  if (!film?.tmdbId || !film.title) return null;
+  return ROUTES.TITLE("movie", film.title);
 }
 
 export function PostCardAttachments({

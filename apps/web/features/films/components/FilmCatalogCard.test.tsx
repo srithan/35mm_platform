@@ -21,19 +21,20 @@ var baseFilm: FilmCatalogDisplayItem = {
 };
 
 describe("FilmCatalogCard identity", function () {
-  it("links canonical 35mm films by ULID", function () {
+  it("links canonical 35mm films by title slug", function () {
     render(<FilmCatalogCard film={baseFilm} showInfo={false} />);
     expect(screen.getByRole("link", { name: "Open Finding Nemo (2003)" }))
-      .toHaveAttribute("href", "/title/movie/01ARZ3NDEKTSV4RRFFQ69G5FAV");
+      .toHaveAttribute("href", "/film/finding-nemo");
   });
 
-  it("resolves TMDB-only films through click instead of leaking TMDB URL identity", function () {
+  it("exposes the slug destination while resolving TMDB-only films on ordinary click", function () {
     var onOpen = vi.fn();
     var tmdbFilm: FilmCatalogDisplayItem = { ...baseFilm, id: "tmdb:movie:12", source: "tmdb" };
     render(<FilmCatalogCard film={tmdbFilm} showInfo={false} onOpen={onOpen} />);
 
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Open Finding Nemo (2003)" }));
+    const link = screen.getByRole("link", { name: "Open Finding Nemo (2003)" });
+    expect(link).toHaveAttribute("href", "/film/finding-nemo");
+    fireEvent.click(link);
     expect(onOpen).toHaveBeenCalledWith(tmdbFilm);
   });
 });

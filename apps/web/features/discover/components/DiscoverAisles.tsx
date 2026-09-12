@@ -5,6 +5,7 @@ import { LazyImage } from "@/components/LazyImage";
 import { SHOW_POSTER_CARD_METADATA } from "@/lib/constants/uiFlags";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import { posterUrl, starsFromVote, yearFromDate } from "../lib/tmdb-utils";
+import { FilmTitleLink } from "./FilmTitleLink";
 
 type FilmClickHandler = (film: TMDBMovie) => void;
 
@@ -98,12 +99,10 @@ export function StreamingNowAisle({
                   key={(film.media_type || "movie") + "-" + film.id}
                   className="w-[122px] shrink-0 sm:w-auto"
                 >
-                  <button
-                    type="button"
-                    aria-label={"Open " + titleFor(film)}
-                    onClick={function () {
-                      onFilmClick(film);
-                    }}
+                  <FilmTitleLink
+                    film={film}
+                    onOpen={onFilmClick}
+                    ariaLabel={"Open " + titleFor(film)}
                     className="group block w-full rounded-[7px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/30 focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:rounded-sm"
                   >
                     <LazyImage
@@ -125,7 +124,7 @@ export function StreamingNowAisle({
                         ) : null}
                       </span>
                     ) : null}
-                  </button>
+                  </FilmTitleLink>
                 </li>
               );
             })}
@@ -177,12 +176,10 @@ export function RankedFilmAisle({
         {films.slice(0, 10).map(function (film, index) {
           const year = yearFromDate(dateFor(film));
           return (
-            <button
+            <FilmTitleLink
               key={(film.media_type || "movie") + "-" + film.id}
-              type="button"
-              onClick={function () {
-                onFilmClick(film);
-              }}
+              film={film}
+              onOpen={onFilmClick}
               className="group flex w-full items-center gap-4 border-b border-[color-mix(in_srgb,var(--bg)_10%,transparent)] py-2.5 text-left"
             >
               <span
@@ -211,7 +208,7 @@ export function RankedFilmAisle({
                     .join(" · ")}
                 </span>
               </span>
-            </button>
+            </FilmTitleLink>
           );
         })}
       </div>
@@ -250,12 +247,10 @@ export function EditorialFilmAisle({
           {films.slice(0, 8).map(function (film, index) {
             const year = yearFromDate(dateFor(film));
             return (
-              <button
+              <FilmTitleLink
                 key={(film.media_type || "movie") + "-" + film.id}
-                type="button"
-                onClick={function () {
-                  onFilmClick(film);
-                }}
+                film={film}
+                onOpen={onFilmClick}
                 className="group relative w-36 shrink-0 text-left sm:w-40"
               >
                 <span
@@ -279,7 +274,7 @@ export function EditorialFilmAisle({
                     {year}
                   </span>
                 ) : null}
-              </button>
+              </FilmTitleLink>
             );
           })}
         </div>
@@ -333,14 +328,12 @@ export function MoodGridAisles({
             <div className="grid grid-cols-3 gap-3">
               {group.films.slice(0, 6).map(function (film) {
                 return (
-                  <button
+                  <FilmTitleLink
                     key={(film.media_type || "movie") + "-" + film.id}
-                    type="button"
-                    onClick={function () {
-                      onFilmClick(film);
-                    }}
+                    film={film}
+                    onOpen={onFilmClick}
                     className="group min-w-0 text-left"
-                    aria-label={titleFor(film)}
+                    ariaLabel={titleFor(film)}
                   >
                     <LazyImage
                       src={posterUrl(film.poster_path, "w342")}
@@ -349,7 +342,7 @@ export function MoodGridAisles({
                       className="w-full rounded-sm transition-all duration-300 group-hover:-translate-y-1.5 group-hover:-rotate-[0.4deg] group-hover:shadow-[0_18px_30px_-18px_rgba(28,26,23,0.45)]"
                       sizes="(min-width: 1024px) 190px, 30vw"
                     />
-                  </button>
+                  </FilmTitleLink>
                 );
               })}
             </div>

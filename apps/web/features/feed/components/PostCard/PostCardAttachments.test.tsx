@@ -45,7 +45,7 @@ describe("PostCardAttachments", function () {
 
     expect(screen.getByRole("link", { name: "Open Fight Club" })).toHaveAttribute(
       "href",
-      "/title/movie/550"
+      "/film/fight-club"
     );
   });
 

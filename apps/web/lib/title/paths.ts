@@ -15,7 +15,7 @@ export function tmdbItemToTitlePath(
     return ROUTES.DISCOVER;
   }
   const media: TitleMedia = inferTitleMedia(item);
-  return ROUTES.TITLE(media, item.id);
+  return ROUTES.TITLE(media, item.title || item.name || "untitled");
 }
 
 export function inferTitleMedia(

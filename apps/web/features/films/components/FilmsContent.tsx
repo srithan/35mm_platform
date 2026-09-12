@@ -146,13 +146,13 @@ export function FilmsContent() {
   async function openFilm(film: FilmCatalogDisplayItem) {
     if (film.source === "35mm" || film.tmdbId == null || openingFilmId) return;
     if (film.mediaType === "tv") {
-      router.push(ROUTES.TITLE("tv", String(film.tmdbId)));
+      router.push(ROUTES.TITLE("tv", film.title));
       return;
     }
     setOpeningFilmId(film.id);
     setOpenError(null);
     try {
-      var resolved = await resolveTmdbFilm({
+      await resolveTmdbFilm({
         tmdbId: film.tmdbId,
         title: film.title,
         year: film.year,
@@ -162,7 +162,7 @@ export function FilmsContent() {
         language: film.language,
         country: film.country,
       }, await getToken());
-      router.push(ROUTES.TITLE("movie", resolved.filmId));
+      router.push(ROUTES.TITLE("movie", film.title));
     } catch (error) {
       setOpenError(error instanceof Error ? error.message : "Film could not be opened");
       setOpeningFilmId(null);

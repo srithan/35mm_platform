@@ -24,7 +24,7 @@ describe("PersonShareButton", function () {
   it("offers compact social sharing choices and copies the canonical role URL", async function () {
     render(
       <PersonShareButton
-        path="/person/85720/actor"
+        path="/actor/suriya"
         title="Films starring Suriya on 35mm"
       />,
     );
@@ -43,12 +43,12 @@ describe("PersonShareButton", function () {
     await waitFor(function () {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    expect(writeText.mock.calls[0]?.[0]).toMatch(/\/person\/85720\/actor$/);
+    expect(writeText.mock.calls[0]?.[0]).toMatch(/\/actor\/suriya$/);
     expect(screen.getByRole("button")).toHaveTextContent("Link copied");
   });
 
   it("builds encoded social share destinations", function () {
-    const url = "https://35mm.in/person/85720/producer";
+    const url = "https://35mm.in/producer/suriya";
     const title = "Films produced by Suriya on 35mm";
     const links = buildPersonShareLinks(url, title);
 

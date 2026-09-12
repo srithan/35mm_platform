@@ -31,8 +31,8 @@ describe("HeroCard", () => {
     expect(screen.getAllByText(plot)).toHaveLength(1);
     expect(screen.getByRole("complementary")).toHaveTextContent(plot);
 
-    const card = screen.getByRole("button", { name: /The Test Feature/ });
-    const imagePanel = card.firstElementChild;
+    const card = screen.getByRole("article");
+    const imagePanel = card.children[1];
     expect(card).not.toHaveClass("min-h-[420px]");
     expect(imagePanel).toHaveClass(
       "aspect-[4/3]",
@@ -40,7 +40,9 @@ describe("HeroCard", () => {
       "lg:col-span-3",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    const detailsLink = screen.getByRole("link", { name: "Details" });
+    expect(detailsLink).toHaveAttribute("href", "/film/the-test-feature");
+    fireEvent.click(detailsLink);
     expect(onOpenDetail).toHaveBeenCalledWith(film);
   });
 });
