@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs/legacy";
@@ -39,9 +39,37 @@ function safeNextPath(raw: string | null): string | null {
   return raw;
 }
 
-export function SignupForm() {
+export interface SignupFormProps {
+  /**
+   * Post-auth destination. When omitted the form reads `?next=` from the URL
+   * (standalone `/signup` page). Modal usage passes it explicitly.
+   */
+  nextPath?: string | null;
+  /** Render without the `AuthCard` chrome (used inside `AuthModal`). */
+  embedded?: boolean;
+  /** When provided, "Log in" swaps mode in place instead of navigating. */
+  onSwitchToLogin?: () => void;
+  /**
+   * Called after Clerk accepts the sign-up and an email code is pending.
+   * When provided the caller owns the verification step; otherwise the form
+   * navigates to `/verify`.
+   */
+  onNeedsVerification?: (email: string) => void;
+  /** Dialog title id when this form is the active `AuthModal` pane. */
+  titleId?: string;
+}
+
+export function SignupForm({
+  nextPath,
+  embedded = false,
+  onSwitchToLogin,
+  onNeedsVerification,
+  titleId,
+}: SignupFormProps = {}) {
   var router = useRouter();
   var searchParams = useSearchParams();
+  var resolvedNext =
+    nextPath !== undefined ? nextPath : safeNextPath(searchParams.get("next"));
   var { signUp, isLoaded } = useSignUp();
   var [usernameCheck, setUsernameCheck] = useState<"" | "checking" | "free" | "taken" | "short">("");
   var usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,25 +141,40 @@ export function SignupForm() {
       return;
     }
 
-    var next = safeNextPath(searchParams.get("next"));
+    var email = data.email.trim();
+    if (onNeedsVerification) {
+      onNeedsVerification(email);
+      return;
+    }
+
     var q = new URLSearchParams();
-    q.set("email", data.email.trim());
-    if (next) q.set("next", next);
+    q.set("email", email);
+    if (resolvedNext) q.set("next", resolvedNext);
     router.push(ROUTES.AUTH_VERIFY + "?" + q.toString());
   };
 
+  var Heading: "h1" | "h2" = embedded ? "h2" : "h1";
+  var Wrapper = embedded ? EmbeddedWrapper : AuthCard;
+
   return (
-    <AuthCard>
-      <div className="mb-8 text-center">
-        <h1 className="font-display text-[1.75rem] font-black leading-tight mb-2">
+    <Wrapper>
+      <div className={embedded ? "mb-7 text-left" : "mb-8 text-center"}>
+        <Heading
+          id={titleId}
+          className="font-display text-[1.75rem] font-black leading-tight mb-2"
+        >
           Create your <em className="italic text-[var(--auth-accent-bright)]">account.</em>
-        </h1>
+        </Heading>
         <p className="text-[0.85rem] text-[var(--auth-fg)]/40 leading-relaxed">
           Join filmmakers and film lovers on 35mm.
         </p>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-3">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-3"
+        data-auth-modal-form
+      >
         {formError ? (
           <p className="text-red-400 text-[0.8rem] text-center -mt-1 mb-1" role="alert">
             {formError}
@@ -284,21 +327,37 @@ export function SignupForm() {
         </button>
       </form>
 
-      <p className="mt-4 text-[0.7rem] text-[var(--auth-fg)]/20 tracking-wide text-center">
-        FREE &middot; NO CREDIT CARD &middot; NO ADS
-      </p>
-
-      <div className="mt-6 pt-6 border-t border-[var(--auth-divider)] text-center">
-        <p className="text-[0.9rem] text-[var(--auth-fg)]/60">
-          Already have an account?{" "}
-          <Link
-            href={ROUTES.AUTH_LOGIN}
-            className="text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90 no-underline font-medium"
-          >
-            Log in
-          </Link>
+      <div className={embedded ? "mt-auto" : undefined}>
+        <p className="mt-4 text-[0.7rem] text-[var(--auth-fg)]/20 tracking-wide text-center">
+          FREE &middot; NO CREDIT CARD &middot; NO ADS
         </p>
+
+        <div className="mt-6 pt-6 border-t border-[var(--auth-divider)] text-center">
+          <p className="text-[0.9rem] text-[var(--auth-fg)]/60">
+            Already have an account?{" "}
+            {onSwitchToLogin ? (
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="bg-transparent border-0 p-0 cursor-pointer font-medium text-[0.9rem] text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90"
+              >
+                Log in
+              </button>
+            ) : (
+              <Link
+                href={ROUTES.AUTH_LOGIN}
+                className="text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90 no-underline font-medium"
+              >
+                Log in
+              </Link>
+            )}
+          </p>
+        </div>
       </div>
-    </AuthCard>
+    </Wrapper>
   );
+}
+
+function EmbeddedWrapper({ children }: { children: ReactNode }) {
+  return <div className="flex h-full w-full flex-col">{children}</div>;
 }

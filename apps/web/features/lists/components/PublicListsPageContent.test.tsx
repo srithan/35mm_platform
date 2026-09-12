@@ -8,7 +8,14 @@ const pageMocks = vi.hoisted(() => ({
   usePublicLists: vi.fn(() => ({ data: { pages: [{ items: [] }] }, hasNextPage: false })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pageMocks.push }) }));
-vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ isSignedIn: true }) }));
+vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
+  useAuthPrompt: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    promptLogin: vi.fn(),
+    requireAuth: (action: () => void) => action(),
+  }),
+}));
 vi.mock("../hooks/useLists", () => ({
   usePublicLists: pageMocks.usePublicLists,
   useListMutations: () => ({ createList: { mutate: vi.fn(), isPending: false, error: null } }),

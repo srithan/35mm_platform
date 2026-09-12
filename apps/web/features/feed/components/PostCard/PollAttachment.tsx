@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { LazyR2Image } from "@/components/LazyR2Image";
 import { cn } from "@/lib/utils/cn";
 import { useVotePoll } from "../../hooks/usePostMutations";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import {
   applyOptimisticPollVote,
   formatPollTimeRemaining,
@@ -24,6 +25,7 @@ interface PollAttachmentProps {
 
 function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
   var voteMutation = useVotePoll();
+  var { requireAuth } = useAuthPrompt();
   var [optimisticOptionId, setOptimisticOptionId] = useState<string | null>(null);
   var [timeLabel, setTimeLabel] = useState(function () {
     return formatPollTimeRemaining(poll.endsAt, poll.isEnded);
@@ -68,12 +70,17 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
   var handleVote = useCallback(
     function (optionId: string) {
       if (hasVoted || isEnded || optimisticOptionId) return;
-      setOptimisticOptionId(optionId);
-      if (postId) {
-        voteMutation.mutate({ postId: postId, optionIds: [optionId] });
-      }
+      requireAuth(
+        function () {
+          setOptimisticOptionId(optionId);
+          if (postId) {
+            voteMutation.mutate({ postId: postId, optionIds: [optionId] });
+          }
+        },
+        { message: "Log in to vote." }
+      );
     },
-    [hasVoted, isEnded, optimisticOptionId, postId, voteMutation]
+    [hasVoted, isEnded, optimisticOptionId, postId, requireAuth, voteMutation]
   );
 
   var winningPercent = 0;

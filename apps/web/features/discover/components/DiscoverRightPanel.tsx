@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { FilmPoster } from "@/components/FilmPoster";
-import { UserCard } from "@/components/UserCard";
+import { Button } from "@/components/Button";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
 
 const TRENDING = [
@@ -43,6 +46,7 @@ const DIRECTORS = [
 ];
 
 export function DiscoverRightPanel() {
+  const { requireAuth } = useAuthPrompt();
   return (
     <>
       <div className="mb-7">
@@ -113,9 +117,18 @@ export function DiscoverRightPanel() {
                 {d.meta}
               </div>
             </div>
-            <button className="text-[11px] border border-border px-2.5 py-1 rounded-sm hover:bg-fg hover:text-bg hover:border-fg transition-all">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-[11px]"
+              onClick={function () {
+                requireAuth(function () {}, {
+                  message: "Log in to follow this profile.",
+                });
+              }}
+            >
               Follow
-            </button>
+            </Button>
           </div>
         ))}
       </div>

@@ -50,6 +50,12 @@ interface InfinitePostListProps {
   postFilter?: (post: Post) => boolean;
   quotePostId?: string;
   quoteSort?: QuotePostSort;
+  /**
+   * Rendered in place of the infinite-scroll trigger when the viewer is signed
+   * out. The API already refuses guest pagination for profile feeds; this is
+   * where the "see full profile" gate lives.
+   */
+  guestFooter?: React.ReactNode;
 }
 const PREFETCH_MAX_PAGES = 3;
 const SCROLL_FAST_THRESHOLD_PX_PER_SEC = 1_300;
@@ -63,9 +69,11 @@ export function InfinitePostList({
   postFilter,
   quotePostId,
   quoteSort = "latest",
+  guestFooter,
 }: InfinitePostListProps) {
   const queryClient = useQueryClient();
-  const { getToken, isLoaded: isAuthLoaded } = useAuth();
+  const { getToken, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const showGuestFooter = Boolean(guestFooter) && isAuthLoaded && !isSignedIn;
   const connection = useConnectionPreferences();
   const [scrollMargin, setScrollMargin] = useState(0);
   const virtualListStartRef = useRef<HTMLDivElement>(null);
@@ -355,15 +363,19 @@ export function InfinitePostList({
         </div>
       </div>
 
-      <InfiniteScrollTrigger
-        hasNextPage={Boolean(hasNextPage)}
-        isFetchingNextPage={isFetchingNextPage}
-        onLoadMore={handleLoadMore}
-        onPrefetch={handlePrefetch}
-        setPrefetchVelocity={function (velocity) {
-          prefetchScrollVelocityRef.current = velocity;
-        }}
-      />
+      {showGuestFooter ? (
+        guestFooter
+      ) : (
+        <InfiniteScrollTrigger
+          hasNextPage={Boolean(hasNextPage)}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={handleLoadMore}
+          onPrefetch={handlePrefetch}
+          setPrefetchVelocity={function (velocity) {
+            prefetchScrollVelocityRef.current = velocity;
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -450,16 +462,18 @@ function Skeleton({ className }: { className?: string }) {
   );
 }
 
-function PostCardSkeleton({
+export function PostCardSkeleton({
   showFilm = false,
   animationDelay = 0,
+  className,
 }: {
   showFilm?: boolean;
   animationDelay?: number;
+  className?: string;
 }) {
   return (
     <article
-      className="PostCard mb-3 w-full animate-fade-up rounded-lg px-4 py-4"
+      className={cn("PostCard mb-3 w-full animate-fade-up rounded-lg px-4 py-4", className)}
       style={{
         backgroundColor: "var(--color-bg)",
         animationDelay: `${animationDelay}ms`,

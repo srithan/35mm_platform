@@ -6,6 +6,7 @@ import { formatCount } from "@/lib/utils/formatCount";
 import { LikeButton } from "./LikeButton";
 import { BookmarkButton } from "./BookmarkButton";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import type { BookmarkFolderWithCount } from "@/features/bookmarks/types";
 
 interface BookmarkToggleState {
@@ -88,6 +89,7 @@ export function PostActions({
   hideZeroCounts = false,
   useCompactVariant = false,
 }: PostActionsProps) {
+  const { requireAuth } = useAuthPrompt();
   const [reposted, setReposted] = useState(initialReposted);
   const repostBtnRef = useRef<HTMLButtonElement | null>(null);
   const liked = initialLiked;
@@ -101,74 +103,99 @@ export function PostActions({
 
   const toggleLike = useCallback(() => {
     if (likeDisabled) return;
-    const previousIsLiked = liked;
-    const previousLikeCount = likeCount;
-    const isLiked = !liked;
-    const nextLikeCount = isLiked ? likeCount + 1 : likeCount - 1;
-    onLikeToggle?.({
-      isLiked,
-      likeCount: nextLikeCount,
-      previousIsLiked,
-      previousLikeCount,
-      revert: () => undefined,
-    });
-  }, [likeCount, likeDisabled, liked, onLikeToggle]);
+    requireAuth(
+      function () {
+        const previousIsLiked = liked;
+        const previousLikeCount = likeCount;
+        const isLiked = !liked;
+        const nextLikeCount = isLiked ? likeCount + 1 : likeCount - 1;
+        onLikeToggle?.({
+          isLiked,
+          likeCount: nextLikeCount,
+          previousIsLiked,
+          previousLikeCount,
+          revert: () => undefined,
+        });
+      },
+      { message: "Log in to like this." }
+    );
+  }, [likeCount, likeDisabled, liked, onLikeToggle, requireAuth]);
 
   const toggleSave = useCallback(() => {
     if (bookmarkDisabled) return;
-    const previousIsBookmarked = bookmarked;
-    const previousBookmarkFolderId = bookmarkFolderId;
-    const nextBookmarked = !bookmarked;
-    const nextBookmarkFolderId = nextBookmarked ? bookmarkFolderId : null;
-    onBookmarkToggle?.({
-      isBookmarked: nextBookmarked,
-      previousIsBookmarked,
-      bookmarkFolderId: nextBookmarkFolderId,
-      previousBookmarkFolderId,
-      revert: () => undefined,
-    });
-  }, [bookmarkDisabled, bookmarkFolderId, bookmarked, onBookmarkToggle]);
+    requireAuth(
+      function () {
+        const previousIsBookmarked = bookmarked;
+        const previousBookmarkFolderId = bookmarkFolderId;
+        const nextBookmarked = !bookmarked;
+        const nextBookmarkFolderId = nextBookmarked ? bookmarkFolderId : null;
+        onBookmarkToggle?.({
+          isBookmarked: nextBookmarked,
+          previousIsBookmarked,
+          bookmarkFolderId: nextBookmarkFolderId,
+          previousBookmarkFolderId,
+          revert: () => undefined,
+        });
+      },
+      { message: "Log in to save this." }
+    );
+  }, [bookmarkDisabled, bookmarkFolderId, bookmarked, onBookmarkToggle, requireAuth]);
 
   const handleFolderSelect = useCallback(
     async (folderId: string | null) => {
       if (bookmarkDisabled) return;
       if (!onBookmarkFolderSelect) return;
-      const previousIsBookmarked = bookmarked;
-      const previousBookmarkFolderId = bookmarkFolderId;
-      await onBookmarkFolderSelect({
-        folderId,
-        previousIsBookmarked,
-        previousBookmarkFolderId,
-        revert: () => undefined,
-      });
+      requireAuth(
+        function () {
+          const previousIsBookmarked = bookmarked;
+          const previousBookmarkFolderId = bookmarkFolderId;
+          void onBookmarkFolderSelect({
+            folderId,
+            previousIsBookmarked,
+            previousBookmarkFolderId,
+            revert: () => undefined,
+          });
+        },
+        { message: "Log in to save this." }
+      );
     },
-    [bookmarkDisabled, bookmarkFolderId, bookmarked, onBookmarkFolderSelect]
+    [bookmarkDisabled, bookmarkFolderId, bookmarked, onBookmarkFolderSelect, requireAuth]
   );
 
   const handleCreateFolder = useCallback(
     async (name: string) => {
       if (bookmarkDisabled) return;
       if (!onCreateBookmarkFolder) return;
-      await onCreateBookmarkFolder(name);
+      requireAuth(
+        function () {
+          void onCreateBookmarkFolder(name);
+        },
+        { message: "Log in to save this." }
+      );
     },
-    [bookmarkDisabled, onCreateBookmarkFolder]
+    [bookmarkDisabled, onCreateBookmarkFolder, requireAuth]
   );
 
   const toggleRepost = useCallback(() => {
-    const nextReposted = !reposted;
-    setReposted(nextReposted);
-    onRepostToggle?.({ isReposted: nextReposted });
+    requireAuth(
+      function () {
+        const nextReposted = !reposted;
+        setReposted(nextReposted);
+        onRepostToggle?.({ isReposted: nextReposted });
 
-    const btn = repostBtnRef.current;
-    if (!btn) return;
+        const btn = repostBtnRef.current;
+        if (!btn) return;
 
-    btn.classList.remove("repost-pop");
-    void btn.offsetWidth;
-    btn.classList.add("repost-pop");
-    btn.addEventListener("animationend", () => btn.classList.remove("repost-pop"), {
-      once: true,
-    });
-  }, [onRepostToggle, reposted]);
+        btn.classList.remove("repost-pop");
+        void btn.offsetWidth;
+        btn.classList.add("repost-pop");
+        btn.addEventListener("animationend", () => btn.classList.remove("repost-pop"), {
+          once: true,
+        });
+      },
+      { message: "Log in to repost." }
+    );
+  }, [onRepostToggle, reposted, requireAuth]);
 
   const hideRepostSaveText = hideRepostSaveLabels || useCompactVariant;
   const groupedActionClass = useCompactVariant ? "justify-start" : "w-full justify-center";
@@ -179,7 +206,11 @@ export function PostActions({
         <button
           type="button"
           className={cn("action-btn comment-btn", groupedActionClass)}
-          onClick={onReplyClick}
+          onClick={function () {
+            requireAuth(function () {
+              onReplyClick?.();
+            }, { message: "Log in to join the conversation." });
+          }}
           aria-label="Reply"
         >
           <Icon name="reply" strokeWidth={1.7} />
@@ -228,7 +259,11 @@ export function PostActions({
               id: "quote",
               label: "Quote",
               icon: <Icon name="quote" strokeWidth={1.7} />,
-              onSelect: onQuote,
+              onSelect: function () {
+                requireAuth(function () {
+                  onQuote();
+                }, { message: "Log in to quote this post." });
+              },
             },
             ...(onViewQuotes
               ? [{

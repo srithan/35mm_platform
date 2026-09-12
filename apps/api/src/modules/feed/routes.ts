@@ -79,7 +79,7 @@ import {
   moderationReadAccessSql,
   setModerationReadStatus,
 } from "../../lib/moderationRead.js";
-import { ApiError, badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
+import { ApiError, badRequest, conflict, forbidden, notFound, unauthorized } from "../../lib/errors.js";
 import { decodeCompositeCursor, encodeCompositeCursor } from "../../lib/cursor.js";
 import { isValidUlid } from "../../lib/ulid.js";
 import { resolveProfileAvatarUrl, resolvePublicMediaUrl, type AvatarVariants } from "../media/url.js";
@@ -3781,17 +3781,31 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
   return c.json({ items, nextCursor, hasMore });
 });
 
+/**
+ * Signed-out viewers only ever get a teaser of a profile's post feed: a single
+ * short first page and no cursor. Lists, diary, and stats stay fully public;
+ * the full post/repost timeline requires an account.
+ */
+var PROFILE_FEED_GUEST_POST_LIMIT = 5;
+
 feedRoutes.get("/profiles/:username/posts", async function (c) {
   var parsed = cursorPaginationSchema.parse({
     cursor: c.req.query("cursor"),
     limit: c.req.query("limit"),
   });
-  var cursor = decodeCompositeCursor(parsed.cursor);
   var kind = parseProfilePostFeedKind(c.req.query("kind"));
   var username = c.req.param("username").toLowerCase().trim();
   var viewer = await getOptionalAuthUser(c.req.header("Authorization"));
   var viewerUserId = viewer?.userId ?? null;
   var viewerIsStaff = isModerationStaffViewer(viewer);
+  var isGuestViewer = !viewerUserId;
+  if (isGuestViewer && parsed.cursor) {
+    throw unauthorized("Log in to see this profile's full post history");
+  }
+  var pageLimit = isGuestViewer
+    ? Math.min(parsed.limit, PROFILE_FEED_GUEST_POST_LIMIT)
+    : parsed.limit;
+  var cursor = decodeCompositeCursor(parsed.cursor);
   var db = getDb();
 
   var profileRows = await db
@@ -3848,7 +3862,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     username,
     viewerId: viewerUserId,
     cursor: parsed.cursor ?? null,
-    limit: parsed.limit,
+    limit: pageLimit,
     kind,
   });
   var cached = await getFeedCache(cacheKey);
@@ -3943,9 +3957,9 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     .leftJoin(films, eq(films.id, posts.filmId))
     .where(and(...filters))
     .orderBy(desc(posts.createdAt), desc(posts.id))
-    .limit(parsed.limit + 1);
+    .limit(pageLimit + 1);
 
-  var visibleRows = rows.slice(0, parsed.limit);
+  var visibleRows = rows.slice(0, pageLimit);
   var visibleRowsWithCounters = await applyVisiblePostCountersToRows(visibleRows);
   var visibleRowsWithPreloaded = await hydratePostsForRows(
     visibleRowsWithCounters,
@@ -3964,10 +3978,12 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     );
   }));
   var hasMore =
-    rows.length > parsed.limit ||
+    rows.length > pageLimit ||
     visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
   var tail = visibleRows[visibleRows.length - 1];
-  var nextCursor = hasMore && tail
+  // Guests never receive a cursor; `hasMore` stays truthful so clients can
+  // render the "see full profile" gate.
+  var nextCursor = hasMore && tail && !isGuestViewer
     ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
     : null;
   var payload = { items, nextCursor, hasMore };

@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { Heart, MessageCircle, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
-import { useAuth, useClerk } from "@clerk/nextjs";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import type { Post } from "@/features/feed/types/feed";
 import { useLikePost } from "@/features/feed/hooks/usePostMutations";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { RichTextRenderer } from "@/lib/utils/RichTextRenderer";
 import {
   isStoredRichText,
@@ -19,8 +19,7 @@ import { TitleReviewStars } from "./TitleReviewStars";
 
 export function TitleReviewCard({ review }: { review: Post }) {
   const [expanded, setExpanded] = useState(false);
-  const { isSignedIn } = useAuth();
-  const { openSignIn } = useClerk();
+  const { requireAuth } = useAuthPrompt();
   const like = useLikePost(review.id);
   const textLength = storedRichTextToPlainText(review.body).length;
   const lengthy = textLength > 360;
@@ -110,11 +109,12 @@ export function TitleReviewCard({ review }: { review: Post }) {
             review.isLiked ? "Unlike this review" : "Like this review"
           }
           onClick={() => {
-            if (!isSignedIn) {
-              openSignIn();
-              return;
-            }
-            like.mutate({ postId: review.id, isLiked: !review.isLiked });
+            requireAuth(
+              function () {
+                like.mutate({ postId: review.id, isLiked: !review.isLiked });
+              },
+              { message: "Log in to like this." }
+            );
           }}
           className={cn(
             "inline-flex min-h-10 items-center gap-1.5 hover:text-fg disabled:opacity-50",

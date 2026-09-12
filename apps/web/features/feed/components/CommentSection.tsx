@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils/cn";
 import { hasVisibleRichText } from "@/lib/utils/richContent";
 import { EmptyState } from "@/components/EmptyState";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { useCreateComment } from "../hooks/useCommentMutations";
 import { CommentCard, type Comment as CommentCardType } from "./CommentCard";
 import {
@@ -79,13 +80,19 @@ export function CommentSection({
   const [replyText, setReplyText] = useState("");
   const [replyGifUrl, setReplyGifUrl] = useState<string | null>(null);
   const createCommentMutation = useCreateComment(postId);
+  const { requireAuth } = useAuthPrompt();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const currentInitial = initialForName(currentUser?.displayName ?? currentUser?.username);
   const normalizedComments: CommentCardType[] = comments.map(toCommentCard);
 
   const handleActivateComposer = () => {
-    setIsComposerActive(true);
+    requireAuth(
+      function () {
+        setIsComposerActive(true);
+      },
+      { message: "Log in to join the conversation." }
+    );
   };
 
   const handleCancelComposer = () => {

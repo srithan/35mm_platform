@@ -1,0 +1,189 @@
+.panel {
+    display: grid;
+    grid-template-columns: minmax(16rem, 0.85fr) minmax(22rem, 1.15fr);
+    width: 100%;
+    max-height: calc(100dvh - 2rem);
+    overflow: hidden;
+    background: var(--auth-bg);
+    color: var(--auth-fg);
+}
+
+/* ── Left: decor ── */
+.visual {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: min(38rem, calc(100dvh - 2rem));
+    padding: 2rem 2rem 2.25rem;
+    overflow: hidden;
+    color: #fbf7f0;
+    isolation: isolate;
+}
+
+.visualImage {
+    z-index: -3;
+    object-fit: cover;
+    object-position: 62% center;
+}
+
+.visualShade {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background:
+        linear-gradient(180deg,
+            rgba(14, 12, 10, 0.55) 0%,
+            rgba(14, 12, 10, 0.12) 38%,
+            rgba(14, 12, 10, 0.58) 68%,
+            rgba(14, 12, 10, 0.92) 100%),
+        linear-gradient(90deg, rgba(194, 71, 58, 0.18), transparent 55%);
+}
+
+/* Film-strip perforations along the seam between the two columns. */
+.visualSprockets {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    width: 0.9rem;
+    background:
+        repeating-linear-gradient(180deg,
+            transparent 0 0.45rem,
+            rgba(251, 247, 240, 0.32) 0.45rem 0.95rem,
+            transparent 0.95rem 1.5rem);
+    -webkit-mask: linear-gradient(90deg, transparent, #000 35%, #000 65%, transparent);
+    mask: linear-gradient(90deg, transparent, #000 35%, #000 65%, transparent);
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.visualBrand {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-decoration: none;
+    color: inherit;
+}
+
+.visualBrandDot {
+    color: var(--accent, #c2473a);
+}
+
+.visualCopy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-width: 18rem;
+}
+
+.visualHeadline {
+    margin: 0;
+    font-family: var(--font-display-discover), var(--font-playfair), Georgia, serif;
+    font-size: clamp(1.75rem, 2.4vw, 2.15rem);
+    font-weight: 400;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+}
+
+.visualMessage {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: rgba(251, 247, 240, 0.72);
+}
+
+/* ── Right: form ── */
+.aside {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: clamp(2rem, 5vh, 3.25rem) clamp(1.75rem, 4vw, 3.25rem) 1.75rem;
+    background: var(--auth-bg);
+}
+
+.asideBody {
+    width: 100%;
+    max-width: 24rem;
+    margin: auto;
+}
+
+.close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid var(--auth-card-border);
+    border-radius: 9999px;
+    background: var(--auth-bg);
+    color: var(--auth-fg);
+    opacity: 0.7;
+    cursor: pointer;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.close:hover {
+    opacity: 1;
+    background: var(--auth-chip-bg);
+}
+
+.close:focus-visible {
+    outline: none;
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--auth-bg), 0 0 0 4px color-mix(in srgb, var(--auth-fg) 25%, transparent);
+}
+
+.close svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.legal {
+    margin: 1.75rem 0 0;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    text-align: center;
+    color: color-mix(in srgb, var(--auth-fg) 40%, transparent);
+}
+
+.legal a {
+    color: color-mix(in srgb, var(--auth-fg) 65%, transparent);
+    text-decoration: none;
+    text-underline-offset: 2px;
+}
+
+.legal a:hover {
+    color: var(--auth-fg);
+    text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+    .panel {
+        grid-template-columns: 1fr;
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .visual {
+        display: none;
+    }
+
+    .aside {
+        max-height: calc(100dvh - 1rem);
+        padding: 3.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+    }
+}

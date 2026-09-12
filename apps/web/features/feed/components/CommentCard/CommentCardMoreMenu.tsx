@@ -1,6 +1,7 @@
 "use client";
 
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { useBookmarkToFolderFlow } from "@/features/bookmarks/hooks/useBookmarkToFolderFlow";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -42,6 +43,7 @@ export function CommentCardMoreMenu({
   onMuteRequest,
   onReportRequest,
 }: CommentCardMoreMenuProps) {
+  const { isSignedIn } = useAuthPrompt();
   const bookmarkFlow = useBookmarkToFolderFlow({
     postId: postId,
     initialBookmarked: postBookmarked,
@@ -52,15 +54,19 @@ export function CommentCardMoreMenu({
       : "Save this post into a folder",
   });
 
-  const menuItems = [
+  const shareItem = {
+    id: "share",
+    label: "Share comment",
+    description: "Send or copy this comment",
+    icon: <Share2 className="w-4 h-4" strokeWidth={1.8} />,
+    dividerBefore: Boolean(bookmarkFlow.menuItem),
+  };
+
+  const menuItems = !isSignedIn
+    ? [shareItem]
+    : [
     ...(bookmarkFlow.menuItem ? [bookmarkFlow.menuItem] : []),
-    {
-      id: "share",
-      label: "Share comment",
-      description: "Send or copy this comment",
-      icon: <Share2 className="w-4 h-4" strokeWidth={1.8} />,
-      dividerBefore: Boolean(bookmarkFlow.menuItem),
-    },
+    shareItem,
     ...(isOwnComment
       ? [
           {

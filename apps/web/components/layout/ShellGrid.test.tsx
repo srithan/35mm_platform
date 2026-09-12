@@ -53,6 +53,10 @@ vi.mock("@/components/layout/PostComposerModalContext", () => ({
   ComposerModalProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
+  AuthPromptProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 vi.mock("@/features/feed/components/HomeSuggestionsSidebar", () => ({
   HomeSuggestionsSidebar: () => <div>Suggestions</div>,
 }));

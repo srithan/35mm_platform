@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
 import { ProfileRoleHeadlinePill } from "@/lib/utils/userRoleHeadline";
 import { PrivateAccountLock } from "@/components/PrivateAccountLock";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { fetchPublicProfile } from "@/features/profile/api/profileApi";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
@@ -143,6 +144,7 @@ function ProfilePopover(props: {
   const profile = profileQuery.data;
   const currentUserQuery = useCurrentUserProfile();
   const followToggle = useFollowToggle(props.username);
+  const { requireAuth } = useAuthPrompt();
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
 
   const isOwnProfile =
@@ -261,14 +263,23 @@ function ProfilePopover(props: {
               disabled={followToggle.isPending || isLoading || !profile?.userId}
               onClick={function () {
                 if (followToggle.isPending || !profile?.userId) return;
-                if (followState === "following" && profile.isPrivate) {
-                  setConfirmUnfollow(true);
-                  return;
-                }
-	                followToggle.mutate({
-	                  userId: profile.userId,
-	                  followState,
-	                });
+                requireAuth(
+                  function () {
+                    if (followState === "following" && profile.isPrivate) {
+                      setConfirmUnfollow(true);
+                      return;
+                    }
+                    followToggle.mutate({
+                      userId: profile.userId,
+                      followState,
+                    });
+                  },
+                  {
+                    message: profile.isPrivate
+                      ? "Log in to request to follow this profile."
+                      : "Log in to follow this profile.",
+                  }
+                );
               }}
               className="h-8 min-w-0 flex-1 px-3 text-[12px] font-bold"
             >

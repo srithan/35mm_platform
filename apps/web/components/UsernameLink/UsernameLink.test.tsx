@@ -10,6 +10,15 @@ vi.mock("@clerk/nextjs", () => ({
   }),
 }));
 
+vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
+  useAuthPrompt: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    promptLogin: vi.fn(),
+    requireAuth: (action: () => void) => action(),
+  }),
+}));
+
 vi.mock("@/features/profile/hooks/useCurrentUserProfile", () => ({
   useCurrentUserProfile: () => ({ data: { username: "viewer" } }),
 }));

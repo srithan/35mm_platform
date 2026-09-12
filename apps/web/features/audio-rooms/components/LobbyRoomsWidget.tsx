@@ -23,6 +23,8 @@ export interface AudioRoomSummary {
 interface LobbyRoomsWidgetProps {
   rooms?: readonly AudioRoomSummary[];
   onSelectRoom?: (roomId: string) => void;
+  /** Guests skip the honest empty state; signed-in users still see it. */
+  hideWhenEmpty?: boolean;
 }
 
 const MAX_VISIBLE_ROOMS = 4;
@@ -143,8 +145,11 @@ function RoomRow(props: {
 export function LobbyRoomsWidget({
   rooms = [],
   onSelectRoom,
+  hideWhenEmpty = false,
 }: LobbyRoomsWidgetProps) {
   var visibleRooms = rooms.slice(0, MAX_VISIBLE_ROOMS);
+
+  if (hideWhenEmpty && visibleRooms.length === 0) return null;
 
   return (
     <section

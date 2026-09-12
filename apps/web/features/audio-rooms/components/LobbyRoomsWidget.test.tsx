@@ -54,6 +54,20 @@ describe("LobbyRoomsWidget", () => {
     expect(onSelectRoom).toHaveBeenCalledWith("room_01");
   });
 
+  it("omits the empty lobby when hideWhenEmpty is set", () => {
+    var { container } = render(<LobbyRoomsWidget hideWhenEmpty />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("heading", { name: "The Lobby" })).not.toBeInTheDocument();
+  });
+
+  it("still renders live rooms when hideWhenEmpty is set", () => {
+    render(<LobbyRoomsWidget rooms={[ROOM]} hideWhenEmpty />);
+
+    expect(screen.getByRole("heading", { name: "The Lobby" })).toBeInTheDocument();
+    expect(screen.getByText("Does the director's cut change the ending?")).toBeInTheDocument();
+  });
+
   it("caps the sidebar list at four room cards", () => {
     var rooms = Array.from({ length: 6 }, function (_, index) {
       return {

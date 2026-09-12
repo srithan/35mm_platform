@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { Icon } from "@/components/Icon/Icon";
 import { Button } from "@/components/Button";
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
@@ -90,6 +91,7 @@ export function ProfileHeader({
   isMessageActionPending = false,
 }: ProfileHeaderProps) {
   const { getToken, isLoaded } = useAuth();
+  const { isSignedIn, requireAuth } = useAuthPrompt();
   const queryClient = useQueryClient();
   const [isMutedByViewer, setIsMutedByViewer] = useState(initialIsMutedByViewer);
   const [confirmAction, setConfirmAction] = useState<
@@ -253,16 +255,25 @@ export function ProfileHeader({
       openEditProfile();
       return;
     }
-    if (followState === "requested" && !confirmCancelRequest) {
-      setConfirmCancelRequest(true);
-      return;
-    }
-    if (followState === "following" && isPrivate) {
-      setConfirmUnfollow(true);
-      return;
-    }
-    setConfirmCancelRequest(false);
-    followToggleMutation.mutate({ userId, followState });
+    requireAuth(
+      function () {
+        if (followState === "requested" && !confirmCancelRequest) {
+          setConfirmCancelRequest(true);
+          return;
+        }
+        if (followState === "following" && isPrivate) {
+          setConfirmUnfollow(true);
+          return;
+        }
+        setConfirmCancelRequest(false);
+        followToggleMutation.mutate({ userId, followState });
+      },
+      {
+        message: isPrivate
+          ? "Log in to request to follow this profile."
+          : "Log in to follow this profile.",
+      }
+    );
   }
 
   function renderMessageButton(isMobile: boolean) {
@@ -281,7 +292,14 @@ export function ProfileHeader({
             : "h-9 border-border-strong bg-elevated px-4 text-[13px] font-bold text-fg shadow-[0_1px_0_rgb(15_23_42/4%)] hover:border-fg-muted hover:bg-hover"
         }
         disabled={Boolean(isMessageActionPending)}
-        onClick={onMessageClick}
+        onClick={function () {
+          requireAuth(
+            function () {
+              onMessageClick?.();
+            },
+            { message: "Log in to send a message." }
+          );
+        }}
       >
         {isMessageActionPending ? (
           <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
@@ -330,7 +348,12 @@ export function ProfileHeader({
           disabled={isRespondingToIncomingFollowRequest || !isLoaded}
           onClick={() => {
             if (!isLoaded || isRespondingToIncomingFollowRequest) return;
-            declineFollowRequestMutation.mutate();
+            requireAuth(
+              function () {
+                declineFollowRequestMutation.mutate();
+              },
+              { message: "Log in to respond to follow requests." }
+            );
           }}
         >
           {declineFollowRequestMutation.isPending ? "Declining..." : "Decline"}
@@ -342,7 +365,12 @@ export function ProfileHeader({
           disabled={isRespondingToIncomingFollowRequest || !isLoaded}
           onClick={() => {
             if (!isLoaded || isRespondingToIncomingFollowRequest) return;
-            acceptFollowRequestMutation.mutate();
+            requireAuth(
+              function () {
+                acceptFollowRequestMutation.mutate();
+              },
+              { message: "Log in to respond to follow requests." }
+            );
           }}
         >
           {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
@@ -352,45 +380,52 @@ export function ProfileHeader({
   }
 
   function renderProfileActionsMenu(isMobile: boolean) {
+    const items = [
+      ...(!isMobile
+        ? [{
+            id: "share",
+            label: "Share profile",
+            icon: <Icon name="share-2" className="h-4 w-4" />,
+            onSelect: () => setShowShareModal(true),
+          }]
+        : []),
+      ...(isSignedIn
+        ? [
+            {
+              id: "add-to-list",
+              label: "Add to list",
+              icon: <UserPlus className="h-4 w-4" strokeWidth={1.8} />,
+            },
+            {
+              id: "mute",
+              label: isMutedByViewer ? `Unmute @${username}` : `Mute @${username}`,
+              icon: <VolumeX className="h-4 w-4" strokeWidth={1.8} />,
+              onSelect: () => setConfirmAction(isMutedByViewer ? "unmute" : "mute"),
+            },
+            {
+              id: "block",
+              label: `Block @${username}`,
+              icon: <CircleSlash className="h-4 w-4" strokeWidth={1.8} />,
+              danger: true,
+              onSelect: () => setConfirmAction("block"),
+            },
+            {
+              id: "report",
+              label: "Report",
+              icon: <Flag className="h-4 w-4" strokeWidth={1.8} />,
+              danger: true,
+              onSelect: () => setShowReport(true),
+            },
+          ]
+        : []),
+    ];
+    if (items.length === 0) return null;
+
     return (
       <PortalDropdown
         align="end"
         menuLabel="Profile actions"
-        items={[
-          ...(!isMobile
-            ? [{
-                id: "share",
-                label: "Share profile",
-                icon: <Icon name="share-2" className="h-4 w-4" />,
-                onSelect: () => setShowShareModal(true),
-              }]
-            : []),
-          {
-            id: "add-to-list",
-            label: "Add to list",
-            icon: <UserPlus className="h-4 w-4" strokeWidth={1.8} />,
-          },
-          {
-            id: "mute",
-            label: isMutedByViewer ? `Unmute @${username}` : `Mute @${username}`,
-            icon: <VolumeX className="h-4 w-4" strokeWidth={1.8} />,
-            onSelect: () => setConfirmAction(isMutedByViewer ? "unmute" : "mute"),
-          },
-          {
-            id: "block",
-            label: `Block @${username}`,
-            icon: <CircleSlash className="h-4 w-4" strokeWidth={1.8} />,
-            danger: true,
-            onSelect: () => setConfirmAction("block"),
-          },
-          {
-            id: "report",
-            label: "Report",
-            icon: <Flag className="h-4 w-4" strokeWidth={1.8} />,
-            danger: true,
-            onSelect: () => setShowReport(true),
-          },
-        ]}
+        items={items}
         trigger={({ ref, toggle, onKeyDown, isOpen, menuId }) => (
           <Button
             ref={ref}

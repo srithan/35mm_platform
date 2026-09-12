@@ -1,9 +1,11 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { isRouteActive, isUsernameProfilePath } from "@/lib/utils/navigation";
@@ -63,14 +65,25 @@ function TabIcon({
   return <User className={className} strokeWidth={strokeWidth} />;
 }
 
+/** Tabs that require an account; gated behind the login prompt for guests. */
+const GATED_TAB_IDS = new Set(["home", "compose", "notifications", "profile"]);
+
 export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean }) {
   const pathname = usePathname() ?? "";
   const { user: clerkUser } = useUser();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { promptLogin } = useAuthPrompt();
+  const signedOut = authLoaded && !isSignedIn;
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const username = currentUser?.username ?? clerkUser?.username ?? null;
   const profileHref = username ? ROUTES.PROFILE(username) : ROUTES.AUTH_LOGIN;
   const notificationsCount = useNotificationBellCount();
+
+  function handleGatedTab(event: MouseEvent) {
+    event.preventDefault();
+    promptLogin();
+  }
   const navVisible = useMobileBottomChromeStore(function (state) {
     return state.navVisible;
   });
@@ -142,11 +155,13 @@ export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean })
       >
         {tabs.map(function (tab) {
           const count = typeof tab.badge === "number" ? tab.badge : 0;
+          const gated = signedOut && GATED_TAB_IDS.has(tab.id);
 
           return (
             <Link
               key={tab.id}
               href={tab.href}
+              onClick={gated ? handleGatedTab : undefined}
               className={cn(
                 "flex flex-1 items-center justify-center min-w-0 py-1",
                 "rounded-full transition-transform duration-150 active:scale-[0.94]"

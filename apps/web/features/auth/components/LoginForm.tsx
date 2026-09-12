@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -39,8 +39,29 @@ function isAlreadySignedInMessage(message: string) {
   return message.toLowerCase().includes("already signed in");
 }
 
-export function LoginForm() {
+export interface LoginFormProps {
+  /**
+   * Post-auth destination. When omitted the form reads `?next=` from the URL
+   * (standalone `/login` page). Modal usage passes it explicitly.
+   */
+  nextPath?: string | null;
+  /** Render without the `AuthCard` chrome (used inside `AuthModal`). */
+  embedded?: boolean;
+  /** When provided, "Sign up" swaps mode in place instead of navigating. */
+  onSwitchToSignup?: () => void;
+  /** Dialog title id when this form is the active `AuthModal` pane. */
+  titleId?: string;
+}
+
+export function LoginForm({
+  nextPath,
+  embedded = false,
+  onSwitchToSignup,
+  titleId,
+}: LoginFormProps = {}) {
   var searchParams = useSearchParams();
+  var resolvedNext =
+    nextPath !== undefined ? nextPath : safeNextPath(searchParams.get("next"));
   var { isLoaded: authIsLoaded, isSignedIn } = useAuth();
   var { signIn, setActive, isLoaded } = useSignIn();
   var [showPassword, setShowPassword] = useState(false);
@@ -59,13 +80,13 @@ export function LoginForm() {
 
   useEffect(
     function () {
-      if (authIsLoaded && isSignedIn) {
-        completeSessionNavigation(
-          safeNextPath(searchParams.get("next")) ?? ROUTES.HOME,
-        );
+      // Standalone page only: an already-signed-in viewer landing on /login is
+      // bounced. Inside the modal the provider never opens for signed-in users.
+      if (!embedded && authIsLoaded && isSignedIn) {
+        completeSessionNavigation(resolvedNext ?? ROUTES.HOME);
       }
     },
-    [authIsLoaded, isSignedIn, searchParams],
+    [embedded, authIsLoaded, isSignedIn, resolvedNext],
   );
 
   var onSubmit = async function (data: LoginValues) {
@@ -81,9 +102,7 @@ export function LoginForm() {
     setIsLoading(false);
     if (!result.ok) {
       if (isAlreadySignedInMessage(result.message)) {
-        completeSessionNavigation(
-          safeNextPath(searchParams.get("next")) ?? ROUTES.HOME,
-        );
+        completeSessionNavigation(resolvedNext ?? ROUTES.HOME);
         return;
       }
       setFormError(result.message);
@@ -98,9 +117,7 @@ export function LoginForm() {
     }
 
     await setActive({ session: signIn.createdSessionId });
-
-    var next = safeNextPath(searchParams.get("next"));
-    completeSessionNavigation(next ?? ROUTES.HOME);
+    completeSessionNavigation(resolvedNext ?? ROUTES.HOME);
   };
 
   var onVerifySubmit = async function (event: FormEvent<HTMLFormElement>) {
@@ -115,9 +132,7 @@ export function LoginForm() {
       return;
     }
     await setActive({ session: signIn.createdSessionId });
-    completeSessionNavigation(
-      safeNextPath(searchParams.get("next")) ?? ROUTES.HOME,
-    );
+    completeSessionNavigation(resolvedNext ?? ROUTES.HOME);
   };
 
   var onResendCode = async function () {
@@ -129,13 +144,19 @@ export function LoginForm() {
     if (!result.ok) setFormError(result.message);
   };
 
+  var Heading: "h1" | "h2" = embedded ? "h2" : "h1";
+  var Wrapper = embedded ? EmbeddedWrapper : AuthCard;
+
   return (
-    <AuthCard>
-      <div className="mb-8 text-center">
-        <h1 className="font-display text-[1.75rem] font-black leading-tight mb-2">
+    <Wrapper>
+      <div className={embedded ? "mb-7 text-left" : "mb-8 text-center"}>
+        <Heading
+          id={titleId}
+          className="font-display text-[1.75rem] font-black leading-tight mb-2"
+        >
           Welcome{" "}
           <em className="italic text-[var(--auth-accent-bright)]">back.</em>
-        </h1>
+        </Heading>
         <p className="text-[0.85rem] text-[var(--auth-fg)]/45 leading-relaxed">
           Sign in to your account to continue.
         </p>
@@ -146,6 +167,7 @@ export function LoginForm() {
           needsVerification ? onVerifySubmit : form.handleSubmit(onSubmit)
         }
         className="flex flex-col gap-3"
+        data-auth-modal-form
       >
         {formError ? (
           <p
@@ -280,17 +302,33 @@ export function LoginForm() {
         </p>
       )}
 
-      <div className="mt-6 pt-6 border-t border-[var(--auth-divider)] text-center">
+      <div
+        className={`${embedded ? "mt-auto" : "mt-6"} pt-6 border-t border-[var(--auth-divider)] text-center`}
+      >
         <p className="text-[0.9rem] text-[var(--auth-fg)]/60">
           Don&apos;t have an account?{" "}
-          <Link
-            href={ROUTES.AUTH_SIGNUP}
-            className="text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90 no-underline font-medium"
-          >
-            Sign up
-          </Link>
+          {onSwitchToSignup ? (
+            <button
+              type="button"
+              onClick={onSwitchToSignup}
+              className="bg-transparent border-0 p-0 cursor-pointer font-medium text-[0.9rem] text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90"
+            >
+              Sign up
+            </button>
+          ) : (
+            <Link
+              href={ROUTES.AUTH_SIGNUP}
+              className="text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90 no-underline font-medium"
+            >
+              Sign up
+            </Link>
+          )}
         </p>
       </div>
-    </AuthCard>
+    </Wrapper>
   );
+}
+
+function EmbeddedWrapper({ children }: { children: ReactNode }) {
+  return <div className="flex h-full w-full flex-col">{children}</div>;
 }

@@ -2,6 +2,7 @@
 
 import { PortalDropdown } from "@/components/PortalDropdown/PortalDropdown";
 import { Icon } from "@/components/Icon/Icon";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { useBookmarkToFolderFlow } from "@/features/bookmarks/hooks/useBookmarkToFolderFlow";
 import { cn } from "@/lib/utils/cn";
@@ -66,13 +67,25 @@ export function PostCardMoreMenu({
   onMuteRequest,
 }: PostCardMoreMenuProps) {
   const openComposerForEdit = useComposerModalStore((state) => state.openForEdit);
+  const { isSignedIn } = useAuthPrompt();
   const bookmarkFlow = useBookmarkToFolderFlow({
     postId: postId,
     initialBookmarked: isBookmarked,
     initialBookmarkFolderId: bookmarkFolderId,
   });
 
-  const menuItems = [
+  const shareItem = {
+    id: "share",
+    label: "Share post",
+    description: "Send or copy this post",
+    icon: <Icon name="share-2" className="w-4 h-4" />,
+    dividerBefore: Boolean(bookmarkFlow.menuItem),
+    onSelect: onShare,
+  };
+
+  const menuItems = !isSignedIn
+    ? [shareItem]
+    : [
     ...(bookmarkFlow.menuItem ? [bookmarkFlow.menuItem] : []),
     ...(isPostAuthor
       ? [
@@ -121,14 +134,7 @@ export function PostCardMoreMenu({
       : []),
     ...(!isPostAuthor && userId
       ? [
-          {
-            id: "share",
-            label: "Share post",
-            description: "Send or copy this post",
-            icon: <Icon name="share-2" className="w-4 h-4" />,
-            dividerBefore: Boolean(bookmarkFlow.menuItem),
-            onSelect: onShare,
-          },
+          shareItem,
           {
             id: "hide",
             label: "Hide post",
@@ -170,16 +176,7 @@ export function PostCardMoreMenu({
         ]
       : isPostAuthor
         ? []
-        : [
-            {
-              id: "share",
-              label: "Share post",
-              description: "Send or copy this post",
-              icon: <Icon name="share-2" className="w-4 h-4" />,
-              dividerBefore: Boolean(bookmarkFlow.menuItem),
-              onSelect: onShare,
-            },
-          ]),
+        : [shareItem]),
   ];
 
   return (

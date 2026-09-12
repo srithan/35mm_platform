@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
 import { isRouteActive } from "@/lib/utils/navigation";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -23,7 +25,9 @@ export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useClerk();
-  const { user: clerkUser } = useUser();
+  const { user: clerkUser, isLoaded: userLoaded, isSignedIn } = useUser();
+  const { promptLogin } = useAuthPrompt();
+  const signedOut = userLoaded && !isSignedIn;
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const navRef = useSiteHeaderStickyOffset();
@@ -91,37 +95,68 @@ export function SiteHeader() {
             isActive={isActive}
             profileHref={profileHref}
             useSkeuomorphicActive={USE_SKEUOMORPHIC_MAIN_NAV_ACTIVE}
+            signedOut={signedOut}
+            onGatedNav={function () {
+              promptLogin();
+            }}
           />
           <div className={styles.navActions}>
-            <NotificationDropdown
-              wrapRef={notifWrapRef}
-              listRef={notifListRef}
-              open={notifOpen}
-              onToggle={toggleNotif}
-              onClose={closeNotif}
-              notifRowsQuery={notifRowsQuery}
-              notifRows={notifRows}
-	              unreadRowsQuery={unreadRowsQuery}
-	              followRequestTotal={followRequestTotal}
-	              unreadBadgeCount={unreadBadgeCount}
-              markAllMutation={markAllMutation}
-              markOneMutation={markOneMutation}
-              markUnreadMutation={markUnreadMutation}
-              onTrapWheel={trapNotifPanelWheel}
-            />
-            <NewPostButton />
-            <ProfileMenu
-              wrapRef={profileWrapRef}
-              open={profileMenuOpen}
-              onToggle={toggleProfileMenu}
-              onClose={closeProfileMenu}
-              onLogoutClick={handleLogoutClick}
-              profileHref={profileHref}
-              currentDisplayName={currentDisplayName}
-              currentInitial={currentInitial}
-              currentAvatarUrl={currentAvatarUrl}
-              suppressDefaultAvatar={suppressDefaultAvatar}
-            />
+            {signedOut ? (
+              <>
+                <Link
+                  href={ROUTES.AUTH_LOGIN}
+                  className={styles.btnLogin}
+                  onClick={function (event: MouseEvent) {
+                    event.preventDefault();
+                    promptLogin({ mode: "login" });
+                  }}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href={ROUTES.AUTH_SIGNUP}
+                  className={styles.btnSignup}
+                  onClick={function (event: MouseEvent) {
+                    event.preventDefault();
+                    promptLogin({ mode: "signup" });
+                  }}
+                >
+                  Sign up
+                </Link>
+              </>
+            ) : (
+              <>
+                <NotificationDropdown
+                  wrapRef={notifWrapRef}
+                  listRef={notifListRef}
+                  open={notifOpen}
+                  onToggle={toggleNotif}
+                  onClose={closeNotif}
+                  notifRowsQuery={notifRowsQuery}
+                  notifRows={notifRows}
+	                  unreadRowsQuery={unreadRowsQuery}
+	                  followRequestTotal={followRequestTotal}
+	                  unreadBadgeCount={unreadBadgeCount}
+                  markAllMutation={markAllMutation}
+                  markOneMutation={markOneMutation}
+                  markUnreadMutation={markUnreadMutation}
+                  onTrapWheel={trapNotifPanelWheel}
+                />
+                <NewPostButton />
+                <ProfileMenu
+                  wrapRef={profileWrapRef}
+                  open={profileMenuOpen}
+                  onToggle={toggleProfileMenu}
+                  onClose={closeProfileMenu}
+                  onLogoutClick={handleLogoutClick}
+                  profileHref={profileHref}
+                  currentDisplayName={currentDisplayName}
+                  currentInitial={currentInitial}
+                  currentAvatarUrl={currentAvatarUrl}
+                  suppressDefaultAvatar={suppressDefaultAvatar}
+                />
+              </>
+            )}
           </div>
         </div>
       </nav>

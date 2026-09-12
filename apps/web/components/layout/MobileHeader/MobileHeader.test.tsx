@@ -21,6 +21,16 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@clerk/nextjs", () => ({
   useUser: () => ({ user: null }),
+  useAuth: () => ({ isLoaded: true, isSignedIn: true }),
+}));
+
+vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
+  useAuthPrompt: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    promptLogin: vi.fn(),
+    requireAuth: (action: () => void) => action(),
+  }),
 }));
 
 vi.mock("@/components/Avatar", () => ({

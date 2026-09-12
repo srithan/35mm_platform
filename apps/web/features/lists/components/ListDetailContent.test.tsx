@@ -59,6 +59,21 @@ vi.mock("next/navigation", function () {
   };
 });
 
+vi.mock("@/features/auth/components/AuthPromptProvider", function () {
+  return {
+    useAuthPrompt: function () {
+      return {
+        isLoaded: true,
+        isSignedIn: true,
+        promptLogin: vi.fn(),
+        requireAuth: function (action: () => void) {
+          action();
+        },
+      };
+    },
+  };
+});
+
 vi.mock("../hooks/useLists", function () {
   return {
     useFilmList: function () {

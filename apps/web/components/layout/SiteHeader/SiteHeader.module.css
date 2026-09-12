@@ -1026,6 +1026,58 @@
     box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--fg) 18%, transparent);
 }
 
+.btnLogin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--fg);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btnLogin:hover {
+    background: var(--color-bg-hover);
+    border-color: color-mix(in srgb, var(--fg) 22%, var(--border-strong));
+}
+
+.btnLogin:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--fg) 22%, transparent);
+}
+
+.btnSignup {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.35rem;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    background: var(--fg);
+    color: var(--bg);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.btnSignup:hover {
+    opacity: 0.92;
+}
+
+.btnSignup:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
 .btnPost {
     position: relative;
     display: inline-flex;

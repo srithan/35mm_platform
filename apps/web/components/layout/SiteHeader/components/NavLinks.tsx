@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/Icon/Icon";
 import {
@@ -12,6 +13,9 @@ type NavLinksProps = {
   isActive: (href: string) => boolean;
   profileHref: string;
   useSkeuomorphicActive: boolean;
+  /** When true, gated nav items open the login prompt instead of navigating. */
+  signedOut?: boolean;
+  onGatedNav?: () => void;
 };
 
 function navItemClass(active: boolean, useSkeuomorphicActive: boolean): string {
@@ -26,10 +30,17 @@ export function NavLinks({
   isActive,
   profileHref,
   useSkeuomorphicActive,
+  signedOut = false,
+  onGatedNav,
 }: NavLinksProps) {
   const chatUnreadCount = useChatUnreadBadgeCount();
   const chatUnreadLabel = formatChatUnreadBadgeCount(chatUnreadCount);
   const hasChatUnread = chatUnreadCount > 0;
+
+  function handleGatedNav(event: MouseEvent) {
+    event.preventDefault();
+    onGatedNav?.();
+  }
 
   return (
     <div className={styles.navCenter}>
@@ -38,6 +49,7 @@ export function NavLinks({
           href={ROUTES.HOME}
           className={navItemClass(isActive(ROUTES.HOME), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.HOME) ? "page" : undefined}
+          onClick={signedOut ? handleGatedNav : undefined}
         >
           <span className={styles.navItemIcon}>
             <svg
@@ -85,6 +97,7 @@ export function NavLinks({
           href={ROUTES.SEVENTY_MM}
           className={navItemClass(isActive(ROUTES.SEVENTY_MM), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.SEVENTY_MM) ? "page" : undefined}
+          onClick={signedOut ? handleGatedNav : undefined}
         >
           <span className={styles.navItemIcon}>
             <svg
@@ -110,6 +123,7 @@ export function NavLinks({
           href={ROUTES.CHAT}
           className={navItemClass(isActive(ROUTES.CHAT), useSkeuomorphicActive)}
           aria-current={isActive(ROUTES.CHAT) ? "page" : undefined}
+          onClick={signedOut ? handleGatedNav : undefined}
           aria-label={
             hasChatUnread
               ? "Messages (" + chatUnreadLabel + " unread)"
@@ -138,6 +152,7 @@ export function NavLinks({
           href={profileHref}
           className={navItemClass(isActive(profileHref), useSkeuomorphicActive)}
           aria-current={isActive(profileHref) ? "page" : undefined}
+          onClick={signedOut ? handleGatedNav : undefined}
         >
           <span className={styles.navItemIcon}>
             <svg

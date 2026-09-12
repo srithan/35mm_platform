@@ -21,6 +21,21 @@ vi.mock("@clerk/nextjs", function () {
   };
 });
 
+vi.mock("@/features/auth/components/AuthPromptProvider", function () {
+  return {
+    useAuthPrompt: function () {
+      return {
+        isLoaded: true,
+        isSignedIn: true,
+        promptLogin: vi.fn(),
+        requireAuth: function (action: () => void) {
+          action();
+        },
+      };
+    },
+  };
+});
+
 vi.mock("@/features/profile/api/profileApi", function () {
   return {
     fetchProfileConnections: vi.fn(),

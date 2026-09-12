@@ -28,6 +28,15 @@ vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ getToken: vi.fn(async () => "test-token") }),
 }));
 
+vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
+  useAuthPrompt: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    promptLogin: vi.fn(),
+    requireAuth: (action: () => void) => action(),
+  }),
+}));
+
 vi.mock("@/features/profile/hooks/useCurrentUserProfile", () => ({
   initialForName: () => "T",
   useCurrentUserProfile: () => ({

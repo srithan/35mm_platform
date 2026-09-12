@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useRef } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useLayoutEffect, useRef, type MouseEvent } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { ChevronLeft, Search } from "lucide-react";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
 import { BrandLogo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
@@ -40,6 +41,9 @@ export function MobileHeader({
   const headerRef = useRef<HTMLElement | null>(null);
   const router = useRouter();
   const { user: clerkUser } = useUser();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { promptLogin } = useAuthPrompt();
+  const signedOut = authLoaded && !isSignedIn;
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
   const navVisible = useMobileBottomChromeStore(function (state) {
@@ -127,9 +131,9 @@ export function MobileHeader({
         <>
           <button
             type="button"
-            onClick={onProfileClick}
+            onClick={signedOut ? function () { promptLogin(); } : onProfileClick}
             className="flex items-center justify-center w-10 h-10 -ml-1 rounded-full active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-            aria-label="Open menu"
+            aria-label={signedOut ? "Log in" : "Open menu"}
           >
             <Avatar
               initial={initialForName(displayName)}
@@ -165,6 +169,14 @@ export function MobileHeader({
             </Link>
             <Link
               href={ROUTES.CHAT}
+              onClick={
+                signedOut
+                  ? function (event: MouseEvent) {
+                      event.preventDefault();
+                      promptLogin();
+                    }
+                  : undefined
+              }
               className="flex h-10 w-10 items-center justify-center rounded-full text-fg active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               aria-label="Chat"
             >

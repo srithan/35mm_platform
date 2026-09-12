@@ -13,6 +13,21 @@ vi.mock("@/features/lists/hooks/useLists", function () {
   };
 });
 
+vi.mock("@/features/auth/components/AuthPromptProvider", function () {
+  return {
+    useAuthPrompt: function () {
+      return {
+        isLoaded: true,
+        isSignedIn: true,
+        promptLogin: vi.fn(),
+        requireAuth: function (action: () => void) {
+          action();
+        },
+      };
+    },
+  };
+});
+
 const detail: TMDBMovie = {
   id: 101,
   media_type: "movie",

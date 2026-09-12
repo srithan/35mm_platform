@@ -2,6 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Home, Search, UserX } from "lucide-react";
 import { useLayoutEffect, useMemo, useState } from "react";
@@ -26,6 +27,7 @@ export function ProfileShellClient(props: { username: string }) {
   var currentUser = currentUserQuery.data;
   var profileQuery = usePublicProfile(username);
   var { isSignedIn } = useAuth();
+  var { promptLogin } = useAuthPrompt();
   var createConversationMutation = useCreateConversation();
   var router = useRouter();
   var searchParams = useSearchParams();
@@ -168,7 +170,7 @@ export function ProfileShellClient(props: { username: string }) {
   var resolvedProfile = profile;
   var handleMessageClick = function () {
     if (!isSignedIn) {
-      showGlobalFlashToast("Sign in to send messages.", "error");
+      promptLogin({ message: "Log in to send a message." });
       return;
     }
     if (createConversationMutation.isPending) {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { Button } from "@/components/Button";
 import { cn } from "@/lib/utils/cn";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 
 interface UserCardProps {
   username: string;
@@ -26,6 +27,7 @@ export function UserCard({
   isFollowing: initialFollowing = false,
 }: UserCardProps) {
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
+  const { requireAuth } = useAuthPrompt();
 
   const avatarStyle = avatarBg
     ? { background: avatarBg, color: avatarColor }
@@ -61,7 +63,14 @@ export function UserCard({
         <Button
           variant={isFollowing ? "secondary" : "primary"}
           size="sm"
-          onClick={() => setIsFollowing(!isFollowing)}
+          onClick={function () {
+            requireAuth(
+              function () {
+                setIsFollowing(!isFollowing);
+              },
+              { message: "Log in to follow this profile." }
+            );
+          }}
         >
           {isFollowing ? "Following" : "Follow"}
         </Button>

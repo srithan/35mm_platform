@@ -9,6 +9,7 @@ import { useProfileStats } from "../hooks/useProfile";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import type { ProfileTab } from "@/features/profile/lib/profileRoutes";
 import { ProfileDiaryTimeline } from "./ProfileDiaryTimeline";
+import { ProfileGuestFeedGate } from "./ProfileGuestFeedGate";
 import { ProfileListsPanel } from "@/features/lists/components/ProfileListsPanel";
 import { ProfileStatsDashboard } from "./ProfileStatsDashboard";
 
@@ -51,11 +52,13 @@ export function ProfileTabContent({
   const currentUser = currentUserQuery.data;
   const { openComposerModal } = useComposerModal();
   const isOwnProfile = currentUser?.username === username;
+  const guestFooter = <ProfileGuestFeedGate username={username} displayName={displayName} />;
 
   if (tab === "posts") {
     return (
       <InfinitePostList
         username={username}
+        guestFooter={guestFooter}
         postTypes={["text", "discussion", "image", "log", "review"]}
         postFilter={function (post) {
           if (post.type !== "log" && post.type !== "review") return true;
@@ -84,6 +87,7 @@ export function ProfileTabContent({
     return (
       <InfinitePostList
         username={username}
+        guestFooter={guestFooter}
         profileFeedKind="reposts"
         emptyState={
           isOwnProfile

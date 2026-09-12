@@ -5,6 +5,7 @@ import { Bookmark, BookmarkPlus, Check, ExternalLink, Loader2, PenLine } from "l
 import { cn } from "@/lib/utils/cn";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import type { TitleMedia } from "@/lib/title/paths";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { tmdbMovieToFilmPayload } from "@/features/lists/api/listsApi";
 import { useWatchlistMutation } from "@/features/lists/hooks/useLists";
 import {
@@ -40,6 +41,7 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
   const [watchlistFilmId, setWatchlistFilmId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const watchlistMutation = useWatchlistMutation();
+  const { requireAuth } = useAuthPrompt();
 
   useEffect(
     function () {
@@ -62,44 +64,54 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
 
   const onToggleWatched = useCallback(
     function () {
-      if (!hydrated) return;
-      const nextW = !watched;
-      persist(nextW, nextW ? false : onWatchlist);
+      requireAuth(
+        function () {
+          if (!hydrated) return;
+          const nextW = !watched;
+          persist(nextW, nextW ? false : onWatchlist);
+        },
+        { message: "Log in to keep track of the films you've watched." }
+      );
     },
-    [hydrated, watched, onWatchlist, persist]
+    [requireAuth, hydrated, watched, onWatchlist, persist]
   );
 
   const onToggleWatchlist = useCallback(
     function () {
-      if (!hydrated || watched) return;
-      if (onWatchlist) {
-        watchlistMutation.mutate(
-          { filmId: watchlistFilmId ?? undefined, inWatchlist: Boolean(watchlistFilmId) },
-          {
-            onSuccess: function () {
-              setWatchlistFilmId(null);
-              persist(watched, false);
-            },
-            onError: function () {
-              setWatchlistFilmId(null);
-              persist(watched, false);
-            },
+      requireAuth(
+        function () {
+          if (!hydrated || watched) return;
+          if (onWatchlist) {
+            watchlistMutation.mutate(
+              { filmId: watchlistFilmId ?? undefined, inWatchlist: Boolean(watchlistFilmId) },
+              {
+                onSuccess: function () {
+                  setWatchlistFilmId(null);
+                  persist(watched, false);
+                },
+                onError: function () {
+                  setWatchlistFilmId(null);
+                  persist(watched, false);
+                },
+              }
+            );
+            return;
           }
-        );
-        return;
-      }
 
-      watchlistMutation.mutate(
-        { film: tmdbMovieToFilmPayload(props.detail) },
-        {
-          onSuccess: function (result) {
-            if ("filmId" in result) setWatchlistFilmId(result.filmId);
-            persist(watched, true);
-          },
-        }
+          watchlistMutation.mutate(
+            { film: tmdbMovieToFilmPayload(props.detail) },
+            {
+              onSuccess: function (result) {
+                if ("filmId" in result) setWatchlistFilmId(result.filmId);
+                persist(watched, true);
+              },
+            }
+          );
+        },
+        { message: "Log in to build your watchlist." }
       );
     },
-    [hydrated, watched, onWatchlist, watchlistFilmId, watchlistMutation, props.detail, persist]
+    [requireAuth, hydrated, watched, onWatchlist, watchlistFilmId, watchlistMutation, props.detail, persist]
   );
 
   const isWatchlistPending = watchlistMutation.isPending;

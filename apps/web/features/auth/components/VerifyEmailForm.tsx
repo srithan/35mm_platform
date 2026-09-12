@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs/legacy";
@@ -18,11 +18,31 @@ function completeSessionNavigation(path: string) {
   window.location.assign(path);
 }
 
-export function VerifyEmailForm() {
+export interface VerifyEmailFormProps {
+  /** Address the code was sent to. Falls back to `?email=` on the standalone page. */
+  email?: string | null;
+  /** Post-auth destination. Falls back to `?next=` on the standalone page. */
+  nextPath?: string | null;
+  /** Render without the `AuthCard` chrome (used inside `AuthModal`). */
+  embedded?: boolean;
+  /** When provided, "Back to login" swaps mode in place instead of navigating. */
+  onBackToLogin?: () => void;
+  /** Dialog title id when this form is the active `AuthModal` pane. */
+  titleId?: string;
+}
+
+export function VerifyEmailForm({
+  email,
+  nextPath,
+  embedded = false,
+  onBackToLogin,
+  titleId,
+}: VerifyEmailFormProps = {}) {
   var searchParams = useSearchParams();
   var { signUp, setActive, isLoaded } = useSignUp();
-  var emailFromUrl = searchParams.get("email");
-  var nextParam = searchParams.get("next");
+  var emailFromUrl = email !== undefined ? email : searchParams.get("email");
+  var resolvedNext =
+    nextPath !== undefined ? nextPath : safeNextPath(searchParams.get("next"));
 
   var [code, setCode] = useState("");
   var [isLoading, setIsLoading] = useState(false);
@@ -50,9 +70,8 @@ export function VerifyEmailForm() {
 
     await setActive({ session: signUp.createdSessionId });
     setIsVerified(true);
-    var next = safeNextPath(nextParam);
     window.setTimeout(function () {
-      completeSessionNavigation(next ?? ROUTES.HOME);
+      completeSessionNavigation(resolvedNext ?? ROUTES.HOME);
     }, 1200);
   };
 
@@ -67,30 +86,45 @@ export function VerifyEmailForm() {
     }
   };
 
+  var Heading: "h1" | "h2" = embedded ? "h2" : "h1";
+  var Wrapper = embedded ? EmbeddedWrapper : AuthCard;
+
   if (isVerified) {
     return (
-      <AuthCard>
+      <Wrapper>
         <div className="flex flex-col items-center text-center py-4 gap-4">
           <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20">
             <CheckCircle2 className="w-7 h-7 text-emerald-400" />
           </div>
-          <h1 className="font-display text-[1.5rem] font-black">You&apos;re verified</h1>
+          <Heading
+            id={titleId}
+            className="font-display text-[1.5rem] font-black"
+          >
+            You&apos;re verified
+          </Heading>
           <p className="text-[0.9rem] text-[var(--auth-fg)]/60">Your email is verified. Redirecting...</p>
         </div>
-      </AuthCard>
+      </Wrapper>
     );
   }
 
   return (
-    <AuthCard>
-      <div className="mb-8 text-center">
-        <div className="w-12 h-12 bg-[var(--auth-icon-bubble-bg)] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[var(--auth-icon-bubble-border)]">
+    <Wrapper>
+      <div className={embedded ? "mb-7 text-left" : "mb-8 text-center"}>
+        <div
+          className={`w-12 h-12 bg-[var(--auth-icon-bubble-bg)] rounded-2xl flex items-center justify-center mb-4 border border-[var(--auth-icon-bubble-border)] ${embedded ? "" : "mx-auto"}`}
+        >
           <Mail className="w-5 h-5 text-[var(--auth-fg)]/60" />
         </div>
-        <h1 className="font-display text-[1.75rem] font-black leading-tight mb-2">
+        <Heading
+          id={titleId}
+          className="font-display text-[1.75rem] font-black leading-tight mb-2"
+        >
           Check your <em className="italic text-[var(--auth-accent-bright)]">inbox.</em>
-        </h1>
-        <p className="text-[0.85rem] text-[var(--auth-fg)]/40 leading-relaxed max-w-[300px] mx-auto">
+        </Heading>
+        <p
+          className={`text-[0.85rem] text-[var(--auth-fg)]/40 leading-relaxed max-w-[300px] ${embedded ? "" : "mx-auto"}`}
+        >
           {emailFromUrl ? (
             <>
               We sent a 6-digit code to <span className="text-[var(--auth-fg)]">{emailFromUrl}</span>.
@@ -101,7 +135,7 @@ export function VerifyEmailForm() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-auth-modal-form>
         {formError ? (
           <p className="text-red-400 text-[0.8rem] text-center" role="alert">
             {formError}
@@ -147,11 +181,27 @@ export function VerifyEmailForm() {
         </p>
       </div>
 
-      <p className="mt-8 text-center text-[0.9rem] text-[var(--auth-fg)]/60">
-        <Link href={ROUTES.AUTH_LOGIN} className="text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90 no-underline font-medium">
-          Back to login
-        </Link>
+      <p
+        className={`${embedded ? "mt-auto pt-8" : "mt-8"} text-center text-[0.9rem] text-[var(--auth-fg)]/60`}
+      >
+        {onBackToLogin ? (
+          <button
+            type="button"
+            onClick={onBackToLogin}
+            className="bg-transparent border-0 p-0 cursor-pointer font-medium text-[0.9rem] text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90"
+          >
+            Back to login
+          </button>
+        ) : (
+          <Link href={ROUTES.AUTH_LOGIN} className="text-[var(--auth-fg)] hover:text-[var(--auth-fg)]/90 no-underline font-medium">
+            Back to login
+          </Link>
+        )}
       </p>
-    </AuthCard>
+    </Wrapper>
   );
+}
+
+function EmbeddedWrapper({ children }: { children: ReactNode }) {
+  return <div className="flex h-full w-full flex-col">{children}</div>;
 }

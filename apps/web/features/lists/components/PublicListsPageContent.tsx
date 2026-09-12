@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
 import { Heart, Plus, Rows3, Search, X } from "lucide-react";
 import type { FilmListSummary } from "@35mm/types";
 import { Avatar } from "@/components/Avatar";
@@ -11,6 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FilmPoster } from "@/components/FilmPoster";
 import { TextFilterMenu } from "@/components/filters/TextFilterMenu";
 import { DiscoverTabs } from "@/features/discover/components/DiscoverTabs";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { formatCount } from "@/lib/utils/formatCount";
@@ -39,7 +39,7 @@ export function PublicListsPageContent() {
   const listsQuery = usePublicLists(sort, { q: query, format, size });
   const mutations = useListMutations();
   const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const { requireAuth } = useAuthPrompt();
 
   const lists = useMemo(
     function () {
@@ -71,19 +71,21 @@ export function PublicListsPageContent() {
   );
 
   async function toggleLike(list: FilmListSummary) {
-    if (!isSignedIn) {
-      router.push(ROUTES.AUTH_LOGIN);
-      return;
-    }
-    await mutations.toggleLike.mutateAsync({ id: list.id, isLiked: list.isLiked });
+    requireAuth(
+      function () {
+        void mutations.toggleLike.mutateAsync({ id: list.id, isLiked: list.isLiked });
+      },
+      { message: "Log in to like this list." }
+    );
   }
 
   function openCreateList() {
-    if (!isSignedIn) {
-      router.push(ROUTES.AUTH_LOGIN);
-      return;
-    }
-    setEditorOpen(true);
+    requireAuth(
+      function () {
+        setEditorOpen(true);
+      },
+      { message: "Log in to create a list." }
+    );
   }
 
   function createList(values: ListEditorValues) {

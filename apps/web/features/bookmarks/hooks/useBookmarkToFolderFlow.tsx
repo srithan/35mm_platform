@@ -7,6 +7,7 @@ import { BookmarkFolderPicker } from "@/components/PostActions/BookmarkFolderPic
 import type { PortalDropdownItem } from "@/components/PortalDropdown/PortalDropdown";
 import { useFlashToast } from "@/components/FlashToast";
 import { ApiRequestError } from "@/features/feed/api/http";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { useBookmarkPost } from "@/features/feed/hooks/usePostMutations";
 import { useBookmarkFolders } from "./useBookmarkFolders";
 import { useCreateBookmarkFolder } from "./useBookmarkFolderMutations";
@@ -39,6 +40,7 @@ export function useBookmarkToFolderFlow({
   menuDescription,
 }: UseBookmarkToFolderFlowOptions) {
   const { isLoaded, isSignedIn } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [folderId, setFolderId] = useState<string | null>(initialBookmarkFolderId ?? null);
@@ -58,8 +60,13 @@ export function useBookmarkToFolderFlow({
 
   const openPicker = useCallback(function () {
     if (!postId) return;
-    setPickerOpen(true);
-  }, [postId]);
+    requireAuth(
+      function () {
+        setPickerOpen(true);
+      },
+      { message: "Log in to save this." }
+    );
+  }, [postId, requireAuth]);
 
   const saveToFolder = useCallback(
     async function (targetFolderId: string | null) {

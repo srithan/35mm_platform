@@ -30,6 +30,7 @@ import { filmResultToFilmPayload } from "../api/listsApi";
 import { joinListTags, parseListTags } from "../lib/listMeta";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 
 function nextPositions(
   entries: FilmListEntry[],
@@ -49,6 +50,7 @@ export function ListDetailContent({
   isOwnProfile: isOwnProfileProp,
 }: ListDetailContentProps) {
   const router = useRouter();
+  const { requireAuth } = useAuthPrompt();
   const { previousPathname } = useShellLayout();
   const listQuery = useFilmList(listId);
   const list = listQuery.data ?? null;
@@ -272,10 +274,15 @@ export function ListDetailContent({
                       list.isLiked && "border-accent/40 text-accent",
                     )}
                     onClick={function () {
-                      mutations.toggleLike.mutate({
-                        id: list.id,
-                        isLiked: list.isLiked,
-                      });
+                      requireAuth(
+                        function () {
+                          mutations.toggleLike.mutate({
+                            id: list.id,
+                            isLiked: list.isLiked,
+                          });
+                        },
+                        { message: "Log in to like this list." }
+                      );
                     }}
                   >
                     <Heart
@@ -291,13 +298,18 @@ export function ListDetailContent({
                     size="sm"
                     className="lg:w-full"
                     onClick={function () {
-                      mutations.cloneList.mutate(
-                        { id: list.id },
-                        {
-                          onSuccess: function (cloned) {
-                            router.push(ROUTES.LIST(cloned.id));
-                          },
+                      requireAuth(
+                        function () {
+                          mutations.cloneList.mutate(
+                            { id: list.id },
+                            {
+                              onSuccess: function (cloned) {
+                                router.push(ROUTES.LIST(cloned.id));
+                              },
+                            },
+                          );
                         },
+                        { message: "Log in to clone this list." }
                       );
                     }}
                   >

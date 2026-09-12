@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "@clerk/nextjs";
 import { ArrowRight, Sparkles, Users } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
@@ -92,6 +93,8 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
       ? "hidden xl:block xl:fixed xl:z-10 xl:w-[min(320px,calc((100vw-640px)*0.5-2.5rem))] xl:min-w-0 xl:pb-12"
       : "w-full xl:min-w-0 xl:block";
 
+  var { isLoaded, isSignedIn } = useAuth();
+  var signedIn = isLoaded && Boolean(isSignedIn);
   var suggestionsQuery = usePeopleSuggestions({ limit: 5 });
   var followMutation = useSuggestionFollowMutation();
   var suggestions = suggestionsQuery.data?.suggestions ?? [];
@@ -109,10 +112,11 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
             : "w-full max-w-[320px] pb-8 overflow-visible"
         }
       >
-        <LetterboxdImportWidget />
-        <LobbyRoomsWidget />
+        {signedIn ? <LetterboxdImportWidget /> : null}
+        <LobbyRoomsWidget hideWhenEmpty={!signedIn} />
 
-        <section className="rounded-lg border border-border bg-bg px-4 py-3.5 shadow-sm">
+        {signedIn ? (
+          <section className="rounded-lg border border-border bg-bg px-4 py-3.5 shadow-sm">
           <div className="flex items-center justify-between gap-2 mb-4">
             <h2 className="text-[15px] font-bold text-fg tracking-tight">Suggestions for you</h2>
             {suggestions.length > 0 ? (
@@ -201,7 +205,8 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
             })
               : null}
           </ul>
-        </section>
+          </section>
+        ) : null}
 
         <nav
           aria-label="Site links"

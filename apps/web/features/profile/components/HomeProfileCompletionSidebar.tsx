@@ -1,9 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { ProfileCompletionWidget } from "./ProfileCompletionWidget";
 
 export function HomeProfileCompletionSidebar() {
+  var { isLoaded, isSignedIn } = useAuth();
   var top =
     "calc(var(--site-header-sticky-offset, 4.5rem) + var(--home-main-below-header-gap, 1rem))";
   var maxHeight =
@@ -13,6 +15,8 @@ export function HomeProfileCompletionSidebar() {
     right: "calc(50vw + 320px + var(--home-sidebar-gap, 2rem))",
     maxHeight,
   };
+
+  if (!isLoaded || !isSignedIn) return null;
 
   return (
     <aside

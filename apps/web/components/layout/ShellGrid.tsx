@@ -16,6 +16,7 @@ import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { MobileScrollChromeListener } from "@/components/layout/MobileScrollChromeListener";
 import { ComposerModalProvider } from "@/components/layout/PostComposerModalContext";
+import { AuthPromptProvider } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { isPersonRolePath } from "@/lib/routing/personRoles";
@@ -190,6 +191,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   return (
     <ShellLayoutContext.Provider value={shellLayoutContextValue}>
       <ComposerModalProvider>
+      <AuthPromptProvider>
       <div
         className="relative min-h-screen w-full overflow-x-clip bg-bg"
         style={
@@ -331,6 +333,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
           )}
         />
       </div>
+      </AuthPromptProvider>
       </ComposerModalProvider>
     </ShellLayoutContext.Provider>
   );

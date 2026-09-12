@@ -23,7 +23,8 @@ import { TitleReviewsSection } from "./TitleReviewsSection";
 import { MAIN_SECTION_GAP } from "./titlePageLayoutTokens";
 import { useTitleFilmReference } from "../hooks/useTitleReviews";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
-import { useAuth, useClerk } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { resolveTmdbFilm } from "@/features/films/api/filmsApi";
 import { posterUrl } from "@/features/discover/lib/tmdb-utils";
 import { showGlobalFlashToast } from "@/components/FlashToast";
@@ -43,7 +44,7 @@ export function TitlePageView(props: {
   const [contentTab, setContentTab] = useState<TitleContentTabState>("reviews");
   const filmReference = useTitleFilmReference(media, id);
   const { getToken, isSignedIn } = useAuth();
-  const { openSignIn } = useClerk();
+  const { promptLogin } = useAuthPrompt();
   const [openingReview, setOpeningReview] = useState(false);
 
   useLayoutEffect(
@@ -129,7 +130,7 @@ export function TitlePageView(props: {
 
   async function writeReview() {
     if (!isSignedIn) {
-      openSignIn();
+      promptLogin({ message: "Log in to write a review and join the conversation." });
       return;
     }
     if (!detail || isTv || openingReview) return;

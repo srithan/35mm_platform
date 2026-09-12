@@ -29,6 +29,7 @@ import {
   type PublicProfile,
 } from "@/features/profile/api/profileApi";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ProfileFollowRequestsSection } from "@/features/profile/components/ProfileFollowRequestsSection";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -124,7 +125,8 @@ export function ProfileConnectionsModal({
   const activeKind: "followers" | "following" =
     activeView === "following" ? "following" : "followers";
   const isRequestsView = isOwnProfile && activeView === "requests";
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   const queryClient = useQueryClient();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
@@ -154,7 +156,7 @@ export function ProfileConnectionsModal({
     connectionsQuery.data?.pages[0]?.viewerOwnsProfile ?? isOwnProfile;
   const viewerUsername =
     currentUser?.username ?? (viewerOwnsProfile ? username : null);
-  const canActOnFollowers = isLoaded && Boolean(isSignedIn);
+  const canActOnFollowers = isLoaded;
   const unfollowMutation = useMutation({
     mutationFn: async function (user: ProfileConnectionUser) {
       var result = await unfollowUser(user.userId, await getToken());
@@ -574,7 +576,12 @@ export function ProfileConnectionsModal({
                   <button
                     type="button"
                     onClick={function () {
-                      followBackMutation.mutate(user);
+                      requireAuth(
+                        function () {
+                          followBackMutation.mutate(user);
+                        },
+                        { message: "Log in to follow this profile." }
+                      );
                     }}
                     disabled={followBackMutation.isPending}
                     className="inline-flex h-8 min-w-[92px] shrink-0 items-center justify-center rounded-full border border-fg bg-fg px-3 text-[12px] font-semibold text-bg hover:opacity-90 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus-ring)]"
@@ -604,7 +611,12 @@ export function ProfileConnectionsModal({
                   <button
                     type="button"
                     onClick={function () {
-                      unfollowMutation.mutate(user);
+                      requireAuth(
+                        function () {
+                          unfollowMutation.mutate(user);
+                        },
+                        { message: "Log in to follow this profile." }
+                      );
                     }}
                     disabled={unfollowMutation.isPending}
                     className="inline-flex h-8 min-w-[84px] shrink-0 items-center justify-center rounded-full border border-border-strong bg-elevated px-3 text-[12px] font-semibold text-fg hover:bg-hover disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus-ring)]"

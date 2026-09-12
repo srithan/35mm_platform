@@ -7,6 +7,7 @@ import type { FilmListEntry, FilmListSummary } from "@35mm/types";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
+import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import type { FilmResult } from "@/features/feed/components/PostComposer/types";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
@@ -31,6 +32,7 @@ function nextPositions(entries: FilmListEntry[]): Array<{ entryId: string; posit
 
 export function ProfileListsPanel({ username, displayName, isOwnProfile }: ProfileListsPanelProps) {
   const router = useRouter();
+  const { requireAuth } = useAuthPrompt();
   const [sort, setSort] = useState<FilmListSort>("updated");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -276,16 +278,26 @@ export function ProfileListsPanel({ username, displayName, isOwnProfile }: Profi
                   setDeleteTarget(list);
                 }}
                 onLike={function () {
-                  mutations.toggleLike.mutate({ id: list.id, isLiked: list.isLiked });
+                  requireAuth(
+                    function () {
+                      mutations.toggleLike.mutate({ id: list.id, isLiked: list.isLiked });
+                    },
+                    { message: "Log in to like this list." }
+                  );
                 }}
                 onClone={function () {
-                  mutations.cloneList.mutate(
-                    { id: list.id },
-                    {
-                      onSuccess: function (cloned) {
-                        router.push(ROUTES.LIST(cloned.id));
-                      },
-                    }
+                  requireAuth(
+                    function () {
+                      mutations.cloneList.mutate(
+                        { id: list.id },
+                        {
+                          onSuccess: function (cloned) {
+                            router.push(ROUTES.LIST(cloned.id));
+                          },
+                        }
+                      );
+                    },
+                    { message: "Log in to clone this list." }
                   );
                 }}
                 onAddFilm={expanded && isOwnProfile ? handleAddFilm : undefined}
