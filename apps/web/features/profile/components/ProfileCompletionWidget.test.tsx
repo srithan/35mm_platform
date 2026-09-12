@@ -53,8 +53,8 @@ describe("ProfileCompletionWidget", function () {
       "aria-valuenow",
       "50"
     );
-    expect(screen.getByText("50%")).toBeVisible();
-    expect(screen.getByText("2 details left — you're almost there.")).toBeVisible();
+    expect(screen.getByText("2 of 4")).toBeVisible();
+    expect(screen.getByText("You're on a roll. 2 more to go.")).toBeVisible();
     expect(screen.getByText("Profile photo")).toBeVisible();
     expect(screen.getByText("Bio")).toBeVisible();
     expect(screen.getByRole("link", { name: "Add cover photo" })).toHaveAttribute(
@@ -72,7 +72,7 @@ describe("ProfileCompletionWidget", function () {
     render(<ProfileCompletionWidget />);
 
     expect(
-      screen.getByText("Four quick details help people know who they're following.")
+      screen.getByText("Four quick things so people know who they're following.")
     ).toBeVisible();
   });
 

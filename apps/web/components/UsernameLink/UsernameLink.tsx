@@ -194,7 +194,7 @@ function ProfilePopover(props: {
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
     >
-      <div className="relative h-[72px] bg-gradient-to-br from-[var(--color-poster-bg-from)] via-neutral-800 to-[var(--color-poster-bg-to)]">
+      <div className="relative h-[72px] bg-skeleton">
         {coverUrl ? (
           <Image
             src={coverUrl}
@@ -202,6 +202,7 @@ function ProfilePopover(props: {
             fill
             className="object-cover"
             sizes="320px"
+            loading="eager"
           />
         ) : null}
       </div>
