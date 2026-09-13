@@ -328,10 +328,6 @@ export function SignupForm({
       </form>
 
       <div className={embedded ? "mt-auto" : undefined}>
-        <p className="mt-4 text-[0.7rem] text-[var(--auth-fg)]/20 tracking-wide text-center">
-          FREE &middot; NO CREDIT CARD &middot; NO ADS
-        </p>
-
         <div className="mt-6 pt-6 border-t border-[var(--auth-divider)] text-center">
           <p className="text-[0.9rem] text-[var(--auth-fg)]/60">
             Already have an account?{" "}

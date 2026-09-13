@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/Dialog/Dialog";
 import { Button } from "@/components/Button";
-import { Check, ChevronDown, Film, Globe2, Hash, ListOrdered, Lock } from "lucide-react";
+import { Check, ChevronDown, Film, Globe2, Hash, ListOrdered, Lock, X } from "lucide-react";
 
 export type ListEditorValues = {
   title: string;
@@ -80,15 +80,25 @@ export function ListEditorModal({
       open={open}
       onClose={closeEditor}
       title={mode === "create" ? "Create list" : isWatchlist ? "Watchlist settings" : "Edit list"}
-      className="max-w-[560px]"
-      headerClassName="border-b-0 px-6 pb-4 pt-5 sm:px-8 sm:pt-6"
-      titleClassName="text-[24px] font-semibold leading-tight tracking-tight text-fg sm:text-[26px]"
+      className="relative max-w-[520px]"
+      headerClassName="sr-only"
+      titleClassName="sr-only"
+      showCloseButton={false}
       contentClassName="flex min-h-0 flex-col overflow-hidden p-0 sm:p-0"
       initialFocusRef={titleRef}
     >
+      <button
+        type="button"
+        onClick={closeEditor}
+        disabled={isSubmitting}
+        className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-hover hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] disabled:cursor-wait disabled:opacity-50"
+        aria-label="Close"
+      >
+        <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+      </button>
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-busy={isSubmitting}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <fieldset disabled={isSubmitting} className="min-w-0 px-6 pb-6 pt-4 sm:px-8 disabled:opacity-60">
+        <fieldset disabled={isSubmitting} className="min-w-0 px-6 pb-6 pt-10 disabled:opacity-60">
           {!isWatchlist ? (
             <>
               <label htmlFor={id + "-title"} className="sr-only">List title</label>
@@ -111,17 +121,17 @@ export function ListEditorModal({
                 rows={3}
                 placeholder="What brings these films together? Add a description…"
                 onChange={(event) => setValues((prev) => ({ ...prev, description: event.target.value }))}
-                className="mt-3 block max-h-48 min-h-24 w-full resize-y rounded-sm border-0 bg-transparent py-2 text-[16px] leading-relaxed text-fg placeholder:text-fg-muted outline-none focus-visible:shadow-[inset_0_-1px_0_var(--fg-muted)] sm:text-[14px]"
+                className="mt-4 block max-h-36 min-h-20 w-full resize-y rounded-lg border border-border bg-sunken px-3.5 py-3 text-[16px] leading-relaxed text-fg placeholder:text-fg-muted outline-none transition-colors focus-visible:border-fg-muted focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] sm:text-[14px]"
               />
             </>
           ) : (
             <p className="pb-5 text-[14px] leading-relaxed text-fg-muted">Choose who can see your watchlist. Its name stays the same.</p>
           )}
 
-          <fieldset className="mt-5 rounded-3xl bg-sunken p-4">
+          <fieldset className="mt-6 border-t border-border pt-5">
             <legend className="sr-only">Visibility</legend>
-            <p className="mb-3 text-[13px] font-semibold text-fg">Who can see this list?</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Visibility</p>
+            <div className="grid gap-2 sm:grid-cols-2">
               {(["public", "private"] as const).map((option) => {
                 const Icon = option === "public" ? Globe2 : Lock;
                 return (
@@ -134,16 +144,16 @@ export function ListEditorModal({
                       onChange={() => setValues((prev) => ({ ...prev, visibility: option }))}
                       className="peer sr-only"
                     />
-                    <span className="flex h-full flex-col gap-3 rounded-2xl border border-transparent p-3.5 text-fg-muted transition-colors hover:bg-elevated peer-checked:border-fg peer-checked:bg-elevated peer-checked:text-fg peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg peer-disabled:cursor-wait">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sunken">
-                        <Icon className="h-[18px] w-[18px]" aria-hidden />
+                    <span className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-transparent px-3.5 py-3 text-fg-muted transition-colors hover:bg-hover peer-checked:border-fg peer-checked:bg-sunken peer-checked:text-fg peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg peer-disabled:cursor-wait">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-elevated">
+                        <Icon className="h-4 w-4" aria-hidden />
                       </span>
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1 pr-7">
                         <span className="block text-[14px] font-semibold">{option === "public" ? "Public" : "Private"}</span>
-                        <span className="mt-1 block text-[12px] leading-relaxed text-fg-muted">{option === "public" ? "Anyone can explore it" : "Only you can see it"}</span>
+                        <span className="mt-0.5 block text-[12px] leading-snug text-fg-muted">{option === "public" ? "Anyone can explore it" : "Only you can see it"}</span>
                       </span>
                     </span>
-                    <span aria-hidden className="absolute right-3.5 top-3.5 flex h-5 w-5 items-center justify-center rounded-full border border-border-strong bg-elevated text-transparent peer-checked:border-fg peer-checked:bg-fg peer-checked:text-bg">
+                    <span aria-hidden className="absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border-strong bg-elevated text-transparent peer-checked:border-fg peer-checked:bg-fg peer-checked:text-bg">
                       <Check className="h-3 w-3" strokeWidth={3} />
                     </span>
                   </label>
@@ -154,11 +164,11 @@ export function ListEditorModal({
 
           {!isWatchlist ? (
             <>
-              <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl bg-sunken p-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-elevated text-fg-muted"><ListOrdered className="h-[18px] w-[18px]" aria-hidden /></span>
+              <label className="mt-3 flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border border-border px-3.5 py-3 transition-colors hover:bg-hover">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-elevated text-fg-muted"><ListOrdered className="h-4 w-4" aria-hidden /></span>
                 <span className="flex-1">
-                  <span className="block text-[13px] font-semibold text-fg">Rank this list</span>
-                  <span className="mt-0.5 block text-[12px] text-fg-muted">Number films in your chosen order.</span>
+                  <span className="block text-[14px] font-semibold text-fg">Rank this list</span>
+                  <span className="mt-0.5 block text-[12px] leading-snug text-fg-muted">Number films in your chosen order.</span>
                 </span>
                 <input
                   type="checkbox"
@@ -168,11 +178,11 @@ export function ListEditorModal({
                   onChange={(event) => setValues((prev) => ({ ...prev, isRanked: event.target.checked }))}
                   className="peer sr-only"
                 />
-                <span aria-hidden className="relative h-7 w-12 shrink-0 rounded-full bg-border-strong transition-colors after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-social-accent peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg motion-reduce:transition-none motion-reduce:after:transition-none" />
+                <span aria-hidden className="relative h-6 w-10 shrink-0 rounded-full bg-border-strong transition-colors after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-fg peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg motion-reduce:transition-none motion-reduce:after:transition-none" />
               </label>
 
-              <details key={String(open)} open={Boolean(initialValues?.tags)} className="group mt-3 rounded-2xl border border-border px-4 open:pb-4">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl text-[13px] font-medium text-fg hover:text-fg-light focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+              <details key={String(open)} open={Boolean(initialValues?.tags)} className="group mt-3 rounded-lg border border-border px-3.5 open:pb-3.5">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-md text-[13px] font-medium text-fg hover:text-fg-light focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
                   <Hash className="h-4 w-4 text-fg-muted" aria-hidden />
                   Tags <span className="text-[11px] font-normal text-fg-muted">Optional</span>
                   <ChevronDown className="ml-auto h-3.5 w-3.5 group-open:rotate-180" aria-hidden />
@@ -185,7 +195,7 @@ export function ListEditorModal({
                   placeholder="Noir, cinematography, favourites"
                   aria-describedby={id + "-tags-hint"}
                   onChange={(event) => setValues((prev) => ({ ...prev, tags: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-border bg-sunken px-3 py-2.5 text-[16px] text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] sm:text-[13px]"
+                  className="mt-1 w-full rounded-md border border-border bg-sunken px-3 py-2.5 text-[16px] text-fg placeholder:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] sm:text-[13px]"
                 />
                 <p id={id + "-tags-hint"} className="mt-2 text-[11px] text-fg-muted">Separate tags with commas.</p>
               </details>
@@ -194,7 +204,7 @@ export function ListEditorModal({
         </fieldset>
         </div>
 
-        <div className="shrink-0 border-t border-border px-6 py-4 sm:px-8">
+        <div className="shrink-0 border-t border-border px-6 py-4">
           {error ? <p role="alert" className="mb-3 text-[13px] text-accent">{error}</p> : null}
           <div className="flex flex-col gap-4">
             <span className="flex items-center justify-center gap-2 text-[12px] text-fg-muted"><Film className="h-3.5 w-3.5" aria-hidden />{mode === "create" ? "Next, add the films that belong here." : "Your films stay in this list."}</span>

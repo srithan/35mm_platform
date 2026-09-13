@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Grid2X2, LayoutGrid, List, Search, SlidersHorizontal } from "lucide-react";
+import { Grid2X2, LayoutGrid, LayoutList, Search, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import type { FilmCatalogSort, FilmCatalogType } from "@35mm/types";
@@ -297,15 +297,19 @@ export function FilmsContent() {
               {localFilms.length} 35mm · {tmdbFilms.length} of {tmdbTotalResults == null ? "—" : tmdbTotalResults.toLocaleString()} TMDB
             </p>
           ) : <span />}
-          <div className="inline-flex items-center rounded-sm border border-border-strong bg-elevated p-0.5" role="group" aria-label="Film layout">
+          <div
+            className="flex items-center rounded-full border border-border bg-sunken p-0.5"
+            role="group"
+            aria-label="Film view"
+          >
             <ViewToggleButton active={view === "list"} label="List" onClick={function () { setView("list"); }}>
-              <List className="h-4 w-4" aria-hidden />
+              <LayoutList className="h-3.5 w-3.5" aria-hidden />
             </ViewToggleButton>
             <ViewToggleButton active={view === "grid"} label="Grid" onClick={function () { setView("grid"); }}>
-              <Grid2X2 className="h-4 w-4" aria-hidden />
+              <Grid2X2 className="h-3.5 w-3.5" aria-hidden />
             </ViewToggleButton>
             <ViewToggleButton active={view === "details"} label="Grid with info" onClick={function () { setView("details"); }}>
-              <LayoutGrid className="h-4 w-4" aria-hidden />
+              <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
             </ViewToggleButton>
           </div>
         </div>
@@ -395,11 +399,10 @@ function ViewToggleButton({
       aria-pressed={active}
       onClick={onClick}
       className={active
-        ? "inline-flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-[2px] bg-fg px-2 text-bg"
-        : "inline-flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-[2px] px-2 text-fg-muted transition-colors hover:bg-hover hover:text-fg"}
+        ? "flex h-7 w-8 items-center justify-center rounded-full bg-bg text-fg shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        : "flex h-7 w-8 items-center justify-center rounded-full text-fg-muted transition-colors hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"}
     >
       {children}
-      <span className="hidden text-[10px] font-semibold sm:inline">{label}</span>
     </button>
   );
 }

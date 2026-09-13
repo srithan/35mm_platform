@@ -38,7 +38,8 @@ export function LandingHero({ onJoin, onLogin }: LandingHeroProps) {
         <h1 id="landing-title" className={styles.headline}>
           A Social Network
           <br />
-          for Cinema.
+          for <span className={styles.slicedWord}>cinema</span>
+          .
         </h1>
         <LandingPosterStrip />
         <p className={styles.lead}>
@@ -47,7 +48,7 @@ export function LandingHero({ onJoin, onLogin }: LandingHeroProps) {
         </p>
         <div className={styles.heroActions}>
           <button type="button" onClick={onJoin} className={styles.primaryAction}>
-            Start on 35mm <ArrowRight size={17} aria-hidden />
+            Join 35mm <ArrowRight size={17} aria-hidden />
           </button>
           <button type="button" onClick={onLogin} className={styles.loginCta}>
             Log in

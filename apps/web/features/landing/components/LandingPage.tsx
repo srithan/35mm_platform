@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { AuthModal, type AuthModalMode } from "@/features/auth/components/AuthModal";
 import { ROUTES } from "@/lib/constants/routes";
@@ -43,15 +44,26 @@ export function LandingPage() {
   }, []);
 
   return (
-    <main className={styles.root}>
-      <LandingHero
-        onJoin={function () {
-          showAuth("signup");
-        }}
-        onLogin={function () {
-          showAuth("login");
-        }}
-      />
+    <div className={styles.root}>
+      <main>
+        <LandingHero
+          onJoin={function () {
+            showAuth("signup");
+          }}
+          onLogin={function () {
+            showAuth("login");
+          }}
+        />
+      </main>
+
+      <footer className={styles.landingFooter}>
+        <span className={styles.footerWordmark}>35mm<span aria-hidden>.</span></span>
+        <nav aria-label="Footer navigation">
+          <Link href="/about">About</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </nav>
+      </footer>
 
       <AuthModal
         open={auth.open}
@@ -69,6 +81,6 @@ export function LandingPage() {
         }
         next={ROUTES.HOME}
       />
-    </main>
+    </div>
   );
 }
