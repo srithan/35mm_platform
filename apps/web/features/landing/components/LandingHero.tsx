@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { BrandLogo } from "@/components/Logo";
+import { LandingPosterStrip } from "./LandingPosterStrip";
 import styles from "./LandingPage.module.css";
 
 type LandingHeroProps = {
@@ -13,46 +13,46 @@ type LandingHeroProps = {
 export function LandingHero({ onJoin, onLogin }: LandingHeroProps) {
   return (
     <section className={styles.story} aria-labelledby="landing-title">
-      <Image
-        src="/landing/cinema-after-screening.webp"
-        alt="Film lovers talking outside a cinema after an evening screening"
-        fill
-        priority
-        sizes="100vw"
-        className={styles.heroImage}
-      />
-      <div className={styles.heroShade} aria-hidden />
-
       <header className={styles.storyHeader}>
-        <BrandLogo
+        <Link
           href="/"
           className={styles.brand}
-          markClassName={styles.brandMark}
-          ariaLabel="35mm home"
-        />
-        <nav className={styles.heroNav} aria-label="Account access">
-          <button type="button" onClick={onLogin} className={styles.loginButton}>
-            Log in
-          </button>
-          <button type="button" onClick={onJoin} className={styles.headerJoinButton}>
-            Join 35mm
-          </button>
+          aria-label="35mm home"
+        >
+          <span aria-hidden className={styles.brandLogo} />
+        </Link>
+        <nav className={styles.heroNav} aria-label="Primary navigation">
+          <Link href="/discover" className={styles.navLink}>
+            Discover
+          </Link>
+          <Link href="/films" className={styles.navLink}>
+            Films
+          </Link>
+          <Link href="/lists" className={styles.navLink}>
+            Lists
+          </Link>
         </nav>
       </header>
 
       <div className={styles.heroContent}>
         <h1 id="landing-title" className={styles.headline}>
-          The film ends.
+          A Social Network
           <br />
-          Your circle keeps talking.
+          for Cinema.
         </h1>
+        <LandingPosterStrip />
         <p className={styles.lead}>
-          Follow friends, critics, and filmmakers. Share what moved you and find your next watch.
+          <span>Keep track of films. Share your work.</span>{" "}
+          <span>Find your people in cinema.</span>
         </p>
-        <button type="button" onClick={onJoin} className={styles.primaryAction}>
-          Join 35mm — it’s free <ArrowRight size={17} aria-hidden />
-        </button>
-        <p className={styles.socialNote}>A social network for film lovers.</p>
+        <div className={styles.heroActions}>
+          <button type="button" onClick={onJoin} className={styles.primaryAction}>
+            Start on 35mm <ArrowRight size={17} aria-hidden />
+          </button>
+          <button type="button" onClick={onLogin} className={styles.loginCta}>
+            Log in
+          </button>
+        </div>
       </div>
     </section>
   );

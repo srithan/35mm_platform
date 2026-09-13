@@ -1,0 +1,158 @@
+{
+  "filmsPerLanguage": 4,
+  "excludedPeople": [
+    {
+      "tmdbId": 91547,
+      "name": "Vijay (Joseph Vijay)"
+    },
+    {
+      "tmdbId": 148360,
+      "name": "Ajith Kumar"
+    },
+    {
+      "tmdbId": 587982,
+      "name": "Sivakarthikeyan"
+    }
+  ],
+  "languages": [
+    {
+      "code": "en",
+      "label": "English"
+    },
+    {
+      "code": "ta",
+      "label": "Tamil"
+    },
+    {
+      "code": "ko",
+      "label": "Korean"
+    },
+    {
+      "code": "fr",
+      "label": "French"
+    },
+    {
+      "code": "te",
+      "label": "Telugu"
+    },
+    {
+      "code": "ja",
+      "label": "Japanese"
+    },
+    {
+      "code": "es",
+      "label": "Spanish"
+    },
+    {
+      "code": "ml",
+      "label": "Malayalam"
+    },
+    {
+      "code": "zh",
+      "label": "Mandarin"
+    },
+    {
+      "code": "ar",
+      "label": "Arabic"
+    },
+    {
+      "code": "hi",
+      "label": "Hindi"
+    },
+    {
+      "code": "it",
+      "label": "Italian"
+    },
+    {
+      "code": "id",
+      "label": "Indonesian"
+    },
+    {
+      "code": "kn",
+      "label": "Kannada"
+    },
+    {
+      "code": "fa",
+      "label": "Persian"
+    },
+    {
+      "code": "pt",
+      "label": "Portuguese"
+    },
+    {
+      "code": "bn",
+      "label": "Bengali"
+    },
+    {
+      "code": "cn",
+      "label": "Cantonese"
+    },
+    {
+      "code": "de",
+      "label": "German"
+    },
+    {
+      "code": "mr",
+      "label": "Marathi"
+    },
+    {
+      "code": "tr",
+      "label": "Turkish"
+    },
+    {
+      "code": "th",
+      "label": "Thai"
+    },
+    {
+      "code": "sw",
+      "label": "Swahili"
+    },
+    {
+      "code": "wo",
+      "label": "Wolof"
+    }
+  ],
+  "countryRotation": {
+    "en": [
+      "US",
+      "US",
+      "US",
+      "US",
+      "US",
+      "US",
+      "AU",
+      "US",
+      "US",
+      "US",
+      "US",
+      "US",
+      "GB",
+      "US",
+      "US",
+      "US",
+      "US",
+      "US",
+      "NG",
+      "US",
+      "US",
+      "US",
+      "US",
+      "US"
+    ]
+  },
+  "pinnedFilms": {
+    "ta": {
+      "requiredCastPersonId": 85720,
+      "tmdbIds": [
+        38637,
+        368006,
+        855400,
+        1408162
+      ]
+    }
+  },
+  "featuredLanguage": {
+    "code": "en",
+    "films": 24
+  }
+}

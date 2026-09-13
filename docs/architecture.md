@@ -85,8 +85,13 @@ Zustand ownership boundaries, bounded account-scoped persistence, lifecycle
 integration, recovery, and `packages/api-client`. Phase 1.8 adds a deterministic
 internal foundation gallery, semantic/touch-target component coverage, Maestro
 smoke and fixed-profile screenshot flows, reviewed PNG comparison, and a
-release/device performance-result validator; mobile auth screens,
-onboarding, shell, and feature routes remain unimplemented.
+release/device performance-result validator. Phase 2 auth screens and the
+user-prioritized feed/comment/product slice now mount inside the shared
+authenticated React Native shell. The shell includes the canonical Home,
+Discover, Create, Notifications, and Profile bottom navigation, shared header
+actions, and left drawer; Home is production-backed, Profile uses only
+bootstrapped owner data, and unfinished web-parity destinations remain explicit
+gated states until their production mobile slices land.
 
 Deploy targets:
 
@@ -1029,7 +1034,31 @@ Route groups:
 Important app routes:
 
 - `/`: session-aware root. Signed-out visitors receive a restrained, single-field cinematic landing surface:
-  original local artwork, centered product promise, one primary join action, and minimal account navigation.
+  a curated TMDB poster strip, centered product promise, one primary join action, and Discover/Films/Lists navigation.
+  `LandingPosterStrip` continuously scrolls a checked-in set of 116 distinct TMDB posters across 24 language groups (24 English-language films, four each for the other 23).
+  Two identical sequences form a seamless CSS transform loop, advancing one poster every 2 seconds (232 seconds per
+  sequence), without per-poster entry effects or center scaling. The duplicate sequence is hidden from assistive technology.
+  A pause/play control stops motion; reduced-motion visitors receive a static strip with the duplicate hidden. Intersection
+  and document-visibility observers pause work off-screen/in hidden tabs. Only the first six posters have image priority;
+  remaining Next Image assets lazy-load, with a dedicated intersection observer promoting images one rail-width ahead
+  to eager loading so clipped CSS transforms do not reveal unloaded posters. Reduced-motion skips this look-ahead work.
+  This follows the frontend UI-only state pattern: no polling, database reads/writes, counters, queues, or new indexes;
+  at 1M+ DAU the strip has a fixed 232 image elements and at most 116 distinct cacheable CDN poster assets per full sequence,
+  with no per-frame React state updates or runtime TMDB metadata requests. Metadata lives in `features/landing/lib/landingPosters.ts`.
+  Curation policy lives in `features/landing/lib/landingPosterPolicy.json`: English receives 24 slots, uniformly spaced
+  every four or five posters, with 21 US-production slots plus one Australian, British, and Nigerian slot. This restores
+  Hollywood prominence while the other 23 languages retain four slots each, interleaved round-robin. Tamil pins
+  Vaaranam Aayiram (38637), 24 (368006), Jai Bhim (855400), and Vishwanath & Sons (1408162), with Suriya (TMDB person 85720)
+  required in cast. Their slots are 2/31/60/89 in the 116-film sequence. Pins must satisfy the same language, poster,
+  cast/crew exclusion, and per-language quota checks; failed verification
+  aborts refresh instead of replacing requested films. Exclude all films with cast or crew credits for Vijay (Joseph Vijay,
+  TMDB person 91547), Ajith Kumar (148360), or Sivakarthikeyan (587982); never match names such as Vijay Sethupathi by substring.
+  Refresh with `node apps/web/scripts/refresh-landing-posters.mjs` from the repository root. This offline tool uses TMDB_API_KEY,
+  four bounded workers, at most five discovery pages per language/country, and full film/person credits; it fails before writing
+  if any quota or verification cannot be met. It regenerates the display manifest plus `landingPosterAudit.json`, a credit
+  snapshot used only by tests and not imported into the client. Curation tests enforce exclusions, per-language quotas, featured-film spacing, ordering,
+  production-country rotation, uniqueness, and exact correspondence between the display manifest and audited films.
+  Pagination, mutation rate limits, and UGC deletion semantics do not apply to this decorative, read-only strip.
   Join/login opens the existing Clerk-backed flows in a centered two-column desktop modal with a decorative
   cinematic panel and dedicated form panel; mobile web presents the same flow as a bottom action sheet with
   internal scrolling and safe-area padding. Auth fields use 16px type so iOS Safari does not zoom the page
@@ -1042,8 +1071,9 @@ Important app routes:
   data, ornamental content modules, or initial media API request appears on the landing surface. Signed-in visitors receive the
   authenticated home feed. `app/page.tsx` is the sole owner
   of `/`; no `(shell)/page.tsx` duplicate exists, preventing ambiguous App Router manifests in production. The
-  signed-out path performs only the debounced username-availability read after username input. Hero media ships from `public/landing`, so page traffic adds no
-  third-party image dependency or per-request media API work.
+  signed-out path performs only the debounced username-availability read after username input. The poster strip uses
+  fixed `image.tmdb.org` URLs through Next Image (a third-party asset dependency, without TMDB metadata API calls);
+  the auth modal retains bundled artwork from `public/landing`.
 - `/landing`: compatibility URL that redirects to `/`.
 - `/new`: post composer page.
 - `/:username`: profile.
@@ -1729,6 +1759,14 @@ This preserves the existing hybrid feed fan-out, cursor pagination, async counte
 The same authenticated feed now renders the mixed `FeedPost` envelope through `features/feed/PostCard.tsx` instead of routing every item through a video-only card. Versioned TipTap text uses the focused `@35mm/validators/rich-text` contract and a bounded native renderer; cards cover image/video media, film attachments, link previews, read-only poll results, quotes, tombstones, counters, More actions, and owner soft-delete. Non-control card taps and the comment action route to `/post/[postId]`; the route validates the canonical PostgreSQL UUID used by `posts.id` rather than the ULID-shaped identifier reserved for `films.id`. Detail loading reuses cached feed data when available, refreshes the authoritative post, and reads the existing flat comment endpoint in cursor pages of 20. Loaded pages are validated, deduplicated, and arranged into the server-enforced maximum three display levels.
 
 This is an existing-contract client repair: it adds no API route, DB/Redis/queue/worker operation, schema, migration, or cache. FlashList bounds mounted cards/comments, rich-text parsing is capped by stored size/node count/depth, and comment tree construction is linear in loaded items. Existing post keys and `comments_post_moderation_created_at_id_idx` cover reads. Existing optimistic like/repost/bookmark and soft-delete mutations retain idempotency/rate limits and now update both feed and exact detail caches. Mobile comment creation is deliberately not exposed until the existing comment-create endpoint gains server-enforced idempotency; reads, empty/offline/private/error states, and pagination are production-backed.
+
+As of 2026-09-13, authenticated users enter the feed through `features/shell/AppShell`, which adds the mobile-web canonical five-tab bottom navigation, shared header actions, and left drawer destination map. Home continues to use the production cursor feed and video composer. Profile now renders a production-backed React Native surface with detail, Posts/Reposts/Diary/Lists/Stats tabs, followers/following pages, media preview, share/follow/request/cancel, mute, block, report, and a standalone Edit Profile route for profile fields, username, avatar, and cover updates. Discover, Diary, Settings, Help, 70mm, and Drafts render explicit gated states until feature-owned native slices wire their bounded queries, mutations, realtime, tests, and performance evidence. Chat now renders a production-backed React Native core surface over existing REST contracts: inbox, archive/mute/delete, DM creation, `before` cursor history, text/image send, reply, reactions, edit/delete, read state, typing snapshots, and presence batch reads. This adds no API route, schema, migration, worker job, Redis/cache behavior, native dependency, or database index; profile uses existing cursor/profile/stats/media/moderation/follow contracts, and native Ably subscription, GIF/file sending, process restoration, visual/E2E, and device-performance evidence remain future work.
+
+Notifications are now the first shell destination after Home to use production data. `features/notifications/NotificationsScreen.tsx` reads `/v1/me/notifications` in cursor pages of 20, validates the shared `NotificationPage` envelope, filters chat reactions like web, and renders All/Unread filters, row previews/thumbnails, refresh, pagination, empty/offline/error states, optimistic mark read/unread, and mark-all-read over the existing rate-limited routes. Post/comment notifications route only to the existing `/post/[postId]` screen; follow-request management, Ably reconnect reconciliation, unread tab badge, and non-post deep links remain future Phase 8 work. This adds no API route, DB/Redis/cache/queue/worker behavior, schema, native dependency, or index; at 1M DAU it reuses the existing indexed per-recipient notification reads and write-rate-limited read-state mutations.
+
+React Native Bookmarks now uses production data through `features/bookmarks/BookmarksScreen.tsx`. It reads `/v1/feed/bookmarks` in cursor pages of 20 and `/v1/feed/bookmarks/folders` for denormalized folder and unsorted counts, then renders All/Unsorted/folder filters, loaded-page search, refresh, pagination, empty/offline/error states, folder create/rename/delete controls, and post move/remove mutations over the existing bookmark endpoints. The shared native `PostCard` accepts a bookmark-action override so this surface can remove items from bookmark cursor caches without changing Home/feed behavior. Title integrations, dedicated skeletons, visual parity, E2E, and device performance evidence remain future Phase 7 work. This adds no API route, DB/Redis/cache/queue/worker behavior, schema, native dependency, or index; at 1M DAU it reuses the indexed per-user bookmark reads, denormalized folder totals, existing authorization/visibility filters, and route-rate-limited folder/bookmark mutations.
+
+React Native Lists now uses production reads through `features/lists/ListsScreen.tsx`. It reads public custom lists from `/v1/lists` with popular/recent cursor pages and the signed-in user's watchlist from `/v1/lists/me/watchlist`, validates the list/detail/entry envelopes before caching, and renders Explore/Watchlist tabs, poster-stack cards, owner/meta/tags, refresh, pagination, empty/offline/error states, and watchlist entry rows. Mutation-heavy surfaces remain gated: create/edit/delete, entries add/remove/reorder/notes, like/clone, and title-page watchlist status/add/remove. This adds no API route, DB/Redis/cache/queue/worker behavior, schema, native dependency, or index; at 1M DAU it reuses the existing indexed public-list and per-user watchlist cursor reads plus pending-counter overlays.
 
 ### Viewport playback (2026-09-05)
 

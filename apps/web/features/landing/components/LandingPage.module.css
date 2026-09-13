@@ -1,180 +1,295 @@
 .root {
-  --night: #0c1117;
-  --cream: #f8f5ef;
-  --muted-light: #a8afb8;
+  --cream: #ffffff;
   --ink: #17181a;
-  --muted: #6d6d72;
-  --line: #dfdee0;
+  --muted: #626268;
+  --line: #ded9d1;
   --field: #f4f3f1;
   --paper: #fbfaf7;
   --accent: #c2473a;
   --accent-deep: #a9382e;
   min-height: 100dvh;
-  color: var(--cream);
-  background: var(--night);
+  color: var(--ink);
+  background: var(--cream);
 }
 
 .story {
   position: relative;
-  display: grid;
+  display: flex;
   min-height: 100dvh;
   overflow: hidden;
-  grid-template-rows: auto 1fr;
+  flex-direction: column;
   isolation: isolate;
 }
 
-.heroImage {
-  z-index: -3;
-  object-fit: cover;
-  object-position: center;
-  scale: 1.01;
-  animation: imageIn 1000ms ease-out both;
-}
-
-.heroShade {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(
-      ellipse at center 36%,
-      transparent 0%,
-      rgba(10, 15, 21, 0.12) 45%,
-      rgba(10, 15, 21, 0.78) 100%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(9, 14, 20, 0.42) 0%,
-      rgba(9, 14, 20, 0.08) 34%,
-      rgba(9, 14, 20, 0.7) 67%,
-      #0c1117 100%
-    ),
-    linear-gradient(
-      90deg,
-      #0c1117 0%,
-      rgba(12, 17, 23, 0.16) 24%,
-      rgba(12, 17, 23, 0.12) 76%,
-      #0c1117 100%
-    );
-}
-
 .storyHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
-  width: min(calc(100% - 2rem), 70rem);
-  min-height: 5.5rem;
+  width: min(calc(100% - clamp(2rem, 5vw, 4.5rem)), 1216px);
+  min-height: clamp(4.2rem, 8vh, 5.35rem);
   align-items: center;
   justify-content: space-between;
   gap: 2rem;
   margin: 0 auto;
-  animation: reveal 600ms 50ms ease-out both;
+  padding-top: 0.18rem;
+  color: var(--ink);
+  animation: reveal 520ms 40ms ease-out both;
 }
 
 .brand {
   width: fit-content;
-  font-size: 2.25rem;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
 }
 
-.brandMark {
-  width: 2.83em;
-  height: 1.05em;
+.brandLogo {
+  display: block;
+  width: clamp(3.55rem, 4.6vw, 4.25rem);
+  aspect-ratio: 1;
+  background: url("/35mm-app-icon-square.svg") center / contain no-repeat;
 }
 
 .heroNav {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: clamp(1rem, 2.2vw, 1.8rem);
 }
 
-.loginButton,
-.headerJoinButton {
-  border: 0;
-  padding: 0.45rem 0;
-  font: inherit;
-  font-size: 0.76rem;
-  font-weight: 760;
-  color: rgba(255, 255, 255, 0.85);
-  background: transparent;
-  cursor: pointer;
+.navLink {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.18rem 0.04rem;
+  border-radius: 0.15rem;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue",
+    Arial, sans-serif;
+  font-size: 0.765rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
-.headerJoinButton {
-  border: 1px solid rgba(255, 255, 255, 0.36);
-  border-radius: 0.35rem;
-  padding: 0.58rem 0.85rem;
+.navLink::after {
+  position: absolute;
+  left: 50%;
+  bottom: 0.22rem;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  content: "";
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.28);
+  transform-origin: center;
+  transition:
+    opacity 170ms ease,
+    transform 170ms ease;
 }
 
-.loginButton:hover {
-  color: #fff;
+.navLink:hover {
+  color: #000;
+  opacity: 0.82;
+  transform: translateY(-1px);
 }
-.headerJoinButton:hover {
-  border-color: rgba(255, 255, 255, 0.7);
+
+.navLink:hover::after,
+.navLink:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid rgba(23, 24, 26, 0.22);
+  outline-offset: 0.38rem;
 }
 
 .heroContent {
   display: flex;
-  width: min(calc(100% - 2rem), 55rem);
+  width: min(calc(100% - 2rem), 74rem);
+  min-height: 100dvh;
   align-self: center;
-  justify-self: center;
   flex-direction: column;
   align-items: center;
-  padding: 2rem 0 clamp(5rem, 11vh, 8rem);
+  justify-content: center;
+  padding: clamp(5.4rem, 9vh, 6.6rem) 0 clamp(4rem, 8vh, 5.6rem);
   text-align: center;
-  animation: reveal 720ms 120ms ease-out both;
+  animation: reveal 680ms 100ms ease-out both;
 }
 
 .headline {
   margin: 0;
-  font-family: var(--font-display-discover), Georgia, serif;
-  font-size: clamp(3rem, 4.6vw, 4.75rem);
-  font-weight: 400;
-  line-height: 1.02;
-  letter-spacing: -0.025em;
+  max-width: 12.5ch;
+  font-family:
+    "SF Pro Display",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    var(--font-sans),
+    system-ui,
+    sans-serif;
+  font-size: clamp(3.15rem, 5vw, 5.05rem);
+  font-style: italic;
+  font-weight: 750;
+  line-height: 0.94;
+  letter-spacing: 0;
+  font-kerning: normal;
+  font-feature-settings: "kern", "liga", "calt";
+  text-rendering: optimizeLegibility;
   text-wrap: balance;
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.3);
+}
+
+.posterStrip {
+  --poster-width: clamp(7.25rem, 14vw, 10.5rem);
+  --poster-gap: clamp(0.65rem, 1.2vw, 1rem);
+  position: relative;
+  width: min(100vw, 76rem);
+  margin-top: clamp(1.45rem, 3.2vh, 2.25rem);
+}
+
+.posterRail {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+
+.posterTrack {
+  display: flex;
+  width: max-content;
+}
+
+.posterSequence {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--poster-gap);
+  padding-right: var(--poster-gap);
+}
+
+.posterFrame {
+  position: relative;
+  flex: 0 0 var(--poster-width);
+  width: var(--poster-width);
+  aspect-ratio: 2 / 3;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0.15rem;
+  background: #ececec;
+}
+
+.posterImage {
+  object-fit: cover;
 }
 
 .lead {
-  max-width: 38rem;
-  margin: 1.15rem 0 0;
-  font-size: clamp(0.94rem, 1.2vw, 1.05rem);
-  line-height: 1.5;
-  color: rgba(235, 237, 240, 0.75);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.42);
+  max-width: 36rem;
+  margin: clamp(1.6rem, 3.5vh, 2.35rem) 0 0;
+  font-family: var(--font-sans), sans-serif;
+  font-size: clamp(1rem, 1.25vw, 1.125rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: #626268;
+  text-wrap: balance;
+}
+
+.lead span {
+  display: block;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.72rem;
+  margin-top: clamp(1.25rem, 2.5vh, 1.8rem);
 }
 
 .primaryAction {
   display: inline-flex;
-  min-height: 3rem;
+  min-height: 3.35rem;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1.55rem;
-  border: 1px solid var(--accent);
-  border-radius: 0.35rem;
-  padding: 0.7rem 1.35rem;
+  gap: 0.68rem;
+  border: 1px solid #000;
+  border-radius: 999px;
+  padding: 0.98rem 1.36rem 0.98rem 1.7rem;
   font: inherit;
-  font-size: 0.88rem;
-  font-weight: 780;
+  font-size: 0.98rem;
+  font-weight: 820;
+  line-height: 1;
+  white-space: nowrap;
   color: #fff;
-  background: var(--accent);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  background: #000;
+  box-shadow:
+    0 0.82rem 1.9rem rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
   cursor: pointer;
   transition:
     background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
     transform 150ms ease;
 }
 
 .primaryAction:hover {
   transform: translateY(-1px);
-  background: var(--accent-deep);
+  border-color: #1f2023;
+  background: #1f2023;
+  box-shadow:
+    0 1rem 2.25rem rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.loginCta {
+  display: inline-flex;
+  min-height: 3.35rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(23, 24, 26, 0.2);
+  border-radius: 999px;
+  padding: 0.98rem 1.55rem;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 820;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(23, 24, 26, 0.06);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.loginCta:hover {
+  transform: translateY(-1px);
+  border-color: #000;
+  color: #000;
+  background: #f5f5f4;
+  box-shadow: 0 0.75rem 1.8rem rgba(23, 24, 26, 0.08);
 }
 
 .socialNote {
-  margin: 2.25rem 0 0;
+  margin: 0.9rem 0 0;
   font-size: 0.86rem;
   font-weight: 650;
-  color: var(--muted-light);
+  color: var(--muted);
 }
 
 .authDialog {
@@ -258,7 +373,7 @@
   font-family: var(--font-display-discover), Georgia, serif;
   font-size: 2.15rem;
   line-height: 1.02;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 .authAside {
@@ -591,9 +706,10 @@
   color: var(--accent-deep);
 }
 
-.loginButton:focus-visible,
-.headerJoinButton:focus-visible,
+.brand:focus-visible,
+.navLink:focus-visible,
 .primaryAction:focus-visible,
+.loginCta:focus-visible,
 .closeButton:focus-visible,
 .passwordToggle:focus-visible,
 .submitButton:focus-visible,
@@ -609,16 +725,6 @@
   outline-offset: 3px;
 }
 
-@keyframes imageIn {
-  from {
-    opacity: 0;
-    scale: 1.04;
-  }
-  to {
-    opacity: 1;
-    scale: 1.01;
-  }
-}
 @keyframes reveal {
   from {
     opacity: 0;
@@ -664,44 +770,50 @@
 }
 
 @media (max-width: 620px) {
+  .story {
+    min-height: 100dvh;
+  }
   .storyHeader {
-    min-height: 4.75rem;
+    min-height: 4.35rem;
   }
   .brand {
-    font-size: 1.9rem;
+    font-size: 1.82rem;
   }
-  .headerJoinButton {
-    display: none;
+  .heroNav {
+    gap: clamp(0.78rem, 4.4vw, 1rem);
   }
-  .heroImage {
-    object-position: 63% center;
-  }
-  .heroShade {
-    background:
-      linear-gradient(
-        180deg,
-        rgba(9, 14, 20, 0.48),
-        rgba(9, 14, 20, 0.2) 28%,
-        rgba(9, 14, 20, 0.75) 65%,
-        #0c1117 100%
-      ),
-      linear-gradient(90deg, rgba(12, 17, 23, 0.64), rgba(12, 17, 23, 0.12));
+  .navLink {
+    min-height: 2rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.035em;
   }
   .heroContent {
-    padding: 1rem 0 5rem;
+    width: min(calc(100% - 1.35rem), 28rem);
+    min-height: 100dvh;
+    justify-content: center;
+    padding: 5rem 0 4rem;
   }
   .headline {
-    font-size: clamp(2.85rem, 12vw, 3.7rem);
+    font-size: clamp(2.62rem, 11.4vw, 3.72rem);
+    line-height: 0.95;
+  }
+  .posterStrip {
+    margin-top: clamp(1.25rem, 4vh, 1.95rem);
   }
   .lead {
-    max-width: 22rem;
-    font-size: 0.9rem;
+    max-width: 100%;
+    margin-top: 1.5rem;
+    font-size: 1rem;
   }
-  .primaryAction {
-    width: min(100%, 19rem);
+  .heroActions {
+    width: min(100%, 21rem);
+    flex-direction: column;
+    gap: 0.62rem;
+    margin-top: 1.15rem;
   }
-  .socialNote {
-    margin-top: 1.75rem;
+  .primaryAction,
+  .loginCta {
+    width: 100%;
   }
   .authDialog {
     padding: 0;
@@ -756,7 +868,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .heroImage,
   .storyHeader,
   .heroContent,
   .authModal,
@@ -767,7 +878,66 @@
   .primaryAction {
     transition: none;
   }
-  .primaryAction:hover {
+  .loginCta {
+    transition: none;
+  }
+  .primaryAction:hover,
+  .loginCta:hover {
     transform: none;
+  }
+}
+
+
+.posterMotionToggle {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.5rem;
+  display: none;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--cream);
+  cursor: pointer;
+}
+
+.posterMotionToggle:hover {
+  color: var(--ink);
+  background: var(--field);
+}
+
+.posterMotionToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .posterTrack {
+    animation: posterScroll var(--poster-duration) linear infinite;
+    will-change: transform;
+  }
+
+  .posterRail[data-paused="true"] .posterTrack {
+    animation-play-state: paused;
+  }
+
+  .posterMotionToggle {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .posterSequence[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/* Identical sequences include the trailing gap, making the loop seam invisible. */
+@keyframes posterScroll {
+  to {
+    transform: translateX(-50%);
   }
 }

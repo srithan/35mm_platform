@@ -257,6 +257,9 @@ export const PostCard = memo(function PostCard({
   startWithSound,
   onOpenPost,
   onDeleted,
+  onBookmarkPress,
+  bookmarkPending,
+  bookmarkError,
 }: {
   readonly post: FeedPost;
   readonly active: boolean;
@@ -265,6 +268,9 @@ export const PostCard = memo(function PostCard({
   readonly startWithSound: boolean;
   readonly onOpenPost?: () => void;
   readonly onDeleted?: () => void;
+  readonly onBookmarkPress?: () => void;
+  readonly bookmarkPending?: boolean;
+  readonly bookmarkError?: boolean;
 }) {
   const { theme } = useMobileUI();
   const actions = usePostInteractions(post);
@@ -272,22 +278,30 @@ export const PostCard = memo(function PostCard({
   const [actionsVisible, setActionsVisible] = useState(false);
   const [externalActionError, setExternalActionError] = useState(false);
   const isOwner = post.author.id === currentUserId;
-  const actionError = actions.like.error ?? actions.repost.error ?? actions.bookmark.error ?? actions.remove.error;
+  const bookmarkIsPending = bookmarkPending ?? actions.bookmark.isPending;
+  const runBookmark = useCallback(() => {
+    if (onBookmarkPress) {
+      onBookmarkPress();
+      return;
+    }
+    actions.bookmark.mutate();
+  }, [actions.bookmark, onBookmarkPress]);
+  const actionError = actions.like.error ?? actions.repost.error ?? actions.bookmark.error ?? actions.remove.error ?? bookmarkError;
   const runShare = useCallback(() => {
     setExternalActionError(false);
     void sharePost(post).catch(() => setExternalActionError(true));
   }, [post]);
   const sections = useMemo<readonly ActionSheetSection[]>(() => {
     return buildPostActionSections({
-      bookmarkPending: actions.bookmark.isPending,
+      bookmarkPending: bookmarkIsPending,
       deletePending: actions.remove.isPending,
       isBookmarked: post.isBookmarked,
       isOwner,
-      onBookmark: () => actions.bookmark.mutate(),
+      onBookmark: runBookmark,
       onDelete: () => setConfirmDelete(true),
       onShare: runShare,
     });
-  }, [actions.bookmark, actions.remove.isPending, isOwner, post.isBookmarked, runShare]);
+  }, [bookmarkIsPending, actions.remove.isPending, isOwner, post.isBookmarked, runBookmark, runShare]);
 
   if (post.isDeleted) {
     return (
@@ -384,10 +398,10 @@ export const PostCard = memo(function PostCard({
         </View>
         <View style={styles.actionGroup}>
           <IconButton
-            disabled={actions.bookmark.isPending}
+            disabled={bookmarkIsPending}
             icon="bookmark"
             label={post.isBookmarked ? "Remove bookmark" : "Bookmark post"}
-            onPress={() => actions.bookmark.mutate()}
+            onPress={runBookmark}
             selected={post.isBookmarked}
           />
           <Counter active={post.isBookmarked} label="Bookmarks" value={post.bookmarkCount} />

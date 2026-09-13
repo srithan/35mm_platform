@@ -2,8 +2,8 @@
 
 > Canonical plan, progress ledger, and continuation contract for the shared iOS and Android app.
 >
-> Last updated: 2026-09-06
-> Document status: Phase 2 remains active; the user-prioritized Phase 4 feed slice now renders mixed posts, native rich text, More actions, and cursor-paged comment detail; physical Android evidence remains deferred by user
+> Last updated: 2026-09-13
+> Document status: Phase 2 remains active; the user-prioritized Phase 4 feed slice now renders inside the shared five-tab authenticated shell, and the Notifications, Bookmarks, Lists, Watchlist, Profile, and Edit Profile destinations have production-backed cursor/mutation slices; physical Android evidence remains deferred by user
 > Current phase: Phase 2 — Launch, Welcome, and account lifecycle
 > Next unblocked task: Implement forgot-password, reset-code, new-password, and completion flows
 
@@ -580,9 +580,9 @@ Canonical side drawer:
 | Discover | Search, shelves, filters, canonical resolution | Web Discover + SwiftUI Discover | Mixed TMDB/catalog; audit required | 6 |
 | Titles/people | Title detail, reviews, cast/crew, watchlist, person detail | Web Title + SwiftUI Title | Catalog wired; identity audit required | 6 |
 | Bookmarks | All, unsorted, folders, move/remove, loaded-page search | Web + SwiftUI Bookmarks | Wired | 7 |
-| Lists/watchlists | List CRUD, entries, reorder, like, clone, watchlist state | Web Lists + API | Wired | 7 |
+| Lists/watchlists | Public list discovery, watchlist reading, list CRUD, entries, reorder, like, clone, title watchlist state | Web Lists + API | Wired | 7 |
 | Notifications | List, bundles, unread, mark read/unread, follow requests, realtime | Web + SwiftUI Notifications | Wired in-app; push blocked | 8 |
-| Chat | Inbox, thread, messages, reactions, edit/delete, media, typing, presence | Web + SwiftUI Chat | Keyspaces/Ably path wired; verify environment | 9 |
+| Chat | Inbox, thread, messages, reactions, edit/delete, image media, typing, presence | Web + SwiftUI Chat | Keyspaces persistence wired; React Native uses bounded REST reconciliation until Ably/mobile transport dependency is added | 9 |
 | Settings | Account, privacy, notifications, appearance, media, data/security | Web + SwiftUI Settings | Mostly wired | 10 |
 | Moderation | Report content, report history/detail, block/mute safety paths | Web Moderation + API | Wired | 10 |
 | Contributions | Hub, forms, submission status | Web Contribute + API | Wired; scope after core mobile | 10 |
@@ -927,8 +927,8 @@ Exit criterion: verified new account reaches a populated Home shell through exis
 ### Phase 4 — Authenticated shell and feed vertical slice
 
 - [x] Video-post vertical slice: cursor feed, signed Bunny playback, eager resumable upload, processing states, visibility, optimistic interactions, sharing, and owner soft-delete.
-- [ ] Five-tab custom bottom navigation.
-- [ ] Shared header, scroll chrome, drawer, and deep-link shell.
+- [x] Five-tab custom bottom navigation.
+- [ ] Shared header, scroll chrome, drawer, and deep-link shell. **PARTIAL 2026-09-13:** shared header and drawer are mounted with explicit gated destinations; scroll chrome and deep-link shell remain.
 - [ ] Home feed with cursor pagination, refresh, skeletons, cache, and retry.
 - [ ] Post cards: text, log/review, media, polls, links/video, repost proof, quotes, tombstones.
 - [ ] Optimistic likes, reposts, bookmarks, poll votes, and rollback.
@@ -940,12 +940,12 @@ Exit criterion: one production-complete vertical slice from launch through autho
 
 ### Phase 5 — Profiles and social graph
 
-- [ ] Profile header and Posts/Reposts/Diary/Lists/Stats tabs.
-- [ ] Own-profile edit, explicit-null clearing, avatar/cover upload, and media viewer.
-- [ ] Follow/unfollow/request/cancel/approve flows.
-- [ ] Followers/following lists with cursor pagination.
-- [ ] Block, mute, share, and report actions.
-- [ ] Profile tab lazy loading, deduplication, skeletons, and performance.
+- [x] Profile header and Posts/Reposts/Diary/Lists/Stats tabs.
+- [x] Own-profile edit, explicit-null clearing, avatar/cover upload, and media viewer.
+- [ ] Follow/unfollow/request/cancel/approve flows. **PARTIAL 2026-09-13:** follow/unfollow, private-profile requests, and request cancellation are wired from Profile; approve/decline remains owned by follow-request management.
+- [x] Followers/following lists with cursor pagination.
+- [x] Block, mute, share, and report actions.
+- [x] Profile tab lazy loading, deduplication, skeletons, and performance. **NOTE 2026-09-13:** FlashList, tab-gated reads, loaded-page dedupe, loading/offline/error/empty states, and focused tests are complete; visual/E2E/device-performance evidence remains a release gate.
 
 Exit criterion: all existing production profile/social contracts work without N+1 reads or mixed query caches.
 
@@ -962,17 +962,17 @@ Exit criterion: no app route or social API contract treats TMDB ID as canonical 
 
 ### Phase 7 — Bookmarks, lists, and watchlists
 
-- [ ] Bookmark All/Unsorted/folder screens and folder CRUD.
-- [ ] Bookmark move/remove and bounded loaded-page search.
-- [ ] Public/private lists, create/edit, entries, reorder, notes, likes, and clone.
-- [ ] Watchlist state and title integrations.
-- [ ] Cursor, denormalized count, optimistic rollback, skeleton, and visual tests.
+- [x] Bookmark All/Unsorted/folder screens and folder CRUD.
+- [x] Bookmark move/remove and bounded loaded-page search.
+- [ ] Public/private lists, create/edit, entries, reorder, notes, likes, and clone. **PARTIAL 2026-09-13:** public list discovery reads use existing popular/recent cursor pages with runtime validation and poster-stack cards; create/edit/reorder/notes/likes/clone remain.
+- [ ] Watchlist state and title integrations. **PARTIAL 2026-09-13:** the Watchlist drawer tab reads `/v1/lists/me/watchlist` detail/entry pages; title-page add/remove/status integrations remain.
+- [ ] Cursor, denormalized count, optimistic rollback, skeleton, and visual tests. **PARTIAL 2026-09-13:** cursor pages, denormalized folder counts, optimistic rollback, refresh/pagination, and unit/component coverage are wired for Bookmarks; public lists and watchlist reads have cursor pagination, refresh, empty/offline/error states, and contract/component tests; dedicated skeleton compositions, visual parity, E2E, and device performance evidence remain.
 
 Exit criterion: collection workflows preserve existing indexes, counters, authorization, and pagination.
 
 ### Phase 8 — Notifications and follow requests
 
-- [ ] Notification list, bundles, thumbnails, unread badge, mark read/unread.
+- [ ] Notification list, bundles, thumbnails, unread badge, mark read/unread. **PARTIAL 2026-09-13:** cursor list, bundle actor summary, thumbnails/previews, All/Unread filter, mark read/unread, mark all read, refresh, pagination, empty/offline/error states are wired; unread tab badge, follow-request management, realtime reconciliation, and deep-link coverage remain.
 - [ ] Follow-request summary and management.
 - [ ] Ably lifecycle/reconnect reconciliation and bounded fallback.
 - [ ] Notification deep links.
@@ -982,10 +982,10 @@ Exit criterion: in-app activity remains consistent after realtime disconnect/rec
 
 ### Phase 9 — Chat
 
-- [ ] Inbox, archive/mute/delete, presence, typing, and thread creation.
-- [ ] Thread history with `before` cursor, live insert, reconnect reconciliation, and read state.
-- [ ] Text, reply, reaction, edit/delete, image/GIF/file/link rendering.
-- [ ] Composer, presigned media upload, retry, typing throttle, and foreground read dispatch.
+- [x] Inbox, archive/mute/delete, presence, typing, and thread creation. **PARTIAL 2026-09-13:** production REST contracts are wired with bounded presence/typing refresh; native Ably subscription remains.
+- [x] Thread history with `before` cursor, live insert, reconnect reconciliation, and read state. **PARTIAL 2026-09-13:** cursor history, read dispatch, and bounded foreground refetch are wired; true push/live insert over Ably remains.
+- [x] Text, reply, reaction, edit/delete, image/GIF/file/link rendering. **PARTIAL 2026-09-13:** text, reply, reactions, edit/delete, image rendering, file/link/GIF display paths are wired; native GIF/file senders remain dependency-gated.
+- [x] Composer, presigned media upload, retry, typing throttle, and foreground read dispatch. **PARTIAL 2026-09-13:** text and image sends use existing chat/media contracts; failed sends stay explicit and user-retryable because chat send has no server idempotency key; typing start/stop is client-throttled.
 - [ ] Low-end Android keyboard/list/media performance and process restoration.
 
 Exit criterion: production persistence and realtime paths pass durable-state, reconnect, optimistic-failure, and privacy tests.
@@ -1035,12 +1035,12 @@ A slice is not complete until:
 | Product direction | Complete |
 | Canonical plan | Complete |
 | Agent auto-discovery contract | Complete |
-| `apps/mobile` workspace | Phase 2 active: Expo SDK 57 foundation, auth/bootstrap, Welcome, verified signup, and password Login are implemented. Authenticated onboarded users now reach the production cursor-paged mixed-post feed, video composer, and post-detail/comment reader while the complete Phase 4 shell remains pending |
-| Mobile unit/integration tests | Jest/`jest-expo` and React Native Testing Library wired; discovery is bounded to `src`, and 111 mobile cases cover Login/session challenges, native rich-text rendering, PostCard surface/action/comment entry, UUID post-detail routing, cursor comment contracts/tree bounds, signed video contract rejection, plus bounded and resumed TUS transfer; 29 token invariants and 6 API-client cases run in package checks |
+| `apps/mobile` workspace | Phase 2 active: Expo SDK 57 foundation, auth/bootstrap, Welcome, verified signup, and password Login are implemented. Authenticated onboarded users now reach a shared five-tab shell with production cursor-paged mixed-post Home feed, video composer, post-detail/comment reader, Notifications list/read controls, Bookmarks folders/move/remove/search, public Lists discovery, Watchlist entry reading, Chat inbox/thread/message core, Profile header/tabs/connections/stats/social actions, dedicated Edit Profile route with avatar/cover upload, drawer navigation, and explicit gated destinations for Discover, Diary, Settings, Help, 70mm, and Drafts |
+| Mobile unit/integration tests | Jest/`jest-expo` and React Native Testing Library wired; discovery is bounded to `src`, and 132 mobile cases cover Login/session challenges, native rich-text rendering, PostCard surface/action/comment entry, UUID post-detail routing, cursor comment contracts/tree bounds, notification contracts/read controls, bookmark folder/page contracts and filter/remove behavior, list/watchlist contracts and screen tabs, profile contracts/tabs/actions/edit-save guards, signed video contract rejection, plus bounded and resumed TUS transfer; 29 token invariants and 6 API-client cases run in package checks |
 | Shared mobile design system | Token/theme foundation, `packages/mobile-ui`, local font loading, safe-area/theme/toast provider composition, and persisted theme preference are complete |
 | Native quality harnesses | Deterministic internal gallery, Maestro smoke/screenshot flows, fixed iOS/Android visual profiles, fail-closed PNG comparison, and measured release-performance result validation are wired; the development-client Maestro smoke flow passes on the Pixel 6/API 36 emulator. Device syslog and LLDB corrected the iOS black-screen diagnosis to a stripped generated Expo module provider, then exposed an empty Expo Constants bundle caused by an upstream unquoted path. The corrected Release binary retains the provider, embeds valid Expo config, visibly renders the gallery on the connected iPhone 13 Pro, remains alive, and emits none of the prior fatal signatures. Maestro 2.7.0 does not support local physical-iOS execution. Reviewed fixed-profile baselines and release-performance evidence remain unclaimed |
 | Auth/onboarding implementation | Phase 2 active: launch handoff, root Clerk/API/onboarding bootstrap with retry/sign-out recovery, signed-out Welcome, signup completion, and password Login with Clerk session activation plus safe email-code challenge handling are complete; password recovery, social sign-in, and onboarding screens remain |
-| Authenticated feature implementation | User-prioritized Phase 4 feed slice implemented: real cursor feed, recycler virtualization, native rendering for text/rich text, image/video, film, link, poll, quote, and tombstone payloads; full-card navigation; More action sheets; comment counts; a UUID-validated post-detail route; and cursor-paged three-level comment reading. Video playback/composer, optimistic like/repost/bookmark, share, and owner soft-delete remain wired. Full shell, comment writes/likes, poll voting, media viewer, complete parity, and performance/device evidence remain |
+| Authenticated feature implementation | User-prioritized Phase 4 feed slice implemented inside a shared authenticated shell: real cursor feed, recycler virtualization, native rendering for text/rich text, image/video, film, link, poll, quote, and tombstone payloads; full-card navigation; More action sheets; comment counts; a UUID-validated post-detail route; and cursor-paged three-level comment reading. Video playback/composer, optimistic like/repost/bookmark, share, and owner soft-delete remain wired. Notifications now has cursor pages, All/Unread filters, row thumbnails/previews, optimistic mark read/unread, mark-all-read, refresh, pagination, and empty/offline/error states. Bookmarks now has All/Unsorted/folder cursor pages, denormalized folder counts, create/rename/delete folder controls, move/remove, bounded loaded-page search, optimistic rollback, refresh, pagination, and empty/offline/error states. Lists now has public popular/recent cursor discovery and authenticated watchlist entry reading over existing list contracts. Profile now has production detail, Posts/Reposts/Diary/Lists/Stats tabs, followers/following pages, share/follow/mute/block/report actions, media preview, and a standalone Edit Profile route with profile-field, username, avatar, and cover updates. Complete feature parity for Discover/list writes/title watchlist actions/Settings, notification follow requests/realtime/deep links, comment writes/likes, poll voting, visual/E2E, and performance/device evidence remain |
 | Native builds | Native config, iOS/Android Hermes bundles, and isolated two-variant CNG output at Android API 24/36 and iOS 17.0 verified. Development omits Sign in with Apple for Personal Team provisioning and disables recent-bundle auto-launch; preview retains Apple Sign-In. CocoaPods, JDK 17, Android Studio/SDK/ADB/emulator, Maestro, and EAS CLI are installed; a Pixel 6/API 36 AVD exists; the Android development debug binary builds, installs, bundles through Metro, and passes Maestro smoke. The `com.thirtyfivemm.mobile.dev` Release app now embeds Hermes plus valid Expo Constants config, retains the generated Expo provider, passes strict signing checks, installs, launches, visibly renders, and survives sustained checks on the connected iPhone 13 Pro. The root supplies an explicit loading surface during Clerk, query-scope, or font bootstrap and does not block routes on theme hydration. Repository paths containing spaces are protected by the retained Podfile/plugin and dependency patches. No physical Android device is available. EAS is optional while local builds are used |
 | Store/release configuration | Internal development/preview EAS profiles configured; production identity/signing remain blocked |
 
@@ -1204,6 +1204,32 @@ Replacement decision: Direct schema and live-feed evidence invalidate the preced
 
 Decision: Read comments from the existing flat cursor endpoint in pages of 20, validate the response before caching, deduplicate page overlap, and build at most the server-supported three display levels on-device. Do not expose comment creation in this slice: the current create-comment endpoint is rate-limited and soft-delete semantics exist, but it does not yet provide the repository-required idempotency contract. Comment creation/replies remain blocked until that server contract and client retry key are implemented together.
 
+### 2026-09-13 — Authenticated shell parity map
+
+Decision: Route authenticated onboarded users through `features/shell/AppShell` rather than the standalone video-feed screen. The shell owns the mobile-web canonical Home, Discover, Create, Notifications, and Profile bottom navigation; a shared header with menu, search, and chat actions; and a left drawer covering Profile, Discover, 70mm, Bookmarks, Lists, Diary, Drafts, Chat, Notifications, Settings, and Help. Home remains production-backed by the existing cursor feed and video composer. Own Profile uses only bootstrap data already returned by `/v1/me`. Destinations whose native slices are not complete show explicit gated states instead of fake data or client-only behavior.
+
+Decision: Keep the web-parity destination registry local to the shell until each feature owns real queries, mutations, tests, and navigation paths. This prevents inactive routes from making unbounded reads or weakening backend contracts while still exposing the app-wide information architecture for continued parity work.
+
+### 2026-09-13 — Notifications cursor/read-state slice
+
+Decision: Promote Notifications from a gated shell destination to a production-backed partial Phase 8 surface. The React Native screen uses the existing `/v1/me/notifications` cursor contract, filters out chat reactions like web, validates every page before caching, and keeps All/Unread state in React Query rather than Zustand. Mark read/unread and mark-all-read use the existing rate-limited mutation routes with optimistic rollback. Follow-request management, Ably reconnect reconciliation, tab badge count, and deep-link test coverage remain Phase 8 work.
+
+Decision: Keep notification navigation conservative until target screens exist. Post/comment notifications can route to the existing canonical `/post/[postId]` detail screen; profile, film/title, follow-request, report, and settings destinations stay readable in place until their feature-owned native routes land.
+
+### 2026-09-13 — Bookmarks cursor/folder slice
+
+Decision: Promote Bookmarks from a gated drawer destination to a production-backed partial Phase 7 surface. The React Native screen uses the existing `/v1/feed/bookmarks` cursor contract and `/v1/feed/bookmarks/folders` denormalized count contract, keeping All/Unsorted/folder filters, loaded-page search, and folder editor state local while server data remains in React Query. Folder create/rename/delete and post move/remove reuse existing server-authorized, route-rate-limited bookmark endpoints; move/remove optimistically patch bookmark cursor caches and roll back on error. Lists, watchlists, title integrations, visual parity, E2E, and device performance evidence remain Phase 7 work.
+
+Decision: Keep bookmark post rendering on the shared `PostCard`, but allow a feature-owned bookmark action override so the Bookmarks surface can remove rows from its own cursor caches. Home/feed and post-detail interaction behavior remains unchanged.
+
+### 2026-09-13 — Lists and watchlist read slice
+
+Decision: Promote Lists from a gated drawer destination to a production-backed partial Phase 7 surface for reads. React Native uses existing `/v1/lists` popular/recent cursor pages and authenticated `/v1/lists/me/watchlist` detail/entry cursor pages, with runtime validation at the mobile trust boundary and React Query-owned server state. The exposed mobile scope is public discovery plus watchlist reading only; list create/edit/delete, entry add/remove/reorder/notes, like/clone mutations, and title-page watchlist actions remain gated until their full mutation/optimistic rollback surfaces land.
+
+### 2026-09-13 — React Native profile page and edit route
+
+Decision: Promote Profile from a bootstrap-only shell summary to a production-backed Phase 5 surface. React Native uses the existing profile detail, profile feed, profile list, profile stats, followers/following, follow, mute, block, moderation report, profile update, username update, and media presign contracts. Edit Profile is a dedicated route instead of a modal so navigation, discard confirmation, photo permissions, direct R2 upload, explicit-null clearing, and username-change completion remain isolated from the profile pager. Follow-request approval remains with the future follow-request management slice, not the profile page.
+
 ## 25. Blocker log
 
 | Blocker | Required resolution | Blocks |
@@ -1223,6 +1249,55 @@ Decision: Read comments from the existing flat cursor endpoint in pages of 20, v
 | Existing Studio Zod resolver mismatch | Align `apps/studio` React Hook Form resolver and the workspace Zod major version in `FilmForm.tsx` | Repository-wide `pnpm lint`; mobile and all non-Studio typecheck gates pass |
 
 ## 26. Work log
+
+### 2026-09-13 — React Native authenticated shell map
+
+- Replaced the authenticated root's standalone feed entry with `AppShell`, adding the canonical five bottom tabs, shared header actions, left drawer, web-parity destination registry, and a Home surface that reuses the existing production cursor feed and video composer. Profile displays only the already-bootstrapped owner summary; Discover, Bookmarks, Lists, Diary, Chat, Settings, Help, 70mm, and Drafts render explicit gated states until their production mobile slices land.
+- Added `HomeFeedScreen` to keep feed concerns separate from shell chrome, preserving FlashList virtualization, cursor pagination, refresh, offline/error/empty states, viewport-active playback, and canonical post-detail navigation.
+- Added shell regression coverage for tab rendering, gated destination navigation, drawer routing, and profile summary. Updated router-bootstrap coverage for the new root child. Retained `apps/ios` and generated native trees were not modified.
+- Architecture/scale: follows the existing hybrid feed, cursor pagination, React Query server-state, Zustand presentation-state, denormalized-counter, idempotent/rate-limited mutation, and soft-delete patterns. No API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, or index was added. At 1M+ DAU, new shell work is local UI; Home read volume remains one bounded per-user cursor feed plus existing account/video preference reads.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand apps/mobile/src/test/router-bootstrap.test.tsx apps/mobile/src/test/app-shell.test.tsx`. Full `mobile:check`, native generation, physical device, visual-diff, and performance evidence were not rerun for this JavaScript-only shell slice.
+
+### 2026-09-13 — React Native notifications list and read controls
+
+- Added `features/notifications` with runtime parsers, query keys, API client wrappers, and `NotificationsScreen`. The screen supports cursor pagination, pull refresh, All/Unread filters, row thumbnails/previews, actor bundle summaries, empty/offline/error states, optimistic mark read/unread, mark all read, and post/comment notification routing to the existing post detail screen.
+- Integrated Notifications into `AppShell` so the bottom tab and drawer entry now render real production notification data instead of the previous gated state. Follow requests, realtime reconciliation, unread tab badge, and non-post deep links remain explicit Phase 8 work.
+- Added notification contract tests and screen behavior tests for parsing/filtering, read toggle, unread filter, and mark-all-read. `apps/ios` and generated native trees were not modified.
+- Architecture/scale: follows existing cursor pagination, bounded limit 20 reads, React Query server state, rate-limited notification write mutations, and server-side authorization. No API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, or index was added. At 1M+ DAU, this adds no new backend access pattern; mobile uses the same indexed per-recipient notification reads and write-rate-limited read-state mutations as web/iOS.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand apps/mobile/src/test/notifications-contracts.test.ts apps/mobile/src/test/notifications-screen.test.tsx`. The focused notification Jest run reports existing React 19/TanStack Query act-environment warnings and holds a test timer after the pass summary, so it was stopped after success. Full `mobile:check`, native generation, physical device, visual-diff, and performance evidence were not rerun for this JavaScript-only slice.
+
+### 2026-09-13 — React Native bookmarks folders and move/remove
+
+- Added `features/bookmarks` with runtime parsers, query keys, API client wrappers, and `BookmarksScreen`. The screen supports All/Unsorted/folder filters, denormalized counts, cursor pagination, pull refresh, loaded-page search, folder create/rename/delete controls, post move/remove, empty/offline/error states, and post-detail routing through the existing canonical UUID route.
+- Integrated Bookmarks into `AppShell` so the drawer destination now renders real production bookmark data instead of a gated state. Lists, watchlists, title integrations, dedicated skeletons, visual parity, and device performance evidence remain explicit Phase 7 work.
+- Extended `PostCard` with an optional feature-owned bookmark action override, allowing Bookmarks to remove rows from its own cursor caches without changing Home/feed interaction behavior. Added bookmark contract and screen behavior tests for parsing, folder filters, and remove mutations. `apps/ios` and generated native trees were not modified.
+- Architecture/scale: follows existing cursor pagination, bounded limit 20 reads, denormalized folder/unsorted counts, React Query server state, server authorization, route-family rate limits, async post bookmark counters, and existing soft-delete/read-visibility filters. No API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, or index was added. At 1M+ DAU, this adds no new backend access pattern; mobile uses the same indexed per-user bookmark reads and rate-limited folder/bookmark mutations as web/iOS.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand apps/mobile/src/test/bookmarks-contracts.test.ts apps/mobile/src/test/bookmarks-screen.test.tsx`. The focused bookmark Jest run reports existing React 19/TanStack Query act-environment warnings and holds a test timer after the pass summary, so it was stopped after success. Full `mobile:check`, native generation, physical device, visual-diff, and performance evidence were not rerun for this JavaScript-only slice.
+
+### 2026-09-13 — React Native lists and watchlist read surfaces
+
+- Added `features/lists` with runtime parsers, query keys, API client wrappers, and `ListsScreen`. The screen supports Explore/Watchlist tabs, popular/recent public list cursor pages, poster-stack list cards, owner/meta/tags display, authenticated watchlist detail/entry pages, pull refresh, pagination, and empty/offline/error states.
+- Integrated Lists into `AppShell` so the drawer destination renders production list/watchlist reads instead of a gated state. Mutation-heavy surfaces remain explicitly outside this slice: create/edit/delete, entries add/remove/reorder/notes, like/clone, title-page status/add/remove, dedicated skeletons, visual parity, E2E, and device performance evidence.
+- Added list contract and screen behavior tests for parsing, public sort changes, shell routing, and watchlist entry rendering. `apps/ios` and generated native trees were not modified.
+- Architecture/scale: follows existing cursor pagination, bounded list/watchlist reads, pending-counter overlays, React Query server state, server authorization, and existing list indexes. No API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, or index was added. At 1M+ DAU, mobile adds no new backend access pattern; public discovery and watchlist reads reuse existing indexed cursor contracts.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand apps/mobile/src/test/lists-contracts.test.ts apps/mobile/src/test/lists-screen.test.tsx apps/mobile/src/test/app-shell.test.tsx`. The focused list Jest run reports existing React 19/TanStack Query `act(...)` warnings and holds a test timer after the pass summary, so it was stopped after success. Full `mobile:check`, native generation, physical device, visual-diff, and performance evidence were not rerun for this JavaScript-only slice.
+
+### 2026-09-13 — React Native chat core surface
+
+- Added `features/chat` with runtime parsers, query keys, API wrappers, and `ChatScreen`. The shell Chat destination now renders production chat data instead of a gated state.
+- The screen supports cursor inbox pages, archived/default filters, DM creation through bounded `/v1/profiles/search`, thread history with `before` cursor, text send, image attachment via `/v1/media/presign` plus direct R2 PUT, reply/edit/delete actions, reaction toggles, archive/mute/delete conversation actions, read dispatch, read receipts, typing snapshot reads, presence ping/batch reads, refresh/pagination, and empty/offline/error states.
+- Native Ably subscription, GIF/file sending, process restoration, visual parity, E2E, low-end Android keyboard/list/media profiling, and physical-device evidence remain unclaimed. REST polling is bounded and explicit until the mobile Ably dependency/configuration slice lands. Chat send retry is user-driven only because the current API send route has no idempotency-key contract.
+- Architecture/scale: follows existing Postgres thread metadata, Keyspaces message storage, Redis unread/typing/presence, media direct-upload, cursor pagination, server authorization, route-family rate limits, React Query server state, and bounded client reconciliation. No API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, or index was added. At 1M+ DAU this mobile slice reuses the existing indexed inbox and Keyspaces timeline paths; foreground polling intervals are bounded and must be replaced by Ably before high-scale chat launch.
+- Verification passed: `pnpm --filter @35mm/mobile exec eslint src/features/chat src/test/chat-contracts.test.ts src/test/chat-screen.test.tsx src/test/app-shell.test.tsx src/features/shell/AppShell.tsx src/features/shell/destinations.ts`; `pnpm --filter @35mm/mobile test -- --runInBand --forceExit apps/mobile/src/test/chat-contracts.test.ts apps/mobile/src/test/chat-screen.test.tsx apps/mobile/src/test/app-shell.test.tsx`. Focused Jest passes with existing React 19/TanStack Query act-environment warnings. Full `pnpm --filter @35mm/mobile typecheck` and `pnpm --filter @35mm/mobile lint` remain blocked by preexisting untracked `features/profile` errors outside this chat slice.
+
+### 2026-09-13 — React Native profile page and edit route
+
+- Added `features/profile` with runtime parsers, query keys, API wrappers, `ProfileScreen`, `ProfileConnectionsScreen`, and `EditProfileScreen`. The shell Profile tab now renders the production profile surface instead of the bootstrap summary gate, and thin Expo Router entries cover `/profile/[username]`, `/profile/[username]/connections`, and `/profile/edit`.
+- Profile supports public/own profile header parity, cover/avatar media preview, Posts/Reposts/Diary/Lists/Stats tabs, tab-gated cursor reads, loaded-page dedupe, private/deactivated/error/offline states, followers/following cursor pages, optimistic follow/request/cancel, share, mute/unmute, block confirmation, and profile moderation report submission.
+- Edit Profile is a standalone screen with owner-only gating, discard confirmation, display name, username availability, DOB, role/context, bio, location, website, avatar removal/upload, cover removal/upload, direct R2 PUT via the existing media presign route, explicit-null clearing, profile/username save sequencing, and explicit query invalidation.
+- Added contract/component coverage for profile parsers, header/tabs/actions/stats rendering, follow/report mutations, edit-save payloads, owner-only edit guard, and shell profile mounting. `apps/ios` and generated native trees were not modified.
+- Architecture/scale: follows existing cursor pagination, React Query server state, server authorization, route-family mutation rate limits, profile stats cache, media direct-upload path, async profile media processing, async counters, and moderation-report dedupe/state aggregation. No API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, or index was added. At 1M+ DAU, profile reads remain bounded page-size calls over existing indexed contracts; mutations reuse existing rate limits/idempotent set/delete/report behavior and explicit invalidation.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- profile-contracts.test.ts profile-screen.test.tsx edit-profile-screen.test.tsx app-shell.test.tsx`. Focused Jest passes with existing React 19/TanStack Query act-environment warnings. Full `mobile:check`, native generation, physical device, visual-diff, and performance evidence were not rerun for this JavaScript-only slice.
 
 ### 2026-09-07 — Shared FeedPost `quoteCount` and web View quotes gate
 

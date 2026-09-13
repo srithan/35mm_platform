@@ -22,8 +22,8 @@ jest.mock(
 jest.mock("@/features/auth/welcome/WelcomeScreen", () => ({
   WelcomeScreen: () => null,
 }));
-jest.mock("@/features/videos/VideoPostsScreen", () => ({
-  VideoPostsScreen: () => null,
+jest.mock("@/features/shell/AppShell", () => ({
+  AppShell: () => null,
 }));
 jest.mock("@/harness/FoundationGallery", () => ({
   FoundationGallery: () => null,

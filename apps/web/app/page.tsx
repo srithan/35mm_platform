@@ -9,16 +9,16 @@ import { getIsAuthenticated } from "@/lib/auth";
 export const metadata: Metadata = {
   title: "35mm",
   description:
-    "35mm is a social network for film lovers to follow friends, critics, and filmmakers.",
+    "35mm is a social network for everyone in cinema.",
   openGraph: {
     title: "35mm",
     description:
-      "Watch films. Find your people on 35mm.",
+      "Share what you make, talk about what moves you, and discover cinema on 35mm.",
   },
   twitter: {
     title: "35mm",
     description:
-      "Watch films. Find your people on 35mm.",
+      "Share what you make, talk about what moves you, and discover cinema on 35mm.",
   },
 };
 
