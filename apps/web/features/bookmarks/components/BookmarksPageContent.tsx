@@ -432,6 +432,10 @@ function BookmarkPostCard({
       postId={post.id}
       variant={postToVariant(post)}
       sourcePostType={post.type}
+      createdAt={post.createdAt}
+      visibility={post.visibility}
+      watchedOn={post.watchedOn}
+      isRewatch={post.isRewatch}
       username={post.author.username}
       userId={post.author.id}
       handle={`@${post.author.username}`}

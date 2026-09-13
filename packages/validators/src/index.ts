@@ -281,11 +281,42 @@ export var nsfwCategorySchema = z.enum([
   "sensitive",
 ]);
 
+/** Calendar dates stay strings from input through Postgres; no timezone conversion. */
+export var watchedOnSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Watched date must be YYYY-MM-DD")
+  .refine(function (value) {
+    var [year, month, day] = value.split("-").map(Number);
+    if (year < 1 || month < 1 || month > 12 || day < 1) return false;
+    var leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    var days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return day <= days[month - 1];
+  }, "Watched date must be a real calendar date");
+
+export var filmRatingSchema = z.number().int().min(1).max(10).nullable();
+export var postVisibilitySchema = z.enum(["public", "followers_only", "private"]);
+export var watchVenueSchema = z.enum([
+  "theater",
+  "streaming",
+  "tv",
+  "disc",
+  "digital",
+  "festival",
+  "flight",
+  "other",
+]);
+
 export var createPostSchema = z
   .object({
     type: z.enum(["text", "discussion", "log", "review", "image"]).default("text"),
     headline: z.string().trim().min(1).max(120).optional(),
     body: z.string().max(300000),
+    filmId: z.string().trim().regex(ULID_RE, "filmId must be a 35mm ULID").optional(),
+    filmRating: filmRatingSchema.optional(),
+    watchedOn: watchedOnSchema.nullable().optional(),
+    watchVenue: watchVenueSchema.nullable().optional(),
+    isRewatch: z.boolean().optional(),
+    idempotencyKey: z.string().uuid().optional(),
+    visibility: postVisibilitySchema.optional(),
+    postToFeed: z.boolean().optional(),
     film: z
       .object({
         id: z
@@ -322,7 +353,15 @@ export var createPostSchema = z
       return;
     }
 
-    if (!post.poll || visibleBody.length > 0) {
+    var isDiaryEntry = post.type === "log" || post.type === "review";
+    if (isDiaryEntry && !post.film?.id && !post.filmId) {
+      ctx.addIssue({ code: "custom", path: ["film"], message: "Choose a film to log" });
+    }
+    if (!isDiaryEntry && (post.watchedOn !== undefined || post.watchVenue !== undefined || post.isRewatch !== undefined)) {
+      ctx.addIssue({ code: "custom", path: ["watchedOn"], message: "Watch details are only supported on film logs and reviews" });
+    }
+
+    if ((!post.poll && !isDiaryEntry) || visibleBody.length > 0) {
       try {
         validateRichTextBody(post.body, 5000);
       } catch (error) {

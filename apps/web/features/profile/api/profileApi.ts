@@ -116,6 +116,7 @@ export interface ProfileStatsSummary {
   musicDirectors: ProfileStatsNamedCount[];
   countries: ProfileStatsNamedCount[];
   languages: ProfileStatsNamedCount[];
+  watchVenues: ProfileStatsNamedCount[];
   mostWatchedFilms: ProfileStatsMostWatchedFilm[];
   cachedAt: string;
 }

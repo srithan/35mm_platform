@@ -8,8 +8,9 @@ describe("parseProfilePostFeedKind", function () {
     expect(parseProfilePostFeedKind("all")).toBe("all");
   });
 
-  it("accepts only the repost-filtered feed kind", function () {
+  it("accepts repost and diary filters", function () {
     expect(parseProfilePostFeedKind("reposts")).toBe("reposts");
+    expect(parseProfilePostFeedKind("diary")).toBe("diary");
     expect(function () {
       parseProfilePostFeedKind("likes");
     }).toThrowError("Invalid profile post feed kind");
@@ -23,6 +24,7 @@ describe("parseProfilePostFeedKind", function () {
       limit: 20,
     };
 
+    expect(profileFeedCacheKey({ ...base, kind: "diary" })).not.toBe(profileFeedCacheKey({ ...base, kind: "all" }));
     expect(profileFeedCacheKey({ ...base, kind: "all" })).not.toBe(
       profileFeedCacheKey({ ...base, kind: "reposts" })
     );

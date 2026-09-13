@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { adaptPostToFeedType } from "./adapters";
 
+describe("adaptPostToFeedType film viewing metadata", function () {
+  it("keeps a viewing date independent of the posting timestamp", function () {
+    const post = adaptPostToFeedType({
+      id: "film-log",
+      type: "review",
+      body: "Still wonderful.",
+      watchedOn: "2026-07-01",
+      watchVenue: "theater",
+      isRewatch: true,
+      createdAt: "2026-09-13T02:00:00.000Z",
+      visibility: "private",
+    });
+
+    expect(post).toMatchObject({
+      watchedOn: "2026-07-01",
+      watchVenue: "theater",
+      isRewatch: true,
+      createdAt: "2026-09-13T02:00:00.000Z",
+      visibility: "private",
+    });
+  });
+
+  it("preserves legacy entries without inventing a watched date or rewatch", function () {
+    const post = adaptPostToFeedType({ id: "legacy-log", type: "log" });
+
+    expect(post.watchedOn).toBeNull();
+    expect(post.watchVenue).toBeNull();
+    expect(post.isRewatch).toBe(false);
+  });
+});
+
 describe("adaptPostToFeedType repost context", function () {
   it("preserves original author and parses reposter context separately", function () {
     var post = adaptPostToFeedType({

@@ -30,10 +30,14 @@ import {
   type FeedPost,
   type NsfwCategory,
   type QuotedFeedPost,
+  type WatchVenue,
 } from "@35mm/types";
 import {
   createCommentSchema,
   createPostSchema,
+  watchedOnSchema,
+  watchVenueSchema,
+  filmRatingSchema,
   cursorPaginationSchema,
   bookmarkFolderNameSchema,
   bookmarkFolderAssignSchema,
@@ -122,6 +126,7 @@ import {
   feedHighFollowerThreshold,
 } from "./fanoutConfig.js";
 import { filmsLoggedCountDelta } from "./filmLogCounter.js";
+import { diaryWatchDateSql, diaryCreatedAtSql, diaryCursorSql, decodeDiaryCursor, encodeDiaryCursor } from "./filmDiary.js";
 
 const COMMENT_BODY_MAX_CHARS = 100000;
 const COMMENT_BODY_LENGTH_ERROR = `Comment body must be 1-${COMMENT_BODY_MAX_CHARS} characters`;
@@ -129,9 +134,10 @@ const FEED_FANOUT_OUTBOX_GRACE_MS = 5 * 60 * 1000;
 
 export var feedRoutes = new Hono();
 
-export function parseProfilePostFeedKind(value: string | undefined): "all" | "reposts" {
+export function parseProfilePostFeedKind(value: string | undefined): "all" | "reposts" | "diary" {
   if (value == null || value === "all") return "all";
   if (value === "reposts") return "reposts";
+  if (value === "diary") return "diary";
   throw badRequest("Invalid profile post feed kind");
 }
 
@@ -441,6 +447,7 @@ async function createMentionNotifications(params: {
           type: "mention",
           entityType: params.entityType,
           entityId: params.entityId,
+          sourceKey: `mention:${params.entityType}:${params.entityId}:${recipientId}`,
         });
       })
   );
@@ -771,6 +778,9 @@ async function selectReferencedPostRows(
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -915,8 +925,12 @@ type CreatePostInput = {
   headline: string | null;
   body: string;
   postToFeed: boolean;
+  idempotencyKey: string | null;
   filmId: string | null;
   filmRating: number | null;
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   visibility: "public" | "followers_only" | "private";
   quotedPostId: string | null;
   authorNsfwCategories: NsfwCategory[];
@@ -956,7 +970,7 @@ type CreatePostInput = {
   } | null;
 };
 
-function parseCreatePostInput(raw: unknown): CreatePostInput {
+export function parseCreatePostInput(raw: unknown): CreatePostInput {
   var result = createPostSchema.safeParse(raw);
   if (!result.success) {
     throw badRequest(result.error.issues[0]?.message ?? "Invalid post");
@@ -987,13 +1001,13 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
   }
 
   var filmId: string | null = null;
-  var filmRating: number | null = null;
+  var filmRating: number | null = parsed.filmRating ?? null;
   if (typeof source.filmId === "string" && source.filmId.trim().length > 0) {
     filmId = source.filmId.trim();
   } else if (parsed.film?.id) {
     filmId = parsed.film.id;
   }
-  if (typeof parsed.film?.rating === "number" && Number.isFinite(parsed.film.rating)) {
+  if (parsed.filmRating === undefined && typeof parsed.film?.rating === "number" && Number.isFinite(parsed.film.rating)) {
     var scaled = Math.round(parsed.film.rating * 2);
     if (scaled >= 1 && scaled <= 10) {
       filmRating = scaled;
@@ -1021,10 +1035,16 @@ function parseCreatePostInput(raw: unknown): CreatePostInput {
     : null;
 
   return {
-    type: parsed.type,
+    type: parsed.type === "log" || parsed.type === "review"
+      ? (richTextBodyToVisibleText(parsed.body).trim().length > 0 ? "review" : "log")
+      : parsed.type,
     headline: parsed.headline ?? null,
     body: parsed.body,
     postToFeed,
+    idempotencyKey: parsed.idempotencyKey ?? null,
+    watchedOn: parsed.watchedOn ?? null,
+    watchVenue: parsed.watchVenue ?? null,
+    isRewatch: parsed.isRewatch ?? false,
     filmId,
     filmRating,
     visibility,
@@ -1051,6 +1071,10 @@ export function parsePatchPostInput(raw: unknown): {
   headline?: string | null;
   body?: string;
   filmId?: string | null;
+  filmRating?: number | null;
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   linkPreview?: CreatePostInput["linkPreview"];
 } {
   if (!raw || typeof raw !== "object") {
@@ -1061,15 +1085,23 @@ export function parsePatchPostInput(raw: unknown): {
   var hasHeadline = Object.prototype.hasOwnProperty.call(source, "headline");
   var hasBody = Object.prototype.hasOwnProperty.call(source, "body");
   var hasFilmId = Object.prototype.hasOwnProperty.call(source, "filmId");
+  var hasFilmRating = Object.prototype.hasOwnProperty.call(source, "filmRating");
+  var hasWatchedOn = Object.prototype.hasOwnProperty.call(source, "watchedOn");
+  var hasWatchVenue = Object.prototype.hasOwnProperty.call(source, "watchVenue");
+  var hasIsRewatch = Object.prototype.hasOwnProperty.call(source, "isRewatch");
   var hasLinkPreview = Object.prototype.hasOwnProperty.call(source, "linkPreview");
-  if (!hasHeadline && !hasBody && !hasFilmId && !hasLinkPreview) {
-    throw badRequest("Provide headline, body, filmId, and/or linkPreview");
+  if (!hasHeadline && !hasBody && !hasFilmId && !hasLinkPreview && !hasFilmRating && !hasWatchedOn && !hasWatchVenue && !hasIsRewatch) {
+    throw badRequest("Provide at least one editable post field");
   }
 
   var out: {
     headline?: string | null;
     body?: string;
     filmId?: string | null;
+    filmRating?: number | null;
+    watchedOn?: string | null;
+    watchVenue?: WatchVenue | null;
+    isRewatch?: boolean;
     linkPreview?: CreatePostInput["linkPreview"];
   } = {};
 
@@ -1092,11 +1124,11 @@ export function parsePatchPostInput(raw: unknown): {
       throw badRequest("Body must be string");
     }
     var body = source.body.trim();
-    if (body.length < 1 || body.length > 300000) {
+    if (body.length > 300000) {
       throw badRequest("Body must be 1-5000 visible characters");
     }
     try {
-      out.body = validateRichTextBody(body, 5000);
+      out.body = richTextBodyToVisibleText(body).trim().length === 0 ? "" : validateRichTextBody(body, 5000);
     } catch (_error) {
       throw badRequest("Body must be 1-5000 visible characters");
     }
@@ -1114,6 +1146,26 @@ export function parsePatchPostInput(raw: unknown): {
     } else {
       throw badRequest("filmId must be a string ULID or null");
     }
+  }
+
+  if (hasFilmRating) {
+    var ratingResult = filmRatingSchema.safeParse(source.filmRating);
+    if (!ratingResult.success) throw badRequest("Rating must be 1-10 or null");
+    out.filmRating = ratingResult.data;
+  }
+  if (hasWatchedOn) {
+    var dateResult = watchedOnSchema.nullable().safeParse(source.watchedOn);
+    if (!dateResult.success) throw badRequest(dateResult.error.issues[0]?.message ?? "Invalid watched date");
+    out.watchedOn = dateResult.data;
+  }
+  if (hasWatchVenue) {
+    var venueResult = watchVenueSchema.nullable().safeParse(source.watchVenue);
+    if (!venueResult.success) throw badRequest(venueResult.error.issues[0]?.message ?? "Invalid watch venue");
+    out.watchVenue = venueResult.data;
+  }
+  if (hasIsRewatch) {
+    if (typeof source.isRewatch !== "boolean") throw badRequest("isRewatch must be a boolean");
+    out.isRewatch = source.isRewatch;
   }
 
   if (hasLinkPreview) {
@@ -1701,6 +1753,9 @@ type PostItemRow = {
   filmPosterUrl: string | null;
   filmGenres: string[] | null;
   filmRating: number | null;
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   media: PostMediaItem[];
   mediaUrls: string[] | null;
   linkPreview: {
@@ -1798,6 +1853,9 @@ async function toPostItem(
     headline: hydratedHeadline,
     body: hydratedBody,
     visibility: row.visibility,
+    watchedOn: row.watchedOn ?? null,
+    watchVenue: row.watchVenue ?? null,
+    isRewatch: row.isRewatch ?? false,
     media: responseMedia,
     mediaUrls: responseMediaUrls,
     linkPreview: row.linkPreview
@@ -1874,6 +1932,9 @@ async function toQuotedPostItem(
     media: item.media,
     linkPreview: item.linkPreview,
     film: item.film,
+    watchedOn: item.watchedOn,
+    watchVenue: item.watchVenue,
+    isRewatch: item.isRewatch,
     poll: item.poll,
     nsfw: item.nsfw,
     createdAt: item.createdAt,
@@ -1909,6 +1970,9 @@ export type CachedHighFollowerAuthorRow = {
   filmPosterUrl: string | null;
   filmGenres: string[] | null;
   filmRating: number | null;
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   media: PostMediaItem[];
   mediaUrls: string[] | null;
   linkPreview: {
@@ -2104,6 +2168,9 @@ function cachedHighFollowerAuthorRowFromHomeRow(row: HomeFeedRow): CachedHighFol
     filmPosterUrl: row.filmPosterUrl,
     filmGenres: row.filmGenres,
     filmRating: row.filmRating,
+    watchedOn: row.watchedOn ?? null,
+    watchVenue: row.watchVenue ?? null,
+    isRewatch: row.isRewatch ?? false,
     media: row.media,
     mediaUrls: row.mediaUrls,
     linkPreview: row.linkPreview,
@@ -2240,6 +2307,9 @@ async function selectLiveHomeFeedRows(input: {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -2399,6 +2469,9 @@ async function selectHighFollowerAuthorRowsFromDb(input: {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -2641,6 +2714,9 @@ async function getPostById(
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -2928,6 +3004,9 @@ feedRoutes.get("/", async function (c) {
           filmPosterUrl: films.posterUrl,
           filmGenres: films.genres,
           filmRating: posts.filmRating,
+          watchedOn: posts.watchedOn,
+          watchVenue: posts.watchVenue,
+          isRewatch: posts.isRewatch,
           media: posts.media,
           mediaUrls: posts.mediaUrls,
           linkPreview: posts.linkPreview,
@@ -3121,6 +3200,9 @@ feedRoutes.get("/", async function (c) {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -3266,6 +3348,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
       ? "pending"
       : "none";
   var shouldFanoutToFeed = input.postToFeed && input.visibility !== "private";
+  var creationRequestHash = input.idempotencyKey ? sha256(JSON.stringify(input)) : null;
   var createdPost = await getWriteDb().transaction(async function (tx) {
     if (uploadedVideo?.videoAssetId) {
       const [asset] = await tx.select().from(videoAssets)
@@ -3290,6 +3373,11 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         body: input.body,
         filmId: input.filmId ?? null,
         filmRating: input.filmRating,
+        watchedOn: input.watchedOn,
+        watchVenue: input.watchVenue,
+        isRewatch: input.isRewatch,
+        creationKey: input.idempotencyKey,
+        creationRequestHash,
         visibility: input.visibility,
         quotedPostId,
         media: normalizedMedia,
@@ -3299,7 +3387,16 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         nsfwCategories: input.authorNsfwCategories,
         nsfwSource: authorFlaggedPost ? "author" : null,
       })
+      .onConflictDoNothing({ target: [posts.userId, posts.creationKey], where: sql`${posts.creationKey} is not null` })
       .returning({ id: posts.id, createdAt: posts.createdAt });
+
+    if (insertedRows.length === 0 && input.idempotencyKey) {
+      var [replay] = await tx.select({ id: posts.id, createdAt: posts.createdAt, hash: posts.creationRequestHash, isDeleted: posts.isDeleted })
+        .from(posts).where(and(eq(posts.userId, user.userId), eq(posts.creationKey, input.idempotencyKey))).limit(1);
+      if (!replay || replay.hash !== creationRequestHash) throw conflict("This submission key was already used for different post content");
+      if (replay.isDeleted) throw conflict("This submission was already deleted; start a new log");
+      return { postId: replay.id, postCreatedAt: replay.createdAt, replayed: true };
+    }
 
     var postId = insertedRows[0]?.id;
     if (!postId) {
@@ -3402,11 +3499,8 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     return { postId, postCreatedAt, replayed: false };
   });
   var postId = createdPost.postId;
-  if (createdPost.replayed) {
-    var existing = await getPostById(postId, user.userId);
-    if (!existing) throw notFound("Post no longer available");
-    return c.json(existing);
-  }
+  // A retry may follow a commit whose response or post-commit effects failed.
+  // Re-run idempotent effects; counters and fanout outbox were written only once.
   wakeCounterOutbox();
 
   await createMentionNotifications({
@@ -3471,7 +3565,7 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
     throw notFound("Created post not found");
   }
 
-  return c.json(created, 201);
+  return c.json(created, createdPost.replayed ? 200 : 201);
 });
 
 feedRoutes.get("/posts/:postId", async function (c) {
@@ -3559,6 +3653,9 @@ feedRoutes.get("/posts/:postId/quotes", async function (c) {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -3706,6 +3803,9 @@ feedRoutes.get("/films/:filmId/reviews", async function (c) {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -3799,13 +3899,15 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   var viewerUserId = viewer?.userId ?? null;
   var viewerIsStaff = isModerationStaffViewer(viewer);
   var isGuestViewer = !viewerUserId;
-  if (isGuestViewer && parsed.cursor) {
+  var restrictGuestTimeline = isGuestViewer && kind !== "diary";
+  if (restrictGuestTimeline && parsed.cursor) {
     throw unauthorized("Log in to see this profile's full post history");
   }
-  var pageLimit = isGuestViewer
+  var pageLimit = restrictGuestTimeline
     ? Math.min(parsed.limit, PROFILE_FEED_GUEST_POST_LIMIT)
     : parsed.limit;
-  var cursor = decodeCompositeCursor(parsed.cursor);
+  var cursor = kind === "diary" ? null : decodeCompositeCursor(parsed.cursor);
+  var diaryCursor = kind === "diary" ? decodeDiaryCursor(parsed.cursor) : null;
   var db = getDb();
 
   var profileRows = await db
@@ -3887,18 +3989,21 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
   c.header("X-Feed-Cache", "MISS");
 
   var filters: any[] = [
-    eq(profiles.username, username),
+    eq(posts.userId, profileRow.userId),
     eq(posts.isDeleted, false),
     postModerationAccessSql(viewerUserId, viewerIsStaff),
     postVisibilitySql(viewerUserId, viewerIsStaff),
     profileAccessSql(viewerUserId, viewerIsStaff),
   ];
-  var cursorFilter = compositeCursorSql(posts.createdAt, posts.id, cursor);
+  var cursorFilter = kind === "diary" ? diaryCursorSql(diaryCursor) : compositeCursorSql(posts.createdAt, posts.id, cursor);
   if (cursorFilter) filters.push(cursorFilter);
+  if (kind === "diary") filters.push(sql`${posts.type} in ('log', 'review')`, eq(posts.isRepost, false));
   if (kind === "reposts") filters.push(eq(posts.isRepost, true));
 
   var rows = await db
     .select({
+      cursorWatchedOn: diaryWatchDateSql(),
+      cursorDiaryCreatedAt: diaryCreatedAtSql(),
       cursorCreatedAt: posts.createdAt,
       cursorId: posts.id,
       id: posts.id,
@@ -3913,6 +4018,9 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -3956,7 +4064,7 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     .innerJoin(profiles, eq(profiles.userId, posts.userId))
     .leftJoin(films, eq(films.id, posts.filmId))
     .where(and(...filters))
-    .orderBy(desc(posts.createdAt), desc(posts.id))
+    .orderBy(...(kind === "diary" ? [desc(diaryWatchDateSql()), desc(posts.createdAt), desc(posts.id)] : [desc(posts.createdAt), desc(posts.id)]))
     .limit(pageLimit + 1);
 
   var visibleRows = rows.slice(0, pageLimit);
@@ -3981,10 +4089,11 @@ feedRoutes.get("/profiles/:username/posts", async function (c) {
     rows.length > pageLimit ||
     visibleRowsWithPreloaded.length < visibleRowsWithCounters.length;
   var tail = visibleRows[visibleRows.length - 1];
-  // Guests never receive a cursor; `hasMore` stays truthful so clients can
-  // render the "see full profile" gate.
-  var nextCursor = hasMore && tail && !isGuestViewer
-    ? encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
+  // Public diaries paginate fully; guests need an account for post/repost history.
+  var nextCursor = hasMore && tail && !restrictGuestTimeline
+    ? kind === "diary"
+      ? encodeDiaryCursor({ watchedOn: tail.cursorWatchedOn, createdAt: tail.cursorDiaryCreatedAt, id: tail.cursorId })
+      : encodeCompositeCursor({ createdAt: tail.cursorCreatedAt, id: tail.cursorId })
     : null;
   var payload = { items, nextCursor, hasMore };
   if (!viewerUserId) {
@@ -4062,6 +4171,9 @@ feedRoutes.get("/bookmarks", requireAuth, async function (c) {
       filmPosterUrl: films.posterUrl,
       filmGenres: films.genres,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,
@@ -4244,6 +4356,10 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
         visibility: posts.visibility,
         type: posts.type,
         filmId: posts.filmId,
+        filmRating: posts.filmRating,
+        watchedOn: posts.watchedOn,
+        watchVenue: posts.watchVenue,
+        isRewatch: posts.isRewatch,
         isRepost: posts.isRepost,
         headline: posts.headline,
         body: posts.body,
@@ -4268,12 +4384,40 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
       filmIdToPersist !== undefined ? filmIdToPersist : locked.filmId;
     var linkPreview =
       input.linkPreview !== undefined ? input.linkPreview : locked.linkPreview;
+    var isDiaryEntry = locked.type === "log" || locked.type === "review";
+    if (!isDiaryEntry && (input.watchedOn !== undefined || input.watchVenue !== undefined || input.isRewatch !== undefined || input.filmRating !== undefined)) {
+      throw badRequest("Watch details are only supported on film logs and reviews");
+    }
+    if (!isDiaryEntry && richTextBodyToVisibleText(body).trim().length === 0) {
+      throw badRequest("Body must be 1-5000 visible characters");
+    }
+    if (isDiaryEntry && !nextFilmId) throw badRequest("Choose a film to log");
+    var type = isDiaryEntry && input.body !== undefined && body !== locked.body
+      ? (richTextBodyToVisibleText(body).trim().length > 0 ? "review" : "log")
+      : locked.type;
+    var filmRating = input.filmRating !== undefined ? input.filmRating : locked.filmRating;
+    var watchedOn = input.watchedOn !== undefined ? input.watchedOn : locked.watchedOn;
+    var watchVenue = input.watchVenue !== undefined ? input.watchVenue : locked.watchVenue;
+    var isRewatch = input.isRewatch !== undefined ? input.isRewatch : locked.isRewatch;
+    if (headline === locked.headline && body === locked.body && nextFilmId === locked.filmId &&
+        type === locked.type && filmRating === locked.filmRating && watchedOn === locked.watchedOn &&
+        watchVenue === locked.watchVenue && isRewatch === locked.isRewatch &&
+        JSON.stringify(linkPreview) === JSON.stringify(locked.linkPreview)) {
+      return { filmsLoggedDelta: 0, visibility: locked.visibility };
+    }
     var editedAt = new Date();
 
     await tx.insert(postEdits).values({
       postId,
       headline: locked.headline,
       body: locked.body,
+      type: locked.type,
+      filmId: locked.filmId,
+      filmRating: locked.filmRating,
+      watchedOn: locked.watchedOn,
+      watchVenue: locked.watchVenue,
+      isRewatch: locked.isRewatch,
+      visibility: locked.visibility,
       editedAt,
     });
 
@@ -4282,6 +4426,11 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
       .set({
         headline,
         body,
+        type,
+        filmRating,
+        watchedOn,
+        watchVenue,
+        isRewatch,
         ...(filmIdToPersist !== undefined ? { filmId: filmIdToPersist } : {}),
         linkPreview,
         editedAt,
@@ -4300,7 +4449,7 @@ feedRoutes.patch("/posts/:postId", requireAuth, postEditRateLimit, async functio
         isRepost: locked.isRepost,
       },
       {
-        type: locked.type,
+        type,
         filmId: nextFilmId,
         isRepost: locked.isRepost,
       }
@@ -4735,6 +4884,9 @@ feedRoutes.post("/posts/:postId/reposts", requireAuth, postInteractionRateLimit,
       visibility: posts.visibility,
       filmId: posts.filmId,
       filmRating: posts.filmRating,
+      watchedOn: posts.watchedOn,
+      watchVenue: posts.watchVenue,
+      isRewatch: posts.isRewatch,
       media: posts.media,
       mediaUrls: posts.mediaUrls,
       linkPreview: posts.linkPreview,

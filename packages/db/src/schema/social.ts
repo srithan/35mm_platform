@@ -3,6 +3,8 @@ import {
   uuid,
   text,
   timestamp,
+  date,
+  smallint,
   boolean,
   integer,
   jsonb,
@@ -16,7 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users.js";
-import { posts } from "./posts.js";
+import { posts, postTypeEnum, postVisibilityEnum, watchVenueEnum } from "./posts.js";
 import { moderationContentStatusEnum } from "./moderation.js";
 
 export var followStatusEnum = pgEnum("follow_status", [
@@ -277,6 +279,13 @@ export var postEdits = pgTable(
       }, { onDelete: "cascade" }),
     body: text("body").notNull(),
     headline: text("headline"),
+    type: postTypeEnum("type"),
+    filmId: text("film_id"),
+    filmRating: smallint("film_rating"),
+    watchedOn: date("watched_on", { mode: "string" }),
+    watchVenue: watchVenueEnum("watch_venue"),
+    isRewatch: boolean("is_rewatch"),
+    visibility: postVisibilityEnum("visibility"),
     editedAt: timestamp("edited_at", { withTimezone: true }).defaultNow().notNull(),
   }
 );

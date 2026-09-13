@@ -78,6 +78,23 @@ describe("fetchFeed profile kind", function () {
     );
   });
 
+  it("requests diary entries in server watching-date order with the diary cursor", async function () {
+    await fetchFeed({
+      username: "cinemafan",
+      profileFeedKind: "diary",
+      cursor: "diary page",
+      token: "token",
+    });
+
+    expect(http.apiRequest).toHaveBeenCalledWith(
+      "/v1/feed/profiles/cinemafan/posts?limit=20&cursor=diary+page&kind=diary",
+      { token: "token" }
+    );
+    expect(feedKeys.profile("cinemafan", "diary")).not.toEqual(
+      feedKeys.profile("cinemafan", "all")
+    );
+  });
+
   it("keeps mixed and repost-only profile pages in separate caches", function () {
     expect(feedKeys.profile("cinemafan", "all")).not.toEqual(
       feedKeys.profile("cinemafan", "reposts")

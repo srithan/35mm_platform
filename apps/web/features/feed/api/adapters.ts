@@ -1,4 +1,4 @@
-import type { NsfwCategory, NsfwInfo } from "@35mm/types";
+import { WATCH_VENUE_VALUES, type NsfwCategory, type NsfwInfo, type WatchVenue } from "@35mm/types";
 import type { Comment, Post, QuotedPost } from "../types/feed";
 
 var ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -42,6 +42,7 @@ const NSFW_CATEGORIES = new Set<NsfwCategory>([
   "graphic_content",
   "sensitive",
 ]);
+const WATCH_VENUES = new Set<string>(WATCH_VENUE_VALUES);
 
 function asNsfwCategories(value: unknown): NsfwCategory[] {
   if (!Array.isArray(value)) return [];
@@ -60,6 +61,11 @@ function asNsfwInfo(value: unknown): NsfwInfo {
     categories: asNsfwCategories(value.categories),
     source: value.source === "author" || value.source === "system" ? value.source : null,
   };
+}
+
+function asWatchVenue(value: unknown): WatchVenue | null {
+  if (typeof value !== "string") return null;
+  return WATCH_VENUES.has(value) ? (value as WatchVenue) : null;
 }
 
 function normalizePoll(raw: Record<string, unknown>): Post["poll"] {
@@ -263,6 +269,9 @@ export function adaptPostToFeedType(raw: unknown): Post {
       linkPreview: adaptedQuote.linkPreview,
       poll: adaptedQuote.poll,
       film: adaptedQuote.film,
+      watchedOn: adaptedQuote.watchedOn,
+      watchVenue: adaptedQuote.watchVenue,
+      isRewatch: adaptedQuote.isRewatch,
       nsfw: adaptedQuote.nsfw,
       createdAt: adaptedQuote.createdAt,
     };
@@ -364,6 +373,9 @@ export function adaptPostToFeedType(raw: unknown): Post {
       : null,
     poll,
     film,
+    watchedOn: asNullableString(root.watchedOn),
+    watchVenue: asWatchVenue(root.watchVenue),
+    isRewatch: root.isRewatch === true,
     likeCount: asNumber(root.likeCount, asNumber(root.likes, 0)),
     commentCount: asNumber(root.commentCount, 0),
     repostCount: asNumber(root.repostCount, asNumber(root.reposts, 0)),

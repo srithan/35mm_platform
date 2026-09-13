@@ -117,6 +117,30 @@ export interface UserSettingsResponse {
   notifications: NotificationSettings;
 }
 
+export const WATCH_VENUE_VALUES = [
+  "theater",
+  "streaming",
+  "tv",
+  "disc",
+  "digital",
+  "festival",
+  "flight",
+  "other",
+] as const;
+
+export type WatchVenue = (typeof WATCH_VENUE_VALUES)[number];
+
+export const WATCH_VENUE_LABELS: Record<WatchVenue, string> = {
+  theater: "Theater",
+  streaming: "Streaming",
+  tv: "TV",
+  disc: "Blu-ray/DVD",
+  digital: "Digital rental/purchase",
+  festival: "Festival",
+  flight: "Flight",
+  other: "Other",
+};
+
 export interface FeedPost {
   id: PostId;
   author: PublicUser;
@@ -128,6 +152,10 @@ export interface FeedPost {
   editedAt?: string | null;
   headline?: string | null;
   body: string;
+  /** Local calendar date (YYYY-MM-DD); null for entries created without a watch date. */
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   media: Array<{
     type: "image" | "video" | "film_embed" | "none";
     url: string;
@@ -217,7 +245,7 @@ export interface FeedPost {
 
 export type QuotedFeedPost = Pick<
   FeedPost,
-  "id" | "author" | "type" | "headline" | "body" | "media" | "linkPreview" | "film" | "poll" | "nsfw" | "createdAt"
+  "id" | "author" | "type" | "headline" | "body" | "media" | "linkPreview" | "film" | "watchedOn" | "watchVenue" | "isRewatch" | "poll" | "nsfw" | "createdAt"
 >;
 
 export interface FeedPage {

@@ -1,4 +1,4 @@
-import type { NsfwCategory, NsfwInfo } from "@35mm/types";
+import type { NsfwCategory, NsfwInfo, WatchVenue } from "@35mm/types";
 
 export interface Author {
   id: string;
@@ -89,6 +89,10 @@ export interface Post {
     }>;
   } | null;
   film: FilmRef | null;
+  /** Viewing date as YYYY-MM-DD, independent of the posting timestamp. */
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   likeCount: number;
   commentCount: number;
   repostCount: number;
@@ -122,7 +126,7 @@ export interface Post {
 
 export type QuotedPost = Pick<
   Post,
-  "id" | "author" | "type" | "headline" | "body" | "media" | "mediaUrls" | "linkPreview" | "poll" | "film" | "createdAt"
+  "id" | "author" | "type" | "headline" | "body" | "media" | "mediaUrls" | "linkPreview" | "poll" | "film" | "watchedOn" | "watchVenue" | "isRewatch" | "createdAt"
 > & { nsfw?: NsfwInfo };
 
 export interface Comment {

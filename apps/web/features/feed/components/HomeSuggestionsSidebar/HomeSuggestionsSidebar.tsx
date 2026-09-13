@@ -5,7 +5,6 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
-import { ArrowRight, Sparkles, Users } from "lucide-react";
 import { ROUTES } from "@/lib/constants/routes";
 import { getMockPortraitUrlForUsername } from "@/lib/constants/mockPortraitUrl";
 import { cn } from "@/lib/utils/cn";
@@ -113,9 +112,9 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
         }
       >
         {signedIn ? <LetterboxdImportWidget /> : null}
-        <LobbyRoomsWidget hideWhenEmpty={!signedIn} />
+        <LobbyRoomsWidget hideWhenEmpty />
 
-        {signedIn ? (
+        {signedIn && (suggestionsQuery.isLoading || suggestions.length > 0) ? (
           <section className="rounded-lg border border-border bg-bg px-4 py-3.5 shadow-sm">
           <div className="flex items-center justify-between gap-2 mb-4">
             <h2 className="text-[15px] font-bold text-fg tracking-tight">Suggestions for you</h2>
@@ -135,10 +134,6 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
           >
             {suggestionsQuery.isLoading ? (
               <SuggestionsSidebarSkeleton />
-            ) : suggestions.length === 0 ? (
-              <SuggestionsSidebarEmptyState
-                variant={suggestionsQuery.data?.computing ? "computing" : "empty"}
-              />
             ) : null}
             {!suggestionsQuery.isLoading
               ? suggestions.map(function (row, idx) {
@@ -268,56 +263,6 @@ function SuggestionsSidebarSkeleton() {
         return <SuggestionRowSkeleton key={"suggestion-skeleton-" + index} index={index} />;
       })}
     </>
-  );
-}
-
-function SuggestionsSidebarEmptyState(props: { variant: "computing" | "empty" }) {
-  if (props.variant === "computing") {
-    return (
-      <li className="list-none py-3" role="status">
-        <div className="flex flex-col items-center px-2 text-center">
-          <div className="relative mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-sunken">
-            <Sparkles className="h-5 w-5 text-accent animate-pulse" strokeWidth={1.75} aria-hidden />
-          </div>
-          <p className="text-[13px] font-bold text-fg">Finding your crowd</p>
-          <p className="mt-1.5 max-w-[250px] text-[12px] leading-relaxed text-fg-muted">
-            Matching you with film lovers based on who you follow and what you watch.
-          </p>
-          <div className="mt-3 flex gap-1.5" aria-hidden>
-            {[0, 1, 2].map(function (dotIndex) {
-              return (
-                <span
-                  key={"computing-dot-" + dotIndex}
-                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-fg-faint"
-                  style={{ animationDelay: dotIndex * 0.22 + "s" }}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </li>
-    );
-  }
-
-  return (
-    <li className="list-none py-2" role="status">
-      <div className="flex flex-col items-center px-1 text-center">
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-gradient-to-br from-sunken to-bg">
-          <Users className="h-5 w-5 text-fg-muted" strokeWidth={1.75} aria-hidden />
-        </div>
-        <p className="text-[13px] font-bold text-fg">No one new to suggest</p>
-        <p className="mt-1.5 max-w-[250px] text-[12px] leading-relaxed text-fg-muted">
-          Follow a few filmmakers or log some films — we&apos;ll find your next favorite account.
-        </p>
-        <Link
-          href={ROUTES.SUGGESTIONS_PEOPLE}
-          className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-fg transition-colors hover:opacity-80"
-        >
-          Find people to follow
-          <ArrowRight className="h-3 w-3" strokeWidth={2.5} aria-hidden />
-        </Link>
-      </div>
-    </li>
   );
 }
 

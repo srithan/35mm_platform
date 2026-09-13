@@ -23,7 +23,7 @@ export interface AudioRoomSummary {
 interface LobbyRoomsWidgetProps {
   rooms?: readonly AudioRoomSummary[];
   onSelectRoom?: (roomId: string) => void;
-  /** Guests skip the honest empty state; signed-in users still see it. */
+  /** Omit the widget when there are no live rooms to display. */
   hideWhenEmpty?: boolean;
 }
 

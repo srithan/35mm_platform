@@ -1,14 +1,18 @@
-import type { NsfwCategory } from "@35mm/types";
+import type { NsfwCategory, WatchVenue } from "@35mm/types";
 import type { Post } from "../types/feed";
 import { adaptPostToFeedType } from "./adapters";
 import { apiRequest } from "./http";
 
 export interface CreatePostInput {
   type: "text" | "discussion" | "log" | "review" | "image";
+  idempotencyKey?: string;
   headline?: string;
   body: string;
   postToFeed?: boolean;
   visibility?: "public" | "followers_only" | "private";
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   film?: {
     id: string;
     tmdbId?: number;
@@ -61,6 +65,10 @@ export interface UpdatePostInput {
   body?: string;
   headline?: string | null;
   filmId?: string | null;
+  filmRating?: number | null;
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   linkPreview?: CreatePostInput["linkPreview"];
 }
 

@@ -28,6 +28,7 @@ const stats: ProfileStatsSummary = {
   musicDirectors: [{ name: "Michel Legrand", count: 4 }],
   countries: [{ name: "France", count: 18 }],
   languages: [{ name: "French", count: 15 }],
+  watchVenues: [{ name: "theater", count: 9 }],
   mostWatchedFilms: [],
   cachedAt: "2026-09-03T00:00:00.000Z",
 };
@@ -53,6 +54,8 @@ describe("ProfileStatsDashboard", function () {
     expect(screen.getByText("Agnès Varda")).toBeInTheDocument();
     expect(screen.getByText("Sandrine Bonnaire")).toBeInTheDocument();
     expect(screen.getByText("Michel Legrand")).toBeInTheDocument();
+    expect(screen.getByText("Viewing sources")).toBeInTheDocument();
+    expect(screen.getByText("Theater")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Stats year" })).toHaveValue(
       "all",
     );

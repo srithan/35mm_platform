@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isMainNotificationType } from "@35mm/db/notification-service";
+import { createNotificationService, isMainNotificationType } from "@35mm/db/notification-service";
 
 async function importNotificationsWithExecute(execute: ReturnType<typeof vi.fn>) {
   vi.doMock("./db.js", function () {
@@ -40,5 +40,44 @@ describe("main notification boundary", function () {
     expect(isMainNotificationType("chat_reaction")).toBe(false);
     expect(isMainNotificationType("like")).toBe(true);
     expect(isMainNotificationType("content_moderated")).toBe(true);
+  });
+});
+
+
+describe("mention delivery retries", function () {
+  it("reuses the notification row and retries failed publication", async function () {
+    var stored = new Map<string, string>();
+    var notificationValues: { sourceKey: string } | undefined;
+    var selectCall = 0;
+    var db = {
+      select: function () {
+        var phase = selectCall++ % 3;
+        return { from: function () { return { where: function () { return { limit: async function () {
+          if (phase === 0) return [{ mentions: true }];
+          if (phase === 1) return [{ blocked: false, muted: false }];
+          return [{ id: stored.get("mention:post:post-id:recipient-id") }];
+        } }; } }; } };
+      },
+      insert: function () {
+        return { values: function (values: { sourceKey: string }) {
+          notificationValues = values;
+          return { onConflictDoNothing: async function () {
+            if (!stored.has(values.sourceKey)) stored.set(values.sourceKey, "notification-id");
+          } };
+        } };
+      },
+    };
+    var enqueuePublish = vi.fn().mockRejectedValueOnce(new Error("queue unavailable")).mockResolvedValueOnce(true);
+    var service = createNotificationService({ getDb: () => db, enqueuePublish });
+    var input = {
+      recipientId: "recipient-id", actorId: "actor-id", type: "mention" as const,
+      entityType: "post" as const, entityId: "post-id", sourceKey: "mention:post:post-id:recipient-id",
+    };
+    await expect(service.createNotification(input)).rejects.toThrow("queue unavailable");
+    await expect(service.createNotification(input)).resolves.toEqual({ ok: true, notificationId: "notification-id", shouldPublish: true });
+    expect(stored.size).toBe(1);
+    expect(notificationValues?.sourceKey).toBe(input.sourceKey);
+    expect(enqueuePublish).toHaveBeenNthCalledWith(1, ["notification-id"], 0);
+    expect(enqueuePublish).toHaveBeenNthCalledWith(2, ["notification-id"], 0);
   });
 });

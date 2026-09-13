@@ -101,6 +101,7 @@ export {
   pollVotes,
   postTypeEnum,
   postVisibilityEnum,
+  watchVenueEnum,
   pollTypeEnum,
   pollResultsVisibilityEnum,
   type PostFilm,

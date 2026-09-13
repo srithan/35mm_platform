@@ -2,7 +2,7 @@ import type { FeedPage, Post } from "../types/feed";
 import { adaptPostToFeedType } from "./adapters";
 import { apiRequest } from "./http";
 
-export type ProfileFeedKind = "all" | "reposts";
+export type ProfileFeedKind = "all" | "reposts" | "diary";
 export type QuotePostSort = "latest" | "top";
 
 export interface FetchFeedParams {
@@ -17,8 +17,8 @@ export async function fetchFeed(params: FetchFeedParams): Promise<FeedPage> {
   const limit = params.limit ?? 20;
   const query = new URLSearchParams({ limit: String(limit) });
   if (params.cursor) query.set("cursor", params.cursor);
-  if (params.username && params.profileFeedKind === "reposts") {
-    query.set("kind", "reposts");
+  if (params.username && params.profileFeedKind && params.profileFeedKind !== "all") {
+    query.set("kind", params.profileFeedKind);
   }
   const path = params.username
     ? `/v1/feed/profiles/${encodeURIComponent(params.username)}/posts?${query.toString()}`

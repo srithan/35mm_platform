@@ -6,6 +6,7 @@ import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { useBookmarkToFolderFlow } from "@/features/bookmarks/hooks/useBookmarkToFolderFlow";
 import { cn } from "@/lib/utils/cn";
+import type { WatchVenue } from "@35mm/types";
 import {
   CircleSlash,
   EyeOff,
@@ -30,6 +31,11 @@ interface PostCardMoreMenuProps {
   bookmarkFolderId?: string | null;
   variant: PostVariant;
   sourcePostType?: SourcePostType;
+  createdAt?: string;
+  visibility?: "public" | "followers_only" | "private";
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   text: string;
   editBody?: string;
   headline?: string;
@@ -53,6 +59,11 @@ export function PostCardMoreMenu({
   bookmarkFolderId = null,
   variant,
   sourcePostType,
+  createdAt,
+  visibility,
+  watchedOn,
+  watchVenue,
+  isRewatch,
   text,
   editBody,
   headline,
@@ -102,6 +113,11 @@ export function PostCardMoreMenu({
                     openComposerForEdit({
                       postId,
                       userId,
+                      createdAt,
+                      visibility,
+                      watchedOn,
+                      watchVenue,
+                      isRewatch,
                       type:
                         sourcePostType ??
                         (variant === "film-log"

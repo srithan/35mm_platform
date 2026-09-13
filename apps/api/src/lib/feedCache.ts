@@ -60,7 +60,7 @@ export function profileFeedCacheKey(input: {
   viewerId: string | null;
   cursor: string | null;
   limit: number;
-  kind: "all" | "reposts";
+  kind: "all" | "reposts" | "diary";
 }): string {
   return [
     CACHE_NS,

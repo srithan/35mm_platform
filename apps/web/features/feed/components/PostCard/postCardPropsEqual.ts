@@ -184,6 +184,11 @@ export function arePostCardPropsEqual(prev: PostCardProps, next: PostCardProps) 
   return (
     prev.variant === next.variant &&
     prev.sourcePostType === next.sourcePostType &&
+    prev.createdAt === next.createdAt &&
+    prev.visibility === next.visibility &&
+    prev.watchedOn === next.watchedOn &&
+    prev.watchVenue === next.watchVenue &&
+    prev.isRewatch === next.isRewatch &&
     prev.username === next.username &&
     prev.userId === next.userId &&
     prev.handle === next.handle &&

@@ -1,3 +1,4 @@
+import { diaryWatchDateSql } from "../feed/filmDiary.js";
 import { Hono } from "hono";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -502,6 +503,7 @@ function emptyProfileStatsPayload(input: {
     musicDirectors: [],
     countries: [],
     languages: [],
+    watchVenues: [],
     mostWatchedFilms: [],
     cachedAt: new Date().toISOString(),
   };
@@ -640,14 +642,15 @@ profileRoutes.get("/:username/stats", async function (c) {
       viewerIsStaff
     )
   );
+  var watchedDate = diaryWatchDateSql();
   var diaryFilter = sql<boolean>`${posts.type} in ('log', 'review') and ${posts.isRepost} = false`;
   var statsPostFilters =
     selectedYear === null
       ? basePostFilters
       : and(
           basePostFilters,
-          sql`${posts.createdAt} >= make_timestamptz(${selectedYear}, 1, 1, 0, 0, 0, 'UTC')`,
-          sql`${posts.createdAt} < make_timestamptz(${selectedYear + 1}, 1, 1, 0, 0, 0, 'UTC')`
+          sql`${watchedDate} >= make_date(${selectedYear}, 1, 1)`,
+          sql`${watchedDate} < make_date(${selectedYear + 1}, 1, 1)`
         );
 
   var [
@@ -667,8 +670,8 @@ profileRoutes.get("/:username/stats", async function (c) {
         averageRating: sql<number | null>`avg((${posts.filmRating}::numeric) / 2.0) filter (where ${diaryFilter} and ${posts.filmRating} is not null)`,
         ratedCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmRating} is not null)::integer`,
         uniqueFilmsCount: sql<number>`count(distinct ${posts.filmId}) filter (where ${diaryFilter} and ${posts.filmId} is not null)::integer`,
-        rewatchCount: sql<number>`greatest(count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null) - count(distinct ${posts.filmId}) filter (where ${diaryFilter} and ${posts.filmId} is not null), 0)::integer`,
-        thisYearCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null and ${posts.createdAt} >= date_trunc('year', now()))::integer`,
+        rewatchCount: sql<number>`(count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null and ${posts.isRewatch}) + greatest(count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null and ${posts.watchedOn} is null and ${posts.isRewatch} = false) - count(distinct ${posts.filmId}) filter (where ${diaryFilter} and ${posts.filmId} is not null and ${posts.watchedOn} is null and ${posts.isRewatch} = false), 0))::integer`,
+        thisYearCount: sql<number>`count(*) filter (where ${diaryFilter} and ${posts.filmId} is not null and ${watchedDate} >= date_trunc('year', now() at time zone 'UTC')::date)::integer`,
         reviewsWrittenCount: sql<number>`count(*) filter (where ${posts.type} = 'review')::integer`,
         reviewLikeCount: sql<number>`coalesce(sum(${posts.likeCount}) filter (where ${posts.type} = 'review'), 0)::integer`,
       })
@@ -702,32 +705,33 @@ profileRoutes.get("/:username/stats", async function (c) {
       count: number;
     }>(sql`
       select
-        to_char(date_trunc('day', ${posts.createdAt} at time zone 'UTC'), 'YYYY-MM-DD') as date,
+        to_char(${watchedDate}, 'YYYY-MM-DD') as date,
         count(*)::integer as count
       from ${posts}
       where ${statsPostFilters}
         and ${diaryFilter}
-        and ${posts.createdAt} >= ${
+        and ${watchedDate} >= ${
           selectedYear === null
-            ? sql`now() - interval '364 days'`
-            : sql`make_timestamptz(${selectedYear}, 1, 1, 0, 0, 0, 'UTC')`
+            ? sql`(now() at time zone 'UTC')::date - 364`
+            : sql`make_date(${selectedYear}, 1, 1)`
         }
-        and ${posts.createdAt} < ${
+        and ${watchedDate} < ${
           selectedYear === null
-            ? sql`now() + interval '1 day'`
-            : sql`make_timestamptz(${selectedYear + 1}, 1, 1, 0, 0, 0, 'UTC')`
+            ? sql`(now() at time zone 'UTC')::date + 1`
+            : sql`make_date(${selectedYear + 1}, 1, 1)`
         }
       group by 1
       order by 1 asc
     `),
     db.execute<{
-      category: "rating" | "decade" | "country" | "language";
+      category: "rating" | "decade" | "country" | "language" | "watchVenue";
       name: string;
       count: number;
     }>(sql`
       with logged_films as materialized (
         select
           ${posts.filmRating} as rating,
+          ${posts.watchVenue} as watch_venue,
           coalesce(${films.year}, ${catalogTitles.startYear}) as release_year,
           nullif(trim(coalesce(${films.country}, ${catalogTitles.primaryCountry})), '') as country,
           nullif(trim(coalesce(${films.language}, ${catalogTitles.primaryLanguage})), '') as language
@@ -750,6 +754,9 @@ profileRoutes.get("/:username/stats", async function (c) {
       union all
       (select 'language'::text, language, count(*)::integer
         from logged_films where language is not null group by language order by count(*) desc, language asc limit 8)
+      union all
+      (select 'watchVenue'::text, watch_venue::text, count(*)::integer
+        from logged_films where watch_venue is not null group by watch_venue order by count(*) desc, watch_venue asc limit 8)
     `),
     db.execute<{
       category: "director" | "artist" | "musicDirector";
@@ -831,17 +838,17 @@ profileRoutes.get("/:username/stats", async function (c) {
         year: films.year,
         posterUrl: films.posterUrl,
         watches: sql<number>`count(*)::integer`,
-        lastWatchedAt: sql<Date>`max(${posts.createdAt})`,
+        lastWatchedAt: sql<string>`max(${watchedDate})`,
       })
       .from(posts)
       .innerJoin(films, eq(films.id, posts.filmId))
       .where(and(statsPostFilters, diaryFilter))
       .groupBy(films.id, films.tmdbId, films.imdbId, films.title, films.year, films.posterUrl)
       .having(sql`count(*) > 1`)
-      .orderBy(desc(sql`count(*)`), desc(sql`max(${posts.createdAt})`), films.id)
+      .orderBy(desc(sql`count(*)`), desc(sql`max(${watchedDate})`), films.id)
       .limit(6),
     db.execute<{ year: number }>(sql`
-      select extract(year from ${posts.createdAt} at time zone 'UTC')::integer as year
+      select extract(year from ${watchedDate})::integer as year
       from ${posts}
       where ${basePostFilters} and ${diaryFilter}
       group by 1
@@ -965,6 +972,7 @@ profileRoutes.get("/:username/stats", async function (c) {
     musicDirectors: peopleCounts("musicDirector"),
     countries: namedCounts("country"),
     languages: namedCounts("language"),
+    watchVenues: namedCounts("watchVenue"),
     mostWatchedFilms,
     cachedAt: new Date().toISOString(),
   };

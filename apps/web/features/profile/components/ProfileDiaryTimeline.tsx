@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { FilmPoster } from "@/components/FilmPoster";
 import { StarRating } from "@/components/StarRating";
+import { WATCH_VENUE_LABELS } from "@35mm/types";
 import { useFeed } from "@/features/feed/hooks/useFeed";
 import type { Post } from "@/features/feed/types/feed";
 import { storedRichTextToPlainText } from "@/lib/utils/richContent";
@@ -15,31 +16,37 @@ function isDiaryPost(post: Post) {
   );
 }
 
+function diaryDate(post: Post): string {
+  // Legacy entries follow the same UTC posting-date fallback as the API cursor.
+  return post.watchedOn ?? post.createdAt.slice(0, 10);
+}
+
 function formatDiaryDate(iso: string): string {
   var dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return "";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   }).format(dt).toUpperCase();
 }
 
 function formatDiaryDay(iso: string): string {
   var dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return "--";
-  return String(dt.getDate()).padStart(2, "0");
+  return String(dt.getUTCDate()).padStart(2, "0");
 }
 
 function formatDiaryWeekday(iso: string): string {
   var dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(dt).toUpperCase();
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(dt).toUpperCase();
 }
 
 function formatMonthBucket(iso: string): string {
   var dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return "UNKNOWN";
-  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(dt);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(dt);
 }
 
 function defaultDiaryBody(post: Post): string {
@@ -67,7 +74,7 @@ export function ProfileDiaryTimeline({
     isError,
     refetch,
     status,
-  } = useFeed(username);
+  } = useFeed(username, "diary");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const diaryPosts = useMemo(
@@ -82,27 +89,19 @@ export function ProfileDiaryTimeline({
   const diaryEntries = useMemo(
     function () {
       return diaryPosts.map(function (post, index) {
-        var month = formatMonthBucket(post.createdAt);
-        var prevMonth = index > 0 ? formatMonthBucket(diaryPosts[index - 1].createdAt) : null;
+        var date = diaryDate(post);
+        var month = formatMonthBucket(date);
+        var prevMonth = index > 0 ? formatMonthBucket(diaryDate(diaryPosts[index - 1])) : null;
         var startsMonth = index === 0 || month !== prevMonth;
         return {
           post,
+          date,
           month,
           startsMonth,
         };
       });
     },
     [diaryPosts]
-  );
-
-  useEffect(
-    function () {
-      if (status === "pending" || isLoading || isFetchingNextPage) return;
-      if (!hasNextPage) return;
-      if (diaryEntries.length > 0) return;
-      void fetchNextPage();
-    },
-    [status, isLoading, isFetchingNextPage, hasNextPage, diaryEntries.length, fetchNextPage]
   );
 
   useEffect(
@@ -193,7 +192,12 @@ export function ProfileDiaryTimeline({
           var body = storedRichTextToPlainText(post.body).trim();
           var autoBody = defaultDiaryBody(post);
           var showBody = body.length > 0 && body !== autoBody;
-          var meta = [filmYear ? String(filmYear) : null, post.type === "review" ? "Review" : "Log"]
+          var meta = [
+            filmYear ? String(filmYear) : null,
+            post.watchVenue ? WATCH_VENUE_LABELS[post.watchVenue] : null,
+            post.isRewatch ? "Rewatch" : null,
+            post.type === "review" ? "Review" : "Log",
+          ]
             .filter(Boolean)
             .join(" · ");
 
@@ -206,17 +210,17 @@ export function ProfileDiaryTimeline({
               ) : null}
 
               <article className="group flex gap-3 rounded-2xl border border-border bg-elevated px-3 py-3 transition-colors hover:bg-hover/50">
-                <div className="w-[52px] shrink-0 text-center">
-                  <div className="text-[10px] tracking-[0.08em] text-fg-muted">
-                    {formatDiaryWeekday(post.createdAt)}
-                  </div>
-                  <div className="mt-0.5 font-display text-[24px] leading-none text-fg">
-                    {formatDiaryDay(post.createdAt)}
-                  </div>
-                  <div className="mt-1 text-[9px] tracking-[0.08em] text-fg-muted">
-                    {formatDiaryDate(post.createdAt).split(" ")[0]}
-                  </div>
-                </div>
+                <time dateTime={entry.date} className="w-[52px] shrink-0 text-center">
+                  <span className="block text-[10px] tracking-[0.08em] text-fg-muted">
+                    {formatDiaryWeekday(entry.date)}
+                  </span>
+                  <span className="mt-0.5 block font-display text-[24px] leading-none text-fg">
+                    {formatDiaryDay(entry.date)}
+                  </span>
+                  <span className="mt-1 block text-[9px] tracking-[0.08em] text-fg-muted">
+                    {formatDiaryDate(entry.date).split(" ")[0]}
+                  </span>
+                </time>
 
                 <div className="w-px bg-border/70" aria-hidden />
 

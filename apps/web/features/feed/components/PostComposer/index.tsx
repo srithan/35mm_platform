@@ -2,6 +2,7 @@
 
 import {
   useState,
+  useId,
   useRef,
   useCallback,
   useMemo,
@@ -12,7 +13,13 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import type { Editor } from "@tiptap/react";
-import type { NsfwCategory } from "@35mm/types";
+import {
+  WATCH_VENUE_LABELS,
+  WATCH_VENUE_VALUES,
+  type NsfwCategory,
+  type WatchVenue,
+} from "@35mm/types";
+import { watchedOnSchema } from "@35mm/validators";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils/cn";
@@ -27,11 +34,12 @@ import { EmojiPicker } from "./EmojiPicker";
 import { ImageAttachments } from "./ImageAttachments";
 import { FilmSearch } from "./FilmSearch";
 import { FilmCard } from "./FilmCard";
-import { LogNoteField, LOG_MAX_CHARS, REVIEW_THRESHOLD } from "./LogNoteField";
+import { LogNoteField, LOG_MAX_CHARS } from "./LogNoteField";
 import { Icon } from "@/components/Icon/Icon";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { useCreatePost } from "../../hooks/usePostMutations";
 import { useUpdatePost } from "../../hooks/usePostMutations";
+import { useLogSharingPreference } from "../../hooks/useLogSharingPreference";
 import { fetchLinkPreview, type CreatePostInput } from "../../api/postsApi";
 import type { EditingPost } from "@/stores/useComposerModalStore";
 import { resolveOnboardingFilmsFromTmdb } from "@/features/onboarding/api/onboardingApi";
@@ -73,6 +81,13 @@ const DISCUSSION_BODY_MAX_CHARS = 3000;
 const POST_COMPOSER_EMOJI_STYLE = "apple" as const;
 const MAX_VIDEO_BYTES = 120 * 1024 * 1024;
 const SUPPORTED_VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
+const WATCH_VENUE_OPTIONS = WATCH_VENUE_VALUES.map(function (value) {
+  return { value, label: WATCH_VENUE_LABELS[value] };
+});
+
+function localCalendarDate(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 function posterUrlForFilm(film: FilmResult): string | null {
   if (!film.posterPath) return null;
@@ -107,7 +122,9 @@ function discussionHeadlineForEditingPost(editingPost: EditingPost | null | unde
 }
 
 function logTextForEditingPost(editingPost: EditingPost | null | undefined): string {
-  return editingPost?.type === "log" || editingPost?.type === "review" ? editingPost.body ?? "" : "";
+  if (editingPost?.type !== "log" && editingPost?.type !== "review") return "";
+  if (editingPost.type === "log" && editingPost.film && editingPost.body === `Logged ${editingPost.film.title}`) return "";
+  return editingPost.body ?? "";
 }
 
 function selectedFilmForEditingPost(editingPost: EditingPost | null | undefined): FilmResult | null {
@@ -255,7 +272,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   );
   const [isResolvingFilm, setIsResolvingFilm] = useState(false);
   const [starRating, setStarRating] = useState(() => editingPost?.film?.rating ?? 0);
-  const [isRewatch, setIsRewatch] = useState(false);
+  const [isRewatch, setIsRewatch] = useState(() => editingPost?.isRewatch ?? false);
+  const [watchedOn, setWatchedOn] = useState(() => editingPost ? editingPost.watchedOn ?? "" : localCalendarDate());
+  const [watchVenue, setWatchVenue] = useState<WatchVenue | "">(() => editingPost?.watchVenue ?? "");
+  const watchedOnId = useId();
+  const watchVenueId = useId();
+  const sharingId = useId();
   const [images, setImages] = useState<File[]>([]);
   const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>(() => existingMediaUrlsForEditingPost(editingPost));
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -279,7 +301,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [showDropZone, setShowDropZone] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [postToFeed, setPostToFeed] = useState(true);
   const [authorNsfwCategories, setAuthorNsfwCategories] = useState<NsfwCategory[]>([]);
   const [textNsfwHintCategories, setTextNsfwHintCategories] = useState<NsfwCategory[]>([]);
   const [imageNsfwHintCategories, setImageNsfwHintCategories] = useState<NsfwCategory[]>([]);
@@ -288,9 +309,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const [dismissedNsfwHint, setDismissedNsfwHint] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const logSubmissionRef = useRef<{ fingerprint: string; input: CreatePostInput } | null>(null);
   const createPostMutation = useCreatePost();
   const updatePostMutation = useUpdatePost();
-  const { getToken } = useAuth();
+  const { getToken, userId: clerkUserId } = useAuth();
+  const { postToFeed, setPostToFeed, rememberSharing, sharingNotice } = useLogSharingPreference(clerkUserId);
   const { user: clerkUser } = useUser();
   const currentUserQuery = useCurrentUserProfile();
   const currentUser = currentUserQuery.data;
@@ -514,9 +538,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
   const charCountRemaining = charCountData.max - charCountData.count;
 
-  const isTitleReview = Boolean(initialFilm) && !editingPost;
-  const isReview = isTitleReview || logPlainText.length > REVIEW_THRESHOLD;
-  const showLogFormatBar = isReview;
+  const isReview = logPlainText.trim().length > 0;
+  const showLogFormatBar = activeField === "body" || isReview;
+  const today = localCalendarDate();
+  const watchedOnValid = watchedOn === ""
+    ? Boolean(editingPost && !editingPost.watchedOn)
+    : watchedOnSchema.safeParse(watchedOn).success && watchedOn <= today;
   const pollDuration = useMemo(function () {
     if (!pollDraft) return 0;
     return pollTotalMinutes(pollDraft.durationDays, pollDraft.durationHours, pollDraft.durationMinutes);
@@ -545,6 +572,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           selectedFilm !== null &&
           selectedFilmUlid !== null &&
           !isResolvingFilm &&
+          watchedOnValid &&
           logPlainText.length <= LOG_MAX_CHARS
         );
       }
@@ -583,12 +611,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       selectedFilm !== null &&
       selectedFilmUlid !== null &&
       !isResolvingFilm &&
-      (!isTitleReview || logPlainText.trim().length > 0) &&
+      watchedOnValid &&
       logPlainText.length <= LOG_MAX_CHARS
     );
   }, [
     editingPost,
-    isTitleReview,
+    watchedOnValid,
     mode,
     writePlainText,
     images.length,
@@ -606,15 +634,15 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   const postButtonLabel = useMemo(() => {
     if (editingPost) return "Save";
     if (mode === "discussion") return "Post";
-    if (mode === "log") return isReview ? "Review" : "Log";
+    if (mode === "log") return postToFeed ? "Save & share" : "Save entry";
     return "Post";
-  }, [editingPost, mode, isReview]);
+  }, [editingPost, mode, postToFeed]);
 
   const postButtonProcessingLabel = useMemo(() => {
     if (editingPost) return "Saving...";
-    if (mode === "log") return isReview ? "Reviewing..." : "Logging...";
+    if (mode === "log") return "Saving...";
     return "Posting...";
-  }, [editingPost, mode, isReview]);
+  }, [editingPost, mode]);
 
   const isPublishing =
     isSubmitting || createPostMutation.isPending || updatePostMutation.isPending;
@@ -632,7 +660,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       discussionPlainText.trim().length > 0 ||
       discussionHeadline.trim().length > 0 ||
       logPlainText.trim().length > 0 ||
-      (selectedFilm !== null && (!initialFilm || selectedFilmUlid !== initialFilm.id || starRating > 0 || isRewatch)) ||
+      (selectedFilm !== null && (!initialFilm || selectedFilmUlid !== initialFilm.id || starRating > 0 || isRewatch || watchedOn !== today || watchVenue !== "")) ||
       images.length > 0 ||
       videoFile !== null ||
       gifUrl !== null ||
@@ -647,6 +675,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       initialFilm,
       starRating,
       isRewatch,
+      watchedOn,
+      watchVenue,
+      today,
       images.length,
       videoFile,
       gifUrl,
@@ -680,6 +711,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setIsResolvingFilm(false);
     setStarRating(0);
     setIsRewatch(false);
+    setWatchVenue("");
+    setWatchedOn(editingPost.watchedOn ?? "");
     setExistingMediaUrls(existingMediaUrlsForEditingPost(editingPost));
     setLinkPreview(editingPost.linkPreview ?? null);
     setLinkPreviewPresentationWasOverridden(Boolean(editingPost.linkPreview));
@@ -697,6 +730,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       setSelectedFilm(selectedFilmForEditingPost(editingPost));
       setSelectedFilmUlid(selectedFilmUlidForEditingPost(editingPost));
       setStarRating(editingPost.film?.rating ?? 0);
+      setIsRewatch(editingPost.isRewatch ?? false);
+      setWatchVenue(editingPost.watchVenue ?? "");
       setActiveField("body");
     } else {
       setMode("write");
@@ -895,6 +930,8 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setSelectedFilmUlid(null);
     setIsResolvingFilm(false);
     setStarRating(0);
+    setIsRewatch(false);
+    setWatchVenue("");
     setLogText("");
   }, []);
 
@@ -936,10 +973,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!canPost || isSubmitting || createPostMutation.isPending || updatePostMutation.isPending) {
+    if (!canPost || submittingRef.current || isSubmitting || createPostMutation.isPending || updatePostMutation.isPending) {
       return;
     }
     setSubmitError(null);
+    submittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -1097,9 +1135,12 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
       }
       input = {
         type: isReview ? "review" : "log",
-        body: hasVisibleRichText(logText) ? logText : `Logged ${selectedFilm.title}`,
+        body: hasVisibleRichText(logText) ? logText : "",
+        watchedOn: watchedOn || null,
+        watchVenue: watchVenue || null,
+        isRewatch,
         postToFeed,
-        visibility: postToFeed ? "public" : "private",
+        visibility: "public",
         film: {
           id: resolvedFilmId,
           tmdbId: selectedFilm.id,
@@ -1136,10 +1177,32 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
           body: input.body,
           headline: input.headline ?? null,
           filmId: input.film?.id ?? null,
+          ...(mode === "log" ? {
+            watchedOn: watchedOn || null,
+            watchVenue: watchVenue || null,
+            isRewatch,
+            filmRating: starRating > 0 ? Math.round(starRating * 2) : null,
+          } : {}),
           linkPreview: input.linkPreview ?? null,
         });
       } else {
+        if (mode === "log") {
+          // Network-derived previews may change between retries. Only user edits start a new submission.
+          const fingerprint = JSON.stringify({
+            body: input.body, film: input.film, watchedOn, watchVenue, isRewatch, postToFeed,
+            authorNsfwCategories, dismissedPreviewUrl,
+            previewPresentation: linkPreviewPresentationWasOverridden ? linkPreview?.presentation : null,
+          });
+          if (logSubmissionRef.current?.fingerprint !== fingerprint) {
+            logSubmissionRef.current = {
+              fingerprint,
+              input: { ...input, idempotencyKey: crypto.randomUUID() },
+            };
+          }
+          input = logSubmissionRef.current.input;
+        }
         await createPostMutation.mutateAsync(input);
+        if (mode === "log") rememberSharing(postToFeed);
       }
       await onSubmit?.();
     } catch (err) {
@@ -1175,7 +1238,9 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     setDismissedPreviewUrl(null);
     setShowDropZone(false);
     setShowEmojiPicker(false);
-    setPostToFeed(true);
+    setWatchedOn(localCalendarDate());
+    setWatchVenue("");
+    logSubmissionRef.current = null;
     setAuthorNsfwCategories([]);
     setTextNsfwHintCategories([]);
     setImageNsfwHintCategories([]);
@@ -1185,6 +1250,7 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
 
       setSubmitError(err instanceof Error ? err.message : "Failed to upload media");
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   }, [
@@ -1216,6 +1282,11 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
     dismissedPreviewUrl,
     getToken,
     postToFeed,
+    rememberSharing,
+    watchedOn,
+    watchVenue,
+    isRewatch,
+    linkPreviewPresentationWasOverridden,
     authorNsfwCategories,
   ]);
 
@@ -1390,12 +1461,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             </>
           )}
 
-          {mode === "log" && (
-            <span className="text-[12px] font-medium text-fg-muted pl-1">
-              Search film above
-            </span>
-          )}
-
           {!editingPost ? (
             <button
               type="button"
@@ -1466,38 +1531,6 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
             >
               {charCountRemaining}
             </span>
-          )}
-
-          {mode === "log" && (
-            <label className="group flex items-center gap-2 mr-3 cursor-pointer select-none">
-              <div
-                className={cn(
-                  "relative flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border transition-all duration-200 overflow-hidden shadow-sm",
-                  postToFeed
-                    ? "border-transparent bg-[var(--composer-primary)]"
-                    : "border-fg/20 bg-[var(--composer-bg)] group-hover:border-fg/40 group-hover:bg-hover"
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={postToFeed}
-                  onChange={(e) => setPostToFeed(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <div
-                  className={cn(
-                    "flex items-center justify-center transition-transform duration-[250ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                    postToFeed ? "scale-100" : "scale-0"
-                  )}
-                >
-                  <Icon name="check" className="w-[11px] h-[11px] text-[var(--composer-primary-fg)]" strokeWidth={4} />
-                </div>
-              </div>
-              <span className={cn(
-                "text-[12px] transition-colors duration-200 mt-[1px]",
-                postToFeed ? "text-fg font-medium" : "text-fg-muted group-hover:text-fg/80"
-              )}>Post to feed</span>
-            </label>
           )}
 
           {postInToolbar && (
@@ -1975,13 +2008,62 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
               {selectedFilm && isResolvingFilm ? (
                 <p className="text-[12px] text-fg-muted">Resolving film…</p>
               ) : null}
+              {selectedFilm ? (
+                <div className="grid gap-2 py-1 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label htmlFor={watchedOnId} className="block text-[13px] font-medium text-fg">
+                      Watched on
+                    </label>
+                    <input
+                      id={watchedOnId}
+                      type="date"
+                      value={watchedOn}
+                      min="0001-01-01"
+                      max={today}
+                      required={!editingPost || Boolean(editingPost.watchedOn)}
+                      aria-invalid={!watchedOnValid}
+                      aria-describedby={!watchedOnValid || (editingPost && !watchedOn) ? `${watchedOnId}-help` : undefined}
+                      onChange={(event) => setWatchedOn(event.target.value)}
+                      className="min-h-11 w-full rounded-lg border border-border bg-[var(--composer-field-bg)] px-3 py-2 text-[16px] text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    />
+                    {!watchedOnValid ? (
+                      <p id={`${watchedOnId}-help`} role="alert" className="text-[12px] text-film-red">
+                        Choose a valid date, today or earlier.
+                      </p>
+                    ) : editingPost && !watchedOn ? (
+                      <p id={`${watchedOnId}-help`} className="text-[12px] text-fg-muted">
+                        Viewing date was not recorded. Add it if you remember.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor={watchVenueId} className="block text-[13px] font-medium text-fg">
+                      Watched via
+                    </label>
+                    <select
+                      id={watchVenueId}
+                      value={watchVenue}
+                      onChange={(event) => setWatchVenue(event.target.value as WatchVenue | "")}
+                      className="min-h-11 w-full rounded-lg border border-border bg-[var(--composer-field-bg)] px-3 py-2 text-[16px] text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <option value="">Not specified</option>
+                      {WATCH_VENUE_OPTIONS.map(function (option) {
+                        return (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+              ) : null}
               <LogNoteField
                 value={logText}
                 onChange={setLogText}
                 editor={logEditor}
                 onEditorReady={setLogEditor}
                 onNsfwHintChange={setTextNsfwHintCategories}
-                isReview={isReview}
                 showFormatBar={showLogFormatBar}
                 editable={selectedFilm !== null}
                 onBlur={function (e) {
@@ -1995,6 +2077,38 @@ export const PostComposer = forwardRef<PostComposerHandle, PostComposerProps>(
                   setActiveField("body");
                 }}
               />
+              {editingPost ? (
+                <p className="py-2 text-[13px] text-fg-muted">
+                  {editingPost.visibility === "private"
+                    ? "Only you can see this entry."
+                    : editingPost.visibility === "followers_only"
+                      ? "Only your followers can see this entry."
+                      : "This entry is public."}
+                </p>
+              ) : (
+                <div className="pt-2">
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={postToFeed}
+                      onChange={(event) => setPostToFeed(event.target.checked)}
+                      aria-describedby={sharingId}
+                      aria-labelledby={`${sharingId}-label`}
+                      className="h-5 w-5 shrink-0 accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    />
+                    <span>
+                      <span id={`${sharingId}-label`} className="block text-[13px] font-medium text-fg">Share to feed</span>
+                      <span id={sharingId} className="block text-[12px] text-fg-muted">
+                        {postToFeed
+                          ? "Publish on your profile and announce in follower feeds."
+                          : "Publish on your profile only; skip follower feeds."}
+                      </span>
+                    </span>
+                  </label>
+                  <p className="mt-1 text-[12px] text-fg-muted">Your last feed-sharing choice is remembered on this browser.</p>
+                  {sharingNotice ? <p role="status" className="mt-1 text-[12px] text-fg-muted">{sharingNotice}</p> : null}
+                </div>
+              )}
               {composerVideoPreview ? (
                 <VideoUrlPreview
                   preview={composerVideoPreview}

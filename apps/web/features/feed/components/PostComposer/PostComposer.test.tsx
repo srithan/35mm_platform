@@ -137,6 +137,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  window.localStorage.clear();
   mocks.uploadVideo.mockReset();
   mocks.createPostMutateAsync.mockClear();
   mocks.updatePostMutateAsync.mockClear();
@@ -782,7 +783,7 @@ describe("PostComposer", () => {
             year: 1999,
             posterUrl: "/poster.jpg",
             genres: ["Drama"],
-            rating: 8,
+            rating: 4,
           },
         }}
       />
@@ -793,13 +794,13 @@ describe("PostComposer", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("combobox", {
-          name: "Optional note. 200+ characters turns this into a review.",
+          name: "Add a review (optional). A few words are enough.",
         })
       ).toHaveTextContent("Existing log note");
     });
   });
 
-  it("submits log with postToFeed false when unchecked", async () => {
+  it("saves a public profile-only dated log without requiring a rating or review", async () => {
     const user = userEvent.setup();
     render(<PostComposer variant="inline" initialMode="log" />);
 
@@ -810,11 +811,15 @@ describe("PostComposer", () => {
     await user.click(screen.getByRole("button", { name: "Pick film" }));
 
     expect(
-      screen.getByRole("combobox", { name: "Optional note. 200+ characters turns this into a review." })
+      screen.getByRole("combobox", { name: "Add a review (optional). A few words are enough." })
     ).toHaveAttribute("aria-disabled", "false");
 
-    await user.click(screen.getByRole("checkbox", { name: /post to feed/i }));
-    await user.click(screen.getByRole("button", { name: "Log" }));
+    expect(screen.getByRole("checkbox", { name: "Share to feed" })).not.toBeChecked();
+    expect(screen.getByText("Publish on your profile only; skip follower feeds.")).toBeInTheDocument();
+    expect(screen.queryByText("Search film above")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Watched on"), { target: { value: "2020-02-29" } });
+    fireEvent.change(screen.getByLabelText("Watched via"), { target: { value: "streaming" } });
+    await user.click(screen.getByRole("button", { name: "Save entry" }));
 
     await waitFor(() => {
       expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(1);
@@ -823,14 +828,18 @@ describe("PostComposer", () => {
     expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "log",
-        body: "Logged Fight Club",
+        body: "",
+        watchedOn: "2020-02-29",
+        watchVenue: "streaming",
+        isRewatch: false,
+        idempotencyKey: expect.any(String),
         postToFeed: false,
-        visibility: "private",
+        visibility: "public",
       })
     );
   });
 
-  it("submits a short title review with canonical film identity and requires text", async () => {
+  it("submits a short title review with canonical film identity without a character threshold", async () => {
     const user = userEvent.setup();
     const dirty = vi.fn();
     render(<PostComposer variant="inline" initialMode="log" onDirtyChange={dirty} initialFilm={{
@@ -839,14 +848,98 @@ describe("PostComposer", () => {
     }} />);
     expect(screen.getByText("Fight Club")).toBeInTheDocument();
     expect(dirty).toHaveBeenLastCalledWith(false);
-    const editor = screen.getByRole("combobox", { name: "What stood out? Performances, craft, themes - spoil carefully." });
+    const editor = screen.getByRole("combobox", { name: "Add a review (optional). A few words are enough." });
     expect(editor).toHaveAttribute("aria-disabled", "false");
-    expect(screen.getByRole("button", { name: "Review" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save entry" })).toBeEnabled();
     await user.click(editor);
     await user.keyboard("That final scene stayed with me.");
-    await user.click(screen.getByRole("button", { name: "Review" }));
+    await user.click(screen.getByRole("button", { name: "Save entry" }));
     await waitFor(() => expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ type: "review", film: expect.objectContaining({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV" }) })));
     expect(mocks.resolveOnboardingFilmsMock).not.toHaveBeenCalled();
+  });
+
+
+  it("saves a short searched-film review, date, half-star rating and rewatch", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer initialMode="log" />);
+    await user.click(screen.getByRole("button", { name: "Pick film" }));
+    const rating = screen.getByRole("slider", { name: "Rating (optional)" });
+    fireEvent.change(rating, { target: { value: "3.5" } });
+    await user.click(screen.getByRole("checkbox", { name: /rewatch/i }));
+    fireEvent.change(screen.getByLabelText("Watched on"), { target: { value: "2021-07-04" } });
+    const editor = screen.getByRole("combobox", { name: "Add a review (optional). A few words are enough." });
+    await user.click(editor);
+    await user.keyboard("Loved it.");
+    await user.click(screen.getByRole("button", { name: "Save entry" }));
+    await waitFor(() => expect(mocks.createPostMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      type: "review", watchedOn: "2021-07-04", watchVenue: null, isRewatch: true,
+      film: expect.objectContaining({ rating: 3.5 }),
+    })));
+  });
+
+  it("blocks new logs with missing or future viewing dates", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer initialMode="log" />);
+    await user.click(screen.getByRole("button", { name: "Pick film" }));
+    const date = screen.getByLabelText("Watched on");
+    fireEvent.change(date, { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Save entry" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose a valid date");
+    fireEvent.change(date, { target: { value: "2999-01-01" } });
+    expect(screen.getByRole("button", { name: "Save entry" })).toBeDisabled();
+    expect(mocks.createPostMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("preserves edit metadata and private visibility while changing rating and date", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer editingPost={{
+      postId: "post_1", userId: "user_1", type: "review", body: storedBody("Short review"),
+      watchedOn: "2020-01-01", watchVenue: "theater", isRewatch: true, visibility: "private",
+      film: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", title: "Fight Club", year: 1999, posterUrl: null, genres: [], rating: 4 },
+    }} />);
+    expect(screen.getByLabelText("Watched on")).toHaveValue("2020-01-01");
+    expect(screen.getByLabelText("Watched via")).toHaveValue("theater");
+    expect(screen.getByRole("checkbox", { name: /rewatch/i })).toBeChecked();
+    expect(screen.queryByRole("checkbox", { name: "Share to feed" })).not.toBeInTheDocument();
+    expect(screen.getByText("Only you can see this entry.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Watched on"), { target: { value: "2020-02-29" } });
+    fireEvent.change(screen.getByLabelText("Watched via"), { target: { value: "festival" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Rating (optional)" }), { target: { value: "4.5" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mocks.updatePostMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ watchedOn: "2020-02-29", watchVenue: "festival", isRewatch: true, filmRating: 9 })));
+    expect((mocks.updatePostMutateAsync.mock.calls[0] as unknown[])[0]).not.toHaveProperty("visibility");
+  });
+
+  it("retains legacy unknown watched date until supplied", async () => {
+    const user = userEvent.setup();
+    render(<PostComposer editingPost={{
+      postId: "post_1", userId: "user_1", type: "log", body: "",
+      film: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", title: "Fight Club", year: 1999, posterUrl: null, genres: [], rating: null },
+    }} />);
+    expect(screen.getByLabelText("Watched on")).toHaveValue("");
+    expect(screen.getByText("Viewing date was not recorded. Add it if you remember.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mocks.updatePostMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ watchedOn: null })));
+  });
+
+  it("reuses failed log submission key and remembers sharing only after success", async () => {
+    const user = userEvent.setup();
+    mocks.createPostMutateAsync.mockRejectedValueOnce(new Error("Network unavailable"));
+    const view = render(<PostComposer initialMode="log" />);
+    await user.click(screen.getByRole("button", { name: "Pick film" }));
+    await user.click(screen.getByRole("checkbox", { name: "Share to feed" }));
+    await user.click(screen.getByRole("button", { name: "Save & share" }));
+    await screen.findByText("Network unavailable");
+    expect(window.localStorage.getItem("35mm.log-sharing.v1.user_1")).toBeNull();
+    const first = (mocks.createPostMutateAsync.mock.calls[0] as unknown[])[0] as { idempotencyKey: string };
+    await user.click(screen.getByRole("button", { name: "Save & share" }));
+    await waitFor(() => expect(mocks.createPostMutateAsync).toHaveBeenCalledTimes(2));
+    const retry = (mocks.createPostMutateAsync.mock.calls[1] as unknown[])[0] as { idempotencyKey: string };
+    expect(retry.idempotencyKey).toBe(first.idempotencyKey);
+    expect(window.localStorage.getItem("35mm.log-sharing.v1.user_1")).toBe("feed");
+    view.unmount();
+    render(<PostComposer initialMode="log" />);
+    expect(screen.getByRole("checkbox", { name: "Share to feed" })).toBeChecked();
   });
 
 });

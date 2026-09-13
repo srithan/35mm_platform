@@ -1,1 +1,1 @@
-export const FEED_CACHE_NAMESPACE = "feed-cache:v5";
+export const FEED_CACHE_NAMESPACE = "feed-cache:v6";

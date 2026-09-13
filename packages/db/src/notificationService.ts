@@ -181,6 +181,28 @@ export function createNotificationService(dependencies: NotificationServiceDepen
     options: NotificationCreateOptions = {}
   ): Promise<NotificationResult> {
     if (!(await shouldEmit(input))) return { ok: false, reason: "skipped" };
+    if (input.sourceKey && input.type === "mention") {
+      // Single mention delivery already passed preference/block checks above.
+      // Retrying post creation must recover publication without duplicating inbox rows.
+      var mentionDb = dependencies.getDb();
+      await mentionDb.insert(notifications).values({
+        recipientId: input.recipientId,
+        actorId: input.actorId,
+        actorIds: input.actorId ? [input.actorId] : [],
+        type: input.type,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        metadata: input.metadata ?? {},
+        sourceKey: input.sourceKey,
+        bundleCount: 1,
+      }).onConflictDoNothing({ target: notifications.sourceKey });
+      var mentionRows = await mentionDb.select({ id: notifications.id }).from(notifications)
+        .where(eq(notifications.sourceKey, input.sourceKey)).limit(1);
+      var mentionId = mentionRows[0]?.id;
+      if (!mentionId) throw new Error("Mention notification was not found after idempotent insertion");
+      var mentionPublished = await dependencies.enqueuePublish([mentionId], options.delayMs ?? 0);
+      return { ok: true, notificationId: mentionId, shouldPublish: mentionPublished };
+    }
     if (input.sourceKey) {
       var batch = await createNotifications([input], options);
       var existingId = batch.notificationIds[0];

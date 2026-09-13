@@ -126,6 +126,11 @@ export function PostDetailView({
           postId={post.id}
           variant={legacy.variant ?? postToVariant(post)}
           sourcePostType={post.type}
+          createdAt={post.createdAt}
+          visibility={post.visibility}
+          watchedOn={post.watchedOn}
+          watchVenue={post.watchVenue}
+          isRewatch={post.isRewatch}
           username={post.author.username}
           userId={post.author.id}
           displayName={post.author.displayName}

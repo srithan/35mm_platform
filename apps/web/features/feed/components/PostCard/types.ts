@@ -1,4 +1,4 @@
-import type { NsfwCategory, NsfwInfo } from "@35mm/types";
+import type { NsfwCategory, NsfwInfo, WatchVenue } from "@35mm/types";
 import type { QuotedPost } from "../../types/feed";
 
 export type PostVariant = "text" | "film-log" | "image" | "discussion";
@@ -97,6 +97,11 @@ export interface PostCardPoll {
 export interface PostCardProps {
   variant: PostVariant;
   sourcePostType?: SourcePostType;
+  createdAt?: string;
+  visibility?: "public" | "followers_only" | "private";
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   username: string;
   userId?: string;
   handle: string;

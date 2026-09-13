@@ -34,15 +34,15 @@ vi.mock("@/features/letterboxd-import", function () {
 });
 
 describe("HomeSuggestionsSidebar guest rails", function () {
-  it("shows suggestions and empty lobby for signed-in users", function () {
+  it("hides empty suggestions and lobby for signed-in users", function () {
     auth.isLoaded = true;
     auth.isSignedIn = true;
 
     render(<HomeSuggestionsSidebar />);
 
-    expect(screen.getByRole("heading", { name: "Suggestions for you" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "The Lobby" })).toBeInTheDocument();
-    expect(screen.getByText("No rooms live")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Suggestions for you" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "The Lobby" })).not.toBeInTheDocument();
+    expect(screen.queryByText("No rooms live")).not.toBeInTheDocument();
     expect(screen.getByText("Letterboxd import")).toBeInTheDocument();
   });
 

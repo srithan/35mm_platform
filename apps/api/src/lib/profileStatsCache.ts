@@ -2,7 +2,7 @@ import { getRedisClient } from "./redis.js";
 
 const PROFILE_STATS_CACHE_TTL_SECONDS = 60;
 const PROFILE_STATS_INDEX_TTL_SECONDS = 10 * 60;
-const CACHE_NS = "profile-stats:v3";
+const CACHE_NS = "profile-stats:v5";
 
 export type ProfileStatsCachePayload = {
   username: string;
@@ -29,6 +29,7 @@ export type ProfileStatsCachePayload = {
   musicDirectors: unknown[];
   countries: unknown[];
   languages: unknown[];
+  watchVenues: unknown[];
   mostWatchedFilms: unknown[];
   cachedAt: string;
 };
@@ -89,6 +90,7 @@ function isProfileStatsPayload(value: unknown): value is ProfileStatsCachePayloa
     Array.isArray(payload.musicDirectors) &&
     Array.isArray(payload.countries) &&
     Array.isArray(payload.languages) &&
+    Array.isArray(payload.watchVenues) &&
     Array.isArray(payload.mostWatchedFilms) &&
     typeof payload.cachedAt === "string"
   );

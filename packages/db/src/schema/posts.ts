@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   timestamp,
+  date,
   pgEnum,
   jsonb,
   boolean,
@@ -31,6 +32,17 @@ export var postVisibilityEnum = pgEnum("post_visibility", [
   "public",
   "followers_only",
   "private",
+]);
+
+export var watchVenueEnum = pgEnum("watch_venue", [
+  "theater",
+  "streaming",
+  "tv",
+  "disc",
+  "digital",
+  "festival",
+  "flight",
+  "other",
 ]);
 
 export var pollTypeEnum = pgEnum("poll_type", ["ranking", "image"]);
@@ -100,6 +112,11 @@ export var posts = pgTable(
       return films.id;
     }, { onDelete: "set null" }),
     filmRating: smallint("film_rating"),
+    watchedOn: date("watched_on", { mode: "string" }),
+    watchVenue: watchVenueEnum("watch_venue"),
+    isRewatch: boolean("is_rewatch").default(false).notNull(),
+    creationKey: uuid("creation_key"),
+    creationRequestHash: text("creation_request_hash"),
     visibility: postVisibilityEnum("visibility").default("public").notNull(),
     replyToId: uuid("reply_to_id").references(function (): AnyPgColumn {
       return posts.id;
@@ -135,6 +152,25 @@ export var posts = pgTable(
   },
   function (table) {
     return {
+      userCreationKeyIdx: uniqueIndex("posts_user_creation_key_idx")
+        .on(table.userId, table.creationKey)
+        .where(sql`${table.creationKey} is not null`),
+      diaryWatchDateIdx: index("posts_user_diary_watch_date_idx")
+        .on(
+          table.userId,
+          sql`coalesce(${table.watchedOn}, (${table.createdAt} at time zone 'UTC')::date) desc`,
+          table.createdAt.desc(),
+          table.id.desc()
+        )
+        .where(sql`${table.type} in ('log', 'review') and ${table.isRepost} = false and ${table.isDeleted} = false`),
+      watchDetailsCheck: check(
+        "posts_watch_details_check",
+        sql`${table.type} in ('log', 'review') or (${table.watchedOn} is null and ${table.watchVenue} is null and ${table.isRewatch} = false)`
+      ),
+      creationKeyHashCheck: check(
+        "posts_creation_key_hash_check",
+        sql`(${table.creationKey} is null) = (${table.creationRequestHash} is null)`
+      ),
       userCreatedAtIdx: index("posts_user_created_at_idx").on(table.userId, table.createdAt),
       userRepostCreatedAtIdx: index("posts_user_repost_created_at_id_idx")
         .on(table.userId, table.createdAt.desc(), table.id.desc())

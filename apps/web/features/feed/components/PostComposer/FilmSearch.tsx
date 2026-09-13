@@ -237,6 +237,7 @@ export function FilmSearch({ onSelect, isHidden, autoFocus = false }: FilmSearch
     ? createPortal(
         <div
           ref={panelRef}
+          data-composer-popover
           className="fixed mt-0.5 bg-[var(--composer-bg)] border border-[var(--composer-border)] rounded-md shadow-lg z-[22050] overflow-y-auto"
           style={{
             top: panelStyle.top,

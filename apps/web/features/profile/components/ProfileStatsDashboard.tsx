@@ -1,6 +1,7 @@
 "use client";
 
 import { FilmPoster } from "@/components/FilmPoster";
+import { WATCH_VENUE_LABELS, type WatchVenue } from "@35mm/types";
 import { formatCount } from "@/lib/utils/formatCount";
 import type {
   ProfileStatsDecade,
@@ -239,6 +240,58 @@ function FilmWorld(props: {
   );
 }
 
+function watchVenueLabel(value: string): string {
+  return value in WATCH_VENUE_LABELS
+    ? WATCH_VENUE_LABELS[value as WatchVenue]
+    : value;
+}
+
+function WatchVenues(props: { venues: ProfileStatsNamedCount[] }) {
+  if (props.venues.length === 0) return null;
+  var total = props.venues.reduce(function (sum, item) {
+    return sum + item.count;
+  }, 0);
+  var maximum = Math.max(
+    1,
+    ...props.venues.map(function (item) {
+      return item.count;
+    })
+  );
+
+  return (
+    <section className="border-b border-border px-5 py-9 sm:px-10">
+      <SectionTitle
+        eyebrow="Viewing habits"
+        title="Viewing sources"
+        note={`${formatCount(total)} tagged ${total === 1 ? "entry" : "entries"}`}
+      />
+      <div className="space-y-2.5">
+        {props.venues.map(function (item) {
+          return (
+            <div
+              key={item.name}
+              className="grid grid-cols-[minmax(86px,0.7fr)_minmax(0,1fr)_36px] items-center gap-3"
+            >
+              <span className="truncate text-[11px] font-medium text-fg" title={watchVenueLabel(item.name)}>
+                {watchVenueLabel(item.name)}
+              </span>
+              <div className="h-2 overflow-hidden rounded-full bg-sunken-2">
+                <div
+                  className="h-full rounded-full bg-[var(--color-rating-star,var(--color-accent))]"
+                  style={{ width: `${Math.max(3, (item.count / maximum) * 100)}%` }}
+                />
+              </div>
+              <span className="text-right font-mono text-[10px] text-fg-muted">
+                {formatCount(item.count)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function MostWatched(props: { films: ProfileStatsMostWatchedFilm[] }) {
   if (props.films.length === 0) return null;
   return (
@@ -419,6 +472,7 @@ export function ProfileStatsDashboard(props: {
       />
       <DecadeChart decades={stats.decades} />
       <GenreBreakdown genres={stats.genres} />
+      <WatchVenues venues={stats.watchVenues} />
       <PeopleCredits
         directors={stats.directors}
         artists={stats.artists}

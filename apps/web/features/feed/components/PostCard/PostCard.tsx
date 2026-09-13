@@ -34,6 +34,11 @@ function PostCardComponent(props: PostCardProps) {
   const {
     variant,
     sourcePostType,
+    createdAt,
+    visibility,
+    watchedOn,
+    watchVenue,
+    isRewatch,
     username,
     userId,
     handle,
@@ -273,6 +278,11 @@ function PostCardComponent(props: PostCardProps) {
               bookmarkFolderId={initialBookmarkFolderId}
               variant={variant}
               sourcePostType={sourcePostType}
+              createdAt={createdAt}
+              visibility={visibility}
+              watchedOn={watchedOn}
+              watchVenue={watchVenue}
+              isRewatch={isRewatch}
               text={text}
               editBody={editBody}
               headline={headline}

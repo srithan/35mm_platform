@@ -43,3 +43,17 @@ describe("arePostCardPropsEqual NSFW fields", function () {
     expect(arePostCardPropsEqual(previous, next)).toBe(false);
   });
 });
+
+describe("arePostCardPropsEqual editing metadata", function () {
+  it.each([
+    { watchedOn: "2026-07-01" },
+    { watchVenue: "theater" as const },
+    { isRewatch: true },
+    { visibility: "private" as const },
+    { createdAt: "2026-07-01T12:00:00.000Z" },
+  ])("refreshes the edit action when viewing metadata changes: %j", function (changed) {
+    const previous = baseProps();
+
+    expect(arePostCardPropsEqual(previous, { ...previous, ...changed })).toBe(false);
+  });
+});

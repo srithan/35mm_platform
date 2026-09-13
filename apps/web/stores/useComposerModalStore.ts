@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { NsfwCategory, NsfwInfo } from "@35mm/types";
+import type { NsfwCategory, NsfwInfo, WatchVenue } from "@35mm/types";
 
 export interface QuotedPostMedia {
   type: "image" | "video";
@@ -48,6 +48,11 @@ export interface EditingPost {
   userId: string;
   type: "text" | "discussion" | "log" | "review" | "image";
   body: string;
+  createdAt?: string;
+  visibility?: "public" | "followers_only" | "private";
+  watchedOn?: string | null;
+  watchVenue?: WatchVenue | null;
+  isRewatch?: boolean;
   headline?: string;
   mediaUrls?: string[];
   linkPreview?: {

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Editor } from "@tiptap/react";
-import { Bold, EyeOff, Italic, Strikethrough, Underline } from "lucide-react";
+import { Bold, EyeOff, Italic, Strikethrough, Type, Underline } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 type FormatCommand = "bold" | "italic" | "underline" | "strike" | "spoiler";
@@ -47,6 +49,24 @@ export function FormattingToolbar({
   showDivider = true,
   composeChrome = false,
 }: FormattingToolbarProps) {
+  const [open, setOpen] = useState(false);
+  const openedByHover = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function cancelClose() {
+    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  }
+
+  function scheduleClose() {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  }
+
+  useEffect(() => () => {
+    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+  }, []);
+
   const btn = composeChrome
     ? "w-9 h-9 rounded-full flex items-center justify-center text-accent transition-colors hover:bg-accent/[0.12] active:scale-95"
     : "w-8 h-8 rounded-full flex items-center justify-center text-fg-muted transition-all hover:bg-hover hover:text-fg active:scale-95";
@@ -63,21 +83,59 @@ export function FormattingToolbar({
       {showDivider && (
         <div className={cn("mx-1 h-4 w-px", composeChrome ? "bg-accent/25" : "bg-border")} />
       )}
-      {formatButtons.map(function ({ cmd, title, ariaLabel, Icon, strokeWidth }) {
-        return (
+      <DropdownMenu.Root open={open} onOpenChange={setOpen} modal={false}>
+        <DropdownMenu.Trigger asChild>
           <button
-            key={cmd}
             type="button"
-            onClick={() => runFormatCommand(editor, cmd)}
-            className={buttonClass(cmd)}
-            title={title}
-            aria-label={ariaLabel}
-            aria-pressed={isFormatActive(editor, cmd)}
+            className={cn(btn, open && "bg-hover text-fg")}
+            aria-label="Formatting options"
+            onPointerEnter={(event) => {
+              if (event.pointerType !== "mouse") return;
+              cancelClose();
+              openedByHover.current = true;
+              setOpen(true);
+            }}
+            onPointerLeave={scheduleClose}
+            onPointerDown={() => { openedByHover.current = false; }}
+            onKeyDown={() => { openedByHover.current = false; }}
           >
-            <Icon className="h-4 w-4" strokeWidth={strokeWidth} />
+            <Type className="h-[18px] w-[18px]" strokeWidth={2} />
           </button>
-        );
-      })}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            side="top"
+            align="end"
+            sideOffset={6}
+            collisionPadding={12}
+            aria-label="Text formatting"
+            className="z-[calc(var(--z-composer)+2)] flex items-center gap-0.5 rounded-xl border border-[var(--composer-border)] bg-[var(--composer-bg)] p-1.5 shadow-xl"
+            onPointerEnter={cancelClose}
+            onPointerLeave={scheduleClose}
+            onCloseAutoFocus={(event) => {
+              if (openedByHover.current || editor?.isFocused) event.preventDefault();
+            }}
+            onEscapeKeyDown={(event) => event.stopPropagation()}
+          >
+            {formatButtons.map(({ cmd, title, ariaLabel, Icon, strokeWidth }) => (
+              <DropdownMenu.CheckboxItem
+                key={cmd}
+                checked={isFormatActive(editor, cmd)}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  runFormatCommand(editor, cmd);
+                }}
+                onMouseDown={(event) => event.preventDefault()}
+                className={cn(buttonClass(cmd), "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent data-[highlighted]:bg-hover")}
+                title={title}
+                aria-label={ariaLabel ?? title}
+              >
+                <Icon className="h-4 w-4" strokeWidth={strokeWidth} />
+              </DropdownMenu.CheckboxItem>
+            ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   );
 }

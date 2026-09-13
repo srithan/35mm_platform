@@ -24,6 +24,11 @@ interface LocationAutocompleteProps {
   "aria-invalid"?: boolean;
 }
 
+const PANEL_GAP = 6;
+const PANEL_VIEWPORT_PADDING = 12;
+const PANEL_MAX_HEIGHT = 224;
+const PANEL_MIN_HEIGHT = 96;
+
 export function LocationAutocomplete({
   id,
   value,
@@ -45,6 +50,7 @@ export function LocationAutocomplete({
     top: number;
     left: number;
     width: number;
+    maxHeight: number;
   } | null>(null);
   const debouncedQuery = useDebounce(query, 300);
 
@@ -59,10 +65,43 @@ export function LocationAutocomplete({
     const anchor = wrapperRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft ?? 0;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const viewportHeight = viewport?.height ?? window.innerHeight;
+    const relativeLeft = rect.left - viewportLeft;
+    const relativeTop = rect.top - viewportTop;
+    const relativeBottom = rect.bottom - viewportTop;
+    const width = Math.min(rect.width, Math.max(0, viewportWidth - PANEL_VIEWPORT_PADDING * 2));
+    const belowTop = relativeBottom + PANEL_GAP;
+    const aboveBottom = relativeTop - PANEL_GAP;
+    const availableBelow = Math.max(
+      0,
+      viewportHeight - belowTop - PANEL_VIEWPORT_PADDING
+    );
+    const availableAbove = Math.max(0, aboveBottom - PANEL_VIEWPORT_PADDING);
+    const placeAbove =
+      availableBelow < PANEL_MIN_HEIGHT && availableAbove > availableBelow;
+    const availableHeight = placeAbove ? availableAbove : availableBelow;
+    const maxHeight = Math.min(
+      PANEL_MAX_HEIGHT,
+      Math.max(PANEL_MIN_HEIGHT, availableHeight)
+    );
+
     setPanelStyle({
-      top: rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
+      top: placeAbove
+        ? Math.max(PANEL_VIEWPORT_PADDING, aboveBottom - maxHeight)
+        : Math.max(
+            PANEL_VIEWPORT_PADDING,
+            Math.min(belowTop, viewportHeight - maxHeight - PANEL_VIEWPORT_PADDING)
+          ),
+      left: Math.max(
+        PANEL_VIEWPORT_PADDING,
+        Math.min(relativeLeft, viewportWidth - width - PANEL_VIEWPORT_PADDING)
+      ),
+      width,
+      maxHeight,
     });
   }, []);
 
@@ -89,6 +128,22 @@ export function LocationAutocomplete({
   useLayoutEffect(
     function () {
       if (open) reposition();
+    },
+    [open, reposition]
+  );
+
+  useEffect(
+    function repositionOnVisualViewportChange() {
+      if (!open) return;
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+
+      viewport.addEventListener("resize", reposition);
+      viewport.addEventListener("scroll", reposition);
+      return function () {
+        viewport.removeEventListener("resize", reposition);
+        viewport.removeEventListener("scroll", reposition);
+      };
     },
     [open, reposition]
   );
@@ -144,9 +199,8 @@ export function LocationAutocomplete({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!open || results.length === 0) return;
-
     if (event.key === "ArrowDown") {
+      if (!open || results.length === 0) return;
       event.preventDefault();
       setActiveIndex(function (current) {
         return current >= results.length - 1 ? 0 : current + 1;
@@ -155,6 +209,7 @@ export function LocationAutocomplete({
     }
 
     if (event.key === "ArrowUp") {
+      if (!open || results.length === 0) return;
       event.preventDefault();
       setActiveIndex(function (current) {
         return current <= 0 ? results.length - 1 : current - 1;
@@ -162,13 +217,18 @@ export function LocationAutocomplete({
       return;
     }
 
-    if (event.key === "Enter" && activeIndex >= 0) {
+    if (event.key === "Enter" && open) {
       event.preventDefault();
-      selectSuggestion(results[activeIndex]);
+      if (activeIndex >= 0 && results[activeIndex]) {
+        selectSuggestion(results[activeIndex]);
+      } else {
+        setOpen(false);
+        setActiveIndex(-1);
+      }
       return;
     }
 
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && open) {
       setOpen(false);
       setActiveIndex(-1);
     }
@@ -211,11 +271,12 @@ export function LocationAutocomplete({
               ref={panelRef}
               id={listboxId}
               role="listbox"
-              className="fixed z-[calc(var(--z-modal)+1)] overflow-hidden rounded-2xl border border-border bg-elevated shadow-[0_16px_40px_color-mix(in_srgb,var(--fg)_12%,transparent)]"
+              className="pointer-events-auto fixed z-[calc(var(--z-modal)+1)] overflow-hidden rounded-2xl border border-border bg-elevated shadow-[0_16px_40px_color-mix(in_srgb,var(--fg)_12%,transparent)]"
               style={{
                 top: panelStyle.top,
                 left: panelStyle.left,
                 width: panelStyle.width,
+                maxHeight: panelStyle.maxHeight,
               }}
             >
               {isLoading ? (
@@ -225,7 +286,10 @@ export function LocationAutocomplete({
                   No places found. Try city, state, or country.
                 </div>
               ) : (
-                <ul className="max-h-56 overflow-y-auto py-1">
+                <ul
+                  className="overflow-y-auto py-1"
+                  style={{ maxHeight: panelStyle.maxHeight }}
+                >
                   {results.map(function (result, index) {
                     const active = index === activeIndex;
                     const countryHint =
