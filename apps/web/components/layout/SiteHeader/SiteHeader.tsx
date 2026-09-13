@@ -57,7 +57,21 @@ export function SiteHeader() {
     trapNotifPanelWheel,
   } = useSiteHeaderNotifications();
 
-  const isActive = (href: string) => isRouteActive(pathname ?? "", href);
+  const isDiscoverSectionActive = Boolean(
+    pathname &&
+      (pathname === ROUTES.DISCOVER ||
+        pathname.startsWith(`${ROUTES.DISCOVER}/`) ||
+        pathname === ROUTES.FILMS ||
+        pathname.startsWith(`${ROUTES.FILMS}/`) ||
+        pathname === ROUTES.LISTS ||
+        pathname.startsWith(`${ROUTES.LISTS}/`) ||
+        pathname === ROUTES.CONTRIBUTE ||
+        pathname.startsWith(`${ROUTES.CONTRIBUTE}/`))
+  );
+  const isActive = (href: string) =>
+    href === ROUTES.DISCOVER
+      ? isDiscoverSectionActive
+      : isRouteActive(pathname ?? "", href);
   const profileUsername = currentUser?.username ?? clerkUser?.username ?? null;
   const profileHref = profileUsername ? ROUTES.PROFILE(profileUsername) : ROUTES.HOME;
   const currentDisplayName =

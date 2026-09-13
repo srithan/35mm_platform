@@ -116,7 +116,7 @@ export function NavLinks({
               />
             </svg>
           </span>
-          <span className={styles.navItemText}>70mm</span>
+          <span className={styles.navItemText}>Watch</span>
         </Link>
 
         <Link

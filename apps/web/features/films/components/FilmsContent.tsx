@@ -64,7 +64,7 @@ function mapOptions(options: readonly { id: string; label: string }[]) {
 
 function FilmsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-8 py-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 xl:grid-cols-6" aria-hidden>
+    <div className="grid grid-cols-2 gap-1 py-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6" aria-hidden>
       {Array.from({ length: 18 }).map(function (_, index) {
         return (
           <div key={index}>
@@ -84,6 +84,7 @@ export function FilmsContent() {
   const searchParams = useSearchParams();
   const { getToken } = useAuth();
   const stableOrderRef = useRef<{ queryKey: string; keys: string[] }>({ queryKey: "", keys: [] });
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const filters = useMemo<FilmCatalogFilters>(function () {
     var sortValue = searchParams.get("sort") as FilmCatalogSort | null;
@@ -205,6 +206,41 @@ export function FilmsContent() {
     router.replace(next.size > 0 ? `${pathname}?${next.toString()}` : pathname, { scroll: false });
   }
 
+  useEffect(function () {
+    if (!hasMoreFilms || isFetchingMore) return;
+    var el = loadMoreRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+
+    var observer = new IntersectionObserver(function (entries) {
+      var entry = entries[0];
+      if (!entry || !entry.isIntersecting) return;
+
+      if (filmsQuery.hasNextPage && !filmsQuery.isFetchingNextPage) {
+        void filmsQuery.fetchNextPage();
+      }
+      if (tmdbQuery.hasNextPage && !tmdbQuery.isFetchingNextPage) {
+        void tmdbQuery.fetchNextPage();
+      }
+    }, {
+      rootMargin: "1400px 0px",
+      threshold: 0.01,
+    });
+
+    observer.observe(el);
+    return function () {
+      observer.disconnect();
+    };
+  }, [
+    filmsQuery.hasNextPage,
+    filmsQuery.fetchNextPage,
+    filmsQuery.isFetchingNextPage,
+    hasMoreFilms,
+    isFetchingMore,
+    tmdbQuery.fetchNextPage,
+    tmdbQuery.hasNextPage,
+    tmdbQuery.isFetchingNextPage,
+  ]);
+
   var activeFilterCount = [
     filters.q,
     filters.sort === "popular" ? "" : filters.sort,
@@ -223,41 +259,26 @@ export function FilmsContent() {
       <DiscoverTabs active="films" />
 
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-16 sm:px-6 lg:px-10">
-        <header className="grid gap-5 border-b border-border py-7 sm:grid-cols-[1fr_auto] sm:items-end lg:py-9">
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-film-red">
-              The 35mm catalog
-            </p>
-            <h1 className="mt-1 font-display-discover text-[42px] leading-none tracking-[-0.03em] text-fg sm:text-[56px]">
-              Films
-            </h1>
-            <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted sm:text-[14px]">
-              Search movies, TV shows, and web series across 35mm and TMDB.
-            </p>
-          </div>
-        </header>
-
-        <div className="border-b border-border">
-          <form onSubmit={submitSearch} role="search" className="flex h-14 items-center gap-2 border-b border-border sm:max-w-[520px]">
-            <Search className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
-            <label htmlFor="film-catalog-search" className="sr-only">Search movies and series</label>
-            <input
-              id="film-catalog-search"
-              value={searchDraft}
-              onChange={function (event) { setSearchDraft(event.target.value); }}
-              placeholder="Search movies and series"
-              maxLength={100}
-              className="h-full min-w-0 flex-1 bg-transparent text-[14px] text-fg outline-none placeholder:text-fg-subtle"
-            />
-            {searchDraft !== filters.q ? (
-              <button type="submit" className="shrink-0 rounded-full bg-fg px-3 py-1.5 text-[11px] font-semibold text-bg hover:opacity-85">
-                Search
-              </button>
-            ) : null}
-          </form>
-
+        <div className="pb-1">
           <div className="scrollbar-hide overflow-x-auto" aria-label="Film filters">
-            <div className="flex min-w-max items-center gap-5 sm:gap-6">
+            <form onSubmit={submitSearch} role="search" className="flex min-w-max items-center gap-5 sm:gap-6">
+              <div className="flex h-11 min-w-[230px] items-center gap-2 rounded-full border border-border/70 bg-elevated px-3">
+                <Search className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
+                <label htmlFor="film-catalog-search" className="sr-only">Search movies and series</label>
+                <input
+                  id="film-catalog-search"
+                  value={searchDraft}
+                  onChange={function (event) { setSearchDraft(event.target.value); }}
+                  placeholder="Search movies and series"
+                  maxLength={100}
+                  className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-fg outline-none ring-0 outline-0 placeholder:text-fg-subtle"
+                />
+                {searchDraft !== filters.q ? (
+                  <button type="submit" className="shrink-0 rounded-full bg-fg px-3 py-1.5 text-[11px] font-semibold text-bg hover:opacity-85">
+                    Search
+                  </button>
+                ) : null}
+              </div>
               <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-muted">
                 <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden /> Filter
               </span>
@@ -287,7 +308,7 @@ export function FilmsContent() {
                   Clear {activeFilterCount}
                 </button>
               ) : null}
-            </div>
+            </form>
           </div>
         </div>
 
@@ -349,8 +370,8 @@ export function FilmsContent() {
               </div>
             ) : (
               <div className={view === "grid"
-                ? "grid grid-cols-3 gap-2 py-7 sm:grid-cols-4 sm:gap-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
-                : "grid grid-cols-2 gap-x-3 gap-y-8 py-7 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 xl:grid-cols-6"}>
+                ? "grid grid-cols-3 gap-1 py-7 sm:grid-cols-4 sm:gap-1 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
+                : "grid grid-cols-2 gap-1 py-7 sm:grid-cols-3 sm:gap-1 md:grid-cols-4 xl:grid-cols-6"}>
                 {films.map(function (film) {
                   return <FilmCatalogCard key={catalogItemKey(film)} film={film} isOpening={openingFilmId === film.id} onOpen={openFilm} showInfo={view === "details"} />;
                 })}
@@ -358,17 +379,9 @@ export function FilmsContent() {
             )}
             <div className="flex min-h-20 items-center justify-center border-t border-border py-5">
               {hasMoreFilms ? (
-                <button
-                  type="button"
-                  disabled={isFetchingMore}
-                  onClick={function () {
-                    if (filmsQuery.hasNextPage && !filmsQuery.isFetchingNextPage) void filmsQuery.fetchNextPage();
-                    if (tmdbQuery.hasNextPage && !tmdbQuery.isFetchingNextPage) void tmdbQuery.fetchNextPage();
-                  }}
-                  className="min-w-40 rounded-full border border-border-strong bg-elevated px-5 py-2.5 text-[12px] font-semibold text-fg transition-colors hover:border-fg disabled:cursor-wait disabled:opacity-60"
-                >
-                  {isFetchingMore ? "Loading more titles…" : "Load more titles"}
-                </button>
+                <div ref={loadMoreRef} className="min-h-12 flex items-center justify-center py-2">
+                  {isFetchingMore ? <p className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">Loading more titles…</p> : <span />}
+                </div>
               ) : (
                 <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-muted">End of results</p>
               )}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
@@ -7,6 +8,7 @@ interface TopStickyBarTabBase {
   id: string;
   label: string;
   mobileLabel?: string;
+  icon?: ReactElement;
   badgeCount?: number;
   count?: number;
   disabled?: boolean;
@@ -159,7 +161,8 @@ export function TopStickyBar({
             const isPassiveTab = !("href" in tab) && !("onClick" in tab);
             const isDisabled = tab.disabled || isPassiveTab;
             const content = (
-              <>
+              <span className="inline-flex items-center gap-1.5">
+                {tab.icon ? <span className="shrink-0" aria-hidden>{tab.icon}</span> : null}
                 {tab.mobileLabel ? (
                   <>
                     <span className="md:hidden">{tab.mobileLabel}</span>
@@ -183,7 +186,7 @@ export function TopStickyBar({
                     {tab.count}
                   </span>
                 )}
-              </>
+              </span>
             );
 
             const classes = cn(
