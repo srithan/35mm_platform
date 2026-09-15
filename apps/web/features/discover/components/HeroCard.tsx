@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { LazyImage } from "@/components/LazyImage";
-import { heroUrl, starsFromVote, yearFromDate } from "../lib/tmdb-utils";
+import { heroUrl, posterUrl, yearFromDate } from "../lib/tmdb-utils";
 import type { TMDBMovie } from "@/lib/tmdb/types";
+import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
 import { cn } from "@/lib/utils/cn";
 import { FilmTitleLink } from "./FilmTitleLink";
 
@@ -25,8 +26,8 @@ export function HeroCard({
 }: HeroCardProps) {
   const [watched, setWatched] = useState(false);
   const [watchlisted, setWatchlisted] = useState(false);
-  const stars = starsFromVote(film.vote_average);
   const backdrop = heroUrl(film.backdrop_path || film.poster_path);
+  const poster = posterUrl(film.poster_path, "w500");
   const year = yearFromDate(
     (film.release_date || film.first_air_date || "") as string
   );
@@ -40,72 +41,112 @@ export function HeroCard({
   return (
     <article
       className={cn(
-        "group relative grid w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] lg:grid-cols-5",
-        "cursor-pointer bg-[var(--discover-placeholder)] text-left shadow-sm",
-        "transition-shadow hover:shadow-[0_18px_34px_-18px_rgba(28,26,23,0.5)]"
+        "group relative w-full text-left",
+        "transition-transform duration-300 ease-out hover:-translate-y-0.5 motion-reduce:transition-none"
       )}
     >
       <FilmTitleLink
         film={film}
         onOpen={onOpenDetail}
-        ariaLabel={"Open " + (film.title || film.name || "title")}
-        className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/30 focus-visible:ring-inset"
+        ariaLabel={"Open " + (film.title || film.name || "title") + " cover"}
+        className={cn(
+          "relative block overflow-hidden bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/30",
+          BROWSE_RAIL_ENABLED
+            ? "h-[190px] sm:h-[280px] lg:h-[320px]"
+            : "h-[210px] sm:h-[320px] lg:h-[360px]"
+        )}
       >
-        <span className="sr-only">{film.title || film.name || "Open title"}</span>
-      </FilmTitleLink>
-      <div className="relative aspect-[4/3] overflow-hidden text-white sm:aspect-video lg:col-span-3">
-        <div className="absolute inset-0">
-          <LazyImage
-            src={backdrop}
-            alt={film.title || film.name || "Unknown"}
-            aspectRatio="16/9"
-            className={cn(
-              "h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.025]",
-              "[&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>img]:object-center"
-            )}
-          />
-        </div>
+        <LazyImage
+          src={backdrop}
+          alt={film.title || film.name || "Unknown"}
+          aspectRatio="16/9"
+          className={cn(
+            "h-full w-full transition-transform duration-700 ease-out group-hover:scale-[1.025]",
+            "[&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>img]:object-[center_30%]"
+          )}
+        />
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/5"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, var(--bg) 0%, transparent 48%), linear-gradient(to right, var(--bg), transparent 12%, transparent 88%, var(--bg))",
+          }}
           aria-hidden
         />
+        {label ? (
+          <span
+            className={cn(
+              "absolute left-4 top-4 inline-flex items-center rounded-full border border-white/40 bg-black/35 px-3 py-1.5",
+              "font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm backdrop-blur-sm"
+            )}
+          >
+            {label}
+          </span>
+        ) : null}
+      </FilmTitleLink>
 
-        <div className="absolute inset-0 z-10 flex max-w-2xl flex-col justify-end gap-4 p-5 font-sans antialiased md:p-8">
-          <div className="min-w-0 space-y-4">
-            {label ? (
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-sm border border-transparent bg-bg px-3 py-1",
-                  "font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg shadow-sm"
-                )}
-              >
-                {label}
-              </span>
-            ) : null}
-
-            <div>
-              <h2 className="max-w-xl font-display text-[2rem] font-semibold leading-[1.02] text-white sm:text-[2.35rem] lg:text-[3.4rem]">
-                {film.title || film.name}
-              </h2>
-              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-white/78">
-                {year ? <span>{year}</span> : null}
-                {year ? <span className="text-white/38">·</span> : null}
-                <span className="tabular-nums">{stars.toFixed(1)} / 5</span>
-                {runtime ? (
-                  <>
-                    <span className="text-white/38">·</span>
-                    <span>{runtime} min</span>
-                  </>
-                ) : null}
-              </div>
+      <div
+        className={cn(
+          "relative z-10 grid items-end px-4",
+          BROWSE_RAIL_ENABLED
+            ? "-mt-12 grid-cols-[72px_minmax(0,1fr)] gap-3.5 sm:-mt-16 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-5 sm:px-5 lg:-mt-20 lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-6"
+            : "-mt-14 grid-cols-[76px_minmax(0,1fr)] gap-4 sm:-mt-20 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-6 sm:px-6 lg:grid-cols-[156px_minmax(0,1fr)] lg:gap-8"
+        )}
+      >
+        <FilmTitleLink
+          film={film}
+          onOpen={onOpenDetail}
+          ariaLabel={"Open " + (film.title || film.name || "title") + " poster"}
+          className="aspect-[2/3] self-start overflow-hidden rounded-sm bg-sunken shadow-[0_12px_35px_rgba(0,0,0,0.18)] transition-transform duration-300 group-hover:-translate-y-1 motion-reduce:transition-none"
+        >
+          {poster ? (
+            <LazyImage
+              src={poster}
+              alt={(film.title || film.name || "Unknown") + " poster"}
+              aspectRatio="2/3"
+              className="h-full w-full"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-3 text-center font-display text-fg-muted">
+              {film.title || film.name}
             </div>
-          </div>
+          )}
+        </FilmTitleLink>
+
+        <div
+          className={cn(
+            "min-w-0 pb-1",
+            BROWSE_RAIL_ENABLED ? "pt-12 sm:pt-16 lg:pt-20" : "pt-14 sm:pt-20"
+          )}
+        >
+          <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-muted sm:mb-3">
+            {label || "Featured"}
+            {year ? " / " + year : ""}
+          </p>
+          <FilmTitleLink film={film} onOpen={onOpenDetail} className="block">
+            <h2
+              className={cn(
+                "break-words font-display font-normal leading-[0.98] tracking-[-0.045em] text-fg",
+                BROWSE_RAIL_ENABLED
+                  ? "text-[clamp(1.65rem,3.1vw,3.25rem)]"
+                  : "text-[clamp(2rem,5vw,4.4rem)]"
+              )}
+            >
+              {film.title || film.name}
+            </h2>
+          </FilmTitleLink>
+          {runtime ? (
+            <p className="mt-3 text-xs text-fg-muted">{runtime} min</p>
+          ) : null}
+          <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
+            {programNotePreview}
+          </p>
 
           <div className="relative z-20 flex flex-wrap items-center gap-2">
             <FilmTitleLink
               film={film}
               onOpen={onOpenDetail}
-              className="inline-flex min-h-10 items-center justify-center rounded-full bg-[var(--color-film-red)] px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)]"
+              className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-fg px-5 py-2.5 text-[13px] font-semibold text-bg shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--fg)_88%,var(--accent)_12%)]"
             >
               Details
             </FilmTitleLink>
@@ -115,10 +156,10 @@ export function HeroCard({
                 setWatchlisted(!watchlisted);
               }}
               className={cn(
-                "inline-flex min-h-10 items-center justify-center rounded-full border px-5 py-2.5 text-[13px] font-semibold transition-colors",
+                "mt-4 inline-flex min-h-10 items-center justify-center rounded-full border px-5 py-2.5 text-[13px] font-semibold shadow-sm transition-colors",
                 watchlisted
-                  ? "bg-white text-black hover:bg-white"
-                  : "border-white/60 text-white hover:bg-white/10"
+                  ? "border-fg bg-fg text-bg hover:bg-fg"
+                  : "border-border bg-elevated text-fg hover:border-border-strong hover:bg-sunken"
               )}
             >
               {watchlisted ? "Saved" : "Watchlist"}
@@ -129,8 +170,8 @@ export function HeroCard({
                 setWatched(!watched);
               }}
               className={cn(
-                "inline-flex min-h-10 items-center justify-center px-1 py-2.5 text-[13px] font-semibold text-white underline decoration-white/40 underline-offset-4 transition-colors hover:text-white/80 hover:decoration-white/70",
-                watched && "text-white/80 decoration-white/70"
+                "mt-4 inline-flex min-h-10 items-center justify-center px-1 py-2.5 text-[13px] font-semibold text-fg-muted underline decoration-fg-muted/40 underline-offset-4 transition-colors hover:text-fg hover:decoration-fg/70",
+                watched && "text-fg decoration-fg/70"
               )}
             >
               {watched ? "Watched" : "Mark watched"}
@@ -138,40 +179,6 @@ export function HeroCard({
           </div>
         </div>
       </div>
-
-      <aside className="flex min-h-[240px] flex-col justify-between bg-sunken p-6 text-fg lg:col-span-2 lg:min-h-0 lg:p-7">
-        <div>
-          <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-muted">
-            Program note
-          </p>
-          <p className="text-[14px] leading-relaxed text-fg-muted">
-            {programNotePreview}
-          </p>
-        </div>
-        <div className="my-6 h-px bg-[repeating-linear-gradient(to_right,var(--border)_0,var(--border)_8px,transparent_8px,transparent_16px)]" />
-        <div className="space-y-4">
-          <div>
-            <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-muted">
-              Catalog signal
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded bg-fg px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-bg">
-                {stars.toFixed(1)} / 5
-              </span>
-              {film.vote_count ? (
-                <span className="rounded border border-fg px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-fg">
-                  {Intl.NumberFormat("en", { notation: "compact" }).format(film.vote_count)} votes
-                </span>
-              ) : null}
-              {year ? (
-                <span className="rounded border border-border px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-fg-muted">
-                  {year}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </aside>
     </article>
   );
 }

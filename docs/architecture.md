@@ -166,6 +166,24 @@ Design conventions:
 - Default experience is light mode. Additional themes exist through `data-theme`, including Matinee for warm editorial film surfaces, shared elevated panels/dropdowns, composer, and floating chat surfaces.
 - Main feed column max width is 640px.
 - Shell layout is a left nav, center content, and right rail.
+- `NEXT_PUBLIC_BROWSE_RAIL` gates the desktop browse rail layout.
+  Default `true` enables the left-rail browse menu,
+  Home-labeled top nav, an 864px Discover/Films/Lists center
+  column with a capped 220px rail, one-column `/lists` list view, `/film`,
+  `/tv`, `/title`, and `/person` detail pages spanning the browse center column
+  plus the capped right rail column, and `/list/:id` pages spanning the 640px
+  home center column plus the capped right rail column. Set it to `false` to restore the older desktop header
+  Discover tab, Feed label, Discover/Films/Lists subnav, wider padded browse
+  layout, and profile-setup-only home rail. This flag is compile-time/client
+  bundled and requires a web rebuild or dev-server restart when changed.
+- `NEXT_PUBLIC_SIMPLIFIED_POST_COMPOSER_TRIGGER` gates the home feed's simplified
+  `PostComposerTrigger`. Default `false` keeps the existing trigger with action
+  chips and submit affordance; `true` renders only the viewer avatar and
+  first-name "What's on your mind?" prompt. When enabled, it takes precedence
+  over `NEXT_PUBLIC_INLINE_POST_COMPOSER` so the stripped trigger can be rolled
+  out even in environments using the inline composer. This is client-only
+  presentation logic over the same modal open path, adding no API read/write,
+  cache, worker job, schema, or index.
 - The desktop home right rail includes `The Lobby`, a bounded audio-room summary widget. The current surface is presentation-only and hidden whenever its room list is empty; no room-signaling, media, presence, or room API is wired. The shared home/profile suggestions rail also hides the people-suggestions card when loading finishes without suggestions, including empty computing responses, while preserving the initial loading skeleton. Signed-out guests do not see the profile-completion rail or people-suggestions card. These visibility checks reuse existing bounded data and add no requests, writes, caches, jobs, schema changes, or indexes at 1M+ DAU. Its typed component contract displays at most four rooms, each with a host, up to three speaker avatars, topic, and denormalized listener count; it does not synthesize live data or expose nonfunctional join/create controls.
 - Server state belongs in React Query. Do not mirror DB-backed state in Zustand.
 - Query key factories live in feature folders. Do not use ad hoc query strings.
@@ -721,6 +739,7 @@ Automatic moderation enforcement:
 - List, film, position, note, added timestamp.
 - Unique `(list_id, film_id)`.
 - Composite `(list_id, COALESCE(position, -1), added_at, id)` index supports keyset list-entry pagination order used by `/v1/lists/:listId` with nullable `position`.
+- Web `/films` list-view Add-to-list actions reuse the same authenticated entry mutation and profile list reads; no separate write path, counter path, or pagination contract exists for that surface.
 
 `film_list_likes`
 

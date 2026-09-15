@@ -62,7 +62,12 @@ vi.mock("@/features/feed/components/HomeSuggestionsSidebar", () => ({
 }));
 
 vi.mock("@/features/profile/components/HomeProfileCompletionSidebar", () => ({
-  HomeProfileCompletionSidebar: () => <div>Profile completion</div>,
+  HomeProfileCompletionSidebar: ({ layout, placement }: { layout?: string; placement?: string }) => (
+    <div data-testid="profile-completion-rail" data-layout={layout ?? "home"}>
+      <span data-testid="profile-completion-placement">{placement ?? "fixed"}</span>
+      Profile completion
+    </div>
+  ),
 }));
 
 vi.mock("@/lib/hooks/useIsDesktopLg", () => ({
@@ -92,6 +97,11 @@ describe("ShellGrid mobile sidebar", () => {
     );
     expect(screen.getByRole("main")).not.toHaveClass("pt-20");
     expect(screen.getByText("Profile completion")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-completion-rail")).toHaveAttribute("data-layout", "home");
+    expect(screen.getByText("Feed").parentElement).toHaveClass("xl:w-[640px]");
+    expect(screen.getByText("Feed").parentElement).not.toHaveClass(
+      "xl:w-[var(--home-explore-center-column-width)]"
+    );
     expect(surface).toHaveClass("transform-none");
     expect(surface).not.toContainElement(screen.getByTestId("mobile-tabbar"));
 
@@ -127,6 +137,136 @@ describe("ShellGrid mobile sidebar", () => {
     expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("pt-0");
     expect(screen.queryByText("Profile completion")).not.toBeInTheDocument();
+  });
+
+  it("renders discover in a two-column browse rail layout", () => {
+    mocks.pathname = "/discover";
+
+    render(
+      <ShellGrid>
+        <div>Discover page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByRole("main")).toHaveClass("xl:max-w-none", "xl:mx-0");
+    expect(screen.getByRole("main")).toHaveClass(
+      "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
+    );
+    expect(screen.getByText("Profile completion")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-completion-rail")).toHaveAttribute("data-layout", "directory");
+    expect(screen.getByTestId("profile-completion-placement")).toHaveTextContent("inline");
+    expect(screen.queryByText("Suggestions")).not.toBeInTheDocument();
+    expect(screen.getByText("Discover page").parentElement?.parentElement).toHaveClass(
+      "xl:grid-cols-[var(--home-explore-left-rail-width)_minmax(0,1fr)]"
+    );
+    expect(screen.getByText("Discover page").parentElement).toHaveClass(
+      "xl:w-full",
+      "xl:max-w-none"
+    );
+    expect(screen.getByText("Discover page").parentElement).not.toHaveClass("xl:col-start-2");
+    expect(screen.getByText("Discover page").parentElement).not.toHaveClass("xl:col-span-2");
+    expect(screen.getByText("Discover page").parentElement?.parentElement).not.toHaveClass(
+      "xl:grid-cols-[minmax(0,1fr)_var(--home-explore-center-column-width)_minmax(0,1fr)]"
+    );
+  });
+
+  it("renders films in a two-column browse rail layout", () => {
+    mocks.pathname = "/films";
+
+    render(
+      <ShellGrid>
+        <div>Films page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByText("Profile completion")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-completion-rail")).toHaveAttribute("data-layout", "directory");
+    expect(screen.getByTestId("profile-completion-placement")).toHaveTextContent("inline");
+    expect(screen.queryByText("Suggestions")).not.toBeInTheDocument();
+    expect(screen.getByText("Films page").parentElement?.parentElement).toHaveClass(
+      "xl:grid-cols-[var(--home-explore-left-rail-width)_minmax(0,1fr)]"
+    );
+    expect(screen.getByText("Films page").parentElement).toHaveClass(
+      "xl:w-full",
+      "xl:max-w-none"
+    );
+    expect(screen.getByText("Films page").parentElement).not.toHaveClass("xl:col-start-2");
+    expect(screen.getByText("Films page").parentElement?.parentElement).not.toHaveClass(
+      "xl:grid-cols-[minmax(0,1fr)_var(--home-explore-center-column-width)_minmax(0,1fr)]"
+    );
+  });
+
+  it("renders title and people pages in a two-column browse rail layout", () => {
+    mocks.pathname = "/film/parasite";
+
+    const { rerender } = render(
+      <ShellGrid>
+        <div>Title page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByText("Profile completion")).toBeInTheDocument();
+    expect(screen.getByTestId("profile-completion-rail")).toHaveAttribute("data-layout", "directory");
+    expect(screen.getByTestId("profile-completion-placement")).toHaveTextContent("inline");
+    expect(screen.getByText("Title page").parentElement?.parentElement).toHaveClass(
+      "xl:grid-cols-[var(--home-explore-left-rail-width)_minmax(0,1fr)]"
+    );
+    expect(screen.getByText("Title page").parentElement).toHaveClass(
+      "xl:w-full",
+      "xl:max-w-none"
+    );
+    expect(screen.getByText("Title page").parentElement).not.toHaveClass("xl:col-start-2");
+    expect(screen.getByText("Title page").parentElement).not.toHaveClass("xl:col-span-2");
+    expect(screen.getByText("Title page").parentElement?.parentElement).not.toHaveClass(
+      "xl:grid-cols-[minmax(0,1fr)_var(--home-explore-center-column-width)_minmax(0,1fr)]"
+    );
+
+    mocks.pathname = "/person/bong-joon-ho";
+
+    rerender(
+      <ShellGrid>
+        <div>Person page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByTestId("profile-completion-rail")).toHaveAttribute("data-layout", "directory");
+    expect(screen.getByTestId("profile-completion-placement")).toHaveTextContent("inline");
+    expect(screen.getByText("Person page").parentElement?.parentElement).toHaveClass(
+      "xl:grid-cols-[var(--home-explore-left-rail-width)_minmax(0,1fr)]"
+    );
+    expect(screen.getByText("Person page").parentElement).toHaveClass(
+      "xl:w-full",
+      "xl:max-w-none"
+    );
+    expect(screen.getByText("Person page").parentElement).not.toHaveClass("xl:col-start-2");
+    expect(screen.getByText("Person page").parentElement).not.toHaveClass("xl:col-span-2");
+    expect(screen.getByText("Person page").parentElement?.parentElement).not.toHaveClass(
+      "xl:grid-cols-[minmax(0,1fr)_var(--home-explore-center-column-width)_minmax(0,1fr)]"
+    );
+  });
+
+  it("renders list detail pages across two home rail columns", () => {
+    mocks.pathname = "/list/list-1";
+
+    render(
+      <ShellGrid>
+        <div>List detail</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByTestId("profile-completion-rail")).toHaveAttribute("data-layout", "home");
+    expect(screen.queryByText("Suggestions")).not.toBeInTheDocument();
+    expect(screen.getByText("List detail").parentElement?.parentElement).toHaveClass(
+      "xl:grid-cols-[minmax(0,1fr)_640px_var(--home-right-rail-width)_minmax(0,1fr)]"
+    );
+    expect(screen.getByText("List detail").parentElement).toHaveClass(
+      "xl:col-start-2",
+      "xl:col-span-2",
+      "xl:max-w-none"
+    );
+    expect(screen.getByText("List detail").parentElement).not.toHaveClass(
+      "xl:w-[var(--home-explore-center-column-width)]"
+    );
   });
 
   it("keeps the reposts tab in the wide profile shell", () => {

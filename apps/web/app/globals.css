@@ -181,6 +181,13 @@
     --chat-control-radius: 0.75rem;
     --chat-pill-radius: 9999px;
 
+    /* Compact text filter menus */
+    --filter-menu-bg: var(--elevated);
+    --filter-menu-fg: var(--fg);
+    --filter-menu-active-fg: var(--fg);
+    --filter-menu-hover: var(--hover);
+    --filter-menu-border: var(--border-strong);
+
     /* Fallback until SiteHeader measures real height (see ResizeObserver in SiteHeader.tsx) */
     --site-header-sticky-offset: 4.5rem;
     /* Fallback until MobileHeader measures real height (see ResizeObserver in MobileHeader.tsx) */
@@ -374,6 +381,11 @@
     --chat-unread-badge: #ff982e;
     --chat-unread-badge-fg: #101418;
     --composer-trigger-shadow: 0 0 24px 0 rgba(0, 0, 0, 0.45);
+    --filter-menu-bg: #9aa8b5;
+    --filter-menu-fg: #202934;
+    --filter-menu-active-fg: #ffffff;
+    --filter-menu-hover: #8d9baa;
+    --filter-menu-border: rgba(16, 20, 24, 0.16);
 
     color-scheme: dark;
 }

@@ -57,13 +57,13 @@ export function getChatErrorMessage(
   return fallback;
 }
 
-/** Safe to retry with backoff (network blips, 429, 502–504). */
+/** Safe to retry with backoff (network blips, 5xx). */
 export function isRetryableChatError(e: unknown): boolean {
   if (!isChatApiError(e)) {
     return true;
   }
   if (e.status === 429) {
-    return true;
+    return false;
   }
   if (e.status >= 500 && e.status <= 599) {
     return true;

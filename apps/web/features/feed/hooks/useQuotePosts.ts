@@ -1,5 +1,6 @@
 import { useAuth } from "@clerk/nextjs";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { shouldRetryApiRead } from "../api/http";
 import { fetchQuotePosts, type QuotePostSort } from "../api/feedApi";
 import { feedKeys } from "./queryKeys";
 
@@ -22,7 +23,7 @@ export function useQuotePosts(postId: string | undefined, sort: QuotePostSort, e
     enabled: isLoaded && enabled && Boolean(postId),
     staleTime: 30_000,
     gcTime: 5 * 60_000,
-    retry: 2,
+    retry: shouldRetryApiRead,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
   });
 }

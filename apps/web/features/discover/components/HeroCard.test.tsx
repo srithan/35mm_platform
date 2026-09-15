@@ -21,7 +21,7 @@ const film: TMDBMovie = {
 };
 
 describe("HeroCard", () => {
-  it("keeps plot copy in the program note and uses a responsive image frame", () => {
+  it("keeps plot copy below a title-page style cover frame", () => {
     const onOpenDetail = vi.fn();
 
     render(
@@ -29,15 +29,18 @@ describe("HeroCard", () => {
     );
 
     expect(screen.getAllByText(plot)).toHaveLength(1);
-    expect(screen.getByRole("complementary")).toHaveTextContent(plot);
+    expect(screen.getByRole("img", { name: "The Test Feature poster" })).toBeInTheDocument();
 
     const card = screen.getByRole("article");
-    const imagePanel = card.children[1];
+    const imagePanel = screen.getByRole("link", { name: "Open The Test Feature cover" });
     expect(card).not.toHaveClass("min-h-[420px]");
     expect(imagePanel).toHaveClass(
-      "aspect-[4/3]",
-      "sm:aspect-video",
-      "lg:col-span-3",
+      "h-[190px]",
+      "sm:h-[280px]",
+      "lg:h-[320px]",
+    );
+    expect(screen.getByRole("heading", { name: "The Test Feature" })).toHaveClass(
+      "text-[clamp(1.65rem,3.1vw,3.25rem)]",
     );
 
     const detailsLink = screen.getByRole("link", { name: "Details" });

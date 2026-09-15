@@ -12,6 +12,7 @@ import { FEED_DESKTOP_COLUMN_START_CLASS } from "./feedDesktopColumnFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { fetchFeed, fetchQuotePosts } from "../api/feedApi";
 import type { ProfileFeedKind, QuotePostSort } from "../api/feedApi";
+import { shouldRetryApiRead } from "../api/http";
 import { useConnectionPreferences } from "../hooks/useConnectionPreferences";
 import { useFeed } from "../hooks/useFeed";
 import { useQuotePosts } from "../hooks/useQuotePosts";
@@ -58,8 +59,17 @@ interface InfinitePostListProps {
   guestFooter?: React.ReactNode;
 }
 const PREFETCH_MAX_PAGES = 3;
+const PREFETCH_ROOT_MARGIN_PX = 1_800;
+const LOAD_MORE_MARGIN_PX = 640;
 const SCROLL_FAST_THRESHOLD_PX_PER_SEC = 1_300;
 const SCROLL_RAPID_THRESHOLD_PX_PER_SEC = 2_400;
+type InfiniteScrollAction = "idle" | "prefetch" | "load";
+
+export function resolveInfiniteScrollAction(distanceFromViewportPx: number): InfiniteScrollAction {
+  if (distanceFromViewportPx <= LOAD_MORE_MARGIN_PX) return "load";
+  if (distanceFromViewportPx <= PREFETCH_ROOT_MARGIN_PX) return "prefetch";
+  return "idle";
+}
 
 export function InfinitePostList({
   username,
@@ -201,6 +211,7 @@ export function InfinitePostList({
           },
           staleTime: 30_000,
           gcTime: 5 * 60_000,
+          retry: shouldRetryApiRead,
         });
 
         queryClient.setQueryData<FeedInfiniteData>(queryKey, function (existing) {
@@ -209,6 +220,8 @@ export function InfinitePostList({
 
         nextCursor = prefetchedPage.nextCursor;
       }
+    } catch (_error) {
+      // Speculative prefetch should never replace the visible feed with an error.
     } finally {
       prefetchInFlightRef.current = false;
     }
@@ -428,15 +441,16 @@ function InfiniteScrollTrigger({
       ([entry]) => {
         if (!entry || !hasNextPage || isFetchingNextPage) return;
 
-        if (entry.intersectionRatio > 0) {
-          onPrefetch();
+        const distanceFromViewport = entry.boundingClientRect.top - window.innerHeight;
+        const action = resolveInfiniteScrollAction(distanceFromViewport);
+        if (action === "load") {
+          onLoadMore();
+          return;
         }
 
-        if (entry.isIntersecting) {
-          onLoadMore();
-        }
+        if (action === "prefetch") onPrefetch();
       },
-      { rootMargin: "1800px", threshold: [0, 0.5] }
+      { rootMargin: `${PREFETCH_ROOT_MARGIN_PX}px`, threshold: [0, 0.5] }
     );
 
     observer.observe(el);

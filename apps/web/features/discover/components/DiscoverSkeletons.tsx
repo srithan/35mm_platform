@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
+import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
 
 function Skeleton({ className }: { className?: string }) {
   return (
@@ -56,46 +57,60 @@ export function DiscoverHeroSkeleton() {
   return (
     <section
       className={cn(
-        "group grid w-full overflow-hidden rounded-sm border border-[var(--discover-hero-border)] lg:grid-cols-5",
-        "bg-[var(--discover-placeholder)] text-left shadow-sm"
+        "group relative w-full text-left"
       )}
       aria-hidden
     >
-      <div className="relative aspect-[4/3] overflow-hidden sm:aspect-video lg:col-span-3">
+      <div
+        className={cn(
+          "relative overflow-hidden bg-sunken",
+          BROWSE_RAIL_ENABLED
+            ? "h-[190px] sm:h-[280px] lg:h-[320px]"
+            : "h-[210px] sm:h-[320px] lg:h-[360px]"
+        )}
+      >
         <div className="absolute inset-0 bg-gradient-to-br from-skeleton/70 via-skeleton-strong/65 to-skeleton/80" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/30 to-black/5" />
-
-        <div className="absolute inset-0 z-10 flex max-w-2xl flex-col justify-end gap-4 p-5 md:p-8">
-          <div className="space-y-4">
-            <Skeleton className="h-5 w-24 rounded-sm bg-white/15" />
-            <div className="space-y-3">
-              <Skeleton className="h-8 w-[78%] rounded bg-white/15 sm:h-10 lg:h-14 lg:w-[68%]" />
-              <Skeleton className="h-4 w-[56%] rounded bg-white/12" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-10 w-24 rounded-full bg-white/12" />
-            <Skeleton className="h-10 w-24 rounded-full bg-white/12" />
-            <Skeleton className="h-10 w-24 rounded-full bg-white/12" />
-          </div>
-        </div>
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, var(--bg) 0%, transparent 48%), linear-gradient(to right, var(--bg), transparent 12%, transparent 88%, var(--bg))",
+          }}
+        />
+        <Skeleton className="absolute left-4 top-4 h-6 w-28 rounded-full bg-white/15" />
       </div>
 
-      <div className="flex min-h-[240px] flex-col justify-between bg-sunken p-6 lg:col-span-2 lg:min-h-0 lg:p-7">
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-28 rounded" />
-          <Skeleton className="h-4 w-full rounded" />
-          <Skeleton className="h-4 w-[92%] rounded" />
-          <Skeleton className="h-4 w-[72%] rounded" />
-        </div>
-        <div className="my-6 h-px bg-border" />
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-28 rounded" />
-          <div className="flex gap-2">
-            <Skeleton className="h-7 w-16 rounded" />
-            <Skeleton className="h-7 w-20 rounded" />
-            <Skeleton className="h-7 w-14 rounded" />
+      <div
+        className={cn(
+          "relative z-10 grid items-end px-4",
+          BROWSE_RAIL_ENABLED
+            ? "-mt-12 grid-cols-[72px_minmax(0,1fr)] gap-3.5 sm:-mt-16 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-5 sm:px-5 lg:-mt-20 lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-6"
+            : "-mt-14 grid-cols-[76px_minmax(0,1fr)] gap-4 sm:-mt-20 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-6 sm:px-6 lg:grid-cols-[156px_minmax(0,1fr)] lg:gap-8"
+        )}
+      >
+        <Skeleton className="aspect-[2/3] self-start rounded-sm shadow-[0_12px_35px_rgba(0,0,0,0.18)]" />
+        <div
+          className={cn(
+            "min-w-0 pb-1",
+            BROWSE_RAIL_ENABLED ? "pt-12 sm:pt-16 lg:pt-20" : "pt-14 sm:pt-20"
+          )}
+        >
+          <Skeleton className="mb-3 h-3 w-40 rounded" />
+          <Skeleton
+            className={cn(
+              "w-[84%] rounded",
+              BROWSE_RAIL_ENABLED ? "h-8 sm:h-10 lg:h-12 lg:w-[68%]" : "h-9 sm:h-12 lg:h-16 lg:w-[72%]"
+            )}
+          />
+          <Skeleton className="mt-3 h-4 w-[56%] rounded" />
+          <div className="mt-3 space-y-2">
+            <Skeleton className="h-4 w-full max-w-2xl rounded" />
+            <Skeleton className="h-4 w-[74%] max-w-xl rounded" />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Skeleton className="h-10 w-24 rounded-full" />
+            <Skeleton className="h-10 w-24 rounded-full" />
+            <Skeleton className="h-10 w-24 rounded-full" />
           </div>
         </div>
       </div>

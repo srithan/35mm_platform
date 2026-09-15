@@ -1,0 +1,162 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e5]:
+    - navigation [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - link "35mm.in Home" [ref=e9] [cursor=pointer]:
+            - /url: /
+          - search [ref=e13]:
+            - combobox "Search 35mm" [ref=e15]
+        - generic [ref=e17]:
+          - link "Home" [ref=e18] [cursor=pointer]:
+            - /url: /
+          - link "Watch" [ref=e23] [cursor=pointer]:
+            - /url: /70mm
+          - link "Messages" [ref=e28] [cursor=pointer]:
+            - /url: /chat
+          - link "Profile" [ref=e33] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e39]:
+          - link "Log in" [ref=e40] [cursor=pointer]:
+            - /url: /login
+          - link "Sign up" [ref=e41] [cursor=pointer]:
+            - /url: /signup
+    - main [ref=e42]:
+      - main [ref=e45]:
+        - generic [ref=e46]:
+          - complementary [ref=e47]:
+            - img "Tom Holland" [ref=e49]
+            - generic [ref=e50]:
+              - paragraph [ref=e51]: Actor
+              - heading "Tom Holland" [level=1] [ref=e52]
+              - generic [ref=e53]:
+                - generic [ref=e54]: Born 1996
+                - generic [ref=e55]: Kingston upon Thames, London, England, UK
+                - generic [ref=e56]: 61 titles
+                - generic [ref=e57]: Active since 1988
+              - paragraph [ref=e58]: "Thomas Stanley Holland (born 1 June 1996) is a British actor. His accolades include a BAFTA Award as well as two Critics' Choice Awards nominations. His films as a lead actor have grossed over $9.9 billion worldwide. He was featured on the Forbes 30 Under 30 Europe list of 2019. Holland's career began as a teen when he played a supporting role and later the title role in Billy Elliot the Musical on the West End from 2008 to 2010. He made his film debut in the disaster drama The Impossible (2012) followed by roles in the romance drama How I Live Now (2013) and the historical adventure dramas In the Heart of the Sea (2015) and The Lost City of Z (2016). Holland achieved international recognition playing Peter Parker/Spider-Man in six Marvel Cinematic Universe (MCU) superhero films, beginning with Captain America: Civil War (2016). The following year, Holland received the BAFTA Rising Star Award and became the youngest actor to play a title role in an MCU film in Spider-Man: Homecoming. Its sequels, Far From Home (2019) and No Way Home (2021), each grossed more than $1 billion worldwide; the latter became the highest-grossing film of the year. Holland played against-type roles in the crime dramas The Devil All the Time (2020) and Cherry (2021), and starred in the big-budget films Uncharted (2022) and The Odyssey (2026). Holland has voiced roles in the animated features Spies in Disguise (2019) and Onward (2020). On television, he took roles in the PBS historical miniseries Wolf Hall (2015) and the Apple TV+ psychological thriller limited series The Crowded Room (2023). He returned to the stage starring as one of the title roles in the West End revival of Romeo and Juliet (2024). He is married to his longtime co-star Zendaya. Description above from the Wikipedia article Tom Holland, licensed under CC-BY-SA, full list of contributors on Wikipedia."
+              - button "Share" [ref=e60] [cursor=pointer]
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - paragraph [ref=e72]: Films starring
+              - heading "Tom Holland" [level=2] [ref=e73]
+              - paragraph [ref=e74]: 59 titles
+            - generic "Filmography filters" [ref=e75]:
+              - generic [ref=e76]:
+                - button "Role" [ref=e77] [cursor=pointer]:
+                  - generic [ref=e78]: Actor
+                - generic [ref=e81]:
+                  - button "Format" [ref=e82] [cursor=pointer]:
+                    - generic [ref=e83]: All titles
+                  - button "Decade" [ref=e86] [cursor=pointer]:
+                    - generic [ref=e87]: Any decade
+                  - button "Genre" [ref=e90] [cursor=pointer]:
+                    - generic [ref=e91]: Any genre
+                  - button "Sort filmography" [ref=e94] [cursor=pointer]:
+                    - generic [ref=e95]: "Sort: Newest first"
+            - generic [ref=e98]:
+              - link "30 Questions · 2026 · Self - Guest" [ref=e99] [cursor=pointer]:
+                - /url: /tv/30-questions
+              - 'link "Spider-Man: Brand New Day · 2026 · Peter Parker / Spider-Man" [ref=e100] [cursor=pointer]':
+                - /url: /film/spider-man-brand-new-day
+              - 'link "Generations: The Evolution of Spider-Man · 2026 · Self - \"Spider-Man/Peter Parker\"" [ref=e101] [cursor=pointer]':
+                - /url: /film/generations-the-evolution-of-spider-man
+              - link "The Odyssey · 2026 · Telemachus" [ref=e102] [cursor=pointer]:
+                - /url: /film/the-odyssey
+              - 'link "The Odyssey: The Making of an Epic · 2026 · Self - \"Telemachus\"" [ref=e103] [cursor=pointer]':
+                - /url: /film/the-odyssey-the-making-of-an-epic
+              - link "Good Hang with Amy Poehler · 2025 · Self - Guest" [ref=e104] [cursor=pointer]:
+                - /url: /tv/good-hang-with-amy-poehler
+              - link "Last Call · 2023 · Charlie" [ref=e105] [cursor=pointer]:
+                - /url: /film/last-call
+              - link "The Crowded Room · 2023 · Danny Sullivan" [ref=e106] [cursor=pointer]:
+                - /url: /tv/the-crowded-room
+              - 'link "Spider-Man: All Roads Lead to No Way Home · 2022 · Self" [ref=e107] [cursor=pointer]':
+                - /url: /film/spider-man-all-roads-lead-to-no-way-home
+              - link "Uncharted · 2022 · Nathan Drake" [ref=e108] [cursor=pointer]:
+                - /url: /film/uncharted
+              - 'link "Spider-Man: No Way Home · 2021 · Peter Parker / Spider-Man" [ref=e109] [cursor=pointer]':
+                - /url: /film/spider-man-no-way-home
+              - 'link "Venom: Let There Be Carnage · 2021 · Peter Parker / Spider-Man (uncredited)" [ref=e110] [cursor=pointer]':
+                - /url: /film/venom-let-there-be-carnage
+              - link "Cherry · 2021 · Cherry" [ref=e111] [cursor=pointer]:
+                - /url: /film/cherry
+              - link "Chaos Walking · 2021 · Todd Hewitt" [ref=e112] [cursor=pointer]:
+                - /url: /film/chaos-walking
+              - link "The Devil All the Time · 2020 · Arvin Russell" [ref=e113] [cursor=pointer]:
+                - /url: /film/the-devil-all-the-time
+              - 'link "Onward: Magic Gems · 2020 · Ian Lightfoot (Voice)" [ref=e114] [cursor=pointer]':
+                - /url: /film/onward-magic-gems
+              - link "Onward · 2020 · Ian Lightfoot (voice)" [ref=e115] [cursor=pointer]:
+                - /url: /film/onward
+              - link "Dolittle · 2020 · Jip (voice)" [ref=e116] [cursor=pointer]:
+                - /url: /film/dolittle
+              - link "Celebrating Marvel's Stan Lee · 2019 · Self" [ref=e117] [cursor=pointer]:
+                - /url: /film/celebrating-marvel-s-stan-lee
+              - link "Spies in Disguise · 2019 · Walter Beckett (voice)" [ref=e118] [cursor=pointer]:
+                - /url: /film/spies-in-disguise
+              - link "The Daily Bugle · 2019 · Peter Parker" [ref=e119] [cursor=pointer]:
+                - /url: /tv/the-daily-bugle
+              - link "Peter's To-Do List · 2019 · Peter Parker / Spider-Man" [ref=e120] [cursor=pointer]:
+                - /url: /film/peter-s-to-do-list
+              - link "The Kelly Clarkson Show · 2019 · Self" [ref=e121] [cursor=pointer]:
+                - /url: /tv/the-kelly-clarkson-show
+              - 'link "Spider-Man: Far From Home · 2019 · Peter Parker / Spider-Man" [ref=e122] [cursor=pointer]':
+                - /url: /film/spider-man-far-from-home
+              - link "The Chef Show · 2019 · Self - Guest" [ref=e123] [cursor=pointer]:
+                - /url: /tv/the-chef-show
+              - 'link "Avengers: Endgame · 2019 · Peter Parker / Spider-Man" [ref=e124] [cursor=pointer]':
+                - /url: /film/avengers-endgame
+              - 'link "Avengers: Infinity War · 2018 · Peter Parker / Spider-Man" [ref=e125] [cursor=pointer]':
+                - /url: /film/avengers-infinity-war
+              - link "The Current War · 2018 · Samuel Insull" [ref=e126] [cursor=pointer]:
+                - /url: /film/the-current-war
+              - 'link "Spider-Man: Homecoming · 2017 · Peter Parker / Spider-Man" [ref=e127] [cursor=pointer]':
+                - /url: /film/spider-man-homecoming
+              - link "A Fan's Guide to Spider-Man Homecoming · 2017 · Self - Host" [ref=e128] [cursor=pointer]:
+                - /url: /film/a-fan-s-guide-to-spider-man-homecoming
+              - link "Pilgrimage · 2017 · The Novice - Brother Diarmuid" [ref=e129] [cursor=pointer]:
+                - /url: /film/pilgrimage
+              - link "The Lost City of Z · 2017 · Jack Fawcett" [ref=e130] [cursor=pointer]:
+                - /url: /film/the-lost-city-of-z
+              - link "Quotidien · 2016 · Self" [ref=e131] [cursor=pointer]:
+                - /url: /tv/quotidien
+              - link "Edge of Winter · 2016 · Bradley Baker" [ref=e132] [cursor=pointer]:
+                - /url: /film/edge-of-winter
+              - 'link "Captain America: Civil War · 2016 · Peter Parker / Spider-Man" [ref=e133] [cursor=pointer]':
+                - /url: /film/captain-america-civil-war
+              - link "In the Heart of the Sea · 2015 · Young Thomas Nickerson" [ref=e134] [cursor=pointer]:
+                - /url: /film/in-the-heart-of-the-sea
+              - link "The Late Show with Stephen Colbert · 2015 · Self - Guest" [ref=e135] [cursor=pointer]:
+                - /url: /tv/the-late-show-with-stephen-colbert
+              - link "Hot Ones · 2015 · Self" [ref=e136] [cursor=pointer]:
+                - /url: /tv/hot-ones
+              - link "Wolf Hall · 2015 · Gregory Cromwell" [ref=e137] [cursor=pointer]:
+                - /url: /tv/wolf-hall
+              - 'link "Variety Studio: Actors on Actors · 2014 · Self" [ref=e138] [cursor=pointer]':
+                - /url: /tv/variety-studio-actors-on-actors
+              - 'link "Billy Elliot: The Musical Live · 2014 · Former Billy (Encore)" [ref=e139] [cursor=pointer]':
+                - /url: /film/billy-elliot-the-musical-live
+              - link "Locke · 2014 · Eddie (voice)" [ref=e140] [cursor=pointer]:
+                - /url: /film/locke
+              - link "Late Night with Seth Meyers · 2014 · Self - Guest" [ref=e141] [cursor=pointer]:
+                - /url: /tv/late-night-with-seth-meyers
+              - link "The Tonight Show Starring Jimmy Fallon · 2014 · Self, Self - Guest" [ref=e142] [cursor=pointer]:
+                - /url: /tv/the-tonight-show-starring-jimmy-fallon
+              - link "How I Live Now · 2013 · Isaac" [ref=e143] [cursor=pointer]:
+                - /url: /film/how-i-live-now
+              - link "Moments · 2013 · Boy" [ref=e144] [cursor=pointer]:
+                - /url: /film/moments
+              - link "The Impossible · 2012 · Lucas Bennett" [ref=e145] [cursor=pointer]:
+                - /url: /film/the-impossible
+              - link "The Graham Norton Show · 2007 · Self" [ref=e146] [cursor=pointer]:
+                - /url: /tv/the-graham-norton-show
+            - paragraph [ref=e147]:
+              - text: Showing 48 of 59 matching titles.
+              - link "View complete filmography on TMDB" [ref=e148] [cursor=pointer]:
+                - /url: https://www.themoviedb.org/person/1136406
+  - button "Open Tanstack query devtools" [ref=e199] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e253] [cursor=pointer]
+  - alert [ref=e257]

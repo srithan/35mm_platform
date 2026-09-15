@@ -6,10 +6,22 @@ const auth = vi.hoisted(function () {
   return { isLoaded: true, isSignedIn: true };
 });
 
+const navigation = vi.hoisted(function () {
+  return { pathname: "/" };
+});
+
 vi.mock("@clerk/nextjs", function () {
   return {
     useAuth: function () {
       return auth;
+    },
+  };
+});
+
+vi.mock("next/navigation", function () {
+  return {
+    usePathname: function () {
+      return navigation.pathname;
     },
   };
 });
@@ -23,19 +35,74 @@ vi.mock("./ProfileCompletionWidget", function () {
 });
 
 describe("HomeProfileCompletionSidebar", function () {
+  it("renders feed menu links in the left rail", function () {
+    auth.isLoaded = true;
+    auth.isSignedIn = true;
+    navigation.pathname = "/films";
+
+    render(<HomeProfileCompletionSidebar />);
+
+    expect(screen.getByLabelText("Feed sidebar")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Your Feed" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute("href", "/discover");
+    expect(screen.getByRole("link", { name: "Films" })).toHaveAttribute("href", "/films");
+    expect(screen.getByRole("link", { name: "Lists" })).toHaveAttribute("href", "/lists");
+    expect(screen.queryByRole("link", { name: "Watchlist" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Films" })).toHaveAttribute("aria-current", "page");
+  });
+
   it("renders the profile setup rail for signed-in users", function () {
     auth.isLoaded = true;
     auth.isSignedIn = true;
+    navigation.pathname = "/";
 
     render(<HomeProfileCompletionSidebar />);
 
     expect(screen.getByLabelText("Profile setup")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Your Feed" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Profile completion")).toBeInTheDocument();
+  });
+
+  it("uses a narrower rail for directory pages", function () {
+    auth.isLoaded = true;
+    auth.isSignedIn = true;
+    navigation.pathname = "/discover";
+
+    render(<HomeProfileCompletionSidebar layout="directory" />);
+
+    var rail = screen.getByLabelText("Feed sidebar");
+    expect(rail).toHaveStyle({
+      right:
+        "calc(50vw + var(--home-explore-center-column-half-width, 432px) + var(--home-sidebar-gap, 2rem))",
+      width:
+        "min(var(--home-explore-left-rail-width, 220px), calc(min(50vw, 700px) - 1rem - var(--home-explore-center-column-half-width, 432px) - var(--home-sidebar-gap, 2rem)))",
+    });
+  });
+
+  it("can render directory rail inline for two-column browse pages", function () {
+    auth.isLoaded = true;
+    auth.isSignedIn = true;
+    navigation.pathname = "/discover";
+
+    render(<HomeProfileCompletionSidebar layout="directory" placement="inline" />);
+
+    var rail = screen.getByLabelText("Feed sidebar");
+    expect(rail).toHaveClass("sticky");
+    expect(rail).toHaveClass("top-[var(--home-profile-sidebar-top)]");
+    expect(rail).not.toHaveClass("fixed");
+    expect(rail.getAttribute("style")).toContain(
+      "--home-profile-sidebar-top: calc(var(--site-header-sticky-offset, 4.5rem) + var(--home-main-below-header-gap, 1rem))"
+    );
+    expect(rail.getAttribute("style")).toContain(
+      "max-height: calc(100vh - var(--site-header-sticky-offset, 4.5rem) - var(--home-main-below-header-gap, 1rem) - env(safe-area-inset-bottom, 0px))"
+    );
+    expect(rail.getAttribute("style")).not.toContain("right:");
   });
 
   it("does not render for guests", function () {
     auth.isLoaded = true;
     auth.isSignedIn = false;
+    navigation.pathname = "/";
 
     var { container } = render(<HomeProfileCompletionSidebar />);
 

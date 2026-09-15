@@ -15,6 +15,7 @@ interface PostComposerTriggerProps {
   onOpen: () => void;
   user: PostComposerTriggerUser;
   suppressDefaultAvatar?: boolean;
+  simplified?: boolean;
 }
 
 const TRIGGER_TOOLS = [
@@ -66,14 +67,53 @@ function TriggerTool({ label, icon }: { label: string; icon?: React.ReactNode })
   );
 }
 
+function simplifiedComposerPrompt(name: string) {
+  const displayName = name.trim();
+  const firstName = displayName.split(/\s+/)[0] || "Profile";
+  return `${firstName}, What's on your mind?`;
+}
+
 export function PostComposerTrigger({
   onOpen,
   user,
   suppressDefaultAvatar = false,
+  simplified = false,
 }: PostComposerTriggerProps) {
   const prompt = useMemo(() => {
-    return postComposerWritePrompt(user.name);
-  }, [user.name]);
+    return simplified ? simplifiedComposerPrompt(user.name) : postComposerWritePrompt(user.name);
+  }, [simplified, user.name]);
+
+  if (simplified) {
+    return (
+      <div className="PostComposerTrigger rounded-[var(--composer-radius)] pb-4">
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            "composer-trigger-card w-full cursor-pointer border-2 border-border bg-bg text-left",
+            "rounded-[var(--composer-radius)] px-4 py-3 transition-[border-color,box-shadow] duration-150 ease-out",
+            "hover:bg-card-hover",
+            "focus:outline-none focus-visible:outline-none"
+          )}
+          aria-label="Create new post"
+        >
+          <div className="flex min-h-[48px] items-center gap-3">
+            <Avatar
+              initial={user.initial}
+              src={user.avatarUrl}
+              allowDefaultFallback={!suppressDefaultAvatar}
+              loading="eager"
+              className="h-10 w-10 shrink-0"
+            />
+
+            <span className="block min-w-0 flex-1 truncate text-left text-[16px] font-normal leading-tight text-fg-muted select-none sm:text-[17px]">
+              {prompt}
+            </span>
+          </div>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="PostComposerTrigger rounded-[var(--composer-radius)] pb-4">

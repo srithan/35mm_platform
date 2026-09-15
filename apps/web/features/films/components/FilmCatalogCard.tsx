@@ -1,7 +1,9 @@
 "use client";
 
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import type { MouseEvent, ReactNode } from "react";
+import { Clock3, Clapperboard, Globe2, ListPlus, Plus } from "lucide-react";
 import { FilmPoster } from "@/components/FilmPoster";
 import { ROUTES } from "@/lib/constants/routes";
 import type { FilmCatalogDisplayItem } from "../api/filmsApi";
@@ -124,63 +126,167 @@ export function FilmCatalogCard({
 }
 
 export function FilmCatalogListRow({
+  addingListId,
+  canAddToList = false,
   film,
   isOpening = false,
+  listOptions = [],
+  listOptionsLoading = false,
   onOpen,
+  onAddToList,
+  onRequestListAuth,
+  rank,
 }: {
+  addingListId?: string | null;
+  canAddToList?: boolean;
   film: FilmCatalogDisplayItem;
   isOpening?: boolean;
+  listOptions?: Array<{ id: string; title: string }>;
+  listOptionsLoading?: boolean;
   onOpen?: (film: FilmCatalogDisplayItem) => void;
+  onAddToList?: (film: FilmCatalogDisplayItem, listId: string) => void;
+  onRequestListAuth?: () => void;
+  rank?: number;
 }) {
-  var metadata = [
-    film.year == null ? null : String(film.year),
-    film.mediaType === "tv" ? "TV" : "Movie",
-    film.runtime == null ? null : film.runtime + " min",
-    film.language?.toUpperCase(),
-    film.country,
-  ].filter(Boolean).join(" · ");
+  var rankLabel = rank == null ? null : String(rank).padStart(2, "0");
+  var mediaLabel = film.mediaType === "tv" ? "Series" : "Film";
+  var yearLabel = film.year == null ? "Year unknown" : String(film.year);
+  var runtimeLabel = film.runtime == null ? null : film.runtime + " min";
+  var localeLabel = [film.language?.toUpperCase(), film.country].filter(Boolean).join(" / ");
+  var genreLabel = film.genres.slice(0, 3).join(" / ") || "Genre unlisted";
+  var titleDetails = [yearLabel, mediaLabel].filter(Boolean).join(" · ");
+  var listActionDisabled = isOpening || listOptionsLoading || !onAddToList;
 
   return (
-    <article className="border-b border-border">
+    <article className="group/list-row relative overflow-hidden rounded-[22px] border border-border bg-elevated shadow-[0_8px_28px_-26px_rgba(28,26,23,0.5)] transition duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_24px_46px_-34px_rgba(28,26,23,0.52)] motion-reduce:transition-none">
       <FilmOpenTarget
         film={film}
         isOpening={isOpening}
         onOpen={onOpen}
-        className="group grid min-h-24 w-full grid-cols-[48px_minmax(0,1fr)] items-center gap-4 py-3 text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover disabled:cursor-wait disabled:opacity-60 sm:grid-cols-[48px_minmax(0,1fr)_minmax(180px,0.55fr)] sm:px-2"
+        className="group relative isolate flex min-h-[132px] w-full items-stretch gap-3 overflow-hidden p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-film-red focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-wait disabled:opacity-60 sm:gap-4 sm:p-3.5"
       >
-        <FilmPoster
-          src={film.posterUrl}
-          alt=""
-          size="md"
-          className="w-12 rounded-[2px] shadow-sm"
-        />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-[14px] font-semibold text-fg group-hover:text-film-red">
+        <span className="pointer-events-none absolute inset-y-4 left-0 w-1 rounded-r-full bg-[linear-gradient(180deg,var(--film-red),var(--film-gold))] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none" />
+        <span className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(110deg,color-mix(in_srgb,var(--film-red)_8%,transparent),transparent_38%),linear-gradient(180deg,var(--elevated),var(--sunken))] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none" />
+        <div className="relative shrink-0">
+          <span className="absolute left-1.5 top-1.5 z-10 rounded-full bg-bg/90 px-2 py-1 font-mono text-[9px] font-semibold leading-none text-fg shadow-sm backdrop-blur">
+            {rankLabel ?? "—"}
+          </span>
+          <FilmPoster
+            src={film.posterUrl}
+            alt=""
+            size="lg"
+            className="w-14 rounded-[16px] shadow-[0_16px_28px_-20px_rgba(0,0,0,0.95)] ring-1 ring-black/5"
+          />
+        </div>
+        <div className="min-w-0 flex-1 pb-9">
+          <div className="min-w-0">
+            <h2 className="min-w-0 overflow-hidden text-[15.5px] font-semibold leading-tight text-fg [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] group-hover:text-film-red">
               {film.title}
             </h2>
-            {film.isVerified ? (
-              <span className="hidden shrink-0 rounded-full border border-border-strong px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-fg-muted md:inline">
-                Verified
-              </span>
-            ) : film.source === "tmdb" ? (
-              <span className="hidden shrink-0 rounded-full border border-border-strong px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-fg-muted md:inline">
-                TMDB
-              </span>
-            ) : null}
           </div>
           {film.originalTitle && film.originalTitle !== film.title ? (
             <p className="mt-0.5 truncate text-[11px] text-fg-muted">{film.originalTitle}</p>
           ) : null}
-          <p className="mt-1 truncate font-mono text-[10px] text-fg-muted">{metadata || "Title record"}</p>
-        </div>
-        <div className="hidden min-w-0 text-right sm:block">
-          <p className="truncate text-[12px] font-medium text-fg">{film.director || "Creator unknown"}</p>
-          <p className="mt-1 truncate text-[10.5px] text-fg-muted">
-            {film.genres.slice(0, 3).join(" / ") || "Genre unlisted"}
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
+            <span className="inline-flex h-6 items-center rounded-full bg-sunken px-2 font-mono text-[10px] font-semibold uppercase text-fg-muted">
+              {titleDetails}
+            </span>
+            {runtimeLabel ? (
+              <span className="inline-flex h-6 items-center gap-1 rounded-full bg-sunken px-2 font-mono text-[10px] font-semibold text-fg-muted">
+                <Clock3 className="h-3 w-3" aria-hidden />
+                {runtimeLabel}
+              </span>
+            ) : null}
+            {localeLabel ? (
+              <span className="inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-sunken px-2 font-mono text-[10px] font-semibold uppercase text-fg-muted">
+                <Globe2 className="h-3 w-3 shrink-0" aria-hidden />
+                <span className="truncate">{localeLabel}</span>
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-2 flex min-w-0 items-center gap-1.5 pr-10 text-[12px] text-fg-muted">
+            <Clapperboard className="h-3.5 w-3.5 shrink-0 text-film-red" aria-hidden />
+            <span className="truncate">{genreLabel}</span>
           </p>
+          {film.director ? (
+            <p className="mt-2 min-w-0 truncate pr-10 text-[11px] font-semibold text-fg">
+              <span className="font-mono font-medium uppercase text-fg-faint">Director:</span>{" "}
+              {film.director}
+            </p>
+          ) : null}
         </div>
+        {isOpening ? (
+          <span className="absolute inset-0 z-10 flex items-center justify-center bg-bg/75 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg backdrop-blur-sm">
+            Adding to 35mm…
+          </span>
+        ) : null}
       </FilmOpenTarget>
+      <div className="absolute bottom-3 right-3 z-20">
+        {canAddToList ? (
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger
+              type="button"
+              disabled={listActionDisabled}
+              title="Add to list"
+              aria-label={`Add ${film.title} to list`}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-fg-muted shadow-sm transition-colors hover:border-film-red/35 hover:bg-film-red hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-film-red/35 disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              <ListPlus className="h-4 w-4" aria-hidden />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={8}
+                collisionPadding={12}
+                className="z-50 w-[min(17rem,calc(100vw-2rem))] rounded-[18px] border border-border-strong bg-elevated p-2 shadow-xl"
+              >
+                <DropdownMenu.Label className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+                  Add to list
+                </DropdownMenu.Label>
+                {listOptionsLoading ? (
+                  <DropdownMenu.Item disabled className="rounded-full px-3 py-2 text-[12px] text-fg-muted outline-none">
+                    Loading lists…
+                  </DropdownMenu.Item>
+                ) : listOptions.length > 0 ? (
+                  listOptions.map(function (list) {
+                    var isAdding = addingListId === list.id;
+                    return (
+                      <DropdownMenu.Item
+                        key={list.id}
+                        disabled={Boolean(addingListId)}
+                        onSelect={function () { onAddToList?.(film, list.id); }}
+                        className="flex cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-[12px] font-semibold text-fg outline-none transition-colors focus:bg-sunken disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <Plus className="h-3.5 w-3.5 text-film-red" aria-hidden />
+                        <span className="min-w-0 flex-1 truncate">{list.title}</span>
+                        {isAdding ? <span className="text-[10px] uppercase text-fg-muted">Adding</span> : null}
+                      </DropdownMenu.Item>
+                    );
+                  })
+                ) : (
+                  <DropdownMenu.Item disabled className="rounded-full px-3 py-2 text-[12px] text-fg-muted outline-none">
+                    No custom lists yet
+                  </DropdownMenu.Item>
+                )}
+                <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                <DropdownMenu.Item asChild className="rounded-full px-3 py-2 text-[12px] font-semibold text-fg outline-none transition-colors focus:bg-sunken">
+                  <Link href={ROUTES.LISTS}>Manage lists</Link>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        ) : (
+          <button
+            type="button"
+            title="Add to list"
+            aria-label={`Add ${film.title} to list`}
+            onClick={onRequestListAuth}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg text-fg-muted shadow-sm transition-colors hover:border-film-red/35 hover:bg-film-red hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-film-red/35"
+          >
+            <ListPlus className="h-4 w-4" aria-hidden />
+          </button>
+        )}
+      </div>
     </article>
   );
 }

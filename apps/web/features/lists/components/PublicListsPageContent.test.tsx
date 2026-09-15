@@ -5,7 +5,10 @@ import { PublicListCard, PublicListsPageContent } from "./PublicListsPageContent
 
 const pageMocks = vi.hoisted(() => ({
   push: vi.fn(),
-  usePublicLists: vi.fn(() => ({ data: { pages: [{ items: [] }] }, hasNextPage: false })),
+  usePublicLists: vi.fn(() => ({
+    data: { pages: [{ items: [] as FilmListSummary[] }] },
+    hasNextPage: false,
+  })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pageMocks.push }) }));
 vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
@@ -20,7 +23,6 @@ vi.mock("../hooks/useLists", () => ({
   usePublicLists: pageMocks.usePublicLists,
   useListMutations: () => ({ createList: { mutate: vi.fn(), isPending: false, error: null } }),
 }));
-vi.mock("@/features/discover/components/DiscoverTabs", () => ({ DiscoverTabs: () => null }));
 vi.mock("./ListEditorModal", () => ({ ListEditorModal: ({ open }: { open: boolean }) => open ? <div role="dialog">Create collection</div> : null }));
 
 vi.mock("@/components/FilmPoster", function () {
@@ -89,8 +91,25 @@ describe("PublicListsPageContent", () => {
     render(<PublicListsPageContent />);
     fireEvent.change(screen.getByRole("searchbox", { name: "Search lists" }), { target: { value: "city" } });
     await waitFor(() => expect(pageMocks.usePublicLists).toHaveBeenLastCalledWith("popular", { q: "city", format: "all", size: "all" }));
-    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect(screen.getByRole("searchbox")).toHaveValue("");
     expect(pageMocks.usePublicLists).toHaveBeenLastCalledWith("popular", { q: "", format: "all", size: "all" });
+  });
+
+  it("renders refreshed public lists as a one-column list view", () => {
+    pageMocks.usePublicLists.mockReturnValueOnce({
+      data: { pages: [{ items: [{ ...list, likeCount: 2 }] }] },
+      hasNextPage: false,
+    });
+
+    render(<PublicListsPageContent />);
+
+    expect(screen.getByRole("list", { name: "Public lists" })).toHaveClass("flex", "flex-col");
+    expect(screen.getByRole("list")).not.toHaveClass("md:grid-cols-2");
+    expect(screen.getByRole("listitem")).toHaveTextContent("City Symphonies");
+    expect(screen.getByRole("listitem")).toHaveClass("border-b", "px-1", "py-3");
+    expect(screen.getByRole("listitem")).toHaveClass("sm:grid-cols-[160px_minmax(0,1fr)_minmax(3rem,auto)]");
+    expect(screen.getByRole("listitem")).not.toHaveClass("rounded-3xl", "p-5");
+    expect(screen.getByRole("button", { name: "Create List" })).toBeInTheDocument();
   });
 });

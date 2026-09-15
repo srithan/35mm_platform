@@ -20,23 +20,6 @@ interface FeaturedFilmRowProps {
   onOpenModal?: () => void;
 }
 
-function Star({ filled, half }: { filled?: boolean; half?: boolean }) {
-  return (
-    <div
-      className="w-2.5 h-2.5 shrink-0"
-      style={{
-        clipPath:
-          "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
-        background: half
-          ? "linear-gradient(90deg, var(--color-rating-star, var(--accent)) 50%, var(--color-rating-star-empty, var(--border)) 50%)"
-          : filled
-            ? "var(--color-rating-star, var(--accent))"
-            : "var(--color-rating-star-empty, var(--border))",
-      }}
-    />
-  );
-}
-
 export function FeaturedFilmRow({
   film,
   primaryAction = "watched",
@@ -44,8 +27,6 @@ export function FeaturedFilmRow({
 }: FeaturedFilmRowProps) {
   const [watched, setWatched] = useState(primaryAction === "watched");
   const [watchlisted, setWatchlisted] = useState(false);
-  const fullStars = Math.floor(film.rating);
-  const hasHalf = film.rating % 1 >= 0.5;
 
   return (
     <div
@@ -70,18 +51,6 @@ export function FeaturedFilmRow({
         </div>
         <div className="text-xs text-fg-light mt-1 leading-relaxed">
           {film.tagline}
-        </div>
-        <div className="flex gap-0.5 mt-2.5 items-center">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Star
-              key={i}
-              filled={i <= fullStars}
-              half={i === fullStars + 1 && hasHalf}
-            />
-          ))}
-          <span className="text-[11px] text-fg-muted ml-1.5">
-            {film.rating} · {film.ratingCount} ratings
-          </span>
         </div>
         <div className="flex gap-1.5 mt-2.5 flex-wrap">
           {film.tags.map((tag) => (

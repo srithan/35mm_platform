@@ -5,6 +5,7 @@ import {
   formatChatUnreadBadgeCount,
   useChatUnreadBadgeCount,
 } from "@/features/chat/hooks/useChatUnreadBadgeCount";
+import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import styles from "../SiteHeader.module.css";
@@ -66,32 +67,36 @@ export function NavLinks({
               />
             </svg>
           </span>
-          <span className={styles.navItemText}>Feed</span>
+          <span className={styles.navItemText}>
+            {BROWSE_RAIL_ENABLED ? "Home" : "Feed"}
+          </span>
         </Link>
 
-        <Link
-          href={ROUTES.DISCOVER}
-          className={navItemClass(isActive(ROUTES.DISCOVER), useSkeuomorphicActive)}
-          aria-current={isActive(ROUTES.DISCOVER) ? "page" : undefined}
-        >
-          <span className={styles.navItemIcon}>
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" />
-            </svg>
-          </span>
-          <span className={styles.navItemText}>Discover</span>
-        </Link>
+        {!BROWSE_RAIL_ENABLED ? (
+          <Link
+            href={ROUTES.DISCOVER}
+            className={navItemClass(isActive(ROUTES.DISCOVER), useSkeuomorphicActive)}
+            aria-current={isActive(ROUTES.DISCOVER) ? "page" : undefined}
+          >
+            <span className={styles.navItemIcon}>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" />
+              </svg>
+            </span>
+            <span className={styles.navItemText}>Discover</span>
+          </Link>
+        ) : null}
 
         <Link
           href={ROUTES.SEVENTY_MM}

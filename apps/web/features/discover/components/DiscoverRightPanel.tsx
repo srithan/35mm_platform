@@ -9,31 +9,31 @@ import { ROUTES } from "@/lib/constants/routes";
 const TRENDING = [
   {
     title: "Anora",
-    count: "2,341 logs · ★ 4.5",
+    count: "2,341 logs",
     poster: "https://image.tmdb.org/t/p/w92/4vFD3zsAIpVFNzd9KRSzaFGwH3K.jpg",
     imdbId: "tt30187306",
   },
   {
     title: "The Brutalist",
-    count: "1,892 logs · ★ 4.2",
+    count: "1,892 logs",
     poster: "https://image.tmdb.org/t/p/w92/vcFW09U4834DyFOeRZpsx9x1D3r.jpg",
     imdbId: "tt33451484",
   },
   {
     title: "Nickel Boys",
-    count: "720 logs · ★ 4.4",
+    count: "720 logs",
     poster: null,
     imdbId: "tt32699266",
   },
   {
     title: "I'm Still Here",
-    count: "831 logs · ★ 4.3",
+    count: "831 logs",
     poster: null,
     imdbId: "tt1683526",
   },
   {
     title: "A Complete Unknown",
-    count: "643 logs · ★ 4.0",
+    count: "643 logs",
     poster: null,
     imdbId: "tt35230402",
   },

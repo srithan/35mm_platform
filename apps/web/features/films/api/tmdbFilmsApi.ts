@@ -64,6 +64,7 @@ const MOOD_GENRES: Record<string, string[]> = {
 };
 
 const WEB_SERIES_KEYWORD_ID = 281372;
+const DIRECTOR_FETCH_CONCURRENCY = 6;
 
 type TmdbDiscoverResponse = {
   page?: number;
@@ -77,6 +78,17 @@ export type TmdbFilmCatalogPage = {
   nextPage: number | null;
   totalResults: number;
 };
+
+type TmdbCreditsResponse = {
+  crew?: Array<{ job?: string; name?: string }>;
+};
+
+type TmdbTvDetailResponse = {
+  created_by?: Array<{ name?: string }>;
+  credits?: TmdbCreditsResponse;
+};
+
+const directorCache = new Map<string, Promise<string | null>>();
 
 function yearNumber(film: TMDBMovie): number | null {
   var value = yearFromDate(film.release_date || film.first_air_date || "");
@@ -229,6 +241,82 @@ function mapTmdbItem(
   };
 }
 
+function uniqueNames(names: string[]) {
+  var seen = new Set<string>();
+  var out: string[] = [];
+  for (var name of names) {
+    var trimmed = name.trim();
+    if (!trimmed || seen.has(trimmed.toLocaleLowerCase("en"))) continue;
+    seen.add(trimmed.toLocaleLowerCase("en"));
+    out.push(trimmed);
+  }
+  return out;
+}
+
+function crewDirectorNames(credits: TmdbCreditsResponse | undefined): string[] {
+  return uniqueNames((credits?.crew ?? []).flatMap(function (person) {
+    return person.job === "Director" && person.name ? [person.name] : [];
+  }));
+}
+
+async function fetchTmdbDirector(tmdbId: number, mediaType: FilmCatalogMediaType): Promise<string | null> {
+  var key = `${mediaType}:${tmdbId}`;
+  var cached = directorCache.get(key);
+  if (cached) return cached;
+
+  var promise = (async function () {
+    try {
+      if (mediaType === "movie") {
+        var movieResponse = await fetch(`/api/tmdb/movie/${tmdbId}/credits`, { cache: "no-store" });
+        if (!movieResponse.ok) return null;
+        var movieCredits = (await movieResponse.json()) as TmdbCreditsResponse;
+        return crewDirectorNames(movieCredits).join(" / ") || null;
+      }
+
+      var tvResponse = await fetch(`/api/tmdb/tv/${tmdbId}?append_to_response=credits`, { cache: "no-store" });
+      if (!tvResponse.ok) return null;
+      var tvDetail = (await tvResponse.json()) as TmdbTvDetailResponse;
+      var creators = uniqueNames((tvDetail.created_by ?? []).flatMap(function (person) {
+        return person.name ? [person.name] : [];
+      }));
+      if (creators.length > 0) return creators.join(" / ");
+      return crewDirectorNames(tvDetail.credits).join(" / ") || null;
+    } catch {
+      return null;
+    }
+  })();
+
+  directorCache.set(key, promise);
+  return promise;
+}
+
+async function mapWithDirectors(items: FilmCatalogDisplayItem[]): Promise<FilmCatalogDisplayItem[]> {
+  return mapWithConcurrency(items, DIRECTOR_FETCH_CONCURRENCY, async function (item) {
+    if (item.director || item.tmdbId == null) return item;
+    var director = await fetchTmdbDirector(item.tmdbId, item.mediaType);
+    return director ? { ...item, director } : item;
+  });
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  var results: R[] = new Array(items.length);
+  var nextIndex = 0;
+  var workerCount = Math.min(concurrency, items.length);
+  var workers = Array.from({ length: workerCount }, async function () {
+    while (nextIndex < items.length) {
+      var index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 function mergeMediaResults(
   groups: FilmCatalogDisplayItem[][],
   sort: FilmCatalogFilters["sort"]
@@ -273,8 +361,10 @@ export async function fetchTmdbFilmsCatalog(
     });
   });
 
+  var items = mergeMediaResults(groups, filters.sort);
+
   return {
-    items: mergeMediaResults(groups, filters.sort),
+    items: await mapWithDirectors(items),
     nextPage: page < totalPages ? page + 1 : null,
     totalResults: responses.reduce(function (total, { payload }) {
       return total + (typeof payload.total_results === "number" ? payload.total_results : 0);

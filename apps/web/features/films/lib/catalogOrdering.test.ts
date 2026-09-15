@@ -30,9 +30,12 @@ describe("catalog ordering", function () {
     var local = film("01LOCAL", "35mm", 2);
     var remoteFirst = film("tmdb:movie:1", "tmdb", 1);
     var remoteCanonical = film("tmdb:movie:2", "tmdb", 2);
+    remoteCanonical.director = "Jane Campion";
 
-    expect(mergeCatalogSources([local], [remoteFirst, remoteCanonical]).map(function (item) { return item.id; }))
-      .toEqual(["tmdb:movie:1", "01LOCAL"]);
+    var merged = mergeCatalogSources([local], [remoteFirst, remoteCanonical]);
+
+    expect(merged.map(function (item) { return item.id; })).toEqual(["tmdb:movie:1", "01LOCAL"]);
+    expect(merged[1]?.director).toBe("Jane Campion");
   });
 
   it("appends newly fetched titles without rearranging rendered titles", function () {

@@ -21,7 +21,8 @@ export function mergeCatalogSources(
     var key = catalogItemKey(remoteFilm);
     if (included.has(key)) continue;
     included.add(key);
-    merged.push(localByExternalId.get(key) ?? remoteFilm);
+    var canonicalFilm = localByExternalId.get(key);
+    merged.push(canonicalFilm ? mergeCatalogRecord(canonicalFilm, remoteFilm) : remoteFilm);
   }
   for (var localFilm of localFilms) {
     var key = catalogItemKey(localFilm);
@@ -30,6 +31,16 @@ export function mergeCatalogSources(
     merged.push(localFilm);
   }
   return merged;
+}
+
+function mergeCatalogRecord(
+  localFilm: FilmCatalogDisplayItem,
+  remoteFilm: FilmCatalogDisplayItem
+): FilmCatalogDisplayItem {
+  return {
+    ...localFilm,
+    director: localFilm.director ?? remoteFilm.director,
+  };
 }
 
 export function preserveCatalogOrder(

@@ -17,6 +17,7 @@ import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { MobileScrollChromeListener } from "@/components/layout/MobileScrollChromeListener";
 import { ComposerModalProvider } from "@/components/layout/PostComposerModalContext";
 import { AuthPromptProvider } from "@/features/auth/components/AuthPromptProvider";
+import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { isPersonRolePath } from "@/lib/routing/personRoles";
@@ -102,6 +103,13 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === ROUTES.CHAT || Boolean(pathname?.startsWith("/chat/"));
   const isContributeSection =
     pathname === ROUTES.CONTRIBUTE || Boolean(pathname?.startsWith("/contribute/"));
+  const isBrowseDirectoryPage =
+    pathname === ROUTES.DISCOVER ||
+    pathname === ROUTES.FILMS ||
+    pathname === ROUTES.LISTS;
+  const isHomeRailRefreshPage =
+    BROWSE_RAIL_ENABLED &&
+    (isBrowseDirectoryPage || isTitlePage || isPersonPage);
   const isListDetailPage = Boolean(pathname?.startsWith("/list/"));
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isNewPostPage = pathname === ROUTES.NEW_POST;
@@ -112,9 +120,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
   const isDesktopLg = useIsDesktopLg();
 
   const isWideMainContent =
-    pathname === "/discover" ||
-    pathname === ROUTES.FILMS ||
-    pathname === ROUTES.LISTS ||
+    isBrowseDirectoryPage ||
     isListDetailPage ||
     isContributeSection ||
     pathname === ROUTES.BOOKMARKS ||
@@ -173,9 +179,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   /** Profiles use a horizontal tab strip only below `lg`; wide layout uses left rail instead. */
   const hasStickyBarBelow =
-    pathname === "/discover" ||
-    pathname === ROUTES.FILMS ||
-    pathname === ROUTES.LISTS ||
+    (!BROWSE_RAIL_ENABLED && isBrowseDirectoryPage) ||
     pathname?.startsWith("/profile") ||
     isContributeSection ||
     (isProfileUsernamePage && isDesktopLg !== true) ||
@@ -183,7 +187,19 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === "/notifications" ||
     isSettingsSection;
 
-  const useHomeRailLayout = isHomePage;
+  const useHomeRailLayout =
+    isHomePage ||
+    (BROWSE_RAIL_ENABLED && isListDetailPage);
+  const useHomeRailTwoColumnLayout =
+    BROWSE_RAIL_ENABLED && isListDetailPage;
+  const useBrowseRailDirectoryLayout =
+    BROWSE_RAIL_ENABLED &&
+    (pathname === ROUTES.DISCOVER ||
+      pathname === ROUTES.FILMS ||
+      isTitlePage ||
+      isPersonPage);
+  const useExploreRailLayout =
+    isHomeRailRefreshPage && !useBrowseRailDirectoryLayout;
   const useProfileFullWidthLayout = isProfileUsernamePage && profileRailDisabled;
   /** Profile spans main except the widgets column (`xl:`). */
   const useProfileRailLayout = isProfileUsernamePage && !profileRailDisabled;
@@ -197,6 +213,17 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
         style={
           {
             "--shell-main-max-width": shellMainMaxWidth,
+            "--home-explore-center-column-width": "864px",
+            "--home-explore-center-column-half-width": "432px",
+            "--home-explore-left-rail-width": "220px",
+            "--home-explore-right-rail-width":
+              "max(0px, calc(min(50vw, 700px) - 1rem - var(--home-explore-center-column-half-width, 432px) - var(--home-sidebar-gap, 2rem)))",
+            "--home-explore-page-span-width":
+              "calc(var(--home-explore-center-column-width) + var(--home-sidebar-gap, 2rem) + var(--home-explore-right-rail-width))",
+            "--home-explore-directory-layout-width":
+              "calc(var(--home-explore-left-rail-width) + var(--home-sidebar-gap, 2rem) + var(--home-explore-page-span-width))",
+            "--home-right-rail-width":
+              "max(0px, calc(min(50vw, 700px) - 1rem - 320px - var(--home-sidebar-gap, 2rem)))",
             "--mobile-sidebar-width": "min(82vw, 320px)",
             "--mobile-sidebar-viewport-top": `${sidebarViewportTop}px`,
             "--mobile-sidebar-viewport-bottom":
@@ -245,6 +272,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                   : "pb-[calc(5.25rem+max(0.625rem,env(safe-area-inset-bottom,0px)))] md:pb-0",
                 useHomeRailLayout
                   ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
+                  : useExploreRailLayout || useBrowseRailDirectoryLayout
+                    ? "md:max-w-[var(--home-explore-center-column-width)] md:mx-auto xl:max-w-none xl:mx-0"
                   : useProfileRailLayout || useProfileFullWidthLayout
                     ? "w-full max-w-none mx-0"
                     : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
@@ -257,7 +286,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                   : hasStickyBarBelow
                   ? cn(
                       "pt-[var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))] md:pt-[var(--site-header-sticky-offset,4.5rem)]",
-                      (useHomeRailLayout || useProfileRailLayout) &&
+                      (useHomeRailLayout || useExploreRailLayout || useBrowseRailDirectoryLayout || useProfileRailLayout) &&
                         "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                     )
                   : cn(
@@ -265,23 +294,56 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                         ? "pt-[calc(var(--mobile-header-sticky-offset,calc(max(0.75rem,env(safe-area-inset-top,0px))+3.25rem))-0.25rem)]"
                         : "pt-20",
                       "md:pt-[var(--site-header-sticky-offset,4.5rem)]",
-                      (useHomeRailLayout || useProfileRailLayout) &&
+                      (useHomeRailLayout || useExploreRailLayout || useBrowseRailDirectoryLayout || useProfileRailLayout) &&
                         "md:pt-[calc(var(--site-header-sticky-offset,4.5rem)+var(--home-main-below-header-gap,1rem))]"
                     )
               )}
             >
               {useHomeRailLayout ? (
                 <>
-                  <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_640px_minmax(0,1fr)] xl:gap-x-8 xl:w-full xl:items-start">
+                  <div
+                    className={cn(
+                      "xl:grid xl:gap-x-8 xl:w-full xl:items-start",
+                      useHomeRailTwoColumnLayout
+                        ? "xl:grid-cols-[minmax(0,1fr)_640px_var(--home-right-rail-width)_minmax(0,1fr)]"
+                        : "xl:grid-cols-[minmax(0,1fr)_640px_minmax(0,1fr)]"
+                    )}
+                  >
                     <div className="hidden min-w-0 xl:block xl:min-h-px" aria-hidden />
-                    <div className="min-w-0 w-full max-w-[640px] xl:w-[640px] xl:max-w-[640px] xl:justify-self-start mx-auto xl:mx-0">
+                    <div
+                      className={cn(
+                        "min-w-0 w-full mx-auto xl:mx-0",
+                        useHomeRailTwoColumnLayout
+                          ? "max-w-[640px] xl:col-start-2 xl:col-span-2 xl:w-full xl:max-w-none xl:justify-self-stretch"
+                          : "max-w-[640px] xl:w-[640px] xl:max-w-[640px] xl:justify-self-start"
+                      )}
+                    >
                       {children}
                     </div>
-                    <div className="hidden min-w-0 xl:block xl:min-h-px xl:justify-self-start" aria-hidden />
+                    {!useHomeRailTwoColumnLayout ? (
+                      <div className="hidden min-w-0 xl:block xl:min-h-px xl:justify-self-start" aria-hidden />
+                    ) : null}
                   </div>
                   {/* Fixed viewport rail (below modals/backdrops — z below --z-modal) */}
                   <HomeProfileCompletionSidebar />
-                  <HomeSuggestionsSidebar />
+                  {!useHomeRailTwoColumnLayout ? <HomeSuggestionsSidebar /> : null}
+                </>
+              ) : useBrowseRailDirectoryLayout ? (
+                <div className="xl:mx-auto xl:grid xl:w-full xl:max-w-[min(calc(100vw-2rem),var(--home-explore-directory-layout-width))] xl:grid-cols-[var(--home-explore-left-rail-width)_minmax(0,1fr)] xl:items-start xl:gap-x-8">
+                  <HomeProfileCompletionSidebar layout="directory" placement="inline" />
+                  <div className="min-w-0 w-full max-w-[var(--home-explore-center-column-width)] xl:w-full xl:max-w-none mx-auto xl:mx-0">
+                    {children}
+                  </div>
+                </div>
+              ) : useExploreRailLayout ? (
+                <>
+                  <div className="xl:grid xl:w-full xl:grid-cols-[minmax(0,1fr)_var(--home-explore-center-column-width)_minmax(0,1fr)] xl:items-start xl:gap-x-8">
+                    <div className="hidden min-w-0 xl:block xl:min-h-px" aria-hidden />
+                    <div className="min-w-0 w-full max-w-[var(--home-explore-center-column-width)] xl:w-[var(--home-explore-center-column-width)] xl:max-w-[var(--home-explore-center-column-width)] xl:col-start-2 xl:justify-self-start mx-auto xl:mx-0">
+                      {children}
+                    </div>
+                  </div>
+                  <HomeProfileCompletionSidebar layout="directory" />
                 </>
               ) : useProfileRailLayout ? (
                 <div className="xl:w-full xl:flex xl:justify-center">

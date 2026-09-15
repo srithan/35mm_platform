@@ -2,6 +2,24 @@ import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRateLimitMiddleware } from "./rateLimit.js";
 
+const redis = vi.hoisted(function () {
+  return {
+    client: null as null | {
+      incr: ReturnType<typeof vi.fn>;
+      expire: ReturnType<typeof vi.fn>;
+      ttl: ReturnType<typeof vi.fn>;
+    },
+  };
+});
+
+vi.mock("./redis.js", function () {
+  return {
+    getRateLimitRedisClient: function () {
+      return redis.client;
+    },
+  };
+});
+
 function stubRequiredEnv() {
   vi.stubEnv("DATABASE_URL", "postgres://user:pass@localhost:5432/db");
   vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
@@ -12,6 +30,7 @@ function stubRequiredEnv() {
 describe("rate limit fail mode", function () {
   afterEach(function () {
     vi.unstubAllEnvs();
+    redis.client = null;
   });
 
   it("fails closed when Redis is not configured", async function () {
@@ -82,5 +101,39 @@ describe("rate limit fail mode", function () {
     await expect(second.json()).resolves.toMatchObject({
       code: "RATE_LIMITED",
     });
+  });
+
+  it("repairs blocked Redis keys that lost their expiry", async function () {
+    stubRequiredEnv();
+    vi.stubEnv("NODE_ENV", "production");
+    redis.client = {
+      incr: vi.fn().mockResolvedValue(2),
+      expire: vi.fn().mockResolvedValue(undefined),
+      ttl: vi.fn().mockResolvedValue(-1),
+    };
+
+    var app = new Hono();
+    app.get(
+      "/limited",
+      createRateLimitMiddleware({
+        keyPrefix: "test-ttl-repair",
+        limit: 1,
+        windowSeconds: 60,
+        identify: function () {
+          return "user_1";
+        },
+      }),
+      function (c) {
+        return c.json({ ok: true });
+      }
+    );
+
+    var response = await app.request("/limited");
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("60");
+    expect(redis.client.expire).toHaveBeenCalledWith(
+      "rate-limit:v1:test-ttl-repair:user_1",
+      60
+    );
   });
 });

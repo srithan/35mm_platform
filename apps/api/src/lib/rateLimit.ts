@@ -189,6 +189,9 @@ export async function applyRateLimit(
 
     if (current > input.limit) {
       var ttl = await redis.ttl(key);
+      if (ttl <= 0) {
+        await redis.expire(key, input.windowSeconds);
+      }
       var retryAfter = ttl > 0 ? ttl : input.windowSeconds;
       c.header("Retry-After", String(retryAfter));
       return c.json(

@@ -27,6 +27,17 @@ function toNetworkError(error: unknown): ApiRequestError {
   return new ApiRequestError(message, 0, "NETWORK_ERROR");
 }
 
+export function shouldRetryApiRead(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 2) return false;
+
+  if (error instanceof ApiRequestError) {
+    if (error.status === 0 || error.status === 408) return true;
+    return error.status >= 500;
+  }
+
+  return true;
+}
+
 export async function apiRequest<T>(
   path: string,
   options: {

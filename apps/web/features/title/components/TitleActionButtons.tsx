@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bookmark, BookmarkPlus, Check, ExternalLink, Loader2, PenLine } from "lucide-react";
+import { Bookmark, BookmarkPlus, Check, Loader2, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { TMDBMovie } from "@/lib/tmdb/types";
 import type { TitleMedia } from "@/lib/title/paths";
@@ -163,17 +163,6 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
         <PenLine className={btnIcon} strokeWidth={2.25} />
         <span>{props.reviewPending ? "Opening…" : props.media === "tv" ? "Film reviews only" : "Write review"}</span>
       </button>
-      {props.imdbId ? (
-        <a
-          href={"https://www.imdb.com/title/" + props.imdbId}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(btnBase, secondary)}
-        >
-          <ExternalLink className={btnIcon} strokeWidth={2.25} />
-          <span>IMDb</span>
-        </a>
-      ) : null}
     </div>
   );
 }

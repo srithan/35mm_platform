@@ -83,13 +83,14 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
       ? {
           top: railTopFloating,
           left: "calc(50vw + 320px + var(--home-sidebar-gap, 2rem))",
+          width: "calc(min(50vw, 700px) - 1rem - 320px - var(--home-sidebar-gap, 2rem))",
           maxHeight: maxHFloating,
         }
       : {};
 
   var outer =
     layoutMode === "floating"
-      ? "hidden xl:block xl:fixed xl:z-10 xl:w-[min(320px,calc((100vw-640px)*0.5-2.5rem))] xl:min-w-0 xl:pb-12"
+      ? "hidden xl:block xl:fixed xl:z-10 xl:min-w-0 xl:pb-12"
       : "w-full xl:min-w-0 xl:block";
 
   var { isLoaded, isSignedIn } = useAuth();
@@ -107,7 +108,7 @@ export function HomeSuggestionsSidebar(props?: HomeSuggestionsSidebarProps) {
       <div
         className={
           layoutMode === "floating"
-            ? "w-full max-w-[320px] overflow-y-auto [scrollbar-width:thin] pb-8"
+            ? "w-full overflow-y-auto [scrollbar-width:thin] pb-8"
             : "w-full max-w-[320px] pb-8 overflow-visible"
         }
       >

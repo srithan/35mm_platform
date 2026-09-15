@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { preloadAvatarImageUrl } from "@/components/Avatar/avatarImageCache";
 import { fetchFeed } from "@/features/feed/api/feedApi";
+import { shouldRetryApiRead } from "@/features/feed/api/http";
 import { feedKeys } from "@/features/feed/hooks/queryKeys";
 import type { FeedPage } from "@/features/feed/types/feed";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
@@ -53,6 +54,7 @@ export function AuthBootstrap() {
             return lastPage.nextCursor ?? undefined;
           },
           staleTime: 30_000,
+          retry: shouldRetryApiRead,
         });
       }
 

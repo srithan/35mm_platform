@@ -15,6 +15,7 @@ import type { ChatReadReceiptState, ChatTypingUser } from "../realtime/state";
 import type { CreateThreadParams, PaginatedMessages } from "../api/types";
 import type { PaginatedConversations } from "../api/types";
 import { getChatApiClient } from "../api/getChatApiClient";
+import { isRetryableChatError } from "../api/errors";
 import { folderFromUiFilter } from "../api/ChatApiClient";
 import type { ChatFolder } from "../api/types";
 import {
@@ -35,6 +36,11 @@ import {
 
 function client() {
   return getChatApiClient();
+}
+
+function shouldRetryChatRead(failureCount: number, error: unknown): boolean {
+  if (failureCount >= CHAT_QUERY_POLICY.maxRetries) return false;
+  return isRetryableChatError(error);
 }
 
 function emptyMessagesPage(): PaginatedMessages {
@@ -128,6 +134,7 @@ export function useConversations(opts: {
     staleTime: CHAT_QUERY_POLICY.staleTimeMs,
     gcTime: CHAT_QUERY_POLICY.gcTimeMs,
     enabled: opts.enabled !== false,
+    retry: shouldRetryChatRead,
   });
 }
 
@@ -250,6 +257,7 @@ export function useChatMessages(chatId: string | null) {
     enabled: Boolean(chatId),
     staleTime: CHAT_QUERY_POLICY.messagesStaleTimeMs,
     gcTime: CHAT_QUERY_POLICY.messagesGcTimeMs,
+    retry: shouldRetryChatRead,
   });
 }
 
@@ -285,6 +293,7 @@ export function useChatMessagesInfinite(chatId: string | null) {
     enabled: Boolean(chatId),
     staleTime: CHAT_QUERY_POLICY.messagesStaleTimeMs,
     gcTime: CHAT_QUERY_POLICY.messagesGcTimeMs,
+    retry: shouldRetryChatRead,
   });
 }
 
@@ -858,6 +867,7 @@ export function useChatReadReceiptsSnapshot(
     enabled: Boolean(chatId) && opts?.enabled !== false,
     staleTime: 30_000,
     gcTime: CHAT_QUERY_POLICY.messagesGcTimeMs,
+    retry: shouldRetryChatRead,
   });
 }
 
@@ -891,6 +901,7 @@ export function useChatTypingSnapshot(
     enabled: Boolean(chatId) && opts?.enabled === true,
     staleTime: 5_000,
     gcTime: 30_000,
+    retry: shouldRetryChatRead,
   });
 }
 
@@ -928,7 +939,7 @@ export function useChatPresence(
     gcTime: 120_000,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
-    retry: 1,
+    retry: shouldRetryChatRead,
   });
 }
 

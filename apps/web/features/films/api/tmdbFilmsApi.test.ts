@@ -19,7 +19,12 @@ afterEach(function () {
 
 describe("fetchTmdbFilmsCatalog", function () {
   it("maps TMDB results into source-aware catalog records", async function () {
-    var fetchMock = vi.fn(async function () {
+    var fetchMock = vi.fn(async function (url: string) {
+      if (url.includes("/api/tmdb/movie/12/credits")) {
+        return new Response(JSON.stringify({
+          crew: [{ job: "Director", name: "Andrew Stanton" }],
+        }), { status: 200 });
+      }
       return new Response(JSON.stringify({
         page: 1,
         total_pages: 3,
@@ -58,6 +63,7 @@ describe("fetchTmdbFilmsCatalog", function () {
       year: 2003,
       language: "en",
       genres: ["Animation", "Family"],
+      director: "Andrew Stanton",
     });
   });
 
@@ -76,7 +82,12 @@ describe("fetchTmdbFilmsCatalog", function () {
   });
 
   it("uses TV discovery and TV-specific filters for web series", async function () {
-    var fetchMock = vi.fn(async function () {
+    var fetchMock = vi.fn(async function (url: string) {
+      if (url.includes("/api/tmdb/tv/1399")) {
+        return new Response(JSON.stringify({
+          created_by: [{ name: "David Benioff" }, { name: "D. B. Weiss" }],
+        }), { status: 200 });
+      }
       return new Response(JSON.stringify({
         page: 1,
         total_pages: 1,
@@ -120,6 +131,7 @@ describe("fetchTmdbFilmsCatalog", function () {
       id: "tmdb:tv:1399",
       mediaType: "tv",
       year: 2011,
+      director: "David Benioff / D. B. Weiss",
     });
   });
 

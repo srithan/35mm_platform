@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FilmsContent } from "./FilmsContent";
 
@@ -13,7 +13,37 @@ vi.mock("next/navigation", function () {
 });
 
 vi.mock("@clerk/nextjs", function () {
-  return { useAuth: function () { return { getToken: vi.fn(async function () { return "token"; }) }; } };
+  return { useAuth: function () { return { getToken: vi.fn(async function () { return "token"; }), isSignedIn: false }; } };
+});
+
+vi.mock("@/features/auth/components/AuthPromptProvider", function () {
+  return {
+    useAuthPrompt: function () {
+      return { requireAuth: function (action: () => void) { action(); } };
+    },
+  };
+});
+
+vi.mock("@/features/profile/hooks/useCurrentUserProfile", function () {
+  return {
+    useCurrentUserProfile: function () {
+      return { data: null, isLoading: false };
+    },
+  };
+});
+
+vi.mock("@/features/lists/hooks/useLists", function () {
+  return {
+    useListMutations: function () {
+      return { addEntry: { mutate: vi.fn(), isPending: false } };
+    },
+    useProfileLists: function () {
+      return {
+        data: { pages: [{ items: [] }] },
+        isLoading: false,
+      };
+    },
+  };
 });
 
 vi.mock("../hooks/useFilmsCatalog", function () {
@@ -51,16 +81,33 @@ vi.mock("../hooks/useTmdbFilmsCatalog", function () {
 describe("FilmsContent view controls", function () {
   beforeEach(function () {
     replace.mockClear();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(function () {
+        return {
+          addEventListener: vi.fn(),
+          matches: true,
+          removeEventListener: vi.fn(),
+        };
+      }),
+    });
   });
 
-  it("offers three views and stores non-default choice in URL", function () {
+  it("offers three views and stores non-default choice in URL", async function () {
     render(<FilmsContent />);
 
-    expect(screen.getByRole("button", { name: "Sort films" })).toHaveTextContent("Sort: Popular");
-    expect(screen.getByRole("button", { name: "Film type" })).toHaveTextContent("Type: All titles");
+    await waitFor(function () {
+      expect(screen.getByRole("region", { name: "Film filters" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Sort films" })).toHaveTextContent("Popular");
+    expect(screen.getByRole("button", { name: "Film type" })).toHaveTextContent("Type");
+    expect(screen.getByRole("button", { name: "Search films" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More film filters" })).toHaveTextContent("Filters");
+    expect(screen.getByRole("button", { name: "Grid" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Grid with info" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Grid" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Grid with info" })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "List" }));
     expect(replace).toHaveBeenCalledWith("/films?view=list", { scroll: false });

@@ -206,4 +206,15 @@ describe("ListDetailContent back navigation", function () {
     await userEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(navigation.back).toHaveBeenCalledOnce();
   });
+
+  it("keeps refreshed list detail in a two-pane surface for the home span", function () {
+    const { container } = renderList(null);
+    const root = container.firstElementChild;
+
+    expect(root).toHaveClass("pb-12");
+    expect(screen.getByLabelText("List overview")).toHaveClass("lg:order-1");
+    expect(screen.getByLabelText("List overview").parentElement).toHaveClass(
+      "lg:grid-cols-[300px_minmax(0,1fr)]",
+    );
+  });
 });

@@ -284,7 +284,7 @@ This prevents double messages on flaky networks.
 
 ### HTTP status
 
-- **`4xx`:** client errors; TanStack Query surfaces as error state (retry policy skips most 4xx except **`429`**).
+- **`4xx`:** client errors; TanStack Query surfaces as error state (retry policy skips these, including **`429`**).
 - **`5xx` / network:** retried with exponential backoff (see `CHAT_QUERY_POLICY` in `runtimeConfig.ts`).
 
 ### Body shape (recommended)
@@ -350,7 +350,7 @@ The cache updater writes **`PaginatedMessages`** for **`chatQueryKeys.messages(c
 
 1. **Add `GET /v1/chat/conversations/{id}`** (single row) so the frontend can drop **`useConversationRow`**’s three parallel list queries when opening a thread.
 2. **Cursor-based** lists only; avoid unbounded “all messages” responses.
-3. **Rate limits:** return **`429`** with **`Retry-After`**; client treats as retryable.
+3. **Rate limits:** return **`429`** with **`Retry-After`**; client surfaces it without automatic retry loops.
 4. **CDN** for media; **presigned uploads** instead of huge JSON `imageDataUrl`.
 5. **WebSocket** per user or per shard, not one channel for all users.
 6. **Index** queries by `(user_id, folder, updated_at)` and messages by `(conversation_id, created_at)`.

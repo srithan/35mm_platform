@@ -1,0 +1,1041 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e111] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e114]:
+    - navigation [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - link "35mm.in Home" [ref=e118] [cursor=pointer]:
+            - /url: /
+          - search [ref=e122]:
+            - combobox "Search 35mm" [ref=e124]
+        - generic [ref=e126]:
+          - link "Home" [ref=e127] [cursor=pointer]:
+            - /url: /
+          - link "Watch" [ref=e132] [cursor=pointer]:
+            - /url: /70mm
+          - link "Messages" [ref=e137] [cursor=pointer]:
+            - /url: /chat
+          - link "Profile" [ref=e142] [cursor=pointer]:
+            - /url: /
+        - generic [ref=e148]:
+          - link "Log in" [ref=e149] [cursor=pointer]:
+            - /url: /login
+          - link "Sign up" [ref=e150] [cursor=pointer]:
+            - /url: /signup
+    - main [ref=e151]:
+      - generic [ref=e156]:
+        - region "Film filters" [ref=e158]:
+          - search [ref=e159]:
+            - generic [ref=e160]:
+              - generic [ref=e164]: Search movies and series
+              - textbox "Search movies and series" [ref=e165]
+            - generic [ref=e166]: Filter
+            - button "Sort films" [ref=e168] [cursor=pointer]:
+              - generic [ref=e169]: "Sort: Popular"
+            - button "Film mood" [ref=e172] [cursor=pointer]:
+              - generic [ref=e173]: "Mood: All"
+            - button "Film type" [ref=e176] [cursor=pointer]:
+              - generic [ref=e177]: "Type: All titles"
+            - button "Film genre" [ref=e180] [cursor=pointer]:
+              - generic [ref=e181]: "Genre: Any"
+            - button "Release decade" [expanded] [ref=e184] [cursor=pointer]:
+              - generic [ref=e185]: "Decade: Any"
+            - button "Film language" [ref=e188] [cursor=pointer]:
+              - generic [ref=e189]: "Language: Any"
+            - button "Film runtime" [ref=e192] [cursor=pointer]:
+              - generic [ref=e193]: "Runtime: Any"
+        - generic [ref=e196]:
+          - paragraph [ref=e197]: 42 35mm · 40 of 40,002 TMDB
+          - group "Film view" [ref=e198]:
+            - button "List" [ref=e199] [cursor=pointer]
+            - button "Grid" [ref=e203] [cursor=pointer]
+            - button "Grid with info" [pressed] [ref=e206] [cursor=pointer]
+        - generic [ref=e212]:
+          - article [ref=e213]:
+            - 'link "Open Spider-Man: Brand New Day (2026)" [ref=e214] [cursor=pointer]':
+              - /url: /film/spider-man-brand-new-day
+              - 'img "Spider-Man: Brand New Day" [ref=e217]'
+            - generic [ref=e218]:
+              - generic [ref=e219]:
+                - heading [level=2] [ref=e220]:
+                  - 'link "Open Spider-Man: Brand New Day (2026)" [ref=e221] [cursor=pointer]':
+                    - /url: /film/spider-man-brand-new-day
+                    - text: "Spider-Man: Brand New Day"
+                - generic [ref=e222]: "2026"
+              - paragraph [ref=e223]: Science Fiction / Action
+          - article [ref=e224]:
+            - link "Open Paradise Hotel (2005)" [ref=e225] [cursor=pointer]:
+              - /url: /tv/paradise-hotel
+              - generic [ref=e226]:
+                - img "Paradise Hotel" [ref=e228]
+                - generic [ref=e229]: TMDB
+            - generic [ref=e230]:
+              - generic [ref=e231]:
+                - heading [level=2] [ref=e232]:
+                  - link "Open Paradise Hotel (2005)" [ref=e233] [cursor=pointer]:
+                    - /url: /tv/paradise-hotel
+                    - text: Paradise Hotel
+                - generic [ref=e234]: 2005 · TV
+              - paragraph [ref=e235]: Reality
+          - article [ref=e236]:
+            - link "Open Coyote vs. Acme (2026)" [ref=e237] [cursor=pointer]:
+              - /url: /film/coyote-vs-acme
+              - img "Coyote vs. Acme" [ref=e240]
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - heading [level=2] [ref=e243]:
+                  - link "Open Coyote vs. Acme (2026)" [ref=e244] [cursor=pointer]:
+                    - /url: /film/coyote-vs-acme
+                    - text: Coyote vs. Acme
+                - generic [ref=e245]: "2026"
+              - paragraph [ref=e246]: Comedy / Adventure
+          - article [ref=e247]:
+            - 'link "Open Come Home Love: Lo and Behold (2017)" [ref=e248] [cursor=pointer]':
+              - /url: /tv/come-home-love-lo-and-behold
+              - generic [ref=e249]:
+                - 'img "Come Home Love: Lo and Behold" [ref=e251]'
+                - generic [ref=e252]: TMDB
+            - generic [ref=e253]:
+              - generic [ref=e254]:
+                - heading [level=2] [ref=e255]:
+                  - 'link "Open Come Home Love: Lo and Behold (2017)" [ref=e256] [cursor=pointer]':
+                    - /url: /tv/come-home-love-lo-and-behold
+                    - text: "Come Home Love: Lo and Behold"
+                - generic [ref=e257]: 2017 · TV
+              - paragraph [ref=e258]: Family / Comedy
+          - article [ref=e259]:
+            - link "Open Colony (2026)" [ref=e260] [cursor=pointer]:
+              - /url: /film/colony
+              - generic [ref=e261]:
+                - img "Colony" [ref=e263]
+                - generic [ref=e264]: TMDB
+            - generic [ref=e265]:
+              - generic [ref=e266]:
+                - heading [level=2] [ref=e267]:
+                  - link "Open Colony (2026)" [ref=e268] [cursor=pointer]:
+                    - /url: /film/colony
+                    - text: Colony
+                - generic [ref=e269]: "2026"
+              - paragraph [ref=e270]: Action / Horror
+          - article [ref=e271]:
+            - link "Open 2 Days and 1 Night (2007)" [ref=e272] [cursor=pointer]:
+              - /url: /tv/2-days-and-1-night
+              - generic [ref=e273]:
+                - img "2 Days and 1 Night" [ref=e275]
+                - generic [ref=e276]: TMDB
+            - generic [ref=e277]:
+              - generic [ref=e278]:
+                - heading [level=2] [ref=e279]:
+                  - link "Open 2 Days and 1 Night (2007)" [ref=e280] [cursor=pointer]:
+                    - /url: /tv/2-days-and-1-night
+                    - text: 2 Days and 1 Night
+                - generic [ref=e281]: 2007 · TV
+              - paragraph [ref=e282]: Comedy / Reality
+          - article [ref=e283]:
+            - link "Open The Odyssey (2026)" [ref=e284] [cursor=pointer]:
+              - /url: /film/the-odyssey
+              - img "The Odyssey" [ref=e287]
+            - generic [ref=e288]:
+              - generic [ref=e289]:
+                - heading [level=2] [ref=e290]:
+                  - link "Open The Odyssey (2026)" [ref=e291] [cursor=pointer]:
+                    - /url: /film/the-odyssey
+                    - text: The Odyssey
+                - generic [ref=e292]: "2026"
+              - paragraph [ref=e293]: Adventure / Action
+          - article [ref=e294]:
+            - link "Open Reacher (2022)" [ref=e295] [cursor=pointer]:
+              - /url: /tv/reacher
+              - generic [ref=e296]:
+                - img "Reacher" [ref=e298]
+                - generic [ref=e299]: TMDB
+            - generic [ref=e300]:
+              - generic [ref=e301]:
+                - heading [level=2] [ref=e302]:
+                  - link "Open Reacher (2022)" [ref=e303] [cursor=pointer]:
+                    - /url: /tv/reacher
+                    - text: Reacher
+                - generic [ref=e304]: 2022 · TV
+              - paragraph [ref=e305]: Action & Adventure / Crime
+          - article [ref=e306]:
+            - link "Open Mutiny (2026)" [ref=e307] [cursor=pointer]:
+              - /url: /film/mutiny
+              - generic [ref=e308]:
+                - img "Mutiny" [ref=e310]
+                - generic [ref=e311]: TMDB
+            - generic [ref=e312]:
+              - generic [ref=e313]:
+                - heading [level=2] [ref=e314]:
+                  - link "Open Mutiny (2026)" [ref=e315] [cursor=pointer]:
+                    - /url: /film/mutiny
+                    - text: Mutiny
+                - generic [ref=e316]: "2026"
+              - paragraph [ref=e317]: Action / Thriller
+          - article [ref=e318]:
+            - link "Open Sesame Street (1969)" [ref=e319] [cursor=pointer]:
+              - /url: /tv/sesame-street
+              - generic [ref=e320]:
+                - img "Sesame Street" [ref=e322]
+                - generic [ref=e323]: TMDB
+            - generic [ref=e324]:
+              - generic [ref=e325]:
+                - heading [level=2] [ref=e326]:
+                  - link "Open Sesame Street (1969)" [ref=e327] [cursor=pointer]:
+                    - /url: /tv/sesame-street
+                    - text: Sesame Street
+                - generic [ref=e328]: 1969 · TV
+              - paragraph [ref=e329]: Kids / Comedy
+          - article [ref=e330]:
+            - link "Open Moana (2026)" [ref=e331] [cursor=pointer]:
+              - /url: /film/moana
+              - generic [ref=e332]:
+                - img "Moana" [ref=e334]
+                - generic [ref=e335]: TMDB
+            - generic [ref=e336]:
+              - generic [ref=e337]:
+                - heading [level=2] [ref=e338]:
+                  - link "Open Moana (2026)" [ref=e339] [cursor=pointer]:
+                    - /url: /film/moana
+                    - text: Moana
+                - generic [ref=e340]: "2026"
+              - paragraph [ref=e341]: Family / Fantasy
+          - article [ref=e342]:
+            - link "Open Watch What Happens Live with Andy Cohen (2009)" [ref=e343] [cursor=pointer]:
+              - /url: /tv/watch-what-happens-live-with-andy-cohen
+              - generic [ref=e344]:
+                - img "Watch What Happens Live with Andy Cohen" [ref=e346]
+                - generic [ref=e347]: TMDB
+            - generic [ref=e348]:
+              - generic [ref=e349]:
+                - heading [level=2] [ref=e350]:
+                  - link "Open Watch What Happens Live with Andy Cohen (2009)" [ref=e351] [cursor=pointer]:
+                    - /url: /tv/watch-what-happens-live-with-andy-cohen
+                    - text: Watch What Happens Live with Andy Cohen
+                - generic [ref=e352]: 2009 · TV
+              - paragraph [ref=e353]: Talk / Comedy
+          - article [ref=e354]:
+            - link "Open The Mongoose (2026)" [ref=e355] [cursor=pointer]:
+              - /url: /film/the-mongoose
+              - generic [ref=e356]:
+                - img "The Mongoose" [ref=e358]
+                - generic [ref=e359]: TMDB
+            - generic [ref=e360]:
+              - generic [ref=e361]:
+                - heading [level=2] [ref=e362]:
+                  - link "Open The Mongoose (2026)" [ref=e363] [cursor=pointer]:
+                    - /url: /film/the-mongoose
+                    - text: The Mongoose
+                - generic [ref=e364]: "2026"
+              - paragraph [ref=e365]: Action / Thriller
+          - article [ref=e366]:
+            - link "Open Paradise Hotel (2009)" [ref=e367] [cursor=pointer]:
+              - /url: /tv/paradise-hotel
+              - generic [ref=e368]:
+                - img "Paradise Hotel" [ref=e370]
+                - generic [ref=e371]: TMDB
+            - generic [ref=e372]:
+              - generic [ref=e373]:
+                - heading [level=2] [ref=e374]:
+                  - link "Open Paradise Hotel (2009)" [ref=e375] [cursor=pointer]:
+                    - /url: /tv/paradise-hotel
+                    - text: Paradise Hotel
+                - generic [ref=e376]: 2009 · TV
+              - paragraph [ref=e377]: Reality
+          - article [ref=e378]:
+            - link "Open Drawn Together (2026)" [ref=e379] [cursor=pointer]:
+              - /url: /film/drawn-together
+              - generic [ref=e380]:
+                - img "Drawn Together" [ref=e382]
+                - generic [ref=e383]: TMDB
+            - generic [ref=e384]:
+              - generic [ref=e385]:
+                - heading [level=2] [ref=e386]:
+                  - link "Open Drawn Together (2026)" [ref=e387] [cursor=pointer]:
+                    - /url: /film/drawn-together
+                    - text: Drawn Together
+                - generic [ref=e388]: "2026"
+              - paragraph [ref=e389]: Romance / Thriller
+          - article [ref=e390]:
+            - link "Open Lioness (2023)" [ref=e391] [cursor=pointer]:
+              - /url: /tv/lioness
+              - generic [ref=e392]:
+                - img "Lioness" [ref=e394]
+                - generic [ref=e395]: TMDB
+            - generic [ref=e396]:
+              - generic [ref=e397]:
+                - heading [level=2] [ref=e398]:
+                  - link "Open Lioness (2023)" [ref=e399] [cursor=pointer]:
+                    - /url: /tv/lioness
+                    - text: Lioness
+                - generic [ref=e400]: 2023 · TV
+              - paragraph [ref=e401]: Drama / War & Politics
+          - article [ref=e402]:
+            - link "Open Mayday (2026)" [ref=e403] [cursor=pointer]:
+              - /url: /film/mayday
+              - generic [ref=e404]:
+                - img "Mayday" [ref=e406]
+                - generic [ref=e407]: TMDB
+            - generic [ref=e408]:
+              - generic [ref=e409]:
+                - heading [level=2] [ref=e410]:
+                  - link "Open Mayday (2026)" [ref=e411] [cursor=pointer]:
+                    - /url: /film/mayday
+                    - text: Mayday
+                - generic [ref=e412]: "2026"
+              - paragraph [ref=e413]: Action / Comedy
+          - article [ref=e414]:
+            - link "Open Tomorrow Is Ours (2017)" [ref=e415] [cursor=pointer]:
+              - /url: /tv/tomorrow-is-ours
+              - generic [ref=e416]:
+                - img "Tomorrow Is Ours" [ref=e418]
+                - generic [ref=e419]: TMDB
+            - generic [ref=e420]:
+              - generic [ref=e421]:
+                - heading [level=2] [ref=e422]:
+                  - link "Open Tomorrow Is Ours (2017)" [ref=e423] [cursor=pointer]:
+                    - /url: /tv/tomorrow-is-ours
+                    - text: Tomorrow Is Ours
+                - generic [ref=e424]: 2017 · TV
+              - paragraph [ref=e425]: Crime / Drama
+          - article [ref=e426]:
+            - link "Open The Runner (2026)" [ref=e427] [cursor=pointer]:
+              - /url: /film/the-runner
+              - img "The Runner" [ref=e430]
+            - generic [ref=e431]:
+              - generic [ref=e432]:
+                - heading [level=2] [ref=e433]:
+                  - link "Open The Runner (2026)" [ref=e434] [cursor=pointer]:
+                    - /url: /film/the-runner
+                    - text: The Runner
+                - generic [ref=e435]: "2026"
+              - paragraph [ref=e436]: Title record
+          - article [ref=e437]:
+            - link "Open The Mentalist (2008)" [ref=e438] [cursor=pointer]:
+              - /url: /tv/the-mentalist
+              - generic [ref=e439]:
+                - img "The Mentalist" [ref=e441]
+                - generic [ref=e442]: TMDB
+            - generic [ref=e443]:
+              - generic [ref=e444]:
+                - heading [level=2] [ref=e445]:
+                  - link "Open The Mentalist (2008)" [ref=e446] [cursor=pointer]:
+                    - /url: /tv/the-mentalist
+                    - text: The Mentalist
+                - generic [ref=e447]: 2008 · TV
+              - paragraph [ref=e448]: Crime / Drama
+          - article [ref=e449]:
+            - link "Open Ghost in the Cell (2026)" [ref=e450] [cursor=pointer]:
+              - /url: /film/ghost-in-the-cell
+              - generic [ref=e451]:
+                - img "Ghost in the Cell" [ref=e453]
+                - generic [ref=e454]: TMDB
+            - generic [ref=e455]:
+              - generic [ref=e456]:
+                - heading [level=2] [ref=e457]:
+                  - link "Open Ghost in the Cell (2026)" [ref=e458] [cursor=pointer]:
+                    - /url: /film/ghost-in-the-cell
+                    - text: Ghost in the Cell
+                - generic [ref=e459]: "2026"
+              - paragraph [ref=e460]: Horror / Comedy
+          - article [ref=e461]:
+            - link "Open Pelotón (2007)" [ref=e462] [cursor=pointer]:
+              - /url: /tv/peloton
+              - generic [ref=e463]:
+                - img "Pelotón" [ref=e465]
+                - generic [ref=e466]: TMDB
+            - generic [ref=e467]:
+              - generic [ref=e468]:
+                - heading [level=2] [ref=e469]:
+                  - link "Open Pelotón (2007)" [ref=e470] [cursor=pointer]:
+                    - /url: /tv/peloton
+                    - text: Pelotón
+                - generic [ref=e471]: 2007 · TV
+              - paragraph [ref=e472]: Reality
+          - article [ref=e473]:
+            - link "Open Shape of My Heart (2024)" [ref=e474] [cursor=pointer]:
+              - /url: /film/shape-of-my-heart
+              - generic [ref=e475]:
+                - img "Shape of My Heart" [ref=e477]
+                - generic [ref=e478]: TMDB
+            - generic [ref=e479]:
+              - generic [ref=e480]:
+                - heading [level=2] [ref=e481]:
+                  - link "Open Shape of My Heart (2024)" [ref=e482] [cursor=pointer]:
+                    - /url: /film/shape-of-my-heart
+                    - text: Shape of My Heart
+                - generic [ref=e483]: "2024"
+              - paragraph [ref=e484]: Romance
+          - article [ref=e485]:
+            - link "Open Breaking Bad (2008)" [ref=e486] [cursor=pointer]:
+              - /url: /tv/breaking-bad
+              - generic [ref=e487]:
+                - img "Breaking Bad" [ref=e489]
+                - generic [ref=e490]: TMDB
+            - generic [ref=e491]:
+              - generic [ref=e492]:
+                - heading [level=2] [ref=e493]:
+                  - link "Open Breaking Bad (2008)" [ref=e494] [cursor=pointer]:
+                    - /url: /tv/breaking-bad
+                    - text: Breaking Bad
+                - generic [ref=e495]: 2008 · TV
+              - paragraph [ref=e496]: Drama / Crime
+          - article [ref=e497]:
+            - link "Open Clash of the Thundermans (2026)" [ref=e498] [cursor=pointer]:
+              - /url: /film/clash-of-the-thundermans
+              - generic [ref=e499]:
+                - img "Clash of the Thundermans" [ref=e501]
+                - generic [ref=e502]: TMDB
+            - generic [ref=e503]:
+              - generic [ref=e504]:
+                - heading [level=2] [ref=e505]:
+                  - link "Open Clash of the Thundermans (2026)" [ref=e506] [cursor=pointer]:
+                    - /url: /film/clash-of-the-thundermans
+                    - text: Clash of the Thundermans
+                - generic [ref=e507]: "2026"
+              - paragraph [ref=e508]: Family / Action
+          - article [ref=e509]:
+            - link "Open Kamen Rider (1971)" [ref=e510] [cursor=pointer]:
+              - /url: /tv/kamen-rider
+              - generic [ref=e511]:
+                - img "Kamen Rider" [ref=e513]
+                - generic [ref=e514]: TMDB
+            - generic [ref=e515]:
+              - generic [ref=e516]:
+                - heading [level=2] [ref=e517]:
+                  - link "Open Kamen Rider (1971)" [ref=e518] [cursor=pointer]:
+                    - /url: /tv/kamen-rider
+                    - text: Kamen Rider
+                - generic [ref=e519]: 1971 · TV
+              - paragraph [ref=e520]: Action & Adventure / Sci-Fi & Fantasy
+          - article [ref=e521]:
+            - link "Open Toy Story 5 (2026)" [ref=e522] [cursor=pointer]:
+              - /url: /film/toy-story-5
+              - generic [ref=e523]:
+                - img "Toy Story 5" [ref=e525]
+                - generic [ref=e526]: TMDB
+            - generic [ref=e527]:
+              - generic [ref=e528]:
+                - heading [level=2] [ref=e529]:
+                  - link "Open Toy Story 5 (2026)" [ref=e530] [cursor=pointer]:
+                    - /url: /film/toy-story-5
+                    - text: Toy Story 5
+                - generic [ref=e531]: "2026"
+              - paragraph [ref=e532]: Animation / Family
+          - article [ref=e533]:
+            - link "Open REBORN! (2006)" [ref=e534] [cursor=pointer]:
+              - /url: /tv/reborn
+              - generic [ref=e535]:
+                - img "REBORN!" [ref=e537]
+                - generic [ref=e538]: TMDB
+            - generic [ref=e539]:
+              - generic [ref=e540]:
+                - heading [level=2] [ref=e541]:
+                  - link "Open REBORN! (2006)" [ref=e542] [cursor=pointer]:
+                    - /url: /tv/reborn
+                    - text: REBORN!
+                - generic [ref=e543]: 2006 · TV
+              - paragraph [ref=e544]: Animation / Comedy
+          - article [ref=e545]:
+            - link "Open Obsession (2026)" [ref=e546] [cursor=pointer]:
+              - /url: /film/obsession
+              - img "Obsession" [ref=e549]
+            - generic [ref=e550]:
+              - generic [ref=e551]:
+                - heading [level=2] [ref=e552]:
+                  - link "Open Obsession (2026)" [ref=e553] [cursor=pointer]:
+                    - /url: /film/obsession
+                    - text: Obsession
+                - generic [ref=e554]: "2026"
+              - paragraph [ref=e555]: Horror
+          - article [ref=e556]:
+            - link "Open Coronation Street (1960)" [ref=e557] [cursor=pointer]:
+              - /url: /tv/coronation-street
+              - generic [ref=e558]:
+                - img "Coronation Street" [ref=e560]
+                - generic [ref=e561]: TMDB
+            - generic [ref=e562]:
+              - generic [ref=e563]:
+                - heading [level=2] [ref=e564]:
+                  - link "Open Coronation Street (1960)" [ref=e565] [cursor=pointer]:
+                    - /url: /tv/coronation-street
+                    - text: Coronation Street
+                - generic [ref=e566]: 1960 · TV
+              - paragraph [ref=e567]: Soap
+          - article [ref=e568]:
+            - link "Open The Last Sunrise (2026)" [ref=e569] [cursor=pointer]:
+              - /url: /film/the-last-sunrise
+              - img "The Last Sunrise" [ref=e572]
+            - generic [ref=e573]:
+              - generic [ref=e574]:
+                - heading [level=2] [ref=e575]:
+                  - link "Open The Last Sunrise (2026)" [ref=e576] [cursor=pointer]:
+                    - /url: /film/the-last-sunrise
+                    - text: The Last Sunrise
+                - generic [ref=e577]: "2026"
+              - paragraph [ref=e578]: Romance / Drama
+          - article [ref=e579]:
+            - link "Open Tagesschau (1952)" [ref=e580] [cursor=pointer]:
+              - /url: /tv/tagesschau
+              - generic [ref=e581]:
+                - img "Tagesschau" [ref=e583]
+                - generic [ref=e584]: TMDB
+            - generic [ref=e585]:
+              - generic [ref=e586]:
+                - heading [level=2] [ref=e587]:
+                  - link "Open Tagesschau (1952)" [ref=e588] [cursor=pointer]:
+                    - /url: /tv/tagesschau
+                    - text: Tagesschau
+                - generic [ref=e589]: 1952 · TV
+              - paragraph [ref=e590]: News
+          - article [ref=e591]:
+            - link "Open Vishwanath & Sons (2026)" [ref=e592] [cursor=pointer]:
+              - /url: /film/vishwanath-sons
+              - img "Vishwanath & Sons" [ref=e595]
+            - generic [ref=e596]:
+              - generic [ref=e597]:
+                - heading [level=2] [ref=e598]:
+                  - link "Open Vishwanath & Sons (2026)" [ref=e599] [cursor=pointer]:
+                    - /url: /film/vishwanath-sons
+                    - text: Vishwanath & Sons
+                - generic [ref=e600]: 2026 · 161 min
+              - paragraph [ref=e601]: Drama / Romance
+          - article [ref=e602]:
+            - link "Open Among Friends (1998)" [ref=e603] [cursor=pointer]:
+              - /url: /tv/among-friends
+              - generic [ref=e604]:
+                - img "Among Friends" [ref=e606]
+                - generic [ref=e607]: TMDB
+            - generic [ref=e608]:
+              - generic [ref=e609]:
+                - heading [level=2] [ref=e610]:
+                  - link "Open Among Friends (1998)" [ref=e611] [cursor=pointer]:
+                    - /url: /tv/among-friends
+                    - text: Among Friends
+                - generic [ref=e612]: 1998 · TV
+              - paragraph [ref=e613]: Drama / Family
+          - article [ref=e614]:
+            - link "Open The End of Oak Street (2026)" [ref=e615] [cursor=pointer]:
+              - /url: /film/the-end-of-oak-street
+              - generic [ref=e616]:
+                - img "The End of Oak Street" [ref=e618]
+                - generic [ref=e619]: TMDB
+            - generic [ref=e620]:
+              - generic [ref=e621]:
+                - heading [level=2] [ref=e622]:
+                  - link "Open The End of Oak Street (2026)" [ref=e623] [cursor=pointer]:
+                    - /url: /film/the-end-of-oak-street
+                    - text: The End of Oak Street
+                - generic [ref=e624]: "2026"
+              - paragraph [ref=e625]: Science Fiction / Mystery
+          - article [ref=e626]:
+            - link "Open House Rules (2013)" [ref=e627] [cursor=pointer]:
+              - /url: /tv/house-rules
+              - generic [ref=e628]:
+                - img "House Rules" [ref=e630]
+                - generic [ref=e631]: TMDB
+            - generic [ref=e632]:
+              - generic [ref=e633]:
+                - heading [level=2] [ref=e634]:
+                  - link "Open House Rules (2013)" [ref=e635] [cursor=pointer]:
+                    - /url: /tv/house-rules
+                    - text: House Rules
+                - generic [ref=e636]: 2013 · TV
+              - paragraph [ref=e637]: Reality
+          - article [ref=e638]:
+            - link "Open Rage of Stars (2026)" [ref=e639] [cursor=pointer]:
+              - /url: /film/rage-of-stars
+              - generic [ref=e640]:
+                - img "Rage of Stars" [ref=e642]
+                - generic [ref=e643]: TMDB
+            - generic [ref=e644]:
+              - generic [ref=e645]:
+                - heading [level=2] [ref=e646]:
+                  - link "Open Rage of Stars (2026)" [ref=e647] [cursor=pointer]:
+                    - /url: /film/rage-of-stars
+                    - text: Rage of Stars
+                - generic [ref=e648]: "2026"
+              - paragraph [ref=e649]: Action / Science Fiction
+          - article [ref=e650]:
+            - link "Open My Dearest (2023)" [ref=e651] [cursor=pointer]:
+              - /url: /tv/my-dearest
+              - generic [ref=e652]:
+                - img "My Dearest" [ref=e654]
+                - generic [ref=e655]: TMDB
+            - generic [ref=e656]:
+              - generic [ref=e657]:
+                - heading [level=2] [ref=e658]:
+                  - link "Open My Dearest (2023)" [ref=e659] [cursor=pointer]:
+                    - /url: /tv/my-dearest
+                    - text: My Dearest
+                - generic [ref=e660]: 2023 · TV
+              - paragraph [ref=e661]: Drama / War & Politics
+          - article [ref=e662]:
+            - link "Open Zip Wire (2026)" [ref=e663] [cursor=pointer]:
+              - /url: /film/zip-wire
+              - generic [ref=e664]:
+                - img "Zip Wire" [ref=e666]
+                - generic [ref=e667]: TMDB
+            - generic [ref=e668]:
+              - generic [ref=e669]:
+                - heading [level=2] [ref=e670]:
+                  - link "Open Zip Wire (2026)" [ref=e671] [cursor=pointer]:
+                    - /url: /film/zip-wire
+                    - text: Zip Wire
+                - generic [ref=e672]: "2026"
+              - paragraph [ref=e673]: Action / Thriller
+          - article [ref=e674]:
+            - link "Open Silo (2023)" [ref=e675] [cursor=pointer]:
+              - /url: /tv/silo
+              - generic [ref=e676]:
+                - img "Silo" [ref=e678]
+                - generic [ref=e679]: TMDB
+            - generic [ref=e680]:
+              - generic [ref=e681]:
+                - heading [level=2] [ref=e682]:
+                  - link "Open Silo (2023)" [ref=e683] [cursor=pointer]:
+                    - /url: /tv/silo
+                    - text: Silo
+                - generic [ref=e684]: 2023 · TV
+              - paragraph [ref=e685]: Sci-Fi & Fantasy / Drama
+          - article [ref=e686]:
+            - link "Open Animal Farm (2026)" [ref=e687] [cursor=pointer]:
+              - /url: /film/animal-farm
+              - img "Animal Farm" [ref=e690]
+            - generic [ref=e691]:
+              - generic [ref=e692]:
+                - heading [level=2] [ref=e693]:
+                  - link "Open Animal Farm (2026)" [ref=e694] [cursor=pointer]:
+                    - /url: /film/animal-farm
+                    - text: Animal Farm
+                - generic [ref=e695]: 2026 · 95 min
+              - paragraph [ref=e696]: Animation / Comedy
+          - article [ref=e697]:
+            - link "Open Lounge H ~We Are TEAM H~ (2012)" [ref=e698] [cursor=pointer]:
+              - /url: /film/lounge-h-we-are-team-h
+            - generic [ref=e705]:
+              - generic [ref=e706]:
+                - heading [level=2] [ref=e707]:
+                  - link "Open Lounge H ~We Are TEAM H~ (2012)" [ref=e708] [cursor=pointer]:
+                    - /url: /film/lounge-h-we-are-team-h
+                    - text: Lounge H ~We Are TEAM H~
+                - generic [ref=e709]: 2012 · 120 min
+              - paragraph [ref=e710]: Music
+          - article [ref=e711]:
+            - link "Open Animal (2023)" [ref=e712] [cursor=pointer]:
+              - /url: /film/animal
+              - img "Animal" [ref=e715]
+            - generic [ref=e716]:
+              - generic [ref=e717]:
+                - heading [level=2] [ref=e718]:
+                  - link "Open Animal (2023)" [ref=e719] [cursor=pointer]:
+                    - /url: /film/animal
+                    - text: Animal
+                - generic [ref=e720]: 2023 · 201 min
+              - paragraph [ref=e721]: Action / Crime
+          - article [ref=e722]:
+            - link "Open The Screw (1993)" [ref=e723] [cursor=pointer]:
+              - /url: /film/the-screw
+              - img "The Screw" [ref=e726]
+            - generic [ref=e727]:
+              - generic [ref=e728]:
+                - heading [level=2] [ref=e729]:
+                  - link "Open The Screw (1993)" [ref=e730] [cursor=pointer]:
+                    - /url: /film/the-screw
+                    - text: The Screw
+                - generic [ref=e731]: 1993 · 20 min
+              - paragraph [ref=e732]: Drama
+          - article [ref=e733]:
+            - link "Open Number 24 (2024)" [ref=e734] [cursor=pointer]:
+              - /url: /film/number-24
+              - img "Number 24" [ref=e737]
+            - generic [ref=e738]:
+              - generic [ref=e739]:
+                - heading [level=2] [ref=e740]:
+                  - link "Open Number 24 (2024)" [ref=e741] [cursor=pointer]:
+                    - /url: /film/number-24
+                    - text: Number 24
+                - generic [ref=e742]: 2024 · 112 min
+              - paragraph [ref=e743]: War / History
+          - article [ref=e744]:
+            - link "Open Arrival (2016)" [ref=e745] [cursor=pointer]:
+              - /url: /film/arrival
+              - img "Arrival" [ref=e748]
+            - generic [ref=e749]:
+              - generic [ref=e750]:
+                - heading [level=2] [ref=e751]:
+                  - link "Open Arrival (2016)" [ref=e752] [cursor=pointer]:
+                    - /url: /film/arrival
+                    - text: Arrival
+                - generic [ref=e753]: 2016 · 116 min
+              - paragraph [ref=e754]: Drama / Sci-Fi
+          - article [ref=e755]:
+            - link "Open The Thing (1982)" [ref=e756] [cursor=pointer]:
+              - /url: /film/the-thing
+              - img "The Thing" [ref=e759]
+            - generic [ref=e760]:
+              - generic [ref=e761]:
+                - heading [level=2] [ref=e762]:
+                  - link "Open The Thing (1982)" [ref=e763] [cursor=pointer]:
+                    - /url: /film/the-thing
+                    - text: The Thing
+                - generic [ref=e764]: "1982"
+              - paragraph [ref=e765]: Horror / Mystery
+          - article [ref=e766]:
+            - link "Open Demonology (2026)" [ref=e767] [cursor=pointer]:
+              - /url: /film/demonology
+              - img "Demonology" [ref=e770]
+            - generic [ref=e771]:
+              - generic [ref=e772]:
+                - heading [level=2] [ref=e773]:
+                  - link "Open Demonology (2026)" [ref=e774] [cursor=pointer]:
+                    - /url: /film/demonology
+                    - text: Demonology
+                - generic [ref=e775]: "2026"
+              - paragraph [ref=e776]: Horror / Thriller
+          - article [ref=e777]:
+            - link "Open Aadhavan (2009)" [ref=e778] [cursor=pointer]:
+              - /url: /film/aadhavan
+              - img "Aadhavan" [ref=e781]
+            - generic [ref=e782]:
+              - generic [ref=e783]:
+                - heading [level=2] [ref=e784]:
+                  - link "Open Aadhavan (2009)" [ref=e785] [cursor=pointer]:
+                    - /url: /film/aadhavan
+                    - text: Aadhavan
+                - generic [ref=e786]: "2009"
+              - paragraph [ref=e787]: Thriller / Action
+          - article [ref=e788]:
+            - link "Open Pasanga 2 (2015)" [ref=e789] [cursor=pointer]:
+              - /url: /film/pasanga-2
+              - img "Pasanga 2" [ref=e792]
+            - generic [ref=e793]:
+              - generic [ref=e794]:
+                - heading [level=2] [ref=e795]:
+                  - link "Open Pasanga 2 (2015)" [ref=e796] [cursor=pointer]:
+                    - /url: /film/pasanga-2
+                    - text: Pasanga 2
+                - generic [ref=e797]: "2015"
+              - paragraph [ref=e798]: Comedy / Drama
+          - article [ref=e799]:
+            - link "Open Mounam Pesiyadhe (2002)" [ref=e800] [cursor=pointer]:
+              - /url: /film/mounam-pesiyadhe
+              - img "Mounam Pesiyadhe" [ref=e803]
+            - generic [ref=e804]:
+              - generic [ref=e805]:
+                - heading [level=2] [ref=e806]:
+                  - link "Open Mounam Pesiyadhe (2002)" [ref=e807] [cursor=pointer]:
+                    - /url: /film/mounam-pesiyadhe
+                    - text: Mounam Pesiyadhe
+                - generic [ref=e808]: "2002"
+              - paragraph [ref=e809]: Romance / Drama
+          - article [ref=e810]:
+            - link "Open Sillunu Oru Kaadhal (2006)" [ref=e811] [cursor=pointer]:
+              - /url: /film/sillunu-oru-kaadhal
+              - img "Sillunu Oru Kaadhal" [ref=e814]
+            - generic [ref=e815]:
+              - generic [ref=e816]:
+                - heading [level=2] [ref=e817]:
+                  - link "Open Sillunu Oru Kaadhal (2006)" [ref=e818] [cursor=pointer]:
+                    - /url: /film/sillunu-oru-kaadhal
+                    - text: Sillunu Oru Kaadhal
+                - generic [ref=e819]: "2006"
+              - paragraph [ref=e820]: Family / Romance
+          - article [ref=e821]:
+            - link "Open The Farm (2019)" [ref=e822] [cursor=pointer]:
+              - /url: /film/the-farm
+              - img "The Farm" [ref=e825]
+            - generic [ref=e826]:
+              - generic [ref=e827]:
+                - heading [level=2] [ref=e828]:
+                  - link "Open The Farm (2019)" [ref=e829] [cursor=pointer]:
+                    - /url: /film/the-farm
+                    - text: The Farm
+                - generic [ref=e830]: "2019"
+              - paragraph [ref=e831]: Horror
+          - article [ref=e832]:
+            - link "Open Rao Bahadur (2026)" [ref=e833] [cursor=pointer]:
+              - /url: /film/rao-bahadur
+              - img "Rao Bahadur" [ref=e836]
+            - generic [ref=e837]:
+              - generic [ref=e838]:
+                - heading [level=2] [ref=e839]:
+                  - link "Open Rao Bahadur (2026)" [ref=e840] [cursor=pointer]:
+                    - /url: /film/rao-bahadur
+                    - text: Rao Bahadur
+                - generic [ref=e841]: "2026"
+              - paragraph [ref=e842]: Fantasy / Drama
+          - article [ref=e843]:
+            - link "Open Passenger (2026)" [ref=e844] [cursor=pointer]:
+              - /url: /film/passenger
+              - img "Passenger" [ref=e847]
+            - generic [ref=e848]:
+              - generic [ref=e849]:
+                - heading [level=2] [ref=e850]:
+                  - link "Open Passenger (2026)" [ref=e851] [cursor=pointer]:
+                    - /url: /film/passenger
+                    - text: Passenger
+                - generic [ref=e852]: "2026"
+              - paragraph [ref=e853]: Title record
+          - article [ref=e854]:
+            - link "Open Vampiros DF (2017)" [ref=e855] [cursor=pointer]:
+              - /url: /film/vampiros-df
+              - img "Vampiros DF" [ref=e858]
+            - generic [ref=e859]:
+              - generic [ref=e860]:
+                - heading [level=2] [ref=e861]:
+                  - link "Open Vampiros DF (2017)" [ref=e862] [cursor=pointer]:
+                    - /url: /film/vampiros-df
+                    - text: Vampiros DF
+                - generic [ref=e863]: "2017"
+              - paragraph [ref=e864]: Uncategorized
+          - article [ref=e865]:
+            - link "Open Karu (2024)" [ref=e866] [cursor=pointer]:
+              - /url: /film/karu
+              - img "Karu" [ref=e869]
+            - generic [ref=e870]:
+              - generic [ref=e871]:
+                - heading [level=2] [ref=e872]:
+                  - link "Open Karu (2024)" [ref=e873] [cursor=pointer]:
+                    - /url: /film/karu
+                    - text: Karu
+                - generic [ref=e874]: "2024"
+              - paragraph [ref=e875]: Uncategorized
+          - article [ref=e876]:
+            - link "Open Ye Maaya Chesave (2010)" [ref=e877] [cursor=pointer]:
+              - /url: /film/ye-maaya-chesave
+              - img "Ye Maaya Chesave" [ref=e880]
+            - generic [ref=e881]:
+              - generic [ref=e882]:
+                - heading [level=2] [ref=e883]:
+                  - link "Open Ye Maaya Chesave (2010)" [ref=e884] [cursor=pointer]:
+                    - /url: /film/ye-maaya-chesave
+                    - text: Ye Maaya Chesave
+                - generic [ref=e885]: "2010"
+              - paragraph [ref=e886]: Romance / Drama
+          - article [ref=e887]:
+            - 'link "Open 2001: A Space Odyssey (1968)" [ref=e888] [cursor=pointer]':
+              - /url: /film/2001-a-space-odyssey
+              - 'img "2001: A Space Odyssey" [ref=e891]'
+            - generic [ref=e892]:
+              - generic [ref=e893]:
+                - heading [level=2] [ref=e894]:
+                  - 'link "Open 2001: A Space Odyssey (1968)" [ref=e895] [cursor=pointer]':
+                    - /url: /film/2001-a-space-odyssey
+                    - text: "2001: A Space Odyssey"
+                - generic [ref=e896]: "1968"
+              - paragraph [ref=e897]: Sci-Fi / Mystery
+          - article [ref=e898]:
+            - link "Open A Clockwork Orange (1971)" [ref=e899] [cursor=pointer]:
+              - /url: /film/a-clockwork-orange
+              - img "A Clockwork Orange" [ref=e902]
+            - generic [ref=e903]:
+              - generic [ref=e904]:
+                - heading [level=2] [ref=e905]:
+                  - link "Open A Clockwork Orange (1971)" [ref=e906] [cursor=pointer]:
+                    - /url: /film/a-clockwork-orange
+                    - text: A Clockwork Orange
+                - generic [ref=e907]: "1971"
+              - paragraph [ref=e908]: Sci-Fi / Crime
+          - article [ref=e909]:
+            - link "Open The Shining (1980)" [ref=e910] [cursor=pointer]:
+              - /url: /film/the-shining
+              - img "The Shining" [ref=e913]
+            - generic [ref=e914]:
+              - generic [ref=e915]:
+                - heading [level=2] [ref=e916]:
+                  - link "Open The Shining (1980)" [ref=e917] [cursor=pointer]:
+                    - /url: /film/the-shining
+                    - text: The Shining
+                - generic [ref=e918]: "1980"
+              - paragraph [ref=e919]: Horror / Thriller
+          - article [ref=e920]:
+            - link "Open Eyes Wide Shut (1999)" [ref=e921] [cursor=pointer]:
+              - /url: /film/eyes-wide-shut
+              - img "Eyes Wide Shut" [ref=e924]
+            - generic [ref=e925]:
+              - generic [ref=e926]:
+                - heading [level=2] [ref=e927]:
+                  - link "Open Eyes Wide Shut (1999)" [ref=e928] [cursor=pointer]:
+                    - /url: /film/eyes-wide-shut
+                    - text: Eyes Wide Shut
+                - generic [ref=e929]: "1999"
+              - paragraph [ref=e930]: Drama / Thriller
+          - article [ref=e931]:
+            - link "Open Oppenheimer (2023)" [ref=e932] [cursor=pointer]:
+              - /url: /film/oppenheimer
+              - img "Oppenheimer" [ref=e935]
+            - generic [ref=e936]:
+              - generic [ref=e937]:
+                - heading [level=2] [ref=e938]:
+                  - link "Open Oppenheimer (2023)" [ref=e939] [cursor=pointer]:
+                    - /url: /film/oppenheimer
+                    - text: Oppenheimer
+                - generic [ref=e940]: "2023"
+              - paragraph [ref=e941]: Drama / History
+          - article [ref=e942]:
+            - link "Open Interstellar (2014)" [ref=e943] [cursor=pointer]:
+              - /url: /film/interstellar
+              - img "Interstellar" [ref=e946]
+            - generic [ref=e947]:
+              - generic [ref=e948]:
+                - heading [level=2] [ref=e949]:
+                  - link "Open Interstellar (2014)" [ref=e950] [cursor=pointer]:
+                    - /url: /film/interstellar
+                    - text: Interstellar
+                - generic [ref=e951]: "2014"
+              - paragraph [ref=e952]: Adventure / Drama
+          - article [ref=e953]:
+            - 'link "Open 1: Nenokkadine (2014)" [ref=e954] [cursor=pointer]':
+              - /url: /film/1-nenokkadine
+              - 'img "1: Nenokkadine" [ref=e957]'
+            - generic [ref=e958]:
+              - generic [ref=e959]:
+                - heading [level=2] [ref=e960]:
+                  - 'link "Open 1: Nenokkadine (2014)" [ref=e961] [cursor=pointer]':
+                    - /url: /film/1-nenokkadine
+                    - text: "1: Nenokkadine"
+                - generic [ref=e962]: "2014"
+              - paragraph [ref=e963]: Action / Thriller
+          - article [ref=e964]:
+            - link "Open A Breed Apart (2025)" [ref=e965] [cursor=pointer]:
+              - /url: /film/a-breed-apart
+              - img "A Breed Apart" [ref=e968]
+            - generic [ref=e969]:
+              - generic [ref=e970]:
+                - heading [level=2] [ref=e971]:
+                  - link "Open A Breed Apart (2025)" [ref=e972] [cursor=pointer]:
+                    - /url: /film/a-breed-apart
+                    - text: A Breed Apart
+                - generic [ref=e973]: "2025"
+              - paragraph [ref=e974]: Horror / Mystery
+          - article [ref=e975]:
+            - link "Open 24 (2016)" [ref=e976] [cursor=pointer]:
+              - /url: /film/24
+              - img "24" [ref=e979]
+            - generic [ref=e980]:
+              - generic [ref=e981]:
+                - heading [level=2] [ref=e982]:
+                  - link "Open 24 (2016)" [ref=e983] [cursor=pointer]:
+                    - /url: /film/24
+                    - text: "24"
+                - generic [ref=e984]: 2016 · 164 min
+              - paragraph [ref=e985]: Action / Sci-Fi
+          - article [ref=e986]:
+            - link "Open Hokum (2026)" [ref=e987] [cursor=pointer]:
+              - /url: /film/hokum
+              - img "Hokum" [ref=e990]
+            - generic [ref=e991]:
+              - generic [ref=e992]:
+                - heading [level=2] [ref=e993]:
+                  - link "Open Hokum (2026)" [ref=e994] [cursor=pointer]:
+                    - /url: /film/hokum
+                    - text: Hokum
+                - generic [ref=e995]: "2026"
+              - paragraph [ref=e996]: Horror
+          - article [ref=e997]:
+            - link "Open Backrooms (2026)" [ref=e998] [cursor=pointer]:
+              - /url: /film/backrooms
+              - img "Backrooms" [ref=e1001]
+            - generic [ref=e1002]:
+              - generic [ref=e1003]:
+                - heading [level=2] [ref=e1004]:
+                  - link "Open Backrooms (2026)" [ref=e1005] [cursor=pointer]:
+                    - /url: /film/backrooms
+                    - text: Backrooms
+                - generic [ref=e1006]: "2026"
+              - paragraph [ref=e1007]: Horror / Mystery
+          - article [ref=e1008]:
+            - link "Open Karuppu (2026)" [ref=e1009] [cursor=pointer]:
+              - /url: /film/karuppu
+              - img "Karuppu" [ref=e1012]
+            - generic [ref=e1013]:
+              - generic [ref=e1014]:
+                - heading [level=2] [ref=e1015]:
+                  - link "Open Karuppu (2026)" [ref=e1016] [cursor=pointer]:
+                    - /url: /film/karuppu
+                    - text: Karuppu
+                - generic [ref=e1017]: "2026"
+              - paragraph [ref=e1018]: Fantasy / Action
+          - article [ref=e1019]:
+            - link "Open Athadu (2005)" [ref=e1020] [cursor=pointer]:
+              - /url: /film/athadu
+              - img "Athadu" [ref=e1023]
+            - generic [ref=e1024]:
+              - generic [ref=e1025]:
+                - heading [level=2] [ref=e1026]:
+                  - link "Open Athadu (2005)" [ref=e1027] [cursor=pointer]:
+                    - /url: /film/athadu
+                    - text: Athadu
+                - generic [ref=e1028]: "2005"
+              - paragraph [ref=e1029]: Action / Thriller
+          - article [ref=e1030]:
+            - 'link "Open Prison Break: The Final Break (2009)" [ref=e1031] [cursor=pointer]':
+              - /url: /film/prison-break-the-final-break
+              - 'img "Prison Break: The Final Break" [ref=e1034]'
+            - generic [ref=e1035]:
+              - generic [ref=e1036]:
+                - heading [level=2] [ref=e1037]:
+                  - 'link "Open Prison Break: The Final Break (2009)" [ref=e1038] [cursor=pointer]':
+                    - /url: /film/prison-break-the-final-break
+                    - text: "Prison Break: The Final Break"
+                - generic [ref=e1039]: "2009"
+              - paragraph [ref=e1040]: Action / Drama
+          - article [ref=e1041]:
+            - link "Open The Shawshank Redemption (1994)" [ref=e1042] [cursor=pointer]:
+              - /url: /film/the-shawshank-redemption
+              - img "The Shawshank Redemption" [ref=e1045]
+            - generic [ref=e1046]:
+              - generic [ref=e1047]:
+                - heading [level=2] [ref=e1048]:
+                  - link "Open The Shawshank Redemption (1994)" [ref=e1049] [cursor=pointer]:
+                    - /url: /film/the-shawshank-redemption
+                    - text: The Shawshank Redemption
+                - generic [ref=e1050]: "1994"
+              - paragraph [ref=e1051]: Drama / Crime
+          - article [ref=e1052]:
+            - link "Open Vaaranam Aayiram (2008)" [ref=e1053] [cursor=pointer]:
+              - /url: /film/vaaranam-aayiram
+              - img "Vaaranam Aayiram" [ref=e1056]
+            - generic [ref=e1057]:
+              - generic [ref=e1058]:
+                - heading [level=2] [ref=e1059]:
+                  - link "Open Vaaranam Aayiram (2008)" [ref=e1060] [cursor=pointer]:
+                    - /url: /film/vaaranam-aayiram
+                    - text: Vaaranam Aayiram
+                - generic [ref=e1061]: "2008"
+              - paragraph [ref=e1062]: Drama / Romance
+          - article [ref=e1063]:
+            - link "Open Soorarai Pottru (2020)" [ref=e1064] [cursor=pointer]:
+              - /url: /film/soorarai-pottru
+              - img "Soorarai Pottru" [ref=e1067]
+            - generic [ref=e1068]:
+              - generic [ref=e1069]:
+                - heading [level=2] [ref=e1070]:
+                  - link "Open Soorarai Pottru (2020)" [ref=e1071] [cursor=pointer]:
+                    - /url: /film/soorarai-pottru
+                    - text: Soorarai Pottru
+                - generic [ref=e1072]: "2020"
+              - paragraph [ref=e1073]: Drama / Action
+  - button "Open Tanstack query devtools" [ref=e52] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e106] [cursor=pointer]
+  - alert [ref=e110]
+  - menu "Release decade" [active] [ref=e1076]:
+    - group [ref=e1077]:
+      - menuitemradio [checked] [ref=e1078]
+      - menuitemradio "2020s" [ref=e1081]
+      - menuitemradio "2010s" [ref=e1082]
+      - menuitemradio "2000s" [ref=e1083]
+      - menuitemradio "1990s" [ref=e1084]
+      - menuitemradio "1980s" [ref=e1085]
+      - menuitemradio "1970s" [ref=e1086]
+      - menuitemradio "1960s" [ref=e1087]
+      - menuitemradio "1950s" [ref=e1088]
+      - menuitemradio "1940s" [ref=e1089]
+      - menuitemradio "1930s" [ref=e1090]
+      - menuitemradio "1920s" [ref=e1091]
+      - menuitemradio "1910s" [ref=e1092]
+      - menuitemradio "1900s" [ref=e1093]
+      - menuitemradio "1890s" [ref=e1094]
+      - menuitemradio "1880s" [ref=e1095]
+      - menuitemradio "1870s" [ref=e1096]

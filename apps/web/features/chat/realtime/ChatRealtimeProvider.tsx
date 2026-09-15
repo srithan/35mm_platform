@@ -22,6 +22,8 @@ import {
 } from "./state";
 
 const TYPING_EXPIRES_MS = 5_000;
+const PRESENCE_MIN_PING_INTERVAL_MS = 15_000;
+const lastPresencePingByUser = new Map<string, number>();
 
 interface ChatRealtimeProviderProps {
   children: ReactNode;
@@ -190,17 +192,18 @@ export function ChatRealtimeProvider({
       }
 
       let disposed = false;
-      let lastPingAt = 0;
+      const currentUserId = userId;
 
-      function pingPresence(force: boolean): void {
+      function pingPresence(_force: boolean): void {
         if (disposed || document.visibilityState === "hidden") {
           return;
         }
         const now = Date.now();
-        if (!force && now - lastPingAt < 15_000) {
+        const lastPingAt = lastPresencePingByUser.get(currentUserId) ?? 0;
+        if (lastPingAt > 0 && now - lastPingAt < PRESENCE_MIN_PING_INTERVAL_MS) {
           return;
         }
-        lastPingAt = now;
+        lastPresencePingByUser.set(currentUserId, now);
         getChatApiClient().pingPresence().catch(function (error) {
           if (process.env.NODE_ENV === "development") {
             console.warn("[chat-presence] heartbeat failed", error);

@@ -146,8 +146,19 @@ export function useListMutations(username?: string, listId?: string | null) {
       onSuccess: invalidate,
     }),
     addEntry: useMutation({
-      mutationFn: async function (input: { id: string; film: TmdbFilmPayload; note?: string | null }) {
-        return addFilmToList(input.id, { film: input.film, note: input.note ?? null }, await getToken());
+      mutationFn: async function (input: {
+        id: string;
+        film?: TmdbFilmPayload;
+        catalogFilm?: CatalogFilmPayload;
+        filmId?: string;
+        note?: string | null;
+      }) {
+        return addFilmToList(input.id, {
+          film: input.film,
+          catalogFilm: input.catalogFilm,
+          filmId: input.filmId,
+          note: input.note ?? null,
+        }, await getToken());
       },
       onSuccess: invalidate,
     }),

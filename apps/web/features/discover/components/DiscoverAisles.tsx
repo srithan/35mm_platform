@@ -4,7 +4,7 @@ import { useId } from "react";
 import { LazyImage } from "@/components/LazyImage";
 import { SHOW_POSTER_CARD_METADATA } from "@/lib/constants/uiFlags";
 import type { TMDBMovie } from "@/lib/tmdb/types";
-import { posterUrl, starsFromVote, yearFromDate } from "../lib/tmdb-utils";
+import { posterUrl, yearFromDate } from "../lib/tmdb-utils";
 import { FilmTitleLink } from "./FilmTitleLink";
 
 type FilmClickHandler = (film: TMDBMovie) => void;
@@ -158,10 +158,10 @@ export function RankedFilmAisle({
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-film-red)]">
-            Catalog ranked
+            Catalog picks
           </p>
           <h3 className="font-display text-2xl font-semibold leading-none sm:text-3xl">
-            Top rated right now
+            Standout titles right now
           </h3>
         </div>
         <a
@@ -203,7 +203,7 @@ export function RankedFilmAisle({
                   {titleFor(film)}
                 </span>
                 <span className="mt-1 block truncate font-mono text-[11px] text-bg/52">
-                  {[year, "★ " + starsFromVote(film.vote_average).toFixed(1), mediaKindFor(film)]
+                  {[year, mediaKindFor(film)]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>

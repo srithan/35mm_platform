@@ -19,6 +19,7 @@ import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { FilmPoster } from "@/components/FilmPoster";
 import type { FilmResult } from "@/features/feed/components/PostComposer/types";
 import { ROUTES } from "@/lib/constants/routes";
+import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
 import { cn } from "@/lib/utils/cn";
 import { useShellLayout } from "@/components/layout/ShellLayoutContext";
 import { formatListMeta } from "../lib/listMeta";
@@ -173,10 +174,32 @@ export function ListDetailContent({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] px-4 py-6 md:px-6 lg:px-10 lg:py-8">
-      <div className="grid rounded-2xl bg-sunken/35 shadow-[0_18px_55px_rgba(0,0,0,0.05)] lg:grid-cols-[300px_minmax(0,1fr)] lg:items-stretch">
-        <aside className="rounded-t-2xl bg-sunken/70 p-5 md:p-6 lg:order-1 lg:rounded-l-2xl lg:rounded-r-none">
-          <div className="lg:sticky lg:top-[calc(var(--site-header-sticky-offset,4.5rem)+1.5rem)]">
+    <div
+      className={cn(
+        "w-full",
+        BROWSE_RAIL_ENABLED
+          ? "px-4 pb-12 sm:px-0"
+          : "mx-auto max-w-[1240px] px-4 py-6 md:px-6 lg:px-10 lg:py-8"
+      )}
+    >
+      <div
+        className={cn(
+          "grid rounded-2xl bg-sunken/35 shadow-[0_18px_55px_rgba(0,0,0,0.05)]",
+          "lg:grid-cols-[300px_minmax(0,1fr)] lg:items-stretch"
+        )}
+      >
+        <aside
+          aria-label="List overview"
+          className={cn(
+            "rounded-t-2xl bg-sunken/70 p-5 md:p-6",
+            "lg:order-1 lg:rounded-l-2xl lg:rounded-r-none"
+          )}
+        >
+          <div
+            className={cn(
+              "lg:sticky lg:top-[calc(var(--site-header-sticky-offset,4.5rem)+1.5rem)]"
+            )}
+          >
             {previousPathname ? (
               <button
                 type="button"
@@ -357,7 +380,10 @@ export function ListDetailContent({
         </aside>
 
         <section
-          className="min-w-0 p-4 sm:p-5 md:p-6 lg:order-2 lg:p-8"
+          className={cn(
+            "min-w-0 p-4 sm:p-5 md:p-6",
+            "lg:order-2 lg:p-8"
+          )}
           aria-labelledby="list-films-heading"
         >
           <div className="flex items-center justify-between gap-4 pb-3">
