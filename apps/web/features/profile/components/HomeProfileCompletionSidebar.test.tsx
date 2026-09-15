@@ -43,6 +43,11 @@ describe("HomeProfileCompletionSidebar", function () {
     render(<HomeProfileCompletionSidebar />);
 
     expect(screen.getByLabelText("Feed sidebar")).toBeInTheDocument();
+    const menu = screen.getByLabelText("Feed menu");
+    expect(menu).toHaveClass("w-full");
+    expect(menu).toHaveClass("max-w-[var(--home-explore-left-rail-width,220px)]");
+    expect(menu).not.toHaveClass("ml-auto");
+    expect(screen.getByText("Browse")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Your Feed" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute("href", "/discover");
     expect(screen.getByRole("link", { name: "Films" })).toHaveAttribute("href", "/films");
@@ -70,7 +75,7 @@ describe("HomeProfileCompletionSidebar", function () {
 
     render(<HomeProfileCompletionSidebar layout="directory" />);
 
-    var rail = screen.getByLabelText("Feed sidebar");
+    const rail = screen.getByLabelText("Feed sidebar");
     expect(rail).toHaveStyle({
       right:
         "calc(50vw + var(--home-explore-center-column-half-width, 432px) + var(--home-sidebar-gap, 2rem))",
@@ -86,7 +91,7 @@ describe("HomeProfileCompletionSidebar", function () {
 
     render(<HomeProfileCompletionSidebar layout="directory" placement="inline" />);
 
-    var rail = screen.getByLabelText("Feed sidebar");
+    const rail = screen.getByLabelText("Feed sidebar");
     expect(rail).toHaveClass("sticky");
     expect(rail).toHaveClass("top-[var(--home-profile-sidebar-top)]");
     expect(rail).not.toHaveClass("fixed");
@@ -104,7 +109,7 @@ describe("HomeProfileCompletionSidebar", function () {
     auth.isSignedIn = false;
     navigation.pathname = "/";
 
-    var { container } = render(<HomeProfileCompletionSidebar />);
+    const { container } = render(<HomeProfileCompletionSidebar />);
 
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText("Profile completion")).not.toBeInTheDocument();

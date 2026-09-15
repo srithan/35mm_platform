@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import {
   Clapperboard,
+  ChevronRight,
   Compass,
   Home,
   LayoutList,
@@ -33,50 +34,60 @@ function HomeFeedMenu({ items }: { items: readonly HomeMenuItem[] }) {
   return (
     <nav
       aria-label="Feed menu"
-      className="mb-6 flex flex-col gap-0.5 border-l border-border pl-2"
+      className="mb-6 w-full max-w-[var(--home-explore-left-rail-width,220px)] overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--fg)_10%,var(--border))] bg-elevated p-2.5 shadow-[0_10px_32px_-24px_color-mix(in_srgb,var(--fg)_42%,transparent)]"
     >
-      {items.map(function (item) {
-        var active = Boolean(item.active);
-        var Icon = item.Icon;
-        return (
-          <Link
-            key={item.label}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            data-active={active}
-            className={cn(
-              "group relative flex h-10 items-center gap-3 rounded-r-md px-3 text-[14px] no-underline transition-colors duration-150",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-              active
-                ? "font-bold text-fg"
-                : "font-medium text-fg-muted hover:bg-hover/60 hover:text-fg"
-            )}
-          >
-            {active ? (
-              <span
-                aria-hidden
-                className="absolute -left-[9px] top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-accent"
-              />
-            ) : null}
-            <span
+      <div className="px-2.5 pb-2.5 pt-2">
+        <p className="text-[13px] font-bold leading-none tracking-[-0.01em] text-fg">
+          Browse
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        {items.map(function (item) {
+          const active = Boolean(item.active);
+          const Icon = item.Icon;
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              data-active={active}
               className={cn(
-                "grid h-6 w-6 shrink-0 place-items-center transition-colors",
+                "group relative flex min-h-12 items-center gap-3 rounded-xl px-2.5 py-2 text-[15px] no-underline transition-[background-color,color,transform] duration-150 motion-reduce:transition-none",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus-ring)] focus-visible:ring-inset",
                 active
-                  ? "text-accent"
-                  : "text-fg-faint group-hover:text-fg-muted"
+                  ? "bg-[color-mix(in_srgb,var(--fg)_6%,var(--elevated))] font-bold text-fg"
+                  : "font-semibold text-fg-muted hover:bg-sunken hover:text-fg"
               )}
-              aria-hidden
             >
-              <Icon
-                className="h-[18px] w-[18px]"
-                strokeWidth={active ? 2.2 : 1.9}
+              <span
+                className={cn(
+                  "grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-[background-color,border-color,color] duration-150 motion-reduce:transition-none",
+                  active
+                    ? "border-fg bg-fg text-bg shadow-sm"
+                    : "border-[color-mix(in_srgb,var(--fg)_10%,var(--border))] bg-bg text-fg-muted group-hover:border-[color-mix(in_srgb,var(--fg)_18%,var(--border))] group-hover:text-fg"
+                )}
                 aria-hidden
+              >
+                <Icon
+                  className="h-[17px] w-[17px]"
+                  strokeWidth={active ? 2.25 : 1.9}
+                  aria-hidden
+                />
+              </span>
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <ChevronRight
+                aria-hidden
+                className={cn(
+                  "h-4 w-4 shrink-0 transition-[color,transform] duration-150 motion-reduce:transition-none group-hover:translate-x-0.5",
+                  active ? "text-fg-muted" : "text-fg-faint group-hover:text-fg-muted"
+                )}
+                strokeWidth={2}
               />
-            </span>
-            <span className="min-w-0 flex-1 truncate">{item.label}</span>
-          </Link>
-        );
-      })}
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
@@ -85,15 +96,15 @@ export function HomeProfileCompletionSidebar({
   layout = "home",
   placement = "fixed",
 }: HomeProfileCompletionSidebarProps) {
-  var { isLoaded, isSignedIn } = useAuth();
-  var pathname = usePathname() ?? "";
-  var showRailMenu = BROWSE_RAIL_ENABLED;
-  var isDirectoryLayout = showRailMenu && layout === "directory";
-  var top =
+  const { isLoaded, isSignedIn } = useAuth();
+  const pathname = usePathname() ?? "";
+  const showRailMenu = BROWSE_RAIL_ENABLED;
+  const isDirectoryLayout = showRailMenu && layout === "directory";
+  const top =
     "calc(var(--site-header-sticky-offset, 4.5rem) + var(--home-main-below-header-gap, 1rem))";
-  var maxHeight =
+  const maxHeight =
     "calc(100vh - var(--site-header-sticky-offset, 4.5rem) - var(--home-main-below-header-gap, 1rem) - env(safe-area-inset-bottom, 0px))";
-  var style: CSSProperties =
+  const style: CSSProperties =
     placement === "inline"
       ? ({
           "--home-profile-sidebar-top": top,
@@ -112,7 +123,7 @@ export function HomeProfileCompletionSidebar({
 
   if (!isLoaded || !isSignedIn) return null;
 
-  var menuItems: HomeMenuItem[] = showRailMenu ? [
+  const menuItems: HomeMenuItem[] = showRailMenu ? [
     {
       label: "Your Feed",
       href: ROUTES.HOME,
