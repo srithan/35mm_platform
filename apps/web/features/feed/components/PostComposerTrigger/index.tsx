@@ -52,6 +52,9 @@ const TRIGGER_TOOLS = [
   // { id: "italic", label: "I" },
 ] as const;
 
+const TRIGGER_WRAPPER_CLASS =
+  "PostComposerTrigger rounded-[var(--composer-radius)] pt-3 pb-4 md:pt-0";
+
 function TriggerTool({ label, icon }: { label: string; icon?: React.ReactNode }) {
   return (
     <span
@@ -85,7 +88,7 @@ export function PostComposerTrigger({
 
   if (simplified) {
     return (
-      <div className="PostComposerTrigger rounded-[var(--composer-radius)] pb-4">
+      <div className={TRIGGER_WRAPPER_CLASS}>
         <button
           type="button"
           onClick={onOpen}
@@ -116,7 +119,7 @@ export function PostComposerTrigger({
   }
 
   return (
-    <div className="PostComposerTrigger rounded-[var(--composer-radius)] pb-4">
+    <div className={TRIGGER_WRAPPER_CLASS}>
       <button
         type="button"
         onClick={onOpen}

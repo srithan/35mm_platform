@@ -14,6 +14,7 @@ import { Icon } from "@/components/Icon/Icon";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { fetchNotifications } from "@/features/notifications/api/notificationsApi";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
+import { TRADITIONAL_MOBILE_TAB_BAR_ENABLED } from "@/lib/config/uiFlags";
 import { useMobileBottomChromeStore } from "@/stores/useMobileBottomChromeStore";
 
 function useNotificationBellCount() {
@@ -79,6 +80,7 @@ export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean })
   const username = currentUser?.username ?? clerkUser?.username ?? null;
   const profileHref = username ? ROUTES.PROFILE(username) : ROUTES.AUTH_LOGIN;
   const notificationsCount = useNotificationBellCount();
+  const traditionalTabBar = TRADITIONAL_MOBILE_TAB_BAR_ENABLED;
 
   function handleGatedTab(event: MouseEvent) {
     event.preventDefault();
@@ -133,8 +135,10 @@ export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean })
       aria-label="Main navigation"
       aria-hidden={!navVisible}
       className={cn(
-        "md:hidden fixed inset-x-0 z-40 px-3",
-        "bottom-[max(0.625rem,env(safe-area-inset-bottom,0px))]",
+        "md:hidden fixed inset-x-0 z-40",
+        traditionalTabBar
+          ? "bottom-0 px-0"
+          : "bottom-[max(0.625rem,env(safe-area-inset-bottom,0px))] px-3",
         "pointer-events-none transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
         "motion-reduce:transition-none",
         sidebarOpen
@@ -147,10 +151,11 @@ export function MobileTabBar({ sidebarOpen = false }: { sidebarOpen?: boolean })
     >
       <div
         className={cn(
-          "pointer-events-auto mx-auto flex h-[3.25rem] max-w-[480px] items-center justify-between px-1.5",
-          "rounded-full border border-[color-mix(in_srgb,var(--border-strong)_70%,transparent)]",
+          "pointer-events-auto mx-auto flex justify-between px-1.5",
           "bg-[color-mix(in_srgb,var(--elevated)_94%,transparent)] backdrop-blur-xl backdrop-saturate-150",
-          "shadow-[0_12px_32px_-10px_rgba(0,0,0,0.32),0_4px_12px_-6px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.14)]"
+          traditionalTabBar
+            ? "h-[calc(3.25rem+env(safe-area-inset-bottom,0px))] w-full max-w-none items-start rounded-none border-t border-[color-mix(in_srgb,var(--border-strong)_70%,transparent)] pt-1.5 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.14)]"
+            : "h-[3.25rem] max-w-[480px] items-center rounded-full border border-[color-mix(in_srgb,var(--border-strong)_70%,transparent)] shadow-[0_12px_32px_-10px_rgba(0,0,0,0.32),0_4px_12px_-6px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.14)]"
         )}
       >
         {tabs.map(function (tab) {

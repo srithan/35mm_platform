@@ -18,7 +18,7 @@ const user = {
 
 describe("PostComposerTrigger", () => {
   it("renders the simplified trigger when enabled", () => {
-    render(
+    const { container } = render(
       <PostComposerTrigger
         onOpen={vi.fn()}
         user={user}
@@ -26,6 +26,7 @@ describe("PostComposerTrigger", () => {
       />
     );
 
+    expect(container.querySelector(".PostComposerTrigger")).toHaveClass("pt-3", "md:pt-0");
     expect(screen.getByText("Sofia, What's on your mind?")).toBeInTheDocument();
     expect(screen.getByTestId("avatar")).toHaveClass("h-10", "w-10");
     expect(screen.queryByText("Post")).not.toBeInTheDocument();

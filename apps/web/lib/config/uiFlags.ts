@@ -2,6 +2,7 @@ export type DesktopNavigationVariant = "header" | "focused-sidebar";
 export type FocusedNavigationAlignment = "top" | "center";
 export type BrowseChromeVariant = "classic" | "rail" | "focused";
 export type BrowseDensityVariant = "classic" | "compact";
+export type MobileTabBarVariant = "floating" | "traditional";
 export type PostComposerEntryVariant =
   | "inline"
   | "rich-trigger"
@@ -12,6 +13,7 @@ type UiRolloutFlagSource = {
   focusedNavigation?: string;
   focusedNavigationCentered?: string;
   inlinePostComposer?: string;
+  mobileTabBarTraditional?: string;
   postMediaCarousel?: string;
   simplifiedPostComposerTrigger?: string;
 };
@@ -26,6 +28,9 @@ export type UiRolloutConfig = {
     density: BrowseDensityVariant;
     showDirectoryTabs: boolean;
     showRailMenu: boolean;
+  };
+  mobile: {
+    tabBar: MobileTabBarVariant;
   };
   postComposer: {
     entry: PostComposerEntryVariant;
@@ -56,6 +61,10 @@ export function resolveUiRolloutConfig(
     flags.inlinePostComposer,
     false
   );
+  const traditionalMobileTabBarEnabled = publicBooleanFlag(
+    flags.mobileTabBarTraditional,
+    false
+  );
   const postMediaCarouselEnabled = publicBooleanFlag(
     flags.postMediaCarousel,
     false
@@ -84,6 +93,9 @@ export function resolveUiRolloutConfig(
       showDirectoryTabs: browseChrome !== "rail",
       showRailMenu: browseChrome === "rail",
     },
+    mobile: {
+      tabBar: traditionalMobileTabBarEnabled ? "traditional" : "floating",
+    },
     postComposer: {
       entry: simplifiedPostComposerTriggerEnabled
         ? "simplified-trigger"
@@ -103,6 +115,8 @@ export const UI_ROLLOUT = resolveUiRolloutConfig({
   focusedNavigationCentered:
     process.env.NEXT_PUBLIC_FOCUSED_NAVIGATION_CENTERED,
   inlinePostComposer: process.env.NEXT_PUBLIC_INLINE_POST_COMPOSER,
+  mobileTabBarTraditional:
+    process.env.NEXT_PUBLIC_MOBILE_TAB_BAR_TRADITIONAL,
   postMediaCarousel: process.env.NEXT_PUBLIC_POST_MEDIA_CAROUSEL,
   simplifiedPostComposerTrigger:
     process.env.NEXT_PUBLIC_SIMPLIFIED_POST_COMPOSER_TRIGGER,
@@ -117,6 +131,7 @@ export const BROWSE_DENSITY_VARIANT = UI_ROLLOUT.browse.density;
 export const BROWSE_DIRECTORY_TABS_ENABLED =
   UI_ROLLOUT.browse.showDirectoryTabs;
 export const BROWSE_RAIL_MENU_ENABLED = UI_ROLLOUT.browse.showRailMenu;
+export const MOBILE_TAB_BAR_VARIANT = UI_ROLLOUT.mobile.tabBar;
 export const POST_COMPOSER_ENTRY_VARIANT = UI_ROLLOUT.postComposer.entry;
 export const POST_CARD_MEDIA_PRESENTATION =
   UI_ROLLOUT.postCard.mediaPresentation;
@@ -125,6 +140,9 @@ export const BROWSE_RAIL_ENABLED = BROWSE_DENSITY_VARIANT === "compact";
 
 export const SIMPLIFIED_POST_COMPOSER_TRIGGER_ENABLED =
   POST_COMPOSER_ENTRY_VARIANT === "simplified-trigger";
+
+export const TRADITIONAL_MOBILE_TAB_BAR_ENABLED =
+  MOBILE_TAB_BAR_VARIANT === "traditional";
 
 export const POST_CARD_MEDIA_CAROUSEL_ENABLED =
   POST_CARD_MEDIA_PRESENTATION === "carousel";

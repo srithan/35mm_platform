@@ -563,7 +563,7 @@ export function ProfileHeader({
             />
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2">
             {isOwnProfile ? (
               <Button
                 variant="outline"

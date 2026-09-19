@@ -156,4 +156,27 @@ describe("ChatConversation empty draft cleanup", () => {
 
     expect(mocks.deleteConversation).not.toHaveBeenCalled();
   });
+
+  it("reserves mobile scroll space for the fixed composer", () => {
+    const { container } = render(
+      <StrictMode>
+        <ChatConversation
+          chatId="THREAD-1"
+          chatName="Test conversation"
+          hideHeader
+          fixedInputOnMobile
+        />
+      </StrictMode>
+    );
+
+    expect(container.querySelector("[data-chat-scroll-root]")).toHaveClass(
+      "scroll-pb-[calc(var(--chat-mobile-composer-height,4.75rem)+0.75rem)]",
+      "pb-[calc(var(--chat-mobile-composer-height,4.75rem)+0.75rem)]"
+    );
+    expect(container.querySelector("[data-chat-composer-shell]")).toHaveClass(
+      "fixed",
+      "left-0",
+      "right-0"
+    );
+  });
 });

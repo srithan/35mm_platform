@@ -69,7 +69,7 @@ export function TitlePageHero({
       </div>
       <div
         className={cn(
-          "relative mx-auto grid items-end gap-5 px-5 sm:gap-8 lg:gap-12",
+          "relative mx-auto grid items-start gap-4 px-5 sm:items-end sm:gap-8 lg:gap-12",
           useFocusedNavigation ? "max-w-[1240px]" : "max-w-[1120px]",
           useCompactBrowseDensity
             ? "-mt-14 grid-cols-[82px_minmax(0,1fr)] sm:-mt-20 sm:grid-cols-[134px_minmax(0,1fr)] lg:grid-cols-[174px_minmax(0,1fr)]"
@@ -90,8 +90,8 @@ export function TitlePageHero({
             </div>
           )}
         </div>
-        <div className="min-w-0 pb-1 pt-16 sm:pt-24">
-          <p className="mb-2 font-mono text-[10px] uppercase leading-tight tracking-[0.16em] text-fg-muted sm:mb-2.5">
+        <div className="min-w-0 pb-1 pt-3 sm:pt-24">
+          <p className="mb-1.5 font-mono text-[10px] uppercase leading-tight tracking-[0.16em] text-fg-muted sm:mb-2.5">
             {titleKindLabel(detail, isTv)}
             {metaLine ? " / " + metaLine : ""}
           </p>
@@ -106,7 +106,7 @@ export function TitlePageHero({
             {displayTitle}
           </h1>
           {creditPeople.length > 0 ? (
-            <p className="mt-6 text-sm leading-snug text-fg-muted sm:mt-7">
+            <p className="mt-3 text-sm leading-snug text-fg-muted sm:mt-7">
               {isTv ? "Created by" : "Directed by"}{" "}
               <TitleCreditNameLinks
                 items={creditPeople.map(function (person) {

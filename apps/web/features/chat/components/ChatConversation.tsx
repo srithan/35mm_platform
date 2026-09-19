@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
@@ -160,6 +161,7 @@ export function ChatConversation({
   );
 
   const scrollRootRef = useRef<HTMLDivElement>(null);
+  const composerShellRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const scrollAwayAnchorIdRef = useRef<string | null>(null);
   const typingActiveRef = useRef(false);
@@ -176,6 +178,7 @@ export function ChatConversation({
 
   const [jumpFabVisible, setJumpFabVisible] = useState(false);
   const [newBelowCount, setNewBelowCount] = useState(0);
+  const [mobileComposerHeight, setMobileComposerHeight] = useState(0);
 
   const handleMessagesScroll = useCallback(function () {
     const el = scrollRootRef.current;
@@ -381,6 +384,36 @@ export function ChatConversation({
 
   useEffect(
     function () {
+      if (!fixedInputOnMobile) {
+        setMobileComposerHeight(0);
+        return;
+      }
+      const element = composerShellRef.current;
+      if (!element) {
+        return;
+      }
+      const composerElement = element;
+
+      function updateComposerHeight() {
+        setMobileComposerHeight(Math.ceil(composerElement.getBoundingClientRect().height));
+      }
+
+      updateComposerHeight();
+      if (typeof ResizeObserver === "undefined") {
+        return;
+      }
+
+      const observer = new ResizeObserver(updateComposerHeight);
+      observer.observe(composerElement);
+      return function () {
+        observer.disconnect();
+      };
+    },
+    [fixedInputOnMobile]
+  );
+
+  useEffect(
+    function () {
       if (!chatId || messages.length === 0) {
         return;
       }
@@ -582,6 +615,13 @@ export function ChatConversation({
       })(),
       isOwn: replyingTo.isOwn,
     } as const);
+  const mobileComposerInsetStyle = fixedInputOnMobile
+    ? ({
+        "--chat-mobile-composer-height": mobileComposerHeight > 0
+          ? `${mobileComposerHeight}px`
+          : undefined,
+      } as CSSProperties)
+    : undefined;
 
   return (
     <div
@@ -736,8 +776,9 @@ export function ChatConversation({
             compact && "bg-[var(--chat-floating-bg)]",
             compact && "overflow-x-hidden",
             fixedInputOnMobile &&
-              "scroll-pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] pb-4"
+              "scroll-pb-[calc(var(--chat-mobile-composer-height,4.75rem)+0.75rem)] pb-[calc(var(--chat-mobile-composer-height,4.75rem)+0.75rem)] md:scroll-pb-0 md:pb-0"
           )}
+          style={mobileComposerInsetStyle}
         >
           {isLoading ? (
             <ChatMessagesSkeleton />
@@ -802,6 +843,8 @@ export function ChatConversation({
       </div>
 
       <div
+        ref={composerShellRef}
+        data-chat-composer-shell
         className={cn(
           "shrink-0 px-3 md:px-4 pt-2 pb-3 md:pb-4 border-t border-border bg-bg/95 backdrop-blur-md",
           compact && "bg-[var(--chat-floating-bg)]",

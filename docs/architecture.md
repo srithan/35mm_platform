@@ -169,7 +169,7 @@ Design conventions:
 - Web UI rollout flags are resolved once in
   `apps/web/lib/config/uiFlags.ts` through `resolveUiRolloutConfig()`. UI code
   consumes typed rollout variants (`desktopNavigation`, `browse.chrome`,
-  `browse.density`, `postComposer.entry`) instead of combining public env
+  `browse.density`, `mobile.tabBar`, `postComposer.entry`) instead of combining public env
   booleans in each component. This keeps current compile-time env behavior while
   leaving one resolver seam for future per-user A/B assignment. These client-only
   layout variants add no API read/write, cache, worker job, schema, or index.
@@ -190,6 +190,12 @@ Design conventions:
   over `NEXT_PUBLIC_INLINE_POST_COMPOSER` so the stripped trigger can be rolled
   out even in environments using the inline composer. This is client-only
   presentation logic over the same modal open path, adding no API read/write,
+  cache, worker job, schema, or index.
+- `NEXT_PUBLIC_MOBILE_TAB_BAR_TRADITIONAL` gates the mobile bottom tab bar
+  presentation. Default `false` keeps the modern floating pill. `true` keeps the
+  same tab items and scroll-driven hide/show store, but renders the bar
+  full-width, square-cornered, and flush to the viewport bottom with safe-area
+  height included. This client-only presentation flag adds no API read/write,
   cache, worker job, schema, or index.
 - `NEXT_PUBLIC_POST_MEDIA_CAROUSEL` gates the web PostCard image presentation
   for multi-image posts. Default `false` keeps the existing grid for two to four

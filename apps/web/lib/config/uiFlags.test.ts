@@ -14,6 +14,9 @@ describe("resolveUiRolloutConfig", function () {
         showDirectoryTabs: false,
         showRailMenu: true,
       },
+      mobile: {
+        tabBar: "floating",
+      },
       postComposer: {
         entry: "rich-trigger",
       },
@@ -51,6 +54,15 @@ describe("resolveUiRolloutConfig", function () {
         simplifiedPostComposerTrigger: "true",
       }).postComposer.entry
     ).toBe("simplified-trigger");
+  });
+
+  it("keeps mobile tab bar floating by default and enables traditional layout by flag", function () {
+    expect(resolveUiRolloutConfig({}).mobile.tabBar).toBe("floating");
+    expect(
+      resolveUiRolloutConfig({
+        mobileTabBarTraditional: "true",
+      }).mobile.tabBar
+    ).toBe("traditional");
   });
 
   it("keeps post card media grid by default and enables carousel by flag", function () {

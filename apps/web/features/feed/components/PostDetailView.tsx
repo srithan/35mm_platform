@@ -6,8 +6,8 @@ import { useComments } from "../hooks/useComments";
 import { usePost } from "../hooks/usePost";
 import { CommentSection } from "./CommentSection";
 import {
-  FEED_DESKTOP_COLUMN_FRAME_CLASS,
   FEED_DESKTOP_COLUMN_START_CLASS,
+  FEED_DESKTOP_POST_DETAIL_COLUMN_FRAME_CLASS,
 } from "./feedDesktopColumnFrame";
 import { PostCard } from "./PostCard";
 import { PostPageBackButton } from "./PostPageBackButton";
@@ -120,7 +120,7 @@ export function PostDetailView({
       <div className="pl-4">
         <PostPageBackButton />
       </div>
-      <div className={FEED_DESKTOP_COLUMN_FRAME_CLASS}>
+      <div className={FEED_DESKTOP_POST_DETAIL_COLUMN_FRAME_CLASS}>
         <div className={FEED_DESKTOP_COLUMN_START_CLASS}>
         <PostCard
           postId={post.id}
@@ -196,7 +196,7 @@ function PostDetailSkeleton() {
       <div className="px-4 py-2">
         <div className="h-6 w-20 rounded bg-skeleton animate-pulse" />
       </div>
-      <div className={FEED_DESKTOP_COLUMN_FRAME_CLASS}>
+      <div className={FEED_DESKTOP_POST_DETAIL_COLUMN_FRAME_CLASS}>
         <div className={`flex flex-col gap-4 px-4 py-8 ${FEED_DESKTOP_COLUMN_START_CLASS}`}>
           <div className="bg-elevated rounded-2xl shadow-sm p-5 animate-pulse">
             <div className="flex items-center gap-3 mb-4">
