@@ -4,7 +4,7 @@ import { useState } from "react";
 import { LazyImage } from "@/components/LazyImage";
 import { heroUrl, posterUrl, yearFromDate } from "../lib/tmdb-utils";
 import type { TMDBMovie } from "@/lib/tmdb/types";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import { BROWSE_DENSITY_VARIANT } from "@/lib/config/uiFlags";
 import { cn } from "@/lib/utils/cn";
 import { FilmTitleLink } from "./FilmTitleLink";
 
@@ -37,6 +37,7 @@ export function HeroCard({
     "A featured title from the current discovery program.";
   const programNotePreview =
     programNote.slice(0, 180) + (programNote.length > 180 ? "..." : "");
+  const useCompactBrowseDensity = BROWSE_DENSITY_VARIANT === "compact";
 
   return (
     <article
@@ -51,7 +52,7 @@ export function HeroCard({
         ariaLabel={"Open " + (film.title || film.name || "title") + " cover"}
         className={cn(
           "relative block overflow-hidden bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/30",
-          BROWSE_RAIL_ENABLED
+          useCompactBrowseDensity
             ? "h-[190px] sm:h-[280px] lg:h-[320px]"
             : "h-[210px] sm:h-[320px] lg:h-[360px]"
         )}
@@ -88,7 +89,7 @@ export function HeroCard({
       <div
         className={cn(
           "relative z-10 grid items-end px-4",
-          BROWSE_RAIL_ENABLED
+          useCompactBrowseDensity
             ? "-mt-12 grid-cols-[72px_minmax(0,1fr)] gap-3.5 sm:-mt-16 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-5 sm:px-5 lg:-mt-20 lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-6"
             : "-mt-14 grid-cols-[76px_minmax(0,1fr)] gap-4 sm:-mt-20 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-6 sm:px-6 lg:grid-cols-[156px_minmax(0,1fr)] lg:gap-8"
         )}
@@ -116,7 +117,7 @@ export function HeroCard({
         <div
           className={cn(
             "min-w-0 pb-1",
-            BROWSE_RAIL_ENABLED ? "pt-12 sm:pt-16 lg:pt-20" : "pt-14 sm:pt-20"
+            useCompactBrowseDensity ? "pt-12 sm:pt-16 lg:pt-20" : "pt-14 sm:pt-20"
           )}
         >
           <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-muted sm:mb-3">
@@ -127,7 +128,7 @@ export function HeroCard({
             <h2
               className={cn(
                 "break-words font-display font-normal leading-[0.98] tracking-[-0.045em] text-fg",
-                BROWSE_RAIL_ENABLED
+                useCompactBrowseDensity
                   ? "text-[clamp(1.65rem,3.1vw,3.25rem)]"
                   : "text-[clamp(2rem,5vw,4.4rem)]"
               )}

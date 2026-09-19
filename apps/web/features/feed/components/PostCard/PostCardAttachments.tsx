@@ -10,6 +10,7 @@ import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { FilmCard } from "@/components/FilmCard";
 import { ImageViewer } from "@/components/ImageViewer/ImageViewer";
 import { ROUTES } from "@/lib/constants/routes";
+import { POST_CARD_MEDIA_PRESENTATION } from "@/lib/config/uiFlags";
 import { PostImageGallery } from "../PostImageGallery";
 import { VideoUrlPreview } from "../VideoUrlPreview";
 import { RichPostInline } from "@/lib/utils/richPostText";
@@ -167,6 +168,7 @@ export function PostCardAttachments({
             imageNsfw={imageNsfw}
             revealedIndexes={revealedImageIndexes}
             onReveal={onRevealImage}
+            presentation={POST_CARD_MEDIA_PRESENTATION}
           />
           <ImageViewer
             open={showImageViewer}

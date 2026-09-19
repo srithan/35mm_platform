@@ -9,7 +9,10 @@ import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { FilmPoster } from "@/components/FilmPoster";
 import { TextFilterMenu } from "@/components/filters/TextFilterMenu";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import {
+  BROWSE_DENSITY_VARIANT,
+  BROWSE_DIRECTORY_TABS_ENABLED,
+} from "@/lib/config/uiFlags";
 import { DiscoverTabs } from "@/features/discover/components/DiscoverTabs";
 import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { ROUTES } from "@/lib/constants/routes";
@@ -41,6 +44,7 @@ export function PublicListsPageContent() {
   const mutations = useListMutations();
   const router = useRouter();
   const { requireAuth } = useAuthPrompt();
+  const useCompactBrowseDensity = BROWSE_DENSITY_VARIANT === "compact";
 
   const lists = useMemo(
     function () {
@@ -107,16 +111,16 @@ export function PublicListsPageContent() {
     );
   }
 
-  const pageGutterClass = BROWSE_RAIL_ENABLED
+  const pageGutterClass = useCompactBrowseDensity
     ? "w-full px-4 pb-16 sm:px-6 lg:px-0"
     : "mx-auto w-full max-w-[1400px] px-4 pb-16 sm:px-6 lg:px-10";
-  const listGridClass = BROWSE_RAIL_ENABLED
+  const listGridClass = useCompactBrowseDensity
     ? "flex flex-col gap-3"
     : "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3";
 
   return (
     <div className="min-h-full w-full bg-bg">
-      {!BROWSE_RAIL_ENABLED ? <DiscoverTabs active="lists" /> : null}
+      {BROWSE_DIRECTORY_TABS_ENABLED ? <DiscoverTabs active="lists" /> : null}
       <div className={pageGutterClass}>
         <h1 className="sr-only">Lists</h1>
         <div className="mb-7 flex flex-col gap-x-5 border-y border-border py-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -164,7 +168,7 @@ export function PublicListsPageContent() {
             {search || format !== "all" || size !== "all" ? (
               <button type="button" className="h-9 rounded-[3px] px-1.5 text-[11px] font-semibold uppercase tracking-normal text-accent hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35" onClick={function () { setSearch(""); setQuery(""); setFormat("all"); setSize("all"); }}>Reset</button>
             ) : null}
-            {BROWSE_RAIL_ENABLED ? (
+            {useCompactBrowseDensity ? (
               <button
                 type="button"
                 onClick={openCreateList}
@@ -179,10 +183,10 @@ export function PublicListsPageContent() {
 
         <div
           className={listGridClass}
-          role={BROWSE_RAIL_ENABLED ? "list" : undefined}
-          aria-label={BROWSE_RAIL_ENABLED ? "Public lists" : undefined}
+          role={useCompactBrowseDensity ? "list" : undefined}
+          aria-label={useCompactBrowseDensity ? "Public lists" : undefined}
         >
-          {!BROWSE_RAIL_ENABLED ? (
+          {!useCompactBrowseDensity ? (
             <button
               type="button"
               onClick={openCreateList}
@@ -197,7 +201,7 @@ export function PublicListsPageContent() {
           ) : null}
 
         {listsQuery.isLoading ? (
-          <PublicListsSkeleton />
+          <PublicListsSkeleton compactDensity={useCompactBrowseDensity} />
         ) : listsQuery.isError ? (
           <EmptyState
             size="lg"
@@ -225,6 +229,7 @@ export function PublicListsPageContent() {
                 return (
                   <PublicListCard
                     key={list.id}
+                    compactDensity={useCompactBrowseDensity}
                     list={list}
                     onToggleLike={toggleLike}
                   />
@@ -255,9 +260,11 @@ export function PublicListsPageContent() {
 }
 
 export function PublicListCard({
+  compactDensity = BROWSE_DENSITY_VARIANT === "compact",
   list,
   onToggleLike,
 }: {
+  compactDensity?: boolean;
   list: FilmListSummary;
   onToggleLike: (list: FilmListSummary) => Promise<void>;
 }) {
@@ -293,10 +300,10 @@ export function PublicListCard({
 
   return (
     <article
-      role={BROWSE_RAIL_ENABLED ? "listitem" : undefined}
+      role={compactDensity ? "listitem" : undefined}
       className={cn(
         "group grid min-w-0 transition-colors",
-        BROWSE_RAIL_ENABLED
+        compactDensity
           ? "grid-cols-[92px_minmax(0,1fr)_minmax(2.75rem,auto)] items-start gap-x-3 border-b border-border bg-bg px-1 py-3 hover:bg-hover/60 sm:grid-cols-[160px_minmax(0,1fr)_minmax(3rem,auto)] sm:gap-x-4 sm:px-2 sm:py-4"
           : "grid-cols-[112px_minmax(0,1fr)] items-start gap-x-4 gap-y-3 rounded-3xl border border-border bg-elevated p-5 shadow-[0_2px_12px_rgba(0,0,0,0.045)] hover:bg-hover hover:shadow-[0_5px_18px_rgba(0,0,0,0.07)]"
       )}
@@ -306,7 +313,7 @@ export function PublicListCard({
         aria-label={`Open ${list.title} by ${list.owner.displayName}`}
         className={cn(
           "relative isolate block aspect-[1.12/1] shrink-0 rounded-sm no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-bg",
-          BROWSE_RAIL_ENABLED ? "w-[92px] sm:w-[160px]" : "w-[112px]"
+          compactDensity ? "w-[92px] sm:w-[160px]" : "w-[112px]"
         )}
       >
         {posters.map(function (posterUrl, index) {
@@ -315,10 +322,10 @@ export function PublicListCard({
               key={index}
               className={cn(
                 "absolute top-1/2 -translate-y-1/2 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:translate-x-0.5",
-                BROWSE_RAIL_ENABLED ? "w-[56%]" : "w-[58%]"
+                compactDensity ? "w-[56%]" : "w-[58%]"
               )}
               style={{
-                left: `${index * (BROWSE_RAIL_ENABLED ? 13 : 14)}%`,
+                left: `${index * (compactDensity ? 13 : 14)}%`,
                 zIndex: 4 - index,
                 scale: `${1 - index * 0.045}`,
               }}
@@ -329,7 +336,7 @@ export function PublicListCard({
                 size="xl"
                 className={cn(
                   "w-full rounded border border-bg",
-                  BROWSE_RAIL_ENABLED
+                  compactDensity
                     ? "shadow-[2px_1px_5px_rgba(0,0,0,0.14)]"
                     : "shadow-[3px_1px_6px_rgba(0,0,0,0.16)]"
                 )}
@@ -342,7 +349,7 @@ export function PublicListCard({
       <div
         className={cn(
           "flex w-full min-w-0 flex-1 flex-col",
-          BROWSE_RAIL_ENABLED && "pt-0.5 sm:pt-0"
+          compactDensity && "pt-0.5 sm:pt-0"
         )}
       >
         <h2>
@@ -350,7 +357,7 @@ export function PublicListCard({
             href={ROUTES.LIST(list.id)}
             className={cn(
               "break-words rounded-sm text-fg [text-wrap:pretty] no-underline hover:text-fg-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-              BROWSE_RAIL_ENABLED
+              compactDensity
                 ? "line-clamp-2 text-[16px] font-semibold leading-[1.25] sm:text-[17px]"
                 : "line-clamp-3 font-display-discover text-[22px] font-normal leading-[1.2]"
             )}
@@ -361,12 +368,12 @@ export function PublicListCard({
         <div
           className={cn(
             "flex flex-wrap items-center gap-y-1 text-[11px] text-fg-muted",
-            BROWSE_RAIL_ENABLED ? "mt-1 gap-x-2.5" : "mt-2 gap-x-3"
+            compactDensity ? "mt-1 gap-x-2.5" : "mt-2 gap-x-3"
           )}
         >
           <span>{formatCount(list.entryCount)} {list.entryCount === 1 ? "film" : "films"}</span>
           {list.isRanked ? <span className="flex items-center gap-1"><Rows3 className="h-3 w-3" aria-hidden />Ranked</span> : null}
-          {BROWSE_RAIL_ENABLED ? (
+          {compactDensity ? (
             <Link
               href={ROUTES.PROFILE(list.owner.username)}
               className="inline-flex min-w-0 max-w-[12rem] items-center gap-1.5 rounded-sm text-fg-muted no-underline hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -385,7 +392,7 @@ export function PublicListCard({
           <p
             className={cn(
               "mt-1.5 text-[12px] leading-relaxed text-fg-muted",
-              BROWSE_RAIL_ENABLED ? "line-clamp-1" : "line-clamp-2"
+              compactDensity ? "line-clamp-1" : "line-clamp-2"
             )}
           >
             {list.description}
@@ -396,17 +403,17 @@ export function PublicListCard({
           <div
             className={cn(
               "flex min-w-0 gap-1.5 overflow-hidden",
-              BROWSE_RAIL_ENABLED ? "mt-1.5" : "mt-2"
+              compactDensity ? "mt-1.5" : "mt-2"
             )}
             aria-label="List tags"
           >
-            {list.tags.slice(0, BROWSE_RAIL_ENABLED ? 2 : 3).map(function (tag) {
+            {list.tags.slice(0, compactDensity ? 2 : 3).map(function (tag) {
               return (
                 <span
                   key={tag}
                   className={cn(
                     "max-w-full truncate bg-sunken text-[10px] text-fg-muted",
-                    BROWSE_RAIL_ENABLED ? "rounded px-1.5 py-0.5" : "rounded-full px-2 py-0.5"
+                    compactDensity ? "rounded px-1.5 py-0.5" : "rounded-full px-2 py-0.5"
                   )}
                 >
                   {tag}
@@ -418,12 +425,12 @@ export function PublicListCard({
       </div>
       <div
         className={cn(
-          BROWSE_RAIL_ENABLED
+          compactDensity
             ? "flex justify-end"
             : "col-span-2 flex items-center justify-between gap-2 border-t border-border pt-1"
         )}
       >
-        {!BROWSE_RAIL_ENABLED ? (
+        {!compactDensity ? (
           <Link
             href={ROUTES.PROFILE(list.owner.username)}
             className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm text-fg-muted no-underline hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -445,7 +452,7 @@ export function PublicListCard({
           aria-pressed={list.isOwner ? undefined : isLiked}
           className={cn(
             "inline-flex shrink-0 items-center justify-center gap-1.5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default",
-            BROWSE_RAIL_ENABLED ? "min-h-9 min-w-9 rounded px-1.5" : "min-h-11 min-w-11 rounded-md px-2",
+            compactDensity ? "min-h-9 min-w-9 rounded px-1.5" : "min-h-11 min-w-11 rounded-md px-2",
             isLiked ? "text-like" : "text-fg-muted enabled:hover:text-like"
           )}
         >
@@ -457,7 +464,7 @@ export function PublicListCard({
   );
 }
 
-function PublicListsSkeleton() {
+function PublicListsSkeleton({ compactDensity }: { compactDensity: boolean }) {
   return (
     <div className="contents" aria-label="Loading lists">
       {Array.from({ length: 8 }, function (_, index) {
@@ -466,18 +473,18 @@ function PublicListsSkeleton() {
             key={index}
             className={cn(
               "grid motion-safe:animate-pulse",
-              BROWSE_RAIL_ENABLED
+              compactDensity
                 ? "grid-cols-[92px_minmax(0,1fr)_minmax(2.75rem,auto)] gap-x-3 border-b border-border px-1 py-3 sm:grid-cols-[160px_minmax(0,1fr)_minmax(3rem,auto)] sm:gap-x-4 sm:px-2 sm:py-4"
                 : "grid-cols-[112px_minmax(0,1fr)] gap-4 rounded-3xl border border-border bg-elevated p-5"
             )}
           >
-            <div className={cn("aspect-[1.12/1] shrink-0 rounded bg-sunken-2", BROWSE_RAIL_ENABLED ? "w-[92px] sm:w-[160px]" : "w-[112px]")} />
-            <div className={cn("w-full flex-1", BROWSE_RAIL_ENABLED ? "py-1" : "py-2")}>
+            <div className={cn("aspect-[1.12/1] shrink-0 rounded bg-sunken-2", compactDensity ? "w-[92px] sm:w-[160px]" : "w-[112px]")} />
+            <div className={cn("w-full flex-1", compactDensity ? "py-1" : "py-2")}>
               <div className="h-3 w-1/4 rounded bg-sunken-2" />
-              <div className={cn("w-3/4 rounded bg-sunken-2", BROWSE_RAIL_ENABLED ? "mt-2 h-4" : "mt-3 h-5")} />
-              <div className={cn("w-1/2 rounded bg-sunken-2", BROWSE_RAIL_ENABLED ? "mt-2 h-3" : "mt-3 h-4")} />
+              <div className={cn("w-3/4 rounded bg-sunken-2", compactDensity ? "mt-2 h-4" : "mt-3 h-5")} />
+              <div className={cn("w-1/2 rounded bg-sunken-2", compactDensity ? "mt-2 h-3" : "mt-3 h-4")} />
             </div>
-            {BROWSE_RAIL_ENABLED ? <div className="h-9 w-9 rounded bg-sunken-2" /> : null}
+            {compactDensity ? <div className="h-9 w-9 rounded bg-sunken-2" /> : null}
           </div>
         );
       })}

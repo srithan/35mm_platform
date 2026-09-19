@@ -12,7 +12,7 @@ import {
   LayoutList,
   type LucideIcon,
 } from "lucide-react";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import { BROWSE_RAIL_MENU_ENABLED } from "@/lib/config/uiFlags";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import { isRouteActive } from "@/lib/utils/navigation";
@@ -98,7 +98,7 @@ export function HomeProfileCompletionSidebar({
 }: HomeProfileCompletionSidebarProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname() ?? "";
-  const showRailMenu = BROWSE_RAIL_ENABLED;
+  const showRailMenu = BROWSE_RAIL_MENU_ENABLED;
   const isDirectoryLayout = showRailMenu && layout === "directory";
   const top =
     "calc(var(--site-header-sticky-offset, 4.5rem) + var(--home-main-below-header-gap, 1rem))";

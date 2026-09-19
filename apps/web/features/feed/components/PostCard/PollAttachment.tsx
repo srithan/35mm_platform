@@ -292,16 +292,20 @@ function PollAttachmentInner({ postId, poll }: PollAttachmentProps) {
                 <div className="relative flex items-center justify-between px-3 py-2.5">
                   <div className="flex items-center gap-2 min-w-0">
                     {isSelected ? (
-                      <svg
-                        className={cn(
-                          "w-[18px] h-[18px] shrink-0",
-                          isWinning ? "poll-winner-on-gradient" : "text-[var(--color-poll-winner)]"
-                        )}
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
+                      <span
+                        className="flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full bg-[var(--color-poll-winner)] shadow-[0_0_0_2px_var(--color-bg)]"
+                        aria-label="Your vote"
                       >
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                      </svg>
+                        <svg className="h-[13px] w-[13px] text-white" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M5 12.5l4.2 4.2L19 7"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3.5}
+                          />
+                        </svg>
+                      </span>
                     ) : null}
                     <span
                       className={cn(

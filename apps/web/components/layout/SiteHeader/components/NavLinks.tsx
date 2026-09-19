@@ -5,7 +5,7 @@ import {
   formatChatUnreadBadgeCount,
   useChatUnreadBadgeCount,
 } from "@/features/chat/hooks/useChatUnreadBadgeCount";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import { BROWSE_CHROME_VARIANT } from "@/lib/config/uiFlags";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 import styles from "../SiteHeader.module.css";
@@ -37,6 +37,7 @@ export function NavLinks({
   const chatUnreadCount = useChatUnreadBadgeCount();
   const chatUnreadLabel = formatChatUnreadBadgeCount(chatUnreadCount);
   const hasChatUnread = chatUnreadCount > 0;
+  const useBrowseRailChrome = BROWSE_CHROME_VARIANT === "rail";
 
   function handleGatedNav(event: MouseEvent) {
     event.preventDefault();
@@ -68,11 +69,11 @@ export function NavLinks({
             </svg>
           </span>
           <span className={styles.navItemText}>
-            {BROWSE_RAIL_ENABLED ? "Home" : "Feed"}
+            {useBrowseRailChrome ? "Home" : "Feed"}
           </span>
         </Link>
 
-        {!BROWSE_RAIL_ENABLED ? (
+        {!useBrowseRailChrome ? (
           <Link
             href={ROUTES.DISCOVER}
             className={navItemClass(isActive(ROUTES.DISCOVER), useSkeuomorphicActive)}

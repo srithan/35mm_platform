@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import { BROWSE_DENSITY_VARIANT } from "@/lib/config/uiFlags";
 
 function Skeleton({ className }: { className?: string }) {
   return (
@@ -54,6 +54,8 @@ export function DiscoverShelfSkeleton({
 }
 
 export function DiscoverHeroSkeleton() {
+  const useCompactBrowseDensity = BROWSE_DENSITY_VARIANT === "compact";
+
   return (
     <section
       className={cn(
@@ -64,7 +66,7 @@ export function DiscoverHeroSkeleton() {
       <div
         className={cn(
           "relative overflow-hidden bg-sunken",
-          BROWSE_RAIL_ENABLED
+          useCompactBrowseDensity
             ? "h-[190px] sm:h-[280px] lg:h-[320px]"
             : "h-[210px] sm:h-[320px] lg:h-[360px]"
         )}
@@ -83,7 +85,7 @@ export function DiscoverHeroSkeleton() {
       <div
         className={cn(
           "relative z-10 grid items-end px-4",
-          BROWSE_RAIL_ENABLED
+          useCompactBrowseDensity
             ? "-mt-12 grid-cols-[72px_minmax(0,1fr)] gap-3.5 sm:-mt-16 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-5 sm:px-5 lg:-mt-20 lg:grid-cols-[136px_minmax(0,1fr)] lg:gap-6"
             : "-mt-14 grid-cols-[76px_minmax(0,1fr)] gap-4 sm:-mt-20 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-6 sm:px-6 lg:grid-cols-[156px_minmax(0,1fr)] lg:gap-8"
         )}
@@ -92,14 +94,14 @@ export function DiscoverHeroSkeleton() {
         <div
           className={cn(
             "min-w-0 pb-1",
-            BROWSE_RAIL_ENABLED ? "pt-12 sm:pt-16 lg:pt-20" : "pt-14 sm:pt-20"
+            useCompactBrowseDensity ? "pt-12 sm:pt-16 lg:pt-20" : "pt-14 sm:pt-20"
           )}
         >
           <Skeleton className="mb-3 h-3 w-40 rounded" />
           <Skeleton
             className={cn(
               "w-[84%] rounded",
-              BROWSE_RAIL_ENABLED ? "h-8 sm:h-10 lg:h-12 lg:w-[68%]" : "h-9 sm:h-12 lg:h-16 lg:w-[72%]"
+              useCompactBrowseDensity ? "h-8 sm:h-10 lg:h-12 lg:w-[68%]" : "h-9 sm:h-12 lg:h-16 lg:w-[72%]"
             )}
           />
           <Skeleton className="mt-3 h-4 w-[56%] rounded" />

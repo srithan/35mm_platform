@@ -63,6 +63,8 @@ const PREFETCH_ROOT_MARGIN_PX = 1_800;
 const LOAD_MORE_MARGIN_PX = 640;
 const SCROLL_FAST_THRESHOLD_PX_PER_SEC = 1_300;
 const SCROLL_RAPID_THRESHOLD_PX_PER_SEC = 2_400;
+const INITIAL_SKELETON_COUNT = 6;
+const PAGINATION_SKELETON_COUNT = 3;
 type InfiniteScrollAction = "idle" | "prefetch" | "load";
 
 export function resolveInfiniteScrollAction(distanceFromViewportPx: number): InfiniteScrollAction {
@@ -384,15 +386,18 @@ export function InfinitePostList({
       {showGuestFooter ? (
         guestFooter
       ) : (
-        <InfiniteScrollTrigger
-          hasNextPage={Boolean(hasNextPage)}
-          isFetchingNextPage={isFetchingNextPage}
-          onLoadMore={handleLoadMore}
-          onPrefetch={handlePrefetch}
-          setPrefetchVelocity={function (velocity) {
-            prefetchScrollVelocityRef.current = velocity;
-          }}
-        />
+        <>
+          {isFetchingNextPage ? <FeedPaginationSkeleton /> : null}
+          <InfiniteScrollTrigger
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            onLoadMore={handleLoadMore}
+            onPrefetch={handlePrefetch}
+            setPrefetchVelocity={function (velocity) {
+              prefetchScrollVelocityRef.current = velocity;
+            }}
+          />
+        </>
       )}
     </div>
   );
@@ -460,11 +465,7 @@ function InfiniteScrollTrigger({
     };
   }, [hasNextPage, isFetchingNextPage, onLoadMore, onPrefetch, setPrefetchVelocity]);
 
-  return (
-    <div ref={ref} className="h-8 flex items-center justify-center">
-      {isFetchingNextPage && <span className="text-sm text-text-tertiary">Loading more...</span>}
-    </div>
-  );
+  return <div ref={ref} className="h-px w-full" aria-hidden />;
 }
 
 function Skeleton({ className }: { className?: string }) {
@@ -472,7 +473,7 @@ function Skeleton({ className }: { className?: string }) {
     <span
       className={cn(
         "block overflow-hidden rounded-sm",
-        "bg-gradient-to-r from-sunken via-neutral-100 to-sunken",
+        "bg-gradient-to-r from-skeleton via-skeleton-strong to-skeleton",
         "bg-skeleton-shimmer animate-skeleton-shimmer",
         className
       )}
@@ -492,9 +493,8 @@ export function PostCardSkeleton({
 }) {
   return (
     <article
-      className={cn("PostCard mb-3 w-full animate-fade-up rounded-lg px-4 py-4", className)}
+      className={cn("PostCard w-full animate-fade-up border-b-2 border-border bg-bg px-4 py-4", className)}
       style={{
-        backgroundColor: "var(--color-bg)",
         animationDelay: `${animationDelay}ms`,
       }}
       aria-hidden
@@ -540,11 +540,39 @@ export function PostCardSkeleton({
 function FeedSkeleton() {
   return (
     <div>
-      <div className={FEED_DESKTOP_COLUMN_START_CLASS}>
-        <PostCardSkeleton animationDelay={0} />
-      </div>
-      <PostCardSkeleton showFilm animationDelay={60} />
-      <PostCardSkeleton animationDelay={120} />
+      {Array.from({ length: INITIAL_SKELETON_COUNT }).map((_, index) => {
+        const skeleton = (
+          <PostCardSkeleton
+            key={`feed-initial-skeleton-${index}`}
+            showFilm={index === 1 || index === 4}
+            animationDelay={index * 60}
+          />
+        );
+
+        if (index === 0) {
+          return (
+            <div key="feed-initial-skeleton-start" className={FEED_DESKTOP_COLUMN_START_CLASS}>
+              {skeleton}
+            </div>
+          );
+        }
+
+        return skeleton;
+      })}
+    </div>
+  );
+}
+
+function FeedPaginationSkeleton() {
+  return (
+    <div aria-hidden>
+      {Array.from({ length: PAGINATION_SKELETON_COUNT }).map((_, index) => (
+        <PostCardSkeleton
+          key={`feed-pagination-skeleton-${index}`}
+          showFilm={index === 1}
+          animationDelay={index * 60}
+        />
+      ))}
     </div>
   );
 }

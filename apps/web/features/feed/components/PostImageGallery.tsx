@@ -211,6 +211,7 @@ function PostImageCarousel({
   imageNsfw,
   revealedIndexes,
   onReveal,
+  presentation = "overlay",
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
@@ -223,11 +224,13 @@ function PostImageCarousel({
   imageNsfw: ImageNsfwInfo[];
   revealedIndexes: ReadonlySet<number>;
   onReveal?: (index: number) => void;
+  presentation?: "overlay" | "peek";
 }) {
   var trackRef = useRef<HTMLDivElement>(null);
   var carouselRef = useRef<HTMLDivElement>(null);
   var [activeIndex, setActiveIndex] = useState(0);
   var [isNearViewport, setIsNearViewport] = useState(false);
+  var isPeekPresentation = presentation === "peek";
 
   useEffect(function () {
     var node = carouselRef.current;
@@ -258,21 +261,45 @@ function PostImageCarousel({
   var syncActiveIndex = useCallback(function () {
     var track = trackRef.current;
     if (!track) return;
-    var width = track.clientWidth;
-    if (width <= 0) return;
-    var nextIndex = Math.round(track.scrollLeft / width);
-    if (nextIndex < 0) nextIndex = 0;
+    if (track.clientWidth <= 0) return;
+    if (isPeekPresentation && track.scrollLeft <= 4) {
+      setActiveIndex(0);
+      return;
+    }
+    if (
+      isPeekPresentation &&
+      track.scrollLeft >= track.scrollWidth - track.clientWidth - 4
+    ) {
+      setActiveIndex(urls.length - 1);
+      return;
+    }
+    var referencePoint = isPeekPresentation
+      ? track.scrollLeft
+      : track.scrollLeft + track.clientWidth / 2;
+    var nextIndex = 0;
+    var closestDistance = Number.POSITIVE_INFINITY;
+    Array.from(track.children).forEach(function (child, idx) {
+      if (!(child instanceof HTMLElement)) return;
+      var childReference = isPeekPresentation
+        ? child.offsetLeft
+        : child.offsetLeft + child.offsetWidth / 2;
+      var distance = Math.abs(childReference - referencePoint);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        nextIndex = idx;
+      }
+    });
     if (nextIndex >= urls.length) nextIndex = urls.length - 1;
     setActiveIndex(nextIndex);
-  }, [urls.length]);
+  }, [isPeekPresentation, urls.length]);
 
   var scrollToIndex = useCallback(function (index: number) {
     var track = trackRef.current;
     if (!track) return;
-    var width = track.clientWidth;
-    if (width <= 0) return;
+    var target = track.children[index];
+    if (!(target instanceof HTMLElement)) return;
     track.scrollTo({
-      left: width * index,
+      left: target.offsetLeft,
       behavior: "smooth",
     });
     setActiveIndex(index);
@@ -281,7 +308,10 @@ function PostImageCarousel({
   return (
     <div
       ref={carouselRef}
-      className="group/carousel relative mt-3.5 w-full overflow-hidden rounded-lg bg-sunken"
+      className={cn(
+        "group/carousel relative mt-3.5 w-full overflow-hidden rounded-lg",
+        isPeekPresentation ? "bg-transparent" : "bg-sunken"
+      )}
       onClick={function (e) {
         e.stopPropagation();
       }}
@@ -289,17 +319,58 @@ function PostImageCarousel({
         e.stopPropagation();
       }}
     >
+      {isPeekPresentation ? (
+        <div
+          className="mb-2 flex w-fit items-center gap-1 rounded-full bg-sunken px-2 py-1 shadow-[0_4px_14px_rgba(0,0,0,0.08)]"
+          aria-label="Post image carousel position"
+        >
+          {urls.map(function (_, idx) {
+            var isActive = idx === activeIndex;
+            return (
+              <button
+                key={`post-image-dot-${idx}`}
+                type="button"
+                aria-label={"Show image " + String(idx + 1) + " of " + String(urls.length)}
+                aria-current={isActive ? "true" : undefined}
+                className={cn(
+                  "h-1.5 rounded-full transition-[background-color,width] duration-200 ease-out",
+                  isActive
+                    ? "w-4 bg-fg"
+                    : "w-1.5 bg-fg-muted hover:bg-fg"
+                )}
+                onClick={function (e) {
+                  e.stopPropagation();
+                  scrollToIndex(idx);
+                }}
+              />
+            );
+          })}
+        </div>
+      ) : null}
       <div
         ref={trackRef}
         onScroll={syncActiveIndex}
-        className="flex w-full flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className={cn(
+          "flex w-full flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          isPeekPresentation
+            ? "gap-2 rounded-lg [scroll-snap-type:none] [-webkit-overflow-scrolling:touch]"
+            : "scroll-smooth snap-x snap-mandatory"
+        )}
         aria-label="Post images"
       >
         {urls.map(function (url, idx) {
           var isPriorityImage = priority && idx === 0;
-          var shouldLoadImage = isPriorityImage || (isNearViewport && Math.abs(idx - activeIndex) <= 1);
+          var shouldLoadImage =
+            isPriorityImage || (isNearViewport && Math.abs(idx - activeIndex) <= 1);
+          if (isPeekPresentation) {
+            shouldLoadImage =
+              isPriorityImage || (isNearViewport && (idx <= 3 || Math.abs(idx - activeIndex) <= 3));
+          }
           if (saveData) {
-            shouldLoadImage = isPriorityImage || (isNearViewport && idx === activeIndex);
+            shouldLoadImage =
+              isPriorityImage ||
+              (isNearViewport &&
+                (isPeekPresentation ? idx <= 3 || Math.abs(idx - activeIndex) <= 2 : idx === activeIndex));
           }
           const nsfw = itemNsfw(postNsfwStatus, postNsfwCategories, imageNsfw[idx]);
           return (
@@ -311,7 +382,12 @@ function PostImageCarousel({
               onReveal={function () {
                 onReveal?.(idx);
               }}
-              className="relative aspect-[4/5] w-full min-w-full max-w-full flex-shrink-0 flex-grow-0 snap-start snap-always bg-sunken"
+              className={cn(
+                "relative aspect-[4/5] flex-shrink-0 flex-grow-0 overflow-hidden bg-sunken",
+                isPeekPresentation
+                  ? "w-[44%] min-w-[44%] max-w-[44%] rounded-lg"
+                  : "w-full min-w-full max-w-full snap-start snap-always"
+              )}
             >
               <button
                 type="button"
@@ -337,11 +413,14 @@ function PostImageCarousel({
         })}
       </div>
 
-      <div className="pointer-events-none absolute right-2.5 top-2.5 z-20 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white shadow-sm">
-        {activeIndex + 1}/{urls.length}
-      </div>
+      {!isPeekPresentation ? (
+        <div className="pointer-events-none absolute right-2.5 top-2.5 z-20 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white shadow-sm">
+          {activeIndex + 1}/{urls.length}
+        </div>
+      ) : null}
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/35 via-black/10 to-transparent px-3 pb-3 pt-10">
+      {!isPeekPresentation ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/35 via-black/10 to-transparent px-3 pb-3 pt-10">
         <div className="flex h-3 items-center justify-center gap-[7px]" aria-hidden>
           {urls.map(function (_, idx) {
             var isActive = idx === activeIndex;
@@ -358,9 +437,10 @@ function PostImageCarousel({
             );
           })}
         </div>
-      </div>
+        </div>
+      ) : null}
 
-      {activeIndex > 0 ? (
+      {!isPeekPresentation && activeIndex > 0 ? (
         <button
           type="button"
           aria-label="Previous image"
@@ -377,7 +457,7 @@ function PostImageCarousel({
         </button>
       ) : null}
 
-      {activeIndex < urls.length - 1 ? (
+      {!isPeekPresentation && activeIndex < urls.length - 1 ? (
         <button
           type="button"
           aria-label="Next image"
@@ -503,6 +583,7 @@ export function PostImageGallery({
   imageNsfw = [],
   revealedIndexes = new Set<number>(),
   onReveal,
+  presentation = "grid",
 }: {
   urls: string[];
   blurhashes?: Array<string | null | undefined>;
@@ -516,12 +597,14 @@ export function PostImageGallery({
   imageNsfw?: ImageNsfwInfo[];
   revealedIndexes?: ReadonlySet<number>;
   onReveal?: (index: number) => void;
+  presentation?: "grid" | "carousel";
 }) {
   if (urls.length === 0) return null;
+  const shouldRenderCarousel = urls.length >= 5 || (presentation === "carousel" && urls.length > 1);
 
   return (
     <>
-      {urls.length >= 5 ? (
+      {shouldRenderCarousel ? (
         <PostImageCarousel
           urls={urls}
           blurhashes={blurhashes}
@@ -534,6 +617,7 @@ export function PostImageGallery({
           imageNsfw={imageNsfw}
           revealedIndexes={revealedIndexes}
           onReveal={onReveal}
+          presentation={presentation === "carousel" && urls.length > 1 ? "peek" : "overlay"}
         />
       ) : (
         <PostImageGrid

@@ -9,7 +9,10 @@ import type { FilmCatalogSort, FilmCatalogType, FilmListSummary } from "@35mm/ty
 import { EmptyState } from "@/components/EmptyState";
 import { TextFilterMenu } from "@/components/filters/TextFilterMenu";
 import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import {
+  BROWSE_DENSITY_VARIANT,
+  BROWSE_DIRECTORY_TABS_ENABLED,
+} from "@/lib/config/uiFlags";
 import { DiscoverTabs } from "@/features/discover/components/DiscoverTabs";
 import { useProfileLists, useListMutations } from "@/features/lists/hooks/useLists";
 import type { CatalogFilmPayload, TmdbFilmPayload } from "@/features/lists/api/listsApi";
@@ -507,22 +510,23 @@ export function FilmsContent() {
     filters.duration === "any" ? "" : filters.duration,
   ].filter(Boolean).length;
 
-  const pageGutterClass = BROWSE_RAIL_ENABLED
+  const useCompactBrowseDensity = BROWSE_DENSITY_VARIANT === "compact";
+  const pageGutterClass = useCompactBrowseDensity
     ? "w-full px-4 pb-16 sm:px-6 lg:px-0"
     : "mx-auto w-full max-w-[1400px] px-4 pb-16 sm:px-6 lg:px-10";
-  const skeletonGridClass = BROWSE_RAIL_ENABLED
+  const skeletonGridClass = useCompactBrowseDensity
     ? "grid grid-cols-2 gap-x-2 gap-y-5 py-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
     : "grid grid-cols-2 gap-1 py-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6";
-  const compactGridClass = BROWSE_RAIL_ENABLED
+  const compactGridClass = useCompactBrowseDensity
     ? "grid grid-cols-3 gap-x-1.5 gap-y-4 py-7 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8"
     : "grid grid-cols-3 gap-1 py-7 sm:grid-cols-4 sm:gap-1 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8";
-  const detailGridClass = BROWSE_RAIL_ENABLED
+  const detailGridClass = useCompactBrowseDensity
     ? "grid grid-cols-2 gap-x-2 gap-y-5 py-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
     : "grid grid-cols-2 gap-1 py-7 sm:grid-cols-3 sm:gap-1 md:grid-cols-4 xl:grid-cols-6";
 
   return (
     <div className="min-h-full w-full bg-bg">
-      {!BROWSE_RAIL_ENABLED ? <DiscoverTabs active="films" /> : null}
+      {BROWSE_DIRECTORY_TABS_ENABLED ? <DiscoverTabs active="films" /> : null}
       <div className={pageGutterClass}>
         <div className="border-b border-border py-2">
           <div

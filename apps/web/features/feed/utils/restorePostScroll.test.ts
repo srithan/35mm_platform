@@ -30,18 +30,19 @@ it("falls back to absolute position for malformed data", () => {
   expect(scroll).toHaveBeenCalledExactlyOnceWith(0, 924);
 });
 
-it("waits for a delayed feed commit and restores only once", async () => {
+it("restores absolute position first so a delayed virtual row can mount", async () => {
   const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   const stop = restorePostScroll(924, JSON.stringify({ id: "delayed", top: 140 }));
-  expect(scroll).not.toHaveBeenCalled();
+  expect(scroll).toHaveBeenCalledExactlyOnceWith(0, 924);
   const post = document.createElement("article");
   post.dataset.postScrollAnchor = "delayed";
   vi.spyOn(post, "getBoundingClientRect").mockReturnValue({ top: 1064 } as DOMRect);
   document.body.append(post);
   await new Promise(resolve => setTimeout(resolve, 0));
-  expect(scroll).toHaveBeenCalledExactlyOnceWith(0, 924);
+  expect(scroll).toHaveBeenCalledTimes(2);
+  expect(scroll).toHaveBeenLastCalledWith(0, 924);
   document.body.append(document.createElement("div"));
   await new Promise(resolve => setTimeout(resolve, 0));
-  expect(scroll).toHaveBeenCalledTimes(1);
+  expect(scroll).toHaveBeenCalledTimes(2);
   stop?.();
 });

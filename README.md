@@ -123,7 +123,16 @@ Important: `apps/worker` does not currently have its own `.env.example` and is l
 | `NEXT_PUBLIC_OMDB_API_KEY` | optional | Optional metadata fallback in film cards |
 | `NEXT_PUBLIC_CHAT_API_MODE` | optional | Chat subsystem mode: `mock` or `remote` |
 | `NEXT_PUBLIC_CHAT_API_URL` | optional | Required only when chat mode is `remote` |
+| `NEXT_PUBLIC_FOCUSED_NAVIGATION` | optional | Opt-in fixed desktop left sidebar; default preserves current header |
+| `NEXT_PUBLIC_FOCUSED_NAVIGATION_CENTERED` | optional | Centers focused sidebar primary nav; logo/actions remain pinned top/bottom |
+| `NEXT_PUBLIC_POST_MEDIA_CAROUSEL` | optional | Opt-in PostCard carousel for multi-image posts; default keeps existing grid |
 | `NEXT_PUBLIC_TENOR_API_KEY` | optional | GIF picker in chat composer |
+
+#### apps/mobile environment (optional React Native UI flags)
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `EXPO_PUBLIC_POST_MEDIA_CAROUSEL` | optional | Opt-in PostCard carousel for multi-image posts; default keeps existing grid |
 
 #### apps/worker environment in practice
 

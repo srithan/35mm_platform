@@ -1,0 +1,214 @@
+.sidebar {
+  --focused-nav-primary: var(--fg);
+  --focused-nav-primary-hover: color-mix(in srgb, var(--fg) 88%, var(--bg));
+  --focused-nav-primary-contrast: var(--bg);
+  --focused-nav-muted: color-mix(in srgb, var(--fg) 50%, var(--bg));
+  --focused-nav-muted-hover: color-mix(in srgb, var(--fg) 72%, var(--bg));
+
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: var(--z-site-header);
+  display: none;
+  width: var(--focused-navigation-width, 15.5rem);
+  flex-direction: column;
+  border-right: none;
+  background: var(--bg);
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+  }
+}
+
+.inner {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  width: 4.71875rem;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--focused-nav-primary);
+  text-decoration: none;
+  transition: background 0.14s ease;
+}
+
+.brand:hover {
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+
+.brandMark {
+  width: 4.71875rem;
+  height: 1.75rem;
+}
+
+.nav {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  margin-top: 0;
+}
+
+.navCentered {
+  justify-content: center;
+}
+
+.navItem,
+.newPost,
+.authLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 3rem;
+  min-height: 3rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  color: var(--focused-nav-muted);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3334;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
+}
+
+.navItem:hover,
+.authLink:hover {
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  color: var(--focused-nav-muted-hover);
+}
+
+.navItemActive:hover {
+  color: var(--fg);
+}
+
+.navItem {
+  font-family: var(--font-sans), sans-serif;
+}
+
+.navItem:focus-visible,
+.newPost:focus-visible,
+.authLink:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--fg) 28%, transparent);
+}
+
+.navItemActive {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.navItemIconWrap {
+  display: inline-flex;
+  flex: 0 0 3rem;
+  width: 3rem;
+  min-width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.navItemIcon {
+  display: block;
+  fill: none;
+  opacity: 1;
+  stroke: currentColor;
+  transition: fill 0.14s ease, stroke-width 0.14s ease, transform 0.14s ease;
+}
+
+.navItemIconFilled {
+  fill: currentColor;
+}
+
+.navItemActive .navItemIcon {
+  stroke-width: 2;
+}
+
+.newPost {
+  width: 100%;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  min-height: 3rem;
+  padding-inline: 1rem;
+  border-color: var(--focused-nav-primary);
+  border-radius: 0.625rem;
+  background: var(--focused-nav-primary);
+  color: var(--focused-nav-primary-contrast);
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.newPost:hover {
+  border-color: var(--focused-nav-primary-hover);
+  background: var(--focused-nav-primary-hover);
+}
+
+.newPost:active {
+  transform: scale(0.98);
+}
+
+.newPostIcon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+  min-height: 4rem;
+  padding-top: 0.5rem;
+}
+
+.authActions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.authLink {
+  justify-content: center;
+  padding-inline: 1rem;
+}
+
+.authSignup {
+  border-color: var(--focused-nav-primary);
+  background: var(--focused-nav-primary);
+  color: var(--focused-nav-primary-contrast);
+}
+
+.authSignup:hover {
+  border-color: var(--focused-nav-primary-hover);
+  background: var(--focused-nav-primary-hover);
+  color: var(--focused-nav-primary-contrast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navItem,
+  .newPost,
+  .authLink,
+  .navItemIcon {
+    transition: none;
+  }
+}

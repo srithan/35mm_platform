@@ -28,6 +28,7 @@ import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
 import { resolveTmdbFilm } from "@/features/films/api/filmsApi";
 import { posterUrl } from "@/features/discover/lib/tmdb-utils";
 import { showGlobalFlashToast } from "@/components/FlashToast";
+import { DESKTOP_NAVIGATION_VARIANT } from "@/lib/config/uiFlags";
 
 type TitleContentTabState = TitleContentTab;
 
@@ -185,7 +186,12 @@ export function TitlePageView(props: {
         metaLine={metaLine}
         creditPeople={creditPeople}
       />
-      <div className="mx-auto grid max-w-[1120px] gap-8 px-5 pb-24 pt-8 sm:grid-cols-[184px_minmax(0,1fr)] sm:gap-x-8 lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-x-12">
+      <div
+        className={cn(
+          "mx-auto grid gap-8 px-5 pb-24 pt-8 sm:grid-cols-[184px_minmax(0,1fr)] sm:gap-x-8 lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-x-12",
+          DESKTOP_NAVIGATION_VARIANT === "focused-sidebar" ? "max-w-[1240px]" : "max-w-[1120px]",
+        )}
+      >
         <aside className="min-w-0 sm:sticky sm:top-[calc(var(--site-header-sticky-offset,4.5rem)+24px)] sm:self-start">
           <TitlePageAside
             detail={detail}

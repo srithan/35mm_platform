@@ -25,21 +25,49 @@ export function restorePostScroll(y: number, savedAnchor: string | null) {
     restore(element);
     return;
   }
-  // The URL can commit before the cached feed mounts. Wait for its DOM commit,
-  // not a paint or a timer, and restore exactly once after slot layout effects.
-  const observer = new MutationObserver(() => {
-    const mounted = findAnchor();
-    if (!mounted) return;
-    stop();
-    restore(mounted);
-  });
+  // Virtualized feeds need the absolute scroll first so the target row can mount.
+  // For delayed rows, retry the same Y instead of anchor-correcting after paint.
+  let observer: MutationObserver | null = null;
+  let frame: number | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
+
   const stop = () => {
-    observer.disconnect();
-    clearTimeout(timeout);
+    if (stopped) return;
+    stopped = true;
+    observer?.disconnect();
+    if (frame !== null) cancelAnimationFrame(frame);
+    if (timeout !== null) clearTimeout(timeout);
     for (const event of ["wheel", "touchstart", "pointerdown", "keydown"])
       window.removeEventListener(event, stop, true);
   };
-  const timeout = setTimeout(stop, 10_000);
+
+  const tryRestore = () => {
+    if (stopped || frame !== null) return;
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      if (stopped) return;
+      const mounted = findAnchor();
+      if (mounted) {
+        stop();
+        restore(null);
+        return;
+      }
+      restore(null);
+    });
+  };
+
+  restore(null);
+  observer = new MutationObserver(() => {
+    const mounted = findAnchor();
+    if (!mounted) {
+      tryRestore();
+      return;
+    }
+    stop();
+    restore(null);
+  });
+  timeout = setTimeout(stop, 10_000);
   observer.observe(document.body, { childList: true, subtree: true });
   for (const event of ["wheel", "touchstart", "pointerdown", "keydown"])
     window.addEventListener(event, stop, { capture: true, passive: true });

@@ -1,5 +1,8 @@
 import { LazyImage } from "@/components/LazyImage";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import {
+  BROWSE_DENSITY_VARIANT,
+  DESKTOP_NAVIGATION_VARIANT,
+} from "@/lib/config/uiFlags";
 import { posterUrl } from "@/features/discover/lib/tmdb-utils";
 import { ROUTES } from "@/lib/constants/routes";
 import type { TMDBMedia, TMDBPerson } from "@/lib/tmdb/types";
@@ -25,12 +28,15 @@ export function TitlePageHero({
   creditPeople,
 }: TitlePageHeroProps) {
   const backdrop = titleHeroBackdropUrl(detail.backdrop_path);
+  const useCompactBrowseDensity = BROWSE_DENSITY_VARIANT === "compact";
+  const useFocusedNavigation =
+    DESKTOP_NAVIGATION_VARIANT === "focused-sidebar";
   return (
     <div>
       <div
         className={cn(
           "relative mx-auto max-w-[1600px] overflow-hidden bg-sunken",
-          BROWSE_RAIL_ENABLED
+          useCompactBrowseDensity
             ? "h-[170px] sm:h-[310px] lg:h-[310px]"
             : "h-[200px] sm:h-[360px] lg:h-[360px]",
         )}
@@ -52,14 +58,20 @@ export function TitlePageHero({
               "linear-gradient(to top, var(--bg) 0%, transparent 48%), linear-gradient(to right, var(--bg), transparent 12%, transparent 88%, var(--bg))",
           }}
         />
-        <div className="absolute inset-x-0 top-4 mx-auto max-w-[1120px] px-5">
+        <div
+          className={cn(
+            "absolute inset-x-0 top-4 mx-auto px-5",
+            useFocusedNavigation ? "max-w-[1240px]" : "max-w-[1120px]",
+          )}
+        >
           <TitleCoverBackButton />
         </div>
       </div>
       <div
         className={cn(
-          "relative mx-auto grid max-w-[1120px] items-end gap-5 px-5 sm:gap-8 lg:gap-12",
-          BROWSE_RAIL_ENABLED
+          "relative mx-auto grid items-end gap-5 px-5 sm:gap-8 lg:gap-12",
+          useFocusedNavigation ? "max-w-[1240px]" : "max-w-[1120px]",
+          useCompactBrowseDensity
             ? "-mt-14 grid-cols-[82px_minmax(0,1fr)] sm:-mt-20 sm:grid-cols-[134px_minmax(0,1fr)] lg:grid-cols-[174px_minmax(0,1fr)]"
             : "-mt-16 grid-cols-[92px_minmax(0,1fr)] sm:-mt-24 sm:grid-cols-[184px_minmax(0,1fr)] lg:grid-cols-[224px_minmax(0,1fr)]",
         )}
@@ -86,7 +98,7 @@ export function TitlePageHero({
           <h1
             className={cn(
               "break-words font-display font-normal leading-[0.94] tracking-[-0.045em] text-fg sm:leading-[0.95]",
-              BROWSE_RAIL_ENABLED
+              useCompactBrowseDensity
                 ? "text-[clamp(1.75rem,4.8vw,4.2rem)]"
                 : "text-[clamp(2rem,5.4vw,4.8rem)]",
             )}

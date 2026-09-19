@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ShellGrid } from "./ShellGrid";
 
 const mocks = vi.hoisted(() => ({ pathname: "/" }));
+const flags = vi.hoisted(() => ({ browseRailEnabled: true, focusedNavigationEnabled: false }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
@@ -11,6 +12,26 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/layout/SiteHeader", () => ({
   SiteHeader: () => <div>Desktop header</div>,
+}));
+
+vi.mock("@/components/layout/FocusedNavigationSidebar", () => ({
+  FocusedNavigationSidebar: () => <aside aria-label="Primary navigation">Focused navigation</aside>,
+}));
+
+vi.mock("@/lib/config/uiFlags", () => ({
+  get BROWSE_CHROME_VARIANT() {
+    return flags.focusedNavigationEnabled
+      ? "focused"
+      : flags.browseRailEnabled
+        ? "rail"
+        : "classic";
+  },
+  get BROWSE_DENSITY_VARIANT() {
+    return flags.browseRailEnabled ? "compact" : "classic";
+  },
+  get DESKTOP_NAVIGATION_VARIANT() {
+    return flags.focusedNavigationEnabled ? "focused-sidebar" : "header";
+  },
 }));
 
 vi.mock("@/components/layout/MobileHeader", () => ({
@@ -81,6 +102,8 @@ vi.mock("@/lib/utils/syncSiteHeaderStickyOffset", () => ({
 describe("ShellGrid mobile sidebar", () => {
   beforeEach(() => {
     mocks.pathname = "/";
+    flags.browseRailEnabled = true;
+    flags.focusedNavigationEnabled = false;
   });
 
   it("reveals sidebar beneath a horizontal-only page transform", async () => {
@@ -242,6 +265,105 @@ describe("ShellGrid mobile sidebar", () => {
     expect(screen.getByText("Person page").parentElement).not.toHaveClass("xl:col-span-2");
     expect(screen.getByText("Person page").parentElement?.parentElement).not.toHaveClass(
       "xl:grid-cols-[minmax(0,1fr)_var(--home-explore-center-column-width)_minmax(0,1fr)]"
+    );
+  });
+
+  it("uses a 1240px content column for focused navigation browse, title, and people routes", () => {
+    flags.focusedNavigationEnabled = true;
+    mocks.pathname = "/discover";
+
+    const { rerender, container } = render(
+      <ShellGrid>
+        <div>Focused page</div>
+      </ShellGrid>
+    );
+
+    const assertSingleColumn = function () {
+      const main = screen.getByRole("main");
+      expect(main).toHaveClass(
+        "md:max-w-[var(--focused-navigation-content-max-width)]",
+        "md:mx-auto"
+      );
+      expect(screen.getByText("Focused page").parentElement).toBe(main);
+      expect(screen.queryByTestId("profile-completion-rail")).not.toBeInTheDocument();
+      expect(screen.queryByText("Suggestions")).not.toBeInTheDocument();
+    };
+
+    assertSingleColumn();
+
+    for (const pathname of ["/films", "/film/parasite", "/lists", "/person/bong-joon-ho"]) {
+      mocks.pathname = pathname;
+      rerender(
+        <ShellGrid>
+          <div>Focused page</div>
+        </ShellGrid>
+      );
+      assertSingleColumn();
+    }
+
+    expect(container.firstElementChild).toHaveStyle({
+      "--focused-navigation-content-max-width": "1240px",
+    });
+  });
+
+  it("keeps a small inert left track to center focused navigation home feed", () => {
+    flags.focusedNavigationEnabled = true;
+
+    const { container } = render(
+      <ShellGrid>
+        <div>Focused home</div>
+      </ShellGrid>
+    );
+
+    const grid = screen.getByText("Focused home").parentElement?.parentElement;
+    expect(grid).toHaveClass(
+      "xl:grid-cols-[var(--focused-home-left-spacer-width)_640px_minmax(0,1fr)]"
+    );
+    expect(grid).toHaveClass("xl:gap-x-[var(--home-sidebar-gap,2rem)]");
+    expect(grid).not.toHaveClass(
+      "xl:grid-cols-[minmax(0,1fr)_640px_minmax(0,1fr)]"
+    );
+    expect(grid?.querySelectorAll('[aria-hidden="true"]')).toHaveLength(1);
+    expect(container.firstElementChild).toHaveStyle({
+      "--focused-home-left-spacer-width":
+        "max(0px, calc(50vw - 15.5rem - 20rem - 3rem))",
+    });
+    expect(container.firstElementChild).toHaveStyle({ "--home-sidebar-gap": "3rem" });
+  });
+
+  it("centers post detail in full desktop viewport with focused navigation", () => {
+    flags.focusedNavigationEnabled = true;
+    mocks.pathname = "/maya/post/post-1";
+
+    render(
+      <ShellGrid>
+        <div>Post detail</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByRole("main")).toHaveClass(
+      "md:max-w-[var(--shell-main-max-width,640px)]",
+      "md:mx-auto",
+      "min-[1136px]:relative",
+      "min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]"
+    );
+  });
+
+  it("centers notifications in full desktop viewport with focused navigation", () => {
+    flags.focusedNavigationEnabled = true;
+    mocks.pathname = "/notifications";
+
+    render(
+      <ShellGrid>
+        <div>Notifications page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByRole("main")).toHaveClass(
+      "md:max-w-[var(--shell-main-max-width,640px)]",
+      "md:mx-auto",
+      "min-[1136px]:relative",
+      "min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]"
     );
   });
 

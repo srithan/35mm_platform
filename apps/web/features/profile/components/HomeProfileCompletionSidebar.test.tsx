@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeProfileCompletionSidebar } from "./HomeProfileCompletionSidebar";
 
 const auth = vi.hoisted(function () {
@@ -8,6 +8,10 @@ const auth = vi.hoisted(function () {
 
 const navigation = vi.hoisted(function () {
   return { pathname: "/" };
+});
+
+const flags = vi.hoisted(function () {
+  return { browseRailEnabled: true, focusedNavigationEnabled: false };
 });
 
 vi.mock("@clerk/nextjs", function () {
@@ -26,6 +30,14 @@ vi.mock("next/navigation", function () {
   };
 });
 
+vi.mock("@/lib/config/uiFlags", function () {
+  return {
+    get BROWSE_RAIL_MENU_ENABLED() {
+      return flags.browseRailEnabled && !flags.focusedNavigationEnabled;
+    },
+  };
+});
+
 vi.mock("./ProfileCompletionWidget", function () {
   return {
     ProfileCompletionWidget: function () {
@@ -35,6 +47,11 @@ vi.mock("./ProfileCompletionWidget", function () {
 });
 
 describe("HomeProfileCompletionSidebar", function () {
+  beforeEach(function () {
+    flags.browseRailEnabled = true;
+    flags.focusedNavigationEnabled = false;
+  });
+
   it("renders feed menu links in the left rail", function () {
     auth.isLoaded = true;
     auth.isSignedIn = true;
@@ -65,6 +82,19 @@ describe("HomeProfileCompletionSidebar", function () {
 
     expect(screen.getByLabelText("Profile setup")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Your Feed" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Profile completion")).toBeInTheDocument();
+  });
+
+  it("hides the duplicate browse menu when focused navigation is enabled", function () {
+    auth.isLoaded = true;
+    auth.isSignedIn = true;
+    flags.focusedNavigationEnabled = true;
+
+    render(<HomeProfileCompletionSidebar />);
+
+    expect(screen.getByLabelText("Profile setup")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Feed menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Your Feed" })).not.toBeInTheDocument();
     expect(screen.getByText("Profile completion")).toBeInTheDocument();
   });
 

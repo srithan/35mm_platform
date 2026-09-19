@@ -7,6 +7,7 @@ const SCROLL_KEY = "postBackScrollPosition";
 const RESTORE_FLAG_KEY = "postBackScrollRestore";
 const FROM_PATH_KEY = "postBackFromPath";
 const ANCHOR_KEY = "postBackScrollAnchor";
+const FROM_HISTORY_LENGTH_KEY = "postBackFromHistoryLength";
 
 export function PostPageBackButton() {
   const router = useRouter();
@@ -14,8 +15,17 @@ export function PostPageBackButton() {
   const handleBack = () => {
     if (typeof window !== "undefined") {
       sessionStorage.setItem(RESTORE_FLAG_KEY, "1");
-      const fromPath = sessionStorage.getItem(FROM_PATH_KEY) || ROUTES.HOME;
-      router.push(fromPath, { scroll: false });
+      const fromPath = sessionStorage.getItem(FROM_PATH_KEY);
+      const fromHistoryLength = Number(sessionStorage.getItem(FROM_HISTORY_LENGTH_KEY));
+      if (
+        fromPath &&
+        Number.isFinite(fromHistoryLength) &&
+        window.history.length === fromHistoryLength + 1
+      ) {
+        router.back();
+        return;
+      }
+      router.push(fromPath || ROUTES.HOME, { scroll: false });
     } else {
       router.push(ROUTES.HOME);
     }
@@ -49,6 +59,7 @@ export function saveScrollPositionForBack() {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
   sessionStorage.setItem(FROM_PATH_KEY, window.location.pathname);
+  sessionStorage.setItem(FROM_HISTORY_LENGTH_KEY, String(window.history.length));
   const anchor = Array.from(document.querySelectorAll<HTMLElement>("[data-post-scroll-anchor]"))
     .find(element => {
       const rect = element.getBoundingClientRect();
@@ -62,4 +73,10 @@ export function saveScrollPositionForBack() {
   } else sessionStorage.removeItem(ANCHOR_KEY);
 }
 
-export { SCROLL_KEY, RESTORE_FLAG_KEY, FROM_PATH_KEY, ANCHOR_KEY };
+export {
+  SCROLL_KEY,
+  RESTORE_FLAG_KEY,
+  FROM_PATH_KEY,
+  ANCHOR_KEY,
+  FROM_HISTORY_LENGTH_KEY,
+};

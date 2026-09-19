@@ -27,7 +27,7 @@
     "performance:verify": "node ./scripts/quality/validate-performance-baseline.mjs",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "test:ci": "jest --ci --runInBand --coverage",
+    "test:ci": "jest --ci --runInBand --coverage --forceExit",
     "check:ci": "pnpm typecheck && pnpm lint && pnpm config:check && pnpm quality:check && pnpm native:check && pnpm test:ci"
   },
   "dependencies": {

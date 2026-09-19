@@ -43,3 +43,55 @@ The modal is the dominant readable region in both captures, so the shared modal 
 - [x] Verify focused component tests and cross-package type checks.
 
 final result: passed
+
+---
+
+# Focused navigation — design QA
+
+**Comparison Target**
+
+- Source visual truth: `/var/folders/l7/51db3s7s7rq62syqfh92v8yw0000gn/T/codex-clipboard-34c6188d-12bc-4874-9931-74cec2caebd3.png` (3456 × 2166 pixels; supplied screenshot).
+- Implementation evidence: Codex in-app browser, tab `2`, `http://localhost:3000/lists`, captured 2026-09-15 after enabling `NEXT_PUBLIC_FOCUSED_NAVIGATION=true`. Browser capture: 1265 × 886 CSS pixels at device scale factor 1. The browser tool retains this capture in task output rather than exposing a filesystem path.
+- State: signed-in desktop, dark theme, `/lists`; focused navigation enabled; `More` open for menu verification.
+
+**Findings**
+
+- No actionable P0, P1, or P2 differences in the scoped navigation work.
+- The source is a Substack reference and the implementation deliberately retains 35mm’s logo, typography, theme tokens, routes, and post-composer terminology. Both place one fixed left rail at viewport edge, put primary navigation below brand, keep an obvious selected state, and anchor `More` at rail bottom.
+- `More` was opened in the browser. It exposes Profile, Bookmarks, Drafts, Contribute, Appearance, Privacy, Settings, and Log out — every existing profile-dropdown action.
+
+**Required Fidelity Surfaces**
+
+- Fonts and typography: 35mm’s existing DM Sans / DM Serif system remains intact. Sidebar labels use the app’s compact, semibold UI treatment and stay single-line.
+- Spacing and layout rhythm: 248px fixed rail, 14px inner gutter, 46px navigation rows, 46px post action, and bottom-anchored `More` create a stable vertical rhythm without covering main content.
+- Colors and visual tokens: rail uses existing `--bg`, `--border`, `--sunken`, and accent tokens, preserving light and dark themes.
+- Image and asset fidelity: existing 35mm brand asset is used. Navigation uses the repository’s established icon library; no generated imagery or placeholder asset was introduced.
+- Copy and content: labels map to current product routes. `More` preserves existing account-menu copy and subviews.
+
+**Focused Region Comparison**
+
+- Left navigation rail was inspected in the source and implementation captures. A second focused capture verified the open bottom `More` menu. No separate crop was required because both elements are clear at the browser capture scale.
+
+**Primary Interactions Tested**
+
+- Active Discover state at `/lists`.
+- Bottom `More` expands to the full reused profile menu.
+- Existing menu links and submenu entries are present in the browser accessibility tree.
+
+**Implementation Checklist**
+
+- [x] Flag defaults off, retaining current header/mobile navigation.
+- [x] Flag replaces desktop header with fixed left rail.
+- [x] Bottom `More` reuses full existing profile menu.
+- [x] Main content offsets past rail.
+- [x] Typecheck, targeted shell tests, and production build pass.
+
+**Follow-up Polish**
+
+- [P3] Review final light-theme typography against production content once the rollout flag is enabled in a shared environment.
+
+**Comparison History**
+
+- Initial implementation review found no actionable P0/P1/P2 issue; no visual-fix iteration was required.
+
+final result: passed

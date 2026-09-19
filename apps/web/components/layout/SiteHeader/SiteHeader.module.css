@@ -271,6 +271,11 @@
     --notif-caret: 0.5rem;
 }
 
+/* Focused desktop navigation uses the same account-menu content from its bottom More control. */
+.profileMenuWrapFocused {
+    width: 100%;
+}
+
 .btnNotif {
     position: relative;
     display: flex;
@@ -613,7 +618,7 @@
     border-radius: 0.375rem;
     background: transparent;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     font-family: inherit;
     color: var(--fg-muted);
     cursor: pointer;
@@ -1170,6 +1175,45 @@
     line-height: 0;
 }
 
+.profileMenuTriggerFocused {
+    --focused-nav-muted: color-mix(in srgb, var(--fg) 52%, var(--bg));
+    --focused-nav-muted-hover: color-mix(in srgb, var(--fg) 76%, var(--bg));
+
+    width: 100%;
+    min-height: 3rem;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    padding: 0;
+    border-radius: 0.5rem;
+    color: var(--focused-nav-muted);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.3334;
+    transition: background 0.14s ease, color 0.14s ease;
+}
+
+.profileMenuTriggerFocused:hover,
+.profileMenuTriggerFocused[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+    color: var(--focused-nav-muted-hover);
+}
+
+.profileMenuTriggerFocused[aria-expanded="true"] {
+    font-weight: 700;
+}
+
+.profileMenuTriggerIcon {
+    display: inline-flex;
+    flex: 0 0 3rem;
+    width: 3rem;
+    min-width: 3rem;
+    height: 3rem;
+    align-items: center;
+    justify-content: center;
+}
+
 .profileMenuTrigger .navAvatar {
     margin-left: 0.35rem;
 }
@@ -1177,6 +1221,10 @@
 .profileMenuTrigger:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.profileMenuTriggerFocused:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--fg) 28%, transparent);
 }
 
 .profileMenu {
@@ -1196,6 +1244,15 @@
     overflow: visible;
     transform-origin: calc(100% - 1.25rem) top;
     animation: profileMenuOpen 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profileMenuFocused {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: calc(100% + 0.75rem);
+    width: min(20rem, calc(100vw - 17.5rem));
+    transform-origin: left bottom;
 }
 
 .profileMenuViewport {

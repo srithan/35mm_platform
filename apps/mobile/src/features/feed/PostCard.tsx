@@ -15,11 +15,16 @@ import {
   Image,
   Linking,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
+  useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 
+import { POST_MEDIA_CAROUSEL_ENABLED } from "@/config/uiFlags";
 import { BunnyVideoPlayer } from "@/features/videos/BunnyVideoPlayer";
 import { usePostInteractions } from "@/features/videos/usePostInteractions";
 import { RichTextBody } from "./RichTextBody";
@@ -130,23 +135,29 @@ function PostAttachments({
   readonly startWithSound: boolean;
 }) {
   let video = post.media.find((item) => item.type === "video" && item.videoAssetId);
-  let images = post.media.filter((item) => item.type === "image").slice(0, 4);
+  let images = post.media.filter((item): item is FeedPost["media"][number] & { type: "image" } => {
+    return item.type === "image";
+  }).slice(0, 4);
   let ratio = video?.width && video.height ? video.width / video.height : undefined;
 
   return (
     <>
       {images.length > 0 ? (
-        <View style={styles.imageGrid}>
-          {images.map((item, index) => (
-            <Image
-              accessibilityLabel={item.altText ?? `${post.author.displayName} post image ${index + 1}`}
-              key={`${item.url}-${index}`}
-              resizeMode="cover"
-              source={{ uri: item.variants?.feed ?? item.thumbnailUrl ?? item.url }}
-              style={[styles.image, images.length === 1 && styles.singleImage]}
-            />
-          ))}
-        </View>
+        POST_MEDIA_CAROUSEL_ENABLED && images.length > 1 ? (
+          <PostImagePeekCarousel images={images} post={post} />
+        ) : (
+          <View style={styles.imageGrid}>
+            {images.map((item, index) => (
+              <Image
+                accessibilityLabel={item.altText ?? `${post.author.displayName} post image ${index + 1}`}
+                key={`${item.url}-${index}`}
+                resizeMode="cover"
+                source={{ uri: item.variants?.feed ?? item.thumbnailUrl ?? item.url }}
+                style={[styles.image, images.length === 1 && styles.singleImage]}
+              />
+            ))}
+          </View>
+        )
       ) : null}
       {video?.videoAssetId ? (
         <BunnyVideoPlayer
@@ -159,6 +170,75 @@ function PostAttachments({
         />
       ) : null}
     </>
+  );
+}
+
+function PostImagePeekCarousel({
+  images,
+  post,
+}: {
+  readonly images: readonly (FeedPost["media"][number] & { type: "image" })[];
+  readonly post: FeedPost;
+}) {
+  const { theme } = useMobileUI();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const { width } = useWindowDimensions();
+  const imageWidth = Math.max(132, (width - 32) * 0.44);
+  const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const scrollX = contentOffset.x;
+    if (scrollX <= 4) {
+      setActiveIndex(0);
+      return;
+    }
+    if (scrollX >= contentSize.width - layoutMeasurement.width - 4) {
+      setActiveIndex(images.length - 1);
+      return;
+    }
+    const stride = imageWidth + 8;
+    if (stride <= 0) return;
+    const nextIndex = Math.min(images.length - 1, Math.max(0, Math.round(scrollX / stride)));
+    setActiveIndex(nextIndex);
+  }, [imageWidth, images.length]);
+
+  return (
+    <View>
+      <View
+        accessibilityLabel={`Image ${activeIndex + 1} of ${images.length}`}
+        style={[styles.carouselDotter, { backgroundColor: theme.colors.surfaceSunken }]}
+      >
+        {images.map((item, index) => (
+          <View
+            key={`${item.url}-${index}-dot`}
+            style={[
+              styles.carouselDot,
+              index === activeIndex ? styles.carouselDotActive : styles.carouselDotInactive,
+              { backgroundColor: index === activeIndex ? theme.colors.text : theme.colors.textSecondary },
+            ]}
+          />
+        ))}
+      </View>
+      <ScrollView
+        accessibilityLabel="Post images"
+        bounces
+        decelerationRate="fast"
+        horizontal
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsHorizontalScrollIndicator={false}
+        style={styles.imageCarousel}
+      >
+        {images.map((item, index) => (
+          <Image
+            accessibilityLabel={item.altText ?? `${post.author.displayName} post image ${index + 1}`}
+            key={`${item.url}-${index}`}
+            resizeMode="cover"
+            source={{ uri: item.variants?.feed ?? item.thumbnailUrl ?? item.url }}
+            style={[styles.carouselImage, { width: imageWidth }]}
+          />
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -446,10 +526,25 @@ const styles = StyleSheet.create({
   body: { fontSize: 15, lineHeight: 21 },
   card: { gap: 10, paddingHorizontal: 16, paddingTop: 16 },
   cardPressed: { opacity: 0.92 },
+  carouselDot: { borderRadius: 999, height: 6 },
+  carouselDotActive: { width: 16 },
+  carouselDotInactive: { width: 6 },
+  carouselDotter: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  carouselImage: { aspectRatio: 4 / 5, borderRadius: 10, marginRight: 8 },
   filmCard: { borderRadius: 10, flexDirection: "row", gap: 12, overflow: "hidden", padding: 10 },
   filmCopy: { flex: 1, gap: 3, justifyContent: "center" },
   identity: { alignItems: "center", flexDirection: "row", gap: 10 },
   image: { aspectRatio: 1, flexBasis: "48%", flexGrow: 1, minWidth: "48%" },
+  imageCarousel: { overflow: "visible" },
   imageGrid: { borderRadius: 10, flexDirection: "row", flexWrap: "wrap", gap: 2, overflow: "hidden" },
   linkPreview: { borderRadius: 10, gap: 4, minHeight: 72, padding: 12 },
   poll: { gap: 8 },

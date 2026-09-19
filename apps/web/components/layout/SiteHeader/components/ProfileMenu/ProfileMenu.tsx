@@ -1,5 +1,6 @@
 import type { Ref } from "react";
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
@@ -34,6 +35,8 @@ type ProfileMenuProps = {
   currentInitial: string;
   currentAvatarUrl: string | null;
   suppressDefaultAvatar: boolean;
+  /** Used by the focused desktop rail; default preserves the header avatar trigger. */
+  triggerVariant?: "avatar" | "sidebar-more";
 };
 
 export function ProfileMenu({
@@ -47,6 +50,7 @@ export function ProfileMenu({
   currentInitial,
   currentAvatarUrl,
   suppressDefaultAvatar,
+  triggerVariant = "avatar",
 }: ProfileMenuProps) {
   const { theme, setTheme } = useTheme();
   const settingsQuery = useSettingsQuery();
@@ -171,36 +175,60 @@ export function ProfileMenu({
   }
 
   return (
-	    <div className={cn(styles.notifWrap, styles.profileMenuWrap)} ref={wrapRef}>
+    <div
+      className={cn(
+        styles.notifWrap,
+        styles.profileMenuWrap,
+        triggerVariant === "sidebar-more" ? styles.profileMenuWrapFocused : null
+      )}
+      ref={wrapRef}
+    >
       <button
         type="button"
-        className={styles.profileMenuTrigger}
+        className={cn(
+          styles.profileMenuTrigger,
+          triggerVariant === "sidebar-more" ? styles.profileMenuTriggerFocused : null
+        )}
         id="btn-profile-menu"
-        aria-label="Account menu"
+        aria-label={triggerVariant === "sidebar-more" ? "More options" : "Account menu"}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={handleToggle}
       >
-        <Avatar
-          initial={currentInitial}
-          src={currentAvatarUrl}
-          allowDefaultFallback={!suppressDefaultAvatar}
-          loading="eager"
-          size="sm"
-          className={styles.navAvatar}
-        />
+        {triggerVariant === "sidebar-more" ? (
+          <>
+            <span className={styles.profileMenuTriggerIcon} aria-hidden>
+              <Menu size={24} strokeWidth={2} />
+            </span>
+            <span>More</span>
+          </>
+        ) : (
+          <Avatar
+            initial={currentInitial}
+            src={currentAvatarUrl}
+            allowDefaultFallback={!suppressDefaultAvatar}
+            loading="eager"
+            size="sm"
+            className={styles.navAvatar}
+          />
+        )}
       </button>
       {open ? (
         <div
-          className={styles.profileMenu}
+          className={cn(
+            styles.profileMenu,
+            triggerVariant === "sidebar-more" ? styles.profileMenuFocused : null
+          )}
           id="profile-menu"
           role="menu"
           aria-labelledby="btn-profile-menu"
         >
-          <div
-            className={cn(styles.notifPanelArrow, styles.notifPanelArrowProfile)}
-            aria-hidden
-          />
+          {triggerVariant !== "sidebar-more" ? (
+            <div
+              className={cn(styles.notifPanelArrow, styles.notifPanelArrowProfile)}
+              aria-hidden
+            />
+          ) : null}
           <div className={styles.profileMenuViewport}>
             <div
               key={profileMenuView}

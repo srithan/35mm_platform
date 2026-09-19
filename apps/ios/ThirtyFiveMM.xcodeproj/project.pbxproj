@@ -179,6 +179,7 @@
 		E10000000000000000000005 /* RemotePostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* RemotePostDetailView.swift */; };
 		E10000000000000000000006 /* PostMediaGridItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000006 /* PostMediaGridItem.swift */; };
 		E10000000000000000000007 /* PostMediaGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000007 /* PostMediaGrid.swift */; };
+		E10000000000000000000008 /* PostMediaCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* PostMediaCarousel.swift */; };
 		E20000000000000000000001 /* URLVideoPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* URLVideoPreview.swift */; };
 		E20000000000000000000002 /* VideoURLPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* VideoURLPreview.swift */; };
 		E20000000000000000000003 /* LinkPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* LinkPreviewCard.swift */; };
@@ -368,6 +369,7 @@
 		F10000000000000000000005 /* RemotePostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotePostDetailView.swift; sourceTree = "<group>"; };
 		F10000000000000000000006 /* PostMediaGridItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostMediaGridItem.swift; sourceTree = "<group>"; };
 		F10000000000000000000007 /* PostMediaGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostMediaGrid.swift; sourceTree = "<group>"; };
+		F10000000000000000000008 /* PostMediaCarousel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostMediaCarousel.swift; sourceTree = "<group>"; };
 		F20000000000000000000001 /* URLVideoPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLVideoPreview.swift; sourceTree = "<group>"; };
 		F20000000000000000000002 /* VideoURLPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoURLPreview.swift; sourceTree = "<group>"; };
 		F20000000000000000000003 /* LinkPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPreviewCard.swift; sourceTree = "<group>"; };
@@ -584,6 +586,7 @@
 				F10000000000000000000004 /* QuotedPostCard.swift */,
 				F10000000000000000000006 /* PostMediaGridItem.swift */,
 				F10000000000000000000007 /* PostMediaGrid.swift */,
+				F10000000000000000000008 /* PostMediaCarousel.swift */,
 			);
 			path = Feed;
 			sourceTree = "<group>";
@@ -918,6 +921,7 @@
 				E10000000000000000000004 /* QuotedPostCard.swift in Sources */,
 				E10000000000000000000006 /* PostMediaGridItem.swift in Sources */,
 				E10000000000000000000007 /* PostMediaGrid.swift in Sources */,
+				E10000000000000000000008 /* PostMediaCarousel.swift in Sources */,
 				A00000000000000000000026 /* CommentNode.swift in Sources */,
 				A00000000000000000000027 /* PostInteracting.swift in Sources */,
 				A0DE51600000000000000001 /* DesignSystem.swift in Sources */,
@@ -1087,7 +1091,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.35mm.com;
+				PRODUCT_BUNDLE_IDENTIFIER = com.35mm.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1122,7 +1126,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.35mm.com;
+				PRODUCT_BUNDLE_IDENTIFIER = com.35mm.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

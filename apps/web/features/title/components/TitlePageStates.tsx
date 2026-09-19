@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants/routes";
+import { DESKTOP_NAVIGATION_VARIANT } from "@/lib/config/uiFlags";
 
 export function TitleErrorState(props: { message?: string | null }) {
   return (
@@ -30,7 +31,10 @@ export function TitlePageLoadingState() {
       />
       <div
         aria-hidden
-        className="relative mx-auto -mt-16 grid max-w-[1120px] grid-cols-[92px_minmax(0,1fr)] gap-5 px-5 sm:-mt-24 sm:grid-cols-[184px_minmax(0,1fr)] sm:gap-8 lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-12"
+        className={
+          "relative mx-auto -mt-16 grid grid-cols-[92px_minmax(0,1fr)] gap-5 px-5 sm:-mt-24 sm:grid-cols-[184px_minmax(0,1fr)] sm:gap-8 lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-12 " +
+          (DESKTOP_NAVIGATION_VARIANT === "focused-sidebar" ? "max-w-[1240px]" : "max-w-[1120px]")
+        }
       >
         <div className="aspect-[2/3] rounded-sm bg-sunken-2" />
         <div className="space-y-4 pt-20 sm:pt-28">

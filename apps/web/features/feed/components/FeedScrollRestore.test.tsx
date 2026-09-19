@@ -20,8 +20,11 @@ vi.mock("next/navigation", function () {
 });
 
 describe("ScrollRestore", function () {
+  let scrollY = 0;
+
   beforeEach(function () {
     navigation.pathname = "/";
+    scrollY = 0;
     sessionStorage.clear();
     vi.spyOn(window, "requestAnimationFrame").mockImplementation(
       function (callback) {
@@ -30,7 +33,12 @@ describe("ScrollRestore", function () {
       }
     );
     vi.spyOn(window, "cancelAnimationFrame").mockImplementation(function () {});
-    vi.spyOn(window, "scrollTo").mockImplementation(function () {});
+    vi.spyOn(window, "scrollY", "get").mockImplementation(function () {
+      return scrollY;
+    });
+    vi.spyOn(window, "scrollTo").mockImplementation(function (_x, y) {
+      scrollY = typeof y === "number" ? y : 0;
+    });
   });
 
   afterEach(function () {
@@ -38,7 +46,7 @@ describe("ScrollRestore", function () {
     sessionStorage.clear();
   });
 
-  it("starts each different route at the top", function () {
+  it("starts each unvisited route at the top", function () {
     const view = render(<ScrollRestore />);
 
     expect(window.scrollTo).not.toHaveBeenCalled();
@@ -49,6 +57,36 @@ describe("ScrollRestore", function () {
     });
 
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+  });
+
+  it("restores each route's own saved position", function () {
+    const view = render(<ScrollRestore />);
+    scrollY = 1480;
+    window.dispatchEvent(new Event("scroll"));
+
+    act(function () {
+      navigation.pathname = "/discover";
+      view.rerender(<ScrollRestore />);
+    });
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0);
+
+    scrollY = 360;
+    window.dispatchEvent(new Event("scroll"));
+
+    act(function () {
+      navigation.pathname = "/";
+      view.rerender(<ScrollRestore />);
+    });
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1480);
+
+    act(function () {
+      navigation.pathname = "/discover";
+      view.rerender(<ScrollRestore />);
+    });
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 360);
   });
 
   it("restores the saved feed position when returning from post detail", function () {
@@ -106,15 +144,27 @@ describe("ScrollRestore", function () {
     expect(sessionStorage.getItem(FROM_PATH_KEY)).toBeNull();
   });
 
-  it("preserves scroll across tabs belonging to the same profile page", function () {
+  it("keeps profile tab scroll positions independent", function () {
     navigation.pathname = "/maya";
     const view = render(<ScrollRestore />);
+    scrollY = 680;
+    window.dispatchEvent(new Event("scroll"));
 
     act(function () {
       navigation.pathname = "/maya/diary";
       view.rerender(<ScrollRestore />);
     });
 
-    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0);
+
+    scrollY = 1120;
+    window.dispatchEvent(new Event("scroll"));
+
+    act(function () {
+      navigation.pathname = "/maya";
+      view.rerender(<ScrollRestore />);
+    });
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 680);
   });
 });

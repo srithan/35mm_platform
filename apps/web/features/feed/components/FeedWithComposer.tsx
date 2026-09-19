@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useComposerModal } from "@/components/layout/PostComposerModalContext";
 import { initialForName, useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
-import { SIMPLIFIED_POST_COMPOSER_TRIGGER_ENABLED } from "@/lib/config/uiFlags";
+import { POST_COMPOSER_ENTRY_VARIANT } from "@/lib/config/uiFlags";
 import { PostComposerTrigger } from "./PostComposerTrigger";
 import type { PostComposerTriggerUser } from "./PostComposerTrigger";
 import { InlinePostComposer } from "./InlinePostComposer";
@@ -13,14 +13,6 @@ interface FeedWithComposerProps {
   user?: PostComposerTriggerUser & { handle?: string };
   children: React.ReactNode;
 }
-
-/**
- * When true, the feed uses the inline, in-place composer instead of the default
- * modal-opening trigger. Toggle via `NEXT_PUBLIC_INLINE_POST_COMPOSER`.
- * The simplified trigger flag takes precedence during rollout.
- */
-const USE_INLINE_POST_COMPOSER =
-  process.env.NEXT_PUBLIC_INLINE_POST_COMPOSER === "true";
 
 export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
   const { openComposerModal } = useComposerModal();
@@ -44,11 +36,13 @@ export function FeedWithComposer({ user, children }: FeedWithComposerProps) {
     avatarUrl,
     initial: user?.initial ?? initialForName(displayName),
   };
-  const useSimplifiedTrigger = SIMPLIFIED_POST_COMPOSER_TRIGGER_ENABLED;
+  const useInlineComposer = POST_COMPOSER_ENTRY_VARIANT === "inline";
+  const useSimplifiedTrigger =
+    POST_COMPOSER_ENTRY_VARIANT === "simplified-trigger";
 
   return (
     <>
-      {USE_INLINE_POST_COMPOSER && !useSimplifiedTrigger ? (
+      {useInlineComposer ? (
         <InlinePostComposer
           user={triggerUser}
           suppressDefaultAvatar={suppressDefaultAvatar}

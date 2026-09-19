@@ -148,7 +148,7 @@ export function CommentCard({
       <div
         className={cn(
           "CommentCardHover bg-bg px-4 pt-4 transition-colors duration-150",
-          !hasReplies && "pb-4"
+          hasReplies ? "pb-3" : "pb-4"
         )}
         style={contentStyle}
       >

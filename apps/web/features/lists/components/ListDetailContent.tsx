@@ -19,7 +19,7 @@ import { UsernameLink } from "@/components/UsernameLink/UsernameLink";
 import { FilmPoster } from "@/components/FilmPoster";
 import type { FilmResult } from "@/features/feed/components/PostComposer/types";
 import { ROUTES } from "@/lib/constants/routes";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import { BROWSE_DENSITY_VARIANT } from "@/lib/config/uiFlags";
 import { cn } from "@/lib/utils/cn";
 import { useShellLayout } from "@/components/layout/ShellLayoutContext";
 import { formatListMeta } from "../lib/listMeta";
@@ -177,7 +177,7 @@ export function ListDetailContent({
     <div
       className={cn(
         "w-full",
-        BROWSE_RAIL_ENABLED
+        BROWSE_DENSITY_VARIANT === "compact"
           ? "px-4 pb-12 sm:px-0"
           : "mx-auto max-w-[1240px] px-4 py-6 md:px-6 lg:px-10 lg:py-8"
       )}

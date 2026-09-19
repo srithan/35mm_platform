@@ -11,6 +11,11 @@ const pageMocks = vi.hoisted(() => ({
   })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pageMocks.push }) }));
+vi.mock("@/lib/config/uiFlags", () => ({
+  BROWSE_CHROME_VARIANT: "rail",
+  BROWSE_DENSITY_VARIANT: "compact",
+  BROWSE_DIRECTORY_TABS_ENABLED: false,
+}));
 vi.mock("@/features/auth/components/AuthPromptProvider", () => ({
   useAuthPrompt: () => ({
     isLoaded: true,

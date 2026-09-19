@@ -42,14 +42,14 @@ export const EXPLICIT_CONFIG_PLUGINS = Object.freeze([
 // Expo resolves transitive and legacy plugins in addition to app.config.ts entries.
 // Any change here requires native-impact review and a deliberate baseline update.
 export const EXPECTED_RESOLVED_PLUGIN_HISTORY = Object.freeze({
-  "expo-dev-client": "57.0.8",
-  "expo-dev-menu": "57.0.8",
-  "expo-dev-launcher": "57.0.8",
-  "expo-secure-store": "57.0.1",
-  "expo-system-ui": "57.0.1",
-  "expo-splash-screen": "57.0.5",
+  "expo-dev-client": "57.0.18",
+  "expo-dev-menu": "57.0.18",
+  "expo-dev-launcher": "57.0.19",
+  "expo-secure-store": "57.0.3",
+  "expo-system-ui": "57.0.3",
+  "expo-splash-screen": "57.0.8",
   "expo-image-picker": "57.0.16",
-  "expo-video": "57.0.3",
+  "expo-file-system": "57.0.6",
   "@35mm/with-expo-constants-project-root": "1.0.0",
   "@35mm/with-retained-expo-modules-provider": "1.0.0",
   "@35mm/with-quoted-react-native-bundle-script": "1.0.0",
@@ -76,9 +76,9 @@ export const EXPECTED_AUTOLINKED_NATIVE_MODULES = Object.freeze([
   "expo-dev-menu-interface",
   "expo-file-system",
   "expo-font",
+  "expo-glass-effect",
   "expo-image-loader",
   "expo-image-picker",
-  "expo-glass-effect",
   "expo-json-utils",
   "expo-keep-awake",
   "expo-linking",
@@ -93,7 +93,6 @@ export const EXPECTED_AUTOLINKED_NATIVE_MODULES = Object.freeze([
   "expo-system-ui",
   "expo-updates-interface",
   "expo-video",
-  "react-native-webview",
 ]);
 
 export const PROTECTED_SWIFTUI_BUNDLE_IDENTIFIER = "com.35mm.app";

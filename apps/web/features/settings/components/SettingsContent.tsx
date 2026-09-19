@@ -1,7 +1,9 @@
 "use client";
 
 import { Button } from "@/components/Button";
+import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { ROUTES } from "@/lib/constants/routes";
+import { FOCUSED_NAVIGATION_ENABLED } from "@/lib/config/uiFlags";
 import { cn } from "@/lib/utils/cn";
 import { useTheme } from "@/lib/theme/useTheme";
 import { useAuth } from "@clerk/nextjs";
@@ -120,6 +122,7 @@ export function SettingsContent({
   const updateMediaMutation = useUpdateMediaMutation();
 
   const settings = settingsQuery.data;
+  const useFocusedSettingsLayout = FOCUSED_NAVIGATION_ENABLED;
 
   const fallbackSettings: UserSettings = {
     profile: {
@@ -222,7 +225,8 @@ export function SettingsContent({
         {mobileHome ? mobileSettingsHome : null}
         <div
           className={cn(
-            "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:px-8 lg:py-8",
+            "mx-auto w-full px-4 py-6 sm:px-6 md:px-8 lg:py-8",
+            useFocusedSettingsLayout ? "max-w-5xl" : "max-w-6xl",
             mobileHome ? "hidden md:block" : ""
           )}
         >
@@ -316,6 +320,12 @@ export function SettingsContent({
     : privacyListLabel
       ? "Back to privacy settings"
       : "Back to settings";
+  const settingsTopTabs = SETTINGS_TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    mobileLabel: "mobileLabel" in tab ? tab.mobileLabel : undefined,
+    href: tab.href,
+  }));
 
   return (
     <>
@@ -323,70 +333,87 @@ export function SettingsContent({
 
       <div
         className={cn(
-          "mx-auto w-full max-w-6xl select-none px-4 py-5 sm:px-6 md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 md:px-8 md:py-6 lg:py-8",
-          mobileHome ? "hidden md:grid" : ""
+          "mx-auto w-full select-none px-4 py-5 sm:px-6 md:px-8 md:py-6 lg:py-8",
+          useFocusedSettingsLayout
+            ? "max-w-5xl md:block"
+            : "max-w-6xl md:grid md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8",
+          mobileHome
+            ? useFocusedSettingsLayout
+              ? "hidden md:block"
+              : "hidden md:grid"
+            : ""
         )}
       >
-        <aside className="hidden md:block">
-          <div className="sticky top-[calc(var(--site-header-sticky-offset,4.5rem)+1rem)] overflow-hidden rounded-2xl border border-border bg-elevated p-3 shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
-            <div className="px-4 pb-3 pt-2">
-              <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-fg">
-                Settings
-              </h1>
-            </div>
-            <nav aria-label="Settings sections" className="space-y-1">
-              {SETTINGS_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const active = tab.id === initialTab;
+        {useFocusedSettingsLayout ? (
+          <TopStickyBar
+            tabs={settingsTopTabs}
+            activeTabId={activeTab.id}
+            navAriaLabel="Settings sections"
+            rootClassName="hidden pt-0 pb-0 md:block"
+            tabClassName="min-w-max flex-shrink-0 flex justify-center items-center text-[14px] py-3 md:flex-none"
+          />
+        ) : (
+          <aside className="hidden md:block">
+            <div className="sticky top-[calc(var(--site-header-sticky-offset,4.5rem)+1rem)] overflow-hidden rounded-2xl border border-border bg-elevated p-3 shadow-[0_18px_44px_rgba(0,0,0,0.05)]">
+              <div className="px-4 pb-3 pt-2">
+                <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-fg">
+                  Settings
+                </h1>
+              </div>
+              <nav aria-label="Settings sections" className="space-y-1">
+                {SETTINGS_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const active = tab.id === initialTab;
 
-                return (
-                  <Link
-                    key={tab.id}
-                    href={tab.href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "group relative flex items-start gap-3.5 rounded-xl px-4 py-3 text-left no-underline transition-colors",
-                      active
-                        ? "bg-sunken text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
-                        : "text-fg-muted hover:bg-sunken hover:text-fg"
-                    )}
-                  >
-                    {active ? (
-                      <span
-                        className="absolute left-1.5 top-3 bottom-3 w-0.5 rounded-full bg-accent"
-                        aria-hidden
-                      />
-                    ) : null}
-                    <span
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={tab.href}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
-                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                        "group relative flex items-start gap-3.5 rounded-xl px-4 py-3 text-left no-underline transition-colors",
                         active
-                          ? "bg-bg text-accent shadow-sm"
-                          : "bg-sunken text-fg-muted group-hover:text-fg"
+                          ? "bg-sunken text-fg shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+                          : "text-fg-muted hover:bg-sunken hover:text-fg"
                       )}
-                      aria-hidden
                     >
-                      <Icon className="h-[17px] w-[17px]" strokeWidth={1.9} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[13px] font-semibold leading-5">
-                        {tab.label}
-                      </span>
+                      {active ? (
+                        <span
+                          className="absolute bottom-3 left-1.5 top-3 w-0.5 rounded-full bg-accent"
+                          aria-hidden
+                        />
+                      ) : null}
                       <span
                         className={cn(
-                          "block text-[11.5px] leading-4",
-                          active ? "text-fg-muted" : "text-fg-faint"
+                          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                          active
+                            ? "bg-bg text-accent shadow-sm"
+                            : "bg-sunken text-fg-muted group-hover:text-fg"
                         )}
+                        aria-hidden
                       >
-                        {tab.description}
+                        <Icon className="h-[17px] w-[17px]" strokeWidth={1.9} />
                       </span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </aside>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold leading-5">
+                          {tab.label}
+                        </span>
+                        <span
+                          className={cn(
+                            "block text-[11.5px] leading-4",
+                            active ? "text-fg-muted" : "text-fg-faint"
+                          )}
+                        >
+                          {tab.description}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
+        )}
 
         <main className="min-w-0">
           <div className="md:overflow-hidden md:rounded-2xl md:border md:border-border md:bg-elevated md:shadow-[0_18px_44px_rgba(0,0,0,0.05)]">

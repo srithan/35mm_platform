@@ -17,7 +17,12 @@ import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { MobileScrollChromeListener } from "@/components/layout/MobileScrollChromeListener";
 import { ComposerModalProvider } from "@/components/layout/PostComposerModalContext";
 import { AuthPromptProvider } from "@/features/auth/components/AuthPromptProvider";
-import { BROWSE_RAIL_ENABLED } from "@/lib/config/uiFlags";
+import {
+  BROWSE_CHROME_VARIANT,
+  BROWSE_DENSITY_VARIANT,
+  DESKTOP_NAVIGATION_VARIANT,
+} from "@/lib/config/uiFlags";
+import { FocusedNavigationSidebar } from "@/components/layout/FocusedNavigationSidebar";
 import { ROUTES } from "@/lib/constants/routes";
 import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffset";
 import { isPersonRolePath } from "@/lib/routing/personRoles";
@@ -59,6 +64,10 @@ function getProfileShellUsername(pathname: string): string | null {
 
 export function ShellGrid({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const useFocusedNavigation =
+    DESKTOP_NAVIGATION_VARIANT === "focused-sidebar";
+  const useBrowseRailDensity = BROWSE_DENSITY_VARIANT === "compact";
+  const useBrowseRailChrome = BROWSE_CHROME_VARIANT === "rail";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarViewportTop, setSidebarViewportTop] = useState(0);
   const mobilePageContentRef = useRef<HTMLDivElement | null>(null);
@@ -108,9 +117,11 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     pathname === ROUTES.FILMS ||
     pathname === ROUTES.LISTS;
   const isHomeRailRefreshPage =
-    BROWSE_RAIL_ENABLED &&
+    useBrowseRailDensity &&
     (isBrowseDirectoryPage || isTitlePage || isPersonPage);
   const isListDetailPage = Boolean(pathname?.startsWith("/list/"));
+  const isPostDetailPage = Boolean(pathname?.match(/^\/[^/]+\/post\/[^/]+\/?$/));
+  const isNotificationsPage = pathname === "/notifications";
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isNewPostPage = pathname === ROUTES.NEW_POST;
   const isHomePage = pathname === "/";
@@ -147,6 +158,12 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   useLayoutEffect(
     function () {
+      if (useFocusedNavigation) {
+        document.documentElement.style.setProperty("--site-header-sticky-offset", "0px");
+        return function () {
+          document.documentElement.style.removeProperty("--site-header-sticky-offset");
+        };
+      }
       syncSiteHeaderStickyOffset();
       const raf = window.requestAnimationFrame(function () {
         syncSiteHeaderStickyOffset();
@@ -155,7 +172,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
         window.cancelAnimationFrame(raf);
       };
     },
-    [isWideMainContent]
+    [isWideMainContent, useFocusedNavigation]
   );
 
   useEffect(
@@ -179,7 +196,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   /** Profiles use a horizontal tab strip only below `lg`; wide layout uses left rail instead. */
   const hasStickyBarBelow =
-    (!BROWSE_RAIL_ENABLED && isBrowseDirectoryPage) ||
+    (!useBrowseRailDensity && isBrowseDirectoryPage) ||
     pathname?.startsWith("/profile") ||
     isContributeSection ||
     (isProfileUsernamePage && isDesktopLg !== true) ||
@@ -189,17 +206,29 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
 
   const useHomeRailLayout =
     isHomePage ||
-    (BROWSE_RAIL_ENABLED && isListDetailPage);
+    (useBrowseRailDensity && isListDetailPage);
+  /** Focused nav keeps home feed viewport-centered with an inert left spacer. */
+  const useFocusedHomeThreeColumnLayout =
+    useFocusedNavigation && isHomePage;
   const useHomeRailTwoColumnLayout =
-    BROWSE_RAIL_ENABLED && isListDetailPage;
+    useBrowseRailDensity && isListDetailPage;
+  const useFocusedSingleColumnLayout =
+    useFocusedNavigation &&
+    (isBrowseDirectoryPage || isTitlePage || isPersonPage);
+  /** Main canvas starts after fixed rail; narrow focused pages need half-rail offset to center in viewport. */
+  const useFocusedViewportCenteredLayout =
+    useFocusedNavigation && (isPostDetailPage || isNotificationsPage);
   const useBrowseRailDirectoryLayout =
-    BROWSE_RAIL_ENABLED &&
+    useBrowseRailChrome &&
+    !useFocusedSingleColumnLayout &&
     (pathname === ROUTES.DISCOVER ||
       pathname === ROUTES.FILMS ||
       isTitlePage ||
       isPersonPage);
   const useExploreRailLayout =
-    isHomeRailRefreshPage && !useBrowseRailDirectoryLayout;
+    isHomeRailRefreshPage &&
+    !useBrowseRailDirectoryLayout &&
+    !useFocusedSingleColumnLayout;
   const useProfileFullWidthLayout = isProfileUsernamePage && profileRailDisabled;
   /** Profile spans main except the widgets column (`xl:`). */
   const useProfileRailLayout = isProfileUsernamePage && !profileRailDisabled;
@@ -213,7 +242,9 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
         style={
           {
             "--shell-main-max-width": shellMainMaxWidth,
+            "--home-sidebar-gap": useFocusedHomeThreeColumnLayout ? "3rem" : undefined,
             "--home-explore-center-column-width": "864px",
+            "--focused-navigation-content-max-width": "1240px",
             "--home-explore-center-column-half-width": "432px",
             "--home-explore-left-rail-width": "220px",
             "--home-explore-right-rail-width":
@@ -228,10 +259,14 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
             "--mobile-sidebar-viewport-top": `${sidebarViewportTop}px`,
             "--mobile-sidebar-viewport-bottom":
               "calc(100% - var(--mobile-sidebar-viewport-top) - 100dvh)",
+            "--focused-navigation-width": "15.5rem",
+            "--focused-home-left-spacer-width":
+              "max(0px, calc(50vw - var(--focused-navigation-width) - 20rem - var(--home-sidebar-gap, 2rem)))",
           } as React.CSSProperties
         }
       >
         <MobileSidebar open={sidebarOpen} onClose={closeSidebar} />
+        {useFocusedNavigation ? <FocusedNavigationSidebar /> : null}
 
         <div ref={mobilePageContentRef} className="min-h-screen w-full bg-bg">
           <div className="md:hidden">
@@ -251,6 +286,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
             data-mobile-sidebar-surface
             className={cn(
               "relative z-10 min-h-screen w-full bg-bg",
+              useFocusedNavigation && "md:pl-[var(--focused-navigation-width)]",
               "transition-[transform,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
               "motion-reduce:transition-none md:transform-none md:overflow-visible md:rounded-none md:shadow-none",
               sidebarOpen
@@ -258,9 +294,11 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                 : "transform-none overflow-visible rounded-l-none shadow-none [will-change:auto]"
             )}
           >
-            <div className="hidden md:block">
-              <SiteHeader />
-            </div>
+            {!useFocusedNavigation ? (
+              <div className="hidden md:block">
+                <SiteHeader />
+              </div>
+            ) : null}
 
             <main
               id="main-content"
@@ -272,11 +310,15 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                   : "pb-[calc(5.25rem+max(0.625rem,env(safe-area-inset-bottom,0px)))] md:pb-0",
                 useHomeRailLayout
                   ? "md:max-w-[640px] md:mx-auto xl:max-w-none xl:mx-0"
+                  : useFocusedSingleColumnLayout
+                    ? "md:max-w-[var(--focused-navigation-content-max-width)] md:mx-auto"
                   : useExploreRailLayout || useBrowseRailDirectoryLayout
                     ? "md:max-w-[var(--home-explore-center-column-width)] md:mx-auto xl:max-w-none xl:mx-0"
                   : useProfileRailLayout || useProfileFullWidthLayout
                     ? "w-full max-w-none mx-0"
                     : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
+                useFocusedViewportCenteredLayout &&
+                  "min-[1136px]:relative min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]",
                 isNewPostPage
                   ? "pt-0 md:pt-[var(--site-header-sticky-offset,4.5rem)]"
                   : isChatSection
@@ -303,13 +345,20 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                 <>
                   <div
                     className={cn(
-                      "xl:grid xl:gap-x-8 xl:w-full xl:items-start",
+                      "xl:grid xl:w-full xl:items-start",
+                      useFocusedHomeThreeColumnLayout
+                        ? "xl:gap-x-[var(--home-sidebar-gap,2rem)]"
+                        : "xl:gap-x-8",
                       useHomeRailTwoColumnLayout
                         ? "xl:grid-cols-[minmax(0,1fr)_640px_var(--home-right-rail-width)_minmax(0,1fr)]"
-                        : "xl:grid-cols-[minmax(0,1fr)_640px_minmax(0,1fr)]"
+                        : useFocusedHomeThreeColumnLayout
+                          ? "xl:grid-cols-[var(--focused-home-left-spacer-width)_640px_minmax(0,1fr)]"
+                          : "xl:grid-cols-[minmax(0,1fr)_640px_minmax(0,1fr)]"
                     )}
                   >
-                    <div className="hidden min-w-0 xl:block xl:min-h-px" aria-hidden />
+                    {!useHomeRailTwoColumnLayout ? (
+                      <div className="hidden min-w-0 xl:block xl:min-h-px" aria-hidden />
+                    ) : null}
                     <div
                       className={cn(
                         "min-w-0 w-full mx-auto xl:mx-0",
@@ -320,7 +369,7 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                     >
                       {children}
                     </div>
-                    {!useHomeRailTwoColumnLayout ? (
+                    {!useHomeRailTwoColumnLayout && !useFocusedHomeThreeColumnLayout ? (
                       <div className="hidden min-w-0 xl:block xl:min-h-px xl:justify-self-start" aria-hidden />
                     ) : null}
                   </div>
@@ -328,6 +377,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                   <HomeProfileCompletionSidebar />
                   {!useHomeRailTwoColumnLayout ? <HomeSuggestionsSidebar /> : null}
                 </>
+              ) : useFocusedSingleColumnLayout ? (
+                children
               ) : useBrowseRailDirectoryLayout ? (
                 <div className="xl:mx-auto xl:grid xl:w-full xl:max-w-[min(calc(100vw-2rem),var(--home-explore-directory-layout-width))] xl:grid-cols-[var(--home-explore-left-rail-width)_minmax(0,1fr)] xl:items-start xl:gap-x-8">
                   <HomeProfileCompletionSidebar layout="directory" placement="inline" />

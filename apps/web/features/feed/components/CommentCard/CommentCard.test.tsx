@@ -60,4 +60,15 @@ describe("CommentCard", () => {
     expect(parentCard).toContainElement(replyCard);
     expect(parentHoverSurface).not.toContainElement(replyCard);
   });
+
+  it("keeps bottom breathing room above replies for action hover states", () => {
+    const parent = makeComment("parent", [makeComment("reply")]);
+    const { container } = render(<CommentCard comment={parent} postId="post-1" />);
+
+    const parentHoverSurface = container.querySelector<HTMLElement>(
+      "#comment-parent > .CommentCardHover"
+    );
+
+    expect(parentHoverSurface).toHaveClass("pb-3");
+  });
 });

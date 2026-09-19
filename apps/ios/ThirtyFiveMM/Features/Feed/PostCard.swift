@@ -281,7 +281,7 @@ struct PostCard: View {
     let allItems = mediaItems
     let items = Array(allItems.prefix(4))
     if !items.isEmpty {
-      PostMediaGrid(items: items) { url in
+      let openImage: (String) -> Void = { url in
         onOpenImage(
           PostImageDestination(
             urls: allItems.map(\.url),
@@ -290,8 +290,15 @@ struct PostCard: View {
           )
         )
       }
-      .clipShape(RoundedRectangle(cornerRadius: 8))
-      .padding(.top, 2)
+
+      if AppConstants.postMediaCarouselEnabled && items.count > 1 {
+        PostMediaCarousel(items: items, onSelectImage: openImage)
+          .padding(.top, 2)
+      } else {
+        PostMediaGrid(items: items, onSelectImage: openImage)
+          .clipShape(RoundedRectangle(cornerRadius: 8))
+          .padding(.top, 2)
+      }
     }
   }
 
