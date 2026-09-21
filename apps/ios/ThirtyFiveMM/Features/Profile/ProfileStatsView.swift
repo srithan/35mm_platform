@@ -8,9 +8,7 @@ struct ProfileStatsView: View {
 
   var body: some View {
     if model.isLoadingStats && model.stats == nil {
-      ProgressView("Loading stats")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfileStatsTabSkeleton()
     } else if let error = model.statsError, model.stats == nil {
       ContentUnavailableView {
         Label("Couldn't load stats", systemImage: "chart.bar.xaxis")

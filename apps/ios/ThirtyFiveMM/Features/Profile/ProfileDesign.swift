@@ -18,6 +18,8 @@ enum ProfileDesign {
   static let horizontalPadding = 20.0
   static let cardRadius = 16.0
   static let coverAspectRatio = 3.0
+  static let scrollCoordinateSpace = "profile-scroll"
+  static let pullRefreshThreshold: CGFloat = 72.0
   static let avatarSize = 88.0
   static let avatarOverlap = 24.0
   static let tabBarHeight = 52.0

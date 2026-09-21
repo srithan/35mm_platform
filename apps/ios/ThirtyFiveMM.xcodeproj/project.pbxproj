@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A91A00000000000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B91A00000000000000000001 /* LaunchScreen.storyboard */; };
 		A00000000000000000000001 /* ThirtyFiveMMApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* ThirtyFiveMMApp.swift */; };
 		A00000000000000000000002 /* AppConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* AppConstants.swift */; };
 		A00000000000000000000003 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* AppEnvironment.swift */; };
@@ -122,9 +121,14 @@
 		A7000000000000000000000F /* FollowRequestAvatarStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7000000000000000000000F /* FollowRequestAvatarStack.swift */; };
 		A70000000000000000000010 /* FollowRequestsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000010 /* FollowRequestsViewModelTests.swift */; };
 		A80000000000000000000001 /* WelcomeHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80000000000000000000001 /* WelcomeHeroView.swift */; };
+		A80000000000000000000002 /* HeaderTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80000000000000000000002 /* HeaderTabBar.swift */; };
+		A80000000000000000000003 /* NotificationsFilterBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80000000000000000000003 /* NotificationsFilterBar.swift */; };
+		A80000000000000000000004 /* NotificationsTabScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80000000000000000000004 /* NotificationsTabScreen.swift */; };
+		A80000000000000000000005 /* NotificationsPagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80000000000000000000005 /* NotificationsPagerView.swift */; };
 		A90000000000000000000001 /* ProfileTabPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B90000000000000000000001 /* ProfileTabPager.swift */; };
 		A90000000000000000000002 /* ProfileTabPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B90000000000000000000002 /* ProfileTabPage.swift */; };
 		A90000000000000000000003 /* ProfilePagingPanGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B90000000000000000000003 /* ProfilePagingPanGesture.swift */; };
+		A91A00000000000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B91A00000000000000000001 /* LaunchScreen.storyboard */; };
 		C20000000000000000000001 /* FilmListSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000001 /* FilmListSummary.swift */; };
 		C20000000000000000000002 /* ProfileStatsSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000002 /* ProfileStatsSummary.swift */; };
 		C20000000000000000000003 /* EditProfileMediaHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000003 /* EditProfileMediaHeader.swift */; };
@@ -173,6 +177,7 @@
 		C60000000000000000000003 /* ProfileCoverPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60000000000000000000003 /* ProfileCoverPreviewView.swift */; };
 		C60000000000000000000004 /* ProfileHeaderAvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60000000000000000000004 /* ProfileHeaderAvatarView.swift */; };
 		C60000000000000000000005 /* ProfileMediaViewerModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60000000000000000000005 /* ProfileMediaViewerModifier.swift */; };
+		C60000000000000000000006 /* ProfileStretchyCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60000000000000000000006 /* ProfileStretchyCoverView.swift */; };
 		E10000000000000000000001 /* RepostContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* RepostContext.swift */; };
 		E10000000000000000000002 /* QuotedFeedPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* QuotedFeedPost.swift */; };
 		E10000000000000000000003 /* PostRepostContextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* PostRepostContextView.swift */; };
@@ -197,7 +202,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B91A00000000000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B00000000000000000000001 /* ThirtyFiveMMApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThirtyFiveMMApp.swift; sourceTree = "<group>"; };
 		B00000000000000000000002 /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
 		B00000000000000000000003 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
@@ -313,9 +317,14 @@
 		B7000000000000000000000F /* FollowRequestAvatarStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowRequestAvatarStack.swift; sourceTree = "<group>"; };
 		B70000000000000000000010 /* FollowRequestsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowRequestsViewModelTests.swift; sourceTree = "<group>"; };
 		B80000000000000000000001 /* WelcomeHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeHeroView.swift; sourceTree = "<group>"; };
+		B80000000000000000000002 /* HeaderTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderTabBar.swift; sourceTree = "<group>"; };
+		B80000000000000000000003 /* NotificationsFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsFilterBar.swift; sourceTree = "<group>"; };
+		B80000000000000000000004 /* NotificationsTabScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsTabScreen.swift; sourceTree = "<group>"; };
+		B80000000000000000000005 /* NotificationsPagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsPagerView.swift; sourceTree = "<group>"; };
 		B90000000000000000000001 /* ProfileTabPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileTabPager.swift; sourceTree = "<group>"; };
 		B90000000000000000000002 /* ProfileTabPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileTabPage.swift; sourceTree = "<group>"; };
 		B90000000000000000000003 /* ProfilePagingPanGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePagingPanGesture.swift; sourceTree = "<group>"; };
+		B91A00000000000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		D20000000000000000000001 /* FilmListSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmListSummary.swift; sourceTree = "<group>"; };
 		D20000000000000000000002 /* ProfileStatsSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatsSummary.swift; sourceTree = "<group>"; };
 		D20000000000000000000003 /* EditProfileMediaHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileMediaHeader.swift; sourceTree = "<group>"; };
@@ -364,6 +373,7 @@
 		D60000000000000000000003 /* ProfileCoverPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCoverPreviewView.swift; sourceTree = "<group>"; };
 		D60000000000000000000004 /* ProfileHeaderAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileHeaderAvatarView.swift; sourceTree = "<group>"; };
 		D60000000000000000000005 /* ProfileMediaViewerModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMediaViewerModifier.swift; sourceTree = "<group>"; };
+		D60000000000000000000006 /* ProfileStretchyCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStretchyCoverView.swift; sourceTree = "<group>"; };
 		F10000000000000000000001 /* RepostContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepostContext.swift; sourceTree = "<group>"; };
 		F10000000000000000000002 /* QuotedFeedPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotedFeedPost.swift; sourceTree = "<group>"; };
 		F10000000000000000000003 /* PostRepostContextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostRepostContextView.swift; sourceTree = "<group>"; };
@@ -443,6 +453,7 @@
 				B00000000000000000000028 /* PostInteracting.swift */,
 				B00000000000000000000030 /* BottomActionSheet.swift */,
 				B0DE51600000000000000001 /* DesignSystem.swift */,
+				B80000000000000000000002 /* HeaderTabBar.swift */,
 				B0DE51600000000000000002 /* Theme.swift */,
 				D50000000000000000000001 /* ShareModal.swift */,
 				D60000000000000000000001 /* ImageViewerView.swift */,
@@ -656,6 +667,9 @@
 				B70000000000000000000008 /* NotificationThumbnail.swift */,
 				B70000000000000000000002 /* NotificationRow.swift */,
 				B0000000000000000000003D /* NotificationsViewModel.swift */,
+				B80000000000000000000003 /* NotificationsFilterBar.swift */,
+				B80000000000000000000005 /* NotificationsPagerView.swift */,
+				B80000000000000000000004 /* NotificationsTabScreen.swift */,
 				B0000000000000000000003E /* NotificationsView.swift */,
 			);
 			path = Notifications;
@@ -754,6 +768,7 @@
 				D2000000000000000000001E /* ProfileRoleOptionRow.swift */,
 				D2000000000000000000001F /* ProfileStatsDiaryRow.swift */,
 				D20000000000000000000020 /* ProfileStatsView.swift */,
+				D60000000000000000000006 /* ProfileStretchyCoverView.swift */,
 				D20000000000000000000021 /* ProfileTab.swift */,
 				D20000000000000000000022 /* ProfileTabBar.swift */,
 				B90000000000000000000001 /* ProfileTabPager.swift */,
@@ -929,6 +944,8 @@
 				A00000000000000000000026 /* CommentNode.swift in Sources */,
 				A00000000000000000000027 /* PostInteracting.swift in Sources */,
 				A0DE51600000000000000001 /* DesignSystem.swift in Sources */,
+				A80000000000000000000002 /* HeaderTabBar.swift in Sources */,
+				A80000000000000000000005 /* NotificationsPagerView.swift in Sources */,
 				A0DE51600000000000000002 /* Theme.swift in Sources */,
 				A00000000000000000000028 /* PostDetailView.swift in Sources */,
 				A00000000000000000000029 /* PostDetailViewModel.swift in Sources */,
@@ -950,6 +967,8 @@
 				A00000000000000000000038 /* ChatThreadViewModel.swift in Sources */,
 				A00000000000000000000039 /* ChatThreadView.swift in Sources */,
 				A0000000000000000000003C /* NotificationsViewModel.swift in Sources */,
+				A80000000000000000000003 /* NotificationsFilterBar.swift in Sources */,
+				A80000000000000000000004 /* NotificationsTabScreen.swift in Sources */,
 				A0000000000000000000003D /* NotificationsView.swift in Sources */,
 				A70000000000000000000001 /* NotificationPresentation.swift in Sources */,
 				A70000000000000000000002 /* NotificationRow.swift in Sources */,
@@ -1034,6 +1053,7 @@
 				C2000000000000000000001E /* ProfileRoleOptionRow.swift in Sources */,
 				C2000000000000000000001F /* ProfileStatsDiaryRow.swift in Sources */,
 				C20000000000000000000020 /* ProfileStatsView.swift in Sources */,
+				C60000000000000000000006 /* ProfileStretchyCoverView.swift in Sources */,
 				C20000000000000000000021 /* ProfileTab.swift in Sources */,
 				C20000000000000000000022 /* ProfileTabBar.swift in Sources */,
 				A90000000000000000000001 /* ProfileTabPager.swift in Sources */,

@@ -85,7 +85,14 @@ struct ProfileDiaryRow: View {
   }
 
   private var notes: String? {
-    let text = post.body?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    Self.previewNotes(for: post)
+  }
+
+  static func previewNotes(for post: FeedPost) -> String? {
+    let text =
+      RichTextParser.parse(post.body)
+      .map { String($0.characters).trimmingCharacters(in: .whitespacesAndNewlines) }
+      ?? ""
     let automatic = post.film.map { "Logged \($0.title)" } ?? ""
     return text.isEmpty || text == automatic ? nil : text
   }

@@ -29,6 +29,10 @@ struct ChatThreadView: View {
     )
   }
 
+  init(viewModel: ChatThreadViewModel) {
+    _viewModel = StateObject(wrappedValue: viewModel)
+  }
+
   var body: some View {
     ZStack {
       VStack(spacing: 0) {

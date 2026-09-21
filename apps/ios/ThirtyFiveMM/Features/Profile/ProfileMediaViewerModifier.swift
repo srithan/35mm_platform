@@ -18,9 +18,10 @@ struct ProfileMediaViewerModifier: ViewModifier {
           accessibilityLabel: selectedMedia.accessibilityLabel,
           footerText: "@\(selectedMedia.username)",
           isCircular: selectedMedia.isProfilePhoto,
+          sourceFrame: selectedMedia.sourceFrame,
           onClose: { selection = nil }
         )
-        .presentationBackground(.black)
+        .presentationBackground(.clear)
       }
   }
 

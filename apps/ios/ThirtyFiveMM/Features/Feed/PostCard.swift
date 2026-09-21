@@ -291,7 +291,10 @@ struct PostCard: View {
         )
       }
 
-      if AppConstants.postMediaCarouselEnabled && items.count > 1 {
+      if Self.usesCarouselMediaPresentation(
+        isEnabled: AppConstants.postMediaCarouselEnabled,
+        itemCount: items.count
+      ) {
         PostMediaCarousel(items: items, onSelectImage: openImage)
           .padding(.top, 2)
       } else {
@@ -462,6 +465,10 @@ struct PostCard: View {
 
   private func shouldClampBody(_ body: String) -> Bool {
     truncatesBody && !isExpanded && shouldShowMore(for: body)
+  }
+
+  static func usesCarouselMediaPresentation(isEnabled: Bool, itemCount: Int) -> Bool {
+    isEnabled && itemCount > 2
   }
 }
 

@@ -196,7 +196,7 @@ final class AuthManager: ObservableObject, TokenProvider {
 
   func retryAuthenticatedFlow() async {
     setAuthState(.loading)
-    await refreshSession()
+    await completeStartup()
   }
 
   private func handle(event: AuthEvent) async {
@@ -211,6 +211,11 @@ final class AuthManager: ObservableObject, TokenProvider {
   }
 
   private func refreshSession() async {
+    guard clerk.isLoaded else {
+      setAuthState(.loading)
+      return
+    }
+
     guard clerk.session != nil else {
       setAuthState(.signedOut)
       return
@@ -224,22 +229,32 @@ final class AuthManager: ObservableObject, TokenProvider {
   }
 
   private func completeStartup() async {
-    await waitForClerkToLoad()
+    let loaded = await waitForClerkToLoad()
+    guard loaded else {
+      setAuthState(.sessionUnavailable(
+        message: "We could not finish restoring your session. Check your connection and try again."
+      ))
+      return
+    }
+
     await refreshSession()
   }
 
-  private func waitForClerkToLoad() async {
+  private func waitForClerkToLoad() async -> Bool {
     let timeout = Date().addingTimeInterval(8)
 
     while !clerk.isLoaded && Date() < timeout && !Task.isCancelled {
       try? await Task.sleep(nanoseconds: 100_000_000)
     }
 
-    if !clerk.isLoaded {
+    let loaded = clerk.isLoaded
+    if !loaded {
       #if DEBUG
         print("Clerk did not finish initial load before timeout.")
       #endif
     }
+
+    return loaded
   }
 
   private func completeAuthenticatedFlow() async throws {

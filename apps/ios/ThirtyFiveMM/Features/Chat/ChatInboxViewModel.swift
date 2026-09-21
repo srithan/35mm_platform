@@ -29,7 +29,10 @@ final class ChatInboxViewModel: ObservableObject {
   private var presenceTask: Task<Void, Never>?
   private var typingExpiryTask: Task<Void, Never>?
   private var profileSearchTask: Task<Void, Never>?
+  private var hasLoadedInitial = false
+  private var lastLoadedAt: Date?
   private let pageLimit = 20
+  private let freshnessInterval: TimeInterval = 30
 
   init(apiClient: APIClient, currentUserId: String) {
     self.apiClient = apiClient
@@ -71,8 +74,14 @@ final class ChatInboxViewModel: ObservableObject {
   }
 
   func loadInitialIfNeeded() async {
-    guard threads.isEmpty else { return }
-    await loadInitial()
+    guard hasLoadedInitial else {
+      await loadInitial()
+      return
+    }
+
+    if shouldRevalidate {
+      await refresh()
+    }
   }
 
   func loadInitial() async {
@@ -87,6 +96,8 @@ final class ChatInboxViewModel: ObservableObject {
       threads = sorted(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
       updateVisibleSubscriptions()
     } catch {
       self.error = inboxErrorMessage(for: error)
@@ -106,6 +117,8 @@ final class ChatInboxViewModel: ObservableObject {
       threads = sorted(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
       updateVisibleSubscriptions()
     } catch {
       self.error = inboxErrorMessage(for: error)
@@ -442,6 +455,11 @@ final class ChatInboxViewModel: ObservableObject {
       return "Messages temporarily unavailable."
     }
     return error.localizedDescription
+  }
+
+  private var shouldRevalidate: Bool {
+    guard let lastLoadedAt else { return true }
+    return Date().timeIntervalSince(lastLoadedAt) > freshnessInterval
   }
 
   private static func isoString(_ date: Date) -> String {

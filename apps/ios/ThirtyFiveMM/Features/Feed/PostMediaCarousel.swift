@@ -6,6 +6,7 @@ struct PostMediaCarousel: View {
   let onSelectImage: (String) -> Void
 
   @Environment(\.theme) private var theme
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var activeIndex = 0
 
   init(
@@ -65,8 +66,22 @@ struct PostMediaCarousel: View {
     guard let next = offsets.min(by: { abs($0.value) < abs($1.value) })?.key else {
       return
     }
-    activeIndex = next
+    guard next != activeIndex else { return }
+
+    if reduceMotion {
+      activeIndex = next
+    } else {
+      withAnimation(Self.indicatorAnimation) {
+        activeIndex = next
+      }
+    }
   }
+
+  private static let indicatorAnimation = Animation.spring(
+    response: 0.24,
+    dampingFraction: 0.86,
+    blendDuration: 0.04
+  )
 }
 
 private struct PostMediaCarouselCell: View {
@@ -104,9 +119,11 @@ private struct PostMediaCarouselDots: View {
   var body: some View {
     HStack(spacing: 4) {
       ForEach(0..<count, id: \.self) { index in
+        let isActive = index == activeIndex
         Capsule()
-          .fill(index == activeIndex ? theme.text : theme.textSecondary)
-          .frame(width: index == activeIndex ? 16 : 6, height: 6)
+          .fill(isActive ? theme.text : theme.textSecondary)
+          .frame(width: isActive ? 16 : 6, height: 6)
+          .opacity(isActive ? 1 : 0.72)
       }
     }
     .padding(.horizontal, 8)

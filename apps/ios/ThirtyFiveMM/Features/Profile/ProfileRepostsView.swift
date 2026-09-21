@@ -8,9 +8,7 @@ struct ProfileRepostsView: View {
 
   var body: some View {
     if model.isLoadingReposts && model.reposts.isEmpty {
-      ProgressView("Loading reposts")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfilePostTabSkeleton(accessibilityLabel: "Loading reposts")
     } else if let error = model.repostsError, model.reposts.isEmpty {
       ContentUnavailableView {
         Label("Couldn't load reposts", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
@@ -23,9 +21,7 @@ struct ProfileRepostsView: View {
         .buttonStyle(.borderedProminent)
       }
     } else if model.reposts.isEmpty && model.canLoadMoreReposts {
-      ProgressView("Finding reposts")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfilePostTabSkeleton(accessibilityLabel: "Finding reposts")
         .task(id: isActive ? model.reposts.count : -1) {
           if isActive {
             await model.loadMoreReposts()
@@ -57,9 +53,7 @@ struct ProfileRepostsView: View {
         }
 
         if model.canLoadMoreReposts || model.isLoadingMoreReposts {
-          ProgressView()
-            .frame(maxWidth: .infinity)
-            .padding()
+          ProfilePostTabPaginationSkeleton()
             .task(id: isActive ? model.reposts.count : -1) {
               guard isActive else { return }
               await model.loadMoreReposts()

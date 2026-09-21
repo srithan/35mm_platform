@@ -8,9 +8,7 @@ struct ProfileDiaryView: View {
 
   var body: some View {
     if model.isLoadingPosts && model.posts.isEmpty {
-      ProgressView("Loading diary")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfileDiaryTabSkeleton(accessibilityLabel: "Loading diary")
     } else if let error = model.postsError, model.posts.isEmpty {
       ContentUnavailableView {
         Label("Couldn't load diary", systemImage: "film.stack")
@@ -23,9 +21,7 @@ struct ProfileDiaryView: View {
         .buttonStyle(.borderedProminent)
       }
     } else if model.diaryPosts.isEmpty && model.canLoadMorePosts {
-      ProgressView("Finding diary entries")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfileDiaryTabSkeleton(accessibilityLabel: "Finding diary entries")
         .task(id: isActive ? model.posts.count : -1) {
           if isActive {
             await model.loadMorePosts()
@@ -56,9 +52,7 @@ struct ProfileDiaryView: View {
         }
 
         if model.canLoadMorePosts || model.isLoadingMorePosts {
-          ProgressView()
-            .frame(maxWidth: .infinity)
-            .padding()
+          ProfileDiaryPaginationSkeleton()
             .task(id: isActive ? model.posts.count : -1) {
               if isActive {
                 await model.loadMorePosts()

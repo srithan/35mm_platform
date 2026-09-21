@@ -3,8 +3,23 @@ import SwiftUI
 
 struct ProfileCoverView: View {
   let url: String?
+  let preservesAspectRatio: Bool
+
+  init(url: String?, preservesAspectRatio: Bool = true) {
+    self.url = url
+    self.preservesAspectRatio = preservesAspectRatio
+  }
 
   var body: some View {
+    if preservesAspectRatio {
+      coverImage
+        .aspectRatio(ProfileDesign.coverAspectRatio, contentMode: .fit)
+    } else {
+      coverImage
+    }
+  }
+
+  private var coverImage: some View {
     KFImage(URL(string: url ?? ""))
       .placeholder {
         LinearGradient(
@@ -16,7 +31,6 @@ struct ProfileCoverView: View {
       .resizable()
       .scaledToFill()
       .containerRelativeFrame(.horizontal)
-      .aspectRatio(ProfileDesign.coverAspectRatio, contentMode: .fit)
       .clipped()
       .accessibilityHidden(true)
   }

@@ -194,12 +194,12 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     [sidebarOpen]
   );
 
-  /** Profiles use a horizontal tab strip only below `lg`; wide layout uses left rail instead. */
+  /** Profiles always mount page header chrome; tab strip remains below `lg`. */
   const hasStickyBarBelow =
     (!useBrowseRailDensity && isBrowseDirectoryPage) ||
     pathname?.startsWith("/profile") ||
     isContributeSection ||
-    (isProfileUsernamePage && isDesktopLg !== true) ||
+    isProfileUsernamePage ||
     isShortFilmsSection ||
     pathname === "/notifications" ||
     isSettingsSection;

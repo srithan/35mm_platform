@@ -41,9 +41,12 @@ final class ChatThreadViewModel: ObservableObject {
   private var readDispatchTask: Task<Void, Never>?
   private var latestReadMessageIdSent: ChatMessageId?
   private var lastTypingTrueSentAt: Date?
+  private var hasLoadedInitial = false
+  private var lastLoadedAt: Date?
   private var isScreenVisible = false
   private var isAppActive = true
   private let pageLimit = 50
+  private let freshnessInterval: TimeInterval = 30
 
   init(thread: ChatThreadPreview, apiClient: APIClient, currentUserId: String) {
     self.thread = thread
@@ -69,7 +72,7 @@ final class ChatThreadViewModel: ObservableObject {
   func start() async {
     isScreenVisible = true
     startRealtime()
-    await loadInitial()
+    await loadInitialIfNeeded()
     scheduleReadDispatchForNewestVisibleMessage()
   }
 
@@ -105,6 +108,8 @@ final class ChatThreadViewModel: ObservableObject {
       messages = sortedUnique(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
       await refreshReadReceipts()
     } catch {
       self.error = messageError(for: error)
@@ -145,6 +150,8 @@ final class ChatThreadViewModel: ObservableObject {
       merge(page.items)
       nextCursor = page.nextCursor
       hasMore = page.hasMore || hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
       await refreshReadReceipts()
     } catch {
       self.error = messageError(for: error)
@@ -462,6 +469,24 @@ final class ChatThreadViewModel: ObservableObject {
       byId[message.id] = message
     }
     return byId.values.sorted(by: Self.messageAscending)
+  }
+
+  private func loadInitialIfNeeded() async {
+    guard hasLoadedInitial else {
+      await loadInitial()
+      return
+    }
+
+    if shouldRevalidate {
+      await refreshAfterReconnect()
+    } else {
+      await refreshReadReceipts()
+    }
+  }
+
+  private var shouldRevalidate: Bool {
+    guard let lastLoadedAt else { return true }
+    return Date().timeIntervalSince(lastLoadedAt) > freshnessInterval
   }
 
   private func sortMessages() {

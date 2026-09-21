@@ -4,11 +4,12 @@ import SwiftUI
 struct ChatInboxView: View {
   @Environment(\.theme) private var theme
   @Environment(\.dismiss) private var dismiss
-  @StateObject private var viewModel: ChatInboxViewModel
+  @ObservedObject private var viewModel: ChatInboxViewModel
   @State private var isShowingComposer = false
   private let apiClient: APIClient
   private let mode: ChatInboxMode
   private let showsSystemChrome: Bool
+  private let threadViewModelProvider: (ChatThreadPreview) -> ChatThreadViewModel
 
   init(
     apiClient: APIClient,
@@ -17,11 +18,31 @@ struct ChatInboxView: View {
     showsSystemChrome: Bool = true
   ) {
     self.apiClient = apiClient
-    _viewModel = StateObject(
-      wrappedValue: ChatInboxViewModel(apiClient: apiClient, currentUserId: currentUserId)
+    let viewModel = ChatInboxViewModel(apiClient: apiClient, currentUserId: currentUserId)
+    _viewModel = ObservedObject(
+      wrappedValue: viewModel
     )
     self.mode = mode
     self.showsSystemChrome = showsSystemChrome
+    self.threadViewModelProvider = { thread in
+      ChatThreadViewModel(thread: thread, apiClient: apiClient, currentUserId: currentUserId)
+    }
+  }
+
+  init(
+    apiClient: APIClient,
+    viewModel: ChatInboxViewModel,
+    mode: ChatInboxMode = .inbox,
+    showsSystemChrome: Bool = true,
+    threadViewModelProvider: @escaping (ChatThreadPreview) -> ChatThreadViewModel
+  ) {
+    self.apiClient = apiClient
+    _viewModel = ObservedObject(
+      wrappedValue: viewModel
+    )
+    self.mode = mode
+    self.showsSystemChrome = showsSystemChrome
+    self.threadViewModelProvider = threadViewModelProvider
   }
 
   var body: some View {
@@ -39,8 +60,9 @@ struct ChatInboxView: View {
         ) {
           ChatInboxView(
             apiClient: apiClient,
-            currentUserId: viewModel.currentUserId,
-            mode: .archived
+            viewModel: viewModel,
+            mode: .archived,
+            threadViewModelProvider: threadViewModelProvider
           )
         }
       }
@@ -80,9 +102,7 @@ struct ChatInboxView: View {
         ForEach(threads) { thread in
           NavigationLink {
             ChatThreadView(
-              thread: thread,
-              apiClient: apiClient,
-              currentUserId: viewModel.currentUserId
+              viewModel: threadViewModelProvider(thread)
             )
           } label: {
             ChatInboxRow(

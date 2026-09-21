@@ -26,7 +26,7 @@ private struct RootContentView: View {
     Group {
       switch authManager.authState {
       case .loading:
-        SplashView()
+        LaunchHandoffView()
       case .signedOut:
         IntroView()
       case .onboarding:
@@ -50,23 +50,21 @@ private struct RootContentView: View {
   }
 }
 
-private struct SplashView: View {
+private struct LaunchHandoffView: View {
   var body: some View {
-    VStack(spacing: 16) {
+    GeometryReader { proxy in
       Image("LaunchWordmark")
         .renderingMode(.template)
         .resizable()
         .scaledToFit()
         .foregroundStyle(AuthPalette.ink)
-        .frame(width: 150)
-        .accessibilityHidden(true)
-
-      ProgressView()
-        .tint(AuthPalette.ink.opacity(0.58))
-        .accessibilityLabel("Loading 35mm")
+        .frame(width: 150, height: 56)
+        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        .accessibilityLabel("35mm")
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(AuthPalette.paper.ignoresSafeArea())
+    .ignoresSafeArea()
   }
 }
 

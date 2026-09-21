@@ -56,6 +56,21 @@ extension NotificationItem {
       "Logged a film you watched"
     case .chatReaction:
       "Reacted to your message"
+    case .reportStatusUpdate:
+      "Your report was reviewed"
+    case .contentModerated:
+      "Your content was moderated"
+    case .contentUnderReview:
+      "Your content is under review"
+    }
+  }
+
+  var isSystemNotification: Bool {
+    switch type {
+    case .reportStatusUpdate, .contentModerated, .contentUnderReview:
+      true
+    case .like, .comment, .reply, .follow, .followRequest, .followRequestApproved, .mention, .repost, .filmLogged, .chatReaction:
+      false
     }
   }
 
@@ -87,7 +102,7 @@ extension NotificationItem {
   }
 
   var notificationAccessibilityLabel: String {
-    var parts = [actorDisplaySummary, actionSummary]
+    var parts = isSystemNotification ? [actionSummary] : [actorDisplaySummary, actionSummary]
     if let contextTitle {
       parts.append(contextTitle)
     }

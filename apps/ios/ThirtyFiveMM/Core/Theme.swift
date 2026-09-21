@@ -466,8 +466,8 @@ final class ThemeManager: ObservableObject {
     var queue: [UIViewController] = [root]
     while let controller = queue.first {
       queue.removeFirst()
-      // Paint hosts behind the floating tab bar. Never paint `UITabBar` itself
-      // opaque — that creates the iOS 26 content-covering bottom slab.
+      // Paint hosts behind the floating tab bar. `UITabBar` stays clear unless
+      // the explicit traditional full-width tab-bar flag owns the opaque chrome.
       controller.view.backgroundColor = color
       if let tab = controller as? UITabBarController {
         tab.view.backgroundColor = color
@@ -483,7 +483,11 @@ final class ThemeManager: ObservableObject {
   static func applyChrome(_ palette: ThemePalette, custom: Bool) {
     UIView.performWithoutAnimation {
       applyNavigationBarTheme(palette, custom: custom)
-      MainTabView.applyTabBarTheme(palette, custom: custom)
+      MainTabView.applyTabBarTheme(
+        palette,
+        custom: custom,
+        traditional: AppConstants.traditionalTabBarEnabled
+      )
     }
   }
 
@@ -597,7 +601,7 @@ struct TabBarMinimizeDisabledModifier: ViewModifier {
   @ObservedObject private var themeManager = ThemeManager.shared
 
   func body(content: Content) -> some View {
-    if #available(iOS 26.0, *), themeManager.theme.isCustomPalette {
+    if #available(iOS 26.0, *), AppConstants.traditionalTabBarEnabled || themeManager.theme.isCustomPalette {
       content.tabBarMinimizeBehavior(.never)
     } else {
       content

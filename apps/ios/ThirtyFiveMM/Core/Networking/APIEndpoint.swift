@@ -91,6 +91,18 @@ extension APIEndpoint {
     )
   }
 
+  static func getPublicLists(sort: String, cursor: String?, limit: Int) -> APIEndpoint {
+    var queryItems = [
+      URLQueryItem(name: "sort", value: sort),
+      URLQueryItem(name: "limit", value: String(limit)),
+    ]
+    if let cursor {
+      queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+    }
+
+    return APIEndpoint(path: "/v1/lists", method: .get, queryItems: queryItems)
+  }
+
   static func getCatalogTitleCredits(
     _ titleId: String,
     cursor: String?,

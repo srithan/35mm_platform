@@ -109,37 +109,158 @@ final class DiscoverViewModel: ObservableObject {
   }
 }
 
+private enum DiscoverHeaderTab: String, CaseIterable, Identifiable, Hashable {
+  case discover = "Discover"
+  case lists = "Lists"
+  case films = "Films"
+
+  var id: String { rawValue }
+}
+
+struct DiscoverTabScreen: View {
+  @Environment(\.theme) private var theme
+
+  @State private var selectedTab: DiscoverHeaderTab = .discover
+
+  let apiClient: APIClient
+  let title: String
+  let profile: UserProfile?
+  let profileLoadError: String?
+  let canOpenMessages: Bool
+  let headerVisible: Bool
+  let onProfileTapped: () -> Void
+  let onMessagesTapped: () -> Void
+  let onScrollDirectionChange: (ScrollChromeDirection) -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      AppHeader(
+        title: .text(title),
+        profile: profile,
+        profileLoadError: profileLoadError,
+        canOpenMessages: canOpenMessages,
+        onProfileTapped: onProfileTapped,
+        onMessagesTapped: onMessagesTapped
+      ) {
+        HeaderTabBar(
+          items: DiscoverHeaderTab.allCases,
+          selection: selectedTab,
+          title: { $0.rawValue },
+          onSelect: selectTab
+        )
+        .accessibilityLabel("Discover sections")
+      }
+      .frame(height: headerVisible ? AppChromeMetrics.headerWithTabsHeight : 0, alignment: .top)
+      .opacity(headerVisible ? 1 : 0)
+      .clipped()
+      .allowsHitTesting(headerVisible)
+      .accessibilityHidden(!headerVisible)
+
+      selectedContent
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    .background(theme.bg)
+  }
+
+  @ViewBuilder
+  private var selectedContent: some View {
+    switch selectedTab {
+    case .discover:
+      DiscoverView(
+        apiClient: apiClient,
+        showsNavigationChrome: false,
+        showsPageHeader: false,
+        showsInternalTabs: false,
+        showsSearch: false,
+        onScrollDirectionChange: onScrollDirectionChange
+      )
+    case .lists:
+      DiscoverListsView(apiClient: apiClient, onScrollDirectionChange: onScrollDirectionChange)
+    case .films:
+      DiscoverFilmsView(apiClient: apiClient, onScrollDirectionChange: onScrollDirectionChange)
+    }
+  }
+
+  private func selectTab(_ tab: DiscoverHeaderTab) {
+    withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+      selectedTab = tab
+    }
+  }
+}
+
 struct DiscoverView: View {
   @Environment(\.theme) private var theme
   @StateObject private var viewModel: DiscoverViewModel
   @State private var searchTask: Task<Void, Never>?
   private let apiClient: APIClient
+  private let showsNavigationChrome: Bool
+  private let showsPageHeader: Bool
+  private let showsInternalTabs: Bool
+  private let showsSearch: Bool
+  private let onScrollDirectionChange: (ScrollChromeDirection) -> Void
 
-  init(apiClient: APIClient) {
+  init(
+    apiClient: APIClient,
+    showsNavigationChrome: Bool = true,
+    showsPageHeader: Bool = true,
+    showsInternalTabs: Bool = true,
+    showsSearch: Bool = true,
+    onScrollDirectionChange: @escaping (ScrollChromeDirection) -> Void = { _ in }
+  ) {
     self.apiClient = apiClient
+    self.showsNavigationChrome = showsNavigationChrome
+    self.showsPageHeader = showsPageHeader
+    self.showsInternalTabs = showsInternalTabs
+    self.showsSearch = showsSearch
+    self.onScrollDirectionChange = onScrollDirectionChange
     _viewModel = StateObject(wrappedValue: DiscoverViewModel())
   }
 
   var body: some View {
+    if showsNavigationChrome {
+      configuredScrollContent
+        .navigationTitle("Discover")
+        .navigationBarTitleDisplayMode(.inline)
+    } else {
+      configuredScrollContent
+    }
+  }
+
+  @ViewBuilder
+  private var configuredScrollContent: some View {
+    if showsSearch {
+      scrollContent
+        .searchable(
+          text: $viewModel.searchText,
+          placement: .navigationBarDrawer(displayMode: .always),
+          prompt: "Search films, directors, actors…"
+        )
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .onChange(of: viewModel.searchText) { _, _ in scheduleSearch() }
+    } else {
+      scrollContent
+    }
+  }
+
+  private var scrollContent: some View {
     ScrollView {
+      ScrollChromeObserver(onDirectionChange: onScrollDirectionChange)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+
       LazyVStack(alignment: .leading, spacing: 0) {
-        header
-        tabStrip
+        if showsPageHeader {
+          header
+        }
+        if showsInternalTabs {
+          tabStrip
+        }
         content
       }
       .padding(.bottom, 40)
     }
     .background(theme.bg)
-    .navigationTitle("Discover")
-    .navigationBarTitleDisplayMode(.inline)
-    .searchable(
-      text: $viewModel.searchText,
-      placement: .navigationBarDrawer(displayMode: .always),
-      prompt: "Search films, directors, actors…"
-    )
-    .textInputAutocapitalization(.never)
-    .autocorrectionDisabled()
-    .onChange(of: viewModel.searchText) { _, _ in scheduleSearch() }
     .task { await viewModel.loadCurrent() }
     .refreshable { await viewModel.loadCurrent(force: true) }
     .onDisappear { searchTask?.cancel() }
@@ -378,6 +499,384 @@ struct DiscoverView: View {
   private func unique(_ titles: [TMDBDiscoverTitle]) -> [TMDBDiscoverTitle] {
     var seen = Set<Int>()
     return titles.filter { seen.insert($0.tmdbId).inserted }
+  }
+}
+
+@MainActor
+private final class DiscoverListsViewModel: ObservableObject {
+  @Published private(set) var items: [FilmListSummary] = []
+  @Published private(set) var isLoading = false
+  @Published private(set) var isLoadingMore = false
+  @Published private(set) var error: String?
+
+  private let apiClient: APIClient
+  private let pageLimit = 24
+  private var nextCursor: String?
+  private var hasMore = true
+  private var hasLoaded = false
+
+  init(apiClient: APIClient) {
+    self.apiClient = apiClient
+  }
+
+  var canLoadMore: Bool { hasMore && !isLoading && !isLoadingMore }
+
+  func loadInitial(force: Bool = false) async {
+    guard force || !hasLoaded else { return }
+    isLoading = true
+    error = nil
+    do {
+      let response: PaginatedResponse<FilmListSummary> = try await apiClient.request(
+        .getPublicLists(sort: "popular", cursor: nil, limit: pageLimit)
+      )
+      items = response.items
+      nextCursor = response.nextCursor
+      hasMore = response.hasMore
+      hasLoaded = true
+    } catch {
+      self.error = error.localizedDescription
+    }
+    isLoading = false
+  }
+
+  func loadMore() async {
+    guard canLoadMore else { return }
+    isLoadingMore = true
+    error = nil
+    do {
+      let response: PaginatedResponse<FilmListSummary> = try await apiClient.request(
+        .getPublicLists(sort: "popular", cursor: nextCursor, limit: pageLimit)
+      )
+      var seen = Set(items.map(\.id))
+      items.append(contentsOf: response.items.filter { seen.insert($0.id).inserted })
+      nextCursor = response.nextCursor
+      hasMore = response.hasMore
+    } catch {
+      self.error = error.localizedDescription
+    }
+    isLoadingMore = false
+  }
+}
+
+@MainActor
+private final class DiscoverFilmsViewModel: ObservableObject {
+  @Published private(set) var items: [CatalogTitle] = []
+  @Published private(set) var isLoading = false
+  @Published private(set) var isLoadingMore = false
+  @Published private(set) var error: String?
+
+  private let apiClient: APIClient
+  private let pageLimit = 24
+  private var nextCursor: String?
+  private var hasMore = true
+  private var hasLoaded = false
+
+  init(apiClient: APIClient) {
+    self.apiClient = apiClient
+  }
+
+  var canLoadMore: Bool { hasMore && !isLoading && !isLoadingMore }
+
+  func loadInitial(force: Bool = false) async {
+    guard force || !hasLoaded else { return }
+    isLoading = true
+    error = nil
+    do {
+      let response: PaginatedResponse<CatalogTitle> = try await apiClient.request(
+        .getCatalogTitles(query: "", type: "movie", cursor: nil, limit: pageLimit)
+      )
+      items = response.items
+      nextCursor = response.nextCursor
+      hasMore = response.hasMore
+      hasLoaded = true
+    } catch {
+      self.error = error.localizedDescription
+    }
+    isLoading = false
+  }
+
+  func loadMore() async {
+    guard canLoadMore else { return }
+    isLoadingMore = true
+    error = nil
+    do {
+      let response: PaginatedResponse<CatalogTitle> = try await apiClient.request(
+        .getCatalogTitles(query: "", type: "movie", cursor: nextCursor, limit: pageLimit)
+      )
+      var seen = Set(items.map(\.id))
+      items.append(contentsOf: response.items.filter { seen.insert($0.id).inserted })
+      nextCursor = response.nextCursor
+      hasMore = response.hasMore
+    } catch {
+      self.error = error.localizedDescription
+    }
+    isLoadingMore = false
+  }
+}
+
+private struct DiscoverListsView: View {
+  @Environment(\.theme) private var theme
+  @StateObject private var viewModel: DiscoverListsViewModel
+  private let onScrollDirectionChange: (ScrollChromeDirection) -> Void
+
+  init(apiClient: APIClient, onScrollDirectionChange: @escaping (ScrollChromeDirection) -> Void = { _ in }) {
+    self.onScrollDirectionChange = onScrollDirectionChange
+    _viewModel = StateObject(wrappedValue: DiscoverListsViewModel(apiClient: apiClient))
+  }
+
+  var body: some View {
+    ScrollView {
+      ScrollChromeObserver(onDirectionChange: onScrollDirectionChange)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+
+      LazyVStack(alignment: .leading, spacing: 0) {
+        if viewModel.isLoading && viewModel.items.isEmpty {
+          DiscoverBrowseSkeleton(accessibilityLabel: "Loading lists")
+        } else if let error = viewModel.error, viewModel.items.isEmpty {
+          CatalogLoadState(
+            systemImage: "rectangle.stack",
+            title: "Lists unavailable",
+            message: error,
+            actionTitle: "Try Again"
+          ) { Task { await viewModel.loadInitial(force: true) } }
+        } else if viewModel.items.isEmpty {
+          ContentUnavailableView(
+            "No public lists yet",
+            systemImage: "rectangle.stack",
+            description: Text("Film collections will appear here as the community publishes them.")
+          )
+        } else {
+          ForEach(viewModel.items) { list in
+            DiscoverListCard(list: list)
+              .padding(.horizontal, 20)
+              .padding(.vertical, 12)
+            Divider().padding(.leading, 20)
+          }
+
+          if viewModel.canLoadMore || viewModel.isLoadingMore {
+            DiscoverBrowsePaginationSkeleton()
+              .task(id: viewModel.items.count) { await viewModel.loadMore() }
+          }
+        }
+      }
+      .padding(.top, 14)
+      .padding(.bottom, 40)
+    }
+    .background(theme.bg)
+    .task { await viewModel.loadInitial() }
+    .refreshable { await viewModel.loadInitial(force: true) }
+  }
+}
+
+private struct DiscoverFilmsView: View {
+  @Environment(\.theme) private var theme
+  @StateObject private var viewModel: DiscoverFilmsViewModel
+  private let apiClient: APIClient
+  private let onScrollDirectionChange: (ScrollChromeDirection) -> Void
+
+  init(apiClient: APIClient, onScrollDirectionChange: @escaping (ScrollChromeDirection) -> Void = { _ in }) {
+    self.apiClient = apiClient
+    self.onScrollDirectionChange = onScrollDirectionChange
+    _viewModel = StateObject(wrappedValue: DiscoverFilmsViewModel(apiClient: apiClient))
+  }
+
+  var body: some View {
+    ScrollView {
+      ScrollChromeObserver(onDirectionChange: onScrollDirectionChange)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+
+      LazyVStack(alignment: .leading, spacing: 0) {
+        if viewModel.isLoading && viewModel.items.isEmpty {
+          DiscoverBrowseSkeleton(accessibilityLabel: "Loading films")
+        } else if let error = viewModel.error, viewModel.items.isEmpty {
+          CatalogLoadState(
+            systemImage: "film.stack",
+            title: "Films unavailable",
+            message: error,
+            actionTitle: "Try Again"
+          ) { Task { await viewModel.loadInitial(force: true) } }
+        } else if viewModel.items.isEmpty {
+          ContentUnavailableView(
+            "No films found",
+            systemImage: "film.stack",
+            description: Text("Catalog films will appear here as they are indexed.")
+          )
+        } else {
+          LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 132, maximum: 210), spacing: 16)],
+            alignment: .leading,
+            spacing: 24
+          ) {
+            ForEach(viewModel.items) { title in
+              NavigationLink {
+                TitleDetailView(titleID: title.id, apiClient: apiClient)
+              } label: {
+                DiscoverCatalogTitleCard(title: title)
+              }
+              .buttonStyle(.plain)
+            }
+          }
+          .padding(.horizontal, 20)
+          .padding(.top, 18)
+
+          if viewModel.canLoadMore || viewModel.isLoadingMore {
+            DiscoverBrowsePaginationSkeleton()
+              .task(id: viewModel.items.count) { await viewModel.loadMore() }
+          }
+        }
+      }
+      .padding(.bottom, 40)
+    }
+    .background(theme.bg)
+    .task { await viewModel.loadInitial() }
+    .refreshable { await viewModel.loadInitial(force: true) }
+  }
+}
+
+private struct DiscoverListCard: View {
+  @Environment(\.theme) private var theme
+  let list: FilmListSummary
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 14) {
+      DiscoverListPosterStack(urls: list.posterUrls)
+        .frame(width: 82, height: 104)
+
+      VStack(alignment: .leading, spacing: 7) {
+        HStack(spacing: 6) {
+          Text(list.title)
+            .font(.headline)
+            .foregroundStyle(theme.text)
+            .lineLimit(2)
+          if list.isRanked {
+            Image(systemName: "number")
+              .font(.caption.weight(.bold))
+              .foregroundStyle(theme.accent)
+              .accessibilityLabel("Ranked list")
+          }
+        }
+
+        Text(list.owner.displayName ?? "@\(list.owner.username)")
+          .font(.subheadline)
+          .foregroundStyle(theme.textSecondary)
+          .lineLimit(1)
+
+        if let description = list.description, !description.isEmpty {
+          Text(description)
+            .font(.subheadline)
+            .foregroundStyle(theme.textSecondary)
+            .lineLimit(2)
+        }
+
+        Text("^[\(list.entryCount) film](inflect: true) · ^[\(list.likeCount) like](inflect: true)")
+          .font(.caption.weight(.medium))
+          .foregroundStyle(theme.textTertiary)
+      }
+
+      Spacer(minLength: 0)
+    }
+    .accessibilityElement(children: .combine)
+  }
+}
+
+private struct DiscoverListPosterStack: View {
+  @Environment(\.theme) private var theme
+  let urls: [String?]
+
+  var body: some View {
+    ZStack(alignment: .bottomLeading) {
+      ForEach(Array(urls.prefix(3).enumerated()), id: \.offset) { index, url in
+        CatalogImage(url: url, contentMode: .fill)
+          .frame(width: 56, height: 84)
+          .clipShape(RoundedRectangle(cornerRadius: 6))
+          .offset(x: Double(index) * 12, y: Double(2 - index) * 7)
+          .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
+      }
+
+      if urls.isEmpty {
+        RoundedRectangle(cornerRadius: 8)
+          .fill(theme.bgSunken)
+          .overlay {
+            Image(systemName: "rectangle.stack")
+              .foregroundStyle(theme.textTertiary)
+          }
+      }
+    }
+    .accessibilityHidden(true)
+  }
+}
+
+private struct DiscoverCatalogTitleCard: View {
+  @Environment(\.theme) private var theme
+  let title: CatalogTitle
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      CatalogImage(url: title.primaryMedia?.url, contentMode: .fill)
+        .aspectRatio(2 / 3, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+      Text(title.primaryTitle)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(theme.text)
+        .lineLimit(2)
+
+      Text([title.yearText, title.kindLabel].compactMap { $0 }.joined(separator: " · "))
+        .font(.caption2)
+        .foregroundStyle(theme.textSecondary)
+        .lineLimit(1)
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityHint("Opens title page")
+  }
+}
+
+private struct DiscoverBrowseSkeleton: View {
+  @Environment(\.theme) private var theme
+  let accessibilityLabel: String
+
+  var body: some View {
+    VStack(spacing: 16) {
+      ForEach(0..<5, id: \.self) { _ in
+        HStack(spacing: 14) {
+          RoundedRectangle(cornerRadius: 8)
+            .fill(theme.bgSunken)
+            .frame(width: 82, height: 104)
+          VStack(alignment: .leading, spacing: 10) {
+            RoundedRectangle(cornerRadius: 4)
+              .fill(theme.bgSunken)
+              .frame(width: 180, height: 18)
+            RoundedRectangle(cornerRadius: 4)
+              .fill(theme.bgSunken)
+              .frame(width: 130, height: 14)
+            RoundedRectangle(cornerRadius: 4)
+              .fill(theme.bgSunken)
+              .frame(width: 220, height: 14)
+          }
+          Spacer()
+        }
+      }
+    }
+    .padding(20)
+    .redacted(reason: .placeholder)
+    .accessibilityLabel(accessibilityLabel)
+  }
+}
+
+private struct DiscoverBrowsePaginationSkeleton: View {
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    HStack(spacing: 12) {
+      ProgressView()
+      Text("Loading more")
+        .font(.subheadline)
+        .foregroundStyle(theme.textSecondary)
+    }
+    .frame(maxWidth: .infinity)
+    .frame(minHeight: 64)
   }
 }
 

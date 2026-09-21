@@ -108,25 +108,27 @@ export function TopStickyBar({
   countClassName,
 }: TopStickyBarProps) {
   const variantStyles = STYLES_BY_VARIANT[variant];
+  const hasTabs = tabs.length > 0;
+  const rootClasses = cn(
+    "sticky top-0 z-40 bg-bg border-b border-border md:top-[var(--site-header-sticky-offset,4.5rem)]",
+    "md:mb-4",
+    variantStyles.root,
+    rootClassName
+  );
 
-  if (process.env.NODE_ENV !== "production" && tabs.every((tab) => tab.id !== activeTabId)) {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    hasTabs &&
+    tabs.every((tab) => tab.id !== activeTabId)
+  ) {
     console.warn(
       `[TopStickyBar] activeTabId "${activeTabId}" does not match any tab id.`,
       tabs.map((tab) => tab.id)
     );
   }
 
-  return (
-    <nav
-      aria-label={navAriaLabel}
-      data-sticky-chrome=""
-      className={cn(
-        "sticky top-0 z-40 bg-bg border-b border-border md:top-[var(--site-header-sticky-offset,4.5rem)]",
-        "md:mb-4",
-        variantStyles.root,
-        rootClassName
-      )}
-    >
+  const content = (
+    <>
       {(title || subtitle) && (
         <div className={cn("pt-4 pb-0", variantStyles.header, headerClassName)}>
           {title ? (
@@ -142,92 +144,108 @@ export function TopStickyBar({
         </div>
       )}
 
-      <div
-        className={cn(
-          "overflow-x-auto scrollbar-hide md:flex md:justify-center md:overflow-x-visible",
-          variantStyles.tabsViewport,
-          tabsViewportClassName
-        )}
-      >
+      {hasTabs ? (
         <div
           className={cn(
-            "flex items-center flex-nowrap gap-6 w-max max-w-full",
-            variantStyles.tabsList,
-            tabsListClassName
+            "overflow-x-auto scrollbar-hide md:flex md:justify-center md:overflow-x-visible",
+            variantStyles.tabsViewport,
+            tabsViewportClassName
           )}
         >
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTabId;
-            const isPassiveTab = !("href" in tab) && !("onClick" in tab);
-            const isDisabled = tab.disabled || isPassiveTab;
-            const content = (
-              <span className="inline-flex items-center gap-1.5">
-                {tab.icon ? <span className="shrink-0" aria-hidden>{tab.icon}</span> : null}
-                {tab.mobileLabel ? (
-                  <>
-                    <span className="md:hidden">{tab.mobileLabel}</span>
-                    <span className="hidden md:inline">{tab.label}</span>
-                  </>
-                ) : (
-                  <span>{tab.label}</span>
-                )}
-                {(tab.badgeCount ?? 0) > 0 && (
-                  <span
-                    className={cn(
-                      "inline-flex items-center justify-center unread-notification-badge text-[9px] font-sans tabular-nums w-4 h-4 rounded-full ml-1.5 align-middle",
-                      badgeClassName
-                    )}
-                  >
-                    {tab.badgeCount}
-                  </span>
-                )}
-                {typeof tab.count === "number" && (
-                  <span className={cn("text-[11px] text-fg-muted font-sans tabular-nums ml-1", countClassName)}>
-                    {tab.count}
-                  </span>
-                )}
-              </span>
-            );
-
-            const classes = cn(
-              "whitespace-nowrap border-b-4 border-transparent -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/10 rounded-sm",
-              variantStyles.tab,
-              tabClassName,
-              isActive
-                ? cn(variantStyles.active, activeTabClassName)
-                : cn(variantStyles.inactive, inactiveTabClassName),
-              isDisabled && "opacity-45 cursor-not-allowed pointer-events-none"
-            );
-
-            if ("href" in tab && typeof tab.href === "string") {
-              return (
-                <Link
-                  key={tab.id}
-                  href={tab.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(classes, "no-underline")}
-                >
-                  {content}
-                </Link>
+          <div
+            className={cn(
+              "flex items-center flex-nowrap gap-6 w-max max-w-full",
+              variantStyles.tabsList,
+              tabsListClassName
+            )}
+          >
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTabId;
+              const isPassiveTab = !("href" in tab) && !("onClick" in tab);
+              const isDisabled = tab.disabled || isPassiveTab;
+              const tabContent = (
+                <span className="inline-flex items-center gap-1.5">
+                  {tab.icon ? <span className="shrink-0" aria-hidden>{tab.icon}</span> : null}
+                  {tab.mobileLabel ? (
+                    <>
+                      <span className="md:hidden">{tab.mobileLabel}</span>
+                      <span className="hidden md:inline">{tab.label}</span>
+                    </>
+                  ) : (
+                    <span>{tab.label}</span>
+                  )}
+                  {(tab.badgeCount ?? 0) > 0 && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center unread-notification-badge text-[9px] font-sans tabular-nums w-4 h-4 rounded-full ml-1.5 align-middle",
+                        badgeClassName
+                      )}
+                    >
+                      {tab.badgeCount}
+                    </span>
+                  )}
+                  {typeof tab.count === "number" && (
+                    <span className={cn("text-[11px] text-fg-muted font-sans tabular-nums ml-1", countClassName)}>
+                      {tab.count}
+                    </span>
+                  )}
+                </span>
               );
-            }
 
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={"onClick" in tab ? tab.onClick : undefined}
-                aria-pressed={isActive}
-                aria-disabled={isDisabled}
-                disabled={isDisabled}
-                className={classes}
-              >
-                {content}
-              </button>
-            );
-          })}
+              const classes = cn(
+                "whitespace-nowrap border-b-4 border-transparent -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/10 rounded-sm",
+                variantStyles.tab,
+                tabClassName,
+                isActive
+                  ? cn(variantStyles.active, activeTabClassName)
+                  : cn(variantStyles.inactive, inactiveTabClassName),
+                isDisabled && "opacity-45 cursor-not-allowed pointer-events-none"
+              );
+
+              if ("href" in tab && typeof tab.href === "string") {
+                return (
+                  <Link
+                    key={tab.id}
+                    href={tab.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(classes, "no-underline")}
+                  >
+                    {tabContent}
+                  </Link>
+                );
+              }
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={"onClick" in tab ? tab.onClick : undefined}
+                  aria-pressed={isActive}
+                  aria-disabled={isDisabled}
+                  disabled={isDisabled}
+                  className={classes}
+                >
+                  {tabContent}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : null}
+    </>
+  );
+
+  if (!hasTabs) {
+    return (
+      <header data-sticky-chrome="" className={rootClasses}>
+        {content}
+      </header>
+    );
+  }
+
+  return (
+    <nav aria-label={navAriaLabel} data-sticky-chrome="" className={rootClasses}>
+      {content}
     </nav>
   );
 }

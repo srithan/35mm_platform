@@ -34,7 +34,9 @@
 		<true/>
 	</dict>
 	<key>PostMediaCarouselEnabled</key>
-	<false/>
+	<true/>
+	<key>TraditionalTabBarEnabled</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

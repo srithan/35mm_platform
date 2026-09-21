@@ -23,7 +23,21 @@ struct ProfileHeaderAvatarView: View {
       displayName: profile.displayName,
       size: ProfileDesign.avatarSize
     )
+    .background {
+      GeometryReader { proxy in
+        Color.clear
+          .preference(key: ProfileAvatarFramePreferenceKey.self, value: proxy.frame(in: .global))
+      }
+    }
     .offset(y: -ProfileDesign.avatarOverlap)
     .padding(.bottom, -ProfileDesign.avatarOverlap)
+  }
+}
+
+struct ProfileAvatarFramePreferenceKey: PreferenceKey {
+  static let defaultValue: CGRect? = nil
+
+  static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+    value = nextValue() ?? value
   }
 }

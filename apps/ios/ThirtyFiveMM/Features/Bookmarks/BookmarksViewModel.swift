@@ -20,8 +20,11 @@ final class BookmarksViewModel: ObservableObject {
 
   private var nextCursor: String?
   private var activeLoadID = UUID()
+  private var hasLoadedInitial = false
+  private var lastLoadedAt: Date?
   private let service: any BookmarkServicing
   private let pageLimit: Int
+  private let freshnessInterval: TimeInterval = 60
 
   var filters: [BookmarkFilter] {
     [.all, .unsorted] + folders.map(BookmarkFilter.folder)
@@ -80,6 +83,17 @@ final class BookmarksViewModel: ObservableObject {
     self.pageLimit = pageLimit
   }
 
+  func loadInitialIfNeeded() async {
+    guard hasLoadedInitial else {
+      await loadInitial()
+      return
+    }
+
+    if shouldRevalidate {
+      await refresh()
+    }
+  }
+
   func loadInitial() async {
     let loadID = UUID()
     let folderId = selectedFilter.folderQueryValue
@@ -101,6 +115,8 @@ final class BookmarksViewModel: ObservableObject {
       posts = bookmarksPayload.items
       nextCursor = bookmarksPayload.nextCursor
       hasMore = bookmarksPayload.hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
       normalizeSelectedFilter()
     } catch {
       guard activeLoadID == loadID else { return }
@@ -363,6 +379,11 @@ final class BookmarksViewModel: ObservableObject {
 
   private func appendDeduped(_ newPosts: [FeedPost]) {
     posts = FeedPost.deduplicating(posts + newPosts)
+  }
+
+  private var shouldRevalidate: Bool {
+    guard let lastLoadedAt else { return true }
+    return Date().timeIntervalSince(lastLoadedAt) > freshnessInterval
   }
 
   private func replaceFolder(_ folder: BookmarkFolder) {

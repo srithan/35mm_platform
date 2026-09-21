@@ -13,6 +13,34 @@ struct ProfileFeatureTests {
   }
 
   @Test
+  func profileNavigationTitleUsesUsernameForOtherProfiles() {
+    let ownProfile = makeProfile()
+    let otherProfile = ownProfile.updatingRelationship(followState: ProfileFollowState.none)
+
+    #expect(
+      ProfileView.navigationHeaderTitle(
+        profile: ownProfile,
+        username: "maya.frames",
+        showsBackButton: false
+      ) == "Profile"
+    )
+    #expect(
+      ProfileView.navigationHeaderTitle(
+        profile: otherProfile,
+        username: "maya.frames",
+        showsBackButton: true
+      ) == "@maya.frames"
+    )
+    #expect(
+      ProfileView.navigationHeaderTitle(
+        profile: nil,
+        username: "maya.frames",
+        showsBackButton: true
+      ) == "@maya.frames"
+    )
+  }
+
+  @Test
   func profileTabsExposeStableAccessibleLabelsAndSymbols() {
     #expect(ProfileTab.allCases.map(\.title) == ["Posts", "Reposts", "Diary", "Lists", "Stats"])
     #expect(
@@ -127,6 +155,16 @@ struct ProfileFeatureTests {
 
     let mutedProfile = publicProfile.updatingRelationship(isMutedByViewer: true)
     #expect(ProfileAction.available(for: mutedProfile) == [.copyLink, .unmute, .block])
+  }
+
+  @Test
+  func diaryRowPreviewParsesStoredRichTextBody() throws {
+    let body =
+      RichTextParser.sentinel
+      + #"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A sunset that keeps opening."}]},{"type":"paragraph","content":[{"type":"text","text":"Second thought."}]}]}"#
+    let post = try makePost(id: "post-1", isLiked: false, type: .review, body: body)
+
+    #expect(ProfileDiaryRow.previewNotes(for: post) == "A sunset that keeps opening.\nSecond thought.")
   }
 
   @Test
@@ -484,12 +522,14 @@ struct ProfileFeatureTests {
   private func makePost(
     id: String,
     isLiked: Bool,
+    type: PostType = .text,
+    body: String = "A precise observation.",
     repostedByUsername: String? = nil
   ) throws -> FeedPost {
     var payload: [String: Any] = [
       "id": id,
-      "type": "text",
-      "body": "A precise observation.",
+      "type": type.rawValue,
+      "body": body,
       "createdAt": "2026-07-17T12:00:00Z",
       "visibility": "public",
       "likeCount": 4,

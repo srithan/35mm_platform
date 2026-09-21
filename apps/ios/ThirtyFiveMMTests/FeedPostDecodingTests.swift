@@ -82,6 +82,20 @@ final class FeedPostDecodingTests: XCTestCase {
     XCTAssertFalse(post.quotedPostUnavailable)
   }
 
+  func testPostMediaCarouselFlagRequiresMoreThanTwoImages() {
+    XCTAssertFalse(PostCard.usesCarouselMediaPresentation(isEnabled: false, itemCount: 4))
+    XCTAssertFalse(PostCard.usesCarouselMediaPresentation(isEnabled: true, itemCount: 1))
+    XCTAssertFalse(PostCard.usesCarouselMediaPresentation(isEnabled: true, itemCount: 2))
+    XCTAssertTrue(PostCard.usesCarouselMediaPresentation(isEnabled: true, itemCount: 3))
+  }
+
+  func testPostMediaCarouselBundleFlagDefaultsOn() {
+    XCTAssertEqual(
+      Bundle.main.object(forInfoDictionaryKey: "PostMediaCarouselEnabled") as? Bool,
+      true
+    )
+  }
+
   func testDeduplicatesNormalizedRepostRowsAndMergesSocialProof() throws {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .iso8601

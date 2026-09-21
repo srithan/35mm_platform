@@ -91,12 +91,22 @@ struct NotificationRow: View {
   }
 
   private var notificationText: Text {
-    Text(item.actorDisplaySummary)
-      .fontWeight(.semibold)
-      .foregroundStyle(theme.text)
-      + Text(" \(item.inlineActionSummary). ")
-      .foregroundStyle(theme.textSecondary)
-      + Text(item.createdAt.relativeShort)
-      .foregroundStyle(theme.textTertiary)
+    if item.isSystemNotification {
+      Text(item.actionSummary)
+        .fontWeight(.semibold)
+        .foregroundStyle(theme.text)
+        + Text(". ")
+        .foregroundStyle(theme.textSecondary)
+        + Text(item.createdAt.relativeShort)
+        .foregroundStyle(theme.textTertiary)
+    } else {
+      Text(item.actorDisplaySummary)
+        .fontWeight(.semibold)
+        .foregroundStyle(theme.text)
+        + Text(" \(item.inlineActionSummary). ")
+        .foregroundStyle(theme.textSecondary)
+        + Text(item.createdAt.relativeShort)
+        .foregroundStyle(theme.textTertiary)
+    }
   }
 }

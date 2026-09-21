@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Home, Search, UserX } from "lucide-react";
 import { useLayoutEffect, useMemo, useState } from "react";
 import { Button } from "@/components/Button";
+import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { useShellLayout } from "@/components/layout/ShellLayoutContext";
 import { ApiRequestError } from "@/features/feed/api/http";
 import { CoverPhoto } from "@/features/profile/components/CoverPhoto";
@@ -80,6 +81,9 @@ export function ProfileShellClient(props: { username: string }) {
     }
     return "Cinephile";
   }, [profile]);
+  var profileHeaderTitle = isOwnProfile
+    ? "Profile"
+    : "@" + (profile?.username ?? username);
 
   useLayoutEffect(
     function () {
@@ -203,6 +207,14 @@ export function ProfileShellClient(props: { username: string }) {
 
   return (
     <>
+      <TopStickyBar
+        tabs={[]}
+        activeTabId=""
+        title={profileHeaderTitle}
+        rootClassName="w-full bg-bg pb-0 pt-0 shadow-none md:mb-0"
+        headerClassName="px-4 py-3 sm:px-6 lg:px-10"
+        titleClassName="truncate text-[18px] leading-7 md:text-[20px]"
+      />
       <ProfileScrollChrome
         displayName={resolvedProfile.displayName}
         tagline={stableTagline}

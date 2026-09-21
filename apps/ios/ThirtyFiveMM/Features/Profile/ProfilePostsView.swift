@@ -8,9 +8,7 @@ struct ProfilePostsView: View {
 
   var body: some View {
     if model.isLoadingPosts && model.posts.isEmpty {
-      ProgressView("Loading posts")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfilePostTabSkeleton(accessibilityLabel: "Loading posts")
     } else if let error = model.postsError, model.posts.isEmpty {
       ContentUnavailableView {
         Label("Couldn't load posts", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
@@ -44,9 +42,7 @@ struct ProfilePostsView: View {
         }
 
         if model.canLoadMorePosts || model.isLoadingMorePosts {
-          ProgressView()
-            .frame(maxWidth: .infinity)
-            .padding()
+          ProfilePostTabPaginationSkeleton()
             .task(id: isActive ? model.posts.count : -1) {
               guard isActive else { return }
               await model.loadMorePosts()

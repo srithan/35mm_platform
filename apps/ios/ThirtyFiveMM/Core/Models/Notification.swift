@@ -11,6 +11,9 @@ enum NotificationType: String, Codable {
   case repost
   case filmLogged = "film_logged"
   case chatReaction = "chat_reaction"
+  case reportStatusUpdate = "report_status_update"
+  case contentModerated = "content_moderated"
+  case contentUnderReview = "content_under_review"
 }
 
 struct NotificationActor: Codable, Identifiable, Equatable {

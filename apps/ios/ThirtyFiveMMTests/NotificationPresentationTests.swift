@@ -4,6 +4,76 @@ import Testing
 
 struct NotificationPresentationTests {
   @Test
+  func notificationPageDecodesCurrentServerNotificationTypes() throws {
+    let payload = """
+    {
+      "items": [
+        {
+          "id": "notification-report",
+          "type": "report_status_update",
+          "actor": null,
+          "entity": null,
+          "metadata": { "outcome": "actioned" },
+          "isRead": false,
+          "actorIds": [],
+          "actorProfiles": [],
+          "bundleCount": 1,
+          "createdAt": "2026-09-21T12:00:00.000Z"
+        },
+        {
+          "id": "notification-moderated",
+          "type": "content_moderated",
+          "actor": null,
+          "entity": { "type": "post", "id": "post-1", "title": "A review", "thumbnailUrl": null, "contentPreview": "Policy update", "username": null, "postId": null },
+          "metadata": { "contentType": "post", "action": "hidden" },
+          "isRead": true,
+          "actorIds": [],
+          "actorProfiles": [],
+          "bundleCount": 1,
+          "createdAt": "2026-09-21T12:01:00.000Z"
+        },
+        {
+          "id": "notification-review",
+          "type": "content_under_review",
+          "actor": null,
+          "entity": null,
+          "metadata": {},
+          "isRead": false,
+          "actorIds": [],
+          "actorProfiles": [],
+          "bundleCount": 1,
+          "createdAt": "2026-09-21T12:02:00.000Z"
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false
+    }
+    """.data(using: .utf8)!
+
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    decoder.dateDecodingStrategy = .custom { decoder in
+      let container = try decoder.singleValueContainer()
+      let value = try container.decode(String.self)
+      let formatter = ISO8601DateFormatter()
+      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      guard let date = formatter.date(from: value) else {
+        throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid test date.")
+      }
+      return date
+    }
+
+    let page = try decoder.decode(NotificationPage.self, from: payload)
+
+    #expect(page.items.map(\.type) == [.reportStatusUpdate, .contentModerated, .contentUnderReview])
+    #expect(page.items[0].actionSummary == "Your report was reviewed")
+    #expect(page.items[0].notificationAccessibilityLabel.hasPrefix("Your report was reviewed, "))
+    #expect(!page.items[0].notificationAccessibilityLabel.contains("Someone"))
+    #expect(page.items[1].contextPreview == "Policy update")
+    #expect(page.items[2].isSystemNotification)
+  }
+
+  @Test
   func bundledActorSummaryIncludesActorsMissingFromProfileSlice() {
     let item = makeNotification(
       actorProfiles: [makeProfile(id: "user-1", name: "Maya")],

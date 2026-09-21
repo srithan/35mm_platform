@@ -1,23 +1,51 @@
 import SwiftUI
 
 struct NotificationsView: View {
-  @Environment(\.theme) private var theme
-  @EnvironmentObject private var env: AppEnvironment
-  @StateObject private var viewModel: NotificationsViewModel
-  @State private var selectedPost: FeedPost?
-  @State private var openingItemId: String?
-  @State private var optionsItem: NotificationItem?
-  @State private var isShowingFollowRequests = false
-  private let apiClient: APIClient
+  @State private var selectedFilter: NotificationFilter = .all
 
-  init(apiClient: APIClient) {
+  private let apiClient: APIClient
+  private let viewModels: AppNotificationViewModels
+
+  init(apiClient: APIClient, viewModels: AppNotificationViewModels) {
     self.apiClient = apiClient
-    _viewModel = StateObject(wrappedValue: NotificationsViewModel(apiClient: apiClient))
+    self.viewModels = viewModels
   }
 
   var body: some View {
     VStack(spacing: 0) {
-      notificationsToolbar
+      NotificationsFilterBar(
+        selection: selectedFilter,
+        onSelect: selectFilter
+      )
+
+      NotificationsPagerView(selection: $selectedFilter, apiClient: apiClient, viewModels: viewModels)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+  }
+
+  private func selectFilter(_ filter: NotificationFilter) {
+    withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+      selectedFilter = filter
+    }
+  }
+}
+
+struct NotificationsContentView: View {
+  @Environment(\.theme) private var theme
+  @EnvironmentObject private var env: AppEnvironment
+  @ObservedObject var viewModel: NotificationsViewModel
+  let apiClient: APIClient
+  let onScrollDirectionChange: (ScrollChromeDirection) -> Void
+  let onReadStateChanged: (NotificationFilter) -> Void
+
+  @State private var selectedPost: FeedPost?
+  @State private var openingItemId: String?
+  @State private var optionsItem: NotificationItem?
+  @State private var isShowingFollowRequests = false
+
+  var body: some View {
+    VStack(spacing: 0) {
+      markAllReadAction
 
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,45 +74,22 @@ struct NotificationsView: View {
     .animation(.easeInOut(duration: 0.2), value: viewModel.followRequests)
   }
 
-  private var notificationsToolbar: some View {
-    HStack(spacing: DesignSystem.Spacing.md) {
-      ForEach(NotificationFilter.allCases) { filter in
-        Button(filter.title) {
-          Task { await viewModel.setFilter(filter) }
-        }
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(viewModel.filter == filter ? theme.text : theme.textSecondary)
-        .frame(minHeight: 44)
-        .overlay(alignment: .bottom) {
-          Capsule()
-            .fill(theme.accent)
-            .frame(height: 2)
-            .opacity(viewModel.filter == filter ? 1 : 0)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(viewModel.filter == filter ? .isSelected : [])
-      }
-
-      Spacer()
-
-      Button("Mark all read", systemImage: "checkmark.circle") {
-        Task { await viewModel.markAllRead() }
-      }
-      .labelStyle(.iconOnly)
-      .font(.system(.title3).bold())
-      .frame(width: 44, height: 44)
-      .contentShape(Rectangle())
+  @ViewBuilder
+  private var markAllReadAction: some View {
+    if viewModel.hasUnread {
+      Button("Mark all read", systemImage: "checkmark.circle", action: markAllRead)
+      .font(.subheadline.weight(.semibold))
       .buttonStyle(.plain)
-      .foregroundStyle(viewModel.hasUnread ? theme.text : theme.textTertiary)
-      .disabled(!viewModel.hasUnread)
-    }
-    .padding(.horizontal, DesignSystem.Spacing.screenHorizontal)
-    .padding(.vertical, DesignSystem.Spacing.xxs)
-    .background(theme.bg)
-    .overlay(alignment: .bottom) {
-      Rectangle()
-        .fill(theme.border)
-        .frame(height: 0.5)
+      .foregroundStyle(theme.text)
+      .frame(maxWidth: .infinity, alignment: .trailing)
+      .frame(minHeight: 44)
+      .padding(.horizontal, DesignSystem.Spacing.screenHorizontal)
+      .background(theme.bg)
+      .overlay(alignment: .bottom) {
+        Rectangle()
+          .fill(theme.border)
+          .frame(height: 0.5)
+      }
     }
   }
 
@@ -94,6 +99,12 @@ struct NotificationsView: View {
       NotificationsSkeletonList()
     } else {
       List {
+        ScrollChromeObserver(onDirectionChange: onScrollDirectionChange)
+          .frame(width: 0, height: 0)
+          .accessibilityHidden(true)
+          .listRowInsets(EdgeInsets())
+          .listRowSeparator(.hidden)
+
         FollowRequestsSummaryRow(
           requests: viewModel.followRequests,
           total: viewModel.followRequestTotal,
@@ -104,7 +115,7 @@ struct NotificationsView: View {
 
         if let error = viewModel.error, viewModel.items.isEmpty {
           NotificationsErrorView(message: error) {
-            Task { await viewModel.loadInitial() }
+            Task { await viewModel.loadInitial(force: true) }
           }
           .listRowInsets(EdgeInsets())
           .listRowSeparator(.hidden)
@@ -136,7 +147,7 @@ struct NotificationsView: View {
             .listRowSeparator(.hidden)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
               Button {
-                Task { await viewModel.toggleRead(item) }
+                toggleRead(item)
               } label: {
                 Label(item.isRead ? "Unread" : "Read", systemImage: item.isRead ? "circle" : "checkmark")
               }
@@ -195,6 +206,9 @@ struct NotificationsView: View {
 
   private func open(_ item: NotificationItem) async {
     await viewModel.markReadOnOpen(item)
+    if !item.isRead {
+      onReadStateChanged(viewModel.filter)
+    }
 
     guard let postId = item.destinationPostId else { return }
     guard openingItemId == nil else { return }
@@ -226,11 +240,25 @@ struct NotificationsView: View {
         item.isRead ? "Mark as unread" : "Mark as read",
         systemImage: item.isRead ? "circle" : "checkmark.circle"
       ) {
-        Task { await viewModel.toggleRead(item) }
+        toggleRead(item)
       }
     )
 
     return actions
+  }
+
+  private func markAllRead() {
+    Task {
+      await viewModel.markAllRead()
+      onReadStateChanged(viewModel.filter)
+    }
+  }
+
+  private func toggleRead(_ item: NotificationItem) {
+    Task {
+      await viewModel.toggleRead(item)
+      onReadStateChanged(viewModel.filter)
+    }
   }
 }
 

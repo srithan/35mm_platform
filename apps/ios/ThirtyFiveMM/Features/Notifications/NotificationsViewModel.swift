@@ -1,6 +1,6 @@
 import Foundation
 
-enum NotificationFilter: String, CaseIterable, Identifiable {
+enum NotificationFilter: String, CaseIterable, Identifiable, Hashable {
   case all
   case unread
 
@@ -29,11 +29,12 @@ final class NotificationsViewModel: ObservableObject {
   @Published private(set) var isLoadingMore = false
   @Published private(set) var isRefreshing = false
   @Published private(set) var error: String?
-  @Published var filter: NotificationFilter = .all
+  @Published var filter: NotificationFilter
 
   private let apiClient: APIClient
   private let pageLimit = 24
   private let followRequestLimit = 2
+  private var hasLoadedInitial = false
   private var nextCursor: String?
   private var hasMore = true
 
@@ -45,13 +46,16 @@ final class NotificationsViewModel: ObservableObject {
     items.contains { !$0.isRead }
   }
 
-  init(apiClient: APIClient) {
+  init(apiClient: APIClient, filter: NotificationFilter = .all) {
     self.apiClient = apiClient
+    self.filter = filter
   }
 
-  func loadInitial() async {
+  func loadInitial(force: Bool = false) async {
     guard !isLoadingInitial else { return }
+    guard force || !hasLoadedInitial else { return }
 
+    hasLoadedInitial = true
     isLoadingInitial = true
     error = nil
     nextCursor = nil
@@ -131,7 +135,7 @@ final class NotificationsViewModel: ObservableObject {
     guard filter != nextFilter else { return }
 
     filter = nextFilter
-    await loadInitial()
+    await loadInitial(force: true)
   }
 
   func markReadOnOpen(_ item: NotificationItem) async {

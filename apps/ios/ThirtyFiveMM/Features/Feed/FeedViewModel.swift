@@ -9,11 +9,25 @@ final class FeedViewModel: ObservableObject {
   @Published private(set) var hasMore = true
 
   private var nextCursor: String?
+  private var hasLoadedInitial = false
+  private var lastLoadedAt: Date?
   private let apiClient: APIClient
   private let pageLimit = 20
+  private let freshnessInterval: TimeInterval = 60
 
   init(apiClient: APIClient) {
     self.apiClient = apiClient
+  }
+
+  func loadInitialIfNeeded() async {
+    guard hasLoadedInitial else {
+      await loadInitial()
+      return
+    }
+
+    if shouldRevalidate {
+      await refresh()
+    }
   }
 
   func loadInitial() async {
@@ -31,6 +45,8 @@ final class FeedViewModel: ObservableObject {
       posts = FeedPost.deduplicating(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
     } catch {
       self.error = error.localizedDescription
       hasMore = false
@@ -72,6 +88,8 @@ final class FeedViewModel: ObservableObject {
       posts = FeedPost.deduplicating(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
+      hasLoadedInitial = true
+      lastLoadedAt = Date()
     } catch {
       self.error = error.localizedDescription
     }
@@ -132,6 +150,11 @@ final class FeedViewModel: ObservableObject {
 
   private func appendDeduped(_ newPosts: [FeedPost]) {
     posts = FeedPost.deduplicating(posts + newPosts)
+  }
+
+  private var shouldRevalidate: Bool {
+    guard let lastLoadedAt else { return true }
+    return Date().timeIntervalSince(lastLoadedAt) > freshnessInterval
   }
 
   private func toggle(

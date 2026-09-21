@@ -3,6 +3,7 @@ import SwiftUI
 struct BookmarksView: View {
   @EnvironmentObject private var env: AppEnvironment
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   @StateObject private var viewModel: BookmarksViewModel
   @State private var selectedPost: FeedPost?
   @State private var selectedImage: BookmarkImageSelection?
@@ -13,9 +14,14 @@ struct BookmarksView: View {
   @State private var isDeleteConfirmationQueued = false
   @State private var isShowingFolderActions = false
   @State private var isShowingDeleteFolderConfirmation = false
+  @State private var isHeaderVisible = true
 
   init(apiClient: APIClient) {
     _viewModel = StateObject(wrappedValue: BookmarksViewModel(apiClient: apiClient))
+  }
+
+  init(viewModel: BookmarksViewModel) {
+    _viewModel = StateObject(wrappedValue: viewModel)
   }
 
   var body: some View {
@@ -38,8 +44,9 @@ struct BookmarksView: View {
     .background(Color(uiColor: .systemBackground))
     .navigationTitle("Bookmarks")
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar(isHeaderVisible ? .visible : .hidden, for: .navigationBar)
     .task {
-      await viewModel.loadInitial()
+      await viewModel.loadInitialIfNeeded()
     }
     .refreshable {
       await viewModel.refresh()
@@ -103,6 +110,10 @@ struct BookmarksView: View {
         )
       } else {
         ScrollView {
+          ScrollChromeObserver(onDirectionChange: handleScrollDirection)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+
           LazyVStack(spacing: 0) {
             ForEach(viewModel.visiblePosts) { post in
               BookmarkPostRow(
@@ -164,6 +175,18 @@ struct BookmarksView: View {
     }
 
     return actions
+  }
+
+  private func handleScrollDirection(_ direction: ScrollChromeDirection) {
+    withAnimation(chromeAnimation) {
+      isHeaderVisible = direction != .down
+    }
+  }
+
+  private var chromeAnimation: Animation? {
+    accessibilityReduceMotion
+      ? nil
+      : .timingCurve(0.32, 0.72, 0, 1, duration: 0.26)
   }
 
   private func postActions(for post: FeedPost) -> [BottomActionSheetAction] {

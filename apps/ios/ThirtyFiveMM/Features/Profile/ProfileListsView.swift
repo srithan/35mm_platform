@@ -6,9 +6,7 @@ struct ProfileListsView: View {
 
   var body: some View {
     if model.isLoadingLists && model.lists.isEmpty {
-      ProgressView("Loading lists")
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
+      ProfileListsTabSkeleton(accessibilityLabel: "Loading lists")
     } else if let error = model.listsError, model.lists.isEmpty {
       ContentUnavailableView {
         Label("Couldn't load lists", systemImage: "rectangle.stack")
@@ -34,9 +32,7 @@ struct ProfileListsView: View {
         }
 
         if model.canLoadMoreLists || model.isLoadingMoreLists {
-          ProgressView()
-            .frame(maxWidth: .infinity)
-            .padding()
+          ProfileListsPaginationSkeleton()
             .task(id: isActive ? model.lists.count : -1) {
               guard isActive else { return }
               await model.loadMoreLists()

@@ -12,6 +12,11 @@ enum AppConstants {
     environmentKey: "POST_MEDIA_CAROUSEL_ENABLED",
     defaultsKey: "postMediaCarouselEnabled"
   )
+  static let traditionalTabBarEnabled = bundleBoolean(
+    for: "TraditionalTabBarEnabled",
+    environmentKey: "TRADITIONAL_TAB_BAR_ENABLED",
+    defaultsKey: "traditionalTabBarEnabled"
+  )
 
   static var apiBaseURLValue: URL {
     guard let url = URL(string: apiBaseURL) else {

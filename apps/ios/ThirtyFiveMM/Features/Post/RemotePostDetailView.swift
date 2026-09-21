@@ -23,8 +23,7 @@ struct RemotePostDetailView: View {
             .buttonStyle(.borderedProminent)
         }
       } else {
-        ProgressView("Loading post")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        PostDetailLoadingSkeletonView()
       }
     }
     .task(id: loadAttempt) {

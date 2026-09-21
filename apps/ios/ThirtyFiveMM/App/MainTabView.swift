@@ -7,16 +7,26 @@ struct MainTabView: View {
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   @State private var selectedTab: AppTab = .home
   @State private var previousTab: AppTab = .home
+  @State private var isHeaderVisible = true
   @State private var isTabBarVisible = true
   @State private var isShowingProfileSidebar = false
   @State private var homePath: [AppRoute] = []
+  @State private var discoverPath: [AppRoute] = []
   @State private var activityPath: [AppRoute] = []
+  @State private var profilePath: [AppRoute] = []
   @State private var profile: UserProfile?
   @State private var profileLoadError: String?
 
+  private let tabBarStyle: AppTabBarStyle
+
   init() {
+    tabBarStyle = AppConstants.traditionalTabBarEnabled ? .traditional : .current
     let manager = ThemeManager.shared
-    Self.applyTabBarTheme(manager.palette, custom: manager.theme.isCustomPalette)
+    Self.applyTabBarTheme(
+      manager.palette,
+      custom: manager.theme.isCustomPalette,
+      traditional: AppConstants.traditionalTabBarEnabled
+    )
   }
 
   var body: some View {
@@ -56,70 +66,27 @@ struct MainTabView: View {
     }
   }
 
+  @ViewBuilder
   private var tabContent: some View {
+    if tabBarStyle == .traditional {
+      traditionalTabContent
+    } else {
+      systemTabContent
+    }
+  }
+
+  private var systemTabContent: some View {
     TabView(selection: $selectedTab) {
-      NavigationStack(path: $homePath) {
-        AppTabRootScreen(
-          title: .logo,
-          profile: profile,
-          profileLoadError: profileLoadError,
-          canOpenMessages: currentUserId != nil,
-          onProfileTapped: openProfileSidebar,
-          onMessagesTapped: {
-            openMessages(in: .home)
+      ForEach(tabBarStyle.tabs, id: \.self) { tab in
+        tabRoot(tab)
+          .tabItem {
+            tab.icon(isSelected: selectedTab == tab)
+            Text(tab.title(for: tabBarStyle))
           }
-        ) {
-          FeedView(apiClient: env.apiClient) { direction in
-            guard selectedTab == .home else { return }
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-              isTabBarVisible = direction == .up
-            }
-          }
-        }
-        .navigationDestination(for: AppRoute.self) { route in
-          destination(for: route)
-        }
+          .tag(tab)
       }
-      .tabItem {
-        AppTab.home.icon(isSelected: selectedTab == .home)
-        Text(AppTab.home.accessibilityLabel)
-      }
-      .tag(AppTab.home)
-
-      Color.clear
-        .tabItem {
-          AppTab.create.icon(isSelected: false)
-          Text(AppTab.create.accessibilityLabel)
-        }
-        .tag(AppTab.create)
-
-      NavigationStack(path: $activityPath) {
-        AppTabRootScreen(
-          title: .text(AppTab.activity.headerTitle),
-          profile: profile,
-          profileLoadError: profileLoadError,
-          canOpenMessages: currentUserId != nil,
-          onProfileTapped: openProfileSidebar,
-          onMessagesTapped: {
-            openMessages(in: .activity)
-          }
-        ) {
-          NotificationsView(apiClient: env.apiClient)
-        }
-        .navigationDestination(for: AppRoute.self) { route in
-          destination(for: route)
-        }
-      }
-      .tabItem {
-        AppTab.activity.icon(isSelected: selectedTab == .activity)
-        Text(AppTab.activity.accessibilityLabel)
-      }
-      .tag(AppTab.activity)
     }
     .tint(theme.text)
-    // Fill behind the floating tab bar. Do NOT use `.toolbarBackground(.visible,
-    // for: .tabBar)` — on iOS 26 that expands into a fat slab that covers feed
-    // content above the bar (the white/cream band in screenshots).
     .background(theme.bg.ignoresSafeArea())
     .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
     .modifier(TabBarMinimizeDisabledModifier())
@@ -138,8 +105,148 @@ struct MainTabView: View {
       }
 
       previousTab = newValue
-      withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-        isTabBarVisible = true
+      showAppChrome()
+    }
+  }
+
+  private var traditionalTabContent: some View {
+    selectedTraditionalTabRoot
+      .tint(theme.text)
+      .background(theme.bg.ignoresSafeArea())
+      .overlay(alignment: .bottom) {
+        TraditionalAppTabBar(
+          tabs: tabBarStyle.tabs,
+          selectedTab: selectedTab,
+          onSelect: selectTraditionalTab
+        )
+        .offset(y: isTabBarVisible ? 0 : AppChromeMetrics.traditionalTabBarHiddenOffset)
+        .opacity(isTabBarVisible ? 1 : 0)
+        .allowsHitTesting(isTabBarVisible)
+        .accessibilityHidden(!isTabBarVisible)
+      }
+      .animation(chromeAnimation, value: isTabBarVisible)
+      .fullScreenCover(
+        isPresented: $env.isComposerPresented,
+        onDismiss: env.clearComposer
+      ) {
+        PostComposerView(quotedPost: env.composerQuote)
+          .environmentObject(env)
+      }
+  }
+
+  @ViewBuilder
+  private var selectedTraditionalTabRoot: some View {
+    switch selectedTab {
+    case .home, .create:
+      tabRoot(.home)
+    case .discover:
+      tabRoot(.discover)
+    case .activity:
+      tabRoot(.activity)
+    case .profile:
+      tabRoot(.profile)
+    }
+  }
+
+  @ViewBuilder
+  private func tabRoot(_ tab: AppTab) -> some View {
+    switch tab {
+    case .home:
+      NavigationStack(path: $homePath) {
+        AppTabRootScreen(
+          title: .logo,
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          chromeVisible: isHeaderVisible,
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: .home)
+          }
+        ) {
+          FeedView(
+            viewModel: env.sessionViewModels.feed(currentUserId: currentUserId),
+            topContentInset: AppChromeMetrics.homeHeaderHeight,
+            bottomContentInset: tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0
+          ) { direction in
+            guard selectedTab == .home else { return }
+            withAnimation(chromeAnimation) {
+              let isVisible = direction != .down
+              isHeaderVisible = isVisible
+              isTabBarVisible = isVisible
+            }
+          }
+        }
+        .navigationDestination(for: AppRoute.self) { route in
+          destination(for: route)
+        }
+      }
+    case .discover:
+      NavigationStack(path: $discoverPath) {
+        DiscoverTabScreen(
+          apiClient: env.apiClient,
+          title: AppTab.discover.headerTitle,
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          headerVisible: isHeaderVisible,
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: .discover)
+          },
+          onScrollDirectionChange: handleSecondaryScrollDirection
+        )
+          .navigationDestination(for: AppRoute.self) { route in
+            destination(for: route)
+          }
+      }
+    case .create:
+      Color.clear
+    case .activity:
+      NavigationStack(path: $activityPath) {
+        NotificationsTabScreen(
+          apiClient: env.apiClient,
+          viewModels: env.sessionViewModels.notifications(currentUserId: currentUserId),
+          title: AppTab.activity.headerTitle,
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          headerVisible: isHeaderVisible,
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: .activity)
+          },
+          onScrollDirectionChange: handleSecondaryScrollDirection
+        )
+        .navigationDestination(for: AppRoute.self) { route in
+          destination(for: route)
+          }
+      }
+    case .profile:
+      NavigationStack(path: $profilePath) {
+        ProfileTabRootView(
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          service: env.apiClient,
+          profileViewModelProvider: { username in
+            env.sessionViewModels.profile(username: username, currentUserId: currentUserId)
+          },
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: .profile)
+          },
+          onCurrentProfileUpdated: { updated in
+            profile = UserProfile(profile: updated)
+          },
+          onRetry: {
+            Task { await reloadProfile() }
+          },
+          onScrollDirectionChange: handleSecondaryScrollDirection
+        )
+        .navigationDestination(for: AppRoute.self) { route in
+          destination(for: route)
+        }
       }
     }
   }
@@ -149,7 +256,13 @@ struct MainTabView: View {
     switch route {
     case .messages:
       if let currentUserId {
-        ChatInboxView(apiClient: env.apiClient, currentUserId: currentUserId)
+        ChatInboxView(
+          apiClient: env.apiClient,
+          viewModel: env.sessionViewModels.chatInbox(currentUserId: currentUserId),
+          threadViewModelProvider: { thread in
+            env.sessionViewModels.chatThread(thread: thread, currentUserId: currentUserId)
+          }
+        )
       } else {
         ProgressView()
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -170,11 +283,22 @@ struct MainTabView: View {
   }
 
   private func profileDestination(for destination: ProfileDestination) -> some View {
-    ProfileView(username: destination.username, service: env.apiClient) { updated in
-      if profile?.userId == updated.userId {
-        profile = UserProfile(profile: updated)
+    ProfileView(
+      model: env.sessionViewModels.profile(username: destination.username, currentUserId: currentUserId),
+      service: env.apiClient,
+      headerProfile: profile,
+      headerProfileLoadError: profileLoadError,
+      canOpenMessages: currentUserId != nil,
+      onProfileTapped: openProfileSidebar,
+      onMessagesTapped: {
+        openMessages(in: selectedTab == .create ? .home : selectedTab)
+      },
+      onCurrentProfileUpdated: { updated in
+        if profile?.userId == updated.userId {
+          profile = UserProfile(profile: updated)
+        }
       }
-    }
+    )
   }
 
   @ViewBuilder
@@ -183,22 +307,42 @@ struct MainTabView: View {
     case .discover:
       DiscoverView(apiClient: env.apiClient)
     case .bookmarks:
-      BookmarksView(apiClient: env.apiClient)
+      BookmarksView(viewModel: env.sessionViewModels.bookmarks(currentUserId: currentUserId))
     case .settings:
       SettingsView(apiClient: env.apiClient, authManager: env.authManager, profile: profile)
     case .notifications:
-      NotificationsView(apiClient: env.apiClient)
+      NotificationsView(
+        apiClient: env.apiClient,
+        viewModels: env.sessionViewModels.notifications(currentUserId: currentUserId)
+      )
     case .messages:
       if let currentUserId {
-        ChatInboxView(apiClient: env.apiClient, currentUserId: currentUserId)
+        ChatInboxView(
+          apiClient: env.apiClient,
+          viewModel: env.sessionViewModels.chatInbox(currentUserId: currentUserId),
+          threadViewModelProvider: { thread in
+            env.sessionViewModels.chatThread(thread: thread, currentUserId: currentUserId)
+          }
+        )
       } else {
         SidebarPageView(item: item, profile: profile)
       }
     case .profile:
       if let username = profile?.username, !username.isEmpty {
-        ProfileView(username: username, service: env.apiClient) { updated in
-          profile = UserProfile(profile: updated)
-        }
+        ProfileView(
+          model: env.sessionViewModels.profile(username: username, currentUserId: currentUserId),
+          service: env.apiClient,
+          headerProfile: profile,
+          headerProfileLoadError: profileLoadError,
+          canOpenMessages: currentUserId != nil,
+          onProfileTapped: openProfileSidebar,
+          onMessagesTapped: {
+            openMessages(in: selectedTab == .create ? .home : selectedTab)
+          },
+          onCurrentProfileUpdated: { updated in
+            profile = UserProfile(profile: updated)
+          }
+        )
       } else {
         ContentUnavailableView(
           "Profile unavailable",
@@ -237,6 +381,12 @@ struct MainTabView: View {
       : .timingCurve(0.32, 0.72, 0, 1, duration: 0.3)
   }
 
+  private var chromeAnimation: Animation? {
+    accessibilityReduceMotion
+      ? nil
+      : .timingCurve(0.32, 0.72, 0, 1, duration: 0.26)
+  }
+
   private func openMessages(in tab: AppTab) {
     guard currentUserId != nil else { return }
 
@@ -245,8 +395,12 @@ struct MainTabView: View {
     switch tab {
     case .home:
       homePath.append(.messages)
+    case .discover:
+      discoverPath.append(.messages)
     case .activity:
       activityPath.append(.messages)
+    case .profile:
+      profilePath.append(.messages)
     case .create:
       break
     }
@@ -259,16 +413,54 @@ struct MainTabView: View {
     case .notifications:
       closeProfileSidebar()
       selectedTab = .activity
-      showTabBar()
-    case .profile, .discover, .shortFilms, .bookmarks, .lists, .diary, .drafts, .settings, .help:
+      showAppChrome()
+    case .profile:
+      if tabBarStyle == .traditional {
+        closeProfileSidebar()
+        selectedTab = .profile
+        showAppChrome()
+      } else {
+        pushSidebarItem(item)
+      }
+    case .discover:
+      if tabBarStyle == .traditional {
+        closeProfileSidebar()
+        selectedTab = .discover
+        showAppChrome()
+      } else {
+        pushSidebarItem(item)
+      }
+    case .shortFilms, .bookmarks, .lists, .diary, .drafts, .settings, .help:
       pushSidebarItem(item)
     }
   }
 
-  private func showTabBar() {
-    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+  private func showAppChrome() {
+    withAnimation(chromeAnimation) {
+      isHeaderVisible = true
       isTabBarVisible = true
     }
+  }
+
+  private func handleSecondaryScrollDirection(_ direction: ScrollChromeDirection) {
+    guard selectedTab != .home else { return }
+
+    withAnimation(chromeAnimation) {
+      isHeaderVisible = direction != .down
+      isTabBarVisible = true
+    }
+  }
+
+  private func selectTraditionalTab(_ tab: AppTab) {
+    if tab == .create {
+      env.presentComposer()
+      return
+    }
+
+    selectedTab = tab
+    previousTab = tab
+    isHeaderVisible = true
+    isTabBarVisible = true
   }
 
   private func pushSidebarItem(_ item: ProfileSidebarItem) {
@@ -277,8 +469,12 @@ struct MainTabView: View {
     switch selectedTab {
     case .home:
       homePath.append(.sidebarItem(item))
+    case .discover:
+      discoverPath.append(.sidebarItem(item))
     case .activity:
       activityPath.append(.sidebarItem(item))
+    case .profile:
+      profilePath.append(.sidebarItem(item))
     case .create:
       selectedTab = .home
       homePath.append(.sidebarItem(item))
@@ -288,6 +484,10 @@ struct MainTabView: View {
   private func loadProfile() async {
     guard profile == nil else { return }
 
+    await reloadProfile()
+  }
+
+  private func reloadProfile() async {
     do {
       profile = try await env.apiClient.request(.getMe())
       profileLoadError = nil
@@ -297,12 +497,11 @@ struct MainTabView: View {
   }
 
   /// Styles tab item colors via `UITabBarAppearance`.
-  /// On iOS 26 the tab bar floats — the `UITabBar` view itself must stay
-  /// `.clear`. Painting it opaque (or using SwiftUI `.toolbarBackground(.visible,
-  /// for: .tabBar)`) expands into a content-covering bottom slab.
-  static func applyTabBarTheme(_ palette: ThemePalette, custom: Bool) {
+  /// On iOS 26 the default tab bar floats and must stay clear. The explicit
+  /// traditional flag owns the opposite presentation: fixed, opaque, full-width.
+  static func applyTabBarTheme(_ palette: ThemePalette, custom: Bool, traditional: Bool) {
     let appearance = UITabBarAppearance()
-    if custom {
+    if traditional || custom {
       appearance.configureWithOpaqueBackground()
       appearance.backgroundColor = palette.uiBg
       appearance.backgroundEffect = nil
@@ -310,7 +509,7 @@ struct MainTabView: View {
       appearance.configureWithDefaultBackground()
       appearance.backgroundColor = nil
     }
-    appearance.shadowColor = .clear
+    appearance.shadowColor = traditional ? palette.uiBorder : .clear
 
     let selectedColor = palette.uiText
     let normalColor = palette.uiTextSecondary
@@ -333,12 +532,12 @@ struct MainTabView: View {
 
     UITabBar.appearance().standardAppearance = appearance
     UITabBar.appearance().scrollEdgeAppearance = appearance
-    UITabBar.appearance().isTranslucent = true
+    UITabBar.appearance().isTranslucent = !traditional
     UITabBar.appearance().tintColor = selectedColor
     UITabBar.appearance().unselectedItemTintColor = normalColor
-    UITabBar.appearance().barTintColor = nil
+    UITabBar.appearance().barTintColor = traditional ? palette.uiBg : nil
     // Keep the bar view clear so iOS 26 does not grow a bottom slab.
-    UITabBar.appearance().backgroundColor = .clear
+    UITabBar.appearance().backgroundColor = traditional ? palette.uiBg : .clear
 
     for scene in UIApplication.shared.connectedScenes {
       guard let windowScene = scene as? UIWindowScene else { continue }
@@ -348,16 +547,38 @@ struct MainTabView: View {
           tabBar.scrollEdgeAppearance = appearance
           tabBar.tintColor = selectedColor
           tabBar.unselectedItemTintColor = normalColor
-          tabBar.isTranslucent = true
-          tabBar.barTintColor = nil
-          tabBar.backgroundColor = .clear
+          tabBar.isTranslucent = !traditional
+          tabBar.barTintColor = traditional ? palette.uiBg : nil
+          tabBar.backgroundColor = traditional ? palette.uiBg : .clear
         }
       }
     }
   }
 }
 
-private enum AppHeaderTitle: Equatable {
+private enum AppTabBarStyle: Equatable {
+  case current
+  case traditional
+
+  var tabs: [AppTab] {
+    switch self {
+    case .current:
+      return [.home, .create, .activity]
+    case .traditional:
+      return [.home, .discover, .create, .activity, .profile]
+    }
+  }
+}
+
+enum AppChromeMetrics {
+  static let homeHeaderHeight: CGFloat = 65
+  static let headerWithTabsHeight: CGFloat = 111
+  static let profileHeaderHeight: CGFloat = 56
+  static let traditionalTabBarHeight: CGFloat = 65
+  static let traditionalTabBarHiddenOffset: CGFloat = 88
+}
+
+enum AppHeaderTitle: Equatable {
   case logo
   case text(String)
 }
@@ -597,10 +818,12 @@ private struct EmptyStateCard: View {
 
 private struct AppTabRootScreen<Content: View>: View {
   @Environment(\.theme) private var theme
+  @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   let title: AppHeaderTitle
   let profile: UserProfile?
   let profileLoadError: String?
   let canOpenMessages: Bool
+  let chromeVisible: Bool
   let onProfileTapped: () -> Void
   let onMessagesTapped: () -> Void
   let content: () -> Content
@@ -610,6 +833,7 @@ private struct AppTabRootScreen<Content: View>: View {
     profile: UserProfile?,
     profileLoadError: String?,
     canOpenMessages: Bool,
+    chromeVisible: Bool = true,
     onProfileTapped: @escaping () -> Void,
     onMessagesTapped: @escaping () -> Void,
     @ViewBuilder content: @escaping () -> Content
@@ -618,13 +842,17 @@ private struct AppTabRootScreen<Content: View>: View {
     self.profile = profile
     self.profileLoadError = profileLoadError
     self.canOpenMessages = canOpenMessages
+    self.chromeVisible = chromeVisible
     self.onProfileTapped = onProfileTapped
     self.onMessagesTapped = onMessagesTapped
     self.content = content
   }
 
   var body: some View {
-    VStack(spacing: 0) {
+    ZStack(alignment: .top) {
+      content()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
       AppHeader(
         title: title,
         profile: profile,
@@ -633,15 +861,24 @@ private struct AppTabRootScreen<Content: View>: View {
         onProfileTapped: onProfileTapped,
         onMessagesTapped: onMessagesTapped
       )
-
-      content()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .frame(height: AppChromeMetrics.homeHeaderHeight, alignment: .top)
+      .offset(y: chromeVisible ? 0 : -AppChromeMetrics.homeHeaderHeight)
+      .opacity(chromeVisible ? 1 : 0)
+      .allowsHitTesting(chromeVisible)
+      .accessibilityHidden(!chromeVisible)
+      .animation(chromeAnimation, value: chromeVisible)
     }
     .background(theme.bg)
   }
+
+  private var chromeAnimation: Animation? {
+    accessibilityReduceMotion
+      ? nil
+      : .timingCurve(0.32, 0.72, 0, 1, duration: 0.26)
+  }
 }
 
-private struct AppHeader: View {
+struct AppHeader<Accessory: View>: View {
   @Environment(\.theme) private var theme
   let title: AppHeaderTitle
   let profile: UserProfile?
@@ -649,6 +886,25 @@ private struct AppHeader: View {
   let canOpenMessages: Bool
   let onProfileTapped: () -> Void
   let onMessagesTapped: () -> Void
+  let accessory: Accessory
+
+  init(
+    title: AppHeaderTitle,
+    profile: UserProfile?,
+    profileLoadError: String?,
+    canOpenMessages: Bool,
+    onProfileTapped: @escaping () -> Void,
+    onMessagesTapped: @escaping () -> Void,
+    @ViewBuilder accessory: () -> Accessory
+  ) {
+    self.title = title
+    self.profile = profile
+    self.profileLoadError = profileLoadError
+    self.canOpenMessages = canOpenMessages
+    self.onProfileTapped = onProfileTapped
+    self.onMessagesTapped = onMessagesTapped
+    self.accessory = accessory()
+  }
 
   var body: some View {
     VStack(spacing: 0) {
@@ -684,6 +940,8 @@ private struct AppHeader: View {
       .frame(height: 64)
       .padding(.horizontal, 16)
 
+      accessory
+
       Divider()
     }
     .background(theme.bg)
@@ -707,6 +965,27 @@ private struct AppHeader: View {
         .minimumScaleFactor(0.82)
         .accessibilityAddTraits(.isHeader)
     }
+  }
+}
+
+extension AppHeader where Accessory == EmptyView {
+  init(
+    title: AppHeaderTitle,
+    profile: UserProfile?,
+    profileLoadError: String?,
+    canOpenMessages: Bool,
+    onProfileTapped: @escaping () -> Void,
+    onMessagesTapped: @escaping () -> Void
+  ) {
+    self.init(
+      title: title,
+      profile: profile,
+      profileLoadError: profileLoadError,
+      canOpenMessages: canOpenMessages,
+      onProfileTapped: onProfileTapped,
+      onMessagesTapped: onMessagesTapped,
+      accessory: { EmptyView() }
+    )
   }
 }
 
@@ -892,30 +1171,116 @@ private struct AppTabPlaceholder: View {
   }
 }
 
+private struct TraditionalAppTabBar: View {
+  @Environment(\.theme) private var theme
+
+  let tabs: [AppTab]
+  let selectedTab: AppTab
+  let onSelect: (AppTab) -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      Divider()
+
+      HStack(alignment: .center, spacing: 0) {
+        ForEach(tabs, id: \.self) { tab in
+          Button {
+            onSelect(tab)
+          } label: {
+            TraditionalAppTabBarItem(
+              tab: tab,
+              title: tab.title(for: .traditional),
+              isSelected: selectedTab == tab
+            )
+          }
+          .buttonStyle(.plain)
+          .frame(maxWidth: .infinity)
+          .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+        }
+      }
+      .frame(height: 58)
+      .padding(.bottom, 6)
+      .background(theme.bg)
+    }
+    .background(theme.bg.ignoresSafeArea(edges: .bottom))
+  }
+}
+
+private struct TraditionalAppTabBarItem: View {
+  @Environment(\.theme) private var theme
+
+  let tab: AppTab
+  let title: String
+  let isSelected: Bool
+
+  private var hidesVisibleTitle: Bool {
+    tab == .create
+  }
+
+  private var iconFontSize: CGFloat {
+    hidesVisibleTitle ? 32 : 23
+  }
+
+  private var iconFrameHeight: CGFloat {
+    hidesVisibleTitle ? 42 : 28
+  }
+
+  var body: some View {
+    VStack(spacing: hidesVisibleTitle ? 0 : 3) {
+      tab.icon(isSelected: isSelected)
+        .font(.system(size: iconFontSize, weight: .semibold))
+        .symbolRenderingMode(.hierarchical)
+        .frame(height: iconFrameHeight)
+
+      if !hidesVisibleTitle {
+        Text(title)
+          .font(.caption.weight(isSelected ? .semibold : .medium))
+          .lineLimit(1)
+          .minimumScaleFactor(0.78)
+      }
+    }
+    .foregroundStyle(isSelected ? theme.text : theme.textSecondary)
+    .frame(maxWidth: .infinity, minHeight: 52)
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(title)
+  }
+}
+
 private enum AppTab: Hashable, CaseIterable {
   case home
+  case discover
   case create
   case activity
+  case profile
 
   func icon(isSelected: Bool) -> Image {
     switch self {
     case .home:
       return Image(systemName: isSelected ? "house.fill" : "house")
+    case .discover:
+      return Image(systemName: "sparkles")
     case .create:
       return Image(systemName: "plus.circle")
     case .activity:
       return Image(systemName: isSelected ? "bell.fill" : "bell")
+    case .profile:
+      return Image(systemName: isSelected ? "person.crop.circle.fill" : "person.crop.circle")
     }
   }
 
-  var accessibilityLabel: String {
+  func title(for style: AppTabBarStyle) -> String {
     switch self {
     case .home:
       return "Home"
+    case .discover:
+      return "Discover"
     case .create:
-      return "Create"
+      return style == .traditional ? "Add" : "Create"
     case .activity:
       return "Activity"
+    case .profile:
+      return "Profile"
     }
   }
 
@@ -923,10 +1288,58 @@ private enum AppTab: Hashable, CaseIterable {
     switch self {
     case .home:
       return AppConstants.appName
+    case .discover:
+      return "Discover"
     case .create:
       return "Create"
     case .activity:
       return "Notifications"
+    case .profile:
+      return "Profile"
+    }
+  }
+}
+
+private struct ProfileTabRootView: View {
+  @Environment(\.theme) private var theme
+
+  let profile: UserProfile?
+  let profileLoadError: String?
+  let canOpenMessages: Bool
+  let service: any ProfileServicing
+  let profileViewModelProvider: (String) -> ProfileViewModel
+  let onProfileTapped: () -> Void
+  let onMessagesTapped: () -> Void
+  let onCurrentProfileUpdated: (PublicProfile) -> Void
+  let onRetry: () -> Void
+  let onScrollDirectionChange: (ScrollChromeDirection) -> Void
+
+  var body: some View {
+    if let username = profile?.username, !username.isEmpty {
+      ProfileView(
+        model: profileViewModelProvider(username),
+        service: service,
+        showsBackButton: false,
+        headerProfile: profile,
+        headerProfileLoadError: profileLoadError,
+        canOpenMessages: canOpenMessages,
+        onProfileTapped: onProfileTapped,
+        onMessagesTapped: onMessagesTapped,
+        onCurrentProfileUpdated: onCurrentProfileUpdated,
+        onScrollDirectionChange: onScrollDirectionChange
+      )
+    } else {
+      ContentUnavailableView {
+        Label("Profile unavailable", systemImage: "person.crop.circle.badge.exclamationmark")
+      } description: {
+        Text(profileLoadError ?? "Your profile could not be loaded.")
+      } actions: {
+        Button("Try Again", action: onRetry)
+          .buttonStyle(.borderedProminent)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background(theme.bg)
+      .navigationTitle("Profile")
     }
   }
 }
