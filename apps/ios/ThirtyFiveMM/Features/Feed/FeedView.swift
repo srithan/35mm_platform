@@ -118,7 +118,10 @@ struct FeedView: View {
   @ViewBuilder
   private var content: some View {
     if viewModel.isLoading && viewModel.posts.isEmpty {
-      FeedSkeletonList()
+      FeedSkeletonList(
+        topContentInset: topContentInset,
+        bottomContentInset: bottomContentInset
+      )
     } else if let error = viewModel.error, viewModel.posts.isEmpty {
       FeedErrorView(message: error) {
         Task { await viewModel.loadInitial() }
@@ -325,14 +328,25 @@ private extension UIView {
 }
 
 private struct FeedSkeletonList: View {
+  let topContentInset: CGFloat
+  let bottomContentInset: CGFloat
+
   var body: some View {
     ScrollView {
+      Color.clear
+        .frame(height: topContentInset)
+        .accessibilityHidden(true)
+
       LazyVStack(spacing: 0) {
         ForEach(0..<5, id: \.self) { index in
           FeedPostSkeletonCard(index: index)
           Divider()
         }
       }
+
+      Color.clear
+        .frame(height: bottomContentInset)
+        .accessibilityHidden(true)
     }
     .themedBackground()
     .accessibilityElement(children: .ignore)

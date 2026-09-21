@@ -1260,6 +1260,23 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 
 ## 26. Work log
 
+### 2026-09-21 — Retained SwiftUI home skeleton header spacing
+
+- [x] Gave the retained SwiftUI Home loading skeleton the same top and bottom content spacers as the loaded feed so first placeholder content starts below the overlay app header and does not tuck under it after splash handoff.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing feed REST contracts, cursor pagination, server authorization, rate limits, indexes, hybrid fanout/cache behavior, and async counters are unchanged. At 1M+ DAU this is local loading presentation only: zero backend reads/writes, no schema/index/API/cache/worker/pagination/UGC contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Feed/FeedView.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMSkeletonSpacingDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime simulator screenshot, physical-device checks, and VoiceOver checks were not run for this loading-geometry slice.
+
+### 2026-09-21 — Retained SwiftUI icon-only traditional tabs
+
+- [x] Hid every visible label in the retained SwiftUI traditional tab bar while preserving each tab's accessible label and selected-state trait.
+- [x] Replaced the traditional Home house symbol with a feed/list-style stacked-card icon and rendered the traditional Profile tab with the current user's avatar, falling back to initials when no profile image is loaded.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing tab routing, composer presentation, profile bootstrap read, feed/discover/activity/profile REST contracts, cursor pagination, server authorization, rate limits, indexes, and async counters are unchanged. At 1M+ DAU this is local chrome presentation only: zero new backend reads/writes, no schema/index/API/cache/worker/pagination/UGC contract change.
+- Architecture and codebase knowledge were updated; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/App/MainTabView.swift docs/architecture.md codebase-analysis-docs/CODEBASE_KNOWLEDGE.md docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMTraditionalTabsDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime simulator screenshot, physical-device checks, and VoiceOver checks were not run for this local tab-chrome slice.
+
 ### 2026-09-21 — Retained SwiftUI icon-only Add tab
 
 - [x] Removed the visible "Add" label from the retained SwiftUI traditional tab bar while preserving the tab's accessible Add label.

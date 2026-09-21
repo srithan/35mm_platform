@@ -117,6 +117,7 @@ struct MainTabView: View {
         TraditionalAppTabBar(
           tabs: tabBarStyle.tabs,
           selectedTab: selectedTab,
+          profile: profile,
           onSelect: selectTraditionalTab
         )
         .offset(y: isTabBarVisible ? 0 : AppChromeMetrics.traditionalTabBarHiddenOffset)
@@ -1176,6 +1177,7 @@ private struct TraditionalAppTabBar: View {
 
   let tabs: [AppTab]
   let selectedTab: AppTab
+  let profile: UserProfile?
   let onSelect: (AppTab) -> Void
 
   var body: some View {
@@ -1190,7 +1192,8 @@ private struct TraditionalAppTabBar: View {
             TraditionalAppTabBarItem(
               tab: tab,
               title: tab.title(for: .traditional),
-              isSelected: selectedTab == tab
+              isSelected: selectedTab == tab,
+              profile: profile
             )
           }
           .buttonStyle(.plain)
@@ -1212,31 +1215,30 @@ private struct TraditionalAppTabBarItem: View {
   let tab: AppTab
   let title: String
   let isSelected: Bool
-
-  private var hidesVisibleTitle: Bool {
-    tab == .create
-  }
+  let profile: UserProfile?
 
   private var iconFontSize: CGFloat {
-    hidesVisibleTitle ? 32 : 23
+    tab == .create ? 32 : 24
   }
 
   private var iconFrameHeight: CGFloat {
-    hidesVisibleTitle ? 42 : 28
+    44
   }
 
   var body: some View {
-    VStack(spacing: hidesVisibleTitle ? 0 : 3) {
-      tab.icon(isSelected: isSelected)
-        .font(.system(size: iconFontSize, weight: .semibold))
-        .symbolRenderingMode(.hierarchical)
+    VStack(spacing: 0) {
+      if tab == .profile {
+        TraditionalProfileTabAvatar(
+          profile: profile,
+          isSelected: isSelected,
+          size: 30
+        )
         .frame(height: iconFrameHeight)
-
-      if !hidesVisibleTitle {
-        Text(title)
-          .font(.caption.weight(isSelected ? .semibold : .medium))
-          .lineLimit(1)
-          .minimumScaleFactor(0.78)
+      } else {
+        tab.icon(isSelected: isSelected)
+          .font(.system(size: iconFontSize, weight: .semibold))
+          .symbolRenderingMode(.hierarchical)
+          .frame(height: iconFrameHeight)
       }
     }
     .foregroundStyle(isSelected ? theme.text : theme.textSecondary)
@@ -1244,6 +1246,54 @@ private struct TraditionalAppTabBarItem: View {
     .contentShape(Rectangle())
     .accessibilityElement(children: .combine)
     .accessibilityLabel(title)
+  }
+}
+
+private struct TraditionalProfileTabAvatar: View {
+  @Environment(\.theme) private var theme
+  let profile: UserProfile?
+  let isSelected: Bool
+  let size: CGFloat
+
+  private var url: String? {
+    profile?.avatarUrlLg ?? profile?.avatarUrl
+  }
+
+  private var initials: String {
+    guard let profile else { return "35" }
+    let source: String
+    if let displayName = profile.displayName, !displayName.isEmpty {
+      source = displayName
+    } else {
+      source = profile.username
+    }
+    let words = source.split(separator: " ").prefix(2)
+    let value = words.compactMap(\.first).map(String.init).joined()
+    return value.isEmpty ? "35" : value.uppercased()
+  }
+
+  var body: some View {
+    AsyncImage(url: url.flatMap(URL.init(string:))) { phase in
+      switch phase {
+      case .success(let image):
+        image.resizable().scaledToFill()
+      default:
+        ZStack {
+          Circle()
+            .fill(theme.fill)
+          Text(initials)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(theme.textSecondary)
+            .minimumScaleFactor(0.7)
+        }
+      }
+    }
+    .frame(width: size, height: size)
+    .clipShape(Circle())
+    .overlay {
+      Circle()
+        .stroke(isSelected ? theme.text : theme.fillStrong, lineWidth: isSelected ? 2 : 1)
+    }
   }
 }
 
@@ -1257,7 +1307,7 @@ private enum AppTab: Hashable, CaseIterable {
   func icon(isSelected: Bool) -> Image {
     switch self {
     case .home:
-      return Image(systemName: isSelected ? "house.fill" : "house")
+      return Image(systemName: isSelected ? "rectangle.stack.fill" : "rectangle.stack")
     case .discover:
       return Image(systemName: "sparkles")
     case .create:
