@@ -1,261 +1,181 @@
-import {
-  AppIcon,
-  AppText,
-  Button,
-  MobileUIProvider,
-  Screen,
-  useMobileUI,
-} from "@35mm/mobile-ui";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  ImageBackground,
+  Image,
   Linking,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
   useWindowDimensions,
 } from "react-native";
-
-const TERMS_URL = "https://35mm.in/terms";
-const PRIVACY_URL = "https://35mm.in/privacy";
-type LegalUrl = typeof TERMS_URL | typeof PRIVACY_URL;
+import { AppText, Screen } from "../components/controls";
+import { useAuthPalette } from "../components/palette";
+import { WelcomePosterWall } from "./WelcomePosterWall";
 
 export function WelcomeScreen() {
-  const { reduceMotion } = useMobileUI();
-  return (
-    <MobileUIProvider
-      preference="light"
-      reduceMotion={reduceMotion}
-      systemColorScheme="light"
-    >
-      <WelcomeContent />
-    </MobileUIProvider>
-  );
-}
-
-function WelcomeContent() {
   const router = useRouter();
-  const { height } = useWindowDimensions();
+  const c = useAuthPalette();
+  const { fontScale } = useWindowDimensions();
+  const [height, setHeight] = useState(0);
   const [legalError, setLegalError] = useState<string | null>(null);
-  const heroHeight = useMemo(
-    () => Math.min(480, Math.max(300, height * 0.52)),
-    [height],
-  );
-  const openLegal = useCallback((url: LegalUrl) => {
+  const scroll = fontScale > 1 || (height > 0 && height < 500);
+  const openLegal = (
+    url: "https://35mm.in/terms" | "https://35mm.in/privacy",
+  ) => {
     setLegalError(null);
-    void Linking.openURL(url).catch(() => {
-      setLegalError("35mm couldn’t open that page. Please try again.");
-    });
-  }, []);
-
+    void Linking.openURL(url).catch(() =>
+      setLegalError("35mm couldn’t open that page. Please try again."),
+    );
+  };
   return (
-    <Screen
-      safeAreaEdges={["left", "right", "bottom"]}
-      style={styles.screen}
-      testID="welcome-screen"
-    >
-      <StatusBar style="light" />
-      <ScrollView
-        bounces={false}
-        contentContainerStyle={styles.scrollContent}
-        contentInsetAdjustmentBehavior="never"
-        showsVerticalScrollIndicator={false}
+    <Screen testID="welcome-screen">
+      <StatusBar style={c.paper === "#000000" ? "light" : "dark"} />
+      <View
+        style={{ flex: 1 }}
+        onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
       >
-        <ImageBackground
-          accessible={false}
-          imageStyle={styles.heroImage}
-          importantForAccessibility="no-hide-descendants"
-          resizeMode="cover"
-          source={require("../../../../assets/images/welcome-hero.png")}
-          style={[styles.hero, { height: heroHeight }]}
-          testID="welcome-hero"
+        <ScrollView
+          bounces={false}
+          scrollEnabled={scroll || Boolean(legalError)}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
         >
           <View
-            accessible={false}
-            importantForAccessibility="no-hide-descendants"
-            style={[
-              styles.heroMark,
-              {
-                backgroundColor: "#FFFFFF29",
-                borderColor: "#FFFFFF5C",
-              },
-            ]}
+            style={{
+              height: scroll ? undefined : height || undefined,
+              minHeight: scroll ? height : undefined,
+              width: "100%",
+              maxWidth: 560,
+              alignSelf: "center",
+            }}
           >
-            <AppIcon
-              color="#FFFFFF"
-              name="clapperboard"
-              size={34}
-              strokeWidth={2.4}
+            <Image
+              accessible
+              accessibilityLabel="35mm"
+              accessibilityRole="image"
+              source={require("../../../../assets/launch/launch-wordmark.png")}
+              resizeMode="contain"
+              style={{
+                width: 112,
+                height: 42,
+                tintColor: c.ink,
+                alignSelf: "center",
+                marginTop: 4,
+                marginBottom: 16,
+              }}
             />
-          </View>
-          <AppText role="wordmark" style={styles.heroWordmark}>
-            35mm
-          </AppText>
-        </ImageBackground>
-
-        <View style={styles.copy}>
-          <AppText accessibilityRole="header" align="center" role="display">
-            {"Your life,\nin film."}
-          </AppText>
-          <AppText
-            align="center"
-            color="textSecondary"
-            role="bodyLarge"
-            style={styles.subtitle}
-          >
-            Track what you watch, share your take, and discover what moves you
-            next.
-          </AppText>
-        </View>
-
-        <View style={styles.actions}>
-          <Button
-            accessibilityHint="Create your 35mm account"
-            fullWidth
-            label="Start your journey"
-            onPress={() => router.push("/signup/name")}
-            size="large"
-            testID="welcome-start"
-          />
-          <View style={styles.loginRow}>
-            <AppText color="textSecondary" role="metadata">
-              Already have an account?
-            </AppText>
-            <Pressable
-              accessibilityHint="Open 35mm account login"
-              accessibilityRole="link"
-              hitSlop={8}
-              onPress={() => router.push("/login")}
-              style={styles.inlineLink}
-              testID="welcome-login"
+            <View
+              style={{
+                flex: scroll ? undefined : 1,
+                height: scroll ? 220 : undefined,
+                minHeight: 100,
+              }}
             >
-              <AppText role="authorName">Log in</AppText>
-            </Pressable>
-          </View>
-          <View style={styles.legal}>
-            <AppText align="center" color="textTertiary" role="metadata">
-              By continuing, you agree to 35mm’s
-            </AppText>
-            <View style={styles.legalLinks}>
-              <Pressable
-                accessibilityHint="Opens the 35mm Terms of Service"
-                accessibilityRole="link"
-                onPress={() => openLegal(TERMS_URL)}
-                style={styles.legalTarget}
-                testID="welcome-terms"
+              <WelcomePosterWall />
+            </View>
+            <View
+              style={{
+                gap: 8,
+                paddingHorizontal: 24,
+                paddingTop: 8,
+                paddingBottom: 24,
+              }}
+            >
+              <AppText
+                accessibilityRole="header"
+                align="center"
+                role="screenTitle"
+                style={{ fontStyle: "italic" }}
               >
-                <AppText role="metadata" style={styles.legalLabel}>
-                  Terms of Service
-                </AppText>
-              </Pressable>
-              <AppText color="textTertiary" role="metadata">
-                and
+                Your cinema. Your people.
               </AppText>
-              <Pressable
-                accessibilityHint="Opens the 35mm Privacy Policy"
-                accessibilityRole="link"
-                onPress={() => openLegal(PRIVACY_URL)}
-                style={styles.legalTarget}
-                testID="welcome-privacy"
-              >
-                <AppText role="metadata" style={styles.legalLabel}>
+              <AppText align="center" color="textSecondary">
+                The social network for all things cinema.
+              </AppText>
+            </View>
+            <View style={{ gap: 10, paddingHorizontal: 24 }}>
+              {(["Sign up", "Log in"] as const).map((label, index) => (
+                <Pressable
+                  key={label}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  accessibilityHint={
+                    index === 0
+                      ? "Create your 35mm account"
+                      : "Sign in to an existing 35mm account"
+                  }
+                  testID={index === 0 ? "welcome-start" : "welcome-login"}
+                  onPress={() =>
+                    router.push(index === 0 ? "/signup/name" : "/login")
+                  }
+                  style={({ pressed }) => ({
+                    minHeight: 56,
+                    borderRadius: 999,
+                    paddingVertical: 17,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: index === 0 ? c.ink : c.field,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <AppText
+                    style={{
+                      color: index === 0 ? c.paper : c.ink,
+                      fontSize: 17,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {label}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+            <View
+              style={{
+                paddingHorizontal: 32,
+                paddingTop: 14,
+                paddingBottom: 4,
+              }}
+            >
+              <AppText align="center" role="metadata" color="textSecondary">
+                By continuing, you agree to our{" "}
+                <AppText
+                  role="metadata"
+                  accessibilityRole="link"
+                  testID="welcome-terms"
+                  onPress={() => openLegal("https://35mm.in/terms")}
+                  style={{ textDecorationLine: "underline" }}
+                >
+                  Terms of Service
+                </AppText>{" "}
+                and acknowledge our{" "}
+                <AppText
+                  role="metadata"
+                  accessibilityRole="link"
+                  testID="welcome-privacy"
+                  onPress={() => openLegal("https://35mm.in/privacy")}
+                  style={{ textDecorationLine: "underline" }}
+                >
                   Privacy Policy
                 </AppText>
-              </Pressable>
-            </View>
-            {legalError ? (
-              <AppText
-                accessibilityLiveRegion="assertive"
-                align="center"
-                color="destructive"
-                role="metadata"
-                testID="welcome-legal-error"
-              >
-                {legalError}
+                .
               </AppText>
-            ) : null}
+              {legalError ? (
+                <AppText
+                  accessibilityLiveRegion="assertive"
+                  align="center"
+                  color="destructive"
+                  role="metadata"
+                  testID="welcome-legal-error"
+                >
+                  {legalError}
+                </AppText>
+              ) : null}
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    gap: 2,
-    paddingBottom: 12,
-    paddingHorizontal: 24,
-  },
-  copy: {
-    alignItems: "center",
-    gap: 14,
-    paddingBottom: 26,
-    paddingHorizontal: 28,
-    paddingTop: 4,
-  },
-  hero: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-  },
-  heroImage: {
-    backgroundColor: "#C2473A",
-  },
-  heroMark: {
-    alignItems: "center",
-    borderRadius: 22,
-    borderWidth: 1,
-    height: 76,
-    justifyContent: "center",
-    width: 76,
-  },
-  heroWordmark: {
-    color: "#FFFFFF",
-    marginTop: 12,
-  },
-  inlineLink: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  legal: {
-    alignItems: "center",
-    marginTop: 2,
-  },
-  legalLabel: {
-    textDecorationLine: "underline",
-  },
-  legalLinks: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 5,
-    justifyContent: "center",
-  },
-  legalTarget: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  loginRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  screen: {
-    backgroundColor: "#FFFFFF",
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  subtitle: {
-    maxWidth: 340,
-  },
-});

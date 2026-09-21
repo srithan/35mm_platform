@@ -48,6 +48,7 @@ describe("mobile Login", () => {
           isReady
           onBack={jest.fn()}
           onCreateAccount={jest.fn()}
+          onForgotPassword={jest.fn()}
           onResend={jest.fn()}
           onSignIn={onSignIn}
           onVerify={jest.fn()}
@@ -82,6 +83,7 @@ describe("mobile Login", () => {
           now={() => 1_000}
           onBack={jest.fn()}
           onCreateAccount={jest.fn()}
+          onForgotPassword={jest.fn()}
           onResend={jest.fn()}
           onSignIn={jest.fn().mockResolvedValue({
             status: "needs_verification",

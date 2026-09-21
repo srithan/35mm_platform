@@ -136,6 +136,46 @@ function assertGeneratedConfig(projectRoot, expected) {
   const infoPlistFile = findInfoPlist(resolve(projectRoot, "ios"));
   assert.ok(infoPlistFile, "Generated iOS Info.plist is missing.");
   const infoPlist = readFileSync(infoPlistFile, "utf8");
+  const splashAssets = resolve(infoPlistFile, "..", "Images.xcassets");
+  const splashColors = JSON.parse(
+    readFileSync(
+      resolve(splashAssets, "SplashScreenBackground.colorset/Contents.json"),
+      "utf8",
+    ),
+  ).colors;
+  const darkColor = splashColors.find((entry) =>
+    entry.appearances?.some((appearance) => appearance.value === "dark"),
+  );
+  assert.ok(darkColor, "Native iOS splash requires a dark appearance.");
+  for (const channel of ["red", "green", "blue"]) {
+    assert.equal(
+      Number(darkColor.color.components[channel]),
+      0,
+      "Dark splash must be black.",
+    );
+  }
+  const splashImages = JSON.parse(
+    readFileSync(
+      resolve(splashAssets, "SplashScreenLogo.imageset/Contents.json"),
+      "utf8",
+    ),
+  ).images;
+  assert.ok(
+    splashImages.some(
+      (entry) =>
+        entry.appearances?.some((appearance) => appearance.value === "dark") &&
+        entry.filename.startsWith("dark_"),
+    ),
+    "Native iOS splash requires its dark wordmark.",
+  );
+  assert.match(
+    readFileSync(
+      resolve(projectRoot, "android/app/src/main/res/values-night/colors.xml"),
+      "utf8",
+    ),
+    /<color name="splashscreen_background">#000000<\/color>/i,
+  );
+
   const appDelegateFile = findAppDelegate(resolve(projectRoot, "ios"));
   assert.ok(appDelegateFile, "Generated iOS AppDelegate.swift is missing.");
   const appDelegate = readFileSync(appDelegateFile, "utf8");
@@ -209,14 +249,7 @@ try {
 
     const result = spawnSync(
       process.execPath,
-      [
-        expoCliPath,
-        "prebuild",
-        "--clean",
-        "--no-install",
-        "--platform",
-        "all",
-      ],
+      [expoCliPath, "prebuild", "--clean", "--no-install", "--platform", "all"],
       {
         cwd: projectRoot,
         encoding: "utf8",

@@ -1,11 +1,11 @@
+import { LoadingState } from "@35mm/mobile-ui";
 import {
   AppText,
   Button,
   InlineNotice,
-  LoadingState,
   Screen,
   TextField,
-} from "@35mm/mobile-ui";
+} from "../components/controls";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -60,15 +60,12 @@ export function SignupVerifyScreen({
   now = Date.now,
 }: SignupVerifyScreenProps) {
   const email = useSignupDraftStore((state) => state.email);
-  const sentAt = useSignupDraftStore(
-    (state) => state.emailVerificationSentAt,
-  );
+  const sentAt = useSignupDraftStore((state) => state.emailVerificationSentAt);
   const hasHydrated = useSignupDraftStore((state) => state.hasHydrated);
   const [code, setCode] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [isChangingEmail, setIsChangingEmail] = useState(false);
-  const [activeAction, setActiveAction] =
-    useState<VerificationAction>(null);
+  const [activeAction, setActiveAction] = useState<VerificationAction>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [clock, setClock] = useState(() => now());
@@ -178,7 +175,7 @@ export function SignupVerifyScreen({
         headline={"Finishing your\naccount"}
         onBack={onBack}
         showBack={false}
-        step={5}
+        step={6}
         stepName="Email verification"
         subtitle="Your email is verified. We’re securely completing your 35mm profile."
         testID="signup-verify-screen"
@@ -215,9 +212,9 @@ export function SignupVerifyScreen({
 
   return (
     <SignupStepScaffold
-      headline={"Check your\ninbox"}
+      headline="Enter the confirmation code."
       onBack={onBack}
-      step={5}
+      step={6}
       stepName="Email verification"
       subtitle={`Enter the six-digit code sent to ${email}.`}
       testID="signup-verify-screen"
@@ -243,9 +240,7 @@ export function SignupVerifyScreen({
         textContentType="oneTimeCode"
         value={code}
         {...(formError ? { errorMessage: formError } : {})}
-        {...(formError
-          ? {}
-          : { message: "Paste or type all six digits." })}
+        {...(formError ? {} : { message: "Paste or type all six digits." })}
       />
 
       {notice ? (
@@ -306,6 +301,7 @@ export function SignupVerifyScreen({
         <View style={styles.changeEmail}>
           <AppText role="rowLabelCompact">Use a different email</AppText>
           <TextField
+            autoFocus
             autoCapitalize="none"
             autoComplete="email"
             autoCorrect={false}

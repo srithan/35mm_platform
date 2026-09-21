@@ -40,6 +40,7 @@ export default function LoginRoute() {
       isReady={isReady}
       onBack={() => router.back()}
       onCreateAccount={() => router.replace("/signup/name")}
+      onForgotPassword={() => router.push("./password/forgot")}
       onResend={async () => {
         if (!signIn) throw new Error("Clerk sign-in is unavailable");
         await resendLoginEmailCode(signIn);

@@ -60,18 +60,16 @@ describe("WelcomeScreen", () => {
 
     expect(view.getByTestId("welcome-screen")).toBeOnTheScreen();
     expect(
-      view.getByRole("header", { name: "Your life, in film." }),
+      view.getByRole("header", { name: "Your cinema. Your people." }),
     ).toBeOnTheScreen();
     expect(
-      view.getByText("35mm", { includeHiddenElements: true }),
+      view.getByRole("image", { name: "35mm" }),
     ).toBeOnTheScreen();
     expect(view.getByTestId("welcome-hero", {
       includeHiddenElements: true,
     })).toHaveProp("accessible", false);
-    expect(
-      view.getByRole("button", { name: "Start your journey" }),
-    ).toBeOnTheScreen();
-    expect(view.getByRole("link", { name: "Log in" })).toBeOnTheScreen();
+    expect(view.getByRole("button", { name: "Sign up" })).toBeOnTheScreen();
+    expect(view.getByRole("button", { name: "Log in" })).toBeOnTheScreen();
     expect(view.getByRole("link", { name: "Terms of Service" })).toBeOnTheScreen();
     expect(view.getByRole("link", { name: "Privacy Policy" })).toBeOnTheScreen();
   });

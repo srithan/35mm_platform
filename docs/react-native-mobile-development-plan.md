@@ -2,10 +2,10 @@
 
 > Canonical plan, progress ledger, and continuation contract for the shared iOS and Android app.
 >
-> Last updated: 2026-09-19
-> Document status: Phase 2 remains active; the user-prioritized Phase 4 feed slice now renders inside the shared five-tab authenticated shell, and the Notifications, Bookmarks, Lists, Watchlist, Profile, and Edit Profile destinations have production-backed cursor/mutation slices; physical Android evidence remains deferred by user
+> Last updated: 2026-09-21
+> Document status: React Native now mirrors retained SwiftUI splash/welcome/auth presentation with device appearance, local animated posters, compact system-font forms, toolbar progress, and a shared DOB wheel sheet; mobile Clerk recovery is preserved.
 > Current phase: Phase 2 — Launch, Welcome, and account lifecycle
-> Next unblocked task: Implement forgot-password, reset-code, new-password, and completion flows
+> Next unblocked task: Auth process-death, offline, throttling, expiry, accessibility, and visual tests
 
 ## 1. Document contract
 
@@ -293,6 +293,7 @@ src/app/
 │   ├── welcome.tsx
 │   ├── signup/
 │   │   ├── name.tsx
+│   │   ├── username.tsx
 │   │   ├── email.tsx
 │   │   ├── password.tsx
 │   │   ├── dob.tsx
@@ -367,9 +368,9 @@ Primary references:
 
 Required content:
 
-- Locally bundled cinematic hero artwork.
+- Nine locally bundled movie posters in three staggered, repeating columns with adaptive fades; shared animation pauses when backgrounded and under Reduce Motion.
 - 35mm wordmark and concise value proposition.
-- Primary “Start your journey” action.
+- Primary “Sign up” action.
 - Secondary “Log in” action.
 - Terms and privacy links near account creation.
 - No authenticated API reads or remote artwork before action.
@@ -381,31 +382,32 @@ Signup collects the requested fields as discrete, resumable visual steps:
 
 1. **Name**
    - Full/display name.
-   - Username in the same step because 35mm identity requires it and current Clerk/API bootstrap expects it.
+2. **Username**
+   - Username as its own requested field.
    - Debounced username availability check with stale-response protection.
    - Availability failure must not silently report “available.”
-2. **Email**
+3. **Email**
    - Email normalization and Clerk-supported validation.
    - Correct keyboard, autofill, return key, and error announcement.
-3. **Password**
-   - Password and confirmation.
+4. **Password**
+   - One password field.
    - Visibility controls with accessible state labels.
    - Clerk password requirements surfaced before submission where available.
    - Password must never be written to AsyncStorage, logs, analytics, crash breadcrumbs, or the progress ledger.
-4. **Date of birth**
+5. **Date of birth**
    - Locale-friendly date input presented identically across platforms through a shared 35mm surface.
    - Persist canonical `YYYY-MM-DD` only after verification/authentication through the protected profile API.
    - Reject impossible and future dates on both client and server.
    - Final minimum-age behavior remains release-blocked until approved; server is authoritative.
    - DOB remains private and must never appear on public profile payloads.
-5. **Email verification completion**
+6. **Email verification completion**
    - Six-digit code, resend cooldown, change-email path, paste support, and expired-code recovery.
    - Verification is part of signup completion even though it is not a profile-data step.
 
 Implementation notes:
 
 - Current web signup is one page and does not capture DOB.
-- Current SwiftUI signup has identity, credentials, and verification steps but does not capture DOB.
+- Current SwiftUI and React Native signup use discrete name, username, email, password, DOB, and verification steps with top-aligned content. Signup form screens intentionally do not use the cinematic poster hero.
 - Current profile API supports `dateOfBirth`, validates date format, and returns it only to the owner; it does not enforce age policy.
 - Signup must retain non-secret draft fields through navigation and ordinary process recreation. Password fields remain memory-only and must be re-entered after process death.
 - After email verification: activate Clerk session, bootstrap `/v1/me`, persist DOB through authorized `PATCH /v1/profiles/me`, confirm onboarding status, then route to onboarding.
@@ -568,7 +570,7 @@ Canonical side drawer:
 
 | Domain | Planned mobile scope | Primary references | Backend readiness | Phase |
 |---|---|---|---|---:|
-| Auth | Launch, root bootstrap, Welcome, verified signup, password Login, session activation, and email-code challenge handling complete; forgot/reset and social sign-in remain | Web auth + SwiftUI Intro/Auth | Clerk and secure DOB completion bridge wired | 2 |
+| Auth | React Native now mirrors retained SwiftUI splash, animated poster Welcome, adaptive auth forms, toolbar progress, and DOB sheet (2026-09-21). Launch, root bootstrap, Welcome, verified signup, password Login, session activation, email-code challenge handling, and forgot/reset password email-code flow complete; social sign-in and broader resilience/visual evidence remain | Web auth + SwiftUI Intro/Auth | Clerk and secure DOB completion bridge wired | 2 |
 | Onboarding | Role, films, genres, people | Web complete flow + SwiftUI coordinator | Wired | 3 |
 | Shell | Header, five tabs, drawer, deep links | Mobile web shell + SwiftUI shell | Client-only | 4 |
 | Feed | Home feed, refresh, cursor paging, repost proof, quotes, polls, media/link cards | Web feed + SwiftUI Feed | Wired | 4 |
@@ -897,16 +899,16 @@ Exit criterion: themed component gallery and bootstrap shell render identically,
 
 ### Phase 2 — Launch, Welcome, and account lifecycle
 
-- [x] OS launch screens and in-app handoff.
+- [x] OS launch screens and in-app handoff. Retained SwiftUI native launch storyboard and wordmark variants now support device light/dark appearance, verified before SwiftUI starts on simulator (2026-09-21).
 - [x] Root auth/bootstrap state machine with retry/sign-out recovery.
-- [x] Welcome screen.
+- [x] Welcome screen. React Native now ports retained SwiftUI device light/dark appearance, seamless poster motion, bare top wordmark, black CTA, and cinema social-network copy (2026-09-21).
 - [x] Signup Name/username step.
 - [x] Signup Email step.
 - [x] Signup Password step.
 - [x] Signup DOB step and secure post-verification persistence.
 - [x] Email verification/resend/change-email flow.
 - [x] Login and Clerk session-task/MFA handling.
-- [ ] Forgot password, reset code, new password, and completion flows.
+- [x] Forgot password, reset code, new password, and completion flows.
 - [ ] Auth process-death, offline, throttling, expiry, accessibility, and visual tests.
 - [x] Cross-layer DOB validation/privacy tests and documented release-age-policy blocker.
 
@@ -1035,16 +1037,16 @@ A slice is not complete until:
 | Product direction | Complete |
 | Canonical plan | Complete |
 | Agent auto-discovery contract | Complete |
-| `apps/mobile` workspace | Phase 2 active: Expo SDK 57 foundation, auth/bootstrap, Welcome, verified signup, and password Login are implemented. Authenticated onboarded users now reach a shared five-tab shell with production cursor-paged mixed-post Home feed, video composer, post-detail/comment reader, Notifications list/read controls, Bookmarks folders/move/remove/search, public Lists discovery, Watchlist entry reading, Chat inbox/thread/message core, Profile header/tabs/connections/stats/social actions, dedicated Edit Profile route with avatar/cover upload, drawer navigation, and explicit gated destinations for Discover, Diary, Settings, Help, 70mm, and Drafts |
+| `apps/mobile` workspace | Phase 2 active: Expo SDK 57 foundation, auth/bootstrap, Welcome, verified signup, password Login, and Clerk-backed password reset are implemented. Authenticated onboarded users now reach a shared five-tab shell with production cursor-paged mixed-post Home feed, video composer, post-detail/comment reader, Notifications list/read controls, Bookmarks folders/move/remove/search, public Lists discovery, Watchlist entry reading, Chat inbox/thread/message core, Profile header/tabs/connections/stats/social actions, dedicated Edit Profile route with avatar/cover upload, drawer navigation, and explicit gated destinations for Discover, Diary, Settings, Help, 70mm, and Drafts |
 | Mobile unit/integration tests | Jest/`jest-expo` and React Native Testing Library wired; discovery is bounded to `src`, and 132 mobile cases cover Login/session challenges, native rich-text rendering, PostCard surface/action/comment entry, UUID post-detail routing, cursor comment contracts/tree bounds, notification contracts/read controls, bookmark folder/page contracts and filter/remove behavior, list/watchlist contracts and screen tabs, profile contracts/tabs/actions/edit-save guards, signed video contract rejection, plus bounded and resumed TUS transfer; 29 token invariants and 6 API-client cases run in package checks |
 | Shared mobile design system | Token/theme foundation, `packages/mobile-ui`, local font loading, safe-area/theme/toast provider composition, and persisted theme preference are complete |
 | Native quality harnesses | Deterministic internal gallery, Maestro smoke/screenshot flows, fixed iOS/Android visual profiles, fail-closed PNG comparison, and measured release-performance result validation are wired; the development-client Maestro smoke flow passes on the Pixel 6/API 36 emulator. Device syslog and LLDB corrected the iOS black-screen diagnosis to a stripped generated Expo module provider, then exposed an empty Expo Constants bundle caused by an upstream unquoted path. The corrected Release binary retains the provider, embeds valid Expo config, visibly renders the gallery on the connected iPhone 13 Pro, remains alive, and emits none of the prior fatal signatures. Maestro 2.7.0 does not support local physical-iOS execution. Reviewed fixed-profile baselines and release-performance evidence remain unclaimed |
-| Auth/onboarding implementation | Phase 2 active: launch handoff, root Clerk/API/onboarding bootstrap with retry/sign-out recovery, signed-out Welcome, signup completion, and password Login with Clerk session activation plus safe email-code challenge handling are complete; password recovery, social sign-in, and onboarding screens remain |
+| Auth/onboarding implementation | Phase 2 active: launch handoff, root Clerk/API/onboarding bootstrap with retry/sign-out recovery, signed-out Welcome, signup completion, password Login with Clerk session activation plus safe email-code challenge handling, and password recovery are complete; social sign-in and onboarding screens remain |
 | Authenticated feature implementation | User-prioritized Phase 4 feed slice implemented inside a shared authenticated shell: real cursor feed, recycler virtualization, native rendering for text/rich text, image/video, film, link, poll, quote, and tombstone payloads; full-card navigation; More action sheets; comment counts; a UUID-validated post-detail route; and cursor-paged three-level comment reading. Video playback/composer, optimistic like/repost/bookmark, share, and owner soft-delete remain wired. Notifications now has cursor pages, All/Unread filters, row thumbnails/previews, optimistic mark read/unread, mark-all-read, refresh, pagination, and empty/offline/error states. Bookmarks now has All/Unsorted/folder cursor pages, denormalized folder counts, create/rename/delete folder controls, move/remove, bounded loaded-page search, optimistic rollback, refresh, pagination, and empty/offline/error states. Lists now has public popular/recent cursor discovery and authenticated watchlist entry reading over existing list contracts. Profile now has production detail, Posts/Reposts/Diary/Lists/Stats tabs, followers/following pages, share/follow/mute/block/report actions, media preview, and a standalone Edit Profile route with profile-field, username, avatar, and cover updates. Complete feature parity for Discover/list writes/title watchlist actions/Settings, notification follow requests/realtime/deep links, comment writes/likes, poll voting, visual/E2E, and performance/device evidence remain |
 | Native builds | Native config, iOS/Android Hermes bundles, and isolated two-variant CNG output at Android API 24/36 and iOS 17.0 verified. Development omits Sign in with Apple for Personal Team provisioning and disables recent-bundle auto-launch; preview retains Apple Sign-In. CocoaPods, JDK 17, Android Studio/SDK/ADB/emulator, Maestro, and EAS CLI are installed; a Pixel 6/API 36 AVD exists; the Android development debug binary builds, installs, bundles through Metro, and passes Maestro smoke. The `com.thirtyfivemm.mobile.dev` Release app now embeds Hermes plus valid Expo Constants config, retains the generated Expo provider, passes strict signing checks, installs, launches, visibly renders, and survives sustained checks on the connected iPhone 13 Pro. The root supplies an explicit loading surface during Clerk, query-scope, or font bootstrap and does not block routes on theme hydration. Repository paths containing spaces are protected by the retained Podfile/plugin and dependency patches. No physical Android device is available. EAS is optional while local builds are used |
 | Store/release configuration | Internal development/preview EAS profiles configured; production identity/signing remain blocked |
 
-Current next task is **Phase 2: implement forgot-password, reset-code, new-password, and completion flows**. Password Login now has a real Expo Router route, privacy-safe Clerk credential errors, duplicate-submit protection, created-session validation/activation, and forward-compatible email-code challenge verification/resend handling. Apple and Google remain enabled in Clerk but need separately configured native provider flows. Physical iOS is complete with visible-surface, process-survival, signature, embedded-bundle/config, and clean startup-log evidence. The user explicitly deferred unavailable physical Android hardware on 2026-07-23 and reiterated that instruction on 2026-07-24 so Phase 2 implementation can proceed; signed Android hardware evidence remains mandatory before public release and is not claimed.
+Current next task is **Phase 2: auth process-death, offline, throttling, expiry, accessibility, and visual tests**. Password Login now has a real Expo Router route, privacy-safe Clerk credential errors, duplicate-submit protection, created-session validation/activation, and forward-compatible email-code challenge verification/resend handling. Password recovery now has real `/password/forgot`, `/password/verify`, `/password/reset`, and `/password/complete` routes over Clerk's enabled `reset_password_email_code` first factor. Apple and Google remain enabled in Clerk but need separately configured native provider flows. Physical iOS is complete with visible-surface, process-survival, signature, embedded-bundle/config, and clean startup-log evidence. The user explicitly deferred unavailable physical Android hardware on 2026-07-23 and reiterated that instruction on 2026-07-24 so Phase 2 implementation can proceed; signed Android hardware evidence remains mandatory before public release and is not claimed.
 
 ## 24. Decision log
 
@@ -1230,6 +1232,14 @@ Decision: Promote Lists from a gated drawer destination to a production-backed p
 
 Decision: Promote Profile from a bootstrap-only shell summary to a production-backed Phase 5 surface. React Native uses the existing profile detail, profile feed, profile list, profile stats, followers/following, follow, mute, block, moderation report, profile update, username update, and media presign contracts. Edit Profile is a dedicated route instead of a modal so navigation, discard confirmation, photo permissions, direct R2 upload, explicit-null clearing, and username-change completion remain isolated from the profile pager. Follow-request approval remains with the future follow-request management slice, not the profile page.
 
+### 2026-09-20 — Phase 2 password recovery boundary
+
+Decision: Implement React Native password recovery as four thin Expo Router routes under `(auth)/password` backed by Clerk's enabled `reset_password_email_code` first factor. Email address may travel through route params as non-secret recovery context; reset codes and new passwords stay component-memory-only. Completion routes either activate the Clerk session when Clerk returns a session ID or send the user back to Login when no session is returned. No 35mm API route, database schema, cache, worker job, rate limiter, or index changes are required because Clerk owns reset issuance, abuse controls, expiry, and password validation.
+
+### 2026-09-20 — Retained SwiftUI poster welcome
+
+Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine bundled posters from the existing curated web landing selection, rounded staggered columns, white fade, 35mm badge, welcome heading, red/gray account actions, and existing fixed legal URLs. Keep standard welcome geometry non-scrollable; allow scrolling for enlarged text and compact landscape so controls remain reachable. This replaces the earlier abstract SwiftUI welcome hero. React Native parity is not claimed or changed by this explicitly iOS-scoped request.
+
 ## 25. Blocker log
 
 | Blocker | Required resolution | Blocks |
@@ -1249,6 +1259,28 @@ Decision: Promote Profile from a bootstrap-only shell summary to a production-ba
 | Existing Studio Zod resolver mismatch | Align `apps/studio` React Hook Form resolver and the workspace Zod major version in `FilmForm.tsx` | Repository-wide `pnpm lint`; mobile and all non-Studio typecheck gates pass |
 
 ## 26. Work log
+
+### 2026-09-20 — Retained SwiftUI login label cleanup
+
+- Updated the retained SwiftUI Login form to remove the "Welcome back" headline/subtitle and show large explicit `Email or username` and `Password` labels above their fields, matching the provided native reference more closely. The visible screen title and primary action now use `Log in`.
+- Reduced those retained SwiftUI Login labels from headline-sized text to compact semibold field labels after simulator review showed the first pass was visually too heavy.
+- Architecture/scale: local presentation-only change in `apps/ios`; no API route, DB/Redis/cache/queue/worker behavior, schema, server mutation, production read/write volume, UGC lifecycle, pagination path, rate-limit path, or database index changed at 1M+ DAU. Current Phase 2 status and next task remain unchanged.
+- Verification passed: `git diff --check`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMLoginLabelsDerivedData -skipPackagePluginValidation -skipMacroValidation build`. First sandboxed build attempt could not resolve GitHub-hosted Swift packages; rerun with approved network access succeeded.
+
+### 2026-09-20 — Retained SwiftUI and React Native auth refresh
+
+- Updated the retained SwiftUI app auth reference: RootView now shows a local wordmark splash during Clerk/API bootstrap, Intro exposes explicit Sign up and Log in buttons, Login accepts username or email, Signup separates identity, login details, private DOB, and verification, login/signup form screens no longer use the old poster hero, and DOB is persisted through the existing owner-only profile update bridge after Clerk session activation.
+- Updated the React Native Welcome screen to present explicit full-width Sign up and Log in actions over the existing bundled cinematic hero. Existing React Native auth routes already own signup name/email/password/DOB/verify, login username-or-email plus password, email-code challenge handling, and Clerk-backed password recovery.
+- Architecture/scale: follows existing Clerk authority, React Native splash/bootstrap surface, owner-only profile mutation, and debounced public username-availability patterns. No new 35mm API route, DB schema, Redis/cache, queue/worker path, migration, or index was added. At 1M+ DAU, the new welcome/splash work is local UI; DOB persistence uses the existing rate-limited single-row profile update and username checks remain bounded user-initiated reads.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand --forceExit apps/mobile/src/test/welcome-screen.test.tsx apps/mobile/src/test/login.test.tsx apps/mobile/src/test/password-reset.test.tsx`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMAuthDerivedData -skipPackagePluginValidation -skipMacroValidation build`. Xcode emitted local CoreSimulator/CoreDevice version warnings but the build succeeded. Visual-diff and physical-device evidence were not rerun for this UI-only auth slice.
+
+### 2026-09-20 — Phase 2 password recovery flow
+
+- Added `features/auth/password` with Clerk reset helpers, fixed-light forgot-code-new-password-complete screens, resend cooldown, privacy-safe errors, numeric code sanitization, password confirmation/requirements, and completion routing. Login now links to password recovery.
+- Added Expo Router entries for `/password/forgot`, `/password/verify`, `/password/reset`, and `/password/complete`. The flow uses Clerk's environment-confirmed `reset_password_email_code` first factor; passwords and reset codes remain memory-only, while email/safe target context is non-secret route state.
+- Added focused tests for email normalization, six-digit code handling, password match gating, reset-code start/resend helpers, code verification, and new-password completion. Retained `apps/ios` and generated native trees were not modified.
+- Architecture/scale: follows the existing Clerk-as-auth-authority pattern and adds no 35mm API route, DB/Redis/cache/queue/worker operation, schema, migration, native dependency/configuration, UGC surface, pagination path, or index. At 1M+ DAU, reset traffic scales with user-initiated Clerk auth attempts and does not touch 35mm hot read/write paths.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand --forceExit apps/mobile/src/test/password-reset.test.tsx apps/mobile/src/test/login.test.tsx`; `git diff --check`. The first focused Jest run passed 10/10 and showed the existing lingering async handle; the final focused run used `--forceExit` and exited cleanly after the pass summary. Full `mobile:check`, native generation, physical device, visual-diff, and performance evidence were not rerun for this JavaScript-only auth slice.
 
 ### 2026-09-13 — React Native authenticated shell map
 
@@ -1641,3 +1673,109 @@ Decision: Promote Profile from a bootstrap-only shell summary to a production-ba
 - Made the mobile CI Jest command force-exit after the pass summary so `mobile:check` remains deterministic despite the known React 19/TanStack Query/Clerk test-environment handles; local `pnpm --filter @35mm/mobile test` remains non-force-exit for leak investigation.
 - This resolves the recorded native-policy blocker without changing React Native app identifiers, API routes, DB/Redis/cache/queue/worker behavior, schema, server mutation, production read/write volume, or database indexes at 1M+ DAU.
 - Verification: `pnpm mobile:check` now proceeds past the protected SwiftUI identity guard.
+
+### 2026-09-20 — Prompt-first one-field auth steps
+
+- Corrected the retained SwiftUI and React Native signup flows to follow the provided Spotify/Pinterest/Instagram references more directly: signup form content is top-aligned, form steps no longer render the prior cinematic hero, and each visual step requests one piece of information.
+- React Native signup now routes through `/signup/name`, `/signup/username`, `/signup/email`, `/signup/password`, `/signup/dob`, and `/signup/verify` with accessible six-step progress. Name and username are split; username keeps the debounced availability read and retry state; password is one memory-only field with an 8-character minimum and Clerk remains authoritative for stronger instance policy at account creation.
+- Retained SwiftUI signup now mirrors the same discrete step order: name, username, email, password, DOB, and verification. Login and signup use top-aligned prompt-first fields with no poster hero; welcome retains the local cinematic entry artwork. The iOS auth form screens now use plain white backgrounds, black/gray fields, and standard SF system typography instead of the earlier beige/brown palette and rounded/serif display styling.
+- Retained SwiftUI signup now removes the "Create account" navigation header text and places the animated stepper dots in the toolbar principal slot, with an accessibility progress value for the active step.
+- Retained SwiftUI auth fields now remove leading in-field SF Symbol icons across login and signup text/date/code inputs; the password reveal control remains because it is an explicit field action, not decorative leading chrome.
+- Retained SwiftUI auth screens now use fixed, non-scrollable layouts for Intro, Login, and Signup; signup text/code fields autofocus per active step. Signup email validation now runs on the Email step before navigation so invalid email errors stay on that screen. DOB now uses a full-width formatted date control with a bottom wheel picker and Done action, matching the Spotify reference interaction more closely.
+- Retained SwiftUI Welcome now keeps Sign up and Log in inside the measured fixed screen instead of a bottom safe-area inset after a full-height body. The hero height is reduced and flexible spacing keeps both actions visible on tall and narrow iPhone screens while preserving the no-scroll auth rule, and a full-screen paper background covers the bottom safe-area strip so no black bar can show through.
+- Architecture pattern: feature-owned auth state, bounded non-secret draft persistence, React Query server state for username availability, and existing Clerk/profile completion paths. No API route, DB schema, Redis/cache/queue/worker behavior, server mutation beyond existing signup completion, UGC lifecycle, pagination path, or database index changed. At 1M+ DAU, backend volume is unchanged except that username availability remains the same debounce/cancel bounded indexed point-read path.
+- Verification passed: `pnpm --filter @35mm/mobile typecheck`; `pnpm --filter @35mm/mobile lint`; `pnpm --filter @35mm/mobile test -- --runInBand --forceExit apps/mobile/src/test/signup-name.test.tsx apps/mobile/src/test/signup-username.test.tsx apps/mobile/src/test/signup-email.test.tsx apps/mobile/src/test/signup-password.test.tsx apps/mobile/src/test/signup-dob.test.tsx apps/mobile/src/test/signup-verify.test.tsx`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMAuthDerivedData -skipPackagePluginValidation -skipMacroValidation build`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMSignupHeaderDerivedData -skipPackagePluginValidation -skipMacroValidation build`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMWelcomeFixDerivedData -skipPackagePluginValidation -skipMacroValidation build`; and `git diff --check`.
+
+### 2026-09-20 — Retained SwiftUI poster-grid welcome
+
+- Replaced abstract welcome artwork with nine bundled 342-pixel movie posters in three rounded, staggered columns with a white fade. Added the existing 35mm wordmark in an accent badge, centered welcome heading, red Sign up and gray Log in capsules, and fixed Terms/Privacy links; existing auth destinations remain intact.
+- Decorative artwork is hidden from VoiceOver and has no animation or runtime network dependency. Standard screens remain fixed; enlarged text and compact landscape can scroll. Asset provenance is retained alongside resources.
+- Architecture pattern: bounded local presentation over existing Clerk navigation. At 1M+ DAU, added backend reads/writes are zero; nine decoded poster assets are fixed-size. No API, DB, cache, queue, worker, schema, index, mutation/rate-limit, pagination, or UGC lifecycle changes. Architecture and codebase knowledge updated; chat and Mermaid topology are unaffected.
+- Phase 2 and next task (auth resilience/accessibility/visual tests) remain unchanged; no new release blocker. React Native source remains unchanged by this slice.
+- Verification passed: simulator Debug `xcodebuild` for `ThirtyFiveMM` (arm64 and x86_64), `git diff --check`, asset catalog compilation, and live welcome screenshot review on iPhone 17 Pro/iOS 26.5. Nine bundled JPEGs total 388 KiB on disk. No physical-device, VoiceOver, or full auth-flow test is claimed for this presentation-only slice.
+
+### 2026-09-21 — Animated retained SwiftUI welcome refinement
+
+- Replaced the accent logo badge with a bare top wordmark, made Sign up black, and changed welcome copy to “Your cinema. Your people.” with “The social network for all things cinema.” beneath. Flexible artwork consumes remaining screen height; legal copy ends four points above the bottom safe area, removing surplus bottom spacing.
+- Poster columns repeat the same local triplets at exact cycle boundaries at different speeds. A 30 Hz TimelineView owns only the decorative artwork, pauses while hidden/backgrounded, and shows static artwork under Reduce Motion. Repetition count follows viewport height; no timers, network reads, state persistence, or per-frame image requests are introduced.
+- Decision: this supersedes the 2026-09-20 static-grid/badge/red-CTA design for the explicitly requested SwiftUI surface. Phase 2, next auth resilience/visual-test task, React Native feature state, and release blockers remain unchanged.
+- Architecture/scale: bounded local presentation; zero added backend reads/writes at 1M+ DAU. No API, schema, index, worker, cache, mutation, pagination, or UGC change. Architecture and codebase knowledge updated; chat and diagrams unaffected.
+- Verification passed: simulator Debug `xcodebuild` (arm64/x86_64), `git diff --check`, and iPhone 17 Pro simulator screenshot review across two frames showing poster movement with fixed branding/copy/actions. Physical-device performance, VoiceOver, and full auth-flow tests were not rerun.
+
+### 2026-09-21 — SwiftUI auth device appearance
+
+- Removed forced light welcome appearance and fixed auth colors. Welcome artwork fade, template wordmarks, forms, primary/secondary actions, progress, DOB sheet, splash, and session recovery now use semantic adaptive colors. Primary actions invert in dark mode to retain contrast.
+- Root uses automatic appearance while loading/signed out/in session recovery, restoring saved account theme for authenticated/onboarding states without mutating stored preferences. This supersedes the fixed-light SwiftUI decision; React Native is unchanged.
+- Phase 2, next auth resilience/accessibility/visual test task, and blockers remain unchanged. Local presentation only: zero new backend read/write volume at 1M+ DAU; no index, schema, API, cache, worker, mutation, or UGC changes. Architecture and codebase docs updated; chat/diagrams unaffected.
+- Verification passed: simulator Debug `xcodebuild` for both architectures and `git diff --check`. Welcome screenshots confirm dark appearance and live switching back to light without restart. Shared auth controls and DOB sheet were source-reviewed and compiled; full auth navigation, physical-device, and VoiceOver checks were not rerun.
+
+### 2026-09-21 — Welcome header fade
+
+- Added an adaptive top gradient over the scrolling SwiftUI poster wall so artwork blends into the bare logo header, matching the existing bottom transition. Fade height is capped at 100 points and 25% of the artwork viewport to preserve posters on compact screens; light/dark appearance uses the existing semantic background.
+- Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged. Presentation-only adjustment; no feature wiring, API, schema, index, backend volume, or architecture changes. Architecture/codebase knowledge and chat/diagram docs need no update for this gradient-only change.
+- Verification: simulator Debug `xcodebuild` succeeded; `git diff --check` passed. No new runtime tests added for this reversible gradient-only adjustment.
+
+### 2026-09-21 — SwiftUI login spacing and welcome typography
+
+- [x] Reduced retained SwiftUI login top padding from 48 to 16 points, field spacing from 28 to 20 points, and action-section spacing from 34 to 28 points. Visible input labels use semantic subheadline typography; identifier and password fields retain explicit placeholders alongside labels, including revealed password entry.
+- [x] Login/verification opts into a trailing action arrow; signup retains its existing button order. Welcome headline “Your cinema. Your people.” is italicized.
+- Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged. Decision: apply this requested presentation refinement to `apps/ios` only. React Native parity is not claimed.
+- Existing feature-owned SwiftUI presentation pattern; zero added backend reads/writes at 1M+ DAU. No schema, index, API, cache, worker, UGC, or feature-wiring change. Architecture/codebase knowledge and chat/diagram docs require no update for these spacing/typography adjustments.
+- Verification: simulator Debug `xcodebuild` for `ThirtyFiveMM` succeeded for arm64/x86_64 using `/private/tmp/ThirtyFiveMMWelcomeFixDerivedData`; `git diff --check` passed. Runtime screenshot, physical-device, and full auth-flow tests were not rerun. No new tests added for these reversible presentation changes.
+
+### 2026-09-21 — Consistent SwiftUI auth action order
+
+- [x] All shared SwiftUI auth action buttons now place the arrow after the label, including every signup step and login/verification. Removed the login-only ordering option; loading and disabled behavior remain unchanged.
+- [x] Login labels increase from semantic subheadline (15-point default) to semibold body (17-point default), retaining Dynamic Type. Placeholders now read “Your email or username” and “Your password”, including password reveal mode.
+- Decision: supersedes the preceding signup-leading-arrow choice. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged; React Native is unchanged.
+- Presentation-only refinement over existing feature-owned auth controls: zero new backend reads/writes at 1M+ DAU; no schema, index, API, cache, worker, UGC, or feature-wiring change. Architecture/codebase knowledge and chat/diagram docs require no update.
+- Verification: simulator Debug `xcodebuild` succeeded for arm64/x86_64; `git diff --check` passed. No new tests added for this reversible presentation adjustment; runtime visual and full auth-flow checks were not rerun.
+
+
+### 2026-09-21 — SwiftUI welcome return geometry
+
+- [x] Moved welcome viewport measurement outside `NavigationStack` and excluded keyboard avoidance from that measurement. Welcome uses that bounded viewport with explicit outer safe-area padding, so destination keyboard dismissal and navigation-bar visibility do not drive its artwork height or control positions during back navigation. Native navigation and enlarged-text/compact-height scrolling remain in place.
+- Decision: scope this layout repair to retained `apps/ios`. Phase 2, next auth resilience/accessibility/visual task, feature delivery status, and release blockers remain unchanged; React Native is unchanged.
+- Existing feature-owned local presentation pattern; zero added backend reads/writes at 1M+ DAU. No schema, index, API, cache, worker, pagination, mutation, or UGC changes. Architecture/codebase knowledge record the viewport ownership; chat and topology diagrams are unaffected.
+- Verification: simulator Debug `xcodebuild` succeeded using `/private/tmp/ThirtyFiveMMWelcomeFixDerivedData`; `git diff --check` passed. The initial sandboxed build could not write Swift package caches; the authorized build succeeded. Simulator UI control was unavailable, so live back-button/interactive-pop, rotation, and keyboard transition verification remain unclaimed. No implementation-mirroring unit test was added for this layout adjustment.
+
+### 2026-09-21 — Native iOS splash appearance
+
+- [x] Added dark appearance variants to `LaunchScreenBackground` and `LaunchWordmark`; native launch now pairs black background with white wordmark in dark mode and preserves white background/black wordmark in light mode. In-app splash already uses adaptive colors.
+- Decision: device appearance applies before SwiftUI starts; native launch assets cannot use saved account themes. This closes the native splash gap left by the earlier in-app auth appearance change. Phase 2, next auth resilience/accessibility/visual task, feature scope, and blockers remain unchanged. React Native is unchanged.
+- Existing local asset-catalog presentation pattern; zero added backend reads/writes at 1M+ DAU, no schema/index/API/cache/worker changes. Architecture and codebase knowledge updated; chat and diagrams unaffected.
+- Verification: simulator Debug `xcodebuild` succeeded; compiled `Assets.car` inspection confirms both background colors and dark/light wordmark image/vector renditions; `git diff --check` passed. Cold-launch visual capture and physical-device checks were not run.
+
+
+### 2026-09-21 — Correct welcome top-left return motion
+
+- [x] Removed the preceding outer-geometry/manual-safe-area approach after the user reported a top-left fly-in on return. Restored viewport measurement inside the native navigation root, scoped keyboard avoidance suppression to Welcome, and cleared inherited layout animation on that subtree so navigation owns the transition.
+- Decision: supersedes the preceding welcome viewport ownership decision. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged. Retained SwiftUI-only presentation repair; React Native is unchanged.
+- Bounded local layout, zero new backend reads/writes at 1M+ DAU, no schema/index/API/cache/worker/UGC changes. Architecture and codebase knowledge corrected; chat and diagrams unaffected.
+- Verification: simulator Debug `xcodebuild` succeeded using `/private/tmp/ThirtyFiveMMWelcomeFixDerivedData`; `git diff --check` passed. Live transition verification remains unavailable through this session's simulator UI tooling; build success alone is not visual acceptance.
+
+### 2026-09-21 — Native splash first-frame verification
+
+- [x] Replaced the plist-only launch definition with `Resources/LaunchScreen.storyboard`, registered in the Xcode resources phase and selected by `UILaunchStoryboardName`. System background resolves device appearance; the centered 150-point wordmark uses existing light/dark asset variants.
+- Decision: verify native launch before app code runs, not merely compiled asset presence or the in-app loading view. The first attempted simulator check targeted an older installed `com.35mm.app`; the current local build resolves to `com.srithansavela.thirtyfivemm.dev`. An isolated signed `com.35mm.splashcheck` copy avoided both identity confusion and pre-existing launch snapshots. Unsigned storyboard resources were rejected by SplashBoard; ad-hoc signing the simulator-only copy resolved that test artifact. No repository bundle identifier was changed.
+- Simulator Debug build and `git diff --check` passed. Native launch screenshots taken with `--wait-for-debugger` confirm black/white in dark mode and white/black in light mode before SwiftUI starts. Physical-device installed version and cold-launch behavior remain unverified; a rebuilt signed device binary is required.
+- Phase 2, next auth resilience/accessibility/visual task, feature scope, and blockers remain unchanged; React Native remains unchanged. Local UIKit launch-resource pattern, zero backend reads/writes at 1M+ DAU, no index/schema/API/cache/worker changes. Architecture and codebase knowledge updated; chat/diagrams unaffected.
+
+### 2026-09-21 — Remove unintended local mobile duplicate folders
+
+- [x] Removed untracked `apps/mobile/.expo/cache 2`, `apps/mobile/ios/35mmDev 2`, and `apps/mobile/android/app 2` after confirming they were empty and their original directories existed. Removed `apps/mobile/coverage 2`, which contained only generated coverage reports; the original coverage directory remains.
+- Decision: these folders are local duplicate artifacts, not intended application structure. The existing native-generation exclusion for `coverage 2` remains a defensive filter, not a requirement for the folder to exist. No application source or retained SwiftUI files changed.
+- Phase 2, next auth resilience/accessibility/visual-test task, roadmap feature completion, feature status, and blockers remain unchanged. No runtime, backend volume, schema/index, API, cache, worker, or topology changes; architecture, codebase knowledge, chat, and diagram documents require no update.
+- Verification passed: duplicate-folder rescan (no remaining space-2 directories outside dependencies), `pnpm --filter @35mm/mobile typecheck`, and `git diff --check`. No new tests required for removal of empty directories and generated reports.
+
+### 2026-09-21 — SwiftUI splash, welcome, and auth presentation port
+
+- [x] Ported the retained SwiftUI welcome composition and nine local poster assets to shared React Native, with three independently moving Reanimated columns, adaptive top/bottom fades, system typography, bare wordmark, italic cinema copy, and black/gray capsule actions. Motion runs on the UI thread, pauses in background, and is static under Reduce Motion; no remote artwork requests are added.
+- [x] Added feature-owned adaptive auth controls and a shared scaffold: compact labeled login without artwork, top-aligned signup prompts, automatic text focus, six progress dots in the toolbar, trailing action arrows, username prefix, existing-account navigation, and consistent password-reset presentation. Standard forms remain fixed while keyboard/large text can scroll to preserve controls.
+- [x] Replaced DOB segments with a formatted date control and a shared bottom wheel sheet with Done. Locale ordering, virtualized years (1900–current year), accessible increment/decrement, leap-day clamping, future limits, and confirmed non-secret draft persistence retain canonical server validation. No account is created by opening/changing the picker.
+- [x] Ported device-adaptive native and in-app splash colors/wordmark. Native-generation checks enforce iOS dark asset entries and Android night colors for both variants. Shared UI now exports its safe-area hook with its provider, avoiding peer-qualified duplicate contexts.
+- Decision: the user's request makes current retained SwiftUI the presentation reference for these React Native surfaces, superseding fixed-light/abstract-hero/numeric-DOB choices. Preserve mobile's working Clerk reset, resend/change-email, and authenticated DOB recovery rather than copying SwiftUI's unavailable reset action. Retained `apps/ios` source is untouched. Native splash configuration requires rebuilt binaries; existing installed binaries cannot acquire native launch assets through Metro or OTA.
+- Phase 2 remains active; next task stays auth process-death, offline, throttling, expiry, accessibility, and broader visual tests. Feature presentation status is updated above; release blockers remain unchanged.
+- Architecture/scale: feature-owned local UI over existing Clerk, bounded draft persistence, React Query username availability, and protected DOB completion. Zero new backend read/write paths at 1M+ DAU; nine fixed local assets and bounded poster copies/wheel virtualization. No new API, schema/index, worker/cache behavior, pagination, UGC lifecycle, or mutation. Architecture and codebase knowledge updated; chat and topology diagrams are unaffected.
+- Local cleanup discovered two additional generated duplicate folders with extensions (`35mmDev 2.xcodeproj` and `35mmDev 2.xcworkspace`); Expo was selecting the duplicate project. Moved them outside the workspace into an OS scratch backup before refreshing generated iOS resources.
+- Verification: all 42 mobile suites/147 tests pass, including adaptive appearance, native splash config, DOB clamp/commit behavior, existing Clerk error/retry/duplicate-submit/privacy coverage; TypeScript, Expo lint, two-variant config, and isolated native generation pass. iPhone 16 Pro/iOS 18.5 simulator screenshots and Maestro confirm Welcome, login, reset entry, signup Name→Username→Name draft restoration→Welcome, live dark appearance, and DOB sheet open/Done confirmation. Both iOS and Android production Hermes bundle exports pass. The first navigation run hit Expo's floating developer menu over Back; moving that local overlay allowed the same flow to pass. Full real-account creation/reset, physical-device performance, VoiceOver/TalkBack, Android runtime UI, and rebuilt native cold-launch capture are not claimed.

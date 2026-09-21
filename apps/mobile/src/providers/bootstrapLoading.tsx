@@ -1,22 +1,24 @@
-import { themes } from "@35mm/design-tokens";
+import { useAuthPalette } from "@/features/auth/components/palette";
+import { StatusBar } from "expo-status-bar";
 import { Image, StyleSheet, View } from "react-native";
 
 export function BootstrapLoadingSurface() {
-  const colors = themes.light.colors;
+  const colors = useAuthPalette();
   return (
     <View
       accessibilityLabel="35mm is loading"
       accessibilityLiveRegion="polite"
       accessibilityRole="progressbar"
-      style={[styles.loading, { backgroundColor: colors.surface }]}
+      style={[styles.loading, { backgroundColor: colors.paper }]}
       testID="app-bootstrap-loading"
     >
+      <StatusBar style={colors.paper === "#000000" ? "light" : "dark"} />
       <Image
         accessibilityIgnoresInvertColors
         accessible={false}
         resizeMode="contain"
         source={require("../../assets/launch/launch-wordmark.png")}
-        style={styles.wordmark}
+        style={[styles.wordmark, { tintColor: colors.ink }]}
         testID="app-bootstrap-wordmark"
       />
     </View>

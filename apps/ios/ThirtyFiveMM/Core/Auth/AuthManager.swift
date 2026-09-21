@@ -26,6 +26,7 @@ final class AuthManager: ObservableObject, TokenProvider {
   private var startupTask: Task<Void, Never>?
   private var pendingSecondFactorSignIn: SignIn?
   private var pendingSecondFactorType: SignIn.MfaType?
+  private var pendingSignUpDateOfBirth: String?
   private var stateContinuations: [AsyncStream<AuthState>.Continuation] = []
 
   init(clerk: Clerk) {
@@ -128,7 +129,8 @@ final class AuthManager: ObservableObject, TokenProvider {
     fullName: String,
     username: String,
     email: String,
-    password: String
+    password: String,
+    dateOfBirth: String
   ) async throws {
     let nameParts = fullName
       .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -143,6 +145,7 @@ final class AuthManager: ObservableObject, TokenProvider {
       lastName: lastName.isEmpty ? nil : lastName,
       username: username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     )
+    pendingSignUpDateOfBirth = dateOfBirth
 
     if signUp.status != .complete {
       _ = try await signUp.sendEmailCode()
@@ -154,6 +157,7 @@ final class AuthManager: ObservableObject, TokenProvider {
     }
 
     try await activateSessionIfNeeded(signUp.createdSessionId)
+    try await persistPendingSignUpDateOfBirth()
     try await completeAuthenticatedFlow()
   }
 
@@ -177,6 +181,7 @@ final class AuthManager: ObservableObject, TokenProvider {
     }
 
     try await activateSessionIfNeeded(signUp.createdSessionId)
+    try await persistPendingSignUpDateOfBirth()
     try await completeAuthenticatedFlow()
   }
 
@@ -260,6 +265,20 @@ final class AuthManager: ObservableObject, TokenProvider {
     }
 
     try await clerk.auth.setActive(sessionId: sessionId)
+  }
+
+  private func persistPendingSignUpDateOfBirth() async throws {
+    guard let dateOfBirth = pendingSignUpDateOfBirth else {
+      return
+    }
+    guard let apiClient else {
+      throw APIError.unknown
+    }
+
+    var request = ProfileMutation.UpdateRequest()
+    request.dateOfBirth = dateOfBirth
+    let _: ProfileMutation.UpdateResponse = try await apiClient.request(.updateProfile(request))
+    pendingSignUpDateOfBirth = nil
   }
 
   private func handleAuthenticatedFlowFailure(_ error: Error) async {

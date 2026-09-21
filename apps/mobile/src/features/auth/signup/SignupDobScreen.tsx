@@ -1,20 +1,13 @@
-import {
-  Button,
-  InlineNotice,
-  LoadingState,
-  Screen,
-} from "@35mm/mobile-ui";
+import { Pressable } from "react-native";
+import { LoadingState } from "@35mm/mobile-ui";
+import { AppText, Button, InlineNotice, Screen } from "../components/controls";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { SignupAccountInput } from "@/features/auth/signup/clerk";
 import { signupFlowErrorMessage } from "@/features/auth/signup/clerk";
-import {
-  useSignupDraftStore,
-} from "@/features/auth/signup/draft";
-import {
-  SignupDateOfBirthField,
-} from "@/features/auth/signup/SignupDateOfBirthField";
+import { useSignupDraftStore } from "@/features/auth/signup/draft";
+import { SignupDateOfBirthField } from "@/features/auth/signup/SignupDateOfBirthField";
 import { SignupStepScaffold } from "@/features/auth/signup/SignupStepScaffold";
 import {
   signupDateOfBirthInputFromValue,
@@ -76,20 +69,16 @@ export function SignupDobScreen({
     () => validateSignupIdentity(displayName, username),
     [displayName, username],
   );
-  const emailValidation = useMemo(
-    () => validateSignupEmail(email),
-    [email],
-  );
+  const emailValidation = useMemo(() => validateSignupEmail(email), [email]);
   const passwordValidation = useMemo(
-    () => validateSignupPassword(password, passwordConfirmation),
+    () => validateSignupPassword(password, passwordConfirmation || undefined),
     [password, passwordConfirmation],
   );
   const dateValidation = useMemo(
     () => validateSignupDateOfBirth(dateInput, today),
     [dateInput, today],
   );
-  const canUseExistingAttempt =
-    accountCreated || canResumeAccountAttempt;
+  const canUseExistingAttempt = accountCreated || canResumeAccountAttempt;
   const priorDetailsReady =
     identityValidation.value !== null &&
     emailValidation.value !== null &&
@@ -173,28 +162,29 @@ export function SignupDobScreen({
         ? "Return to Password and re-enter your password to continue."
         : null;
   const dateError =
-    showValidation && dateValidation.error
-      ? dateValidation.error
-      : undefined;
+    showValidation && dateValidation.error ? dateValidation.error : undefined;
 
   return (
     <SignupStepScaffold
-      headline={"When did your\nstory begin?"}
+      headline="What's your date of birth?"
       onBack={onBack}
-      step={4}
+      step={5}
       stepName="Date of birth"
-      subtitle="We use this privately for account eligibility and safety."
+      subtitle="Your birthday stays private."
       testID="signup-dob-screen"
     >
       <SignupDateOfBirthField
         onChange={(value) => {
           setDateInput(value);
+          const selected = validateSignupDateOfBirth(value, today);
+          if (selected.value) setDateOfBirthDraft(selected.value);
           setFormError(null);
         }}
         onSubmit={() => {
           void createAccount();
         }}
         value={dateInput}
+        {...(today ? { today } : {})}
         {...(dateError ? { errorMessage: dateError } : {})}
         {...(locale ? { locale } : {})}
       />
@@ -231,6 +221,21 @@ export function SignupDobScreen({
         size="large"
         testID="signup-dob-continue"
       />
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Edit password"
+        disabled={isSubmitting}
+        onPress={onBack}
+        style={{
+          minHeight: 44,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AppText color="socialAccent" role="metadata">
+          Edit password
+        </AppText>
+      </Pressable>
     </SignupStepScaffold>
   );
 }

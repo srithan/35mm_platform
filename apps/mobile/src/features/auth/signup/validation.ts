@@ -31,6 +31,11 @@ export interface SignupUsernameValidation {
   readonly value: string | null;
 }
 
+export interface SignupDisplayNameValidation {
+  readonly error: string | null;
+  readonly value: string | null;
+}
+
 export interface SignupEmailValidation {
   readonly error: string | null;
   readonly value: string | null;
@@ -84,26 +89,36 @@ export function validateSignupUsername(
       };
 }
 
-export function validateSignupIdentity(
+export function validateSignupDisplayName(
   displayNameInput: string,
-  usernameInput: string,
-): SignupIdentityValidation {
+): SignupDisplayNameValidation {
   const displayName = displayNameInput.trim();
-  const usernameResult = validateSignupUsername(usernameInput);
-  const displayNameError =
+  const error =
     displayName.length < 2
       ? "Full name must be at least 2 characters"
       : displayName.length > DISPLAY_NAME_MAX_LENGTH
         ? `Full name must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer`
         : null;
 
+  return error === null
+    ? { error: null, value: displayName }
+    : { error, value: null };
+}
+
+export function validateSignupIdentity(
+  displayNameInput: string,
+  usernameInput: string,
+): SignupIdentityValidation {
+  const displayNameResult = validateSignupDisplayName(displayNameInput);
+  const usernameResult = validateSignupUsername(usernameInput);
+
   return {
-    displayNameError,
+    displayNameError: displayNameResult.error,
     usernameError: usernameResult.error,
     value:
-      displayNameError === null && usernameResult.value !== null
+      displayNameResult.value !== null && usernameResult.value !== null
         ? {
-            displayName,
+            displayName: displayNameResult.value,
             username: usernameResult.value,
           }
         : null,
@@ -112,7 +127,7 @@ export function validateSignupIdentity(
 
 export function validateSignupPassword(
   password: string,
-  confirmation: string,
+  confirmation?: string,
 ): SignupPasswordValidation {
   const passwordCharacterCount = Array.from(password).length;
   const passwordError =
@@ -121,8 +136,9 @@ export function validateSignupPassword(
       : passwordCharacterCount < PASSWORD_MIN_LENGTH
         ? `Password must be at least ${PASSWORD_MIN_LENGTH} characters`
         : null;
-  const confirmationError =
-    confirmation.length === 0
+  const confirmationError = confirmation === undefined
+    ? null
+    : confirmation.length === 0
       ? "Confirm your password"
       : confirmation !== password
         ? "Passwords do not match"
@@ -133,7 +149,7 @@ export function validateSignupPassword(
     confirmationError,
     value:
       passwordError === null && confirmationError === null
-        ? { password, confirmation }
+        ? { password, confirmation: confirmation ?? password }
         : null,
   };
 }

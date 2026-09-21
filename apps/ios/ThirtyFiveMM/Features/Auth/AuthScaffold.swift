@@ -1,26 +1,20 @@
 import SwiftUI
 
 enum AuthPalette {
-  static let ink = Color(red: 0.08, green: 0.07, blue: 0.06)
-  static let paper = Color(red: 1.00, green: 0.98, blue: 0.95)
-  static let socialAccent = Color(red: 0.00, green: 0.58, blue: 0.96)
-  static let error = Color(red: 0.86, green: 0.16, blue: 0.16)
-  static let reelGold = Color(red: 0.92, green: 0.67, blue: 0.28)
-  static let slate = Color(red: 0.13, green: 0.16, blue: 0.21)
-  static let mist = Color(red: 0.94, green: 0.91, blue: 0.86)
+  static let ink = Color(uiColor: .label)
+  static let paper = Color(uiColor: .systemBackground)
+  static let socialAccent = Color(uiColor: .systemBlue)
+  static let error = Color(uiColor: .systemRed)
+  static let field = Color(uiColor: .secondarySystemBackground)
+  static let fieldBorder = Color(uiColor: .separator)
+  static let reelGold = Color(red: 0.96, green: 0.76, blue: 0.16)
+  static let slate = Color.black
+  static let mist = Color(red: 0.92, green: 0.92, blue: 0.92)
 }
 
 struct AuthScreenBackground: View {
   var body: some View {
-    LinearGradient(
-      colors: [
-        Color(red: 0.98, green: 0.95, blue: 0.89),
-        AuthPalette.paper,
-        Color.white,
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
-    )
+    AuthPalette.paper
     .ignoresSafeArea()
   }
 }
@@ -49,14 +43,14 @@ struct AuthPosterHero: View {
       if !compact {
         VStack(spacing: 8) {
           Text(AppConstants.appName)
-            .font(.system(size: 28, weight: .black, design: .serif))
+            .font(.system(size: 28, weight: .bold))
             .foregroundStyle(AuthPalette.ink)
             .padding(.horizontal, 18)
             .padding(.vertical, 9)
             .background(.ultraThinMaterial, in: Capsule())
 
           Text("Cinema, social.")
-            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .font(.system(size: 14, weight: .bold))
             .foregroundStyle(AuthPalette.ink.opacity(0.68))
         }
         .padding(.bottom, 18)
@@ -131,7 +125,7 @@ private struct CinematicCollage: View {
             .font(.system(size: min(width, height) * 0.17, weight: .black))
 
           Text("WATCHLIST")
-            .font(.system(size: 13, weight: .black, design: .rounded))
+            .font(.system(size: 13, weight: .black))
             .tracking(1.5)
         }
         .foregroundStyle(.white)
@@ -176,12 +170,12 @@ private struct CinematicCollage: View {
           Spacer()
 
           Text(title)
-            .font(.system(size: 26, weight: .black, design: .rounded))
+            .font(.system(size: 26, weight: .black))
             .minimumScaleFactor(0.72)
             .lineLimit(1)
 
           Text(subtitle)
-            .font(.system(size: 10, weight: .heavy, design: .rounded))
+            .font(.system(size: 10, weight: .heavy))
             .tracking(1.1)
             .opacity(0.76)
         }
@@ -212,23 +206,28 @@ private struct FilmStrip: Shape {
 struct AuthHeadline: View {
   let title: String
   let subtitle: String
+  var alignment: HorizontalAlignment = .center
+
+  private var textAlignment: TextAlignment {
+    alignment == .leading ? .leading : .center
+  }
 
   var body: some View {
-    VStack(spacing: 10) {
+    VStack(alignment: alignment, spacing: 10) {
       Text(title)
-        .font(.system(size: 41, weight: .black, design: .serif))
+        .font(.system(size: 34, weight: .bold))
         .foregroundStyle(AuthPalette.ink)
-        .multilineTextAlignment(.center)
-        .lineSpacing(-2)
+        .multilineTextAlignment(textAlignment)
+        .lineSpacing(0)
         .minimumScaleFactor(0.75)
 
       Text(subtitle)
-        .font(.system(size: 15, weight: .medium, design: .rounded))
+        .font(.system(size: 16, weight: .regular))
         .foregroundStyle(AuthPalette.ink.opacity(0.62))
-        .multilineTextAlignment(.center)
-        .lineSpacing(4)
-        .padding(.horizontal, 10)
+        .multilineTextAlignment(textAlignment)
+        .lineSpacing(3)
     }
+    .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)
   }
 }
 
@@ -250,14 +249,14 @@ struct AuthNavigationPill: View {
       }
 
       Text(title)
-        .font(.system(size: 16, weight: .black, design: .rounded))
+        .font(.system(size: 16, weight: .semibold))
     }
     .frame(maxWidth: .infinity)
     .frame(height: 62)
-    .foregroundStyle(variant == .primary ? .white : AuthPalette.ink)
+    .foregroundStyle(variant == .primary ? AuthPalette.paper : AuthPalette.ink)
     .background {
       Capsule()
-        .fill(variant == .primary ? AuthPalette.ink : .white)
+        .fill(variant == .primary ? AuthPalette.ink : AuthPalette.field)
         .shadow(
           color: variant == .primary ? .black.opacity(0.20) : .black.opacity(0.08),
           radius: variant == .primary ? 18 : 10,
@@ -285,18 +284,21 @@ struct AuthActionButton: View {
       HStack(spacing: 10) {
         if isLoading {
           ProgressView()
-            .tint(.white)
-        } else {
-          Image(systemName: "arrow.right")
-            .font(.system(size: 15, weight: .black))
+            .tint(AuthPalette.paper)
         }
 
         Text(title)
-          .font(.system(size: 16, weight: .black, design: .rounded))
+          .font(.system(size: 16, weight: .semibold))
+
+        if !isLoading {
+          Image(systemName: "arrow.right")
+            .font(.system(size: 15, weight: .black))
+            .accessibilityHidden(true)
+        }
       }
       .frame(maxWidth: .infinity)
       .frame(height: 62)
-      .foregroundStyle(.white)
+      .foregroundStyle(AuthPalette.paper)
       .background(AuthPalette.ink, in: Capsule())
       .shadow(color: .black.opacity(isLoading || isDisabled ? 0 : 0.20), radius: 18, y: 10)
     }
@@ -310,9 +312,29 @@ struct AuthEmailField: View {
   @Binding var text: String
 
   var body: some View {
-    AuthInputShell(title: title, systemImage: "envelope.fill") {
+    AuthInputShell(title: title) {
       TextField(title, text: $text)
         .textContentType(.emailAddress)
+        .keyboardType(.emailAddress)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+    }
+  }
+}
+
+struct AuthIdentifierField: View {
+  let title: String
+  @Binding var text: String
+  var showsLabel = false
+
+  private var placeholder: String {
+    showsLabel ? "Your email or username" : title
+  }
+
+  var body: some View {
+    AuthInputShell(title: title, showsLabel: showsLabel) {
+      TextField(placeholder, text: $text)
+        .textContentType(.username)
         .keyboardType(.emailAddress)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
@@ -325,7 +347,7 @@ struct AuthNameField: View {
   @Binding var text: String
 
   var body: some View {
-    AuthInputShell(title: title, systemImage: "person.fill") {
+    AuthInputShell(title: title) {
       TextField(title, text: $text)
         .textContentType(.name)
         .textInputAutocapitalization(.words)
@@ -340,10 +362,10 @@ struct AuthUsernameField: View {
   var statusColor: Color = AuthPalette.ink.opacity(0.54)
 
   var body: some View {
-    AuthInputShell(title: title, systemImage: "at") {
+    AuthInputShell(title: title) {
       HStack(spacing: 8) {
         Text("35mm/")
-          .font(.system(size: 15, weight: .bold, design: .rounded))
+          .font(.system(size: 15, weight: .semibold))
           .foregroundStyle(AuthPalette.ink.opacity(0.36))
 
         TextField(title, text: $text)
@@ -353,7 +375,7 @@ struct AuthUsernameField: View {
 
         if let trailingStatus, !trailingStatus.isEmpty {
           Text(trailingStatus)
-            .font(.system(size: 11, weight: .black, design: .rounded))
+            .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(statusColor)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
@@ -372,17 +394,100 @@ struct AuthPasswordField: View {
   let title: String
   @Binding var text: String
   var contentType: ContentType = .password
+  var showsLabel = false
+  @State private var isRevealed = false
+
+  private var placeholder: String {
+    showsLabel ? "Your password" : title
+  }
 
   var body: some View {
-    AuthInputShell(title: title, systemImage: "lock.fill") {
-      switch contentType {
-      case .password:
-        SecureField(title, text: $text)
-          .textContentType(.password)
-      case .newPassword:
-        SecureField(title, text: $text)
-          .textContentType(.newPassword)
+    AuthInputShell(title: title, showsLabel: showsLabel) {
+      HStack(spacing: 8) {
+        Group {
+          if isRevealed {
+            TextField(placeholder, text: $text)
+          } else {
+            SecureField(placeholder, text: $text)
+          }
+        }
+        .textContentType(contentType == .password ? .password : .newPassword)
+
+        Button {
+          isRevealed.toggle()
+        } label: {
+          Label(
+            isRevealed ? "Hide password" : "Show password",
+            systemImage: isRevealed ? "eye.slash.fill" : "eye.fill"
+          )
+          .labelStyle(.iconOnly)
+        }
+        .foregroundStyle(AuthPalette.ink.opacity(0.42))
+        .accessibilityValue(isRevealed ? "Visible" : "Hidden")
       }
+    }
+  }
+}
+
+struct AuthDateField: View {
+  let title: String
+  @Binding var date: Date
+  @State private var isPickerPresented = false
+
+  private var dateRange: ClosedRange<Date> {
+    let calendar = Calendar.current
+    let start = calendar.date(from: DateComponents(year: 1900, month: 1, day: 1)) ?? .distantPast
+    return start...Date.now
+  }
+
+  private var formattedDate: String {
+    date.formatted(.dateTime.month(.wide).day().year())
+  }
+
+  var body: some View {
+    Button {
+      isPickerPresented = true
+    } label: {
+      Text(formattedDate)
+        .font(.system(size: 24, weight: .regular))
+        .foregroundStyle(AuthPalette.ink)
+        .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
+        .padding(.horizontal, 22)
+        .background(AuthPalette.fieldBorder.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(title)
+    .accessibilityValue(formattedDate)
+    .sheet(isPresented: $isPickerPresented) {
+      VStack(spacing: 0) {
+        HStack {
+          Spacer()
+          Button("Done") {
+            isPickerPresented = false
+          }
+          .font(.system(size: 18, weight: .semibold))
+          .foregroundStyle(AuthPalette.ink)
+          .padding(.horizontal, 24)
+          .padding(.vertical, 18)
+        }
+        .background(AuthPalette.field)
+
+        DatePicker(
+          title,
+          selection: $date,
+          in: dateRange,
+          displayedComponents: [.date]
+        )
+        .datePickerStyle(.wheel)
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 26)
+        .background(AuthPalette.paper)
+      }
+      .presentationDetents([.height(360)])
+      .presentationDragIndicator(.hidden)
+      .presentationBackground(AuthPalette.paper)
     }
   }
 }
@@ -392,7 +497,7 @@ struct AuthCodeField: View {
   @Binding var text: String
 
   var body: some View {
-    AuthInputShell(title: title, systemImage: "number") {
+    AuthInputShell(title: title) {
       TextField(title, text: $text)
         .textContentType(.oneTimeCode)
         .keyboardType(.numberPad)
@@ -402,39 +507,43 @@ struct AuthCodeField: View {
 
 private struct AuthInputShell<Field: View>: View {
   let title: String
-  let systemImage: String
+  var showsLabel = false
   let field: Field
 
   init(
     title: String,
-    systemImage: String,
+    showsLabel: Bool = false,
     @ViewBuilder field: () -> Field
   ) {
     self.title = title
-    self.systemImage = systemImage
+    self.showsLabel = showsLabel
     self.field = field()
   }
 
   var body: some View {
-    HStack(spacing: 14) {
-      Image(systemName: systemImage)
-        .font(.system(size: 15, weight: .bold))
-        .foregroundStyle(AuthPalette.socialAccent)
-        .frame(width: 22)
+    VStack(alignment: .leading, spacing: showsLabel ? 9 : 0) {
+      if showsLabel {
+        Text(title)
+          .font(.body.weight(.semibold))
+          .foregroundStyle(AuthPalette.ink)
+          .lineLimit(1)
+          .minimumScaleFactor(0.82)
+      }
 
-      field
-        .font(.system(size: 16, weight: .semibold, design: .rounded))
-        .foregroundStyle(AuthPalette.ink)
-        .submitLabel(.done)
+      HStack(spacing: 0) {
+        field
+          .font(.system(size: 16, weight: .regular))
+          .foregroundStyle(AuthPalette.ink)
+          .submitLabel(.done)
+      }
+      .padding(.horizontal, 18)
+      .frame(height: 58)
+      .background(AuthPalette.field, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .stroke(AuthPalette.fieldBorder, lineWidth: 1)
+      }
     }
-    .padding(.horizontal, 18)
-    .frame(height: 58)
-    .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    .overlay {
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .stroke(AuthPalette.ink.opacity(0.08), lineWidth: 1)
-    }
-    .shadow(color: .black.opacity(0.06), radius: 14, y: 8)
     .accessibilityLabel(title)
   }
 }
@@ -448,11 +557,11 @@ struct AuthErrorBanner: View {
         .foregroundStyle(AuthPalette.error)
 
       Text(message)
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .font(.system(size: 13, weight: .regular))
         .foregroundStyle(AuthPalette.ink.opacity(0.74))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(14)
-    .background(AuthPalette.error.opacity(0.10), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .background(AuthPalette.error.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
   }
 }

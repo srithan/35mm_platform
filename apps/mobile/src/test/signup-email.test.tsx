@@ -89,11 +89,11 @@ describe("signup Email contracts", () => {
     const view = await renderEmailScreen({ onBack });
 
     expect(
-      view.getByRole("header", { name: "Where should we send it?" }),
+      view.getByRole("header", { name: "What's your email?" }),
     ).toBeOnTheScreen();
     expect(view.getByTestId("signup-progress")).toHaveProp(
       "accessibilityValue",
-      { min: 1, max: 5, now: 2 },
+      { min: 1, max: 6, now: 3 },
     );
     const emailInput = view.getByLabelText("Email");
     expect(emailInput).toHaveProp("autoComplete", "email");
@@ -101,10 +101,10 @@ describe("signup Email contracts", () => {
     expect(emailInput).toHaveProp("returnKeyType", "next");
     expect(emailInput).toHaveProp("textContentType", "emailAddress");
     expect(
-      view.getByTestId("signup-email-hero", {
+      view.queryByTestId("signup-email-hero", {
         includeHiddenElements: true,
       }),
-    ).toHaveProp("accessible", false);
+    ).not.toBeOnTheScreen();
 
     await fireEvent.press(view.getByRole("button", { name: "Back" }));
     expect(onBack).toHaveBeenCalledTimes(1);
@@ -208,3 +208,5 @@ describe("signup Email contracts", () => {
     });
   });
 });
+
+jest.mock("expo-router", () => ({ useRouter: () => ({ replace: jest.fn() }) }));

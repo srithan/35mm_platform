@@ -1,11 +1,10 @@
 import SwiftUI
 
-private let signUpNavigationTitle = "Create account"
 private let fullNameLabel = "Full name"
 private let usernameLabel = "Username"
 private let signUpEmailLabel = "Email"
 private let signUpPasswordLabel = "Password"
-private let confirmPasswordLabel = "Confirm password"
+private let dateOfBirthLabel = "Date of birth"
 private let verificationCodeLabel = "Verification code"
 private let continueButtonTitle = "Continue"
 private let createAccountButtonTitle = "Create account"
@@ -14,8 +13,11 @@ private let existingAccountTitle = "Already have an account?"
 private let signInLinkTitle = "Sign in"
 
 private enum SignUpStep: Int, CaseIterable {
-  case identity
-  case credentials
+  case name
+  case username
+  case email
+  case password
+  case birthDate
   case verification
 }
 
@@ -32,13 +34,13 @@ struct SignUpView: View {
     case username
     case email
     case password
-    case confirmPassword
+    case dateOfBirth
     case verificationCode
   }
 
   @EnvironmentObject private var env: AppEnvironment
   @StateObject private var viewModel = AuthViewModel()
-  @State private var step: SignUpStep = .identity
+  @State private var step: SignUpStep = .name
   @State private var usernameState: UsernameCheckState = .idle
   @FocusState private var focusedField: Field?
 
@@ -70,111 +72,146 @@ struct SignUpView: View {
     }
   }
 
-  private var canContinueFromIdentity: Bool {
+  private var canContinueFromName: Bool {
     viewModel.fullName.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
-      && normalizedUsername.count >= 2
+  }
+
+  private var canContinueFromUsername: Bool {
+    normalizedUsername.count >= 2
       && usernameState == .available
   }
 
-  private var canSubmitCredentials: Bool {
-    viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).contains("@")
-      && viewModel.password.count >= 8
-      && viewModel.password == viewModel.confirmPassword
+  private var canContinueFromEmail: Bool {
+    !trimmedEmail.isEmpty
+  }
+
+  private var canContinueFromPassword: Bool {
+    viewModel.password.count >= 8
+  }
+
+  private var trimmedEmail: String {
+    viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private var isEmailValid: Bool {
+    trimmedEmail.range(
+      of: #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#,
+      options: [.regularExpression, .caseInsensitive]
+    ) != nil
   }
 
   var body: some View {
     GeometryReader { proxy in
-      ScrollViewReader { scrollProxy in
-        ScrollView(showsIndicators: false) {
-          VStack(spacing: 0) {
-            AuthPosterHero(height: max(190, proxy.size.height * 0.22), compact: true)
+      VStack(alignment: .leading, spacing: 26) {
+        AuthHeadline(
+          title: headlineTitle,
+          subtitle: headlineSubtitle,
+          alignment: .leading
+        )
 
-            VStack(spacing: 22) {
-              SignUpProgress(step: step)
-
-              AuthHeadline(title: headlineTitle, subtitle: headlineSubtitle)
-
-              VStack(spacing: 12) {
-                switch step {
-                case .identity:
-                  identityFields(scrollProxy)
-                case .credentials:
-                  credentialFields(scrollProxy)
-                case .verification:
-                  verificationFields(scrollProxy)
-                }
-              }
-
-              if let error = viewModel.error {
-                AuthErrorBanner(message: error)
-              }
-
-              actionArea(scrollProxy)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 10)
-            .padding(.bottom, 150)
-          }
-          .frame(maxWidth: .infinity)
-          .frame(minHeight: proxy.size.height, alignment: .top)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .task(id: normalizedUsername) {
-          await checkUsernameAvailability()
-        }
-        .onChange(of: focusedField) { _, field in
-          guard let field else { return }
-          withAnimation(.snappy(duration: 0.28)) {
-            scrollProxy.scrollTo(field, anchor: .center)
+        VStack(spacing: 12) {
+          switch step {
+          case .name:
+            nameField()
+          case .username:
+            usernameField()
+          case .email:
+            emailField()
+          case .password:
+            passwordField()
+          case .birthDate:
+            birthDateFields()
+          case .verification:
+            verificationFields()
           }
         }
-        .onChange(of: viewModel.requiresEmailVerification) { _, requiresVerification in
-          guard requiresVerification else { return }
-          withAnimation(.snappy(duration: 0.28)) {
-            step = .verification
-            viewModel.error = nil
-          }
-          focusedField = .verificationCode
+
+        if let error = viewModel.error {
+          AuthErrorBanner(message: error)
         }
-        .background(AuthScreenBackground())
+
+        actionArea()
+      }
+      .padding(.horizontal, 24)
+      .padding(.top, 38)
+      .padding(.bottom, 40)
+      .frame(maxWidth: .infinity)
+      .frame(minHeight: proxy.size.height, alignment: .top)
+      .background(AuthScreenBackground())
+      .task(id: normalizedUsername) {
+        await checkUsernameAvailability()
+      }
+      .task(id: step) {
+        await focusActiveField()
+      }
+      .onChange(of: viewModel.email) { _, _ in
+        guard step == .email else { return }
+        viewModel.error = nil
+      }
+      .onChange(of: viewModel.requiresEmailVerification) { _, requiresVerification in
+        guard requiresVerification else { return }
+        withAnimation(.snappy(duration: 0.28)) {
+          step = .verification
+          viewModel.error = nil
+        }
       }
     }
-    .navigationTitle(signUpNavigationTitle)
+    .navigationTitle("")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(.hidden, for: .navigationBar)
+    .toolbar {
+      ToolbarItem(placement: .principal) {
+        SignUpProgress(step: step)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("Sign up progress")
+          .accessibilityValue("Step \(step.rawValue + 1) of \(SignUpStep.allCases.count)")
+      }
+    }
   }
 
   private var headlineTitle: String {
     switch step {
-    case .identity:
-      return "CLAIM YOUR\n35MM."
-    case .credentials:
-      return "LOCK IN\nYOUR LOGIN."
+    case .name:
+      return "What's your name?"
+    case .username:
+      return "Choose your username."
+    case .email:
+      return "What's your email?"
+    case .password:
+      return "Create a password"
+    case .birthDate:
+      return "What's your date of birth?"
     case .verification:
-      return "CHECK YOUR\nINBOX."
+      return "Enter the confirmation code."
     }
   }
 
   private var headlineSubtitle: String {
     switch step {
-    case .identity:
-      return "Start with the same profile fields as web: name and username."
-    case .credentials:
-      return "Add an email and password to create your account."
+    case .name:
+      return "This appears on your 35mm profile."
+    case .username:
+      return "People can find you at this @handle."
+    case .email:
+      return "You'll need to confirm this email later."
+    case .password:
+      return "Use at least 8 characters."
+    case .birthDate:
+      return "Your birthday stays private."
     case .verification:
-      return "Enter the code we sent so your account can go live."
+      return "Enter the 6-digit code we sent to \(viewModel.email.trimmingCharacters(in: .whitespacesAndNewlines))."
     }
   }
 
   @ViewBuilder
-  private func identityFields(_ scrollProxy: ScrollViewProxy) -> some View {
+  private func nameField() -> some View {
     AuthNameField(title: fullNameLabel, text: $viewModel.fullName)
       .focused($focusedField, equals: .fullName)
-      .onTapGesture {
-        scrollTo(.fullName, using: scrollProxy)
-      }
       .id(Field.fullName)
+  }
 
+  @ViewBuilder
+  private func usernameField() -> some View {
     AuthUsernameField(
       title: usernameLabel,
       text: $viewModel.username,
@@ -182,79 +219,126 @@ struct SignUpView: View {
       statusColor: usernameStatusColor
     )
     .focused($focusedField, equals: .username)
-    .onTapGesture {
-      scrollTo(.username, using: scrollProxy)
-    }
     .id(Field.username)
   }
 
   @ViewBuilder
-  private func credentialFields(_ scrollProxy: ScrollViewProxy) -> some View {
+  private func emailField() -> some View {
     AuthEmailField(title: signUpEmailLabel, text: $viewModel.email)
       .focused($focusedField, equals: .email)
-      .onTapGesture {
-        scrollTo(.email, using: scrollProxy)
-      }
       .id(Field.email)
+  }
 
+  @ViewBuilder
+  private func passwordField() -> some View {
     AuthPasswordField(
       title: signUpPasswordLabel,
       text: $viewModel.password,
       contentType: .newPassword
     )
     .focused($focusedField, equals: .password)
-    .onTapGesture {
-      scrollTo(.password, using: scrollProxy)
-    }
     .id(Field.password)
-
-    AuthPasswordField(
-      title: confirmPasswordLabel,
-      text: $viewModel.confirmPassword,
-      contentType: .newPassword
-    )
-    .focused($focusedField, equals: .confirmPassword)
-    .onTapGesture {
-      scrollTo(.confirmPassword, using: scrollProxy)
-    }
-    .id(Field.confirmPassword)
   }
 
   @ViewBuilder
-  private func verificationFields(_ scrollProxy: ScrollViewProxy) -> some View {
+  private func birthDateFields() -> some View {
+    AuthDateField(title: dateOfBirthLabel, date: $viewModel.dateOfBirth)
+      .id(Field.dateOfBirth)
+  }
+
+  @ViewBuilder
+  private func verificationFields() -> some View {
     AuthCodeField(title: verificationCodeLabel, text: $viewModel.verificationCode)
       .focused($focusedField, equals: .verificationCode)
-      .onTapGesture {
-        scrollTo(.verificationCode, using: scrollProxy)
-      }
       .id(Field.verificationCode)
   }
 
   @ViewBuilder
-  private func actionArea(_ scrollProxy: ScrollViewProxy) -> some View {
+  private func actionArea() -> some View {
     VStack(spacing: 16) {
       switch step {
-      case .identity:
+      case .name:
         AuthActionButton(
           title: continueButtonTitle,
           isLoading: false,
-          isDisabled: !canContinueFromIdentity
+          isDisabled: !canContinueFromName
         ) {
           viewModel.error = nil
           withAnimation(.snappy(duration: 0.28)) {
-            step = .credentials
+            step = .username
           }
-          scrollTo(.email, using: scrollProxy)
         }
 
-      case .credentials:
+      case .username:
+        AuthActionButton(
+          title: continueButtonTitle,
+          isLoading: false,
+          isDisabled: !canContinueFromUsername
+        ) {
+          viewModel.error = nil
+          withAnimation(.snappy(duration: 0.28)) {
+            step = .email
+          }
+        }
+
+      case .email:
+        AuthActionButton(
+          title: continueButtonTitle,
+          isLoading: false,
+          isDisabled: !canContinueFromEmail
+        ) {
+          guard isEmailValid else {
+            viewModel.error = "Email address must be a valid email address."
+            focusedField = .email
+            return
+          }
+
+          viewModel.error = nil
+          withAnimation(.snappy(duration: 0.28)) {
+            step = .password
+          }
+        }
+
+      case .password:
+        VStack(spacing: 10) {
+          AuthActionButton(
+            title: continueButtonTitle,
+            isLoading: false,
+            isDisabled: !canContinueFromPassword
+          ) {
+            viewModel.error = nil
+            withAnimation(.snappy(duration: 0.28)) {
+              step = .birthDate
+            }
+          }
+
+          Button {
+            viewModel.error = nil
+            withAnimation(.snappy(duration: 0.28)) {
+              step = .email
+            }
+          } label: {
+            Text("Edit email")
+              .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(AuthPalette.socialAccent)
+          }
+        }
+
+      case .birthDate:
         VStack(spacing: 10) {
           AuthActionButton(
             title: createAccountButtonTitle,
-            isLoading: viewModel.isLoading,
-            isDisabled: !canSubmitCredentials
+            isLoading: viewModel.isLoading
           ) {
             Task {
+              guard isEmailValid else {
+                viewModel.error = "Email address must be a valid email address."
+                withAnimation(.snappy(duration: 0.28)) {
+                  step = .email
+                }
+                return
+              }
+
               await viewModel.signUp(authManager: env.authManager)
             }
           }
@@ -262,12 +346,11 @@ struct SignUpView: View {
           Button {
             viewModel.error = nil
             withAnimation(.snappy(duration: 0.28)) {
-              step = .identity
+              step = .password
             }
-            scrollTo(.username, using: scrollProxy)
           } label: {
-            Text("Edit profile details")
-              .font(.system(size: 13, weight: .black, design: .rounded))
+            Text("Edit password")
+              .font(.system(size: 13, weight: .semibold))
               .foregroundStyle(AuthPalette.socialAccent)
           }
         }
@@ -293,15 +376,27 @@ struct SignUpView: View {
           Text(signInLinkTitle)
             .foregroundStyle(AuthPalette.socialAccent)
         }
-        .font(.system(size: 15, weight: .black, design: .rounded))
+        .font(.system(size: 15, weight: .semibold))
       }
     }
   }
 
-  private func scrollTo(_ field: Field, using scrollProxy: ScrollViewProxy) {
-    focusedField = field
-    withAnimation(.snappy(duration: 0.28)) {
-      scrollProxy.scrollTo(field, anchor: .center)
+  private func focusActiveField() async {
+    await Task.yield()
+
+    switch step {
+    case .name:
+      focusedField = .fullName
+    case .username:
+      focusedField = .username
+    case .email:
+      focusedField = .email
+    case .password:
+      focusedField = .password
+    case .birthDate:
+      focusedField = nil
+    case .verification:
+      focusedField = .verificationCode
     }
   }
 

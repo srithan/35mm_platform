@@ -7,6 +7,7 @@ final class AuthViewModel: ObservableObject {
   @Published var email = ""
   @Published var password = ""
   @Published var confirmPassword = ""
+  @Published var dateOfBirth = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 1)) ?? Date()
   @Published var verificationCode = ""
   @Published var requiresEmailVerification = false
   @Published var requiresSecondFactor = false
@@ -40,13 +41,14 @@ final class AuthViewModel: ObservableObject {
       return
     }
 
-    guard password.count >= 8 else {
-      error = "Password must be at least 8 characters."
+    let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard isValidEmail(normalizedEmail) else {
+      error = "Email address must be a valid email address."
       return
     }
 
-    guard password == confirmPassword else {
-      error = "Passwords do not match."
+    guard password.count >= 8 else {
+      error = "Password must be at least 8 characters."
       return
     }
 
@@ -54,8 +56,9 @@ final class AuthViewModel: ObservableObject {
       try await authManager.signUp(
         fullName: trimmedName,
         username: normalizedUsername,
-        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-        password: password
+        email: normalizedEmail,
+        password: password,
+        dateOfBirth: formattedDateOfBirth
       )
     }
   }
@@ -101,5 +104,16 @@ final class AuthViewModel: ObservableObject {
     }
 
     isLoading = false
+  }
+
+  private var formattedDateOfBirth: String {
+    dateOfBirth.formatted(.iso8601.year().month().day())
+  }
+
+  private func isValidEmail(_ email: String) -> Bool {
+    email.range(
+      of: #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#,
+      options: [.regularExpression, .caseInsensitive]
+    ) != nil
   }
 }

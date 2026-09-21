@@ -2,47 +2,71 @@ import SwiftUI
 
 struct RootView: View {
   @EnvironmentObject private var env: AppEnvironment
-  @ObservedObject private var themeManager = ThemeManager.shared
-
   var body: some View {
     RootContentView(authManager: env.authManager)
-      .environment(\.theme, themeManager.palette)
-      .tint(themeManager.palette.accent)
-      // Do NOT also set `.preferredColorScheme` — it fights
-      // `UIWindow.overrideUserInterfaceStyle` and flashes the old scheme.
-      .grayscale(themeManager.theme.isMonochrome ? 1 : 0)
-      .animation(nil, value: themeManager.snapshot)
-      .background(themeManager.palette.bg.ignoresSafeArea())
-      .onAppear {
-        ThemeManager.applyInterfaceStyle(
-          themeManager.theme,
-          windowBackground: themeManager.palette.uiBg
-        )
-        ThemeManager.applyChrome(
-          themeManager.palette,
-          custom: themeManager.theme.isCustomPalette
-        )
-      }
   }
 }
 
 private struct RootContentView: View {
   @ObservedObject var authManager: AuthManager
+  @ObservedObject private var themeManager = ThemeManager.shared
+
+  private var usesAccountTheme: Bool {
+    switch authManager.authState {
+    case .authenticated, .onboarding: true
+    default: false
+    }
+  }
+
+  private var appearance: ThemeSnapshot {
+    usesAccountTheme ? themeManager.snapshot : ThemeSnapshot(theme: .auto, accent: .theme)
+  }
 
   var body: some View {
-    switch authManager.authState {
-    case .loading:
-      ProgressView()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    case .signedOut:
-      IntroView()
-    case .onboarding:
-      OnboardingCoordinator()
-    case .authenticated:
-      MainTabView()
-    case .sessionUnavailable(let message):
-      SessionUnavailableView(authManager: authManager, message: message)
+    Group {
+      switch authManager.authState {
+      case .loading:
+        SplashView()
+      case .signedOut:
+        IntroView()
+      case .onboarding:
+        OnboardingCoordinator()
+      case .authenticated:
+        MainTabView()
+      case .sessionUnavailable(let message):
+        SessionUnavailableView(authManager: authManager, message: message)
+      }
     }
+    .environment(\.theme, appearance.palette)
+    .tint(usesAccountTheme ? appearance.palette.accent : AuthPalette.ink)
+    .grayscale(appearance.theme.isMonochrome ? 1 : 0)
+    .animation(nil, value: appearance)
+    .background(appearance.palette.bg.ignoresSafeArea())
+    .onChange(of: appearance, initial: true) { _, next in
+      // Signed-out appearance follows the device without overwriting account preferences.
+      ThemeManager.applyInterfaceStyle(next.theme, windowBackground: next.palette.uiBg)
+      ThemeManager.applyChrome(next.palette, custom: next.theme.isCustomPalette)
+    }
+  }
+}
+
+private struct SplashView: View {
+  var body: some View {
+    VStack(spacing: 16) {
+      Image("LaunchWordmark")
+        .renderingMode(.template)
+        .resizable()
+        .scaledToFit()
+        .foregroundStyle(AuthPalette.ink)
+        .frame(width: 150)
+        .accessibilityHidden(true)
+
+      ProgressView()
+        .tint(AuthPalette.ink.opacity(0.58))
+        .accessibilityLabel("Loading 35mm")
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(AuthPalette.paper.ignoresSafeArea())
   }
 }
 
@@ -58,11 +82,11 @@ private struct SessionUnavailableView: View {
 
       VStack(spacing: 8) {
         Text("Session paused")
-          .font(.system(size: 32, weight: .black, design: .serif))
+          .font(.system(size: 32, weight: .bold))
           .foregroundStyle(AuthPalette.ink)
 
         Text(message)
-          .font(.system(size: 15, weight: .medium, design: .rounded))
+          .font(.system(size: 15, weight: .regular))
           .foregroundStyle(AuthPalette.ink.opacity(0.64))
           .multilineTextAlignment(.center)
           .lineSpacing(4)
@@ -75,12 +99,12 @@ private struct SessionUnavailableView: View {
           }
         } label: {
           Label("Retry", systemImage: "arrow.clockwise")
-            .font(.system(size: 16, weight: .black, design: .rounded))
+            .font(.system(size: 16, weight: .semibold))
             .frame(maxWidth: .infinity)
             .frame(height: 56)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.white)
+        .foregroundStyle(AuthPalette.paper)
         .background(AuthPalette.ink, in: Capsule())
 
         Button {
@@ -89,7 +113,7 @@ private struct SessionUnavailableView: View {
           }
         } label: {
           Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .font(.system(size: 15, weight: .semibold))
         }
         .buttonStyle(.plain)
         .foregroundStyle(AuthPalette.ink.opacity(0.68))

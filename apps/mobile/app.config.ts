@@ -117,8 +117,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           imageWidth: 151,
           resizeMode: "contain",
           dark: {
-            backgroundColor: "#FFFFFF",
-            image: "./assets/launch/launch-wordmark.png",
+            backgroundColor: "#000000",
+            image: "./assets/launch/launch-wordmark-dark.png",
           },
         },
       ],

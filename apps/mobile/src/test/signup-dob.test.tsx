@@ -1,17 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ApiClient } from "@35mm/api-client";
-import {
-  MobileUIProvider,
-  SafeAreaProvider,
-} from "@35mm/mobile-ui";
+import { MobileUIProvider, SafeAreaProvider } from "@35mm/mobile-ui";
 import type { SignUpResource } from "@clerk/expo/types";
-import {
-  act,
-  fireEvent,
-  render,
-  waitFor,
-} from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
+import { PixelRatio } from "react-native";
 
 import {
   canResumeEmailCodeSignUp,
@@ -24,12 +17,8 @@ import {
   SIGNUP_DRAFT_STORAGE_KEY,
   useSignupDraftStore,
 } from "@/features/auth/signup/draft";
-import {
-  persistVerifiedSignupDateOfBirth,
-} from "@/features/auth/signup/postVerification";
-import {
-  dateOfBirthFieldOrder,
-} from "@/features/auth/signup/SignupDateOfBirthField";
+import { persistVerifiedSignupDateOfBirth } from "@/features/auth/signup/postVerification";
+import { dateOfBirthFieldOrder } from "@/features/auth/signup/SignupDateOfBirthField";
 import { SignupDobScreen } from "@/features/auth/signup/SignupDobScreen";
 import {
   signupDateOfBirthInputFromValue,
@@ -56,11 +45,7 @@ const SIGNUP_INPUT = {
 function Providers({ children }: { readonly children: ReactNode }) {
   return (
     <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
-      <MobileUIProvider
-        preference="dark"
-        reduceMotion
-        systemColorScheme="dark"
-      >
+      <MobileUIProvider preference="dark" reduceMotion systemColorScheme="dark">
         {children}
       </MobileUIProvider>
     </SafeAreaProvider>
@@ -92,9 +77,7 @@ async function renderDobScreen(
   const view = await render(
     <Providers>
       <SignupDobScreen
-        canResumeAccountAttempt={
-          overrides.canResumeAccountAttempt ?? false
-        }
+        canResumeAccountAttempt={overrides.canResumeAccountAttempt ?? false}
         isAuthReady
         onBack={jest.fn()}
         onContinue={overrides.onContinue ?? jest.fn()}
@@ -109,12 +92,27 @@ async function renderDobScreen(
   return view;
 }
 
-async function fillLeapDay(
-  view: Awaited<ReturnType<typeof renderDobScreen>>,
-) {
-  await fireEvent.changeText(view.getByLabelText("Month"), "02");
-  await fireEvent.changeText(view.getByLabelText("Day"), "29");
-  await fireEvent.changeText(view.getByLabelText("Year"), "2000");
+async function fillLeapDay(view: Awaited<ReturnType<typeof renderDobScreen>>) {
+  await fireEvent.press(view.getByTestId("signup-dob-open"));
+  await fireEvent(
+    view.getByTestId("signup-dob-month-wheel", { includeHiddenElements: true }),
+    "momentumScrollEnd",
+    {
+      nativeEvent: {
+        contentOffset: { y: Math.max(44, 28 * PixelRatio.getFontScale()) },
+      },
+    },
+  );
+  await fireEvent(
+    view.getByTestId("signup-dob-day-wheel", { includeHiddenElements: true }),
+    "momentumScrollEnd",
+    {
+      nativeEvent: {
+        contentOffset: { y: 28 * Math.max(44, 28 * PixelRatio.getFontScale()) },
+      },
+    },
+  );
+  await fireEvent.press(view.getByTestId("signup-dob-done"));
 }
 
 function resumableSignUp(
@@ -168,16 +166,8 @@ describe("signup DOB contracts", () => {
   });
 
   it("uses locale field order and canonical calendar validation", () => {
-    expect(dateOfBirthFieldOrder("en-US")).toEqual([
-      "month",
-      "day",
-      "year",
-    ]);
-    expect(dateOfBirthFieldOrder("en-GB")).toEqual([
-      "day",
-      "month",
-      "year",
-    ]);
+    expect(dateOfBirthFieldOrder("en-US")).toEqual(["month", "day", "year"]);
+    expect(dateOfBirthFieldOrder("en-GB")).toEqual(["day", "month", "year"]);
     expect(
       validateSignupDateOfBirth(
         { month: "2", day: "29", year: "2000" },
@@ -210,10 +200,7 @@ describe("signup DOB contracts", () => {
     await prepareCompleteDraft();
     const onContinue = jest.fn();
     const onCreateAccount = jest.fn(
-      async (
-        input: SignupAccountInput,
-        onAccountCreated: () => void,
-      ) => {
+      async (input: SignupAccountInput, onAccountCreated: () => void) => {
         expect(input).toEqual(SIGNUP_INPUT);
         onAccountCreated();
       },
@@ -225,16 +212,11 @@ describe("signup DOB contracts", () => {
 
     expect(view.getByTestId("signup-progress")).toHaveProp(
       "accessibilityValue",
-      { min: 1, max: 5, now: 4 },
+      { min: 1, max: 6, now: 5 },
     );
-    expect(view.getByLabelText("Month")).toHaveProp(
-      "autoComplete",
-      "birthdate-month",
-    );
-    expect(view.getByLabelText("Year")).toHaveProp(
-      "textContentType",
-      "birthdateYear",
-    );
+    expect(
+      view.getByRole("button", { name: "Date of birth" }),
+    ).toBeOnTheScreen();
 
     await fillLeapDay(view);
     const submit = view.getByRole("button", { name: "Create account" });
@@ -250,9 +232,7 @@ describe("signup DOB contracts", () => {
       passwordConfirmation: "",
     });
     await waitFor(async () => {
-      const persisted = await AsyncStorage.getItem(
-        SIGNUP_DRAFT_STORAGE_KEY,
-      );
+      const persisted = await AsyncStorage.getItem(SIGNUP_DRAFT_STORAGE_KEY);
       expect(persisted).toContain("2000-02-29");
       expect(persisted).not.toContain(SIGNUP_INPUT.password);
     });
@@ -270,10 +250,7 @@ describe("signup DOB contracts", () => {
         ),
       )
       .mockImplementationOnce(
-        async (
-          _input: SignupAccountInput,
-          onAccountCreated: () => void,
-        ) => {
+        async (_input: SignupAccountInput, onAccountCreated: () => void) => {
           onAccountCreated();
         },
       );
@@ -283,19 +260,18 @@ describe("signup DOB contracts", () => {
     });
 
     await fillLeapDay(view);
-    await fireEvent.press(
-      view.getByRole("button", { name: "Create account" }),
-    );
+    await fireEvent.press(view.getByRole("button", { name: "Create account" }));
     expect(
       await view.findByText(
         "Too many attempts. Wait a moment, then try again.",
       ),
     ).toBeOnTheScreen();
-    expect(view.getByLabelText("Year")).toHaveProp("value", "2000");
-
-    await fireEvent.press(
-      view.getByRole("button", { name: "Create account" }),
+    expect(view.getByRole("button", { name: "Date of birth" })).toHaveProp(
+      "accessibilityValue",
+      { text: "February 29, 2000" },
     );
+
+    await fireEvent.press(view.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(onContinue).toHaveBeenCalledTimes(1));
     expect(onCreateAccount).toHaveBeenCalledTimes(2);
   });
@@ -304,10 +280,7 @@ describe("signup DOB contracts", () => {
     await prepareCompleteDraft(false);
     useSignupDraftStore.getState().setDateOfBirthDraft("2000-02-29");
     const onCreateAccount = jest.fn(
-      async (
-        input: SignupAccountInput,
-        onAccountCreated: () => void,
-      ) => {
+      async (input: SignupAccountInput, onAccountCreated: () => void) => {
         expect(input.password).toBe("");
         onAccountCreated();
       },
@@ -319,10 +292,11 @@ describe("signup DOB contracts", () => {
       onContinue,
     });
 
-    expect(view.getByLabelText("Month")).toHaveProp("value", "02");
-    await fireEvent.press(
-      view.getByRole("button", { name: "Create account" }),
+    expect(view.getByRole("button", { name: "Date of birth" })).toHaveProp(
+      "accessibilityValue",
+      { text: "February 29, 2000" },
     );
+    await fireEvent.press(view.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(onContinue).toHaveBeenCalledTimes(1));
   });
 
@@ -330,9 +304,7 @@ describe("signup DOB contracts", () => {
     const prepareEmailAddressVerification = jest
       .fn()
       .mockResolvedValue(undefined);
-    const createdAttempt = resumableSignUp(
-      prepareEmailAddressVerification,
-    );
+    const createdAttempt = resumableSignUp(prepareEmailAddressVerification);
     const signUp = {
       status: null,
       hasPassword: false,
@@ -345,11 +317,7 @@ describe("signup DOB contracts", () => {
     } as unknown as SignUpResource;
     const onAccountCreated = jest.fn();
 
-    await startEmailCodeSignUp(
-      signUp,
-      SIGNUP_INPUT,
-      onAccountCreated,
-    );
+    await startEmailCodeSignUp(signUp, SIGNUP_INPUT, onAccountCreated);
 
     expect(signUp.create).toHaveBeenCalledWith({
       emailAddress: SIGNUP_INPUT.email,
@@ -449,11 +417,9 @@ describe("signup DOB contracts", () => {
       JSON.stringify({ dateOfBirth: SIGNUP_INPUT.dateOfBirth }),
     );
     const headers = new Headers(patch?.headers);
-    expect(headers.get("Authorization")).toBe(
-      "Bearer verified-session-token",
-    );
-    expect(headers.get("Idempotency-Key")).toBe(
-      "signup-dob-user_35mm",
-    );
+    expect(headers.get("Authorization")).toBe("Bearer verified-session-token");
+    expect(headers.get("Idempotency-Key")).toBe("signup-dob-user_35mm");
   });
 });
+
+jest.mock("expo-router", () => ({ useRouter: () => ({ replace: jest.fn() }) }));

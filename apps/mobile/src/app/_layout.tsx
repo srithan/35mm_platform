@@ -3,11 +3,14 @@ import { Slot } from "expo-router";
 import { useCallback, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { useAuthPalette } from "@/features/auth/components/palette";
+
 import { AppProviders } from "@/providers";
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const colors = useAuthPalette();
   const hasHiddenNativeSplash = useRef(false);
   const handleRootLayout = useCallback(() => {
     if (hasHiddenNativeSplash.current) return;
@@ -18,7 +21,7 @@ export default function RootLayout() {
   return (
     <View
       onLayout={handleRootLayout}
-      style={styles.root}
+      style={[styles.root, { backgroundColor: colors.paper }]}
       testID="native-splash-root"
     >
       <AppProviders>

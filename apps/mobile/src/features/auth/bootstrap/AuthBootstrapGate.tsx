@@ -1,10 +1,6 @@
-import {
-  AppIcon,
-  AppText,
-  Button,
-  Screen,
-  useMobileUI,
-} from "@35mm/mobile-ui";
+import { AppIcon } from "@35mm/mobile-ui";
+import { AppText, Button, Screen } from "../components/controls";
+import { useAuthPalette } from "../components/palette";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -20,7 +16,7 @@ export function AuthBootstrapGate({
   readonly children: (destination: AuthBootstrapDestination) => ReactNode;
 }) {
   const controller = useAuthBootstrap();
-  const { theme } = useMobileUI();
+  const colors = useAuthPalette();
 
   if (controller.state.status === "loading") {
     return <BootstrapLoadingSurface />;
@@ -43,7 +39,7 @@ export function AuthBootstrapGate({
               ? "Connection unavailable"
               : "Session unavailable"
           }
-          color={theme.colors.destructive}
+          color={colors.error}
           name={controller.state.kind === "offline" ? "wifi-off" : "warning"}
           size="large"
         />

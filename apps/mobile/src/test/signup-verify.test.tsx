@@ -170,7 +170,7 @@ describe("signup email verification contracts", () => {
 
     expect(view.getByTestId("signup-progress")).toHaveProp(
       "accessibilityValue",
-      { min: 1, max: 5, now: 5 },
+      { min: 1, max: 6, now: 6 },
     );
     const field = view.getByLabelText("Verification code");
     expect(field).toHaveProp("autoComplete", "one-time-code");

@@ -72,25 +72,20 @@ describe("signup Password contracts", () => {
     });
   });
 
-  it("validates length and exact confirmation without normalizing secrets", () => {
+  it("validates password length without normalizing secrets", () => {
     const longPassword = "x".repeat(128);
-    expect(validateSignupPassword("short", "short")).toEqual({
+    expect(validateSignupPassword("short")).toEqual({
       passwordError: `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
       confirmationError: null,
       value: null,
     });
     expect(
-      validateSignupPassword("🎬".repeat(7), "🎬".repeat(7)),
+      validateSignupPassword("🎬".repeat(7)),
     ).toMatchObject({
       passwordError: `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
       value: null,
     });
-    expect(validateSignupPassword("correct horse", "correct horse!")).toEqual({
-      passwordError: null,
-      confirmationError: "Passwords do not match",
-      value: null,
-    });
-    expect(validateSignupPassword("correct horse", "correct horse")).toEqual({
+    expect(validateSignupPassword("correct horse")).toEqual({
       passwordError: null,
       confirmationError: null,
       value: {
@@ -98,7 +93,7 @@ describe("signup Password contracts", () => {
         confirmation: "correct horse",
       },
     });
-    expect(validateSignupPassword(longPassword, longPassword).value).toEqual({
+    expect(validateSignupPassword(longPassword).value).toEqual({
       password: longPassword,
       confirmation: longPassword,
     });
@@ -109,22 +104,22 @@ describe("signup Password contracts", () => {
     const view = await renderPasswordScreen({ onBack });
 
     expect(
-      view.getByRole("header", { name: "Lock in your login." }),
+      view.getByRole("header", { name: "Create a password" }),
     ).toBeOnTheScreen();
     expect(view.getByTestId("signup-progress")).toHaveProp(
       "accessibilityValue",
-      { min: 1, max: 5, now: 3 },
+      { min: 1, max: 6, now: 4 },
     );
     const password = view.getByLabelText("Password");
-    const confirmation = view.getByLabelText("Confirm password");
     expect(password).toHaveProp("autoComplete", "new-password");
     expect(password).toHaveProp("textContentType", "newPassword");
     expect(password).toHaveProp("passwordRules", "minlength: 8;");
     expect(password).toHaveProp("secureTextEntry", true);
-    expect(confirmation).toHaveProp("returnKeyType", "done");
+    expect(password).toHaveProp("returnKeyType", "done");
+    expect(view.queryByLabelText("Confirm password")).not.toBeOnTheScreen();
     expect(
       view.getByLabelText(
-        "Password requirements. Not met: 8 or more characters. Not met: passwords match.",
+        "Password requirements. Not met: 8 or more characters.",
       ),
     ).toBeOnTheScreen();
 
@@ -132,10 +127,9 @@ describe("signup Password contracts", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("toggles each secret independently with accessible state labels", async () => {
+  it("toggles the password visibility with accessible state labels", async () => {
     const view = await renderPasswordScreen();
     const password = view.getByLabelText("Password");
-    const confirmation = view.getByLabelText("Confirm password");
 
     await fireEvent.press(
       view.getByRole("button", { name: "Show password" }),
@@ -147,37 +141,23 @@ describe("signup Password contracts", () => {
       disabled: false,
       selected: true,
     });
-    expect(confirmation).toHaveProp("secureTextEntry", true);
-
-    await fireEvent.press(
-      view.getByRole("button", { name: "Show confirm password" }),
-    );
-    expect(confirmation).toHaveProp("secureTextEntry", false);
-    expect(
-      view.getByRole("button", { name: "Hide confirm password" }),
-    ).toHaveProp("accessibilityState", {
-      disabled: false,
-      selected: true,
-    });
   });
 
-  it("announces invalid confirmation and blocks invalid submission", async () => {
+  it("announces invalid password length and blocks invalid submission", async () => {
     const onContinue = jest.fn();
     const view = await renderPasswordScreen({ onContinue });
 
     await fireEvent.changeText(
       view.getByLabelText("Password"),
-      "correct horse",
-    );
-    await fireEvent.changeText(
-      view.getByLabelText("Confirm password"),
-      "wrong horse",
+      "short",
     );
 
-    const error = view.getByText("Passwords do not match");
+    const error = view.getByText(
+      `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+    );
     expect(error).toHaveProp("accessibilityLiveRegion", "polite");
     expect(view.getByRole("button", { name: "Continue" })).toBeDisabled();
-    await fireEvent(view.getByLabelText("Confirm password"), "submitEditing");
+    await fireEvent(view.getByLabelText("Password"), "submitEditing");
     expect(onContinue).not.toHaveBeenCalled();
   });
 
@@ -189,13 +169,9 @@ describe("signup Password contracts", () => {
       view.getByLabelText("Password"),
       "correct horse",
     );
-    await fireEvent.changeText(
-      view.getByLabelText("Confirm password"),
-      "correct horse",
-    );
     expect(
       view.getByLabelText(
-        "Password requirements. Met: 8 or more characters. Met: passwords match.",
+        "Password requirements. Met: 8 or more characters.",
       ),
     ).toBeOnTheScreen();
 
@@ -258,3 +234,5 @@ describe("signup Password contracts", () => {
     });
   });
 });
+
+jest.mock("expo-router", () => ({ useRouter: () => ({ replace: jest.fn() }) }));

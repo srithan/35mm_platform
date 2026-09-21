@@ -1,15 +1,8 @@
-import {
-  AppIcon,
-  AppText,
-  Button,
-  LoadingState,
-  PasswordField,
-  Screen,
-  useMobileUI,
-} from "@35mm/mobile-ui";
+import { AppIcon, LoadingState, useMobileUI } from "@35mm/mobile-ui";
+import { AppText, Button, PasswordField, Screen } from "../components/controls";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { useSignupDraftStore } from "@/features/auth/signup/draft";
 import { SignupStepScaffold } from "@/features/auth/signup/SignupStepScaffold";
@@ -29,28 +22,20 @@ export function SignupPasswordScreen({
 }: SignupPasswordScreenProps) {
   const { theme } = useMobileUI();
   const password = useSignupDraftStore((state) => state.password);
-  const passwordConfirmation = useSignupDraftStore(
-    (state) => state.passwordConfirmation,
-  );
   const hasHydrated = useSignupDraftStore((state) => state.hasHydrated);
   const setPasswordDraft = useSignupDraftStore(
     (state) => state.setPasswordDraft,
   );
-  const confirmationInputRef = useRef<TextInput>(null);
   const continueLockRef = useRef(false);
   const [showValidation, setShowValidation] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
   const validation = useMemo(
-    () => validateSignupPassword(password, passwordConfirmation),
-    [password, passwordConfirmation],
+    () => validateSignupPassword(password),
+    [password],
   );
   const canContinue = validation.value !== null && !isContinuing;
-  const hasValidLength =
-    Array.from(password).length >= PASSWORD_MIN_LENGTH;
-  const passwordsMatch =
-    passwordConfirmation.length > 0 && password === passwordConfirmation;
+  const hasValidLength = Array.from(password).length >= PASSWORD_MIN_LENGTH;
 
   useEffect(() => {
     if (hasHydrated) return;
@@ -71,10 +56,7 @@ export function SignupPasswordScreen({
     if (!canContinue || !validation.value || continueLockRef.current) return;
     continueLockRef.current = true;
     setIsContinuing(true);
-    setPasswordDraft(
-      validation.value.password,
-      validation.value.confirmation,
-    );
+    setPasswordDraft(validation.value.password, validation.value.password);
     onContinue();
   };
 
@@ -82,39 +64,31 @@ export function SignupPasswordScreen({
     (showValidation || password.length > 0) && validation.passwordError
       ? validation.passwordError
       : undefined;
-  const confirmationError =
-    (showValidation || passwordConfirmation.length > 0) &&
-    validation.confirmationError
-      ? validation.confirmationError
-      : undefined;
 
   return (
     <SignupStepScaffold
-      headline={"Lock in\nyour login."}
+      headline="Create a password"
       onBack={onBack}
-      step={3}
+      step={4}
       stepName="Password"
-      subtitle="Choose a password you don’t use anywhere else."
+      subtitle={`Use at least ${PASSWORD_MIN_LENGTH} characters.`}
       testID="signup-password-screen"
     >
       <View style={styles.fields}>
         <PasswordField
+          autoFocus
           autoCapitalize="none"
           autoComplete="new-password"
           autoCorrect={false}
-          blurOnSubmit={false}
-          enterKeyHint="next"
+          enterKeyHint="done"
           importantForAutofill="yes"
           label="Password"
-          leadingIcon="lock"
-          onChangeText={(value) =>
-            setPasswordDraft(value, passwordConfirmation)
-          }
-          onSubmitEditing={() => confirmationInputRef.current?.focus()}
+          onChangeText={(value) => setPasswordDraft(value, value)}
+          onSubmitEditing={continueToDob}
           onVisibilityChange={setIsPasswordVisible}
           passwordRules={`minlength: ${PASSWORD_MIN_LENGTH};`}
           placeholder="Create a password"
-          returnKeyType="next"
+          returnKeyType="done"
           spellCheck={false}
           testID="signup-password-input"
           textContentType="newPassword"
@@ -129,37 +103,10 @@ export function SignupPasswordScreen({
               })}
         />
 
-        <PasswordField
-          autoCapitalize="none"
-          autoComplete="new-password"
-          autoCorrect={false}
-          enterKeyHint="done"
-          importantForAutofill="yes"
-          inputRef={confirmationInputRef}
-          label="Confirm password"
-          leadingIcon="lock"
-          onChangeText={(value) => setPasswordDraft(password, value)}
-          onSubmitEditing={continueToDob}
-          onVisibilityChange={setIsConfirmationVisible}
-          passwordRules={`minlength: ${PASSWORD_MIN_LENGTH};`}
-          placeholder="Enter it again"
-          returnKeyType="done"
-          spellCheck={false}
-          testID="signup-password-confirmation-input"
-          textContentType="newPassword"
-          value={passwordConfirmation}
-          visible={isConfirmationVisible}
-          {...(confirmationError
-            ? { errorMessage: confirmationError }
-            : {})}
-        />
-
         <View
           accessibilityLabel={`Password requirements. ${
             hasValidLength ? "Met" : "Not met"
-          }: ${PASSWORD_MIN_LENGTH} or more characters. ${
-            passwordsMatch ? "Met" : "Not met"
-          }: passwords match.`}
+          }: ${PASSWORD_MIN_LENGTH} or more characters.`}
           accessibilityLiveRegion="polite"
           accessible
           style={styles.requirements}
@@ -167,12 +114,6 @@ export function SignupPasswordScreen({
           <RequirementRow
             met={hasValidLength}
             text={`${PASSWORD_MIN_LENGTH} or more characters`}
-            pendingColor={theme.colors.textSecondary}
-            successColor={theme.colors.success}
-          />
-          <RequirementRow
-            met={passwordsMatch}
-            text="Passwords match"
             pendingColor={theme.colors.textSecondary}
             successColor={theme.colors.success}
           />
@@ -191,6 +132,20 @@ export function SignupPasswordScreen({
         size="large"
         testID="signup-password-continue"
       />
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Edit email"
+        onPress={onBack}
+        style={{
+          minHeight: 44,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AppText color="socialAccent" role="metadata">
+          Edit email
+        </AppText>
+      </Pressable>
     </SignupStepScaffold>
   );
 }
@@ -213,10 +168,7 @@ function RequirementRow({
         name={met ? "check" : "warning"}
         size="extraSmall"
       />
-      <AppText
-        color={met ? "success" : "textSecondary"}
-        role="metadata"
-      >
+      <AppText color={met ? "success" : "textSecondary"} role="metadata">
         {text}
       </AppText>
     </View>

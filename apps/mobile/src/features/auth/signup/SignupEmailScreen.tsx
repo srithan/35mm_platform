@@ -1,9 +1,5 @@
-import {
-  Button,
-  LoadingState,
-  Screen,
-  TextField,
-} from "@35mm/mobile-ui";
+import { LoadingState } from "@35mm/mobile-ui";
+import { Button, Screen, TextField } from "../components/controls";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -62,14 +58,15 @@ export function SignupEmailScreen({
 
   return (
     <SignupStepScaffold
-      headline={"Where should\nwe send it?"}
+      headline="What's your email?"
       onBack={onBack}
-      step={2}
+      step={3}
       stepName="Email"
-      subtitle="Use the email address you want tied to your 35mm account."
+      subtitle="You'll need to confirm this email later."
       testID="signup-email-screen"
     >
       <TextField
+        autoFocus
         autoCapitalize="none"
         autoComplete="email"
         autoCorrect={false}
@@ -77,7 +74,6 @@ export function SignupEmailScreen({
         inputMode="email"
         keyboardType="email-address"
         label="Email"
-        leadingIcon="mail"
         maxLength={EMAIL_ADDRESS_MAX_LENGTH}
         onChangeText={(value) => setEmailDraft(value.toLowerCase())}
         onSubmitEditing={continueToPassword}
@@ -90,8 +86,7 @@ export function SignupEmailScreen({
         {...(emailError
           ? {}
           : {
-              message:
-                "We’ll use this for sign-in and email verification.",
+              message: "We’ll use this for sign-in and email verification.",
             })}
       />
 
