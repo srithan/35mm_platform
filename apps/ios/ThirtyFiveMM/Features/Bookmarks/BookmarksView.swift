@@ -51,7 +51,12 @@ struct BookmarksView: View {
     .refreshable {
       await viewModel.refresh()
     }
-    .fullScreenCover(item: $selectedImage, content: imageViewer)
+    .postImageViewer(
+      item: $selectedImage,
+      destination: \.destination,
+      transitionSource: \.transitionSource,
+      content: imageViewer
+    )
     .sheet(item: $moveTarget) { post in
       BookmarkMoveSheet(
         folders: viewModel.folders,
@@ -199,7 +204,10 @@ struct BookmarksView: View {
     ]
   }
 
-  private func imageViewer(_ selection: BookmarkImageSelection) -> some View {
+  private func imageViewer(
+    _ selection: BookmarkImageSelection,
+    transitionSession: PostImageTransitionSession
+  ) -> some View {
     PostImageViewerView(
       destination: selection.destination,
       metrics: PostImageViewerMetrics(
@@ -210,12 +218,12 @@ struct BookmarksView: View {
         isLiked: selection.post.isLiked,
         isReposted: selection.post.isReposted
       ),
-      onClose: clearSelectedImage,
+      transitionSession: transitionSession,
+      onClose: transitionSession.dismiss,
       onLike: {
         Task { await viewModel.toggleLike(postId: selection.post.id) }
       },
       onComment: {
-        clearSelectedImage()
         appRouteNavigator(.post(PostDestination(post: selection.post)))
       },
       onRepost: {
@@ -228,8 +236,6 @@ struct BookmarksView: View {
         viewModel.copyLink(postId: selection.post.id)
       }
     )
-    .presentationBackground(.black)
-    .transaction { $0.animation = nil }
   }
 
   private func saveFolder(mode: BookmarkFolderEditorMode, name: String) async -> String? {
@@ -291,19 +297,11 @@ struct BookmarksView: View {
     Task { await viewModel.loadMore() }
   }
 
-  private func openImage(_ destination: PostImageDestination, post: FeedPost) {
-    var transaction = Transaction()
-    transaction.disablesAnimations = true
-    withTransaction(transaction) {
-      selectedImage = BookmarkImageSelection(destination: destination, post: post)
-    }
-  }
-
-  private func clearSelectedImage() {
-    var transaction = Transaction()
-    transaction.disablesAnimations = true
-    withTransaction(transaction) {
-      selectedImage = nil
-    }
+  private func openImage(_ context: PostImageOpenContext, post: FeedPost) {
+    selectedImage = BookmarkImageSelection(
+      destination: context.destination,
+      post: post,
+      transitionSource: context.transitionSource
+    )
   }
 }

@@ -4,7 +4,7 @@ import UIKit
 
 struct PostMediaCarousel: View {
   let items: [PostMediaGridItem]
-  let onSelectImage: (String) -> Void
+  let onSelectImage: (String, PostImageTransitionSource?) -> Void
 
   @Environment(\.theme) private var theme
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -12,7 +12,7 @@ struct PostMediaCarousel: View {
 
   init(
     items: [PostMediaGridItem],
-    onSelectImage: @escaping (String) -> Void
+    onSelectImage: @escaping (String, PostImageTransitionSource?) -> Void
   ) {
     self.items = Array(items.prefix(4))
     self.onSelectImage = onSelectImage
@@ -144,34 +144,21 @@ private struct PostMediaCarouselCell: View {
   let index: Int
   let count: Int
   let width: CGFloat
-  let onSelectImage: (String) -> Void
+  let onSelectImage: (String, PostImageTransitionSource?) -> Void
 
   var body: some View {
-    Button {
-      onSelectImage(item.url)
-    } label: {
-      KFImage(URL(string: item.url))
-        .setProcessor(
-          FeedImagePipeline.processor(
-            forDisplaySize: CGSize(
-              width: width,
-              height: PostMediaCarousel.cardHeight(forCardWidth: width)
-            )
-          )
-        )
-        .placeholder {
-          Rectangle()
-            .fill(Color(.tertiarySystemFill))
-        }
-        .resizable()
-        .scaledToFill()
-        .frame(width: width, height: PostMediaCarousel.cardHeight(forCardWidth: width))
-        .clipShape(
-          RoundedRectangle(cornerRadius: PostMediaCarousel.cellCornerRadius, style: .continuous)
-        )
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel("View image \(index + 1) of \(count)")
+    PostMediaImageButton(
+      item: item,
+      index: index,
+      count: count,
+      displaySize: CGSize(
+        width: width,
+        height: PostMediaCarousel.cardHeight(forCardWidth: width)
+      ),
+      clipCornerRadius: PostMediaCarousel.cellCornerRadius,
+      transitionCornerRadius: PostMediaCarousel.cellCornerRadius,
+      onSelectImage: onSelectImage
+    )
   }
 }
 

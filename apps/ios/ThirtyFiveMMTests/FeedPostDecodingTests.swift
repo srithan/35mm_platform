@@ -1,3 +1,5 @@
+import Kingfisher
+import UIKit
 import XCTest
 @testable import ThirtyFiveMM
 
@@ -230,16 +232,168 @@ final class FeedPostDecodingTests: XCTestCase {
     XCTAssertEqual(destination.url, "https://cdn.example.com/two.jpg")
   }
 
-  func testPostImageViewerCentersImageInsideChromeSafeViewport() {
+  func testPostImageViewerCentersShortImageBetweenControls() {
     let frame = PostImageViewerLayout.fittedImageFrame(
       imageSize: CGSize(width: 800, height: 600),
       in: CGSize(width: 390, height: 844)
     )
 
     XCTAssertEqual(frame.minX, 0, accuracy: 0.001)
-    XCTAssertEqual(frame.minY, 252.75, accuracy: 0.001)
+    XCTAssertEqual(frame.midY, (70 + 844 - 132) / 2, accuracy: 0.001)
     XCTAssertEqual(frame.width, 390, accuracy: 0.001)
     XCTAssertEqual(frame.height, 292.5, accuracy: 0.001)
+  }
+
+  func testPostImageViewerTallImageKeepsFullWidthAndTopInset() {
+    let frame = PostImageViewerLayout.fittedImageFrame(
+      imageSize: CGSize(width: 800, height: 1800),
+      in: CGSize(width: 390, height: 844)
+    )
+    XCTAssertEqual(frame.minY, 70, accuracy: 0.001)
+    XCTAssertEqual(frame.width, 390, accuracy: 0.001)
+    XCTAssertEqual(frame.height, 877.5, accuracy: 0.001)
+  }
+
+  func testPostImageViewerClampsPinchZoomScale() {
+    XCTAssertEqual(PostImageViewerLayout.clampedZoomScale(0.4), 1, accuracy: 0.001)
+    XCTAssertEqual(PostImageViewerLayout.clampedZoomScale(2.25), 2.25, accuracy: 0.001)
+    XCTAssertEqual(PostImageViewerLayout.clampedZoomScale(8), 4, accuracy: 0.001)
+  }
+
+  func testPostImagePresentationLifecycleAllowsSameImageAfterDismissal() {
+    var lifecycle = PostImagePresentationLifecycle<String>()
+
+    XCTAssertTrue(lifecycle.beginPresentation(for: "image-1"))
+    XCTAssertFalse(lifecycle.beginPresentation(for: "image-1"))
+    XCTAssertTrue(lifecycle.finishPresentation(for: "image-1"))
+    XCTAssertTrue(lifecycle.beginPresentation(for: "image-1"))
+  }
+
+  func testPostImageInteractiveDismissalProgressIsDownwardAndRubberBanded() {
+    XCTAssertEqual(
+      PostImageTransitionMath.dismissalProgress(
+        translationY: -40,
+        containerHeight: 800
+      ),
+      0,
+      accuracy: 0.001
+    )
+
+    let shortDrag = PostImageTransitionMath.dismissalProgress(
+      translationY: 120,
+      containerHeight: 800
+    )
+    let longDrag = PostImageTransitionMath.dismissalProgress(
+      translationY: 480,
+      containerHeight: 800
+    )
+
+    XCTAssertGreaterThan(shortDrag, 0)
+    XCTAssertGreaterThan(longDrag, shortDrag)
+    XCTAssertLessThan(longDrag, 1)
+  }
+
+  func testPostImageInteractiveDismissalUsesProjectedVelocity() {
+    XCTAssertFalse(
+      PostImageTransitionMath.shouldFinishDismissal(
+        progress: 0.12,
+        translationY: 60,
+        velocityY: 120,
+        containerHeight: 800
+      )
+    )
+    XCTAssertTrue(
+      PostImageTransitionMath.shouldFinishDismissal(
+        progress: 0.12,
+        translationY: 60,
+        velocityY: 1_300,
+        containerHeight: 800
+      )
+    )
+    XCTAssertTrue(
+      PostImageTransitionMath.shouldFinishDismissal(
+        progress: 0.45,
+        translationY: 180,
+        velocityY: 0,
+        containerHeight: 800
+      )
+    )
+  }
+
+  func testPostImageDismissalCancelsWhenUserReversesDirection() {
+    XCTAssertFalse(PostImageTransitionMath.shouldFinishDismissal(
+      progress: 0.6, translationY: 260, velocityY: -600, containerHeight: 800
+    ))
+    XCTAssertFalse(PostImageTransitionMath.shouldFinishDismissal(
+      progress: 0, translationY: 0, velocityY: 1_400, containerHeight: 800
+    ))
+  }
+
+  @MainActor
+  func testPostImageHeroUsesLiveViewerFrameAfterDragAndPageChange() throws {
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    let container = UIView(frame: window.bounds)
+    window.addSubview(container)
+    let viewer = UIView(frame: container.bounds)
+    container.addSubview(viewer)
+    let image = UIView(frame: CGRect(x: 0, y: 70, width: 390, height: 292.5))
+    viewer.addSubview(image)
+    let session = PostImageTransitionSession(
+      destination: PostImageDestination(
+        urls: ["https://example.com/one.jpg", "https://example.com/two.jpg"],
+        selectedURL: "https://example.com/one.jpg", postId: "post-1"
+      ), source: nil
+    )
+    session.viewerAnchor(for: session.currentURL).view = image
+    XCTAssertEqual(try XCTUnwrap(session.viewerFrame(in: container)), image.frame)
+
+    viewer.transform = CGAffineTransform(translationX: 20, y: 120).scaledBy(x: 0.9, y: 0.9)
+    let draggedFrame = try XCTUnwrap(session.viewerFrame(in: container))
+    XCTAssertEqual(draggedFrame, image.convert(image.bounds, to: container))
+    XCTAssertNotEqual(draggedFrame, image.frame)
+
+    session.updateCurrentURL("https://example.com/two.jpg")
+    XCTAssertNil(session.viewerFrame(in: container))
+    let secondImage = UIView(frame: CGRect(x: 0, y: 70, width: 390, height: 585))
+    viewer.addSubview(secondImage)
+    session.viewerAnchor(for: session.currentURL).view = secondImage
+    XCTAssertEqual(session.viewerFrame(in: container), secondImage.convert(secondImage.bounds, to: container))
+  }
+
+  @MainActor
+  func testImageDragMovesOnlyImageAndCleansUpOnCancellation() throws {
+    let url = "https://example.com/image-drag-regression.jpg"
+    let bitmap = UIGraphicsImageRenderer(size: CGSize(width: 80, height: 60)).image { context in
+      UIColor.red.setFill()
+      context.fill(CGRect(x: 0, y: 0, width: 80, height: 60))
+    }
+    ImageCache.default.store(bitmap, forKey: url, toDisk: false)
+    defer { ImageCache.default.removeImage(forKey: url, fromDisk: false) }
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    let container = UIView(frame: window.bounds)
+    window.addSubview(container)
+    let viewer = UIView(frame: container.bounds)
+    container.addSubview(viewer)
+    let image = UIView(frame: CGRect(x: 0, y: 70, width: 390, height: 292.5))
+    viewer.addSubview(image)
+    let session = PostImageTransitionSession(
+      destination: PostImageDestination(urls: [url], selectedURL: url, postId: "post-1"),
+      source: nil
+    )
+    session.viewerAnchor(for: url).view = image
+    session.beginImageDrag(in: viewer)
+    let snapshot = try XCTUnwrap(session.dragImageView)
+    XCTAssertEqual(snapshot.frame, image.frame)
+    XCTAssertTrue(snapshot.superview === container)
+    snapshot.transform = CGAffineTransform(translationX: 10, y: 130).scaledBy(x: 0.9, y: 0.9)
+    XCTAssertEqual(viewer.transform, .identity)
+    XCTAssertEqual(image.frame.minY, 70)
+    XCTAssertEqual(session.viewerFrame(in: container), snapshot.frame)
+    session.endImageDrag()
+    XCTAssertNil(snapshot.superview)
+    XCTAssertNil(session.dragImageView)
+    XCTAssertEqual(viewer.subviews.count, 1)
+    XCTAssertEqual(session.viewerFrame(in: container), image.frame)
   }
 
   func testDeduplicatesNormalizedRepostRowsAndMergesSocialProof() throws {

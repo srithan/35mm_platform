@@ -38,8 +38,12 @@ struct ProfilePostsView: View {
         topContentInset: 0,
         bottomContentInset: 0,
         onOpenPost: onOpenPost,
-        onOpenImage: { destination, post in
-          onOpenImage(ProfileImageSelection(destination: destination, post: post))
+        onOpenImage: { context, post in
+          onOpenImage(ProfileImageSelection(
+            destination: context.destination,
+            post: post,
+            transitionSource: context.transitionSource
+          ))
         },
         onLoadMore: {
           guard isActive else { return }

@@ -63,7 +63,11 @@ struct FeedView: View {
 
     }
     .animation(.easeInOut(duration: 0.2), value: viewModel.error)
-    .fullScreenCover(item: $selectedImage) { imageSelection in
+    .postImageViewer(
+      item: $selectedImage,
+      destination: \.destination,
+      transitionSource: \.transitionSource
+    ) { imageSelection, transitionSession in
       PostImageViewerView(
         destination: imageSelection.destination,
         metrics: PostImageViewerMetrics(
@@ -74,14 +78,12 @@ struct FeedView: View {
           isLiked: imageSelection.post.isLiked,
           isReposted: imageSelection.post.isReposted
         ),
-        onClose: {
-          clearSelectedImage()
-        },
+        transitionSession: transitionSession,
+        onClose: transitionSession.dismiss,
         onLike: {
           Task { await viewModel.toggleLike(postId: imageSelection.post.id) }
         },
         onComment: {
-          clearSelectedImage()
           appRouteNavigator(.post(PostDestination(post: imageSelection.post)))
         },
         onRepost: {
@@ -94,10 +96,6 @@ struct FeedView: View {
           UIPasteboard.general.string = "https://35mm.app/posts/\(imageSelection.post.id)"
         }
       )
-      .presentationBackground(.black)
-      .transaction { transaction in
-        transaction.animation = nil
-      }
     }
     .task {
       await viewModel.loadInitialIfNeeded()
@@ -130,12 +128,12 @@ struct FeedView: View {
         topContentInset: topContentInset,
         bottomContentInset: bottomContentInset,
         isRefreshing: viewModel.isLoading,
-        onOpenImage: { destination, post in
-          var transaction = Transaction()
-          transaction.disablesAnimations = true
-          withTransaction(transaction) {
-            selectedImage = FeedImageSelection(destination: destination, post: post)
-          }
+        onOpenImage: { context, post in
+          selectedImage = FeedImageSelection(
+            destination: context.destination,
+            post: post,
+            transitionSource: context.transitionSource
+          )
         },
         onRefresh: {
           guard !viewModel.isLoading, !viewModel.isLoadingMore else {
@@ -157,13 +155,6 @@ struct FeedView: View {
     }
   }
 
-  private func clearSelectedImage() {
-    var transaction = Transaction()
-    transaction.disablesAnimations = true
-    withTransaction(transaction) {
-      selectedImage = nil
-    }
-  }
 }
 
 @MainActor
@@ -412,6 +403,7 @@ struct FeedPostSkeletonCard: View {
 private struct FeedImageSelection: Identifiable, Equatable {
   let destination: PostImageDestination
   let post: FeedPost
+  let transitionSource: PostImageTransitionSource?
 
   var id: String {
     "\(post.id)-\(destination.url)"

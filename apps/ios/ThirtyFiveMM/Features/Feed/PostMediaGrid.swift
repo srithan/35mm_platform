@@ -3,11 +3,11 @@ import SwiftUI
 
 struct PostMediaGrid: View {
   let items: [PostMediaGridItem]
-  let onSelectImage: ((String) -> Void)?
+  let onSelectImage: ((String, PostImageTransitionSource?) -> Void)?
 
   init(
     items: [PostMediaGridItem],
-    onSelectImage: ((String) -> Void)? = nil
+    onSelectImage: ((String, PostImageTransitionSource?) -> Void)? = nil
   ) {
     self.items = Array(items.prefix(4))
     self.onSelectImage = onSelectImage
@@ -85,13 +85,15 @@ struct PostMediaGrid: View {
     height: CGFloat
   ) -> some View {
     if let onSelectImage {
-      Button {
-        onSelectImage(item.url)
-      } label: {
-        remoteImage(item.url, width: width, height: height)
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel("View image \(index + 1) of \(items.count)")
+      PostMediaImageButton(
+        item: item,
+        index: index,
+        count: items.count,
+        displaySize: CGSize(width: width, height: height),
+        clipCornerRadius: 0,
+        transitionCornerRadius: 8,
+        onSelectImage: onSelectImage
+      )
     } else {
       remoteImage(item.url, width: width, height: height)
         .accessibilityHidden(true)

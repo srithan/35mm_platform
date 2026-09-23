@@ -10,7 +10,7 @@ struct PostCard: View {
   let post: FeedPost
   let interactor: any PostInteracting
   var onOpenPost: (() -> Void)?
-  var onOpenImage: (PostImageDestination) -> Void = { _ in }
+  var onOpenImage: (PostImageOpenContext) -> Void = { _ in }
   var truncatesBody = true
   var postActionSheetTitle = "Post actions"
   var postActionSheetActions: [BottomActionSheetAction]?
@@ -334,12 +334,15 @@ struct PostCard: View {
     let allItems = mediaItems
     let items = Array(allItems.prefix(4))
     if !items.isEmpty {
-      let openImage: (String) -> Void = { url in
+      let openImage: (String, PostImageTransitionSource?) -> Void = { url, transitionSource in
         onOpenImage(
-          PostImageDestination(
-            urls: allItems.map(\.url),
-            selectedURL: url,
-            postId: post.id
+          PostImageOpenContext(
+            destination: PostImageDestination(
+              urls: allItems.map(\.url),
+              selectedURL: url,
+              postId: post.id
+            ),
+            transitionSource: transitionSource
           )
         )
       }

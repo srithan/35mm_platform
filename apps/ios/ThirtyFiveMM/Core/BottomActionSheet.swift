@@ -28,6 +28,7 @@ struct BottomActionSheetSection: Identifiable {
 
 struct BottomActionSheet: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.theme) private var theme
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @State private var isVisible = false
@@ -83,7 +84,7 @@ struct BottomActionSheet: View {
   private func sheetContent(bottomInset: CGFloat) -> some View {
     VStack(spacing: 0) {
       Capsule()
-        .fill(BottomActionSheetPalette.handle)
+        .fill(theme.borderStrong)
         .frame(width: 40, height: 5)
         .padding(.top, 16)
         .padding(.bottom, 12)
@@ -96,13 +97,13 @@ struct BottomActionSheet: View {
 
               if item.id != section.actions.last?.id {
                 Divider()
-                  .overlay(BottomActionSheetPalette.divider)
+                  .overlay(theme.border)
                   .padding(.horizontal, 20)
               }
             }
           }
           .background(
-            BottomActionSheetPalette.groupBackground,
+            theme.bgElevated,
             in: RoundedRectangle(cornerRadius: 22, style: .continuous)
           )
           .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -122,7 +123,7 @@ struct BottomActionSheet: View {
         topTrailingRadius: 32,
         style: .continuous
       )
-      .fill(BottomActionSheetPalette.sheetBackground)
+      .fill(theme.bg)
       .ignoresSafeArea(edges: .bottom)
     )
   }
@@ -158,8 +159,8 @@ struct BottomActionSheet: View {
 
   private func actionColor(for item: BottomActionSheetAction) -> Color {
     item.role == .destructive
-      ? BottomActionSheetPalette.destructive
-      : BottomActionSheetPalette.foreground
+      ? theme.warning
+      : theme.text
   }
 
   private var dismissDragGesture: some Gesture {
@@ -222,57 +223,16 @@ struct BottomActionSheet: View {
 private enum BottomActionSheetPalette {
   static let backdrop = Color(red: 15.0 / 255.0, green: 15.0 / 255.0, blue: 15.0 / 255.0)
     .opacity(0.38)
-
-  static let sheetBackground = dynamicColor(
-    light: UIColor(red: 245.0 / 255.0, green: 245.0 / 255.0, blue: 245.0 / 255.0, alpha: 1),
-    dark: UIColor(red: 15.0 / 255.0, green: 14.0 / 255.0, blue: 13.0 / 255.0, alpha: 1)
-  )
-
-  static let groupBackground = dynamicColor(
-    light: .white,
-    dark: UIColor(red: 25.0 / 255.0, green: 25.0 / 255.0, blue: 25.0 / 255.0, alpha: 1)
-  )
-
-  static let foreground = dynamicColor(
-    light: UIColor(red: 15.0 / 255.0, green: 15.0 / 255.0, blue: 15.0 / 255.0, alpha: 1),
-    dark: UIColor(red: 245.0 / 255.0, green: 243.0 / 255.0, blue: 240.0 / 255.0, alpha: 1)
-  )
-
-  static let destructive = dynamicColor(
-    light: UIColor(red: 201.0 / 255.0, green: 53.0 / 255.0, blue: 53.0 / 255.0, alpha: 1),
-    dark: UIColor(red: 224.0 / 255.0, green: 72.0 / 255.0, blue: 72.0 / 255.0, alpha: 1)
-  )
-
-  static let divider = dynamicColor(
-    light: UIColor(red: 239.0 / 255.0, green: 243.0 / 255.0, blue: 244.0 / 255.0, alpha: 1),
-    dark: UIColor.white.withAlphaComponent(0.08)
-  )
-
-  static let handle = dynamicColor(
-    light: UIColor(red: 221.0 / 255.0, green: 217.0 / 255.0, blue: 207.0 / 255.0, alpha: 0.9),
-    dark: UIColor.white.withAlphaComponent(0.24)
-  )
-
-  static let pressedBackground = dynamicColor(
-    light: UIColor(red: 250.0 / 255.0, green: 249.0 / 255.0, blue: 248.0 / 255.0, alpha: 1),
-    dark: UIColor(red: 27.0 / 255.0, green: 29.0 / 255.0, blue: 28.0 / 255.0, alpha: 1)
-  )
-
-  private static func dynamicColor(light: UIColor, dark: UIColor) -> Color {
-    Color(
-      uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark ? dark : light
-      }
-    )
-  }
 }
 
 private struct BottomActionSheetButtonStyle: ButtonStyle {
+  @Environment(\.theme) private var theme
+
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .background(
         configuration.isPressed
-          ? BottomActionSheetPalette.pressedBackground
+          ? theme.bgHover
           : Color.clear
       )
   }

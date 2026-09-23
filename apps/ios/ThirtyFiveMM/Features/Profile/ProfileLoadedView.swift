@@ -4,6 +4,7 @@ import UIKit
 struct ProfileLoadedView: View {
   @EnvironmentObject private var env: AppEnvironment
   @Environment(\.appRouteNavigator) private var appRouteNavigator
+  @Environment(\.theme) private var theme
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
   let profile: PublicProfile
@@ -70,7 +71,7 @@ struct ProfileLoadedView: View {
           onNameFrameChange: { nameContentFrame = $0 },
           onActionsFrameChange: { actionsContentFrame = $0 }
         )
-        .background(.background)
+        .background(theme.bg)
 
         Section {
           ProfileFeedStartMarker()
@@ -171,7 +172,11 @@ struct ProfileLoadedView: View {
       previewContent: profileSharePreview
     )
     .profileMediaViewer(selection: $selectedProfileMedia)
-    .fullScreenCover(item: $selectedImage) { selection in
+    .postImageViewer(
+      item: $selectedImage,
+      destination: \.destination,
+      transitionSource: \.transitionSource
+    ) { selection, transitionSession in
       PostImageViewerView(
         destination: selection.destination,
         metrics: PostImageViewerMetrics(
@@ -182,10 +187,10 @@ struct ProfileLoadedView: View {
           isLiked: selection.post.isLiked,
           isReposted: selection.post.isReposted
         ),
-        onClose: { selectedImage = nil },
+        transitionSession: transitionSession,
+        onClose: transitionSession.dismiss,
         onLike: { Task { await model.toggleLike(postId: selection.post.id) } },
         onComment: {
-          selectedImage = nil
           appRouteNavigator(.post(PostDestination(post: selection.post)))
         },
         onRepost: { Task { await model.toggleRepost(postId: selection.post.id) } },
@@ -196,7 +201,6 @@ struct ProfileLoadedView: View {
           UIPasteboard.general.url = postURL(for: selection.post)
         }
       )
-      .presentationBackground(.black)
     }
     .fullScreenCover(item: $editingProfile) { editableProfile in
       EditProfileView(profile: editableProfile, service: service) { updated in

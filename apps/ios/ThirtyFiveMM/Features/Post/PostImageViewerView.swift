@@ -12,8 +12,10 @@ struct PostImageViewerMetrics {
 }
 
 enum PostImageViewerLayout {
-  static let topChromeInset: CGFloat = 86
+  static let topChromeInset: CGFloat = 70
   static let bottomChromeInset: CGFloat = 132
+  static let minimumZoomScale: CGFloat = 1
+  static let maximumZoomScale: CGFloat = 4
 
   static func fittedImageSize(imageSize: CGSize?, in containerSize: CGSize) -> CGSize {
     guard
@@ -44,6 +46,10 @@ enum PostImageViewerLayout {
 
     return CGRect(origin: CGPoint(x: originX, y: originY), size: fittedSize)
   }
+
+  static func clampedZoomScale(_ scale: CGFloat) -> CGFloat {
+    min(max(scale, minimumZoomScale), maximumZoomScale)
+  }
 }
 
 struct PostImageViewerView: View {
@@ -51,6 +57,7 @@ struct PostImageViewerView: View {
 
   let destination: PostImageDestination
   let metrics: PostImageViewerMetrics
+  let transitionSession: PostImageTransitionSession?
   let onClose: () -> Void
   let onLike: () -> Void
   let onComment: () -> Void
@@ -60,12 +67,15 @@ struct PostImageViewerView: View {
 
   @State private var isShowingActions = false
   @State private var isShowingRepostActions = false
+  @State private var isChromeVisible = true
+  @State private var isCurrentImageZoomed = false
   @State private var selectedIndex: Int
   @StateObject private var imageSaver = ImageSaveCoordinator()
 
   init(
     destination: PostImageDestination,
     metrics: PostImageViewerMetrics,
+    transitionSession: PostImageTransitionSession? = nil,
     onClose: @escaping () -> Void,
     onLike: @escaping () -> Void,
     onComment: @escaping () -> Void,
@@ -75,6 +85,7 @@ struct PostImageViewerView: View {
   ) {
     self.destination = destination
     self.metrics = metrics
+    self.transitionSession = transitionSession
     self.onClose = onClose
     self.onLike = onLike
     self.onComment = onComment
@@ -90,6 +101,7 @@ struct PostImageViewerView: View {
         .ignoresSafeArea()
 
       imageSurface
+        .ignoresSafeArea()
 
       VStack {
         topControls
@@ -97,7 +109,11 @@ struct PostImageViewerView: View {
         bottomActions
       }
       .padding(.horizontal, 20)
-      .padding(.vertical, 14)
+      .padding(.vertical, 10)
+      .opacity(isChromeVisible ? 1 : 0)
+      .allowsHitTesting(isChromeVisible)
+      .accessibilityHidden(!isChromeVisible)
+      .animation(.easeInOut(duration: 0.18), value: isChromeVisible)
     }
     .statusBarHidden()
     .bottomActionSheet(isPresented: $isShowingActions) {
@@ -135,11 +151,21 @@ struct PostImageViewerView: View {
             action: onRepost
           ),
           BottomActionSheetAction("Quote", systemImage: "quote.bubble") {
-            onClose()
-            onQuote?()
+            if let onQuote {
+              dismiss(then: onQuote)
+            }
           },
         ]
       )
+    }
+    .onAppear(perform: updateTransitionSession)
+    .onChange(of: selectedIndex) { _, _ in
+      isCurrentImageZoomed = false
+      transitionSession?.updateZoomed(false)
+      updateTransitionSession()
+    }
+    .onDisappear {
+      transitionSession?.updateZoomed(false)
     }
   }
 
@@ -150,15 +176,23 @@ struct PostImageViewerView: View {
           url: destination.urls[index],
           index: index,
           count: destination.urls.count,
+          placeholderImage: transitionSession?.cachedImage(for: destination.urls[index]),
+          transitionAnchor: transitionSession?.viewerAnchor(for: destination.urls[index]),
           onShowActions: {
             isShowingActions = true
           },
-          onClose: onClose
+          onToggleChrome: toggleChrome,
+          onZoomChange: { isZoomed in
+            guard selectedIndex == index else { return }
+            isCurrentImageZoomed = isZoomed
+            transitionSession?.updateZoomed(isZoomed)
+          }
         )
         .tag(index)
       }
     }
     .tabViewStyle(.page(indexDisplayMode: .never))
+    .scrollDisabled(isCurrentImageZoomed)
   }
 
   private var topControls: some View {
@@ -188,11 +222,28 @@ struct PostImageViewerView: View {
           .accessibilityLabel("Image \(selectedIndex + 1) of \(destination.urls.count)")
       }
     }
-    .frame(height: 54)
+    .frame(height: 44)
   }
 
   private var currentImageURL: String {
     destination.urls[selectedIndex]
+  }
+
+  private func updateTransitionSession() {
+    transitionSession?.updateCurrentURL(currentImageURL)
+  }
+
+  private func toggleChrome() {
+    isChromeVisible.toggle()
+  }
+
+  private func dismiss(then action: @escaping () -> Void) {
+    if let transitionSession {
+      transitionSession.dismiss(after: action)
+    } else {
+      onClose()
+      action()
+    }
   }
 
   private var bottomActions: some View {
@@ -210,8 +261,7 @@ struct PostImageViewerView: View {
         count: metrics.commentCount,
         accessibilityLabel: "Open comments"
       ) {
-        onClose()
-        onComment()
+        dismiss(then: onComment)
       }
 
       viewerAction(
@@ -242,10 +292,12 @@ struct PostImageViewerView: View {
   private func circleButton(systemImage: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Image(systemName: systemImage)
-        .font(.system(size: 18, weight: .medium))
+        .font(.system(size: 15, weight: .medium))
         .foregroundStyle(.white)
-        .frame(width: 46, height: 46)
+        .frame(width: 38, height: 38)
         .background(Color.white.opacity(0.13), in: Circle())
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
   }
@@ -283,43 +335,94 @@ private struct PostImageViewerPage: View {
   let url: String
   let index: Int
   let count: Int
+  let placeholderImage: UIImage?
+  let transitionAnchor: PostImageTransitionAnchor?
   let onShowActions: () -> Void
-  let onClose: () -> Void
+  let onToggleChrome: () -> Void
+  let onZoomChange: (Bool) -> Void
 
   @State private var imageSize: CGSize?
+  @State private var zoomScale: CGFloat = 1
+  @GestureState private var gestureZoomScale: CGFloat = 1
 
   var body: some View {
     GeometryReader { proxy in
       let fittedFrame = PostImageViewerLayout.fittedImageFrame(
-        imageSize: imageSize,
+        imageSize: imageSize ?? placeholderImage?.size,
         in: proxy.size
       )
 
       ZStack(alignment: .topLeading) {
         Color.black
           .contentShape(Rectangle())
-          .onTapGesture(perform: onClose)
+          .onTapGesture(perform: onToggleChrome)
+
+        if imageSize == nil {
+          if let placeholderImage {
+            Image(uiImage: placeholderImage)
+              .resizable()
+              .scaledToFit()
+              .frame(width: fittedFrame.width, height: fittedFrame.height)
+              .offset(x: fittedFrame.minX, y: fittedFrame.minY)
+              .accessibilityHidden(true)
+              .allowsHitTesting(false)
+          } else {
+            ProgressView()
+              .tint(.white)
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .accessibilityHidden(true)
+          }
+        }
 
         KFImage(URL(string: url))
           .placeholder {
-            ProgressView()
-              .tint(.white)
-              .frame(width: fittedFrame.width, height: fittedFrame.height)
+            Color.clear
           }
           .onSuccess { result in
             imageSize = result.image.size
           }
           .resizable()
+          .fade(duration: 0.15)
+          .opacity(imageSize == nil ? 0 : 1)
           .scaledToFit()
           .frame(width: fittedFrame.width, height: fittedFrame.height)
+          .background {
+            if let transitionAnchor {
+              PostImageTransitionAnchorView(anchor: transitionAnchor)
+            }
+          }
+          .scaleEffect(effectiveZoomScale)
           .contentShape(Rectangle())
           .offset(x: fittedFrame.minX, y: fittedFrame.minY)
           .accessibilityLabel("Image \(index + 1) of \(count)")
-          .onTapGesture {}
+          .accessibilityHint("Pinch to zoom.")
+          .onTapGesture(perform: onToggleChrome)
           .onLongPressGesture(perform: onShowActions)
+          .simultaneousGesture(magnifyGesture)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-    .ignoresSafeArea()
+  }
+
+  private var effectiveZoomScale: CGFloat {
+    PostImageViewerLayout.clampedZoomScale(zoomScale * gestureZoomScale)
+  }
+
+  private var magnifyGesture: some Gesture {
+    MagnifyGesture(minimumScaleDelta: 0.01)
+      .updating($gestureZoomScale) { value, state, _ in
+        state = value.magnification
+      }
+      .onChanged { value in
+        onZoomChange(PostImageViewerLayout.clampedZoomScale(zoomScale * value.magnification) > 1.01)
+      }
+      .onEnded { value in
+        let nextScale = PostImageViewerLayout.clampedZoomScale(zoomScale * value.magnification)
+        let settledScale = nextScale < 1.02 ? 1 : nextScale
+        withAnimation(.snappy(duration: 0.22)) {
+          zoomScale = settledScale
+        }
+        onZoomChange(settledScale > 1.01)
+      }
   }
 }

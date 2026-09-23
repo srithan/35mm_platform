@@ -80,7 +80,7 @@ struct MainTabView: View {
       ForEach(tabBarStyle.tabs, id: \.self) { tab in
         tabRoot(tab)
           .tabItem {
-            tab.icon(isSelected: selectedTab == tab)
+            tab.systemIcon(isSelected: selectedTab == tab)
             Text(tab.title(for: tabBarStyle))
           }
           .tag(tab)
@@ -1323,9 +1323,7 @@ private struct TraditionalAppTabBarItem: View {
   let isSelected: Bool
   let profile: UserProfile?
 
-  private var iconFontSize: CGFloat {
-    tab == .create ? 32 : 24
-  }
+  private let iconSize: CGFloat = 24
 
   private var iconFrameHeight: CGFloat {
     44
@@ -1341,9 +1339,11 @@ private struct TraditionalAppTabBarItem: View {
         )
         .frame(height: iconFrameHeight)
       } else {
-        tab.icon(isSelected: isSelected)
-          .font(.system(size: iconFontSize, weight: .semibold))
-          .symbolRenderingMode(.hierarchical)
+        tab.traditionalIcon(isSelected: isSelected)
+          .resizable()
+          .renderingMode(.template)
+          .scaledToFit()
+          .frame(width: iconSize, height: iconSize)
           .frame(height: iconFrameHeight)
       }
     }
@@ -1410,7 +1410,7 @@ private enum AppTab: Hashable, CaseIterable {
   case activity
   case profile
 
-  func icon(isSelected: Bool) -> Image {
+  func systemIcon(isSelected: Bool) -> Image {
     switch self {
     case .home:
       return Image(systemName: isSelected ? "rectangle.stack.fill" : "rectangle.stack")
@@ -1422,6 +1422,21 @@ private enum AppTab: Hashable, CaseIterable {
       return Image(systemName: isSelected ? "bell.fill" : "bell")
     case .profile:
       return Image(systemName: isSelected ? "person.crop.circle.fill" : "person.crop.circle")
+    }
+  }
+
+  func traditionalIcon(isSelected: Bool) -> Image {
+    switch self {
+    case .home:
+      return Image(isSelected ? "TabHomeIcon" : "TabHomeOutlineIcon")
+    case .discover:
+      return Image(isSelected ? "TabSearchFilledIcon" : "TabSearchIcon")
+    case .create:
+      return Image(isSelected ? "TabComposeFilledIcon" : "TabComposeIcon")
+    case .activity:
+      return Image(isSelected ? "TabActivityFilledIcon" : "TabActivityIcon")
+    case .profile:
+      return Image(systemName: "person.crop.circle")
     }
   }
 

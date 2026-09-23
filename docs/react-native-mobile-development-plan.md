@@ -1260,6 +1260,89 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 
 ## 26. Work log
 
+### 2026-09-23 — Center shorter viewer images
+
+- [x] Centered full-width images vertically within the space between viewer controls when their height fits. Tall images retain their existing width, height, and top inset.
+- [x] Changed only the shared frame calculation; hero anchors, image-only dragging, cancellation, paging, and zoom are unchanged. Updated centering coverage and added tall-image geometry protection.
+- Decision: retained SwiftUI layout correction. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap, and blockers remain unchanged.
+- Scale: constant local geometry; zero additional backend reads/writes at 1M+ DAU, no index or service changes. Architecture/codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: `ThirtyFiveMMTests/FeedPostDecodingTests` via `xcodebuild test` on iPhone 16 Pro / iOS 18.5 (28 tests), including centering, tall-image geometry, hero frame, image-only drag cleanup, and reversal regressions; `git diff --check`. Physical-device touch validation not performed.
+
+### 2026-09-23 — Image-only drag dismissal
+
+- [x] Corrected retained SwiftUI drag presentation to move only a cached image snapshot. Viewer controls and black spacing remain stationary and fade rapidly instead of travelling with the image.
+- [x] Preserved measured-frame hero handoff and cancellation restoration, with explicit snapshot/cover cleanup. Added a regression test verifying image-only bounds, stationary viewer geometry, transformed handoff, and cancellation cleanup.
+- Decision: supersedes whole-view dragging in the preceding correction. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checklist, and blockers remain unchanged.
+- Scale: bounded local image presentation; zero added backend reads/writes at 1M+ DAU, no new index or server contract. Architecture/codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: focused `ThirtyFiveMMTests/FeedPostDecodingTests` via `xcodebuild test` on iPhone 16 Pro / iOS 18.5 (27 tests), plus `git diff --check`. The new test initially used a window directly instead of the presentation container; corrected the test hierarchy and reran successfully. Physical-device/touch validation not performed.
+
+### 2026-09-23 — Image hero geometry and drag-dismiss correction
+
+- [x] Made the retained SwiftUI image pager own the full-screen viewport and anchored transition endpoints to the actual rendered image, including its drag/zoom transform. Covered the live image during presentation to prevent duplicate imagery and endpoint jumps.
+- [x] Replaced percent-driven scrubbing toward the source thumbnail with direct finger-following drag. Release returns to the source from the current image frame; short/cancelled/upward-reversed gestures restore the viewer. Removed the opaque dismissal backing so the underlying feed is revealed during the drag.
+- [x] Replaced one-time carousel gesture-tree scanning with dynamic failure priority for lazily mounted scroll recognizers; guarded zoom, modal presentation, and settling states.
+- Decision: supersedes the percent-driven/opaque-backing implementation below. Retained iOS 17 compatibility; the linked Peter Friese native zoom example requires iOS 18. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap, and release blockers remain unchanged.
+- Scale: existing UIKit/Kingfisher presentation pattern, bounded per-viewer anchors and constant work per gesture update. Zero additional backend reads/writes at 1M+ DAU; no index, API, UGC, pagination, rate-limit, cache-policy, or worker changes.
+- Architecture and codebase knowledge updated. Chat docs and diagrams unaffected.
+- Verification passed: `xcodebuild test -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMExclusiveImageDismissalTestsDerivedData -skipPackagePluginValidation -skipMacroValidation -only-testing:ThirtyFiveMMTests/FeedPostDecodingTests` (26 tests), including live/transformed/page-specific anchor geometry and reversal cancellation; `git diff --check`. The sandbox denied CoreSimulator/package-cache access; the approved rerun and final opacity-change rerun passed. Existing unrelated actor-isolation warnings remain in carousel tests. Runtime touch, physical-device, and VoiceOver checks were not performed.
+
+### 2026-09-23 — Exclusive single-image interactive viewer dismissal
+
+- [x] Removed dismissal-time double rendering: the animator now covers the live viewer image and moves one cached snapshot over an opaque black backing while chrome fades.
+- [x] Made vertical dismissal and horizontal carousel paging mutually exclusive. Nested page-scroll pans wait for the dismissal recognizer to reject horizontal intent; simultaneous recognition is disabled.
+- [x] Kept interactive dismissal available after paging away from the originally opened image by using the current page's cached image and a downward offscreen target when no matching live source tile exists.
+- Decision: retained SwiftUI `apps/ios` gesture/transition correction only. React Native Phase 2, next task, feature matrix, roadmap checkboxes, and blockers remain unchanged.
+- Scale: constant local gesture and transition state over bounded image cache entries; zero backend reads/writes at 1M+ DAU. No API, schema, index, worker, cache policy, pagination, mutation, rate-limit, soft-delete, or UGC change.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
+- Verification passed: Xcode project `plutil`, repository `git diff --check`, generic iOS Simulator Debug build, and focused `ThirtyFiveMMTests/FeedPostDecodingTests` on iPhone 16 Pro / iOS 18.5. Runtime diagonal/vertical/horizontal gesture capture and physical-device checks were not run.
+
+### 2026-09-23 — Stable retained SwiftUI image-viewer first frame
+
+- [x] Removed the post-image viewer's oversized first frame. Before Kingfisher reports final dimensions, the viewer now sizes its cached transition snapshot immediately or shows only a centered loader; the remote image stays invisible until its dimensions are known, then appears directly in the final top-aligned frame.
+- Decision: retained SwiftUI presentation correction only. React Native Phase 2, next task, feature matrix, roadmap checkboxes, and blockers remain unchanged.
+- Scale: constant local layout state over the existing bounded image cache; zero backend reads/writes at 1M+ DAU. No API, schema, index, worker, cache policy, pagination, mutation, rate-limit, or UGC change.
+- Architecture/codebase knowledge, chat docs, and diagrams need no update because image-viewer ownership and behavior documented below remain unchanged; this fixes transient rendering within that existing design.
+- Verification passed: repository `git diff --check`, generic iOS Simulator Debug build, and focused `ThirtyFiveMMTests/FeedPostDecodingTests` on iPhone 16 Pro / iOS 18.5. Runtime slow-network capture and physical-device checks were not run.
+
+### 2026-09-23 — Retained SwiftUI same-image viewer reopen fix
+
+- [x] Fixed completed hero dismissals retaining stale image selection state. The dismissal animator now strongly owns its completion callback through transition completion, so coordinator state and the SwiftUI binding clear even when UIKit releases the animator immediately.
+- [x] Added explicit presentation-lifecycle coverage proving an active image is deduplicated while open and the same image ID can present again after dismissal.
+- Decision: user-reported retained SwiftUI `apps/ios` bug only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: constant local presentation state per viewer; zero backend reads/writes at 1M+ DAU. Existing cursor pagination, mutation rate limits, soft deletion, CDN/cache behavior, async counters, schema, indexes, and APIs remain unchanged; no index required.
+- Architecture and codebase knowledge need no additional update because the documented shared-element structure, feature wiring, and contracts are unchanged.
+- Verification passed: repository `git diff --check`, Xcode project `plutil`, and focused `ThirtyFiveMMTests/FeedPostDecodingTests` on iPhone 16 Pro / iOS 18.5. Existing Swift 6 actor-isolation warnings in older carousel tests remain; no new warning came from this fix. Runtime touch capture, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-23 — Retained SwiftUI traditional-tab SVG icons
+
+- [x] Added template-rendered retained SwiftUI tab-bar image sets for the provided Home, Search, Compose, and Activity SVGs. Traditional Home, Discover, Add, and Activity now use those assets, while Profile continues to render the current user's avatar or initials fallback.
+- [x] Kept the previous SF Symbol mapping for the system tab-bar fallback path, so `TraditionalTabBarEnabled=false` remains unchanged.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local vector asset and SwiftUI rendering change only. At 1M+ DAU it adds zero backend reads/writes, no API/cache/worker/schema/index/pagination/UGC contract change, and no new rate-limit or soft-delete concern.
+- Architecture and codebase knowledge were updated; chat docs and diagrams are unaffected.
+- Verification passed: `python3 -m json.tool` for all four new image-set `Contents.json` files; scoped `git diff --check`; generic iOS Simulator Debug `xcodebuild`. Runtime screenshot, physical-device checks, and VoiceOver checks were not run for this icon-only slice.
+
+### 2026-09-23 — Retained SwiftUI post-image viewer chrome and zoom
+
+- [x] Top-aligned width-fitted post media beneath 70pt compact chrome, removing the large vertical centering gap visible above shorter portrait and landscape images.
+- [x] Reduced visible close/more circles from 46pt to 38pt (about 20%) while preserving 44pt interactive targets and VoiceOver labels.
+- [x] Made single taps on the image or black backdrop hide/show all viewer chrome. Added bounded 1x–4x pinch zoom; paging and interactive downward dismissal pause while the active page is zoomed.
+- Decision: user-requested retained SwiftUI `apps/ios` behavior only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: bounded local gesture/layout state over already-loaded media; zero backend reads/writes at 1M+ DAU. Existing cursor pagination, mutation rate limits, soft deletion, CDN/cache behavior, async counters, schema, indexes, and APIs remain unchanged; no index required.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
+- Verification passed: project `plutil`, repository `git diff --check`, generic iOS Simulator Debug build, and focused `ThirtyFiveMMTests/FeedPostDecodingTests` on iPhone 16 Pro / iOS 18.5. The first focused test attempt encountered a transient shared Xcode build-database lock; the isolated derived-data rerun passed. Runtime pinch/tap capture, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-23 — Retained SwiftUI post-image shared-element transition
+
+- [x] Replaced system full-screen-cover presentation for post images opened from Home, Profile Posts/Reposts, and Bookmarks with a UIKit custom transition that presents the existing SwiftUI image viewer through `UIHostingController`.
+- [x] Added per-tile weak UIKit source anchors, exact window-frame capture, processed Kingfisher memory-cache snapshot reuse, spring presentation/reversal, source corner-radius interpolation, and a velocity-aware interactive downward dismissal using `UIPercentDrivenInteractiveTransition`.
+- [x] Added safe opacity fallback for Reduce Motion, missing cached thumbnails, paging away from the tapped image, and recycled/offscreen source cells. Comment and quote actions wait for dismissal completion before changing the parent navigation/composer state.
+- [x] Added focused transition-math coverage for bounded rubber-banded progress plus distance/velocity completion thresholds.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, decisions, and release blockers remain unchanged. The iOS 17 deployment target rules out making the iOS 18 zoom-transition API the baseline.
+- Scale: follows the existing UIKit feed renderer and bounded Kingfisher cache. Work is constant local presentation state per open image. Zero backend reads/writes at 1M+ DAU; no API, schema, index, cache, worker, pagination, mutation, rate-limit, soft-delete, or UGC lifecycle change.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams are unaffected because service topology and contracts did not change.
+- Verification passed: project `plutil`, repository `git diff --check`, generic iOS Simulator build, and focused `ThirtyFiveMMTests/FeedPostDecodingTests` on iPhone 16 Pro / iOS 18.5. Runtime touch capture, a thermally constrained older-device Instruments pass, physical-device checks, and VoiceOver checks were not run.
+
 ### 2026-09-23 — Retained SwiftUI profile tab label animation parity
 
 - [x] Ported mobile web's active icon-plus-label profile tab behavior to retained SwiftUI. Posts, Reposts, Diary, Lists, and Stats now keep icon plus label on the settled active tab while inactive tabs remain icon-only.
@@ -2200,6 +2283,15 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 - Existing settings PATCH/GET contracts, rate limits, schema, indexes, auth, caching, and backend volume are unchanged. At 1M+ DAU this is local presentation plus static token data: zero new backend reads/writes, no worker job, no pagination/UGC contract change.
 - Architecture and codebase knowledge were updated; chat docs and diagrams are unaffected.
 
+### 2026-09-23 — Retained SwiftUI themed profile and action sheets
+
+- [x] Replaced the pushed profile header's system `.background` fill with the active `ThemePalette.bg`, fixing the black ProfileHeader block under Letterboxd and other custom palettes.
+- [x] Rewired shared `BottomActionSheet` colors to `@Environment(\.theme)` for shell, grouped rows, text, destructive actions, dividers, handle, and pressed state. The neutral backdrop remains unchanged.
+- Decision: user-requested retained SwiftUI `apps/ios` theme fix only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local presentation over already-loaded views; zero backend reads/writes at 1M+ DAU. Existing API contracts, cursor pagination, mutation rate limits, soft-delete semantics, caches, worker jobs, schema, and indexes remain unchanged; no index required.
+- Architecture and codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: scoped `git diff --check`; simulator-target Debug `xcodebuild` using `/private/tmp/ThirtyFiveMMThemeActionSheetsDerivedData`. The first sandboxed build was blocked by CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime visual check, physical-device check, and VoiceOver check were not run.
+
 ### 2026-09-23 — Retained SwiftUI profile cover/header pinning correction
 
 - [x] Reduced the pushed-profile compact cover header to 50pt below the status bar and captured the safe-area inset before extending the cover behind it. Back/title/actions share the cover header geometry.
@@ -2282,3 +2374,13 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 - Retained SwiftUI only; React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap, and blockers unchanged. Local geometry over cached profile data adds zero backend reads/writes at 1M+ DAU; no new index, route, mutation, cache, or UGC change.
 - Architecture and codebase knowledge updated; chat docs/diagrams unaffected.
 - Verification passed: incremental simulator-target Debug build and scoped `git diff --check`. Runtime visual timing and Reduce Motion verification not run; on-device visual acceptance remains outstanding.
+
+### 2026-09-23 — Retained SwiftUI traditional-tab icon balance
+
+- [x] Reduced the traditional Add/Compose tab glyph to the same 24pt size as Home, Discover, and Activity now that visible tab labels are suppressed.
+- [x] Added an outline Home SVG asset for the inactive state while preserving the filled Home asset for the selected state; both remain template-rendered so theme tokens own color.
+- [x] Added selected filled SVG variants for Discover/Search, Add/Compose, and Activity/Notifications so every non-profile traditional tab now uses filled active and outline inactive icon states.
+- Decision: user-requested retained SwiftUI `apps/ios` tab chrome only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local vector asset and layout change only; zero backend reads/writes at 1M+ DAU. Existing cursor pagination, server authorization, mutation rate limits, soft deletion, cache invalidation, async counters, schema, indexes, and APIs remain unchanged; no index required.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
+- Verification passed: `python3 -m json.tool` for the new image-set `Contents.json` files and scoped `git diff --check`. Xcode build/runtime screenshot, physical-device check, and VoiceOver check were not run for this small icon-only slice.

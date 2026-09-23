@@ -46,6 +46,11 @@
 		A00000000000000000000025 /* PostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000025 /* PostCard.swift */; };
 		A60000000000000000000001 /* FeedServicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000001 /* FeedServicing.swift */; };
 		A60000000000000000000003 /* FeedCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000003 /* FeedCollectionView.swift */; };
+		A93000000000000000000001 /* PostImageTransitionSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = B93000000000000000000001 /* PostImageTransitionSource.swift */; };
+		A93000000000000000000002 /* PostMediaImageButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B93000000000000000000002 /* PostMediaImageButton.swift */; };
+		A93000000000000000000003 /* PostImageTransitionSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B93000000000000000000003 /* PostImageTransitionSession.swift */; };
+		A93000000000000000000004 /* PostImageTransitionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B93000000000000000000004 /* PostImageTransitionController.swift */; };
+		A93000000000000000000005 /* PostImageViewerPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B93000000000000000000005 /* PostImageViewerPresenter.swift */; };
 		A00000000000000000000026 /* CommentNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000027 /* CommentNode.swift */; };
 		A00000000000000000000027 /* PostInteracting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000028 /* PostInteracting.swift */; };
 		A00000000000000000000028 /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000029 /* PostDetailView.swift */; };
@@ -279,6 +284,11 @@
 		B60000000000000000000001 /* FeedServicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedServicing.swift; sourceTree = "<group>"; };
 		B60000000000000000000002 /* FeedViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedViewModelTests.swift; sourceTree = "<group>"; };
 		B60000000000000000000003 /* FeedCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedCollectionView.swift; sourceTree = "<group>"; };
+		B93000000000000000000001 /* PostImageTransitionSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostImageTransitionSource.swift; sourceTree = "<group>"; };
+		B93000000000000000000002 /* PostMediaImageButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostMediaImageButton.swift; sourceTree = "<group>"; };
+		B93000000000000000000003 /* PostImageTransitionSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostImageTransitionSession.swift; sourceTree = "<group>"; };
+		B93000000000000000000004 /* PostImageTransitionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostImageTransitionController.swift; sourceTree = "<group>"; };
+		B93000000000000000000005 /* PostImageViewerPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostImageViewerPresenter.swift; sourceTree = "<group>"; };
 		B00000000000000000000060 /* Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalog.swift; sourceTree = "<group>"; };
 		B00000000000000000000061 /* CatalogAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogAPI.swift; sourceTree = "<group>"; };
 		B00000000000000000000062 /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
@@ -612,6 +622,7 @@
 				F10000000000000000000006 /* PostMediaGridItem.swift */,
 				F10000000000000000000007 /* PostMediaGrid.swift */,
 				F10000000000000000000008 /* PostMediaCarousel.swift */,
+				B93000000000000000000002 /* PostMediaImageButton.swift */,
 			);
 			path = Feed;
 			sourceTree = "<group>";
@@ -625,6 +636,10 @@
 				B0000000000000000000002C /* CommentInputBar.swift */,
 				B0000000000000000000002D /* PostImageDestination.swift */,
 				B0000000000000000000002E /* PostImageViewerView.swift */,
+				B93000000000000000000001 /* PostImageTransitionSource.swift */,
+				B93000000000000000000003 /* PostImageTransitionSession.swift */,
+				B93000000000000000000004 /* PostImageTransitionController.swift */,
+				B93000000000000000000005 /* PostImageViewerPresenter.swift */,
 				F10000000000000000000005 /* RemotePostDetailView.swift */,
 			);
 			path = Post;
@@ -944,6 +959,11 @@
 				A00000000000000000000022 /* RichTextView.swift in Sources */,
 				A60000000000000000000001 /* FeedServicing.swift in Sources */,
 				A60000000000000000000003 /* FeedCollectionView.swift in Sources */,
+				A93000000000000000000001 /* PostImageTransitionSource.swift in Sources */,
+				A93000000000000000000002 /* PostMediaImageButton.swift in Sources */,
+				A93000000000000000000003 /* PostImageTransitionSession.swift in Sources */,
+				A93000000000000000000004 /* PostImageTransitionController.swift in Sources */,
+				A93000000000000000000005 /* PostImageViewerPresenter.swift in Sources */,
 				A00000000000000000000023 /* FeedViewModel.swift in Sources */,
 				A00000000000000000000024 /* FeedView.swift in Sources */,
 				A00000000000000000000025 /* PostCard.swift in Sources */,

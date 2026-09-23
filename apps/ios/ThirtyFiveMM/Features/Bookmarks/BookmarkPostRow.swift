@@ -7,7 +7,7 @@ struct BookmarkPostRow: View {
   let interactor: any PostInteracting
   let isPending: Bool
   let onOpenPost: () -> Void
-  let onOpenImage: (PostImageDestination) -> Void
+  let onOpenImage: (PostImageOpenContext) -> Void
   let postActions: [BottomActionSheetAction]
   let onDismissPostActions: () -> Void
 

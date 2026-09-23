@@ -27,7 +27,7 @@ struct FeedCollectionView: UIViewControllerRepresentable {
   let bottomContentInset: CGFloat
   var isRefreshing = false
   var onOpenPost: ((FeedPost) -> Void)?
-  let onOpenImage: (PostImageDestination, FeedPost) -> Void
+  let onOpenImage: (PostImageOpenContext, FeedPost) -> Void
   var onRefresh: (() -> Bool)?
   let onLoadMore: () -> Void
   let onScrollDirectionChange: (ScrollChromeDirection) -> Void
@@ -146,7 +146,7 @@ final class FeedCollectionViewController: UIViewController {
   private var theme: ThemePalette?
   private var navigator: AppRouteNavigator = .noop
   private var onOpenPost: ((FeedPost) -> Void)?
-  private var onOpenImage: (PostImageDestination, FeedPost) -> Void = { _, _ in }
+  private var onOpenImage: (PostImageOpenContext, FeedPost) -> Void = { _, _ in }
   private var isScrollEnabled = true
   private var canLoadMore = true
   private var isLoadingMore = false
@@ -228,7 +228,7 @@ final class FeedCollectionViewController: UIViewController {
     currentProfileUsername: String?,
     currentProfileUserId: String?,
     onOpenPost: ((FeedPost) -> Void)?,
-    onOpenImage: @escaping (PostImageDestination, FeedPost) -> Void
+    onOpenImage: @escaping (PostImageOpenContext, FeedPost) -> Void
   ) {
     self.interactor = interactor
     self.env = env
@@ -564,7 +564,7 @@ enum FeedPostCellRegistration {
     currentProfileUserId: String?,
     onOpenPost: ((FeedPost) -> Void)?,
     layoutCache: PostLayoutCache,
-    onOpenImage: @escaping (PostImageDestination, FeedPost) -> Void
+    onOpenImage: @escaping (PostImageOpenContext, FeedPost) -> Void
   ) {
     guard let post, let interactor, let env, let theme else {
       cell.configure(postID: nil, layoutCache: layoutCache) {
@@ -585,8 +585,8 @@ enum FeedPostCellRegistration {
               navigator(.post(PostDestination(post: post)))
             }
           },
-          onOpenImage: { destination in
-            onOpenImage(destination, post)
+          onOpenImage: { context in
+            onOpenImage(context, post)
           },
           currentProfileUsername: currentProfileUsername,
           currentProfileUserId: currentProfileUserId
