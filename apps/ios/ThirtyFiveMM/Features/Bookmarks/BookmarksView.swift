@@ -2,10 +2,10 @@ import SwiftUI
 
 struct BookmarksView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.appRouteNavigator) private var appRouteNavigator
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
   @StateObject private var viewModel: BookmarksViewModel
-  @State private var selectedPost: FeedPost?
   @State private var selectedImage: BookmarkImageSelection?
   @State private var moveTarget: FeedPost?
   @State private var folderEditorMode: BookmarkFolderEditorMode?
@@ -50,10 +50,6 @@ struct BookmarksView: View {
     }
     .refreshable {
       await viewModel.refresh()
-    }
-    .navigationDestination(item: $selectedPost) { post in
-      PostDetailView(post: post)
-        .environmentObject(env)
     }
     .fullScreenCover(item: $selectedImage, content: imageViewer)
     .sheet(item: $moveTarget) { post in
@@ -121,7 +117,7 @@ struct BookmarksView: View {
                 folderName: folderName(for: post),
                 interactor: viewModel,
                 isPending: viewModel.pendingPostIDs.contains(post.id),
-                onOpenPost: { selectedPost = post },
+                onOpenPost: { appRouteNavigator(.post(PostDestination(post: post))) },
                 onOpenImage: { openImage($0, post: post) },
                 postActions: postActions(for: post),
                 onDismissPostActions: finishPostActionPresentation
@@ -220,7 +216,7 @@ struct BookmarksView: View {
       },
       onComment: {
         clearSelectedImage()
-        selectedPost = selection.post
+        appRouteNavigator(.post(PostDestination(post: selection.post)))
       },
       onRepost: {
         Task { await viewModel.toggleRepost(postId: selection.post.id) }

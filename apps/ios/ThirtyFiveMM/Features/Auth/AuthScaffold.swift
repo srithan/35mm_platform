@@ -318,6 +318,7 @@ struct AuthEmailField: View {
         .keyboardType(.emailAddress)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
+        .authTextEntryHitArea()
     }
   }
 }
@@ -338,6 +339,7 @@ struct AuthIdentifierField: View {
         .keyboardType(.emailAddress)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
+        .authTextEntryHitArea()
     }
   }
 }
@@ -351,6 +353,7 @@ struct AuthNameField: View {
       TextField(title, text: $text)
         .textContentType(.name)
         .textInputAutocapitalization(.words)
+        .authTextEntryHitArea()
     }
   }
 }
@@ -372,6 +375,7 @@ struct AuthUsernameField: View {
           .textContentType(.username)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
+          .authTextEntryHitArea()
 
         if let trailingStatus, !trailingStatus.isEmpty {
           Text(trailingStatus)
@@ -412,6 +416,7 @@ struct AuthPasswordField: View {
           }
         }
         .textContentType(contentType == .password ? .password : .newPassword)
+        .authTextEntryHitArea()
 
         Button {
           isRevealed.toggle()
@@ -501,6 +506,7 @@ struct AuthCodeField: View {
       TextField(title, text: $text)
         .textContentType(.oneTimeCode)
         .keyboardType(.numberPad)
+        .authTextEntryHitArea()
     }
   }
 }
@@ -535,6 +541,7 @@ private struct AuthInputShell<Field: View>: View {
           .font(.system(size: 16, weight: .regular))
           .foregroundStyle(AuthPalette.ink)
           .submitLabel(.done)
+          .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
       }
       .padding(.horizontal, 18)
       .frame(height: 58)
@@ -545,6 +552,13 @@ private struct AuthInputShell<Field: View>: View {
       }
     }
     .accessibilityLabel(title)
+  }
+}
+
+private extension View {
+  func authTextEntryHitArea() -> some View {
+    frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+      .contentShape(Rectangle())
   }
 }
 

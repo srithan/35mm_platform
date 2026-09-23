@@ -13,6 +13,63 @@ struct ProfileFeatureTests {
   }
 
   @Test
+  func profilePostAuthorNavigationDoesNotPushVisibleProfileAgain() {
+    #expect(
+      !PostCard.shouldNavigateToAuthor(
+        authorUserId: "user-1",
+        authorUsername: "Maya.Frames",
+        currentProfileUserId: "user-1",
+        currentProfileUsername: "  maya.frames  "
+      )
+    )
+    #expect(
+      PostCard.shouldNavigateToAuthor(
+        authorUserId: "user-2",
+        authorUsername: "other.viewer",
+        currentProfileUserId: "user-1",
+        currentProfileUsername: "maya.frames"
+      )
+    )
+    #expect(
+      PostCard.shouldNavigateToAuthor(
+        authorUserId: "user-1",
+        authorUsername: "maya.frames",
+        currentProfileUserId: nil,
+        currentProfileUsername: nil
+      )
+    )
+    #expect(
+      !PostCard.shouldNavigateToAuthor(
+        authorUserId: "",
+        authorUsername: "Maya.Frames",
+        currentProfileUserId: "",
+        currentProfileUsername: "  maya.frames  "
+      )
+    )
+  }
+
+  @Test
+  func duplicateVisibleProfileRouteIsNotAppended() {
+    let destination = ProfileDestination(username: "Maya.Frames")
+    var path: [AppRoute] = [.profile(destination)]
+
+    AppRoutePushPolicy.append(.profile(ProfileDestination(username: "  maya.frames  ")), to: &path)
+
+    #expect(path == [.profile(destination)])
+  }
+
+  @Test
+  func differentProfileRouteIsAppended() {
+    let current = ProfileDestination(username: "maya.frames")
+    let next = ProfileDestination(username: "other.viewer")
+    var path: [AppRoute] = [.profile(current)]
+
+    AppRoutePushPolicy.append(.profile(next), to: &path)
+
+    #expect(path == [.profile(current), .profile(next)])
+  }
+
+  @Test
   func profileNavigationTitleUsesUsernameForOtherProfiles() {
     let ownProfile = makeProfile()
     let otherProfile = ownProfile.updatingRelationship(followState: ProfileFollowState.none)
@@ -88,6 +145,16 @@ struct ProfileFeatureTests {
         isRightToLeft: false
       ) == 4
     )
+  }
+
+  @Test
+  func profileTabLabelVisibilityTracksPagerProgress() {
+    #expect(ProfileTab.posts.selectionAmount(at: 0) == 1)
+    #expect(ProfileTab.reposts.selectionAmount(at: 0) == 0)
+    #expect(ProfileTab.posts.selectionAmount(at: 0.25) == 0.75)
+    #expect(ProfileTab.reposts.selectionAmount(at: 0.25) == 0.25)
+    #expect(ProfileTab.diary.selectionAmount(at: 1.5) == 0.5)
+    #expect(ProfileTab.stats.selectionAmount(at: 99) == 0)
   }
 
   @Test
@@ -495,6 +562,26 @@ struct ProfileFeatureTests {
     #expect(model.posts.first?.isLiked == false)
     #expect(model.posts.first?.likeCount == 4)
     #expect(model.actionError != nil)
+  }
+
+  @Test
+  func profilePostsDriveSharedFeedRendererReconfigurationPlan() async throws {
+    let service = ProfileServiceStub()
+    service.profile = makeProfile()
+    service.postPages[ProfileServiceStub.firstPage] = PaginatedResponse(
+      items: [try makePost(id: "post-1", isLiked: false)],
+      nextCursor: nil,
+      hasMore: false
+    )
+    let model = ProfileViewModel(username: "maya.frames", service: service)
+    await model.load()
+    let previous = model.visiblePosts
+
+    await model.toggleLike(postId: "post-1")
+
+    let plan = FeedDiffableUpdatePlan(previous: previous, current: model.visiblePosts)
+    #expect(plan.canReconfigureInPlace)
+    #expect(plan.reconfigureIDs == ["post-1"])
   }
 
   private func makeDecoder() -> JSONDecoder {

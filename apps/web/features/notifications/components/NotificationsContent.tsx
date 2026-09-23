@@ -20,6 +20,7 @@ import {
 } from "@/features/notifications/api/notificationsApi";
 import { notificationsKeys } from "@/features/notifications/hooks/queryKeys";
 import { getNotificationDestination } from "@/features/notifications/utils/notificationDestination";
+import { getNotificationRowThumbnail } from "@/features/notifications/utils/notificationThumbnail";
 import { isMainNotificationItem } from "@/features/notifications/utils/mainNotification";
 import type { NotificationItem as ApiNotificationItem, NotificationPage } from "@35mm/types";
 import Link from "next/link";
@@ -292,7 +293,7 @@ function notificationToRecord(item: ApiNotificationItem): NotificationRecordWith
     time: relativeTime(item.createdAt),
     createdAt: item.createdAt,
     preview: item.entity?.type === "comment" ? item.entity.title ?? undefined : undefined,
-    thumbnail: item.entity?.thumbnailUrl ?? undefined,
+    thumbnail: getNotificationRowThumbnail(item),
     thumbnailAlt: item.entity?.title ?? undefined,
     contentParts: textParts,
   };

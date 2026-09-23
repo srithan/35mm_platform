@@ -212,6 +212,59 @@ final class ChatDecodingTests: XCTestCase {
     XCTAssertNotNil(message.editedAt)
   }
 
+  func testChatThreadCollectionSnapshotUsesStableMessageIdItems() {
+    let oldest = makeMessage(id: "oldest", createdAt: Date(timeIntervalSince1970: 10))
+    let newest = makeMessage(id: "newest", createdAt: Date(timeIntervalSince1970: 20))
+
+    let plan = ChatThreadCollectionSnapshotPlan.make(
+      messages: [oldest, newest],
+      hasMore: true,
+      isLoadingOlder: false
+    )
+
+    XCTAssertEqual(plan.items, [
+      .bottomAnchor,
+      .typingIndicator,
+      .message("newest"),
+      .message("oldest"),
+      .loadingOlder
+    ])
+  }
+
+  func testChatThreadCollectionReconfiguresStableItemsForStateUpdates() {
+    let message = makeMessage(id: "message-1", createdAt: Date(timeIntervalSince1970: 10))
+    let previous = ChatThreadCollectionSnapshotPlan.make(
+      messages: [message],
+      hasMore: false,
+      isLoadingOlder: false
+    )
+    let updated = ChatThreadCollectionSnapshotPlan.make(
+      messages: [message],
+      hasMore: false,
+      isLoadingOlder: false
+    )
+
+    XCTAssertEqual(updated.reconfigurableItems(from: previous), [
+      .bottomAnchor,
+      .typingIndicator,
+      .message("message-1")
+    ])
+  }
+
+  func testChatThreadCollectionAccessibilityOrderStaysLogicalTopToBottom() {
+    let oldest = makeMessage(id: "oldest", createdAt: Date(timeIntervalSince1970: 10))
+    let middle = makeMessage(id: "middle", createdAt: Date(timeIntervalSince1970: 20))
+    let newest = makeMessage(id: "newest", createdAt: Date(timeIntervalSince1970: 30))
+
+    let plan = ChatThreadCollectionSnapshotPlan.make(
+      messages: [oldest, middle, newest],
+      hasMore: false,
+      isLoadingOlder: false
+    )
+
+    XCTAssertEqual(plan.accessibilityMessageIdsTopToBottom, ["oldest", "middle", "newest"])
+  }
+
   func testDecodesInboxPageWithDmAndGroupThread() throws {
     let data = Data(
       """
@@ -291,6 +344,30 @@ final class ChatDecodingTests: XCTestCase {
 
   private func decodeMessage(_ json: String) throws -> ChatMessage {
     try decoder.decode(ChatMessage.self, from: Data(json.utf8))
+  }
+
+  private func makeMessage(id: String, createdAt: Date) -> ChatMessage {
+    ChatMessage(
+      id: id,
+      threadId: "thread-1",
+      bucket: 202609,
+      senderId: "user-1",
+      senderUsername: "maya",
+      senderDisplayName: "Maya",
+      senderAvatarUrl: nil,
+      senderAvatarVariants: nil,
+      contentType: .text,
+      body: "hello",
+      mediaUrl: nil,
+      mediaMetadata: nil,
+      linkPreview: nil,
+      replyToId: nil,
+      replySnapshot: nil,
+      reactions: [],
+      isDeleted: false,
+      editedAt: nil,
+      createdAt: createdAt
+    )
   }
 
   private static func decodeISO8601Date(from decoder: Decoder) throws -> Date {

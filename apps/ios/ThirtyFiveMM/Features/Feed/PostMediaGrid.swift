@@ -100,6 +100,7 @@ struct PostMediaGrid: View {
 
   private func remoteImage(_ url: String, width: CGFloat, height: CGFloat) -> some View {
     KFImage(URL(string: url))
+      .setProcessor(FeedImagePipeline.processor(forDisplaySize: CGSize(width: width, height: height)))
       .placeholder {
         Rectangle()
           .fill(Color(.tertiarySystemFill))

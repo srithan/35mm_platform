@@ -174,6 +174,7 @@ describe("theme parity fixtures", () => {
       "auto",
       "light",
       "dark",
+      "letterboxd",
       "matinee",
       "matrix",
       "oppenheimer-bw",

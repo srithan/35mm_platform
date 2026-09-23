@@ -33,6 +33,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>35mm saves images you choose to your photo library.</string>
 	<key>PostMediaCarouselEnabled</key>
 	<true/>
 	<key>TraditionalTabBarEnabled</key>

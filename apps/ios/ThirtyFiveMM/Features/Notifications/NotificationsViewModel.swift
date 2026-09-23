@@ -6,6 +6,10 @@ enum NotificationFilter: String, CaseIterable, Identifiable, Hashable {
 
   var id: String { rawValue }
 
+  var index: Int {
+    Self.allCases.firstIndex(of: self) ?? 0
+  }
+
   var title: String {
     switch self {
     case .all:
@@ -17,6 +21,50 @@ enum NotificationFilter: String, CaseIterable, Identifiable, Hashable {
 
   var unreadOnly: Bool {
     self == .unread
+  }
+
+  static func dragProgress(
+    from selection: NotificationFilter,
+    translation: CGFloat,
+    pageWidth: CGFloat,
+    isRightToLeft: Bool
+  ) -> Double {
+    guard pageWidth > 0 else { return Double(selection.index) }
+    let forwardTravel = isRightToLeft ? translation : -translation
+
+    return min(
+      max(Double(selection.index) + Double(forwardTravel / pageWidth), 0),
+      Double(allCases.count - 1)
+    )
+  }
+
+  static func settlingProgress(
+    from selection: NotificationFilter,
+    translation: CGFloat,
+    predictedTranslation: CGFloat,
+    pageWidth: CGFloat,
+    isRightToLeft: Bool
+  ) -> Double {
+    guard pageWidth > 0 else { return Double(selection.index) }
+
+    let currentProgress = dragProgress(
+      from: selection,
+      translation: translation,
+      pageWidth: pageWidth,
+      isRightToLeft: isRightToLeft
+    )
+    let predictedProgress = dragProgress(
+      from: selection,
+      translation: predictedTranslation,
+      pageWidth: pageWidth,
+      isRightToLeft: isRightToLeft
+    )
+    let target = abs(predictedProgress - Double(selection.index))
+      > abs(currentProgress - Double(selection.index))
+      ? predictedProgress
+      : currentProgress
+
+    return target.rounded()
   }
 }
 
@@ -44,6 +92,10 @@ final class NotificationsViewModel: ObservableObject {
 
   var hasUnread: Bool {
     items.contains { !$0.isRead }
+  }
+
+  var hasReachedEnd: Bool {
+    hasLoadedInitial && !hasMore && !items.isEmpty && !isLoadingInitial && !isLoadingMore && error == nil
   }
 
   init(apiClient: APIClient, filter: NotificationFilter = .all) {

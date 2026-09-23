@@ -1,6 +1,15 @@
 import Foundation
 
 extension NotificationItem {
+  private var isFollowRelationshipNotification: Bool {
+    switch type {
+    case .follow, .followRequest, .followRequestApproved:
+      true
+    case .like, .comment, .reply, .mention, .repost, .filmLogged, .chatReaction, .reportStatusUpdate, .contentModerated, .contentUnderReview:
+      false
+    }
+  }
+
   var actorDisplaySummary: String {
     var names: [String] = []
     var seen = Set<String>()
@@ -93,6 +102,8 @@ extension NotificationItem {
   }
 
   var contextPosterURL: String? {
+    guard !isFollowRelationshipNotification else { return nil }
+
     let value = entity?.thumbnailUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
     return value?.isEmpty == false ? value : nil
   }

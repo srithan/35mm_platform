@@ -1,5 +1,6 @@
 import Kingfisher
 import SwiftUI
+import UIKit
 
 struct PostMediaCarousel: View {
   let items: [PostMediaGridItem]
@@ -25,11 +26,10 @@ struct PostMediaCarousel: View {
         PostMediaCarouselDots(count: items.count, activeIndex: activeIndex)
 
         GeometryReader { proxy in
-          let cardWidth = max(132, proxy.size.width * 0.44)
-          let trailingInset = max(0, proxy.size.width - cardWidth)
+          let cardWidth = Self.cardWidth(forViewportWidth: proxy.size.width)
 
           ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 8) {
+            LazyHStack(spacing: Self.cellSpacing) {
               ForEach(items.indices, id: \.self) { index in
                 PostMediaCarouselCell(
                   item: items[index],
@@ -47,25 +47,28 @@ struct PostMediaCarousel: View {
                   }
                 )
               }
-
-              Color.clear
-                .frame(width: trailingInset, height: 1)
             }
           }
+          .background(PostMediaCarouselVerticalPanShield())
           .coordinateSpace(name: "post-media-carousel")
           .onPreferenceChange(PostMediaCarouselOffsetPreferenceKey.self) { offsets in
-            updateActiveIndex(offsets)
+            let scrollOffset = max(0, -(offsets[0] ?? 0))
+            updateActiveIndex(
+              Self.activeIndex(
+                forScrollOffset: scrollOffset,
+                viewportWidth: proxy.size.width,
+                cardWidth: cardWidth,
+                itemCount: items.count
+              )
+            )
           }
         }
-        .aspectRatio(1.82, contentMode: .fit)
+        .aspectRatio(Self.carouselAspectRatio, contentMode: .fit)
       }
     }
   }
 
-  private func updateActiveIndex(_ offsets: [Int: CGFloat]) {
-    guard let next = offsets.min(by: { abs($0.value) < abs($1.value) })?.key else {
-      return
-    }
+  private func updateActiveIndex(_ next: Int) {
     guard next != activeIndex else { return }
 
     if reduceMotion {
@@ -82,6 +85,58 @@ struct PostMediaCarousel: View {
     dampingFraction: 0.86,
     blendDuration: 0.04
   )
+
+  static let cellSpacing: CGFloat = 8
+  private static let cardScale: CGFloat = 1.6
+  private static let cardHeightRatio: CGFloat = 1.25
+  static let cellCornerRadius: CGFloat = 16
+  static let carouselAspectRatio: CGFloat = 1 / (0.44 * cardScale * cardHeightRatio)
+
+  static func cardWidth(forViewportWidth viewportWidth: CGFloat) -> CGFloat {
+    max(132, viewportWidth * 0.44) * cardScale
+  }
+
+  static func cardHeight(forCardWidth cardWidth: CGFloat) -> CGFloat {
+    cardWidth * cardHeightRatio
+  }
+
+  static func contentWidth(
+    itemCount: Int,
+    cardWidth: CGFloat,
+    spacing: CGFloat = cellSpacing
+  ) -> CGFloat {
+    guard itemCount > 0 else { return 0 }
+    return CGFloat(itemCount) * cardWidth + CGFloat(itemCount - 1) * spacing
+  }
+
+  static func activeIndex(
+    forScrollOffset scrollOffset: CGFloat,
+    viewportWidth: CGFloat,
+    cardWidth: CGFloat,
+    itemCount: Int,
+    spacing: CGFloat = cellSpacing
+  ) -> Int {
+    guard itemCount > 1 else { return 0 }
+
+    let maxScrollOffset = max(
+      0,
+      contentWidth(itemCount: itemCount, cardWidth: cardWidth, spacing: spacing) - viewportWidth
+    )
+    guard maxScrollOffset > 0 else { return 0 }
+
+    let clampedProgress = min(max(scrollOffset / maxScrollOffset, 0), 1)
+    let rawIndex = (clampedProgress * CGFloat(itemCount - 1)).rounded()
+    return min(max(Int(rawIndex), 0), itemCount - 1)
+  }
+
+  static func shouldShieldParentVerticalPan(
+    translation: CGPoint,
+    velocity: CGPoint
+  ) -> Bool {
+    let horizontalIntent = max(abs(translation.x), abs(velocity.x) / 30)
+    let verticalIntent = max(translation.y, velocity.y / 30)
+    return verticalIntent > 6 && verticalIntent > horizontalIntent * 1.15
+  }
 }
 
 private struct PostMediaCarouselCell: View {
@@ -96,14 +151,24 @@ private struct PostMediaCarouselCell: View {
       onSelectImage(item.url)
     } label: {
       KFImage(URL(string: item.url))
+        .setProcessor(
+          FeedImagePipeline.processor(
+            forDisplaySize: CGSize(
+              width: width,
+              height: PostMediaCarousel.cardHeight(forCardWidth: width)
+            )
+          )
+        )
         .placeholder {
           Rectangle()
             .fill(Color(.tertiarySystemFill))
         }
         .resizable()
         .scaledToFill()
-        .frame(width: width, height: width * 1.25)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(width: width, height: PostMediaCarousel.cardHeight(forCardWidth: width))
+        .clipShape(
+          RoundedRectangle(cornerRadius: PostMediaCarousel.cellCornerRadius, style: .continuous)
+        )
     }
     .buttonStyle(.plain)
     .accessibilityLabel("View image \(index + 1) of \(count)")
@@ -138,5 +203,77 @@ private struct PostMediaCarouselOffsetPreferenceKey: PreferenceKey {
 
   static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
     value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+  }
+}
+
+private struct PostMediaCarouselVerticalPanShield: UIViewRepresentable {
+  func makeCoordinator() -> Coordinator {
+    Coordinator()
+  }
+
+  func makeUIView(context: Context) -> UIView {
+    let view = UIView(frame: .zero)
+    view.isUserInteractionEnabled = false
+    return view
+  }
+
+  func updateUIView(_ uiView: UIView, context: Context) {
+    DispatchQueue.main.async { [weak uiView, coordinator = context.coordinator] in
+      guard let uiView else { return }
+      coordinator.attach(to: uiView.enclosingHorizontalScrollView)
+    }
+  }
+
+  final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+    private weak var scrollView: UIScrollView?
+    private lazy var recognizer: UIPanGestureRecognizer = {
+      let recognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+      recognizer.cancelsTouchesInView = false
+      recognizer.delegate = self
+      return recognizer
+    }()
+
+    func attach(to scrollView: UIScrollView?) {
+      guard self.scrollView !== scrollView else { return }
+      if let current = self.scrollView {
+        current.removeGestureRecognizer(recognizer)
+      }
+      self.scrollView = scrollView
+      scrollView?.addGestureRecognizer(recognizer)
+    }
+
+    @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {}
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+      guard let pan = gestureRecognizer as? UIPanGestureRecognizer,
+            let view = pan.view else {
+        return false
+      }
+      return PostMediaCarousel.shouldShieldParentVerticalPan(
+        translation: pan.translation(in: view),
+        velocity: pan.velocity(in: view)
+      )
+    }
+
+    func gestureRecognizer(
+      _ gestureRecognizer: UIGestureRecognizer,
+      shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+      false
+    }
+  }
+}
+
+private extension UIView {
+  var enclosingHorizontalScrollView: UIScrollView? {
+    var candidate = superview
+    while let view = candidate {
+      if let scrollView = view as? UIScrollView,
+         scrollView.alwaysBounceHorizontal || scrollView.contentSize.width > scrollView.bounds.width {
+        return scrollView
+      }
+      candidate = view.superview
+    }
+    return nil
   }
 }

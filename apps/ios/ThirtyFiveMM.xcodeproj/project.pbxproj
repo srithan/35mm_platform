@@ -44,6 +44,8 @@
 		A00000000000000000000023 /* FeedViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000023 /* FeedViewModel.swift */; };
 		A00000000000000000000024 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000024 /* FeedView.swift */; };
 		A00000000000000000000025 /* PostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000025 /* PostCard.swift */; };
+		A60000000000000000000001 /* FeedServicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000001 /* FeedServicing.swift */; };
+		A60000000000000000000003 /* FeedCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000003 /* FeedCollectionView.swift */; };
 		A00000000000000000000026 /* CommentNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000027 /* CommentNode.swift */; };
 		A00000000000000000000027 /* PostInteracting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000028 /* PostInteracting.swift */; };
 		A00000000000000000000028 /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000029 /* PostDetailView.swift */; };
@@ -76,6 +78,7 @@
 		A00000000000000000000045 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* SettingsViewModel.swift */; };
 		A00000000000000000000046 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* SettingsView.swift */; };
 		A00000000000000000000047 /* FeedPostDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000047 /* FeedPostDecodingTests.swift */; };
+		A60000000000000000000002 /* FeedViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000002 /* FeedViewModelTests.swift */; };
 		A00000000000000000000060 /* Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000060 /* Catalog.swift */; };
 		A00000000000000000000061 /* CatalogAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000061 /* CatalogAPI.swift */; };
 		A00000000000000000000062 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000062 /* DiscoverView.swift */; };
@@ -90,6 +93,7 @@
 		A00000000000000000000083 /* MediaUploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000083 /* MediaUploadClient.swift */; };
 		A0DE51600000000000000001 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE51600000000000000001 /* DesignSystem.swift */; };
 		A0DE51600000000000000002 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE51600000000000000002 /* Theme.swift */; };
+		A92000000000000000000001 /* InteractivePopGestureEnabler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92000000000000000000001 /* InteractivePopGestureEnabler.swift */; };
 		A10000000000000000000001 /* BookmarkServicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* BookmarkServicing.swift */; };
 		A10000000000000000000002 /* BookmarkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* BookmarkService.swift */; };
 		A10000000000000000000003 /* BookmarksControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* BookmarksControls.swift */; };
@@ -272,6 +276,9 @@
 		B00000000000000000000045 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		B00000000000000000000046 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B00000000000000000000047 /* FeedPostDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedPostDecodingTests.swift; sourceTree = "<group>"; };
+		B60000000000000000000001 /* FeedServicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedServicing.swift; sourceTree = "<group>"; };
+		B60000000000000000000002 /* FeedViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedViewModelTests.swift; sourceTree = "<group>"; };
+		B60000000000000000000003 /* FeedCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedCollectionView.swift; sourceTree = "<group>"; };
 		B00000000000000000000060 /* Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalog.swift; sourceTree = "<group>"; };
 		B00000000000000000000061 /* CatalogAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogAPI.swift; sourceTree = "<group>"; };
 		B00000000000000000000062 /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
@@ -286,6 +293,7 @@
 		B00000000000000000000083 /* MediaUploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaUploadClient.swift; sourceTree = "<group>"; };
 		B0DE51600000000000000001 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		B0DE51600000000000000002 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		B92000000000000000000001 /* InteractivePopGestureEnabler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePopGestureEnabler.swift; sourceTree = "<group>"; };
 		B10000000000000000000001 /* BookmarkServicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkServicing.swift; sourceTree = "<group>"; };
 		B10000000000000000000002 /* BookmarkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkService.swift; sourceTree = "<group>"; };
 		B10000000000000000000003 /* BookmarksControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksControls.swift; sourceTree = "<group>"; };
@@ -454,6 +462,7 @@
 				B00000000000000000000030 /* BottomActionSheet.swift */,
 				B0DE51600000000000000001 /* DesignSystem.swift */,
 				B80000000000000000000002 /* HeaderTabBar.swift */,
+				B92000000000000000000001 /* InteractivePopGestureEnabler.swift */,
 				B0DE51600000000000000002 /* Theme.swift */,
 				D50000000000000000000001 /* ShareModal.swift */,
 				D60000000000000000000001 /* ImageViewerView.swift */,
@@ -590,6 +599,8 @@
 			children = (
 				B00000000000000000000021 /* RichTextParser.swift */,
 				B00000000000000000000022 /* RichTextView.swift */,
+				B60000000000000000000001 /* FeedServicing.swift */,
+				B60000000000000000000003 /* FeedCollectionView.swift */,
 				B00000000000000000000023 /* FeedViewModel.swift */,
 				B00000000000000000000024 /* FeedView.swift */,
 				B00000000000000000000025 /* PostCard.swift */,
@@ -640,6 +651,7 @@
 			children = (
 				B00000000000000000000034 /* ChatDecodingTests.swift */,
 				B00000000000000000000047 /* FeedPostDecodingTests.swift */,
+				B60000000000000000000002 /* FeedViewModelTests.swift */,
 				B1000000000000000000000E /* BookmarksViewModelTests.swift */,
 				B00000000000000000000070 /* CatalogDecodingTests.swift */,
 				B00000000000000000000071 /* DiscoverViewModelTests.swift */,
@@ -930,6 +942,8 @@
 				A00000000000000000000020 /* Int+Formatted.swift in Sources */,
 				A00000000000000000000021 /* RichTextParser.swift in Sources */,
 				A00000000000000000000022 /* RichTextView.swift in Sources */,
+				A60000000000000000000001 /* FeedServicing.swift in Sources */,
+				A60000000000000000000003 /* FeedCollectionView.swift in Sources */,
 				A00000000000000000000023 /* FeedViewModel.swift in Sources */,
 				A00000000000000000000024 /* FeedView.swift in Sources */,
 				A00000000000000000000025 /* PostCard.swift in Sources */,
@@ -945,6 +959,7 @@
 				A00000000000000000000027 /* PostInteracting.swift in Sources */,
 				A0DE51600000000000000001 /* DesignSystem.swift in Sources */,
 				A80000000000000000000002 /* HeaderTabBar.swift in Sources */,
+				A92000000000000000000001 /* InteractivePopGestureEnabler.swift in Sources */,
 				A80000000000000000000005 /* NotificationsPagerView.swift in Sources */,
 				A0DE51600000000000000002 /* Theme.swift in Sources */,
 				A00000000000000000000028 /* PostDetailView.swift in Sources */,
@@ -1072,6 +1087,7 @@
 			files = (
 				A00000000000000000000033 /* ChatDecodingTests.swift in Sources */,
 				A00000000000000000000047 /* FeedPostDecodingTests.swift in Sources */,
+				A60000000000000000000002 /* FeedViewModelTests.swift in Sources */,
 				A1000000000000000000000E /* BookmarksViewModelTests.swift in Sources */,
 				A00000000000000000000070 /* CatalogDecodingTests.swift in Sources */,
 				A00000000000000000000071 /* DiscoverViewModelTests.swift in Sources */,

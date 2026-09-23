@@ -71,7 +71,6 @@ struct ChatInboxView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
       .background(theme.bg)
-      .navigationBarBackButtonHidden(true)
       .toolbar(.hidden, for: .navigationBar)
       .sheet(isPresented: $isShowingComposer) {
         ChatComposeSheet(viewModel: viewModel)

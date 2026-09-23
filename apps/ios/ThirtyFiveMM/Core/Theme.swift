@@ -5,11 +5,12 @@ import UIKit
 
 /// Color themes, mirroring the web app's `data-theme` values in
 /// `apps/web/app/globals.css` and the settings schema
-/// (`auto | light | dark | matinee | matrix | oppenheimer-bw | barbie`).
+/// (`auto | light | dark | letterboxd | matinee | matrix | oppenheimer-bw | barbie`).
 enum AppTheme: String, CaseIterable, Identifiable {
   case auto
   case light
   case dark
+  case letterboxd
   case matinee
   case matrix
   case oppenheimerBW = "oppenheimer-bw"
@@ -22,6 +23,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case .auto: "Auto"
     case .light: "Light"
     case .dark: "Dark"
+    case .letterboxd: "Letterboxd"
     case .matinee: "Matinee"
     case .matrix: "Matrix"
     case .oppenheimerBW: "B&W"
@@ -34,6 +36,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case .auto: "circle.lefthalf.filled"
     case .light: "sun.max"
     case .dark: "moon"
+    case .letterboxd: "rectangle.stack"
     case .matinee: "film"
     case .matrix: "terminal"
     case .oppenheimerBW: "camera.filters"
@@ -46,7 +49,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     switch self {
     case .auto: nil
     case .light, .matinee, .barbie: .light
-    case .dark, .matrix, .oppenheimerBW: .dark
+    case .dark, .letterboxd, .matrix, .oppenheimerBW: .dark
     }
   }
 
@@ -57,7 +60,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
   var isCustomPalette: Bool {
     switch self {
     case .auto, .light, .dark: false
-    case .matinee, .matrix, .oppenheimerBW, .barbie: true
+    case .letterboxd, .matinee, .matrix, .oppenheimerBW, .barbie: true
     }
   }
 }
@@ -240,6 +243,29 @@ extension ThemePalette {
     uiUnreadBadge: UIColor(hex: 0xE04848)
   )
 
+  /// Web `[data-theme="letterboxd"]` tokens.
+  static let letterboxd = ThemePalette(
+    uiBg: UIColor(hex: 0x14181C),
+    uiBgElevated: UIColor(hex: 0x1B2228),
+    uiBgSunken: UIColor(hex: 0x101418),
+    uiBgHover: UIColor(hex: 0x1B2228),
+    uiFill: UIColor(hex: 0x202830),
+    uiFillStrong: UIColor(hex: 0x2C3440),
+    uiText: UIColor(hex: 0xF2F5F7),
+    uiTextSecondary: UIColor(hex: 0xAABBCC),
+    uiTextTertiary: UIColor(hex: 0x9AABBA),
+    uiBorder: UIColor(hex: 0x303C48),
+    uiBorderStrong: UIColor(hex: 0x556677),
+    uiAccent: UIColor(hex: 0x00C030),
+    uiAccentForeground: UIColor(hex: 0x101418),
+    uiSocialAccent: UIColor(hex: 0x40BCF4),
+    uiLike: UIColor(hex: 0xFF982E),
+    uiRepost: UIColor(hex: 0x00C030),
+    uiSuccess: UIColor(hex: 0x00C030),
+    uiWarning: UIColor(hex: 0xFF982E),
+    uiUnreadBadge: UIColor(hex: 0xFF982E)
+  )
+
   /// Light/dark dynamic palette used by auto, light, and dark themes.
   /// Resolution follows the effective color scheme, so forcing
   /// `preferredColorScheme` makes the same palette serve all three.
@@ -368,6 +394,7 @@ extension AppTheme {
     case .auto: .system
     case .light: .light
     case .dark: .dark
+    case .letterboxd: .letterboxd
     case .matinee: .matinee
     case .matrix: .matrix
     case .oppenheimerBW: .oppenheimerBW
@@ -379,7 +406,7 @@ extension AppTheme {
     switch self {
     case .auto: .unspecified
     case .light, .matinee, .barbie: .light
-    case .dark, .matrix, .oppenheimerBW: .dark
+    case .dark, .letterboxd, .matrix, .oppenheimerBW: .dark
     }
   }
 }
@@ -466,11 +493,11 @@ final class ThemeManager: ObservableObject {
     var queue: [UIViewController] = [root]
     while let controller = queue.first {
       queue.removeFirst()
-      // Paint hosts behind the floating tab bar. `UITabBar` stays clear unless
-      // the explicit traditional full-width tab-bar flag owns the opaque chrome.
-      controller.view.backgroundColor = color
+      // Paint already loaded hosts behind the floating tab bar. Avoid touching
+      // `view`, which can force-load hidden controllers during a theme switch.
+      controller.viewIfLoaded?.backgroundColor = color
       if let tab = controller as? UITabBarController {
-        tab.view.backgroundColor = color
+        tab.viewIfLoaded?.backgroundColor = color
       }
       queue.append(contentsOf: controller.children)
       if let presented = controller.presentedViewController {

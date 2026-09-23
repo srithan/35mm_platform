@@ -11,6 +11,7 @@ struct ProfileDestination: Hashable {
 }
 
 struct ProfileView: View {
+  @Environment(\.dismiss) private var dismiss
   @Environment(\.theme) private var theme
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
@@ -51,6 +52,29 @@ struct ProfileView: View {
   }
 
   var body: some View {
+    Group {
+      if showsBackButton {
+        pushedProfileBody
+      } else {
+        tabProfileBody
+      }
+    }
+    .background(theme.bg)
+    .background {
+      if showsBackButton {
+        InteractivePopGestureEnabler()
+          .allowsHitTesting(false)
+          .accessibilityHidden(true)
+      }
+    }
+    .navigationTitle(navigationHeaderTitle)
+    .toolbar(.hidden, for: .navigationBar)
+    .task {
+      await model.load()
+    }
+  }
+
+  private var tabProfileBody: some View {
     VStack(spacing: 0) {
       navigationHeader
       .frame(height: isHeaderVisible ? navigationHeaderHeight : 0, alignment: .top)
@@ -59,48 +83,26 @@ struct ProfileView: View {
       .allowsHitTesting(isHeaderVisible)
       .accessibilityHidden(!isHeaderVisible)
 
-      Group {
-        switch model.screenPhase {
-        case .loading:
-          ProfileLoadingSkeletonView()
-        case .failure(let error):
-          ContentUnavailableView {
-            Label("Couldn't load profile", systemImage: "person.crop.circle.badge.exclamationmark")
-          } description: {
-            Text(error)
-          } actions: {
-            Button("Try again") {
-              Task { await model.load() }
-            }
-            .buttonStyle(.borderedProminent)
-          }
-        case .blocked:
-          ContentUnavailableView(
-            "Profile blocked",
-            systemImage: "person.crop.circle.badge.xmark",
-            description: Text("This account can no longer view or interact with you.")
-          )
-        case .content(let profile):
-          ProfileLoadedView(
-            profile: profile,
-            model: model,
-            service: service,
-            onCurrentProfileUpdated: onCurrentProfileUpdated,
-            onScrollDirectionChange: handleScrollDirection
-          )
-        }
-      }
+      screenContent
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    .background(theme.bg)
-    .navigationTitle(navigationHeaderTitle)
-    .toolbar(.hidden, for: .navigationBar)
-    .task {
-      await model.load()
     }
   }
 
-  @ViewBuilder
+  private var pushedProfileBody: some View {
+    ZStack(alignment: .topLeading) {
+      screenContent
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+      if showsOuterPushedHeader {
+        ProfileNavigationHeader(
+          title: navigationHeaderTitle,
+          collapseProgress: 0,
+          onBack: dismiss.callAsFunction
+        )
+      }
+    }
+  }
+
   private var navigationHeader: some View {
     AppHeader(
       title: .text(navigationHeaderTitle),
@@ -112,8 +114,69 @@ struct ProfileView: View {
     )
   }
 
+  @ViewBuilder
+  private var screenContent: some View {
+    switch model.screenPhase {
+    case .loading:
+      loadingContent
+    case .failure(let error):
+      ContentUnavailableView {
+        Label("Couldn't load profile", systemImage: "person.crop.circle.badge.exclamationmark")
+      } description: {
+        Text(error)
+      } actions: {
+        Button("Try again") {
+          Task { await model.load() }
+        }
+        .buttonStyle(.borderedProminent)
+      }
+    case .blocked:
+      ContentUnavailableView(
+        "Profile blocked",
+        systemImage: "person.crop.circle.badge.xmark",
+        description: Text("This account can no longer view or interact with you.")
+      )
+    case .content(let profile):
+      loadedContent(profile)
+    }
+  }
+
+  @ViewBuilder
+  private var loadingContent: some View {
+    if showsBackButton {
+      ProfileLoadingSkeletonView()
+        .ignoresSafeArea(edges: .top)
+    } else {
+      ProfileLoadingSkeletonView()
+    }
+  }
+
+  @ViewBuilder
+  private func loadedContent(_ profile: PublicProfile) -> some View {
+    let content = ProfileLoadedView(
+      profile: profile,
+      model: model,
+      service: service,
+      showsCollapsingHeader: showsBackButton,
+      onBack: showsBackButton ? { dismiss() } : nil,
+      onCurrentProfileUpdated: onCurrentProfileUpdated,
+      onScrollDirectionChange: handleScrollDirection
+    )
+
+    content
+  }
+
   private var navigationHeaderHeight: CGFloat {
     AppChromeMetrics.homeHeaderHeight
+  }
+
+  private var showsOuterPushedHeader: Bool {
+    switch model.screenPhase {
+    case .content:
+      return false
+    case .loading, .failure, .blocked:
+      return showsBackButton
+    }
   }
 
   private var navigationHeaderTitle: String {
@@ -211,7 +274,6 @@ private struct ProfileLoadingSkeletonView: View {
             .frame(height: 44)
         }
         .padding(.horizontal, ProfileDesign.horizontalPadding)
-        .padding(.bottom, 16)
 
         ProfileLoadingTabSkeleton()
 
@@ -245,10 +307,11 @@ private struct ProfileLoadingTabSkeleton: View {
         Circle()
           .fill(theme.fillStrong)
           .frame(width: 22, height: 22)
-          .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarHeight)
+          .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarContentHeight)
       }
     }
     .padding(.horizontal, ProfileDesign.tabBarHorizontalPadding)
+    .padding(.top, ProfileDesign.tabBarTopPadding)
     .background(theme.bg)
     .overlay(alignment: .bottom) {
       Rectangle()

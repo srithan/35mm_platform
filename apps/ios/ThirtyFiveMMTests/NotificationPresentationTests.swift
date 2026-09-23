@@ -4,6 +4,68 @@ import Testing
 
 struct NotificationPresentationTests {
   @Test
+  func notificationFilterDragProgressTracksSwipeDirection() {
+    #expect(
+      NotificationFilter.dragProgress(
+        from: .all,
+        translation: -120,
+        pageWidth: 240,
+        isRightToLeft: false
+      ) == 0.5
+    )
+    #expect(
+      NotificationFilter.dragProgress(
+        from: .unread,
+        translation: 120,
+        pageWidth: 240,
+        isRightToLeft: false
+      ) == 0.5
+    )
+    #expect(
+      NotificationFilter.dragProgress(
+        from: .all,
+        translation: -600,
+        pageWidth: 240,
+        isRightToLeft: false
+      ) == 1
+    )
+  }
+
+  @Test
+  func notificationFilterDragProgressMirrorsInRightToLeftLayout() {
+    #expect(
+      NotificationFilter.dragProgress(
+        from: .all,
+        translation: 120,
+        pageWidth: 240,
+        isRightToLeft: true
+      ) == 0.5
+    )
+  }
+
+  @Test
+  func notificationFilterSettlingProgressUsesPredictedSwipe() {
+    #expect(
+      NotificationFilter.settlingProgress(
+        from: .all,
+        translation: -80,
+        predictedTranslation: -180,
+        pageWidth: 240,
+        isRightToLeft: false
+      ) == 1
+    )
+    #expect(
+      NotificationFilter.settlingProgress(
+        from: .unread,
+        translation: 50,
+        predictedTranslation: 60,
+        pageWidth: 240,
+        isRightToLeft: false
+      ) == 1
+    )
+  }
+
+  @Test
   func notificationPageDecodesCurrentServerNotificationTypes() throws {
     let payload = """
     {
@@ -116,6 +178,27 @@ struct NotificationPresentationTests {
     #expect(item.contextTitle == "In the Mood for Love")
     #expect(item.contextPreview == "Every hallway feels like a memory.")
     #expect(item.hasDisplayContext)
+  }
+
+  @Test
+  func followRelationshipNotificationsDoNotExposeRightSideMedia() {
+    for type in [NotificationType.follow, .followRequest, .followRequestApproved] {
+      let item = makeNotification(
+        type: type,
+        entity: NotificationEntity(
+          type: .user,
+          id: "user-1",
+          title: "Maya Frames",
+          thumbnailUrl: "https://cdn.example/avatar.jpg",
+          contentPreview: nil,
+          username: "maya",
+          postId: nil
+        )
+      )
+
+      #expect(item.contextPosterURL == nil)
+      #expect(!item.hasDisplayContext)
+    }
   }
 
   @Test

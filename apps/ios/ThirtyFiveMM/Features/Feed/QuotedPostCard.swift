@@ -10,7 +10,7 @@ struct QuotedPostCard: View {
   var body: some View {
     Group {
       if let post {
-        NavigationLink(value: AppRoute.post(post.id)) {
+        NavigationLink(value: AppRoute.post(PostDestination(postId: post.id))) {
           availableContent(post)
         }
         .buttonStyle(.plain)

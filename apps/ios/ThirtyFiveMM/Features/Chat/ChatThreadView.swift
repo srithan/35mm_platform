@@ -18,6 +18,7 @@ struct ChatThreadView: View {
   @State private var isShowingFileImporter = false
   @State private var attachmentError: String?
   @State private var didScrollInitial = false
+  @State private var scrollRequest: ChatThreadScrollRequest?
 
   init(thread: ChatThreadPreview, apiClient: APIClient, currentUserId: String) {
     _viewModel = StateObject(
@@ -101,7 +102,6 @@ struct ChatThreadView: View {
       }
       .background(theme.bg)
     }
-    .navigationBarBackButtonHidden(true)
     .toolbar(.hidden, for: .navigationBar)
     .toolbar(.hidden, for: .tabBar)
     .task {
@@ -151,76 +151,41 @@ struct ChatThreadView: View {
     } else if viewModel.messages.isEmpty {
       ChatThreadEmptyView()
     } else {
-      ScrollViewReader { proxy in
-        ZStack(alignment: .bottom) {
-          ScrollView {
-            LazyVStack(spacing: 6) {
-              if viewModel.isLoadingOlder {
-                ProgressView()
-                  .padding(.vertical, 12)
-              }
-
-              ForEach(viewModel.messages) { message in
-                messageRow(message: message, proxy: proxy)
-              }
-
-              if !viewModel.typingUsers.isEmpty {
-                ChatTypingBubble(users: viewModel.typingUsers)
-                  .id("typing")
-              }
-
-              Color.clear
-                .frame(height: 1)
-                .id("bottom")
+      ZStack(alignment: .bottom) {
+        ChatThreadCollectionView(
+          viewModel: viewModel,
+          scrollRequest: $scrollRequest,
+          selectedImage: $selectedImage,
+          reactionTarget: $reactionTarget,
+          deleteCandidate: $deleteCandidate,
+          composerText: $composerText,
+          didScrollInitial: $didScrollInitial
+        )
+        .overlay(alignment: .top) {
+          if let error = viewModel.error, !viewModel.messages.isEmpty {
+            ChatInlineErrorBanner(message: error) {
+              viewModel.clearError()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .padding(.top, 4)
           }
-          .scrollDismissesKeyboard(.interactively)
-          .defaultScrollAnchor(.bottom)
-          .overlay(alignment: .top) {
-            if let error = viewModel.error, !viewModel.messages.isEmpty {
-              ChatInlineErrorBanner(message: error) {
-                viewModel.clearError()
-              }
+        }
+
+        if viewModel.hasUnseenNewMessages {
+          Button {
+            scrollRequest = ChatThreadScrollRequest(target: .bottom(animated: true))
+            viewModel.setNearBottom(true)
+            viewModel.clearUnseenMessages()
+          } label: {
+            Label("New message", systemImage: "arrow.down")
+              .font(.system(size: 13, weight: .bold))
+              .foregroundStyle(.white)
               .padding(.horizontal, 14)
-              .padding(.top, 4)
-            }
+              .padding(.vertical, 9)
+              .background(Capsule().fill(ChatTheme.accent))
           }
-
-          if viewModel.hasUnseenNewMessages {
-            Button {
-              withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-                proxy.scrollTo("bottom", anchor: .bottom)
-              }
-              viewModel.setNearBottom(true)
-              viewModel.clearUnseenMessages()
-            } label: {
-              Label("New message", systemImage: "arrow.down")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(Capsule().fill(ChatTheme.accent))
-            }
-            .buttonStyle(.plain)
-            .padding(.bottom, 14)
-          }
-        }
-        .onAppear {
-          scrollToInitialBottom(proxy)
-        }
-        .onChange(of: viewModel.messages.last?.id) { _, _ in
-          if !didScrollInitial {
-            scrollToInitialBottom(proxy)
-            return
-          }
-          guard viewModel.shouldAutoScrollToBottom() else { return }
-          scrollToBottom(proxy, animated: true)
-        }
-        .onChange(of: viewModel.typingUsers) { _, users in
-          guard !users.isEmpty, viewModel.shouldAutoScrollToBottom() else { return }
-          scrollToBottom(proxy, animated: true)
+          .buttonStyle(.plain)
+          .padding(.bottom, 14)
         }
       }
     }
@@ -246,28 +211,6 @@ struct ChatThreadView: View {
     member.displayName.isEmpty ? "@\(member.username)" : member.displayName
   }
 
-  private func scrollToInitialBottom(_ proxy: ScrollViewProxy) {
-    guard !didScrollInitial, !viewModel.messages.isEmpty else { return }
-    scrollToBottom(proxy, animated: false)
-    didScrollInitial = true
-    viewModel.setNearBottom(true)
-  }
-
-  private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
-    if animated {
-      withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-        proxy.scrollTo("bottom", anchor: .bottom)
-      }
-      return
-    }
-
-    var transaction = Transaction()
-    transaction.disablesAnimations = true
-    withTransaction(transaction) {
-      proxy.scrollTo("bottom", anchor: .bottom)
-    }
-  }
-
   private var reactionDialogPresented: Binding<Bool> {
     Binding(
       get: { reactionTarget != nil },
@@ -277,75 +220,6 @@ struct ChatThreadView: View {
         }
       }
     )
-  }
-
-  @ViewBuilder
-  private func messageRow(message: ChatMessage, proxy: ScrollViewProxy) -> some View {
-    if viewModel.shouldShowDateSeparator(before: message) {
-      ChatDateSeparator(date: message.createdAt)
-        .id("date-\(message.id)")
-    }
-
-    ChatMessageRow(
-      message: message,
-      isMine: message.senderId == viewModel.currentUserId,
-      showHeader: viewModel.isFirstInRun(message: message),
-      isHighlighted: viewModel.highlightedMessageId == message.id,
-      readReceiptSummary: viewModel.readReceiptSummary(for: message),
-      localState: viewModel.localMessageStateById[message.id],
-      currentUserId: viewModel.currentUserId,
-      onOpenImage: { url in
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-          selectedImage = ChatImageSelection(url: url)
-        }
-      },
-      onReact: {
-        reactionTarget = ChatReactionTarget(message: message)
-      },
-      onReactEmoji: { emoji in
-        Task { await viewModel.toggleReaction(message: message, emoji: emoji) }
-      },
-      onReply: {
-        viewModel.setReplyingTo(message)
-      },
-      onEdit: {
-        viewModel.beginEditing(message)
-        composerText = message.body ?? ""
-      },
-      onDelete: {
-        deleteCandidate = message
-      },
-      onRetry: {
-        Task { await viewModel.retry(messageId: message.id) }
-      },
-      onReplyTap: {
-        guard
-          let replyToId = message.replyToId,
-          viewModel.highlightMessage(id: replyToId)
-        else {
-          return
-        }
-        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-          proxy.scrollTo(replyToId, anchor: .center)
-        }
-      }
-    )
-    .id(message.id)
-    .onAppear {
-      if didScrollInitial {
-        Task { await viewModel.loadOlderIfNeeded(currentMessageId: message.id) }
-      }
-      if message.id == viewModel.messages.last?.id {
-        viewModel.markVisible(message: message)
-      }
-    }
-    .onDisappear {
-      if message.id == viewModel.messages.last?.id {
-        viewModel.setNearBottom(false)
-      }
-    }
   }
 
   private var deleteAlertPresented: Binding<Bool> {
@@ -439,6 +313,528 @@ struct ChatThreadView: View {
     } catch {
       attachmentError = error.localizedDescription
     }
+  }
+}
+
+struct ChatThreadScrollRequest: Equatable, Identifiable {
+  enum Target: Equatable {
+    case bottom(animated: Bool)
+    case message(ChatMessageId)
+  }
+
+  let id = UUID()
+  let target: Target
+}
+
+enum ChatThreadCollectionItemID: Hashable {
+  case bottomAnchor
+  case typingIndicator
+  case message(ChatMessageId)
+  case loadingOlder
+}
+
+struct ChatThreadCollectionSnapshotPlan: Equatable {
+  let items: [ChatThreadCollectionItemID]
+  let accessibilityMessageIdsTopToBottom: [ChatMessageId]
+
+  static func make(
+    messages: [ChatMessage],
+    hasMore: Bool,
+    isLoadingOlder: Bool
+  ) -> ChatThreadCollectionSnapshotPlan {
+    var items: [ChatThreadCollectionItemID] = [.bottomAnchor, .typingIndicator]
+    items.append(contentsOf: messages.reversed().map { .message($0.id) })
+    if hasMore || isLoadingOlder {
+      items.append(.loadingOlder)
+    }
+    return ChatThreadCollectionSnapshotPlan(
+      items: items,
+      accessibilityMessageIdsTopToBottom: messages.map(\.id)
+    )
+  }
+
+  func reconfigurableItems(from previous: ChatThreadCollectionSnapshotPlan?) -> [ChatThreadCollectionItemID] {
+    guard let previous else { return [] }
+    let oldItems = Set(previous.items)
+    return items.filter { oldItems.contains($0) && $0 != .loadingOlder }
+  }
+}
+
+private struct ChatThreadCollectionView: UIViewRepresentable {
+  @ObservedObject var viewModel: ChatThreadViewModel
+  @Binding var scrollRequest: ChatThreadScrollRequest?
+  @Binding var selectedImage: ChatImageSelection?
+  @Binding var reactionTarget: ChatReactionTarget?
+  @Binding var deleteCandidate: ChatMessage?
+  @Binding var composerText: String
+  @Binding var didScrollInitial: Bool
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(parent: self)
+  }
+
+  func makeUIView(context: Context) -> UICollectionView {
+    let layout = UICollectionViewCompositionalLayout { _, _ in
+      let itemSize = NSCollectionLayoutSize(
+        widthDimension: .fractionalWidth(1),
+        heightDimension: .estimated(72)
+      )
+      let item = NSCollectionLayoutItem(layoutSize: itemSize)
+      let group = NSCollectionLayoutGroup.vertical(layoutSize: itemSize, subitems: [item])
+      let section = NSCollectionLayoutSection(group: group)
+      section.interGroupSpacing = 6
+      section.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+      return section
+    }
+
+    let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+    collectionView.backgroundColor = .clear
+    collectionView.alwaysBounceVertical = true
+    collectionView.keyboardDismissMode = .interactive
+    collectionView.transform = CGAffineTransform(scaleX: 1, y: -1)
+    collectionView.delegate = context.coordinator
+    collectionView.prefetchDataSource = context.coordinator
+    collectionView.accessibilityIdentifier = "chat-thread-collection"
+    collectionView.shouldGroupAccessibilityChildren = false
+    context.coordinator.configureDataSource(collectionView)
+    return collectionView
+  }
+
+  func updateUIView(_ collectionView: UICollectionView, context: Context) {
+    context.coordinator.parent = self
+    context.coordinator.apply(
+      messages: viewModel.messages,
+      typingUsers: viewModel.typingUsers,
+      isLoadingOlder: viewModel.isLoadingOlder,
+      hasMore: viewModel.hasMore,
+      scrollRequest: scrollRequest,
+      collectionView: collectionView
+    )
+
+    if scrollRequest != nil {
+      DispatchQueue.main.async {
+        scrollRequest = nil
+      }
+    }
+  }
+
+  @MainActor
+  final class Coordinator: NSObject, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching {
+    var parent: ChatThreadCollectionView
+
+    private var dataSource: UICollectionViewDiffableDataSource<Int, ChatThreadCollectionItemID>?
+    private var previousPlan: ChatThreadCollectionSnapshotPlan?
+    private var messageById: [ChatMessageId: ChatMessage] = [:]
+    private var lastAppliedScrollRequestId: UUID?
+    private var prefetchersByIndexPath: [IndexPath: ImagePrefetcher] = [:]
+    private var didApplyInitialSnapshot = false
+    private var isApplyingSnapshot = false
+
+    init(parent: ChatThreadCollectionView) {
+      self.parent = parent
+      super.init()
+      ChatThreadImageCachePolicy.apply()
+    }
+
+    func configureDataSource(_ collectionView: UICollectionView) {
+      let registration = UICollectionView.CellRegistration<UICollectionViewCell, ChatThreadCollectionItemID> {
+        [weak self] cell, _, itemIdentifier in
+        guard let self else { return }
+        cell.backgroundColor = .clear
+        cell.contentView.backgroundColor = .clear
+        cell.contentView.transform = CGAffineTransform(scaleX: 1, y: -1)
+        cell.contentConfiguration = UIHostingConfiguration {
+          self.content(for: itemIdentifier)
+        }
+        .margins(.all, 0)
+        cell.accessibilityIdentifier = self.accessibilityIdentifier(for: itemIdentifier)
+      }
+
+      dataSource = UICollectionViewDiffableDataSource<Int, ChatThreadCollectionItemID>(
+        collectionView: collectionView
+      ) { collectionView, indexPath, itemIdentifier in
+        collectionView.dequeueConfiguredReusableCell(
+          using: registration,
+          for: indexPath,
+          item: itemIdentifier
+        )
+      }
+    }
+
+    func apply(
+      messages: [ChatMessage],
+      typingUsers: [ChatThreadTypingUser],
+      isLoadingOlder: Bool,
+      hasMore: Bool,
+      scrollRequest: ChatThreadScrollRequest?,
+      collectionView: UICollectionView
+    ) {
+      guard let dataSource else { return }
+      messageById = Dictionary(uniqueKeysWithValues: messages.map { ($0.id, $0) })
+
+      let plan = ChatThreadCollectionSnapshotPlan.make(
+        messages: messages,
+        hasMore: hasMore,
+        isLoadingOlder: isLoadingOlder
+      )
+      var snapshot = NSDiffableDataSourceSnapshot<Int, ChatThreadCollectionItemID>()
+      snapshot.appendSections([0])
+      snapshot.appendItems(plan.items, toSection: 0)
+      let reconfigurable = plan.reconfigurableItems(from: previousPlan)
+      if !reconfigurable.isEmpty {
+        snapshot.reconfigureItems(reconfigurable)
+      }
+
+      let previousContentHeight = collectionView.contentSize.height
+      let preserveOldestEdge = isNearOldestEdge(collectionView)
+      let animateDifferences = didApplyInitialSnapshot && scrollRequest == nil && !preserveOldestEdge
+      previousPlan = plan
+      isApplyingSnapshot = true
+      dataSource.apply(snapshot, animatingDifferences: animateDifferences) { [weak self, weak collectionView] in
+        guard let self, let collectionView else { return }
+        self.isApplyingSnapshot = false
+        collectionView.layoutIfNeeded()
+        self.updateAccessibilityOrder(collectionView, plan: plan)
+
+        if !self.didApplyInitialSnapshot {
+          self.didApplyInitialSnapshot = true
+          self.parent.didScrollInitial = true
+          self.scrollToBottom(collectionView, animated: false)
+          self.parent.viewModel.setNearBottom(true)
+          return
+        }
+
+        if preserveOldestEdge {
+          let delta = collectionView.contentSize.height - previousContentHeight
+          if delta > 0 {
+            collectionView.contentOffset.y += delta
+          }
+        }
+
+        if let scrollRequest, self.lastAppliedScrollRequestId != scrollRequest.id {
+          self.lastAppliedScrollRequestId = scrollRequest.id
+          self.perform(scrollRequest, in: collectionView)
+        } else if self.parent.viewModel.shouldAutoScrollToBottom() {
+          self.scrollToBottom(collectionView, animated: true)
+        }
+      }
+    }
+
+    @ViewBuilder
+    private func content(for itemIdentifier: ChatThreadCollectionItemID) -> some View {
+      switch itemIdentifier {
+      case .bottomAnchor:
+        Color.clear
+          .frame(height: 1)
+          .accessibilityHidden(true)
+      case .typingIndicator:
+        if parent.viewModel.typingUsers.isEmpty {
+          Color.clear
+            .frame(height: 1)
+            .accessibilityHidden(true)
+        } else {
+          ChatTypingBubble(users: parent.viewModel.typingUsers)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Typing")
+        }
+      case .loadingOlder:
+        if parent.viewModel.isLoadingOlder {
+          ProgressView()
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("Loading older messages")
+        } else {
+          Color.clear
+            .frame(height: 1)
+            .accessibilityHidden(true)
+        }
+      case .message(let messageId):
+        if let message = messageById[messageId] {
+          ChatThreadMessageCellContent(
+            viewModel: parent.viewModel,
+            message: message,
+            selectedImage: parent.$selectedImage,
+            reactionTarget: parent.$reactionTarget,
+            deleteCandidate: parent.$deleteCandidate,
+            composerText: parent.$composerText,
+            scrollRequest: parent.$scrollRequest
+          )
+        }
+      }
+    }
+
+    private func perform(_ request: ChatThreadScrollRequest, in collectionView: UICollectionView) {
+      switch request.target {
+      case .bottom(let animated):
+        scrollToBottom(collectionView, animated: animated)
+      case .message(let messageId):
+        guard
+          let dataSource,
+          let indexPath = dataSource.indexPath(for: .message(messageId))
+        else { return }
+        collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: true)
+      }
+    }
+
+    private func scrollToBottom(_ collectionView: UICollectionView, animated: Bool) {
+      collectionView.setContentOffset(.zero, animated: animated)
+    }
+
+    private func isNearOldestEdge(_ scrollView: UIScrollView) -> Bool {
+      guard scrollView.contentSize.height > scrollView.bounds.height else { return false }
+      let oldestOffset = scrollView.contentSize.height - scrollView.bounds.height
+      return oldestOffset - scrollView.contentOffset.y < 180
+    }
+
+    private func updateAccessibilityOrder(
+      _ collectionView: UICollectionView,
+      plan: ChatThreadCollectionSnapshotPlan
+    ) {
+      var visibleByMessageId: [ChatMessageId: UICollectionViewCell] = [:]
+      for cell in collectionView.visibleCells {
+        guard
+          let indexPath = collectionView.indexPath(for: cell),
+          case .message(let messageId)? = dataSource?.itemIdentifier(for: indexPath)
+        else { continue }
+        visibleByMessageId[messageId] = cell
+      }
+      collectionView.accessibilityElements = plan.accessibilityMessageIdsTopToBottom.compactMap {
+        visibleByMessageId[$0]
+      }
+    }
+
+    private func accessibilityIdentifier(for itemIdentifier: ChatThreadCollectionItemID) -> String {
+      switch itemIdentifier {
+      case .bottomAnchor:
+        return "chat-thread-bottom-anchor"
+      case .typingIndicator:
+        return "chat-thread-typing-indicator"
+      case .loadingOlder:
+        return "chat-thread-loading-older"
+      case .message(let messageId):
+        return "chat-message-\(messageId)"
+      }
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+      guard !isApplyingSnapshot else { return }
+      let nearBottom = scrollView.contentOffset.y <= 48
+      parent.viewModel.setNearBottom(nearBottom)
+      if nearBottom, let newest = parent.viewModel.messages.last {
+        parent.viewModel.markVisible(message: newest)
+      }
+
+      if isNearOldestEdge(scrollView), parent.viewModel.hasMore, !parent.viewModel.isLoadingOlder {
+        Task { [weak self] in
+          await self?.parent.viewModel.loadOlder()
+        }
+      }
+    }
+
+    func collectionView(
+      _ collectionView: UICollectionView,
+      prefetchItemsAt indexPaths: [IndexPath]
+    ) {
+      let shouldLoadOlder = indexPaths.contains { indexPath in
+        guard
+          let dataSource,
+          let item = dataSource.itemIdentifier(for: indexPath)
+        else { return false }
+        if case .loadingOlder = item { return true }
+        return indexPath.item >= max(0, dataSource.snapshot().numberOfItems - 6)
+      }
+      if shouldLoadOlder, parent.viewModel.hasMore, !parent.viewModel.isLoadingOlder {
+        Task { [weak self] in
+          await self?.parent.viewModel.loadOlder()
+        }
+      }
+
+      for indexPath in indexPaths {
+        guard
+          let dataSource,
+          case .message(let messageId)? = dataSource.itemIdentifier(for: indexPath),
+          let message = messageById[messageId],
+          let url = Self.prefetchURL(for: message),
+          prefetchersByIndexPath[indexPath] == nil
+        else { continue }
+        let prefetcher = ImagePrefetcher(urls: [url])
+        prefetchersByIndexPath[indexPath] = prefetcher
+        prefetcher.start()
+      }
+    }
+
+    func collectionView(
+      _ collectionView: UICollectionView,
+      cancelPrefetchingForItemsAt indexPaths: [IndexPath]
+    ) {
+      for indexPath in indexPaths {
+        prefetchersByIndexPath[indexPath]?.stop()
+        prefetchersByIndexPath.removeValue(forKey: indexPath)
+      }
+    }
+
+    func collectionView(
+      _ collectionView: UICollectionView,
+      contextMenuConfigurationForItemAt indexPath: IndexPath,
+      point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+      guard
+        let dataSource,
+        case .message(let messageId)? = dataSource.itemIdentifier(for: indexPath),
+        let message = messageById[messageId],
+        !message.isDeleted
+      else { return nil }
+
+      return UIContextMenuConfiguration(identifier: messageId as NSString, previewProvider: nil) { [weak self] _ in
+        guard let self else { return nil }
+        return self.makeContextMenu(for: message)
+      }
+    }
+
+    func collectionView(
+      _ collectionView: UICollectionView,
+      previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+      guard
+        let messageId = configuration.identifier as? String,
+        let dataSource,
+        let indexPath = dataSource.indexPath(for: .message(messageId)),
+        let cell = collectionView.cellForItem(at: indexPath)
+      else { return nil }
+      let parameters = UIPreviewParameters()
+      parameters.backgroundColor = .clear
+      return UITargetedPreview(view: cell.contentView, parameters: parameters)
+    }
+
+    private func makeContextMenu(for message: ChatMessage) -> UIMenu {
+      var children: [UIMenuElement] = ChatReactionTarget.availableEmojis.map { emoji in
+        UIAction(title: emoji) { [weak self] _ in
+          Task { [weak self] in
+            await self?.parent.viewModel.toggleReaction(message: message, emoji: emoji)
+          }
+        }
+      }
+
+      children.append(UIAction(title: "More reactions", image: UIImage(systemName: "face.smiling")) { [weak self] _ in
+        self?.parent.reactionTarget = ChatReactionTarget(message: message)
+      })
+      children.append(UIAction(title: "Reply", image: UIImage(systemName: "arrowshape.turn.up.left")) { [weak self] _ in
+        self?.parent.viewModel.setReplyingTo(message)
+      })
+
+      if message.senderId == parent.viewModel.currentUserId && message.contentType == .text {
+        children.append(UIAction(title: "Edit", image: UIImage(systemName: "pencil")) { [weak self] _ in
+          self?.parent.viewModel.beginEditing(message)
+          self?.parent.composerText = message.body ?? ""
+        })
+      }
+
+      if message.senderId == parent.viewModel.currentUserId {
+        children.append(UIAction(
+          title: "Delete",
+          image: UIImage(systemName: "trash"),
+          attributes: .destructive
+        ) { [weak self] _ in
+          self?.parent.deleteCandidate = message
+        })
+      }
+
+      return UIMenu(title: "", children: children)
+    }
+
+    private static func prefetchURL(for message: ChatMessage) -> URL? {
+      switch message.contentType {
+      case .image, .gif:
+        return message.mediaUrl.flatMap(URL.init(string:))
+      case .link:
+        return message.linkPreview?.imageUrl.flatMap(URL.init(string:))
+      case .text, .file:
+        return nil
+      }
+    }
+  }
+}
+
+private struct ChatThreadMessageCellContent: View {
+  @ObservedObject var viewModel: ChatThreadViewModel
+  let message: ChatMessage
+  @Binding var selectedImage: ChatImageSelection?
+  @Binding var reactionTarget: ChatReactionTarget?
+  @Binding var deleteCandidate: ChatMessage?
+  @Binding var composerText: String
+  @Binding var scrollRequest: ChatThreadScrollRequest?
+
+  var body: some View {
+    VStack(spacing: 6) {
+      if viewModel.shouldShowDateSeparator(before: message) {
+        ChatDateSeparator(date: message.createdAt)
+      }
+
+      ChatMessageRow(
+        message: message,
+        isMine: message.senderId == viewModel.currentUserId,
+        showHeader: viewModel.isFirstInRun(message: message),
+        isHighlighted: viewModel.highlightedMessageId == message.id,
+        readReceiptSummary: viewModel.readReceiptSummary(for: message),
+        localState: viewModel.localMessageStateById[message.id],
+        currentUserId: viewModel.currentUserId,
+        onOpenImage: { url in
+          selectedImage = ChatImageSelection(url: url)
+        },
+        onReact: {
+          reactionTarget = ChatReactionTarget(message: message)
+        },
+        onReactEmoji: { emoji in
+          let model = viewModel
+          Task {
+            await model.toggleReaction(message: message, emoji: emoji)
+          }
+        },
+        onReply: {
+          viewModel.setReplyingTo(message)
+        },
+        onEdit: {
+          viewModel.beginEditing(message)
+          composerText = message.body ?? ""
+        },
+        onDelete: {
+          deleteCandidate = message
+        },
+        onRetry: {
+          let model = viewModel
+          Task {
+            await model.retry(messageId: message.id)
+          }
+        },
+        onReplyTap: {
+          guard
+            let replyToId = message.replyToId,
+            viewModel.highlightMessage(id: replyToId)
+          else {
+            return
+          }
+          scrollRequest = ChatThreadScrollRequest(target: .message(replyToId))
+        }
+      )
+    }
+    .accessibilityElement(children: .contain)
+  }
+}
+
+@MainActor
+private enum ChatThreadImageCachePolicy {
+  private static var didApply = false
+
+  static func apply() {
+    guard !didApply else { return }
+    didApply = true
+    let memory = ImageCache.default.memoryStorage
+    memory.config.totalCostLimit = min(nonZero(memory.config.totalCostLimit, fallback: 72 * 1024 * 1024), 72 * 1024 * 1024)
+    memory.config.countLimit = min(nonZero(memory.config.countLimit, fallback: 240), 240)
+  }
+
+  private static func nonZero(_ value: Int, fallback: Int) -> Int {
+    value == 0 ? fallback : value
   }
 }
 
@@ -543,45 +939,6 @@ private struct ChatMessageRow: View {
           onOpenImage: onOpenImage,
           onReplyTap: onReplyTap
         )
-        .contextMenu {
-          if !message.isDeleted {
-            ForEach(ChatReactionTarget.availableEmojis, id: \.self) { emoji in
-              Button(emoji) {
-                onReactEmoji(emoji)
-              }
-            }
-
-            Divider()
-
-            Button {
-              onReact()
-            } label: {
-              Label("More reactions", systemImage: "face.smiling")
-            }
-
-            Button {
-              onReply()
-            } label: {
-              Label("Reply", systemImage: "arrowshape.turn.up.left")
-            }
-
-            if message.senderId == currentUserId && message.contentType == .text {
-              Button {
-                onEdit()
-              } label: {
-                Label("Edit", systemImage: "pencil")
-              }
-            }
-
-            if message.senderId == currentUserId {
-              Button(role: .destructive) {
-                onDelete()
-              } label: {
-                Label("Delete", systemImage: "trash")
-              }
-            }
-          }
-        }
 
         if !isMine {
           Spacer(minLength: 42)

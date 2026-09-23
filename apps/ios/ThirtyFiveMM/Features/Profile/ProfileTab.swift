@@ -33,6 +33,10 @@ enum ProfileTab: String, CaseIterable, Identifiable, Hashable {
     }
   }
 
+  func selectionAmount(at progress: Double) -> Double {
+    min(max(1 - abs(progress - Double(index)), 0), 1)
+  }
+
   static func dragProgress(
     from selectedTab: ProfileTab,
     translation: CGFloat,

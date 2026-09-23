@@ -2,23 +2,33 @@ import SwiftUI
 
 struct NotificationsView: View {
   @State private var selectedFilter: NotificationFilter = .all
+  @State private var filterSelectionProgress = Double(NotificationFilter.all.index)
 
   private let apiClient: APIClient
   private let viewModels: AppNotificationViewModels
+  private let bottomContentInset: CGFloat
 
-  init(apiClient: APIClient, viewModels: AppNotificationViewModels) {
+  init(apiClient: APIClient, viewModels: AppNotificationViewModels, bottomContentInset: CGFloat = 0) {
     self.apiClient = apiClient
     self.viewModels = viewModels
+    self.bottomContentInset = bottomContentInset
   }
 
   var body: some View {
     VStack(spacing: 0) {
       NotificationsFilterBar(
         selection: selectedFilter,
+        selectionProgress: filterSelectionProgress,
         onSelect: selectFilter
       )
 
-      NotificationsPagerView(selection: $selectedFilter, apiClient: apiClient, viewModels: viewModels)
+      NotificationsPagerView(
+        selection: $selectedFilter,
+        apiClient: apiClient,
+        viewModels: viewModels,
+        bottomContentInset: bottomContentInset,
+        onSelectionProgressChange: updateFilterSelectionProgress
+      )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
   }
@@ -26,19 +36,30 @@ struct NotificationsView: View {
   private func selectFilter(_ filter: NotificationFilter) {
     withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
       selectedFilter = filter
+      filterSelectionProgress = Double(filter.index)
+    }
+  }
+
+  private func updateFilterSelectionProgress(_ progress: Double, animated: Bool) {
+    if animated {
+      withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+        filterSelectionProgress = progress
+      }
+    } else {
+      filterSelectionProgress = progress
     }
   }
 }
 
 struct NotificationsContentView: View {
   @Environment(\.theme) private var theme
-  @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.appRouteNavigator) private var appRouteNavigator
   @ObservedObject var viewModel: NotificationsViewModel
   let apiClient: APIClient
+  let bottomContentInset: CGFloat
   let onScrollDirectionChange: (ScrollChromeDirection) -> Void
   let onReadStateChanged: (NotificationFilter) -> Void
 
-  @State private var selectedPost: FeedPost?
   @State private var openingItemId: String?
   @State private var optionsItem: NotificationItem?
   @State private var isShowingFollowRequests = false
@@ -53,10 +74,6 @@ struct NotificationsContentView: View {
     .background(theme.bg)
     .task {
       await viewModel.loadInitial()
-    }
-    .navigationDestination(item: $selectedPost) { post in
-      PostDetailView(post: post)
-        .environmentObject(env)
     }
     .navigationDestination(isPresented: $isShowingFollowRequests) {
       FollowRequestsView(service: apiClient)
@@ -102,6 +119,7 @@ struct NotificationsContentView: View {
         ScrollChromeObserver(onDirectionChange: onScrollDirectionChange)
           .frame(width: 0, height: 0)
           .accessibilityHidden(true)
+          .environment(\.defaultMinListRowHeight, 0)
           .listRowInsets(EdgeInsets())
           .listRowSeparator(.hidden)
 
@@ -168,8 +186,12 @@ struct NotificationsContentView: View {
           .padding(.vertical, 16)
           .listRowSeparator(.hidden)
         }
+
+        listEnd
       }
       .listStyle(.plain)
+      .environment(\.defaultMinListRowHeight, 0)
+      .contentMargins(.top, 0, for: .scrollContent)
       .themedListBackground()
       .refreshable {
         await viewModel.refresh()
@@ -184,6 +206,27 @@ struct NotificationsContentView: View {
         }
       }
     }
+  }
+
+  @ViewBuilder
+  private var listEnd: some View {
+    if viewModel.hasReachedEnd {
+      NotificationsEndView(filter: viewModel.filter)
+        .padding(.top, DesignSystem.Spacing.lg)
+        .padding(.bottom, bottomSpacing)
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+    } else {
+      Color.clear
+        .frame(height: bottomSpacing)
+        .accessibilityHidden(true)
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+    }
+  }
+
+  private var bottomSpacing: CGFloat {
+    bottomContentInset + DesignSystem.Spacing.xl
   }
 
   private var groupedNotifications: [NotificationDateGroup] {
@@ -218,7 +261,7 @@ struct NotificationsContentView: View {
 
     do {
       let post: FeedPost = try await apiClient.request(.getPost(postId))
-      selectedPost = post
+      appRouteNavigator(.post(PostDestination(post: post)))
     } catch {
       viewModel.showError(error.localizedDescription)
     }
@@ -340,6 +383,42 @@ private struct NotificationsEmptyView: View {
     }
     .padding(.vertical, DesignSystem.Spacing.xl * 2)
     .frame(maxWidth: .infinity)
+  }
+}
+
+private struct NotificationsEndView: View {
+  @Environment(\.theme) private var theme
+  let filter: NotificationFilter
+
+  var body: some View {
+    VStack(spacing: 10) {
+      ZStack {
+        Circle()
+          .fill(theme.fill.opacity(0.86))
+          .frame(width: 44, height: 44)
+
+        Image(systemName: filter == .unread ? "checkmark.circle.fill" : "bell.badge.fill")
+          .font(.system(size: 18, weight: .semibold))
+          .foregroundStyle(theme.textSecondary)
+      }
+      .overlay {
+        Circle()
+          .stroke(theme.border, lineWidth: 0.5)
+      }
+      .accessibilityHidden(true)
+
+      Text("You're all caught up")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(theme.text)
+
+      Text(filter == .unread ? "No more unread activity." : "That's the end of your activity for now.")
+        .font(.footnote)
+        .foregroundStyle(theme.textSecondary)
+        .multilineTextAlignment(.center)
+    }
+    .padding(.horizontal, DesignSystem.Spacing.screenHorizontal)
+    .frame(maxWidth: .infinity)
+    .accessibilityElement(children: .combine)
   }
 }
 

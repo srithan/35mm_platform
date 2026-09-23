@@ -64,6 +64,18 @@ enum DesignSystem {
     static let extraLarge = 88.0
   }
 
+  // MARK: Feed posts
+
+  enum FeedPost {
+    /// Dense feed row inset, matching Twitter-like native timelines.
+    static let horizontalInset = 8.0
+    static let verticalInset = 10.0
+    static let avatarContentSpacing = 10.0
+    static let contentColumnLeading = AvatarSize.medium + avatarContentSpacing
+    static let contentVerticalSpacing = 5.0
+    static let actionBarTopPadding = 4.0
+  }
+
   // MARK: Typography metrics
 
   /// Extra leading for post/comment body text so paragraphs breathe (Twitter-like line height).

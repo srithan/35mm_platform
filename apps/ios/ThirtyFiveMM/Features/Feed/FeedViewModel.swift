@@ -11,12 +11,17 @@ final class FeedViewModel: ObservableObject {
   private var nextCursor: String?
   private var hasLoadedInitial = false
   private var lastLoadedAt: Date?
-  private let apiClient: APIClient
+  private let service: any FeedServicing
   private let pageLimit = 20
   private let freshnessInterval: TimeInterval = 60
+  private var activeRefreshID: UUID?
 
   init(apiClient: APIClient) {
-    self.apiClient = apiClient
+    service = FeedService(apiClient: apiClient)
+  }
+
+  init(service: any FeedServicing) {
+    self.service = service
   }
 
   func loadInitialIfNeeded() async {
@@ -37,21 +42,28 @@ final class FeedViewModel: ObservableObject {
     error = nil
     nextCursor = nil
     hasMore = true
+    let refreshID = UUID()
+    activeRefreshID = refreshID
 
     do {
-      let response: PaginatedResponse<FeedPost> = try await apiClient.request(
-        .getFeed(cursor: nil, limit: pageLimit)
-      )
+      let response = try await service.fetchFeed(cursor: nil, limit: pageLimit)
+      guard !Task.isCancelled else {
+        isLoading = false
+        return
+      }
+      guard activeRefreshID == refreshID else { return }
       posts = FeedPost.deduplicating(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
       hasLoadedInitial = true
       lastLoadedAt = Date()
     } catch {
+      guard activeRefreshID == refreshID else { return }
       self.error = error.localizedDescription
       hasMore = false
     }
 
+    guard activeRefreshID == refreshID else { return }
     isLoading = false
   }
 
@@ -62,9 +74,11 @@ final class FeedViewModel: ObservableObject {
     error = nil
 
     do {
-      let response: PaginatedResponse<FeedPost> = try await apiClient.request(
-        .getFeed(cursor: nextCursor, limit: pageLimit)
-      )
+      let response = try await service.fetchFeed(cursor: nextCursor, limit: pageLimit)
+      guard !Task.isCancelled else {
+        isLoadingMore = false
+        return
+      }
       appendDeduped(response.items)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
@@ -76,24 +90,31 @@ final class FeedViewModel: ObservableObject {
   }
 
   func refresh() async {
-    guard !isLoading else { return }
+    guard !isLoading, !isLoadingMore else { return }
 
     isLoading = true
     error = nil
+    let refreshID = UUID()
+    activeRefreshID = refreshID
 
     do {
-      let response: PaginatedResponse<FeedPost> = try await apiClient.request(
-        .getFeed(cursor: nil, limit: pageLimit)
-      )
-      posts = FeedPost.deduplicating(response.items)
+      let response = try await service.fetchFeed(cursor: nil, limit: pageLimit)
+      guard !Task.isCancelled else {
+        isLoading = false
+        return
+      }
+      guard activeRefreshID == refreshID else { return }
+      posts = FeedPost.deduplicating(response.items + posts)
       nextCursor = response.nextCursor
       hasMore = response.hasMore
       hasLoadedInitial = true
       lastLoadedAt = Date()
     } catch {
+      guard activeRefreshID == refreshID else { return }
       self.error = error.localizedDescription
     }
 
+    guard activeRefreshID == refreshID else { return }
     isLoading = false
   }
 
@@ -131,7 +152,8 @@ final class FeedViewModel: ObservableObject {
     error = nil
 
     do {
-      let _: FeedPost = try await apiClient.request(.votePoll(postId: postId, optionIds: optionIds))
+      try await service.votePoll(postId: postId, optionIds: optionIds)
+      guard !Task.isCancelled else { return }
     } catch {
       if let currentIndex = posts.firstIndex(where: { $0.id == postId }) {
         posts[currentIndex] = original
@@ -169,7 +191,8 @@ final class FeedViewModel: ObservableObject {
     posts[index] = optimistic(original)
 
     do {
-      let _: InteractionResponse = try await apiClient.request(requestEndpoint)
+      try await service.performPostInteraction(requestEndpoint)
+      guard !Task.isCancelled else { return }
     } catch {
       if let currentIndex = posts.firstIndex(where: { $0.id == postId }) {
         posts[currentIndex] = original
@@ -177,12 +200,6 @@ final class FeedViewModel: ObservableObject {
       self.error = error.localizedDescription
     }
   }
-}
-
-private struct InteractionResponse: Decodable {
-  let ok: Bool?
-  let likeCount: Int?
-  let folderId: String?
 }
 
 extension FeedViewModel: PostInteracting {}

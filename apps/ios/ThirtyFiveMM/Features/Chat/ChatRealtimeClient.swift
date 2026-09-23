@@ -38,7 +38,7 @@ struct ChatThreadUpdatedRealtimePayload: Codable, Hashable {
 }
 
 @MainActor
-protocol ChatRealtimeClientProtocol {
+protocol ChatRealtimeClientProtocol: AnyObject, Sendable {
   var isConfigured: Bool { get }
   func connect()
   func disconnect()

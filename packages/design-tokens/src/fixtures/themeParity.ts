@@ -26,7 +26,7 @@ export interface ThemeParityFixture {
   readonly id: ResolvedThemeId;
   readonly colorScheme: SystemColorScheme;
   readonly webSelector: ":root" | `[data-theme="${ResolvedThemeId}"]`;
-  readonly swiftPalette: "light" | "dark" | "matinee" | "matrix" | "oppenheimerBW" | "barbie";
+  readonly swiftPalette: "light" | "dark" | "letterboxd" | "matinee" | "matrix" | "oppenheimerBW" | "barbie";
   readonly selected: ParityPalette;
   readonly swiftOverrides?: Readonly<Partial<ParityPalette>>;
 }
@@ -78,6 +78,30 @@ export const themeParityFixtures = {
       success: "#34C759",
       warning: "#FF9F0A",
       unreadBadge: "#E04848",
+    },
+  },
+  letterboxd: {
+    id: "letterboxd",
+    colorScheme: "dark",
+    webSelector: "[data-theme=\"letterboxd\"]",
+    swiftPalette: "letterboxd",
+    selected: {
+      surface: "#14181C",
+      surfaceElevated: "#1B2228",
+      surfaceSunken: "#101418",
+      surfacePressed: "#1B2228",
+      text: "#F2F5F7",
+      textSecondary: "#AABBCC",
+      textTertiary: "#9AABBA",
+      border: "#303C48",
+      borderStrong: "#556677",
+      accent: "#00C030",
+      socialAccent: "#40BCF4",
+      like: "#FF982E",
+      repost: "#00C030",
+      success: "#00C030",
+      warning: "#FF982E",
+      unreadBadge: "#FF982E",
     },
   },
   matinee: {

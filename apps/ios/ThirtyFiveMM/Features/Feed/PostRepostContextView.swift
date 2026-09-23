@@ -21,7 +21,7 @@ struct PostRepostContextView: View {
         .foregroundStyle(theme.repost)
     }
     .labelStyle(.titleAndIcon)
-    .padding(.leading, 52)
+    .padding(.leading, DesignSystem.FeedPost.contentColumnLeading)
     .accessibilityLabel(summary)
   }
 

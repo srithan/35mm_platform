@@ -6,6 +6,8 @@ struct ProfilePostsView: View {
   let onOpenPost: (FeedPost) -> Void
   let onOpenImage: (ProfileImageSelection) -> Void
 
+  @State private var rendererHeight: CGFloat = 1
+
   var body: some View {
     if model.isLoadingPosts && model.posts.isEmpty {
       ProfilePostTabSkeleton(accessibilityLabel: "Loading posts")
@@ -27,27 +29,33 @@ struct ProfilePostsView: View {
         description: Text(model.profile?.isOwnProfile == true ? "Your next film thought can start here." : "Nothing has been shared here yet.")
       )
     } else {
-      LazyVStack(spacing: 0) {
-        ForEach(model.visiblePosts) { post in
-          PostCard(
-            post: post,
-            interactor: model,
-            onOpenPost: { onOpenPost(post) },
-            onOpenImage: { destination in
-              onOpenImage(ProfileImageSelection(destination: destination, post: post))
-            }
-          )
+      FeedCollectionView(
+        posts: model.visiblePosts,
+        interactor: model,
+        isScrollEnabled: false,
+        canLoadMore: isActive && model.canLoadMorePosts,
+        isLoadingMore: model.isLoadingMorePosts,
+        topContentInset: 0,
+        bottomContentInset: 0,
+        onOpenPost: onOpenPost,
+        onOpenImage: { destination, post in
+          onOpenImage(ProfileImageSelection(destination: destination, post: post))
+        },
+        onLoadMore: {
+          guard isActive else { return }
+          Task { await model.loadMorePosts() }
+        },
+        onScrollDirectionChange: { _ in },
+        onContentHeightChange: { height in
+          rendererHeight = height
+        },
+        currentProfileUsername: model.profile?.username ?? model.username,
+        currentProfileUserId: model.profile?.userId
+      )
+      .frame(height: rendererHeight)
 
-          Divider()
-        }
-
-        if model.canLoadMorePosts || model.isLoadingMorePosts {
-          ProfilePostTabPaginationSkeleton()
-            .task(id: isActive ? model.posts.count : -1) {
-              guard isActive else { return }
-              await model.loadMorePosts()
-            }
-        }
+      if model.isLoadingMorePosts {
+        ProfilePostTabPaginationSkeleton()
       }
     }
   }

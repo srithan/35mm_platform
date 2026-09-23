@@ -11,9 +11,43 @@ struct PostImageViewerMetrics {
   let isReposted: Bool
 }
 
+enum PostImageViewerLayout {
+  static let topChromeInset: CGFloat = 86
+  static let bottomChromeInset: CGFloat = 132
+
+  static func fittedImageSize(imageSize: CGSize?, in containerSize: CGSize) -> CGSize {
+    guard
+      let imageSize,
+      imageSize.width > 0,
+      imageSize.height > 0,
+      containerSize.width > 0,
+      containerSize.height > 0
+    else {
+      return containerSize
+    }
+
+    let scale = containerSize.width / imageSize.width
+    return CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+  }
+
+  static func fittedImageFrame(
+    imageSize: CGSize?,
+    in containerSize: CGSize,
+    topInset: CGFloat = topChromeInset,
+    bottomInset: CGFloat = bottomChromeInset
+  ) -> CGRect {
+    let availableHeight = max(1, containerSize.height - topInset - bottomInset)
+    let availableSize = CGSize(width: containerSize.width, height: availableHeight)
+    let fittedSize = fittedImageSize(imageSize: imageSize, in: availableSize)
+    let originX = max(0, (containerSize.width - fittedSize.width) / 2)
+    let originY = topInset + max(0, (availableHeight - fittedSize.height) / 2)
+
+    return CGRect(origin: CGPoint(x: originX, y: originY), size: fittedSize)
+  }
+}
+
 struct PostImageViewerView: View {
   @Environment(\.theme) private var theme
-  @Environment(\.dismiss) private var dismiss
 
   let destination: PostImageDestination
   let metrics: PostImageViewerMetrics
@@ -27,6 +61,7 @@ struct PostImageViewerView: View {
   @State private var isShowingActions = false
   @State private var isShowingRepostActions = false
   @State private var selectedIndex: Int
+  @StateObject private var imageSaver = ImageSaveCoordinator()
 
   init(
     destination: PostImageDestination,
@@ -76,13 +111,18 @@ struct PostImageViewerView: View {
           ]),
           BottomActionSheetSection(actions: [
             BottomActionSheetAction("Save", systemImage: "square.and.arrow.down") {
-              // TODO: Save image to Photos after photo-library permission flow is added.
-            },
-            BottomActionSheetAction("Report", systemImage: "exclamationmark.bubble", role: .destructive) {
-              // TODO: Open report flow when moderation API exists.
+              guard let url = URL(string: currentImageURL) else { return }
+              imageSaver.saveImage(at: url)
             },
           ]),
         ]
+      )
+    }
+    .alert(item: $imageSaver.alert) { alert in
+      Alert(
+        title: Text(alert.title),
+        message: Text(alert.message),
+        dismissButton: .default(Text("OK"))
       )
     }
     .bottomActionSheet(isPresented: $isShowingRepostActions) {
@@ -106,17 +146,16 @@ struct PostImageViewerView: View {
   private var imageSurface: some View {
     TabView(selection: $selectedIndex) {
       ForEach(destination.urls.indices, id: \.self) { index in
-        KFImage(URL(string: destination.urls[index]))
-          .placeholder {
-            ProgressView()
-              .tint(.white)
-              .frame(maxWidth: .infinity, maxHeight: .infinity)
-          }
-          .resizable()
-          .scaledToFit()
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .accessibilityLabel("Image \(index + 1) of \(destination.urls.count)")
-          .tag(index)
+        PostImageViewerPage(
+          url: destination.urls[index],
+          index: index,
+          count: destination.urls.count,
+          onShowActions: {
+            isShowingActions = true
+          },
+          onClose: onClose
+        )
+        .tag(index)
       }
     }
     .tabViewStyle(.page(indexDisplayMode: .never))
@@ -149,6 +188,7 @@ struct PostImageViewerView: View {
           .accessibilityLabel("Image \(selectedIndex + 1) of \(destination.urls.count)")
       }
     }
+    .frame(height: 54)
   }
 
   private var currentImageURL: String {
@@ -236,5 +276,50 @@ struct PostImageViewerView: View {
     }
     .buttonStyle(.plain)
     .accessibilityLabel(accessibilityLabel)
+  }
+}
+
+private struct PostImageViewerPage: View {
+  let url: String
+  let index: Int
+  let count: Int
+  let onShowActions: () -> Void
+  let onClose: () -> Void
+
+  @State private var imageSize: CGSize?
+
+  var body: some View {
+    GeometryReader { proxy in
+      let fittedFrame = PostImageViewerLayout.fittedImageFrame(
+        imageSize: imageSize,
+        in: proxy.size
+      )
+
+      ZStack(alignment: .topLeading) {
+        Color.black
+          .contentShape(Rectangle())
+          .onTapGesture(perform: onClose)
+
+        KFImage(URL(string: url))
+          .placeholder {
+            ProgressView()
+              .tint(.white)
+              .frame(width: fittedFrame.width, height: fittedFrame.height)
+          }
+          .onSuccess { result in
+            imageSize = result.image.size
+          }
+          .resizable()
+          .scaledToFit()
+          .frame(width: fittedFrame.width, height: fittedFrame.height)
+          .contentShape(Rectangle())
+          .offset(x: fittedFrame.minX, y: fittedFrame.minY)
+          .accessibilityLabel("Image \(index + 1) of \(count)")
+          .onTapGesture {}
+          .onLongPressGesture(perform: onShowActions)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+    .ignoresSafeArea()
   }
 }

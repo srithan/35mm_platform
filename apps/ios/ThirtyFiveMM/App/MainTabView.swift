@@ -182,6 +182,9 @@ struct MainTabView: View {
           destination(for: route)
         }
       }
+      .environment(\.appRouteNavigator, AppRouteNavigator { route in
+        pushRoute(route, in: .home)
+      })
     case .discover:
       NavigationStack(path: $discoverPath) {
         DiscoverTabScreen(
@@ -201,6 +204,9 @@ struct MainTabView: View {
             destination(for: route)
           }
       }
+      .environment(\.appRouteNavigator, AppRouteNavigator { route in
+        pushRoute(route, in: .discover)
+      })
     case .create:
       Color.clear
     case .activity:
@@ -213,6 +219,7 @@ struct MainTabView: View {
           profileLoadError: profileLoadError,
           canOpenMessages: currentUserId != nil,
           headerVisible: isHeaderVisible,
+          bottomContentInset: tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0,
           onProfileTapped: openProfileSidebar,
           onMessagesTapped: {
             openMessages(in: .activity)
@@ -223,6 +230,9 @@ struct MainTabView: View {
           destination(for: route)
           }
       }
+      .environment(\.appRouteNavigator, AppRouteNavigator { route in
+        pushRoute(route, in: .activity)
+      })
     case .profile:
       NavigationStack(path: $profilePath) {
         ProfileTabRootView(
@@ -249,6 +259,9 @@ struct MainTabView: View {
           destination(for: route)
         }
       }
+      .environment(\.appRouteNavigator, AppRouteNavigator { route in
+        pushRoute(route, in: .profile)
+      })
     }
   }
 
@@ -278,8 +291,12 @@ struct MainTabView: View {
       )
     case .profile(let destination):
       profileDestination(for: destination)
-    case .post(let postId):
-      RemotePostDetailView(postId: postId)
+    case .post(let destination):
+      if let post = destination.initialPost {
+        PostDetailView(post: post, apiClient: env.apiClient)
+      } else {
+        RemotePostDetailView(postId: destination.postId)
+      }
     }
   }
 
@@ -314,7 +331,8 @@ struct MainTabView: View {
     case .notifications:
       NotificationsView(
         apiClient: env.apiClient,
-        viewModels: env.sessionViewModels.notifications(currentUserId: currentUserId)
+        viewModels: env.sessionViewModels.notifications(currentUserId: currentUserId),
+        bottomContentInset: tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0
       )
     case .messages:
       if let currentUserId {
@@ -458,10 +476,29 @@ struct MainTabView: View {
       return
     }
 
+    if tab == selectedTab {
+      popToRoot(in: tab)
+    }
+
     selectedTab = tab
     previousTab = tab
     isHeaderVisible = true
     isTabBarVisible = true
+  }
+
+  private func popToRoot(in tab: AppTab) {
+    switch tab {
+    case .home:
+      homePath.removeAll(keepingCapacity: true)
+    case .discover:
+      discoverPath.removeAll(keepingCapacity: true)
+    case .activity:
+      activityPath.removeAll(keepingCapacity: true)
+    case .profile:
+      profilePath.removeAll(keepingCapacity: true)
+    case .create:
+      break
+    }
   }
 
   private func pushSidebarItem(_ item: ProfileSidebarItem) {
@@ -479,6 +516,22 @@ struct MainTabView: View {
     case .create:
       selectedTab = .home
       homePath.append(.sidebarItem(item))
+    }
+  }
+
+  private func pushRoute(_ route: AppRoute, in tab: AppTab) {
+    switch tab {
+    case .home:
+      AppRoutePushPolicy.append(route, to: &homePath)
+    case .discover:
+      AppRoutePushPolicy.append(route, to: &discoverPath)
+    case .activity:
+      AppRoutePushPolicy.append(route, to: &activityPath)
+    case .profile:
+      AppRoutePushPolicy.append(route, to: &profilePath)
+    case .create:
+      selectedTab = .home
+      AppRoutePushPolicy.append(route, to: &homePath)
     }
   }
 
@@ -590,7 +643,51 @@ enum AppRoute: Hashable {
   /// Pushed on the same tab stack as Settings so theme rebuilds cannot pop it.
   case settingsSection(SettingsSectionID)
   case profile(ProfileDestination)
-  case post(String)
+  case post(PostDestination)
+}
+
+enum AppRoutePushPolicy {
+  static func append(_ route: AppRoute, to path: inout [AppRoute]) {
+    guard path.last != route else { return }
+    path.append(route)
+  }
+}
+
+struct PostDestination: Hashable {
+  let postId: String
+  let initialPost: FeedPost?
+
+  init(postId: String) {
+    self.postId = postId
+    self.initialPost = nil
+  }
+
+  init(post: FeedPost) {
+    self.postId = post.id
+    self.initialPost = post
+  }
+}
+
+struct AppRouteNavigator: Sendable {
+  let push: @MainActor @Sendable (AppRoute) -> Void
+
+  @MainActor
+  func callAsFunction(_ route: AppRoute) {
+    push(route)
+  }
+
+  static let noop = AppRouteNavigator { _ in }
+}
+
+private struct AppRouteNavigatorKey: EnvironmentKey {
+  static let defaultValue = AppRouteNavigator.noop
+}
+
+extension EnvironmentValues {
+  var appRouteNavigator: AppRouteNavigator {
+    get { self[AppRouteNavigatorKey.self] }
+    set { self[AppRouteNavigatorKey.self] = newValue }
+  }
 }
 
 enum ProfileSidebarItem: String, CaseIterable, Identifiable {
@@ -850,24 +947,33 @@ private struct AppTabRootScreen<Content: View>: View {
   }
 
   var body: some View {
-    ZStack(alignment: .top) {
-      content()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    GeometryReader { proxy in
+      ZStack(alignment: .top) {
+        content()
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-      AppHeader(
-        title: title,
-        profile: profile,
-        profileLoadError: profileLoadError,
-        canOpenMessages: canOpenMessages,
-        onProfileTapped: onProfileTapped,
-        onMessagesTapped: onMessagesTapped
-      )
-      .frame(height: AppChromeMetrics.homeHeaderHeight, alignment: .top)
-      .offset(y: chromeVisible ? 0 : -AppChromeMetrics.homeHeaderHeight)
-      .opacity(chromeVisible ? 1 : 0)
-      .allowsHitTesting(chromeVisible)
-      .accessibilityHidden(!chromeVisible)
-      .animation(chromeAnimation, value: chromeVisible)
+        theme.bg
+          .frame(height: max(proxy.safeAreaInsets.top, 0))
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .ignoresSafeArea(edges: .top)
+          .allowsHitTesting(false)
+          .accessibilityHidden(true)
+
+        AppHeader(
+          title: title,
+          profile: profile,
+          profileLoadError: profileLoadError,
+          canOpenMessages: canOpenMessages,
+          onProfileTapped: onProfileTapped,
+          onMessagesTapped: onMessagesTapped
+        )
+        .frame(height: AppChromeMetrics.homeHeaderHeight, alignment: .top)
+        .offset(y: chromeVisible ? 0 : -AppChromeMetrics.homeHeaderHeight)
+        .opacity(chromeVisible ? 1 : 0)
+        .allowsHitTesting(chromeVisible)
+        .accessibilityHidden(!chromeVisible)
+        .animation(chromeAnimation, value: chromeVisible)
+      }
     }
     .background(theme.bg)
   }

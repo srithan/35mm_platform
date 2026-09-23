@@ -1,5 +1,7 @@
 import Kingfisher
+import Photos
 import SwiftUI
+import UIKit
 
 struct ImageViewerView: View {
   @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -24,6 +26,8 @@ struct ImageViewerView: View {
   @State private var isClosing = false
   @State private var imageFrame: CGRect?
   @State private var didRequestPresentation = false
+  @State private var isShowingActions = false
+  @StateObject private var imageSaver = ImageSaveCoordinator()
 
   var body: some View {
     ZStack {
@@ -87,6 +91,9 @@ struct ImageViewerView: View {
           .blur(radius: imageBlur)
           .animation(contentAnimation, value: isPresented)
           .onTapGesture {}
+          .onLongPressGesture {
+            isShowingActions = true
+          }
 
         Text(footerText)
           .font(.headline)
@@ -116,6 +123,19 @@ struct ImageViewerView: View {
             .animation(contentAnimation.delay(accessibilityReduceMotion ? 0 : 0.08), value: isPresented)
 
           Spacer()
+
+          Button("Image actions", systemImage: "ellipsis", action: {
+            isShowingActions = true
+          })
+          .labelStyle(.iconOnly)
+          .font(.system(size: 18, weight: .medium))
+          .foregroundStyle(.white)
+          .frame(width: 46, height: 46)
+          .background(Color.white.opacity(0.13), in: .circle)
+          .buttonStyle(.plain)
+          .opacity(isPresented ? 1 : 0)
+          .scaleEffect(isPresented || accessibilityReduceMotion ? 1 : 0.86)
+          .animation(contentAnimation.delay(accessibilityReduceMotion ? 0 : 0.08), value: isPresented)
         }
 
         Spacer()
@@ -127,6 +147,26 @@ struct ImageViewerView: View {
     .onAppear {
       didRequestPresentation = true
       presentWhenReady()
+    }
+    .bottomActionSheet(isPresented: $isShowingActions) {
+      BottomActionSheet(
+        title: "Image actions",
+        actions: [
+          BottomActionSheetAction("Copy link", systemImage: "link") {
+            UIPasteboard.general.url = url
+          },
+          BottomActionSheetAction("Save", systemImage: "square.and.arrow.down") {
+            imageSaver.saveImage(at: url)
+          },
+        ]
+      )
+    }
+    .alert(item: $imageSaver.alert) { alert in
+      Alert(
+        title: Text(alert.title),
+        message: Text(alert.message),
+        dismissButton: .default(Text("OK"))
+      )
     }
   }
 
@@ -216,6 +256,89 @@ struct ImageViewerView: View {
       isPresented = false
     } completion: {
       onClose()
+    }
+  }
+}
+
+struct ImageSaveAlert: Identifiable {
+  let id = UUID()
+  let title: String
+  let message: String
+}
+
+@MainActor
+final class ImageSaveCoordinator: NSObject, ObservableObject {
+  @Published var alert: ImageSaveAlert?
+
+  private var isSaving = false
+
+  func saveImage(at url: URL) {
+    guard !isSaving else { return }
+    isSaving = true
+
+    Task {
+      let hasAccess = await requestPhotoAddAccess()
+      guard hasAccess else {
+        finish(title: "Photos access needed", message: "Allow 35mm to add photos, then try again.")
+        return
+      }
+
+      do {
+        let image = try await loadImage(at: url)
+        try await writeToPhotoLibrary(image)
+        finish(title: "Saved", message: "Image saved to Photos.")
+      } catch {
+        finish(title: "Could not save image", message: "The image could not be saved. Try again when the image finishes loading.")
+      }
+    }
+  }
+
+  private func finish(title: String, message: String) {
+    isSaving = false
+    alert = ImageSaveAlert(title: title, message: message)
+  }
+
+  private func requestPhotoAddAccess() async -> Bool {
+    let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+    switch status {
+    case .authorized, .limited:
+      return true
+    case .notDetermined:
+      let newStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+      return newStatus == .authorized || newStatus == .limited
+    case .denied, .restricted:
+      return false
+    @unknown default:
+      return false
+    }
+  }
+
+  private func loadImage(at url: URL) async throws -> UIImage {
+    try await withCheckedThrowingContinuation { continuation in
+      KingfisherManager.shared.retrieveImage(with: url) { result in
+        switch result {
+        case .success(let value):
+          continuation.resume(returning: value.image)
+        case .failure(let error):
+          continuation.resume(throwing: error)
+        }
+      }
+    }
+  }
+
+  private func writeToPhotoLibrary(_ image: UIImage) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      PHPhotoLibrary.shared().performChanges {
+        PHAssetChangeRequest.creationRequestForAsset(from: image)
+      } completionHandler: { success, error in
+        if let error {
+          continuation.resume(throwing: error)
+        } else if success {
+          continuation.resume()
+        } else {
+          continuation.resume(throwing: CocoaError(.fileWriteUnknown))
+        }
+      }
     }
   }
 }

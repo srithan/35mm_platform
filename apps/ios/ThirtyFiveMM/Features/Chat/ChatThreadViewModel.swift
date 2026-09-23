@@ -45,6 +45,7 @@ final class ChatThreadViewModel: ObservableObject {
   private var lastLoadedAt: Date?
   private var isScreenVisible = false
   private var isAppActive = true
+  private var localPreviewURLsByMessageId: [ChatMessageId: URL] = [:]
   private let pageLimit = 50
   private let freshnessInterval: TimeInterval = 30
 
@@ -62,11 +63,14 @@ final class ChatThreadViewModel: ObservableObject {
     }
   }
 
-  deinit {
+  isolated deinit {
     typingExpiryTask?.cancel()
     highlightTask?.cancel()
     typingFalseTask?.cancel()
     readDispatchTask?.cancel()
+    cleanupLocalPreviewFiles()
+    realtimeClient.unsubscribeFromThread()
+    realtimeClient.disconnect()
   }
 
   func start() async {
@@ -80,7 +84,9 @@ final class ChatThreadViewModel: ObservableObject {
     isScreenVisible = false
     typingFalseTask?.cancel()
     readDispatchTask?.cancel()
-    Task { await setTyping(false, force: true) }
+    Task { [weak self] in
+      await self?.setTyping(false, force: true)
+    }
     realtimeClient.unsubscribeFromThread()
     realtimeClient.disconnect()
   }
@@ -90,7 +96,9 @@ final class ChatThreadViewModel: ObservableObject {
     if !active {
       typingFalseTask?.cancel()
       readDispatchTask?.cancel()
-      Task { await setTyping(false, force: true) }
+      Task { [weak self] in
+        await self?.setTyping(false, force: true)
+      }
     } else {
       scheduleReadDispatchForNewestVisibleMessage()
     }
@@ -212,11 +220,15 @@ final class ChatThreadViewModel: ObservableObject {
   func composerTextDidChange(_ value: String) {
     guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       typingFalseTask?.cancel()
-      Task { await setTyping(false, force: true) }
+      Task { [weak self] in
+        await self?.setTyping(false, force: true)
+      }
       return
     }
 
-    Task { await setTyping(true, force: false) }
+    Task { [weak self] in
+      await self?.setTyping(true, force: false)
+    }
     typingFalseTask?.cancel()
     typingFalseTask = Task { [weak self] in
       try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -415,7 +427,9 @@ final class ChatThreadViewModel: ObservableObject {
         clearTyping(userId: payload.userId)
       }
     case .reconnectNeeded, .inboxInvalidated:
-      Task { await refreshAfterReconnect() }
+      Task { [weak self] in
+        await self?.refreshAfterReconnect()
+      }
     case .threadUpdated:
       break
     }
@@ -459,6 +473,7 @@ final class ChatThreadViewModel: ObservableObject {
   private func replaceMessage(id: ChatMessageId, with message: ChatMessage) {
     messages.removeAll { $0.id == id }
     localMessageStateById.removeValue(forKey: id)
+    cleanupLocalPreviewFile(messageId: id)
     upsert(message)
     scheduleReadDispatchForNewestVisibleMessage()
   }
@@ -540,7 +555,7 @@ final class ChatThreadViewModel: ObservableObject {
       id: tempId,
       contentType: attachment?.contentTypeForMessage ?? .text,
       body: optimisticBody(body: body, attachment: attachment),
-      mediaUrl: attachment.flatMap { localPreviewURL(for: $0) },
+      mediaUrl: attachment.flatMap { localPreviewURL(for: $0, messageId: tempId) },
       mediaMetadata: attachment.map(mediaMetadata(for:)),
       replyToId: replyToId,
       replySnapshot: replySnapshot(for: replyToId)
@@ -548,7 +563,9 @@ final class ChatThreadViewModel: ObservableObject {
     upsert(optimistic)
     localMessageStateById[tempId] = .sending
     replyingTo = nil
-    Task { await setTyping(false, force: true) }
+    Task { [weak self] in
+      await self?.setTyping(false, force: true)
+    }
 
     do {
       let uploadedAttachment = try await upload(attachment: attachment)
@@ -746,17 +763,30 @@ final class ChatThreadViewModel: ObservableObject {
     )
   }
 
-  private func localPreviewURL(for attachment: ChatStagedAttachment) -> String? {
+  private func localPreviewURL(for attachment: ChatStagedAttachment, messageId: ChatMessageId) -> String? {
     guard attachment.kind == .image else { return nil }
     let baseURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
     guard let baseURL else { return nil }
     let url = baseURL.appendingPathComponent("chat-\(attachment.id.uuidString).\(localPreviewFileExtension(for: attachment.contentType))")
     do {
       try attachment.data.write(to: url, options: [.atomic])
+      localPreviewURLsByMessageId[messageId] = url
       return url.absoluteString
     } catch {
       return nil
     }
+  }
+
+  private func cleanupLocalPreviewFile(messageId: ChatMessageId) {
+    guard let url = localPreviewURLsByMessageId.removeValue(forKey: messageId) else { return }
+    try? FileManager.default.removeItem(at: url)
+  }
+
+  private func cleanupLocalPreviewFiles() {
+    for url in localPreviewURLsByMessageId.values {
+      try? FileManager.default.removeItem(at: url)
+    }
+    localPreviewURLsByMessageId.removeAll()
   }
 
   private func localPreviewFileExtension(for contentType: String) -> String {

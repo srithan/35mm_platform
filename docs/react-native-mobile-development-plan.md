@@ -2,8 +2,8 @@
 
 > Canonical plan, progress ledger, and continuation contract for the shared iOS and Android app.
 >
-> Last updated: 2026-09-21
-> Document status: React Native now mirrors retained SwiftUI splash/welcome/auth presentation with device appearance, local animated posters, compact system-font forms, toolbar progress, and a shared DOB wheel sheet; mobile Clerk recovery is preserved.
+> Last updated: 2026-09-23
+> Document status: React Native now mirrors retained SwiftUI splash/welcome/auth presentation with device appearance, local animated posters, compact system-font forms, toolbar progress, and a shared DOB wheel sheet; mobile Clerk recovery is preserved. Retained SwiftUI Home and Profile Posts/Reposts now share the UIKit/diffable feed collection renderer.
 > Current phase: Phase 2 — Launch, Welcome, and account lifecycle
 > Next unblocked task: Auth process-death, offline, throttling, expiry, accessibility, and visual tests
 
@@ -673,7 +673,7 @@ Do not mirror profiles, feeds, notifications, settings, lists, chat threads, or 
 Create React-free shared tokens covering:
 
 - Brand accent `#c2473a` and semantic action colors.
-- Every existing theme: auto, light, dark, matinee, matrix, oppenheimer-bw, barbie.
+- Every existing theme: auto, light, dark, letterboxd, matinee, matrix, oppenheimer-bw, barbie.
 - Surface, elevated, sunken, border, strong-border, text, secondary-text, destructive, success, and focus colors.
 - 4-point spacing scale.
 - Corner-radius and sheet geometry.
@@ -1259,6 +1259,196 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 | Existing Studio Zod resolver mismatch | Align `apps/studio` React Hook Form resolver and the workspace Zod major version in `FilmForm.tsx` | Repository-wide `pnpm lint`; mobile and all non-Studio typecheck gates pass |
 
 ## 26. Work log
+
+### 2026-09-23 — Retained SwiftUI profile tab label animation parity
+
+- [x] Ported mobile web's active icon-plus-label profile tab behavior to retained SwiftUI. Posts, Reposts, Diary, Lists, and Stats now keep icon plus label on the settled active tab while inactive tabs remain icon-only.
+- [x] Drove label reveal/collapse, icon scale/rotation/emphasis, underline movement, and page motion from the existing shared pager progress. Dragging is interactive; tap and settle/cancel paths use the existing snappy spring; Reduce Motion still commits without spatial animation. VoiceOver labels and selected traits remain intact.
+- [x] Added focused progress coverage for active, inactive, intermediate, and clamped tab-label states.
+- Decision: user-requested retained SwiftUI parity only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: bounded local layout/animation over five constant tab items. Zero backend reads/writes at 1M+ DAU; no API, schema, index, cache, worker, pagination, mutation, rate-limit, or UGC contract change.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
+- Verification passed: focused `ThirtyFiveMMTests/ProfileFeatureTests` simulator suite via `xcodebuild test` using `/private/tmp/ThirtyFiveMMProfileTabLabelDerivedData` (26 tests); scoped `git diff --check`. Runtime gesture capture, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-23 — Retained SwiftUI pushed profile duplicate-cover rollback
+
+- [x] Removed the accidental giant fixed cover overlay that duplicated the profile cover while scrolling. Pushed profiles now keep the original cover as the source content and use only a compact fixed header overlay whose blurred cover background fades in as the original cover scrolls away.
+- [x] Retained the back button inside the cover/header chrome and tied header opacity/blur to the real cover scroll distance so it appears during the cover-to-header transition without rendering a second full-height cover.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing profile REST contracts, cursor pagination, authorization, rate limits, counters, soft-delete semantics, schema, indexes, cache, and worker jobs are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes and no API/schema/cache/worker/index change.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Profile/ProfileNavigationHeader.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileLoadedView.swift`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMProfileHeaderNoDuplicateDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first build attempt failed because `/private/tmp` had only 148 MiB free; temporary `ThirtyFiveMM*DerivedData` folders from prior verification runs were removed, freeing about 62 GiB, then the approved rerun succeeded. Runtime scroll capture, physical-device check, and VoiceOver check were not run.
+
+### 2026-09-23 — Retained SwiftUI fixed cover-to-header transform
+
+- [x] Corrected pushed-profile chrome to use one fixed cover layer that starts at full cover height, shrinks toward compact header height as scroll offset increases, and increases blur/dim treatment through the same progress. The back button remains in that cover/header layer for the whole transition.
+- [x] Moved the fixed tab-bar overlay so it sits directly underneath the current cover/header height while the cover transforms, matching the requested "cover becomes header; tabs stay under it" behavior.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing profile REST contracts, cursor pagination, authorization, rate limits, counters, soft-delete semantics, schema, indexes, cache, and worker jobs are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes and no API/schema/cache/worker/index change.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Profile/ProfileNavigationHeader.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileLoadedView.swift`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMProfileCoverTransformDerivedData -skipPackagePluginValidation -skipMacroValidation build`. Runtime scroll capture, physical-device check, and VoiceOver check were not run for this transform correction.
+
+### 2026-09-23 — Retained SwiftUI pushed profile cover-header tracking fix
+
+- [x] Fixed pushed-profile collapse tracking so the compact cover header follows the actual cover photo frame instead of a top sentinel that can stay stale after the profile tab header pins. The back arrow now belongs to the cover/cover-header overlay and the cover image can blur into the header while scrolling.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing profile REST contracts, cursor pagination, authorization, rate limits, counters, soft-delete semantics, schema, indexes, cache, and worker jobs are unchanged. At 1M+ DAU this is local scroll-position presentation state only: zero backend reads/writes and no API/schema/cache/worker/index change.
+- Architecture and codebase knowledge already document the pushed profile collapsing header; no additional structure/contract docs changed. Chat/backend docs and diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Profile/ProfileLoadedView.swift`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMProfileCollapseFixDerivedData -skipPackagePluginValidation -skipMacroValidation build`. Runtime scroll screenshot, physical-device check, and VoiceOver check were not run for this tracking fix.
+
+### 2026-09-23 — Retained SwiftUI pushed profile collapsing header
+
+- [x] Added Twitter-style retained SwiftUI pushed-profile chrome: the cover image blurs into a compact top header during scroll, the back control stays in the header's left slot, share/more controls fade in on the right, and the display name plus films-logged count fade into the header as the identity block scrolls underneath.
+- [x] Added a fixed overlay copy of the profile tab bar under the compact cover header once the profile body reaches it, so Posts/Reposts/Diary/Stats/Lists remain available while the original pinned section scrolls behind the header.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing profile detail/tab REST contracts, cursor pagination, private-profile authorization, server-side moderation filtering, follow/profile mutations, rate limits, denormalized counters, soft-delete semantics, schema, indexes, Redis caches, and worker jobs are unchanged. At 1M+ DAU this is local chrome/transition presentation over already-loaded profile data: zero backend reads/writes, no API route/schema/cache/worker/index change, and no synchronous counter path.
+- Architecture and codebase knowledge were updated; chat-backend docs and Mermaid diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Profile/ProfileDesign.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileNavigationHeader.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileLoadedView.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileView.swift`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMProfileCollapseDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun exposed/fixed one strict Swift 6 unused-value diagnostic before succeeding. Runtime scroll capture, physical-device check, and VoiceOver check were not run for this chrome-transition slice.
+
+### 2026-09-23 — Retained SwiftUI Home status-bar background
+
+- [x] Added a persistent themed top safe-area strip to the retained SwiftUI app-owned Home header container so the iPhone status bar keeps an opaque theme background while Home feed scroll chrome hides the visible header.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing feed REST contracts, cursor pagination, hybrid fan-out/cache behavior, denormalized counters, rate limits, soft-delete semantics, schema, indexes, Redis caches, and worker jobs are unchanged. At 1M+ DAU this is local chrome painting only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, environment variable, worker job, feature wiring, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/App/MainTabView.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMStatusBarBackgroundDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime scroll screenshot, physical-device check, and VoiceOver check were not run for this chrome paint slice.
+
+### 2026-09-23 — Retained SwiftUI profile feed renderer reuse
+
+- [x] Rebuilt retained SwiftUI Profile Posts/Reposts loaded tab rendering to reuse `Features/Feed/FeedCollectionView.swift`, the same `UICollectionView` + diffable data source + cell-registration renderer used by Home.
+- [x] Preserved `ProfileTabPager` and `ProfilePagingPanGesture` as the outer Posts/Diary/Reposts/Lists/Stats paging owner. Profile embeds the shared renderer with collection scrolling disabled, active-gated pagination, and measured content-height reporting back into the pager.
+- [x] Preserved private-account gating, independent posts/reposts cursor streams, and optimistic post interactions. Diary, Lists, and Stats remain on their existing tab bodies.
+- [x] Corrected shared diffable content detection to compare a render fingerprint instead of `FeedPost ==`, because `FeedPost` equality is ID-only. This keeps optimistic counters/flags and profile-driven data changes on the `reconfigureItems` path instead of missing same-ID updates.
+- [x] Added profile-driven coverage for the shared feed renderer's diffable reconfiguration behavior, alongside the existing Home feed planner tests.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. The existing Phase 2 next task, feature status, and release blockers remain unchanged.
+- Existing profile/feed REST contracts, cursor pagination, private-profile authorization, server-side moderation filtering, rate limits, denormalized counters, soft-delete semantics, schema, indexes, Redis caches, and worker jobs are unchanged. At 1M+ DAU this is a client rendering reuse/memory improvement only: no new backend reads/writes beyond existing bounded cursor fetches, no API route/schema/cache/worker/index change, and no synchronous counter path.
+- Architecture and codebase knowledge were updated; chat-backend docs and Mermaid diagrams are unaffected.
+- Verification passed: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -destination 'platform=iOS Simulator,OS=18.5,name=iPhone 16' -derivedDataPath /private/tmp/ThirtyFiveMMProfileFeedDerivedData -skipPackagePluginValidation -skipMacroValidation`. The first sandboxed test attempt failed on CoreSimulator/SwiftPM network access, and the first approved destination using `OS:latest` did not match the installed iPhone 16 simulator; the final approved OS 18.5 run passed the full iOS suite.
+
+### 2026-09-23 — Retained SwiftUI Home feed collection renderer
+
+- [x] Replaced the retained SwiftUI Home feed's loaded `ScrollView`/`LazyVStack` surface with a `UICollectionView` bridge backed by `UICollectionViewDiffableDataSource` and compositional self-sizing rows, while continuing to host the existing SwiftUI `PostCard` body through `UIHostingConfiguration`.
+- [x] Kept diffable item identity as stable post ID only; content-only changes now use a render fingerprint plus `snapshot.reconfigureItems` so optimistic like/repost/bookmark/poll/counter updates reconfigure cells in place instead of remove/insert churn.
+- [x] Added explicit post-shape reuse identifiers (`text`, `review/log`, `media`, `poll`), a bounded `PostLayoutCache`, Kingfisher prefetch/cancel through `UICollectionViewDataSourcePrefetching`, page-fetch trigger five rows before the loaded tail, display-target downsampling for feed images, and explicit Kingfisher memory/disk cache caps.
+- [x] Added focused tests for short first-page refresh preservation, first-page content merging, diffable in-place reconfigure planning, identity-set replacement planning, and five-row pagination triggering.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. The renderer comment block is the handoff note for future Profile post-tab adaptation. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing `/v1/feed` cursor pagination, hybrid fan-out/cache behavior, denormalized counters, interaction mutation endpoints, rate limits, soft-delete semantics, schema, indexes, Redis caches, and worker jobs are unchanged. At 1M+ DAU this is a client rendering/memory improvement only: no new backend reads/writes beyond the existing bounded cursor fetch, no API route/schema/cache/worker/index change, and no synchronous counter path.
+- Architecture and codebase knowledge were updated for the retained SwiftUI feed renderer. Chat/backend diagrams are unaffected.
+- Verification passed: focused `FeedViewModelTests`, focused `FeedPostDecodingTests`, and the full retained SwiftUI iOS test target using `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMFeedCollectionFullDerivedData -skipPackagePluginValidation -skipMacroValidation`. The first sandboxed attempt failed on CoreSimulator/package DNS and the approved reruns exposed/fixed Swift 6 diagnostics before the suites passed. Existing actor-isolation warnings remain in `FeedPostDecodingTests.swift`. Runtime scroll screenshots, Instruments memory profiling, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-23 — Retained SwiftUI chat thread collection rendering
+
+- [x] Replaced the retained SwiftUI chat thread message surface with a flipped `UICollectionView` bridge while keeping the existing SwiftUI header, composer, REST contracts, realtime event handling, optimistic send/retry, typing dispatch, and foreground read dispatch.
+- [x] Added message-id based diffable item planning, always-present typing/bottom-anchor rows, UIKit context-menu anchoring, logical VoiceOver ordering for visible cells, collection-coordinate reply jumps, older-message pagination through `UICollectionViewDataSourcePrefetching`, cancellable Kingfisher media prefetch, and bounded Kingfisher memory/count policy for long chat history scroll.
+- [x] Added focused planner tests for stable message-id item identity, `reconfigureItems` candidates, and flipped-layout accessibility ordering. Added `docs/ios-chat-thread-rendering.md` as the short architecture note for flipped collection-view sharp edges.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing chat REST/realtime contracts, cursor pagination, server authorization, route-family rate limits, Keyspaces/Postgres persistence, Redis typing/read/presence state, and media presign/direct-upload paths are unchanged. At 1M+ DAU this changes only client rendering and prefetch behavior over already bounded pages; no API route, schema/index, backend cache, worker job, mutation, pagination contract, or UGC lifecycle change was added.
+- Architecture, codebase knowledge, and the mobile ledger were updated. Verification: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Chat/ChatThreadView.swift apps/ios/ThirtyFiveMMTests/ChatDecodingTests.swift` passed. Focused `xcodebuild ... -only-testing:ThirtyFiveMMTests/ChatDecodingTests test` was attempted; sandboxed run was blocked by CoreSimulator/SwiftPM network access, and approved rerun reached compile but stopped on unrelated dirty-worktree feed errors in `FeedCollectionView.swift`, `FeedView.swift`, and `PostCard.swift` before tests ran.
+
+### 2026-09-23 — Retained SwiftUI post-media carousel vertical drag shield
+
+- [x] Added a retained SwiftUI post-media carousel gesture shield that attaches to the carousel's own horizontal `UIScrollView` and absorbs intentional downward vertical pans before the parent feed collection can start pull-to-refresh. Horizontal carousel scrolling, image taps, and upward feed-scroll intent remain available.
+- [x] Added focused retained SwiftUI regression coverage for the axis/intention helper so downward media drags are shielded while horizontal carousel drags and upward vertical drags are not.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing feed/detail REST contracts, cursor pagination, media delivery, image viewer callback, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local gesture arbitration over already-loaded media only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture/codebase knowledge, chat docs, and diagrams do not need updates because app structure, API routes, DB schema, shared contracts, feature wiring, environment requirements, and known gaps did not change.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Feed/PostMediaCarousel.swift apps/ios/ThirtyFiveMMTests/FeedPostDecodingTests.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMPostMediaCarouselDragDerivedData -skipPackagePluginValidation -skipMacroValidation -only-testing:ThirtyFiveMMTests/FeedPostDecodingTests test`. The first sandboxed test attempt was blocked by CoreSimulator access and GitHub Swift package DNS; the approved rerun exposed a CGPoint/CGSize mismatch, and the final approved rerun passed 19 focused feed-post tests after narrowing the shield attachment to horizontal scroll views. Runtime touch-drag capture, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-22 — Retained SwiftUI profile cover geometry
+
+- [x] Increased retained SwiftUI profile cover height by changing the shared cover ratio from 3.0 to 2.35, adding clearly visible vertical cover space on standard iPhone widths while preserving responsive width-driven sizing.
+- [x] Shrank the pushed-profile back control's visible circle from 44 points to 36 points, kept the accessible 44-point tap target, and anchored it near the top of the cover below the status time instead of overlapping the profile avatar.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing profile REST contracts, cursor pagination, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, environment variable, worker job, feature wiring, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Profile/ProfileDesign.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileNavigationHeader.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMProfileCoverGeometryDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime screenshot, physical-device, and VoiceOver checks were not run in this turn.
+
+### 2026-09-22 — Retained SwiftUI pushed profile cover back chrome
+
+- [x] Removed the regular retained SwiftUI app header from pushed profile pages opened from post/profile identity links while keeping the root Profile tab's app header behavior unchanged.
+- [x] Let pushed profile cover/loading skeleton content extend behind the status bar and added a 44-point translucent over-cover Back control wired to the current `NavigationStack` dismiss path, preserving the classic iOS edge-swipe back gesture.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing profile detail/tab REST contracts, cursor pagination, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local navigation/chrome presentation only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture and codebase knowledge were updated for the retained SwiftUI pushed-profile chrome; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Profile/ProfileView.swift apps/ios/ThirtyFiveMM/Features/Profile/ProfileNavigationHeader.swift docs/architecture.md codebase-analysis-docs/CODEBASE_KNOWLEDGE.md docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMPushedProfileChromeDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime screenshot, physical-device checks, and VoiceOver checks were not run for this chrome/navigation slice.
+
+### 2026-09-22 — Retained SwiftUI notifications bottom spacing
+
+- [x] Added retained SwiftUI Notifications bottom list spacing equal to the app-owned traditional tab bar plus breathing room, so the final notification can scroll fully above fixed bottom chrome instead of hiding beneath it.
+- [x] Added a compact end-of-feed footer for loaded, exhausted notification pages. All and Unread now finish with a themed "You're all caught up" state while non-exhausted pages keep invisible spacer-only reachability.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing notification and follow-request REST contracts, cursor pagination, read-state mutations, server authorization, rate limits, indexes, and async counters are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes, no schema/index/API/cache/worker/pagination/UGC contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, feature wiring, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsView.swift apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsViewModel.swift apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsPagerView.swift apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsTabScreen.swift apps/ios/ThirtyFiveMM/App/MainTabView.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMNotificationsBottomInsetDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun initially exposed a misplaced `bottomContentInset` argument on Discover, and the final rerun succeeded. Runtime screenshot, physical-device checks, and VoiceOver checks were not run for this list-tail geometry slice.
+
+### 2026-09-22 — Retained SwiftUI post/profile navigation repair
+
+- [x] Routed retained SwiftUI post opens from Home, Profile, Bookmarks, Notifications, image viewers, and quote cards through the owning tab's typed `AppRoute.post(PostDestination)` path instead of local `navigationDestination(item:)` bindings.
+- [x] Added `AppRouteNavigator` as a main-actor-safe environment value so nested retained SwiftUI surfaces can append to the current tab stack without leaving a stale selected-post binding active above profile navigation. Already-loaded posts remain the initial detail payload; ID-only quote links still perform the existing bounded remote detail read.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing feed/profile/bookmark/notification REST contracts, cursor pagination, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local navigation state only: zero backend reads/writes beyond existing ID-only detail opens, no schema/index/API/cache/worker/pagination contract change.
+- Codebase knowledge was updated for the retained SwiftUI post route model; architecture, chat docs, and diagrams are unaffected because no backend architecture, API route, DB schema, shared contract, env var, worker job, or known gap changed.
+- Verification passed: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMDerivedData -skipPackagePluginValidation -skipMacroValidation build`. Runtime simulator tap-path capture, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-23 — Retained SwiftUI post image viewer chrome-safe centering
+
+- [x] Updated retained SwiftUI `PostImageViewerView` so post images fit and center inside the usable full-screen area between top controls and bottom social actions, instead of pinning wide images near the top and leaving a large dead black gap before the action bar.
+- [x] Kept multi-image horizontal paging, backdrop tap dismissal, downward image drag dismissal, action sheets, and like/comment/repost/share chrome intact.
+- [x] Added focused retained SwiftUI layout coverage for the chrome-safe fitted image frame.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing post media delivery, feed/profile/bookmark REST contracts, cursor pagination, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, feature wiring, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Post/PostImageViewerView.swift apps/ios/ThirtyFiveMMTests/FeedPostDecodingTests.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMPostImageViewerCenterDerivedData -skipPackagePluginValidation -skipMacroValidation -only-testing:ThirtyFiveMMTests/FeedPostDecodingTests test`. The first sandboxed test attempt failed on CoreSimulator access and GitHub package DNS; the approved rerun passed 19 focused tests. Runtime screenshot/tap capture, physical-device checks, and VoiceOver checks were not run for this geometry fix.
+
+### 2026-09-22 — Retained SwiftUI post-media carousel trailing space
+
+- [x] Removed the retained SwiftUI post-media carousel's synthetic trailing spacer so scrolling ends at the final image instead of revealing a wide blank white tail.
+- [x] Reworked the dotter state to derive active image from bounded scroll progress over real content width, preserving final-dot selection without fake trailing content.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing feed/detail REST contracts, cursor pagination, media delivery, image viewer callback, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture/codebase knowledge, chat docs, and diagrams do not need updates because app structure, API routes, DB schema, shared contracts, feature wiring, environment requirements, and known gaps did not change.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Feed/PostMediaCarousel.swift apps/ios/ThirtyFiveMMTests/FeedPostDecodingTests.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMPostMediaCarouselDerivedData -skipPackagePluginValidation -skipMacroValidation -only-testing:ThirtyFiveMMTests/FeedPostDecodingTests test`. The focused feed-post suite passed 16 tests. The first sandboxed test attempt failed on CoreSimulator and SwiftPM cache permissions; the approved rerun succeeded. Runtime screenshot/scroll capture, physical-device checks, and VoiceOver checks were not run for this geometry fix.
+
+### 2026-09-22 — Retained SwiftUI post image viewer dismissal
+
+- [x] Updated retained SwiftUI `PostImageViewerView` so loaded post images are measured, fit inside the full-screen viewport, and align to the top edge instead of staying vertically centered with avoidable blank space above the image.
+- [x] Added backdrop tap dismissal outside the measured image and a downward drag-to-dismiss gesture on the image itself, while preserving horizontal paging for multi-image posts and existing like/comment/repost/share chrome.
+- [x] Added focused retained SwiftUI tests for fitted image sizing and intentional downward drag dismissal thresholds.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing post media delivery, feed/profile/bookmark REST contracts, cursor pagination, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local presentation/gesture state only: zero new backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, feature wiring, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMPostImageViewerDerivedData -skipPackagePluginValidation -skipMacroValidation -only-testing:ThirtyFiveMMTests/FeedPostDecodingTests test`. The first sandboxed attempt failed on CoreSimulator access and GitHub package DNS; the approved rerun passed 16 focused tests. Runtime simulator gesture capture, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-22 — Retained SwiftUI feed refresh-state repair
+
+- [x] Updated retained SwiftUI `FeedViewModel` so stale revalidation and refresh merge the fresh first cursor page over already loaded rows instead of replacing the full feed array. This prevents Home from collapsing to a short first page after idle timers, post-detail returns, or tab switches.
+- [x] Added `FeedServicing` plus focused `FeedViewModelTests` covering short first-page refresh preservation and updated first-page row merging.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing `/v1/feed` cursor pagination, hybrid fan-out/cache behavior, denormalized counters, interaction mutations, rate limits, soft-delete semantics, schema, indexes, and worker jobs are unchanged. At 1M+ DAU this is local client state reconciliation only: zero new backend reads/writes beyond the existing bounded first-page refresh.
+- Architecture and codebase knowledge were updated for the retained SwiftUI feed refresh merge behavior; chat/backend docs and diagrams are unaffected.
+- Verification passed: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -destination 'id=377AC5D8-FF19-4EA8-A852-2A5D1C0B06FE' -only-testing:ThirtyFiveMMTests/FeedViewModelTests -derivedDataPath /private/tmp/ThirtyFiveMMFeedRefreshDerivedData -skipPackagePluginValidation -skipMacroValidation`; `git diff --check`. The first sandboxed test attempt was blocked by CoreSimulator and GitHub package resolution, and the first approved rerun used an unavailable default iOS 26.5 destination before the explicit iOS 18.5 simulator ID succeeded. Existing unrelated actor-isolation warnings remain in `FeedPostDecodingTests.swift`.
+
+### 2026-09-22 — Retained SwiftUI auth input hit areas
+
+- [x] Expanded retained SwiftUI login and signup text-entry controls so `TextField` and `SecureField` views claim the full 58-point input shell instead of only their intrinsic text area. The visible field background now matches the focusable/tappable area across identifier, name, username, email, password, and verification-code fields; password reveal and username status controls keep their own targets.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing Clerk login/signup/verification behavior, DOB completion, profile bootstrap, server authorization, rate limits, and indexed username availability reads are unchanged. At 1M+ DAU this is local hit-test geometry only: zero backend reads/writes, no schema/index/API/cache/worker/pagination/UGC contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, feature wiring, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Auth/AuthScaffold.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMAuthHitAreaDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved rerun succeeded. Runtime tap verification, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-22 — Retained SwiftUI notifications top gap
+
+- [x] Removed the empty space above the retained SwiftUI Notifications `Follow requests` row by collapsing the hidden scroll-chrome observer row and clearing the `List` top scroll-content margin.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and blockers remain unchanged.
+- Existing notification and follow-request REST contracts, cursor pagination, read-state mutations, server authorization, rate limits, indexes, and async counters are unchanged. At 1M+ DAU this is local presentation geometry only: zero backend reads/writes, no schema/index/API/cache/worker/pagination/UGC contract change.
+- Architecture and codebase knowledge do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, or known gap changed; chat/backend diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsView.swift apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsTabScreen.swift apps/ios/ThirtyFiveMM/Features/Notifications/NotificationsPagerView.swift apps/ios/ThirtyFiveMM/App/MainTabView.swift`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMNotificationsSpacingDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The first sandboxed build failed on CoreSimulator access and GitHub package DNS; the approved quiet rerun succeeded. Runtime screenshot, physical-device checks, and VoiceOver checks were not run for this list-geometry fix.
+
+### 2026-09-22 — Retained SwiftUI physical-device API origin
+
+- [x] Updated retained SwiftUI `apps/ios/ThirtyFiveMM.xcconfig` so `API_BASE_URL` resolves to `https://three5mm-api.onrender.com` instead of `http://127.0.0.1:4000`. On a physical iPhone, `127.0.0.1` targets the device itself, causing the authenticated bootstrap recovery screen to show “Session paused / Could not connect to the server” even when the Render API is healthy.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source and roadmap phase remain unchanged. `WEB_BASE_URL` remains local because this repair targets API bootstrap, not Discover's web/TMDB proxy path.
+- Existing Clerk session restoration, `/v1/me` and `/v1/me/onboarding-status` bootstrap reads, server authorization, rate limits, retry recovery, and onboarding routing are unchanged. At 1M+ DAU this changes only the native app's configured API origin: zero new backend read/write types, no schema/index/API/cache/worker/pagination/UGC contract change.
+- Architecture and codebase knowledge do not need updates because the documented `API_BASE_URL` contract did not change; only the local retained SwiftUI config value changed.
+- Verification passed: Render API `/health` returned `200` with `ok: true`; `xcodebuild -showBuildSettings` resolved `API_BASE_URL = https://three5mm-api.onrender.com`; simulator Debug `xcodebuild` succeeded using `/private/tmp/ThirtyFiveMMRenderApiDerivedData`; built app `Info.plist` contains `APIBaseURL=https://three5mm-api.onrender.com`; `git diff --check` passed. Physical-device reinstall/runtime verification was not run in this turn; the existing installed app must be rebuilt/reinstalled to pick up the new bundled Info.plist value.
 
 ### 2026-09-21 — Retained SwiftUI home skeleton header spacing
 
@@ -2000,3 +2190,95 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 - Existing feed/detail REST contracts, cursor pagination, media delivery, image viewer callback, server authorization, rate limits, indexes, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local presentation animation only: zero backend reads/writes, no schema/index/API/cache/worker/pagination contract change.
 - Architecture/codebase knowledge, chat docs, and diagrams do not need updates because app structure, contracts, feature wiring, and environment requirements did not change.
 - Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Feed/PostMediaCarousel.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /private/tmp/ThirtyFiveMMPostMediaCarouselDerivedData -skipPackagePluginValidation -skipMacroValidation -only-testing:ThirtyFiveMMTests/FeedPostDecodingTests test`. The focused feed-post suite passed 12 tests. Runtime screenshot/scroll capture, physical-device checks, and VoiceOver checks were not run for this indicator-animation slice.
+
+### 2026-09-23 — Retained SwiftUI appearance theme parity
+
+- [x] Added the retained SwiftUI Letterboxd theme to `Core/Theme.swift`, matching web's blue-charcoal surfaces, green accent, blue social accent, and orange activity/unread tokens.
+- [x] Kept the existing native accent-color picker wired and aligned shared design-token fixtures so Letterboxd parity is asserted against both web CSS and SwiftUI source.
+- [x] Fixed theme switching to paint only already loaded UIKit controller views with `viewIfLoaded`, avoiding hidden controller force-load during Matinee/custom-theme selection.
+- Decision: scope stays retained SwiftUI `apps/ios` plus static design-token parity metadata; React Native source and roadmap phase remain unchanged. Phase 2, next auth resilience/accessibility/visual task, feature status, and release blockers remain unchanged.
+- Existing settings PATCH/GET contracts, rate limits, schema, indexes, auth, caching, and backend volume are unchanged. At 1M+ DAU this is local presentation plus static token data: zero new backend reads/writes, no worker job, no pagination/UGC contract change.
+- Architecture and codebase knowledge were updated; chat docs and diagrams are unaffected.
+
+### 2026-09-23 — Retained SwiftUI profile cover/header pinning correction
+
+- [x] Reduced the pushed-profile compact cover header to 50pt below the status bar and captured the safe-area inset before extending the cover behind it. Back/title/actions share the cover header geometry.
+- [x] Removed the duplicate overlay tab menu. The existing section tabs pin beneath the reserved compact header; collapse uses actual container width. Refresh-to-feed positioning includes the reserved inset; invisible header actions no longer accept taps or accessibility focus.
+- Decision: user-requested retained SwiftUI fix only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local geometry over existing cached profile data; zero additional backend reads/writes at 1M+ DAU. Existing pagination, mutation rate limits, soft deletion, caches, and async counters remain unchanged; no index required.
+- Architecture and codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: simulator-target Debug `xcodebuild` using `/private/tmp/ThirtyFiveMMProfileHeaderNoDuplicateDerivedData`, plus scoped `git diff --check`. The sandboxed build could not access SwiftPM caches; the approved rerun succeeded. Runtime visual testing omitted per requested narrow verification scope.
+
+### 2026-09-23 — Retained SwiftUI traditional-tab root navigation
+
+- [x] Made active traditional Home, Discover, Activity, and Profile tab reselection clear that tab's typed `NavigationStack` path. Tapping Home while Bookmarks or another Home-stack destination is visible now returns to Feed.
+- [x] Preserved independent history for inactive tabs and kept Add as a composer action rather than a durable navigation stack.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native source, Phase 2 status, next auth resilience/accessibility/visual task, feature matrix, and release blockers remain unchanged.
+- Existing feed/discover/bookmark/notification/profile REST contracts, cursor pagination, server authorization, rate limits, indexes, caches, async counters, and UGC soft-delete behavior are unchanged. At 1M+ DAU this is local navigation state only: zero backend reads/writes and no schema/index/API/cache/worker/pagination contract change.
+- Architecture and codebase knowledge were updated; chat docs and diagrams are unaffected.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/App/MainTabView.swift docs/architecture.md codebase-analysis-docs/CODEBASE_KNOWLEDGE.md docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMTraditionalTabNavigationDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The sandboxed attempt could not access CoreSimulator or GitHub; the approved rerun succeeded. Runtime tap-path, physical-device, and VoiceOver checks were not run.
+
+### 2026-09-23 — Retained SwiftUI chat interactive back gesture
+
+- [x] Restored classic iOS leading-edge swipe-back navigation on retained SwiftUI Messages, Archived Messages, and chat-thread destinations. Custom chat headers remain visible and keep their explicit Back controls; only the hidden system back button state was removed so `NavigationStack` retains ownership of interactive pop.
+- Decision: scope stays retained SwiftUI `apps/ios`; React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local navigation gesture behavior only; zero backend reads/writes at 1M+ DAU. Existing chat pagination, mutation rate limits, authorization, persistence, realtime reconciliation, caches, and indexes remain unchanged; no index required.
+- Architecture/codebase knowledge, chat rendering docs, and diagrams do not need updates because app structure, routes, contracts, rendering architecture, feature wiring, and known gaps did not change.
+- Verification passed: `git diff --check -- apps/ios/ThirtyFiveMM/Features/Chat/ChatInboxView.swift apps/ios/ThirtyFiveMM/Features/Chat/ChatThreadView.swift docs/react-native-mobile-development-plan.md`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMChatBackGestureDerivedData -skipPackagePluginValidation -skipMacroValidation build`. Sandboxed build was blocked by CoreSimulator and GitHub package access; approved rerun succeeded. Runtime touch verification and physical-device checks were not run.
+
+### 2026-09-23 — Retained SwiftUI pushed-profile interactive back gesture
+
+- [x] Restored the native iOS leading-edge interactive pop gesture for profiles pushed from Home/feed while retaining the app-owned collapsing profile header and explicit back button.
+- [x] Scoped the UIKit gesture bridge to pushed profiles only. It installs after navigation attachment, begins only with more than one controller on the stack and no transition in progress, restores the prior delegate when the profile disappears, and continues to win over the existing profile-tab pager at the screen edge.
+- Decision: user-requested retained SwiftUI fix only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local navigation gesture coordination only; zero backend reads/writes at 1M+ DAU. Existing cursor pagination, mutation rate limits, soft deletion, caches, async counters, and indexes remain unchanged; no index required.
+- Architecture/codebase knowledge, chat docs, and diagrams do not need updates because no app structure, API route, DB schema, shared contract, env var, worker job, feature wiring, or known gap changed.
+- Verification passed: `plutil -lint apps/ios/ThirtyFiveMM.xcodeproj/project.pbxproj`; scoped `git diff --check`; `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/ThirtyFiveMMProfileInteractivePopDerivedData -skipPackagePluginValidation -skipMacroValidation build`. The sandboxed build was blocked by CoreSimulator and Swift package network access; the approved rerun succeeded. Runtime touch verification and physical-device checks were not run.
+
+### 2026-09-23 — Keep collapsed profile cover background visible
+
+- [x] Moved scroll geometry observation from disposable lazy cover/sentinel rows to the persistent stack background. Scrolling the cover offscreen no longer resets header opacity. Added an opaque base behind blurred cover imagery to prevent bleed-through at full collapse.
+- User-confirmed header/back/tab positions are preserved. Retained SwiftUI only; React Native Phase 2, next task, feature matrix, checklist, and blockers unchanged.
+- Existing client presentation pattern; zero additional backend reads/writes at 1M+ DAU, no new index, API, cache, mutation, or UGC semantics. Architecture and codebase knowledge updated; chat docs/diagrams unaffected.
+- Verification passed: simulator-target Debug build with existing derived data and scoped `git diff --check`. Runtime visual check not run.
+
+### 2026-09-22 — Retained SwiftUI same-profile navigation guard
+
+- [x] Passed the visible profile's stable user ID and normalized username through Profile Posts/Reposts into the shared feed renderer and `PostCard`. Avatar and author-detail controls for that same user now render as non-links, preventing repeated taps from stacking duplicate copies of the profile already on screen; cards authored by another user still push normally.
+- [x] Kept same-profile author identity readable to VoiceOver without announcing a dead “Opens profile” action, and added focused coverage for stable-ID matching, normalized-username fallback, different authors, and non-profile feed behavior.
+- Decision: user-requested retained SwiftUI fix only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local route gating over already-loaded post/profile identity; zero additional backend reads or writes at 1M+ DAU. Existing cursor pagination, server authorization, mutation rate limits, UGC soft deletion, caches, indexes, and async counters remain unchanged; no index required.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
+- Verification passed: focused `ThirtyFiveMMTests/ProfileFeatureTests` simulator suite via `xcodebuild test` using `/private/tmp/ThirtyFiveMMSameProfileNavigationDerivedData`; scoped `git diff --check`. Existing unrelated actor-isolation warnings remain in `FeedPostDecodingTests.swift`. Runtime tap testing, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-22 — Retained SwiftUI PostCard author routing hardening
+
+- [x] Made PostCard avatar and complete name/username/role clusters explicit profile-route buttons with a full 44-point avatar hit area, keeping those controls independent from the card-wide post-detail target.
+- [x] Retained the visible-profile identity guard and added a shell-level exact-top-route guard, so repeated taps cannot append the profile already visible on the owning tab stack. Added focused normalized-profile and different-profile route coverage.
+- Decision: user-requested retained SwiftUI fix only. React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap checkboxes, and release blockers remain unchanged.
+- Scale: local hit testing and bounded in-memory navigation-path comparison only; zero backend reads/writes at 1M+ DAU. Existing cursor pagination, mutation rate limits, soft deletion, caches, async counters, and indexes remain unchanged; no index required.
+- Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
+- Verification passed: focused `ThirtyFiveMMTests/ProfileFeatureTests` simulator suite using `/private/tmp/ThirtyFiveMMAuthorNavigationDerivedData`; scoped `git diff --check`. Existing unrelated actor-isolation warnings remain in `FeedPostDecodingTests.swift`. Runtime tap testing, physical-device checks, and VoiceOver checks were not run.
+
+### 2026-09-23 — Replace ineffective profile geometry tracking with native offset observation
+
+- User screenshot confirmed the previous geometry-preference fix did not resolve transparent chrome. That attempt is superseded by native offset observation through the existing outer-scroll refresh-control bridge.
+- [x] Observe `UIScrollView.contentOffset` and `adjustedContentInset`, coalesce delivery on the main queue, and remove observations when detached. The normalized native offset drives collapse opacity, blur, title, pull distance, and chrome direction without relying on SwiftUI preference propagation. Header/tab positions remain unchanged.
+- Retained SwiftUI only; React Native Phase 2, next task, feature matrix, roadmap checklist, and blockers remain unchanged. No additional backend reads/writes at 1M+ DAU; no new index or API/cache/mutation/UGC change.
+- Architecture and codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification: simulator-target Debug build passed; scoped diff check passed. Direct runtime visual verification remains unavailable: computer-use could not access Simulator by name or its installed Xcode app path. Build success alone is not visual confirmation.
+
+### 2026-09-23 — Preserve profile tab spacing while pinned
+
+- [x] Moved the existing 16pt gap from the profile details footer into the tab bar itself. Expanded spacing stays the same; the pinned section now retains the gap above its icons. Loading skeletons match, and refresh positioning uses the full 68pt tab height (16pt gap + 52pt controls).
+- Retained SwiftUI presentation only; React Native Phase 2, next task, feature status, roadmap, and blockers unchanged. Zero extra backend reads/writes at 1M+ DAU; no index, API, cache, mutation, or UGC contract change.
+- Architecture/codebase/chat docs and diagrams need no update: only existing component spacing changed, with no feature wiring or structural change.
+- Verification passed: incremental simulator-target Debug build and scoped `git diff --check`. Runtime visual check not run.
+
+### 2026-09-23 — Synchronize profile cover transitions with source content
+
+- [x] Measure the profile display name and share/more row in stable scroll-content coordinates. Each compact-header counterpart begins revealing when its source enters the header boundary and finishes when that source is covered, driven by the existing native scroll offset. Measurements update for layout changes without depending on offscreen geometry publication.
+- [x] Apply smoothstep easing to cover blur/dimming and independent title/action fades. Small vertical reveals follow scroll directly with no queued time animation; Reduce Motion removes reveal translation. Cover overscan is fixed to avoid zoom pumping, and clipping is bounded to header dimensions.
+- Retained SwiftUI only; React Native Phase 2, next auth resilience/accessibility/visual task, feature matrix, roadmap, and blockers unchanged. Local geometry over cached profile data adds zero backend reads/writes at 1M+ DAU; no new index, route, mutation, cache, or UGC change.
+- Architecture and codebase knowledge updated; chat docs/diagrams unaffected.
+- Verification passed: incremental simulator-target Debug build and scoped `git diff --check`. Runtime visual timing and Reduce Motion verification not run; on-device visual acceptance remains outstanding.

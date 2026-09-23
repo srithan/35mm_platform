@@ -3,11 +3,14 @@ import UIKit
 
 struct ProfileLoadedView: View {
   @EnvironmentObject private var env: AppEnvironment
+  @Environment(\.appRouteNavigator) private var appRouteNavigator
   @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
   let profile: PublicProfile
   let model: ProfileViewModel
   let service: any ProfileServicing
+  var showsCollapsingHeader = false
+  var onBack: (() -> Void)?
   let onCurrentProfileUpdated: (PublicProfile) -> Void
   let onScrollDirectionChange: (ScrollChromeDirection) -> Void
 
@@ -20,7 +23,6 @@ struct ProfileLoadedView: View {
   @State private var isShowingShareSheet = false
   @State private var pendingProfileAction: ProfileAction?
   @State private var editingProfile: PublicProfile?
-  @State private var selectedPost: FeedPost?
   @State private var selectedImage: ProfileImageSelection?
   @State private var selectedProfileMedia: ProfileMediaSelection?
   @State private var pullDistance: CGFloat = 0
@@ -28,21 +30,26 @@ struct ProfileLoadedView: View {
   @State private var isRefreshing = false
   @State private var lastScrollMinY: CGFloat?
   @State private var lastScrollChromeDirection: ScrollChromeDirection = .top
+  @State private var scrollOffset: CGFloat = 0
   @State private var avatarSourceFrame: CGRect?
   @State private var coverSourceFrame: CGRect?
+  @State private var nameContentFrame: CGRect?
+  @State private var actionsContentFrame: CGRect?
 
   var body: some View {
-    ScrollView {
-      LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-        GeometryReader { proxy in
-          Color.clear
-            .preference(
-              key: ProfileScrollPositionPreferenceKey.self,
-              value: proxy.frame(in: .named(ProfileDesign.scrollCoordinateSpace)).minY
-            )
-        }
-        .frame(height: 0)
+    GeometryReader { proxy in
+      let topInset = showsCollapsingHeader ? proxy.safeAreaInsets.top : 0
+      profileContent(topInset: topInset, width: proxy.size.width)
+        .ignoresSafeArea(edges: showsCollapsingHeader ? .top : [])
+    }
+  }
 
+  private func profileContent(topInset: CGFloat, width: CGFloat) -> some View {
+    let headerHeight = showsCollapsingHeader
+      ? topInset + ProfileDesign.collapsedHeaderContentHeight : 0
+
+    return ScrollView {
+      LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
         ProfileStretchyCoverView(
           url: profile.coverUrl,
           displayName: profile.displayName,
@@ -59,7 +66,9 @@ struct ProfileLoadedView: View {
           onEdit: editProfile,
           onFollow: followTapped,
           onShare: shareProfile,
-          onMore: showProfileActions
+          onMore: showProfileActions,
+          onNameFrameChange: { nameContentFrame = $0 },
+          onActionsFrameChange: { actionsContentFrame = $0 }
         )
         .background(.background)
 
@@ -88,18 +97,22 @@ struct ProfileLoadedView: View {
           )
         }
       }
+      .coordinateSpace(name: ProfileDesign.contentCoordinateSpace)
+      // Keep the expanded cover at the screen edge while the section header
+      // pins at the scroll view's reserved compact-header safe area.
+      .padding(.top, -headerHeight)
     }
+    .safeAreaPadding(.top, headerHeight)
     .background {
-      ProfileNativeRefreshControl(isRefreshing: isRefreshing) { scrollView in
-        startProfileRefresh(in: scrollView)
-      }
+      ProfileNativeRefreshControl(
+        isRefreshing: isRefreshing,
+        onScroll: { offset in handleScrollPosition(-offset) },
+        onRefresh: startProfileRefresh
+      )
       .frame(width: 0, height: 0)
       .accessibilityHidden(true)
     }
     .coordinateSpace(name: ProfileDesign.scrollCoordinateSpace)
-    .onPreferenceChange(ProfileScrollPositionPreferenceKey.self) { minY in
-      handleScrollPosition(minY)
-    }
     .task(id: selectedTab) {
       guard !isPrivateGate else { return }
       await model.loadTabIfNeeded(selectedTab)
@@ -111,14 +124,17 @@ struct ProfileLoadedView: View {
       coverSourceFrame = frame
     }
     .overlay(alignment: .top) {
-      if let error = model.actionError {
-        ProfileErrorBanner(message: error, onDismiss: model.clearActionError)
-          .padding(.horizontal, 14)
-          .padding(.top, 8)
+      ZStack(alignment: .top) {
+        if showsCollapsingHeader, let onBack {
+          collapsingHeaderOverlay(topInset: topInset, width: width, onBack: onBack)
+        }
+
+        if let error = model.actionError {
+          ProfileErrorBanner(message: error, onDismiss: model.clearActionError)
+            .padding(.horizontal, 14)
+            .padding(.top, showsCollapsingHeader ? headerHeight + 8 : 8)
+        }
       }
-    }
-    .navigationDestination(item: $selectedPost) { post in
-      PostDetailView(post: post)
     }
     .bottomActionSheet(
       isPresented: $isShowingProfileActions,
@@ -170,7 +186,7 @@ struct ProfileLoadedView: View {
         onLike: { Task { await model.toggleLike(postId: selection.post.id) } },
         onComment: {
           selectedImage = nil
-          selectedPost = selection.post
+          appRouteNavigator(.post(PostDestination(post: selection.post)))
         },
         onRepost: { Task { await model.toggleRepost(postId: selection.post.id) } },
         onQuote: {
@@ -209,6 +225,24 @@ struct ProfileLoadedView: View {
       imageURL: URL(string: profile.avatarUrlLg ?? profile.avatarUrl ?? ""),
       description: profile.bio
     )
+  }
+
+  private var collapsedHeaderSubtitle: String {
+    "\(profile.filmsLoggedCount.compactFormatted) \(profile.filmsLoggedCount == 1 ? "film" : "films") logged"
+  }
+
+  private func headerRevealProgress(frame: CGRect?, topInset: CGFloat) -> Double {
+    guard let frame, frame.height > 0 else { return 0 }
+    let headerBottom = topInset + ProfileDesign.collapsedHeaderContentHeight
+    // Frames are measured in content coordinates, so native scroll offset is
+    // the only per-frame input, even after SwiftUI recycles the source rows.
+    return min(max(Double((scrollOffset + headerBottom - frame.minY) / frame.height), 0), 1)
+  }
+
+  private func collapseProgress(topInset: CGFloat, width: CGFloat) -> Double {
+    let coverHeight = width / ProfileDesign.coverAspectRatio
+    let transformDistance = max(coverHeight - topInset - ProfileDesign.collapsedHeaderContentHeight, 1)
+    return min(max(Double(scrollOffset / transformDistance), 0), 1)
   }
 
   private var avatarURL: URL? {
@@ -283,7 +317,7 @@ struct ProfileLoadedView: View {
   }
 
   private func openPost(_ post: FeedPost) {
-    selectedPost = post
+    appRouteNavigator(.post(PostDestination(post: post)))
   }
 
   private func openAvatar() {
@@ -364,6 +398,7 @@ struct ProfileLoadedView: View {
     }
 
     let scrollOffset = max(-minY, 0)
+    self.scrollOffset = scrollOffset
     defer { lastScrollMinY = minY }
 
     guard scrollOffset > ScrollChromeDirection.topLock else {
@@ -423,6 +458,27 @@ struct ProfileLoadedView: View {
       scrollToFeedStart(in: scrollView)
     }
   }
+
+  private func collapsingHeaderOverlay(
+    topInset: CGFloat,
+    width: CGFloat,
+    onBack: @escaping () -> Void
+  ) -> some View {
+    ProfileNavigationHeader(
+      title: profile.displayName,
+      subtitle: collapsedHeaderSubtitle,
+      coverUrl: profile.coverUrl,
+      collapseProgress: collapseProgress(topInset: topInset, width: width),
+      topInset: topInset,
+      titleProgress: headerRevealProgress(frame: nameContentFrame, topInset: topInset),
+      actionsProgress: headerRevealProgress(frame: actionsContentFrame, topInset: topInset),
+      onBack: onBack,
+      onShare: shareProfile,
+      onMore: showProfileActions
+    )
+    .frame(height: topInset + ProfileDesign.collapsedHeaderContentHeight)
+  }
+
 }
 
 @MainActor
@@ -440,10 +496,16 @@ private final class ProfileFeedStartMarkerView: UIView {}
 @MainActor
 private struct ProfileNativeRefreshControl: UIViewRepresentable {
   let isRefreshing: Bool
+  let onScroll: (CGFloat) -> Void
   let onRefresh: (UIScrollView) -> Void
 
   func makeCoordinator() -> Coordinator {
-    Coordinator(onRefresh: onRefresh)
+    Coordinator(onScroll: onScroll, onRefresh: onRefresh)
+  }
+
+  static func dismantleUIView(_ uiView: ProfileNativeRefreshControlView, coordinator: Coordinator) {
+    uiView.onHierarchyChanged = nil
+    coordinator.detach()
   }
 
   func makeUIView(context: Context) -> ProfileNativeRefreshControlView {
@@ -457,6 +519,7 @@ private struct ProfileNativeRefreshControl: UIViewRepresentable {
   }
 
   func updateUIView(_ uiView: ProfileNativeRefreshControlView, context: Context) {
+    context.coordinator.onScroll = onScroll
     context.coordinator.onRefresh = onRefresh
     uiView.onHierarchyChanged = { [coordinator = context.coordinator] observerView in
       coordinator.attach(from: observerView)
@@ -467,12 +530,17 @@ private struct ProfileNativeRefreshControl: UIViewRepresentable {
 
   @MainActor
   final class Coordinator: NSObject {
+    var onScroll: (CGFloat) -> Void
     var onRefresh: (UIScrollView) -> Void
 
+    private var offsetObservation: NSKeyValueObservation?
+    private var insetObservation: NSKeyValueObservation?
+    private var isScrollUpdateScheduled = false
     private weak var scrollView: UIScrollView?
     private let refreshControl = UIRefreshControl()
 
-    init(onRefresh: @escaping (UIScrollView) -> Void) {
+    init(onScroll: @escaping (CGFloat) -> Void, onRefresh: @escaping (UIScrollView) -> Void) {
+      self.onScroll = onScroll
       self.onRefresh = onRefresh
       super.init()
       refreshControl.tintColor = .clear
@@ -484,12 +552,37 @@ private struct ProfileNativeRefreshControl: UIViewRepresentable {
         return
       }
 
-      if self.scrollView?.refreshControl === refreshControl {
-        self.scrollView?.refreshControl = nil
-      }
-
+      detach()
       self.scrollView = scrollView
       scrollView.refreshControl = refreshControl
+      offsetObservation = scrollView.observe(\.contentOffset, options: [.initial, .new]) { [weak self] _, _ in
+        MainActor.assumeIsolated { self?.scheduleScrollUpdate() }
+      }
+      insetObservation = scrollView.observe(\.adjustedContentInset, options: [.new]) { [weak self] _, _ in
+        MainActor.assumeIsolated { self?.scheduleScrollUpdate() }
+      }
+    }
+
+    func detach() {
+      offsetObservation = nil
+      insetObservation = nil
+      if scrollView?.refreshControl === refreshControl {
+        scrollView?.refreshControl = nil
+      }
+      scrollView = nil
+    }
+
+    private func scheduleScrollUpdate() {
+      guard !isScrollUpdateScheduled else { return }
+      isScrollUpdateScheduled = true
+      // Deliver outside representable layout, coalescing to the latest native
+      // offset. This remains valid after the cover leaves the lazy viewport.
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        self.isScrollUpdateScheduled = false
+        guard let scrollView = self.scrollView else { return }
+        self.onScroll(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
+      }
     }
 
     func update(isRefreshing: Bool) {
@@ -582,14 +675,6 @@ private extension UIScrollView {
     }
 
     let markerMinY = marker.convert(marker.bounds, to: self).minY
-    return contentOffset.y + markerMinY - ProfileDesign.tabBarHeight
-  }
-}
-
-private struct ProfileScrollPositionPreferenceKey: PreferenceKey {
-  static let defaultValue: CGFloat = 0
-
-  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-    value = nextValue()
+    return contentOffset.y + markerMinY - ProfileDesign.tabBarHeight - adjustedContentInset.top
   }
 }

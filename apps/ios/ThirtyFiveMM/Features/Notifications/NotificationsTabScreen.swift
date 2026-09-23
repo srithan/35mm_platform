@@ -4,6 +4,7 @@ struct NotificationsTabScreen: View {
   @Environment(\.theme) private var theme
 
   @State private var selectedFilter: NotificationFilter = .all
+  @State private var filterSelectionProgress = Double(NotificationFilter.all.index)
 
   let apiClient: APIClient
   let viewModels: AppNotificationViewModels
@@ -12,6 +13,7 @@ struct NotificationsTabScreen: View {
   let profileLoadError: String?
   let canOpenMessages: Bool
   let headerVisible: Bool
+  let bottomContentInset: CGFloat
   let onProfileTapped: () -> Void
   let onMessagesTapped: () -> Void
   let onScrollDirectionChange: (ScrollChromeDirection) -> Void
@@ -24,6 +26,7 @@ struct NotificationsTabScreen: View {
     profileLoadError: String?,
     canOpenMessages: Bool,
     headerVisible: Bool = true,
+    bottomContentInset: CGFloat = 0,
     onProfileTapped: @escaping () -> Void,
     onMessagesTapped: @escaping () -> Void,
     onScrollDirectionChange: @escaping (ScrollChromeDirection) -> Void = { _ in }
@@ -35,6 +38,7 @@ struct NotificationsTabScreen: View {
     self.profileLoadError = profileLoadError
     self.canOpenMessages = canOpenMessages
     self.headerVisible = headerVisible
+    self.bottomContentInset = bottomContentInset
     self.onProfileTapped = onProfileTapped
     self.onMessagesTapped = onMessagesTapped
     self.onScrollDirectionChange = onScrollDirectionChange
@@ -52,6 +56,7 @@ struct NotificationsTabScreen: View {
       ) {
         NotificationsFilterBar(
           selection: selectedFilter,
+          selectionProgress: filterSelectionProgress,
           onSelect: selectFilter
         )
       }
@@ -65,6 +70,8 @@ struct NotificationsTabScreen: View {
         selection: $selectedFilter,
         apiClient: apiClient,
         viewModels: viewModels,
+        bottomContentInset: bottomContentInset,
+        onSelectionProgressChange: updateFilterSelectionProgress,
         onScrollDirectionChange: onScrollDirectionChange
       )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -75,6 +82,17 @@ struct NotificationsTabScreen: View {
   private func selectFilter(_ filter: NotificationFilter) {
     withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
       selectedFilter = filter
+      filterSelectionProgress = Double(filter.index)
+    }
+  }
+
+  private func updateFilterSelectionProgress(_ progress: Double, animated: Bool) {
+    if animated {
+      withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+        filterSelectionProgress = progress
+      }
+    } else {
+      filterSelectionProgress = progress
     }
   }
 }

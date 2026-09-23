@@ -4,6 +4,7 @@ import UIKit
 
 struct PostCard: View {
   @Environment(\.theme) private var theme
+  @Environment(\.appRouteNavigator) private var appRouteNavigator
   @EnvironmentObject private var env: AppEnvironment
 
   let post: FeedPost
@@ -14,6 +15,8 @@ struct PostCard: View {
   var postActionSheetTitle = "Post actions"
   var postActionSheetActions: [BottomActionSheetAction]?
   var onDismissPostActions: () -> Void = {}
+  var currentProfileUsername: String? = nil
+  var currentProfileUserId: String? = nil
 
   @State private var isExpanded = false
   @State private var isShowingPostActions = false
@@ -36,6 +39,15 @@ struct PostCard: View {
     ProfileDestination(username: post.author.username)
   }
 
+  private var shouldNavigateToAuthor: Bool {
+    Self.shouldNavigateToAuthor(
+      authorUserId: post.author.id,
+      authorUsername: post.author.username,
+      currentProfileUserId: currentProfileUserId,
+      currentProfileUsername: currentProfileUsername
+    )
+  }
+
   private var authorAccessibilityLabel: String {
     let identity = "\(authorName), @\(post.author.username)"
     guard let role = AuthorRoleLabel.headline(for: post.author) else { return identity }
@@ -43,7 +55,7 @@ struct PostCard: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: DesignSystem.FeedPost.contentVerticalSpacing) {
       if let repostContext = post.repostContext {
         PostRepostContextView(
           context: repostContext,
@@ -52,10 +64,10 @@ struct PostCard: View {
         )
       }
 
-      HStack(alignment: .top, spacing: 12) {
+      HStack(alignment: .top, spacing: DesignSystem.FeedPost.avatarContentSpacing) {
         avatar
 
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignSystem.FeedPost.contentVerticalSpacing) {
           authorRow
           postTypeLabel
           headline
@@ -72,8 +84,8 @@ struct PostCard: View {
         }
       }
     }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 12)
+    .padding(.horizontal, DesignSystem.FeedPost.horizontalInset)
+    .padding(.vertical, DesignSystem.FeedPost.verticalInset)
     .background {
       if let onOpenPost {
         Button(action: onOpenPost) {
@@ -127,7 +139,9 @@ struct PostCard: View {
       ]),
       BottomActionSheetSection(actions: [
         BottomActionSheetAction("Save", systemImage: "bookmark") {
-          Task { await interactor.toggleBookmark(postId: post.id) }
+          Task { [weak postInteractor = interactor] in
+            await postInteractor?.toggleBookmark(postId: post.id)
+          }
         },
         BottomActionSheetAction("Not interested", systemImage: "eye.slash") {
           // TODO: Wire hide post API when available.
@@ -157,50 +171,65 @@ struct PostCard: View {
     ]
   }
 
+  @ViewBuilder
   private var avatar: some View {
-    NavigationLink(value: AppRoute.profile(authorDestination)) {
-      KFImage(URL(string: post.author.avatarUrl ?? ""))
-        .placeholder {
-          Image(systemName: "person.circle.fill")
-            .resizable()
-            .foregroundStyle(theme.textSecondary)
-        }
-        .resizable()
-        .scaledToFill()
-        .frame(width: 40, height: 40)
-        .clipShape(Circle())
-        .background(Circle().fill(theme.bgSunken))
+    if shouldNavigateToAuthor {
+      Button {
+        appRouteNavigator(.profile(authorDestination))
+      } label: {
+        authorAvatarImage
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .frame(width: 44, height: 44, alignment: .top)
+      .contentShape(Rectangle())
+      .accessibilityLabel("View @\(post.author.username)'s profile")
+      .zIndex(1)
+    } else {
+      authorAvatarImage
+        .frame(width: 44, height: 44, alignment: .top)
+        .accessibilityHidden(true)
     }
-    .buttonStyle(.plain)
-    .frame(minWidth: 44, minHeight: 44, alignment: .top)
-    .contentShape(Circle())
-    .accessibilityLabel("View @\(post.author.username)'s profile")
+  }
+
+  private var authorAvatarImage: some View {
+    KFImage(URL(string: post.author.avatarUrl ?? ""))
+      .setProcessor(FeedImagePipeline.processor(forDisplaySize: FeedImagePipeline.avatarSize))
+      .placeholder {
+        Image(systemName: "person.circle.fill")
+          .resizable()
+          .foregroundStyle(theme.textSecondary)
+      }
+      .resizable()
+      .scaledToFill()
+      .frame(width: 40, height: 40)
+      .clipShape(Circle())
+      .background(Circle().fill(theme.bgSunken))
   }
 
   private var authorRow: some View {
     HStack(alignment: .top, spacing: 0) {
-      VStack(alignment: .leading, spacing: 1) {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-          NavigationLink(value: AppRoute.profile(authorDestination)) {
-            FeedAuthorIdentityLabel(
-              displayName: authorName,
-              username: post.author.username
-            )
-          }
-          .buttonStyle(.plain)
-          .contentShape(Rectangle())
-          .accessibilityLabel(authorAccessibilityLabel)
-          .accessibilityHint("Opens profile")
-          .layoutPriority(1)
-
-          FeedTimestampLabel(timestamp: timestamp)
-
-          Spacer(minLength: 0)
+      if shouldNavigateToAuthor {
+        Button {
+          appRouteNavigator(.profile(authorDestination))
+        } label: {
+          authorDetailsLabel
         }
-
-        AuthorRoleLabel(author: post.author)
-          .accessibilityHidden(true)
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .accessibilityLabel(authorAccessibilityLabel)
+        .accessibilityHint("Opens profile")
+        .layoutPriority(1)
+        .zIndex(1)
+      } else {
+        authorDetailsLabel
+          .accessibilityLabel(authorAccessibilityLabel)
+          .layoutPriority(1)
       }
+
+      FeedTimestampLabel(timestamp: timestamp)
+        .padding(.leading, 4)
 
       Spacer(minLength: 8)
 
@@ -215,6 +244,22 @@ struct PostCard: View {
       .buttonStyle(.plain)
       .foregroundStyle(theme.textSecondary)
       .accessibilityLabel("More post actions")
+    }
+  }
+
+  private var authorIdentityLabel: some View {
+    FeedAuthorIdentityLabel(
+      displayName: authorName,
+      username: post.author.username
+    )
+  }
+
+  private var authorDetailsLabel: some View {
+    VStack(alignment: .leading, spacing: 1) {
+      authorIdentityLabel
+
+      AuthorRoleLabel(author: post.author)
+        .accessibilityHidden(true)
     }
   }
 
@@ -249,6 +294,9 @@ struct PostCard: View {
         .font(.headline)
         .foregroundStyle(theme.text)
         .fixedSize(horizontal: false, vertical: true)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: openPostIfAvailable)
+        .accessibilityAddTraits(onOpenPost == nil ? [] : .isButton)
     }
   }
 
@@ -263,6 +311,11 @@ struct PostCard: View {
           .lineSpacing(DesignSystem.appBodyLineSpacing)
           .lineLimit(shouldClampBody(body) ? 6 : nil)
           .fixedSize(horizontal: false, vertical: true)
+          .contentShape(Rectangle())
+          .onTapGesture {
+            handleBodyTap(body)
+          }
+          .accessibilityAddTraits(onOpenPost == nil ? [] : .isButton)
 
         if truncatesBody && shouldShowMore(for: body) && !isExpanded {
           Button("more") {
@@ -335,7 +388,9 @@ struct PostCard: View {
         activeColor: theme.like,
         accessibilityLabel: post.isLiked ? "Unlike post" : "Like post"
       ) {
-        Task { await interactor.toggleLike(postId: post.id) }
+        Task { [weak postInteractor = interactor] in
+          await postInteractor?.toggleLike(postId: post.id)
+        }
       }
 
       ActionButton(
@@ -365,10 +420,12 @@ struct PostCard: View {
         isActive: post.isBookmarked,
         accessibilityLabel: post.isBookmarked ? "Remove bookmark" : "Bookmark post"
       ) {
-        Task { await interactor.toggleBookmark(postId: post.id) }
+        Task { [weak postInteractor = interactor] in
+          await postInteractor?.toggleBookmark(postId: post.id)
+        }
       }
     }
-    .padding(.top, 8)
+    .padding(.top, DesignSystem.FeedPost.actionBarTopPadding)
   }
 
   private var mediaItems: [PostMediaGridItem] {
@@ -406,7 +463,9 @@ struct PostCard: View {
         post.isReposted ? "Undo repost" : "Repost",
         systemImage: "arrow.2.squarepath"
       ) {
-        Task { await interactor.toggleRepost(postId: post.id) }
+        Task { [weak postInteractor = interactor] in
+          await postInteractor?.toggleRepost(postId: post.id)
+        }
       },
       BottomActionSheetAction("Quote", systemImage: "quote.bubble") {
         env.presentComposer(quoting: post)
@@ -467,8 +526,38 @@ struct PostCard: View {
     truncatesBody && !isExpanded && shouldShowMore(for: body)
   }
 
+  private func handleBodyTap(_ body: String) {
+    if shouldClampBody(body) {
+      isExpanded = true
+      return
+    }
+
+    openPostIfAvailable()
+  }
+
+  private func openPostIfAvailable() {
+    onOpenPost?()
+  }
+
   static func usesCarouselMediaPresentation(isEnabled: Bool, itemCount: Int) -> Bool {
     isEnabled && itemCount > 2
+  }
+
+  static func shouldNavigateToAuthor(
+    authorUserId: String,
+    authorUsername: String,
+    currentProfileUserId: String?,
+    currentProfileUsername: String?
+  ) -> Bool {
+    if let currentProfileUserId,
+       !authorUserId.isEmpty,
+       !currentProfileUserId.isEmpty {
+      return authorUserId != currentProfileUserId
+    }
+
+    guard let currentProfileUsername else { return true }
+    return ProfileDestination(username: authorUsername)
+      != ProfileDestination(username: currentProfileUsername)
   }
 }
 
@@ -667,6 +756,7 @@ private struct FilmLogCard: View {
   private var poster: some View {
     if let posterURL {
       KFImage(posterURL)
+        .setProcessor(FeedImagePipeline.processor(forDisplaySize: FeedImagePipeline.filmPosterSize))
         .onSuccess { result in
           updateGlowColor(from: result.image, cacheKey: posterURL.absoluteString)
         }
@@ -1180,6 +1270,7 @@ private struct PollView: View {
   private func optionImage(_ option: PollOption) -> some View {
     if let imageUrl = option.imageUrl, let url = URL(string: imageUrl) {
       KFImage(url)
+        .setProcessor(FeedImagePipeline.processor(forDisplaySize: FeedImagePipeline.pollImageSize))
         .placeholder {
           imagePlaceholder
         }
@@ -1259,8 +1350,8 @@ private struct PollView: View {
   private func submitVote(_ optionId: String) {
     guard canVote else { return }
 
-    Task {
-      await interactor.votePoll(postId: postId, optionIds: [optionId])
+    Task { [weak postInteractor = interactor] in
+      await postInteractor?.votePoll(postId: postId, optionIds: [optionId])
     }
   }
 

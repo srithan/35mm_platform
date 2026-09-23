@@ -9,6 +9,8 @@ struct ProfileHeaderView: View {
   let onFollow: () -> Void
   let onShare: () -> Void
   let onMore: () -> Void
+  var onNameFrameChange: (CGRect) -> Void = { _ in }
+  var onActionsFrameChange: (CGRect) -> Void = { _ in }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -32,6 +34,11 @@ struct ProfileHeaderView: View {
           )
           .accessibilityIdentifier("profile.actions")
         }
+        .onGeometryChange(for: CGRect.self) { geometry in
+          geometry.frame(in: .named(ProfileDesign.contentCoordinateSpace))
+        } action: { frame in
+          onActionsFrameChange(frame)
+        }
       }
 
       VStack(alignment: .leading, spacing: 3) {
@@ -39,6 +46,11 @@ struct ProfileHeaderView: View {
           .font(.title3.weight(.bold))
           .foregroundStyle(theme.text)
           .accessibilityAddTraits(.isHeader)
+          .onGeometryChange(for: CGRect.self) { geometry in
+            geometry.frame(in: .named(ProfileDesign.contentCoordinateSpace))
+          } action: { frame in
+            onNameFrameChange(frame)
+          }
 
         Label {
           Text("@\(profile.username)")
@@ -80,7 +92,6 @@ struct ProfileHeaderView: View {
       primaryActionButton
     }
     .padding(.horizontal, ProfileDesign.horizontalPadding)
-    .padding(.bottom, 16)
   }
 
   private var followButtonTitle: String {

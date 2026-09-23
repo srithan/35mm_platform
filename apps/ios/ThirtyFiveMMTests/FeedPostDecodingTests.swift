@@ -96,6 +96,152 @@ final class FeedPostDecodingTests: XCTestCase {
     )
   }
 
+  func testPostMediaCarouselCardWidthIsSixtyPercentLarger() {
+    XCTAssertEqual(
+      PostMediaCarousel.cardWidth(forViewportWidth: 350),
+      246.4,
+      accuracy: 0.001
+    )
+    XCTAssertEqual(
+      PostMediaCarousel.cardHeight(forCardWidth: 246.4),
+      308,
+      accuracy: 0.001
+    )
+    XCTAssertEqual(
+      PostMediaCarousel.carouselAspectRatio,
+      1.136364,
+      accuracy: 0.001
+    )
+    XCTAssertEqual(PostMediaCarousel.cellCornerRadius, 16)
+  }
+
+  func testPostMediaCarouselContentWidthDoesNotAddTrailingRunway() {
+    XCTAssertEqual(
+      PostMediaCarousel.contentWidth(itemCount: 4, cardWidth: 154, spacing: 8),
+      640
+    )
+  }
+
+  func testPostMediaCarouselActiveIndexUsesBoundedScrollProgress() {
+    let viewportWidth: CGFloat = 350
+    let cardWidth: CGFloat = 154
+    let maxScrollOffset = PostMediaCarousel.contentWidth(
+      itemCount: 4,
+      cardWidth: cardWidth,
+      spacing: 8
+    ) - viewportWidth
+
+    XCTAssertEqual(
+      PostMediaCarousel.activeIndex(
+        forScrollOffset: -24,
+        viewportWidth: viewportWidth,
+        cardWidth: cardWidth,
+        itemCount: 4,
+        spacing: 8
+      ),
+      0
+    )
+    XCTAssertEqual(
+      PostMediaCarousel.activeIndex(
+        forScrollOffset: maxScrollOffset * 0.34,
+        viewportWidth: viewportWidth,
+        cardWidth: cardWidth,
+        itemCount: 4,
+        spacing: 8
+      ),
+      1
+    )
+    XCTAssertEqual(
+      PostMediaCarousel.activeIndex(
+        forScrollOffset: maxScrollOffset * 0.67,
+        viewportWidth: viewportWidth,
+        cardWidth: cardWidth,
+        itemCount: 4,
+        spacing: 8
+      ),
+      2
+    )
+    XCTAssertEqual(
+      PostMediaCarousel.activeIndex(
+        forScrollOffset: maxScrollOffset + 40,
+        viewportWidth: viewportWidth,
+        cardWidth: cardWidth,
+        itemCount: 4,
+        spacing: 8
+      ),
+      3
+    )
+  }
+
+  func testPostMediaCarouselShieldsOnlyDownwardVerticalParentPan() {
+    XCTAssertTrue(
+      PostMediaCarousel.shouldShieldParentVerticalPan(
+        translation: CGPoint(x: 4, y: 32),
+        velocity: CGPoint(x: 20, y: 540)
+      )
+    )
+    XCTAssertFalse(
+      PostMediaCarousel.shouldShieldParentVerticalPan(
+        translation: CGPoint(x: 32, y: 18),
+        velocity: CGPoint(x: 620, y: 240)
+      )
+    )
+    XCTAssertFalse(
+      PostMediaCarousel.shouldShieldParentVerticalPan(
+        translation: CGPoint(x: 2, y: -30),
+        velocity: CGPoint(x: 10, y: -520)
+      )
+    )
+  }
+
+  func testPostImageViewerFitsLoadedImageInsideViewport() {
+    let fitted = PostImageViewerLayout.fittedImageSize(
+      imageSize: CGSize(width: 800, height: 600),
+      in: CGSize(width: 390, height: 844)
+    )
+
+    XCTAssertEqual(fitted.width, 390, accuracy: 0.001)
+    XCTAssertEqual(fitted.height, 292.5, accuracy: 0.001)
+  }
+
+  func testPostImageViewerPortraitImagesFillViewportWidth() {
+    let fitted = PostImageViewerLayout.fittedImageSize(
+      imageSize: CGSize(width: 800, height: 1200),
+      in: CGSize(width: 390, height: 626)
+    )
+
+    XCTAssertEqual(fitted.width, 390, accuracy: 0.001)
+    XCTAssertEqual(fitted.height, 585, accuracy: 0.001)
+  }
+
+  func testPostImageDestinationKeepsAllCarouselURLs() {
+    let destination = PostImageDestination(
+      urls: [
+        "https://cdn.example.com/one.jpg",
+        "https://cdn.example.com/two.jpg",
+        "https://cdn.example.com/three.jpg",
+      ],
+      selectedURL: "https://cdn.example.com/two.jpg",
+      postId: "post-1"
+    )
+
+    XCTAssertEqual(destination.urls.count, 3)
+    XCTAssertEqual(destination.initialIndex, 1)
+    XCTAssertEqual(destination.url, "https://cdn.example.com/two.jpg")
+  }
+
+  func testPostImageViewerCentersImageInsideChromeSafeViewport() {
+    let frame = PostImageViewerLayout.fittedImageFrame(
+      imageSize: CGSize(width: 800, height: 600),
+      in: CGSize(width: 390, height: 844)
+    )
+
+    XCTAssertEqual(frame.minX, 0, accuracy: 0.001)
+    XCTAssertEqual(frame.minY, 252.75, accuracy: 0.001)
+    XCTAssertEqual(frame.width, 390, accuracy: 0.001)
+    XCTAssertEqual(frame.height, 292.5, accuracy: 0.001)
+  }
+
   func testDeduplicatesNormalizedRepostRowsAndMergesSocialProof() throws {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .iso8601

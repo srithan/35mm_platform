@@ -6,6 +6,8 @@ struct ProfileRepostsView: View {
   let onOpenPost: (FeedPost) -> Void
   let onOpenImage: (ProfileImageSelection) -> Void
 
+  @State private var rendererHeight: CGFloat = 1
+
   var body: some View {
     if model.isLoadingReposts && model.reposts.isEmpty {
       ProfilePostTabSkeleton(accessibilityLabel: "Loading reposts")
@@ -38,27 +40,33 @@ struct ProfileRepostsView: View {
         )
       )
     } else {
-      LazyVStack(spacing: 0) {
-        ForEach(model.reposts) { post in
-          PostCard(
-            post: post,
-            interactor: model,
-            onOpenPost: { onOpenPost(post) },
-            onOpenImage: { destination in
-              onOpenImage(ProfileImageSelection(destination: destination, post: post))
-            }
-          )
+      FeedCollectionView(
+        posts: model.reposts,
+        interactor: model,
+        isScrollEnabled: false,
+        canLoadMore: isActive && model.canLoadMoreReposts,
+        isLoadingMore: model.isLoadingMoreReposts,
+        topContentInset: 0,
+        bottomContentInset: 0,
+        onOpenPost: onOpenPost,
+        onOpenImage: { destination, post in
+          onOpenImage(ProfileImageSelection(destination: destination, post: post))
+        },
+        onLoadMore: {
+          guard isActive else { return }
+          Task { await model.loadMoreReposts() }
+        },
+        onScrollDirectionChange: { _ in },
+        onContentHeightChange: { height in
+          rendererHeight = height
+        },
+        currentProfileUsername: model.profile?.username ?? model.username,
+        currentProfileUserId: model.profile?.userId
+      )
+      .frame(height: rendererHeight)
 
-          Divider()
-        }
-
-        if model.canLoadMoreReposts || model.isLoadingMoreReposts {
-          ProfilePostTabPaginationSkeleton()
-            .task(id: isActive ? model.reposts.count : -1) {
-              guard isActive else { return }
-              await model.loadMoreReposts()
-            }
-        }
+      if model.isLoadingMoreReposts {
+        ProfilePostTabPaginationSkeleton()
       }
     }
   }

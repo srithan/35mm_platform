@@ -15,9 +15,9 @@ enum ScrollChromeDirection {
 
 struct FeedView: View {
   @Environment(\.theme) private var theme
+  @Environment(\.appRouteNavigator) private var appRouteNavigator
   @EnvironmentObject private var env: AppEnvironment
   @StateObject private var viewModel: FeedViewModel
-  @State private var selectedPost: FeedPost?
   @State private var selectedImage: FeedImageSelection?
 
   private let onScrollDirectionChange: (ScrollChromeDirection) -> Void
@@ -82,7 +82,7 @@ struct FeedView: View {
         },
         onComment: {
           clearSelectedImage()
-          selectedPost = imageSelection.post
+          appRouteNavigator(.post(PostDestination(post: imageSelection.post)))
         },
         onRepost: {
           Task { await viewModel.toggleRepost(postId: imageSelection.post.id) }
@@ -99,19 +99,12 @@ struct FeedView: View {
         transaction.animation = nil
       }
     }
-    .refreshable {
-      await viewModel.refresh()
-    }
     .task {
       await viewModel.loadInitialIfNeeded()
     }
     .onChange(of: env.lastCreatedPost?.id) {
       guard let createdPost = env.lastCreatedPost else { return }
       viewModel.prependCreatedPost(createdPost)
-    }
-    .navigationDestination(item: $selectedPost) { post in
-      PostDetailView(post: post)
-        .environmentObject(env)
     }
   }
 
@@ -126,55 +119,40 @@ struct FeedView: View {
       FeedErrorView(message: error) {
         Task { await viewModel.loadInitial() }
       }
+    } else if viewModel.posts.isEmpty {
+      FeedEmptyView()
     } else {
-      ScrollView {
-        ScrollChromeObserver(onDirectionChange: onScrollDirectionChange)
-          .frame(width: 0, height: 0)
-          .accessibilityHidden(true)
-
-        Color.clear
-          .frame(height: topContentInset)
-          .accessibilityHidden(true)
-
-        LazyVStack(spacing: 0) {
-          ForEach(viewModel.posts) { post in
-            PostCard(
-              post: post,
-              interactor: viewModel,
-              onOpenPost: {
-                selectedPost = post
-              },
-              onOpenImage: { destination in
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                  selectedImage = FeedImageSelection(destination: destination, post: post)
-                }
-              }
-            )
-            .onAppear {
-              if post.id == viewModel.posts.last?.id {
-                Task { await viewModel.loadMore() }
-              }
-            }
-
-            Divider()
+      FeedCollectionView(
+        posts: viewModel.posts,
+        interactor: viewModel,
+        canLoadMore: viewModel.hasMore,
+        isLoadingMore: viewModel.isLoadingMore,
+        topContentInset: topContentInset,
+        bottomContentInset: bottomContentInset,
+        isRefreshing: viewModel.isLoading,
+        onOpenImage: { destination, post in
+          var transaction = Transaction()
+          transaction.disablesAnimations = true
+          withTransaction(transaction) {
+            selectedImage = FeedImageSelection(destination: destination, post: post)
           }
-
-          if viewModel.isLoadingMore {
-            FeedPaginationSkeleton()
+        },
+        onRefresh: {
+          guard !viewModel.isLoading, !viewModel.isLoadingMore else {
+            return false
           }
-
-          if viewModel.posts.isEmpty && !viewModel.isLoading {
-            // TODO: Design empty feed state.
-            Color.clear.frame(height: 1)
+          Task { [weak feedViewModel = viewModel] in
+            await feedViewModel?.refresh()
           }
-        }
-
-        Color.clear
-          .frame(height: bottomContentInset)
-          .accessibilityHidden(true)
-      }
+          return true
+        },
+        onLoadMore: {
+          Task { [weak feedViewModel = viewModel] in
+            await feedViewModel?.loadMore()
+          }
+        },
+        onScrollDirectionChange: onScrollDirectionChange
+      )
       .themedBackground()
     }
   }
@@ -461,6 +439,21 @@ private struct FeedErrorView: View {
     }
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+}
+
+private struct FeedEmptyView: View {
+  @Environment(\.theme) private var theme
+
+  var body: some View {
+    ContentUnavailableView {
+      Label("No posts yet", systemImage: "film.stack")
+    } description: {
+      Text("Follow people or create the first post in your feed.")
+        .foregroundStyle(theme.textSecondary)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .themedBackground()
   }
 }
 
