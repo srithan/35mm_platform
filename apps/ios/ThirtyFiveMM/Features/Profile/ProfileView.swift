@@ -307,11 +307,10 @@ private struct ProfileLoadingTabSkeleton: View {
         Circle()
           .fill(theme.fillStrong)
           .frame(width: 22, height: 22)
-          .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarContentHeight)
+          .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarHeight)
       }
     }
     .padding(.horizontal, ProfileDesign.tabBarHorizontalPadding)
-    .padding(.top, ProfileDesign.tabBarTopPadding)
     .background(theme.bg)
     .overlay(alignment: .bottom) {
       Rectangle()

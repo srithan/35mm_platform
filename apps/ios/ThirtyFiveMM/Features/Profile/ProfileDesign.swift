@@ -27,9 +27,7 @@ enum ProfileDesign {
   static let collapsedHeaderContentHeight: CGFloat = 50.0
   static let avatarSize = 88.0
   static let avatarOverlap = 24.0
-  static let tabBarTopPadding = 16.0
-  static let tabBarContentHeight = 52.0
-  static let tabBarHeight = tabBarTopPadding + tabBarContentHeight
+  static let tabBarHeight = 52.0
   static let tabBarHorizontalPadding = 16.0
   static let tabIndicatorInset = 8.0
   static let tabSwipeProjectionTime = 0.2

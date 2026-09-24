@@ -40,8 +40,7 @@ struct ProfileTabBar: View {
       }
       .padding(.horizontal, ProfileDesign.tabBarHorizontalPadding)
     }
-    .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarContentHeight)
-    .padding(.top, ProfileDesign.tabBarTopPadding)
+    .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarHeight)
     .background(theme.bg)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Profile sections")
@@ -76,7 +75,7 @@ struct ProfileTabBar: View {
       }
       .foregroundStyle(selectionAmount >= 0.5 ? theme.text : theme.textSecondary)
       .padding(.horizontal, 4)
-      .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarContentHeight)
+      .frame(maxWidth: .infinity, minHeight: ProfileDesign.tabBarHeight)
       .contentShape(.rect)
     }
     .buttonStyle(.plain)

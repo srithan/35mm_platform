@@ -165,17 +165,24 @@ struct MainTabView: View {
             openMessages(in: .home)
           }
         ) {
-          FeedView(
-            viewModel: env.sessionViewModels.feed(currentUserId: currentUserId),
-            topContentInset: AppChromeMetrics.homeHeaderHeight,
-            bottomContentInset: tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0
-          ) { direction in
-            guard selectedTab == .home else { return }
-            withAnimation(chromeAnimation) {
-              let isVisible = direction != .down
-              isHeaderVisible = isVisible
-              isTabBarVisible = isVisible
+          GeometryReader { feedGeometry in
+            FeedView(
+              viewModel: env.sessionViewModels.feed(currentUserId: currentUserId),
+              topContentInset: AppChromeMetrics.homeHeaderHeight,
+              bottomContentInset: isTabBarVisible
+                ? feedGeometry.safeAreaInsets.bottom
+                  + (tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0)
+                : 0
+            ) { direction in
+              guard selectedTab == .home else { return }
+              withAnimation(chromeAnimation) {
+                let isVisible = direction != .down
+                isHeaderVisible = isVisible
+                isTabBarVisible = isVisible
+              }
             }
+            // Extend the feed beneath the home indicator without moving the tab bar.
+            .ignoresSafeArea(.container, edges: .bottom)
           }
         }
         .navigationDestination(for: AppRoute.self) { route in

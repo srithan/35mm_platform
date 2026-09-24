@@ -2,7 +2,7 @@
 
 > Canonical plan, progress ledger, and continuation contract for the shared iOS and Android app.
 >
-> Last updated: 2026-09-23
+> Last updated: 2026-09-24
 > Document status: React Native now mirrors retained SwiftUI splash/welcome/auth presentation with device appearance, local animated posters, compact system-font forms, toolbar progress, and a shared DOB wheel sheet; mobile Clerk recovery is preserved. Retained SwiftUI Home and Profile Posts/Reposts share the UIKit/diffable renderer; first-page lifecycle, nonanimated snapshots, self-sizing, and reading-anchor stability are corrected, with bounded short-page/cold-history batching added after the user reported a remaining one-post launch flash (2026-09-23).
 > Current phase: Phase 2 — Launch, Welcome, and account lifecycle
 > Next unblocked task: Auth process-death, offline, throttling, expiry, accessibility, and visual tests
@@ -2407,3 +2407,12 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 - Scale: local vector asset and layout change only; zero backend reads/writes at 1M+ DAU. Existing cursor pagination, server authorization, mutation rate limits, soft deletion, cache invalidation, async counters, schema, indexes, and APIs remain unchanged; no index required.
 - Architecture and codebase knowledge updated; chat docs and Mermaid diagrams unaffected.
 - Verification passed: `python3 -m json.tool` for the new image-set `Contents.json` files and scoped `git diff --check`. Xcode build/runtime screenshot, physical-device check, and VoiceOver check were not run for this small icon-only slice.
+
+
+### 2026-09-24 — Remove retained SwiftUI profile tab top gap
+
+- [x] Removed the extra 16pt top padding from the profile tab bar and its loading skeleton. Both now use the same 52pt tab height, which also drives the existing refresh anchor calculation. Expanded and pinned tabs retain their existing control touch targets without the blank strip above them.
+- Decision: supersedes the 2026-09-23 “Preserve profile tab spacing while pinned” presentation decision, following the user's screenshot and request to remove extra spacing. Retained SwiftUI only; React Native Phase 2, next auth resilience/accessibility/visual task, roadmap checklist, feature status, and release blockers remain unchanged.
+- Scale: local layout only; zero additional backend reads/writes at 1M+ DAU. No new index, route, cache, mutation, pagination, or UGC lifecycle change.
+- Architecture/codebase/chat docs and diagrams need no update: existing component spacing changed without structural, feature-wiring, or contract changes.
+- Verification passed: generic iOS Simulator Debug `xcodebuild` using `/private/tmp/ThirtyFiveMMTraditionalTabFilledIconsDerivedData`, and scoped `git diff --check`. Initial sandboxed build lacked SwiftPM cache access; approved rerun passed. Runtime visual verification not performed.
