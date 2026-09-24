@@ -3,7 +3,7 @@
 > Canonical plan, progress ledger, and continuation contract for the shared iOS and Android app.
 >
 > Last updated: 2026-09-23
-> Document status: React Native now mirrors retained SwiftUI splash/welcome/auth presentation with device appearance, local animated posters, compact system-font forms, toolbar progress, and a shared DOB wheel sheet; mobile Clerk recovery is preserved. Retained SwiftUI Home and Profile Posts/Reposts now share the UIKit/diffable feed collection renderer.
+> Document status: React Native now mirrors retained SwiftUI splash/welcome/auth presentation with device appearance, local animated posters, compact system-font forms, toolbar progress, and a shared DOB wheel sheet; mobile Clerk recovery is preserved. Retained SwiftUI Home and Profile Posts/Reposts share the UIKit/diffable renderer; first-page lifecycle, nonanimated snapshots, self-sizing, and reading-anchor stability are corrected, with bounded short-page/cold-history batching added after the user reported a remaining one-post launch flash (2026-09-23).
 > Current phase: Phase 2 — Launch, Welcome, and account lifecycle
 > Next unblocked task: Auth process-death, offline, throttling, expiry, accessibility, and visual tests
 
@@ -1034,6 +1034,7 @@ A slice is not complete until:
 
 | Area | Status |
 |---|---|
+| Retained SwiftUI feed reference | First-page lifecycle, nonanimated snapshot reconciliation, natural-height fitting, idle reading anchors, inset-aware scroll chrome, and deferred Profile height reporting corrected; native simulator regressions cover real PostCard layout and a delayed one-post-to-history API handoff, now published as one initial batch. React Native Phase 2 and its next auth task are unchanged. |
 | Product direction | Complete |
 | Canonical plan | Complete |
 | Agent auto-discovery contract | Complete |
@@ -1259,6 +1260,28 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 | Existing Studio Zod resolver mismatch | Align `apps/studio` React Hook Form resolver and the workspace Zod major version in `FilmForm.tsx` | Repository-wide `pnpm lint`; mobile and all non-Studio typecheck gates pass |
 
 ## 26. Work log
+
+### 2026-09-23 — Retained SwiftUI short-first-page launch correction
+
+- User reported the one-post/blank-space launch remained after renderer changes. Source investigation found another path: `/v1/feed` can return one materialized retained post and a cold-history continuation; the model published that page immediately before the renderer triggered the next fetch. Earlier full-page renderer tests did not cover that handoff. This was reproduced with a controlled API fixture, not a captured authenticated device trace.
+- [x] Stage an initial page with fewer than six unique posts and fetch at most one continuation (limit 20 unchanged); publish the assembled array once. Keep skeleton state during the handoff, with no fixed delay. Full pages and genuinely exhausted one-post feeds publish immediately.
+- [x] Preserve first-page rows/error/retry cursor if continuation fails, discard staged rows on cancellation, bound duplicate/sparse continuation work, and stop missing/non-advancing cursors with an explicit error. Add count/stage-only OSLog diagnostics without user IDs, post content, credentials, or cursor values.
+- [x] Add eight regression cases covering the exact short-page fixture, suspended continuation with a single publication, ordinary request count, exhausted feed, duplicate-page bounds, failure/retry, cancellation, and cursor non-advancement. The short-page regression failed before this model correction, then passed.
+- Decision/status: retained `apps/ios` scope. Phase 2, next auth resilience/accessibility/visual task, React Native checklist, and release blockers remain unchanged. Native reference feature status updated above; previous renderer work remains, but its full-page tests were insufficient evidence for this launch symptom.
+- Scale: existing hybrid feed/cache and cursor contracts. Ordinary initial load is one 20-item request; a sparse initial load is at most two, matching the continuation already triggered immediately for short nonempty pages. Empty filtered pages may now make that one additional bounded read. Assuming one initial load per DAU/day at 10M DAU, this bounds initial traffic at 10M ordinary requests plus up to 10M sparse-page continuations, without introducing another server query shape, route, index, schema, cache policy, mutation, worker job, or counter path.
+- Architecture and codebase knowledge updated; chat docs and topology diagrams unaffected.
+- Verification passed: full `xcodebuild test` with the existing ThirtyFiveMM scheme on iPhone 16 Pro/iOS 18.5 and iPhone 17 Pro/iOS 26.5, using `/private/tmp/ThirtyFiveMMDerivedData` and result bundle `/private/tmp/35mm-feed-initial-batch.xcresult`: 115 tests per simulator, 230 runs, zero failures/skips. `git diff --check` passed. An initial method-only selection executed no regression, so the full feed-model suite was used to verify the pre-fix failure. Physical-device/authenticated-session launch capture and release profiling remain unverified.
+
+### 2026-09-23 — Retained SwiftUI feed first-render and scroll stability
+
+- [x] Load the collection/data source before first configuration, preserve overlay insets from first layout, serialize nonanimated snapshots, and skip unchanged updates. Reconfigure changed surviving IDs during page insertion and reload cells when their reuse shape changes.
+- [x] Give hosted rows required-width/natural-height sizing and post-scoped SwiftUI identity. Remove the write-only post-height cache; UIKit remains measurement authority. Preserve idle reading position across later intrinsic-size passes, release anchors for user scrolling, and normalize chrome offsets against insets while ignoring non-pan direction changes.
+- [x] Defer/deduplicate embedded Profile height reports. Resolve prefetch from displayed IDs, suppress pagination during refresh/snapshot application, and check the settled visible tail with existing per-tail deduplication.
+- [x] Add real UIKit/SwiftUI regressions for first mount with 20 posts, repeated updates, page append, prepend anchoring, required-width fitting, mixed text/media/film/poll scrolling, Dynamic Type, embedded height callbacks, shape reloads, and short-page pagination gating. The initial prepend test exposed a 54-point late-sizing jump; the collection-layout anchor correction addresses it.
+- Decision: retained `apps/ios` fix only. Phase 2, next auth resilience/accessibility/visual task, React Native roadmap checkboxes, and release blockers remain unchanged. Native feed reference status updated above; this does not claim React Native Phase 4 completion.
+- Scale: existing UIKit virtualization and 20-post cursor reads over hybrid fan-out/server caches. Zero additional backend reads/writes at 10M DAU; no index, API route, schema, Redis policy, worker, mutation, authorization, rate-limit, or UGC soft-delete changes. No synchronous all-feed premeasurement is introduced.
+- Architecture and codebase knowledge updated. Chat-backend docs and Mermaid diagrams are unaffected because topology/contracts do not change.
+- Verification passed: full `xcodebuild test -quiet -project apps/ios/ThirtyFiveMM.xcodeproj -scheme ThirtyFiveMM -destination 'platform=iOS Simulator,id=377AC5D8-FF19-4EA8-A852-2A5D1C0B06FE' -destination 'platform=iOS Simulator,id=ACD14BF8-B3E6-4631-ACC5-0BF5AB6788A7' -derivedDataPath /private/tmp/ThirtyFiveMMDerivedData -skipPackagePluginValidation -skipMacroValidation -resultBundlePath /private/tmp/35mm-feed-stability-final.xcresult` with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`: 107 tests passed on each of iPhone 16 Pro/iOS 18.5 and iPhone 17 Pro/iOS 26.5 (214 runs; zero failures/skips). `git diff --check` passed. The sandboxed attempt could not access CoreSimulator/SwiftPM caches; approved runs completed. Physical-device gesture/VoiceOver and release Instruments profiling are not claimed.
 
 ### 2026-09-23 — Center shorter viewer images
 

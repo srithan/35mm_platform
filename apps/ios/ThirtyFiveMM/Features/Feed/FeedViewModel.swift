@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 @MainActor
 final class FeedViewModel: ObservableObject {
@@ -13,6 +14,11 @@ final class FeedViewModel: ObservableObject {
   private var lastLoadedAt: Date?
   private let service: any FeedServicing
   private let pageLimit = 20
+  // A retained-feed page can contain only one post before handing off to cold
+  // history. Assemble a useful initial batch before exposing the loaded surface.
+  // This is bounded to one continuation, never a scan to fill an entire feed.
+  private let initialMinimumPosts = 6
+  private let logger = Logger(subsystem: "com.35mm.app", category: "FeedLoading")
   private let freshnessInterval: TimeInterval = 60
   private var activeRefreshID: UUID?
 
@@ -45,26 +51,58 @@ final class FeedViewModel: ObservableObject {
     let refreshID = UUID()
     activeRefreshID = refreshID
 
+    defer {
+      if activeRefreshID == refreshID { isLoading = false }
+    }
+
     do {
-      let response = try await service.fetchFeed(cursor: nil, limit: pageLimit)
-      guard !Task.isCancelled else {
-        isLoading = false
-        return
+      var response = try await service.fetchFeed(cursor: nil, limit: pageLimit)
+      guard !Task.isCancelled, activeRefreshID == refreshID else { return }
+      var initialPosts = FeedPost.deduplicating(response.items)
+      var continuationIsValid = true
+      logger.debug("Initial feed page contains \(initialPosts.count) unique posts; hasMore=\(response.hasMore)")
+
+      if initialPosts.count < initialMinimumPosts, response.hasMore,
+         let cursor = response.nextCursor {
+        do {
+          let continuation = try await service.fetchFeed(cursor: cursor, limit: pageLimit)
+          guard !Task.isCancelled, activeRefreshID == refreshID else { return }
+          initialPosts = FeedPost.deduplicating(initialPosts + continuation.items)
+          response = continuation
+          if continuation.hasMore && continuation.nextCursor == cursor {
+            logger.error("Initial feed continuation returned a non-advancing cursor")
+            error = "The feed couldn't continue. Pull to refresh to try again."
+            continuationIsValid = false
+          }
+        } catch {
+          guard !Task.isCancelled, activeRefreshID == refreshID else { return }
+          // Keep the successful first page and its cursor so a later pagination
+          // attempt can retry. Never discard readable content on a partial failure.
+          logger.error("Initial feed continuation failed; retaining the successful first page")
+          self.error = error.localizedDescription
+        }
       }
-      guard activeRefreshID == refreshID else { return }
-      posts = FeedPost.deduplicating(response.items)
-      nextCursor = response.nextCursor
-      hasMore = response.hasMore
+
+      guard !Task.isCancelled, activeRefreshID == refreshID else { return }
+      if response.hasMore && response.nextCursor == nil {
+        continuationIsValid = false
+        logger.error("Initial feed returned hasMore without a continuation cursor")
+        error = "The feed couldn't continue. Pull to refresh to try again."
+      }
+      // Publish once after the bounded handoff, not first-page rows followed by
+      // another insertion as soon as UICollectionView requests pagination.
+      posts = initialPosts
+      nextCursor = continuationIsValid ? response.nextCursor : nil
+      hasMore = response.hasMore && continuationIsValid
       hasLoadedInitial = true
       lastLoadedAt = Date()
+      logger.debug("Initial feed published \(initialPosts.count) posts")
     } catch {
-      guard activeRefreshID == refreshID else { return }
+      guard !Task.isCancelled, activeRefreshID == refreshID else { return }
+      logger.error("Initial feed request failed")
       self.error = error.localizedDescription
       hasMore = false
     }
-
-    guard activeRefreshID == refreshID else { return }
-    isLoading = false
   }
 
   func loadMore() async {

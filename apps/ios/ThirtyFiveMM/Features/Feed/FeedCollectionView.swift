@@ -6,10 +6,10 @@ import UIKit
 /// - `FeedCollectionView` owns the UIKit list surface for Home and Profile posts/reposts:
 ///   compositional self-sizing rows, diffable snapshots keyed only by stable post ID,
 ///   and shape-specific reuse IDs.
-/// - `PostLayoutCache` stores measured row sizes by post ID. Call sites only ask/store by
-///   post ID + width, so future deterministic text measurement can replace this seed cache.
-/// - Prefetch runs through `UICollectionViewDataSourcePrefetching`: images/layout hints are
-///   prepared roughly 10-15 rows ahead, canceled on scroll-past, and page fetches trigger
+/// - UIKit owns self-sizing measurements. Hosted content has a required row width and
+///   intrinsic height; no second, stale post-height cache competes with that layout.
+/// - Prefetch runs through `UICollectionViewDataSourcePrefetching`: upcoming images are
+///   prepared and canceled by UIKit demand, and page fetches trigger
 ///   when visible/prefetched rows reach five from the loaded tail.
 /// - View models remain source of truth for API state, cursor pagination, private-profile
 ///   gating, and optimistic interactions; this renderer owns only UIKit rendering mechanics.
@@ -37,7 +37,6 @@ struct FeedCollectionView: UIViewControllerRepresentable {
 
   func makeUIViewController(context: Context) -> FeedCollectionViewController {
     let controller = FeedCollectionViewController(
-      layoutCache: context.coordinator.layoutCache,
       onLoadMore: onLoadMore,
       onScrollDirectionChange: onScrollDirectionChange
     )
@@ -87,41 +86,6 @@ struct FeedCollectionView: UIViewControllerRepresentable {
     controller.onContentHeightChange = onContentHeightChange
   }
 
-  func makeCoordinator() -> Coordinator {
-    Coordinator()
-  }
-
-  final class Coordinator {
-    let layoutCache = PostLayoutCache()
-  }
-}
-
-@MainActor
-final class PostLayoutCache {
-  struct Entry: Equatable {
-    let width: CGFloat
-    let height: CGFloat
-  }
-
-  private var entries: [String: Entry] = [:]
-  private let maxEntries = 600
-
-  func entry(for postId: String, width: CGFloat) -> Entry? {
-    guard let entry = entries[postId], abs(entry.width - width) < 1 else { return nil }
-    return entry
-  }
-
-  func store(postId: String, width: CGFloat, height: CGFloat) {
-    guard width > 0, height > 0 else { return }
-    if entries.count >= maxEntries, entries[postId] == nil {
-      entries.removeValue(forKey: entries.keys.first ?? postId)
-    }
-    entries[postId] = Entry(width: width, height: height)
-  }
-
-  func removeAll() {
-    entries.removeAll()
-  }
 }
 
 @MainActor
@@ -134,7 +98,6 @@ final class FeedCollectionViewController: UIViewController {
   var onScrollDirectionChange: (ScrollChromeDirection) -> Void
   var onContentHeightChange: (CGFloat) -> Void = { _ in }
 
-  private let layoutCache: PostLayoutCache
   private let imagePrefetcher = FeedImagePrefetcher()
   private var collectionView: UICollectionView!
   private var dataSource: DataSource!
@@ -150,18 +113,25 @@ final class FeedCollectionViewController: UIViewController {
   private var isScrollEnabled = true
   private var canLoadMore = true
   private var isLoadingMore = false
+  private var isRefreshing = false
   private var currentProfileUsername: String?
   private var currentProfileUserId: String?
   private var lastRequestedTailPostID: String?
   private var lastTranslationY: CGFloat?
   private var lastDirection: ScrollChromeDirection = .top
+  private var appliedPosts: [FeedPost] = []
+  private var isApplyingSnapshot = false
+  private var reconfigureAll = false
+  private var hasPositionedInitialContent = false
+  private var lastReportedContentHeight: CGFloat?
+  private var contentHeightReportScheduled = false
+  private var scrollAnchor: ScrollAnchor?
+  private var isRestoringScrollAnchor = false
 
   init(
-    layoutCache: PostLayoutCache,
     onLoadMore: @escaping () -> Void,
     onScrollDirectionChange: @escaping (ScrollChromeDirection) -> Void
   ) {
-    self.layoutCache = layoutCache
     self.onLoadMore = onLoadMore
     self.onScrollDirectionChange = onScrollDirectionChange
     super.init(nibName: nil, bundle: nil)
@@ -174,9 +144,17 @@ final class FeedCollectionViewController: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    collectionView = UICollectionView(frame: .zero, collectionViewLayout: makeLayout())
+    let feedCollection = FeedSizingCollectionView(frame: .zero, collectionViewLayout: makeLayout())
+    collectionView = feedCollection
+    feedCollection.onLayout = { [weak self] in
+      guard let self else { return }
+      self.restoreScrollAnchor(self.scrollAnchor)
+      self.reportContentHeight()
+    }
     collectionView.translatesAutoresizingMaskIntoConstraints = false
     collectionView.backgroundColor = .clear
+    // SwiftUI's shell already owns safe areas; these insets are overlay chrome only.
+    collectionView.contentInsetAdjustmentBehavior = .never
     collectionView.alwaysBounceVertical = true
     collectionView.isScrollEnabled = true
     refreshControl.addTarget(self, action: #selector(refreshControlTriggered), for: .valueChanged)
@@ -230,6 +208,12 @@ final class FeedCollectionViewController: UIViewController {
     onOpenPost: ((FeedPost) -> Void)?,
     onOpenImage: @escaping (PostImageOpenContext, FeedPost) -> Void
   ) {
+    // UIViewControllerRepresentable may configure us before UIKit loads the view.
+    // Do not lose the initial page or its insets waiting for a later SwiftUI update.
+    loadViewIfNeeded()
+    reconfigureAll = reconfigureAll || self.theme != theme
+      || self.currentProfileUsername != currentProfileUsername
+      || self.currentProfileUserId != currentProfileUserId
     self.interactor = interactor
     self.env = env
     self.theme = theme
@@ -239,6 +223,10 @@ final class FeedCollectionViewController: UIViewController {
     self.onOpenPost = onOpenPost
     self.onOpenImage = onOpenImage
     self.isLoadingMore = isLoadingMore
+    if isRefreshing && !self.isRefreshing {
+      lastRequestedTailPostID = nil
+    }
+    self.isRefreshing = isRefreshing
     self.currentProfileUsername = currentProfileUsername
     self.currentProfileUserId = currentProfileUserId
     collectionView?.isScrollEnabled = isScrollEnabled
@@ -247,19 +235,20 @@ final class FeedCollectionViewController: UIViewController {
     if !isRefreshing, refreshControl.isRefreshing {
       refreshControl.endRefreshing()
     }
-    collectionView?.contentInset = UIEdgeInsets(
+    let contentInset = UIEdgeInsets(
       top: topContentInset,
       left: 0,
       bottom: bottomContentInset,
       right: 0
     )
-    collectionView?.scrollIndicatorInsets = collectionView.contentInset
+    if collectionView.contentInset != contentInset {
+      collectionView.contentInset = contentInset
+      collectionView.scrollIndicatorInsets = contentInset
+    }
 
-    let previousPosts = self.posts
     self.posts = posts
-    postByID = Dictionary(uniqueKeysWithValues: posts.map { ($0.id, $0) })
-    applySnapshot(previousPosts: previousPosts)
-    reportContentHeight()
+    applySnapshotIfNeeded()
+    checkVisiblePagination()
   }
 
   private func makeLayout() -> UICollectionViewLayout {
@@ -295,7 +284,6 @@ final class FeedCollectionViewController: UIViewController {
           currentProfileUsername: self.currentProfileUsername,
           currentProfileUserId: self.currentProfileUserId,
           onOpenPost: self.onOpenPost,
-          layoutCache: self.layoutCache,
           onOpenImage: self.onOpenImage
         )
         return hostingCell
@@ -303,56 +291,144 @@ final class FeedCollectionViewController: UIViewController {
     }
   }
 
-  private func applySnapshot(previousPosts: [FeedPost]) {
-    guard dataSource != nil else { return }
+  private func applySnapshotIfNeeded() {
+    guard !isApplyingSnapshot else { return }
+    let nextPosts = posts
+    let plan = FeedDiffableUpdatePlan(previous: appliedPosts, current: nextPosts)
+    guard plan.hasChanges || reconfigureAll else { return }
+
+    let anchor = captureScrollAnchor()
+    scrollAnchor = nil
     var snapshot = Snapshot()
     snapshot.appendSections([0])
-    snapshot.appendItems(posts.map(\.id), toSection: 0)
+    snapshot.appendItems(nextPosts.map(\.id), toSection: 0)
+    snapshot.reloadItems(plan.reloadIDs)
+    let reloadIDs = Set(plan.reloadIDs)
+    let existingIDs = Set(appliedPosts.map(\.id))
+    let reconfigureIDs = reconfigureAll
+      ? nextPosts.map(\.id).filter { existingIDs.contains($0) && !reloadIDs.contains($0) }
+      : plan.reconfigureIDs
+    snapshot.reconfigureItems(reconfigureIDs)
+    reconfigureAll = false
+    isApplyingSnapshot = true
+    postByID = Dictionary(uniqueKeysWithValues: nextPosts.map { ($0.id, $0) })
 
-    let plan = FeedDiffableUpdatePlan(previous: previousPosts, current: posts)
-    if plan.canReconfigureInPlace {
-      if !plan.reconfigureIDs.isEmpty {
-        snapshot.reconfigureItems(plan.reconfigureIDs)
+    // Network pages must appear atomically, including the first page. Insertion
+    // animations compete with hosted self-sizing and can move rows under a drag.
+    UIView.performWithoutAnimation {
+      dataSource.apply(snapshot, animatingDifferences: false) { [weak self] in
+        guard let self else { return }
+        self.appliedPosts = nextPosts
+        self.collectionView.layoutIfNeeded()
+        self.positionInitialContentIfNeeded()
+        // Hosted SwiftUI cells can invalidate intrinsic height again after this
+        // completion. Keep the reading anchor until the user starts scrolling.
+        self.scrollAnchor = anchor
+        self.restoreScrollAnchor(anchor)
+        self.isApplyingSnapshot = false
+        self.reportContentHeight()
+        // Coalesce updates received during the apply; compare against what UIKit
+        // actually displays, never against an uncommitted SwiftUI configuration.
+        self.applySnapshotIfNeeded()
+        self.checkVisiblePagination()
       }
-      dataSource.apply(snapshot, animatingDifferences: false)
-    } else {
-      dataSource.apply(snapshot, animatingDifferences: true)
-      lastRequestedTailPostID = nil
-    }
-    DispatchQueue.main.async { [weak self] in
-      self?.reportContentHeight()
     }
   }
 
+  private struct ScrollAnchor {
+    let postID: String
+    let distanceFromViewportTop: CGFloat
+  }
+
+  private func captureScrollAnchor() -> ScrollAnchor? {
+    guard hasPositionedInitialContent, isScrollEnabled,
+          !collectionView.isDragging, !collectionView.isDecelerating,
+          collectionView.contentOffset.y + collectionView.adjustedContentInset.top > ScrollChromeDirection.topLock else {
+      return nil
+    }
+    let viewportTop = collectionView.contentOffset.y + collectionView.adjustedContentInset.top
+    let visible = collectionView.indexPathsForVisibleItems.sorted()
+    for indexPath in visible {
+      guard let attributes = collectionView.layoutAttributesForItem(at: indexPath),
+            attributes.frame.maxY > viewportTop,
+            let postID = dataSource.itemIdentifier(for: indexPath) else { continue }
+      return ScrollAnchor(postID: postID, distanceFromViewportTop: attributes.frame.minY - viewportTop)
+    }
+    return nil
+  }
+
+  private func restoreScrollAnchor(_ anchor: ScrollAnchor?) {
+    guard !isRestoringScrollAnchor, let anchor,
+          !collectionView.isDragging, !collectionView.isDecelerating,
+          let indexPath = dataSource.indexPath(for: anchor.postID),
+          let attributes = collectionView.layoutAttributesForItem(at: indexPath) else { return }
+    isRestoringScrollAnchor = true
+    defer { isRestoringScrollAnchor = false }
+    let minimumY = -collectionView.adjustedContentInset.top
+    let maximumY = max(minimumY, collectionView.contentSize.height
+      - collectionView.bounds.height + collectionView.adjustedContentInset.bottom)
+    let targetY = min(maximumY, max(minimumY, attributes.frame.minY
+      - anchor.distanceFromViewportTop - collectionView.adjustedContentInset.top))
+    if abs(collectionView.contentOffset.y - targetY) > 0.5 {
+      collectionView.setContentOffset(CGPoint(x: collectionView.contentOffset.x, y: targetY), animated: false)
+    }
+  }
+
+  private func positionInitialContentIfNeeded() {
+    guard !hasPositionedInitialContent, !postByID.isEmpty,
+          collectionView.bounds.width > 0, collectionView.bounds.height > 0 else { return }
+    hasPositionedInitialContent = true
+    if isScrollEnabled {
+      collectionView.setContentOffset(
+        CGPoint(x: 0, y: -collectionView.adjustedContentInset.top), animated: false
+      )
+    }
+  }
+
+  private func checkVisiblePagination() {
+    guard let index = collectionView.indexPathsForVisibleItems.map(\.item).max() else { return }
+    maybeLoadMore(near: index)
+  }
+
   fileprivate func maybeLoadMore(near index: Int) {
-    guard FeedPaginationTrigger.shouldLoadMore(visibleIndex: index, itemCount: posts.count) else {
+    guard !isApplyingSnapshot, !isRefreshing else { return }
+    guard FeedPaginationTrigger.shouldLoadMore(visibleIndex: index, itemCount: appliedPosts.count) else {
       return
     }
     guard canLoadMore, !isLoadingMore else { return }
-    let tailID = posts.last?.id
+    let tailID = appliedPosts.last?.id
     guard tailID != lastRequestedTailPostID else { return }
     lastRequestedTailPostID = tailID
     onLoadMore()
   }
 
   fileprivate func post(at indexPath: IndexPath) -> FeedPost? {
-    guard indexPath.item >= 0, indexPath.item < posts.count else { return nil }
-    return posts[indexPath.item]
+    guard let postID = dataSource.itemIdentifier(for: indexPath) else { return nil }
+    return postByID[postID]
   }
 
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
+    positionInitialContentIfNeeded()
     reportContentHeight()
   }
 
   private func reportContentHeight() {
     guard collectionView != nil, !isScrollEnabled else { return }
 
-    collectionView.layoutIfNeeded()
-    let height = collectionView.collectionViewLayout.collectionViewContentSize.height
-      + collectionView.contentInset.top
-      + collectionView.contentInset.bottom
-    onContentHeightChange(max(1, height))
+    // Never synchronously mutate SwiftUI height state from its update/layout pass.
+    // One deferred report coalesces self-sizing changes in embedded profile lists.
+    guard !contentHeightReportScheduled else { return }
+    contentHeightReportScheduled = true
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.contentHeightReportScheduled = false
+      let height = max(1, self.collectionView.collectionViewLayout.collectionViewContentSize.height
+        + self.collectionView.contentInset.top + self.collectionView.contentInset.bottom)
+      guard self.lastReportedContentHeight.map({ abs($0 - height) > 0.5 }) ?? true else { return }
+      self.lastReportedContentHeight = height
+      self.onContentHeightChange(height)
+    }
   }
 
   @objc private func refreshControlTriggered() {
@@ -366,21 +442,32 @@ final class FeedCollectionViewController: UIViewController {
 struct FeedDiffableUpdatePlan: Equatable {
   let canReconfigureInPlace: Bool
   let reconfigureIDs: [String]
+  let reloadIDs: [String]
+
+  var hasChanges: Bool {
+    !canReconfigureInPlace || !reconfigureIDs.isEmpty || !reloadIDs.isEmpty
+  }
 
   init(previous: [FeedPost], current: [FeedPost]) {
     let previousIDs = previous.map(\.id)
     let currentIDs = current.map(\.id)
     canReconfigureInPlace = previousIDs == currentIDs
 
-    guard canReconfigureInPlace else {
-      reconfigureIDs = []
-      return
-    }
-
     let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
-    reconfigureIDs = current.compactMap { post in
+    let changed = current.filter { post in
+      guard let previous = previousByID[post.id] else { return false }
+      return FeedPostRenderFingerprint(post) != FeedPostRenderFingerprint(previous)
+    }
+    reloadIDs = changed.compactMap { post in
       guard let previous = previousByID[post.id],
-            FeedPostRenderFingerprint(post) != FeedPostRenderFingerprint(previous) else {
+            FeedPostCellRegistration.reuseIdentifier(for: previous) != FeedPostCellRegistration.reuseIdentifier(for: post) else {
+        return nil
+      }
+      return post.id
+    }
+    let reloaded = Set(reloadIDs)
+    reconfigureIDs = changed.compactMap { post in
+      guard !reloaded.contains(post.id) else {
         return nil
       }
       return post.id
@@ -460,22 +547,28 @@ extension FeedCollectionViewController: UICollectionViewDelegate {
     guard scrollView.isScrollEnabled else {
       return
     }
-    handleScrollPosition(scrollView.contentOffset.y)
+    handleScrollPosition(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
+  }
+
+  func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+    scrollAnchor = nil
+    return true
   }
 
   func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+    scrollAnchor = nil
     lastTranslationY = scrollView.panGestureRecognizer.translation(in: scrollView).y
-    handleScrollPosition(scrollView.contentOffset.y)
+    handleScrollPosition(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
   }
 
   func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
     lastTranslationY = nil
-    handleScrollPosition(scrollView.contentOffset.y)
+    handleScrollPosition(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
   }
 
   func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
     lastTranslationY = nil
-    handleScrollPosition(scrollView.contentOffset.y)
+    handleScrollPosition(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
   }
 
   private func handleScrollPosition(_ offset: CGFloat) {
@@ -485,6 +578,7 @@ extension FeedCollectionViewController: UICollectionViewDelegate {
     }
 
     let recognizer = collectionView.panGestureRecognizer
+    guard collectionView.isDragging, recognizer.state == .changed else { return }
     let translationY = recognizer.translation(in: collectionView).y
     let previousTranslationY = lastTranslationY ?? translationY
     let translationDelta = translationY - previousTranslationY
@@ -505,32 +599,43 @@ extension FeedCollectionViewController: UICollectionViewDelegate {
   }
 }
 
+/// Self-sizing invalidation can run without a parent view-controller layout pass.
+@MainActor
+private final class FeedSizingCollectionView: UICollectionView {
+  var onLayout: (() -> Void)?
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    onLayout?()
+  }
+}
+
 @MainActor
 final class FeedHostingCollectionViewCell: UICollectionViewCell {
-  private var postID: String?
-  private weak var layoutCache: PostLayoutCache?
-
   func configure<Content: View>(
     postID: String?,
-    layoutCache: PostLayoutCache,
     @ViewBuilder content: () -> Content
   ) {
-    self.postID = postID
-    self.layoutCache = layoutCache
-    contentConfiguration = UIHostingConfiguration(content: content)
-      .margins(.all, 0)
+    contentConfiguration = UIHostingConfiguration {
+      content()
+        .id(postID)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .margins(.all, 0)
+    .minSize(width: 0, height: 0)
     backgroundColor = .clear
   }
 
   override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-    let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-    if let postID {
-      layoutCache?.store(
-        postId: postID,
-        width: attributes.size.width,
-        height: attributes.size.height
-      )
-    }
+    // Fit at the layout's full row width. Let SwiftUI report its natural height
+    // instead of accepting the estimated height as a constraint on rich/media cards.
+    let attributes = layoutAttributes.copy() as! UICollectionViewLayoutAttributes
+    let size = contentView.systemLayoutSizeFitting(
+      CGSize(width: layoutAttributes.size.width, height: UIView.layoutFittingCompressedSize.height),
+      withHorizontalFittingPriority: .required,
+      verticalFittingPriority: .fittingSizeLevel
+    )
+    attributes.size.height = ceil(size.height)
     return attributes
   }
 }
@@ -545,7 +650,7 @@ enum FeedPostCellRegistration {
     case footer = "FeedPostCell.footer"
   }
 
-  static func reuseIdentifier(for post: FeedPost?) -> ReuseIdentifier {
+  nonisolated static func reuseIdentifier(for post: FeedPost?) -> ReuseIdentifier {
     guard let post else { return .footer }
     if post.poll != nil { return .poll }
     if post.media?.isEmpty == false || post.mediaUrls?.isEmpty == false { return .media }
@@ -563,17 +668,16 @@ enum FeedPostCellRegistration {
     currentProfileUsername: String?,
     currentProfileUserId: String?,
     onOpenPost: ((FeedPost) -> Void)?,
-    layoutCache: PostLayoutCache,
     onOpenImage: @escaping (PostImageOpenContext, FeedPost) -> Void
   ) {
     guard let post, let interactor, let env, let theme else {
-      cell.configure(postID: nil, layoutCache: layoutCache) {
+      cell.configure(postID: nil) {
         EmptyView()
       }
       return
     }
 
-    cell.configure(postID: post.id, layoutCache: layoutCache) {
+    cell.configure(postID: post.id) {
       VStack(spacing: 0) {
         PostCard(
           post: post,
