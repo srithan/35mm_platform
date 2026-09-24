@@ -406,6 +406,35 @@ struct FeedCollectionRenderingTests {
   }
 
   @Test
+  func scrollingDoesNotChangeMeasuredRowHeights() async throws {
+    let model = FeedViewModel(service: FeedServiceStub())
+    let controller = FeedCollectionViewController(onLoadMore: {}, onScrollDirectionChange: { _ in })
+    configure(controller, posts: try makePosts(count: 20, mixed: true), model: model)
+    let window = mount(controller)
+    defer { window.isHidden = true }
+    await settle(controller)
+    let collection = try #require(controller.view.subviews.compactMap { $0 as? UICollectionView }.first)
+    var measuredHeights: [IndexPath: CGFloat] = [:]
+    // Cross viewport edges in both directions, including fractional positions.
+    // Yield real display frames so UIKit propagates changed safe-area geometry.
+    let steps = Array(0..<120) + Array((0..<120).reversed())
+    for step in steps {
+      collection.setContentOffset(CGPoint(x: 0, y: CGFloat(step) * 10 + CGFloat(step % 3) / 3), animated: false)
+      try await Task.sleep(for: .milliseconds(20))
+      await settle(controller)
+      for path in collection.indexPathsForVisibleItems {
+        let cell = try #require(collection.cellForItem(at: path))
+        let attributes = try #require(collection.layoutAttributesForItem(at: path))
+        let height = cell.preferredLayoutAttributesFitting(attributes).size.height
+        if let previous = measuredHeights[path] {
+          #expect(abs(height - previous) < 0.01, "Row \(path.item) changed height while scrolling: \(previous) → \(height)")
+        }
+        measuredHeights[path] = height
+      }
+    }
+  }
+
+  @Test
   func hostedSizingUsesWidthAndNaturalHeightNotEstimatedHeight() {
     let cell = FeedHostingCollectionViewCell(frame: CGRect(x: 0, y: 0, width: 390, height: 220))
     cell.configure(postID: "media") {

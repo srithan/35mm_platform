@@ -66,6 +66,61 @@ final class DiscoverViewModelTests: XCTestCase {
     XCTAssertEqual(viewModel.explore?.streaming.first?.displayTitle, "MUBI")
   }
 
+  func testRecentSearchesAreBoundedDeduplicatedAndAccountScoped() throws {
+    let suite = "DiscoverSearchTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let model = DiscoverSearchModel(defaults: defaults)
+    model.useAccount("first")
+    for index in 0..<60 {
+      model.query = "Film \(index)"
+      model.remember()
+    }
+    XCTAssertEqual(model.recent.count, 50)
+    model.query = "  FILM 59  "
+    model.remember()
+    XCTAssertEqual(model.recent.first, "FILM 59")
+    XCTAssertEqual(model.recent.count, 50)
+    model.useAccount("second")
+    XCTAssertTrue(model.recent.isEmpty)
+    model.useAccount("first")
+    XCTAssertEqual(model.recent.first, "FILM 59")
+    model.remove("FILM 59")
+    XCTAssertEqual(model.recent.count, 49)
+    model.clear()
+    model.useAccount("first")
+    XCTAssertTrue(model.recent.isEmpty)
+    model.useAccount(nil)
+    model.query = "Private query"
+    model.remember()
+    XCTAssertTrue(model.recent.isEmpty)
+  }
+
+  func testSameAccountReappearancePreservesSearchSession() throws {
+    let suite = "DiscoverSearchTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let model = DiscoverSearchModel(defaults: defaults)
+
+    XCTAssertTrue(model.useAccount("first"))
+    model.query = "Heat"
+    model.remember()
+    model.prepareSearch()
+
+    // Repeated initial observers after history navigation must not reset UI.
+    for _ in 0..<3 { XCTAssertFalse(model.useAccount("first")) }
+    XCTAssertEqual(model.query, "Heat")
+    XCTAssertEqual(model.recent, ["Heat"])
+    XCTAssertTrue(model.loading)
+
+    XCTAssertTrue(model.useAccount("second"))
+    XCTAssertEqual(model.query, "")
+    XCTAssertTrue(model.recent.isEmpty)
+    XCTAssertFalse(model.loading)
+    XCTAssertTrue(model.useAccount(nil))
+    XCTAssertFalse(model.useAccount(nil))
+  }
+
   private func makeDiscoverTitle(id: Int, title: String) -> TMDBDiscoverTitle {
     TMDBDiscoverTitle(
       tmdbId: id,

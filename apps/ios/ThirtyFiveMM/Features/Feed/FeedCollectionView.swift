@@ -612,6 +612,10 @@ private final class FeedSizingCollectionView: UICollectionView {
 
 @MainActor
 final class FeedHostingCollectionViewCell: UICollectionViewCell {
+  // Viewport clearance belongs to the collection. Inheriting safe-area insets
+  // makes hosted intrinsic heights grow as rows cross the screen edges.
+  override var safeAreaInsets: UIEdgeInsets { .zero }
+
   func configure<Content: View>(
     postID: String?,
     @ViewBuilder content: () -> Content

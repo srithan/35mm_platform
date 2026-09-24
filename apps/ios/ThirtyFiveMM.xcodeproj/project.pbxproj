@@ -198,6 +198,9 @@
 		E20000000000000000000001 /* URLVideoPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* URLVideoPreview.swift */; };
 		E20000000000000000000002 /* VideoURLPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* VideoURLPreview.swift */; };
 		E20000000000000000000003 /* LinkPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* LinkPreviewCard.swift */; };
+		A94500000000000000000001 /* DiscoverSearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94500000000000000000001 /* DiscoverSearchModel.swift */; };
+		A94500000000000000000002 /* DiscoverRecentSearches.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94500000000000000000002 /* DiscoverRecentSearches.swift */; };
+		A94500000000000000000003 /* DiscoverSearchHistoryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94500000000000000000003 /* DiscoverSearchHistoryScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -403,6 +406,9 @@
 		F20000000000000000000001 /* URLVideoPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLVideoPreview.swift; sourceTree = "<group>"; };
 		F20000000000000000000002 /* VideoURLPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoURLPreview.swift; sourceTree = "<group>"; };
 		F20000000000000000000003 /* LinkPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPreviewCard.swift; sourceTree = "<group>"; };
+		B94500000000000000000001 /* DiscoverSearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverSearchModel.swift; sourceTree = "<group>"; };
+		B94500000000000000000002 /* DiscoverRecentSearches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverRecentSearches.swift; sourceTree = "<group>"; };
+		B94500000000000000000003 /* DiscoverSearchHistoryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverSearchHistoryScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -741,6 +747,9 @@
 			children = (
 				B00000000000000000000061 /* CatalogAPI.swift */,
 				B00000000000000000000062 /* DiscoverView.swift */,
+				B94500000000000000000003 /* DiscoverSearchHistoryScreen.swift */,
+				B94500000000000000000002 /* DiscoverRecentSearches.swift */,
+				B94500000000000000000001 /* DiscoverSearchModel.swift */,
 			);
 			path = Discover;
 			sourceTree = "<group>";
@@ -1042,6 +1051,9 @@
 				A00000000000000000000060 /* Catalog.swift in Sources */,
 				A00000000000000000000061 /* CatalogAPI.swift in Sources */,
 				A00000000000000000000062 /* DiscoverView.swift in Sources */,
+				A94500000000000000000003 /* DiscoverSearchHistoryScreen.swift in Sources */,
+				A94500000000000000000002 /* DiscoverRecentSearches.swift in Sources */,
+				A94500000000000000000001 /* DiscoverSearchModel.swift in Sources */,
 				A00000000000000000000063 /* TitleDetailView.swift in Sources */,
 				A00000000000000000000064 /* CastCrewView.swift in Sources */,
 				A00000000000000000000065 /* TitleReviewsView.swift in Sources */,

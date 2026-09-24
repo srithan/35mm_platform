@@ -121,8 +121,13 @@ struct DiscoverTabScreen: View {
   @Environment(\.theme) private var theme
 
   @State private var selectedTab: DiscoverHeaderTab = .discover
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @StateObject private var search = DiscoverSearchModel()
+  @State private var searchActive = false
+  @FocusState private var searchFocused: Bool
 
   let apiClient: APIClient
+  let currentUserID: String?
   let title: String
   let profile: UserProfile?
   let profileLoadError: String?
@@ -134,34 +139,217 @@ struct DiscoverTabScreen: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      AppHeader(
-        title: .text(title),
-        profile: profile,
-        profileLoadError: profileLoadError,
-        canOpenMessages: canOpenMessages,
-        onProfileTapped: onProfileTapped,
-        onMessagesTapped: onMessagesTapped
-      ) {
-        HeaderTabBar(
-          items: DiscoverHeaderTab.allCases,
-          selection: selectedTab,
-          title: { $0.rawValue },
-          onSelect: selectTab
-        )
-        .accessibilityLabel("Discover sections")
+      VStack(spacing: 0) {
+        searchHeader
+        if !searchActive {
+          HeaderTabBar(
+            items: DiscoverHeaderTab.allCases,
+            selection: selectedTab,
+            title: { $0.rawValue },
+            onSelect: selectTab
+          )
+          .accessibilityLabel("Discover sections")
+          .transition(.opacity)
+          Divider()
+        }
       }
-      .frame(height: headerVisible ? AppChromeMetrics.headerWithTabsHeight : 0, alignment: .top)
-      .opacity(headerVisible ? 1 : 0)
+      .frame(height: searchActive ? 64 : (headerVisible ? AppChromeMetrics.headerWithTabsHeight : 0), alignment: .top)
+      .opacity(searchActive || headerVisible ? 1 : 0)
       .clipped()
-      .allowsHitTesting(headerVisible)
-      .accessibilityHidden(!headerVisible)
+      .allowsHitTesting(searchActive || headerVisible)
+      .accessibilityHidden(!searchActive && !headerVisible)
 
-      selectedContent
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      ZStack {
+        selectedContent
+          .opacity(searchActive ? 0 : 1)
+          .allowsHitTesting(!searchActive)
+          .accessibilityHidden(searchActive)
+        if searchActive {
+          searchContent
+            .transition(.opacity)
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+    .background(theme.bg)
+    .toolbar(.hidden, for: .navigationBar)
+    .onChange(of: currentUserID, initial: true) { _, id in
+      if search.useAccount(id) {
+        searchActive = false
+        searchFocused = false
+      }
+    }
+    .onChange(of: search.normalizedQuery) { _, _ in search.prepareSearch() }
+    .onChange(of: searchFocused) { _, focused in
+      if focused { setSearchActive(true) }
+    }
+    .task(id: searchActive ? search.normalizedQuery : "") {
+      guard searchActive, !search.normalizedQuery.isEmpty else { return }
+      do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+      await search.search(client: apiClient)
+    }
+  }
+
+  private var searchHeader: some View {
+    HStack(spacing: searchActive ? 0 : 10) {
+      Button {
+        if searchActive { setSearchActive(false) } else { onProfileTapped() }
+      } label: {
+        ZStack {
+          ProfileAvatarView(url: profile?.avatarUrl ?? profile?.avatarUrlLg,
+                            displayName: profile?.displayName ?? "35mm", size: 40)
+            .opacity(searchActive ? 0 : 1)
+          Image(systemName: "chevron.backward")
+            .font(.title3.weight(.medium))
+            .opacity(searchActive ? 1 : 0)
+        }
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
+      }
+      .accessibilityLabel(searchActive ? "Back to Discover" : "Open profile menu")
+
+      HStack(spacing: 8) {
+        Image(systemName: "magnifyingglass").foregroundStyle(theme.textSecondary)
+          .accessibilityHidden(true)
+        TextField("Search", text: $search.query)
+          .focused($searchFocused)
+          .submitLabel(.search)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .onSubmit { search.remember(); searchFocused = false }
+          .accessibilityLabel("Search films and television")
+        if !search.query.isEmpty {
+          Button("Clear search", systemImage: "xmark.circle.fill") { search.query = "" }
+            .labelStyle(.iconOnly)
+            .foregroundStyle(theme.textSecondary)
+            .frame(minWidth: 32, minHeight: 44)
+        }
+      }
+      .padding(.horizontal, 16)
+      .frame(maxWidth: .infinity, minHeight: 44)
+      .accessibilityHidden(!searchActive)
+      .background {
+        // The background owns taps in the icon and padding; the field and clear
+        // button retain their native input behavior while search is active.
+        Button(action: focusSearch) {
+          Capsule().fill(theme.bgSunken)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Search films and television")
+        .accessibilityHidden(true)
+      }
+      .overlay {
+        if !searchActive {
+          // Keep activation above the unfocused field. A background button can
+          // lose taps to the field, even before it becomes first responder.
+          Button(action: focusSearch) {
+            Capsule().fill(.clear).contentShape(Capsule())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Search films and television")
+        }
+      }
+
+      if !searchActive {
+        Button(action: onMessagesTapped) {
+          Image("MessagesIcon").resizable().scaledToFit()
+            .frame(width: 21, height: 23)
+            .frame(width: 44, height: 44)
+        }
+        .disabled(!canOpenMessages)
+        .accessibilityLabel("Messages")
+        .transition(.opacity.combined(with: .scale(scale: reduceMotion ? 1 : 0.9)))
+      }
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(theme.text)
+    .padding(.leading, searchActive ? 4 : 16)
+    .padding(.trailing, 16)
+    .frame(height: 64)
+  }
+
+  private var searchContent: some View {
+    ScrollView {
+      if search.normalizedQuery.isEmpty {
+        HStack {
+          Text("Recent").font(.headline).accessibilityAddTraits(.isHeader)
+          Spacer()
+          NavigationLink {
+            DiscoverSearchHistoryScreen(model: search, onSelect: selectRecent)
+          } label: {
+            Text("See all")
+          }
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(theme.accent)
+          .frame(minHeight: 44)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        DiscoverRecentSearches(model: search, limit: 6, onSelect: selectRecent)
+      } else {
+        LazyVStack(spacing: 16) {
+          ForEach(search.results) { title in
+            NavigationLink {
+              TitleDetailView(titleID: title.id, apiClient: apiClient, usesSearchNavigationHeader: true)
+            } label: {
+              HStack(spacing: 14) {
+                CatalogImage(url: title.primaryMedia?.url)
+                  .frame(width: 48, height: 72)
+                  .clipShape(RoundedRectangle(cornerRadius: 6))
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(title.primaryTitle).font(.headline)
+                  Text([title.yearText, title.kindLabel].compactMap { $0 }.joined(separator: " · "))
+                    .font(.subheadline).foregroundStyle(theme.textSecondary)
+                }
+                Spacer()
+              }
+              .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded { search.remember(); searchFocused = false })
+          }
+          if search.loading { ProgressView("Searching") }
+          if let error = search.error {
+            DiscoverErrorBanner(message: error) {
+              Task { await search.search(client: apiClient, more: !search.results.isEmpty) }
+            }
+          } else if !search.loading && search.results.isEmpty {
+            ContentUnavailableView.search(text: search.normalizedQuery)
+          }
+          if search.hasMore && !search.loading && search.error == nil {
+            Button("Load more results") { Task { await search.search(client: apiClient, more: true) } }
+              .frame(minHeight: 44)
+          }
+        }
+        .padding(20)
+      }
+    }
+    .scrollDismissesKeyboard(.interactively)
     .background(theme.bg)
   }
 
+  private func focusSearch() {
+    setSearchActive(true)
+    searchFocused = true
+  }
+
+  private func selectRecent(_ query: String) {
+    search.query = query
+    search.remember()
+    searchFocused = false
+  }
+
+  private func setSearchActive(_ active: Bool) {
+    guard searchActive != active else { return }
+    withAnimation(reduceMotion ? nil : .smooth(duration: 0.26)) {
+      searchActive = active
+    }
+    if !active {
+      searchFocused = false
+      search.query = ""
+      search.invalidate()
+    }
+  }
   @ViewBuilder
   private var selectedContent: some View {
     switch selectedTab {

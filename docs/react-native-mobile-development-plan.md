@@ -1034,7 +1034,7 @@ A slice is not complete until:
 
 | Area | Status |
 |---|---|
-| Retained SwiftUI feed reference | First-page lifecycle, nonanimated snapshot reconciliation, natural-height fitting, idle reading anchors, inset-aware scroll chrome, and deferred Profile height reporting corrected; native simulator regressions cover real PostCard layout and a delayed one-post-to-history API handoff, now published as one initial batch. React Native Phase 2 and its next auth task are unchanged. |
+| Retained SwiftUI feed reference | Hosted-cell safe-area isolation corrects scroll-dependent row sizing (2026-09-24); bidirectional mixed-row regression added. Home traditional-bar visibility now preserves feed insets and scopes motion to header/tab overlays (2026-09-24); runtime gesture acceptance remains pending. First-page lifecycle, nonanimated snapshot reconciliation, natural-height fitting, idle reading anchors, inset-aware scroll chrome, and deferred Profile height reporting corrected; native simulator regressions cover real PostCard layout and a delayed one-post-to-history API handoff, now published as one initial batch. React Native Phase 2 and its next auth task are unchanged. |
 | Product direction | Complete |
 | Canonical plan | Complete |
 | Agent auto-discovery contract | Complete |
@@ -2416,3 +2416,63 @@ Decision: Apply the supplied Pinterest composition to `apps/ios` only, with nine
 - Scale: local layout only; zero additional backend reads/writes at 1M+ DAU. No new index, route, cache, mutation, pagination, or UGC lifecycle change.
 - Architecture/codebase/chat docs and diagrams need no update: existing component spacing changed without structural, feature-wiring, or contract changes.
 - Verification passed: generic iOS Simulator Debug `xcodebuild` using `/private/tmp/ThirtyFiveMMTraditionalTabFilledIconsDerivedData`, and scoped `git diff --check`. Initial sandboxed build lacked SwiftPM cache access; approved rerun passed. Runtime visual verification not performed.
+
+### 2026-09-24 — Decouple retained SwiftUI Home chrome from feed layout
+
+- [x] Keep Home bottom content clearance constant across traditional-tab visibility changes. The feed no longer changes its scroll range as the bar hides or returns, including at the final row.
+- [x] Move the traditional tab animation from the whole screen onto the bar overlay, and remove inherited Home feed animation from traditional-chrome visibility changes. Existing header timing, direction thresholds, hit testing, accessibility visibility, and Reduce Motion behavior remain intact.
+- Decision: supersedes visibility-dependent bottom clearance. Retained SwiftUI only; React Native Phase 2, next auth resilience/accessibility/visual task, roadmap checklist, feature delivery matrix, and release blockers remain unchanged. Native reference status updated above.
+- Scale: existing local overlay and UIKit virtualization patterns; zero additional backend reads/writes at 1M+ DAU. No new index, API, schema, cache, worker, mutation, pagination, or UGC lifecycle change.
+- Architecture and codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: simulator Debug build plus existing `FeedViewModelTests` (16 tests) and `FeedCollectionRenderingTests` (7 tests) on iPhone 16 Pro/iOS 18.5 using `xcodebuild test`, and `git diff --check`. Result bundles confirm 23 tests passed with zero failures or skips. Initial sandboxed build lacked SwiftPM cache access; approved reruns passed. Computer-use could not access Simulator by name or installed app path, so live gesture timing, physical-device, and VoiceOver acceptance remain unverified; existing renderer regressions do not establish visual acceptance of the shell animation.
+
+### 2026-09-24 — Retained SwiftUI feed row sizing during scroll
+
+- [x] Reproduced scroll-dependent intrinsic height changes on iOS 26.5 with real mixed PostCard cells, fractional scroll positions, and display-frame waits. The regression failed before the fix (including a 498→504pt row-height change); earlier immediate-layout checks missed safe-area propagation between frames.
+- [x] Isolated safe-area insets at `FeedHostingCollectionViewCell`. Header/footer clearance remains owned by the collection; UIKit still measures natural content height, including Dynamic Type and width/content changes. No height cache, frozen row size, or all-feed premeasurement was introduced.
+- [x] Added forward/reverse scroll coverage across viewport edges for text/media/film/poll rows. Existing initial-page, append/prepend anchor, Dynamic Type, embedded Profile sizing, and pagination coverage remains.
+- Decision: retained SwiftUI fix only, also benefiting Profile's shared renderer. React Native Phase 2, next auth resilience/accessibility/visual task, roadmap checklist, feature delivery matrix, and release blockers remain unchanged; native reference status updated above.
+- Scale: existing UIKit virtualization with constant local safe-area policy; zero additional backend reads/writes at 1M+ DAU. No API, schema/index, cache, worker, mutation, rate-limit, pagination, or UGC lifecycle change.
+- Architecture and codebase knowledge updated; chat docs and topology diagrams unaffected.
+- Verification passed: `xcodebuild test` for `ThirtyFiveMMTests/FeedCollectionRenderingTests` and `ThirtyFiveMMTests/FeedViewModelTests` on iPhone 16 Pro/iOS 18.5 and iPhone 17 Pro/iOS 26.5, using `/private/tmp/ThirtyFiveMMDerivedData` and result bundle `/private/tmp/35mm-feed-wiggle-final.xcresult`: 24 tests per simulator, 48 runs, zero failures/skips. `git diff --check` passed. Live authenticated gesture capture and physical-device visual acceptance remain unverified; computer-use could not access Simulator.
+
+### 2026-09-24 — Retained SwiftUI Discover search header and history
+
+- [x] Replaced Discover title with a capsule search field; focus animates avatar-to-Back, Messages removal, field expansion, and browse-to-search opacity. Existing browse content stays mounted; Reduce Motion suppresses spatial animation.
+- [x] Added device-local, account-scoped recent queries, individual removal, and a native Recent searches push with Clear all. History is bounded to 50 queries; no sample profiles or fake history.
+- [x] Wired canonical catalog search with debounce, cancellation/stale-response guards, 24-item cursor pages, error/retry, and canonical title destinations.
+- Decision/status: user-requested retained SwiftUI reference change only. React Native Phase 2, next auth resilience/accessibility/visual task, roadmap and feature delivery status, and release blockers remain unchanged. Discover reference now includes this header/history behavior.
+- Scale: existing bounded catalog read pattern; zero history backend traffic at 1M+ DAU. No new index, schema, API, worker, remote cache, mutation, or UGC lifecycle change. Architecture and codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: generic iOS Simulator Debug build, focused `DiscoverViewModelTests` on iPhone 16 Pro/iOS 18.5 (5 passed, zero failures/skips; `/private/tmp/DiscoverSearchFinal.xcresult`), project plist validation, and `git diff --check`. Xcode required approved access to SwiftPM/simulator caches. Computer-use could not access Simulator by name or installed app path; runtime animation/keyboard, physical-device, and VoiceOver acceptance remain unverified.
+
+### 2026-09-24 — Discover search hit targets and history return spacing
+
+- [x] Tightened active Back/search spacing with zero inter-control gap and a 4pt leading inset, retaining the 44pt Back hit target. The capsule background now explicitly focuses search so the icon and padding are tappable as well as the field.
+- [x] Replaced history's system navigation bar with an app-owned Back/title/Clear all header; both history and Discover keep system chrome hidden throughout navigation. Reused the interactive-pop bridge for edge-swipe return, removing the history-specific system-bar visibility switch implicated in extra top clearance after refocusing.
+- Decision/status: retained SwiftUI presentation fix only. React Native Phase 2, next auth resilience/accessibility/visual task, roadmap checklist, feature delivery status, and blockers unchanged; native Discover reference updated by this entry.
+- Scale: local hit testing/layout/navigation only, zero extra backend reads/writes at 1M+ DAU. No new index, schema, cache, worker, mutation, pagination, or UGC lifecycle change. Architecture/codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: generic iOS Simulator Debug `xcodebuild` with `/private/tmp/ThirtyFiveMMTraditionalTabFilledIconsDerivedData`, plus `git diff --check`. Computer-use still cannot access Simulator (including its bundle ID), so live repeated history/back/refocus and keyboard geometry remain visually unverified. No new model tests were added for this presentation-only change.
+
+### 2026-09-24 — Discover history native push coordination
+
+- [x] Replaced the history Button/Boolean destination with a native NavigationLink. Opening history no longer explicitly clears keyboard focus in the navigation action or on source disappearance; SwiftUI navigation owns keyboard dismissal alongside its push transition.
+- Decision/status: retained SwiftUI presentation correction only. Custom history header and interactive Back remain. React Native Phase 2, next task, roadmap checklist, feature delivery status, and blockers unchanged.
+- Scale: local navigation only; zero additional backend reads/writes at 1M+ DAU. No index, API, schema, cache, worker, mutation, pagination, or UGC lifecycle change. Architecture and codebase knowledge updated; chat docs/diagrams unaffected.
+- Verification passed: generic iOS Simulator Debug build using `/private/tmp/ThirtyFiveMMTraditionalTabFilledIconsDerivedData`, and `git diff --check`. Live transition/keyboard visual verification remains outstanding because Simulator UI access was unavailable in this session.
+
+### 2026-09-24 — Preserve Discover search across history return and first tap
+
+- [x] Made account setup idempotent. Repeated initial observers for the same account preserve the query, loading state, and active search presentation instead of resetting to browse before focus returns.
+- [x] Passed the authenticated shell user ID into Discover, decoupling search initialization from late profile loading. Actual account changes still reset state and isolate history.
+- [x] Added an explicit foreground capsule activation Button and kept the TextField mounted/hit-test enabled. This supersedes relying on a background activation button beneath disabled foreground content. Repeated focus does not restart the search-mode animation.
+- [x] Added regression coverage for repeated same-account setup and genuine account changes/sign-out.
+- Decision/status: retained SwiftUI fix only; React Native Phase 2, next auth resilience/accessibility/visual task, roadmap checklist, feature delivery matrix, and blockers unchanged. Native Discover reference updated by this entry.
+- Scale: local session identity and hit testing only; zero added backend reads/writes at 1M+ DAU. No new index, schema, API, cache, worker, mutation, pagination, or UGC lifecycle change. Architecture/codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: simulator Debug build and `DiscoverViewModelTests` on iPhone 16 Pro/iOS 18.5 (6 passed, zero failures/skips; `/private/tmp/DiscoverSearchSessionFix.xcresult`), plus `git diff --check`. Existing unrelated actor-isolation warnings remain in media tests. Live first-tap, history-pop, and keyboard visual acceptance remain unverified; model regressions verify account-state preservation, not touch delivery or animation timing.
+
+### 2026-09-24 — Discover title return spacing
+
+- [x] Removed the search-result destination's system-navigation-bar visibility override. Search-opened titles now use app-owned Back/title/actions chrome, keeping the system bar hidden on both sides of the push/pop. Existing title action sheet and interactive edge-swipe Back remain available.
+- Decision/status: retained SwiftUI presentation fix only. React Native Phase 2, next auth resilience/accessibility/visual task, roadmap checklist, feature delivery matrix, and release blockers remain unchanged; native Discover reference now includes consistent chrome through title return.
+- Scale: existing local navigation/header pattern; zero additional backend reads/writes at 1M+ DAU. No index, API, schema, cache, worker, mutation, pagination, or UGC lifecycle change. Architecture and codebase knowledge updated; chat docs and diagrams unaffected.
+- Verification passed: generic iOS Simulator Debug `xcodebuild` using `/private/tmp/ThirtyFiveMMTraditionalTabFilledIconsDerivedData`, and `git diff --check`. Initial sandboxed build lacked SwiftPM cache access; approved rerun passed. Computer-use cannot access Simulator, so live search/title/back/refocus geometry and physical-device acceptance remain unverified.

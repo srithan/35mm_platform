@@ -187,19 +187,72 @@ final class TitleDetailViewModel: ObservableObject {
 struct TitleDetailView: View {
   @Environment(\.theme) private var theme
   @Environment(\.openURL) private var openURL
+  @Environment(\.dismiss) private var dismiss
   @StateObject private var viewModel: TitleDetailViewModel
   @State private var selectedTab: TitleDetailTab = .overview
   @State private var isShowingActions = false
   private let apiClient: APIClient
+  private let usesSearchNavigationHeader: Bool
 
-  init(titleID: String, apiClient: APIClient) {
+  init(titleID: String, apiClient: APIClient, usesSearchNavigationHeader: Bool = false) {
     self.apiClient = apiClient
+    self.usesSearchNavigationHeader = usesSearchNavigationHeader
     _viewModel = StateObject(
       wrappedValue: TitleDetailViewModel(titleID: titleID, apiClient: apiClient)
     )
   }
 
   var body: some View {
+    if usesSearchNavigationHeader {
+      VStack(spacing: 0) {
+        searchNavigationHeader
+        titleContent
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+      .background(theme.bg)
+      // Match Discover's app-owned chrome so a title push cannot leave a
+      // system navigation-bar inset behind when search regains keyboard focus.
+      .toolbar(.hidden, for: .navigationBar)
+      .background { InteractivePopGestureEnabler() }
+    } else {
+      titleContent
+    }
+  }
+
+  private var searchNavigationHeader: some View {
+    HStack(spacing: 8) {
+      Button("Back to search", systemImage: "chevron.backward") { dismiss() }
+        .labelStyle(.iconOnly)
+        .font(.title3.weight(.medium))
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+
+      Text(viewModel.detail?.primaryTitle ?? "Title")
+        .font(.headline)
+        .lineLimit(1)
+        .accessibilityAddTraits(.isHeader)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+      titleActionsButton
+        .frame(width: 44, height: 44)
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(theme.text)
+    .padding(.horizontal, 4)
+    .frame(minHeight: 64)
+  }
+
+  private var titleActionsButton: some View {
+    Button {
+      isShowingActions = true
+    } label: {
+      Image(systemName: "ellipsis.circle")
+    }
+    .disabled(viewModel.detail == nil)
+    .accessibilityLabel("Title actions")
+  }
+
+  private var titleContent: some View {
     Group {
       if viewModel.isLoading && viewModel.detail == nil {
         TitleLoadingView()
@@ -235,14 +288,10 @@ struct TitleDetailView: View {
     .navigationTitle(viewModel.detail?.primaryTitle ?? "Title")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
-        Button {
-          isShowingActions = true
-        } label: {
-          Image(systemName: "ellipsis.circle")
+      if !usesSearchNavigationHeader {
+        ToolbarItem(placement: .topBarTrailing) {
+          titleActionsButton
         }
-        .disabled(viewModel.detail == nil)
-        .accessibilityLabel("Title actions")
       }
     }
     .task {

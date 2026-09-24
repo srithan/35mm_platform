@@ -124,8 +124,8 @@ struct MainTabView: View {
         .opacity(isTabBarVisible ? 1 : 0)
         .allowsHitTesting(isTabBarVisible)
         .accessibilityHidden(!isTabBarVisible)
+        .animation(chromeAnimation, value: isTabBarVisible)
       }
-      .animation(chromeAnimation, value: isTabBarVisible)
       .fullScreenCover(
         isPresented: $env.isComposerPresented,
         onDismiss: env.clearComposer
@@ -169,13 +169,15 @@ struct MainTabView: View {
             FeedView(
               viewModel: env.sessionViewModels.feed(currentUserId: currentUserId),
               topContentInset: AppChromeMetrics.homeHeaderHeight,
-              bottomContentInset: isTabBarVisible
-                ? feedGeometry.safeAreaInsets.bottom
-                  + (tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0)
-                : 0
+              // Keep the scroll range stable while overlay chrome moves. Changing
+              // this inset at the tail lets UIKit pull content along with the bar.
+              bottomContentInset: feedGeometry.safeAreaInsets.bottom
+                + (tabBarStyle == .traditional ? AppChromeMetrics.traditionalTabBarHeight : 0)
             ) { direction in
               guard selectedTab == .home else { return }
-              withAnimation(chromeAnimation) {
+              // Traditional chrome animates in its own overlay layers, never in
+              // the feed's layout transaction. The system fallback owns its bar.
+              withAnimation(tabBarStyle == .traditional ? nil : chromeAnimation) {
                 let isVisible = direction != .down
                 isHeaderVisible = isVisible
                 isTabBarVisible = isVisible
@@ -196,6 +198,7 @@ struct MainTabView: View {
       NavigationStack(path: $discoverPath) {
         DiscoverTabScreen(
           apiClient: env.apiClient,
+          currentUserID: currentUserId,
           title: AppTab.discover.headerTitle,
           profile: profile,
           profileLoadError: profileLoadError,
