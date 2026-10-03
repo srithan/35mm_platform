@@ -12,6 +12,7 @@ The repository is a pnpm/Turborepo monorepo:
 
 - `apps/web`: Next.js 15 App Router frontend.
 - `apps/studio`: internal Next.js platform/content operations app.
+- `apps/docs`: internal Next.js 15 API/data model reference on port 3002; OpenAPI 3.1 + Scalar, source-generated Drizzle table pages/ERDs, MDX guides, `DIVERGENCES.md` for unverified contracts.
 - `apps/api`: Hono REST API.
 - `apps/worker`: long-running BullMQ worker.
 - `apps/ios`: SwiftUI iOS app.

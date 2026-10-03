@@ -56,6 +56,7 @@ Target scale: 35M+ users. Architecture decisions should preserve cursor paginati
 ├── apps/
 │   ├── web/       Next.js 15 App Router web app
 │   ├── studio/    Next.js internal admin/content operations app
+│   ├── docs/      Next.js internal API and data model reference
 │   ├── api/       Hono REST API
 │   ├── worker/    BullMQ background worker
 │   ├── mobile/    Expo/React Native shared iOS and Android app
@@ -136,6 +137,12 @@ pnpm lint
 Node engine: `>=22.13.0`.
 
 ---
+
+### Internal developer reference: `apps/docs`
+
+Next.js 15 docs app runs on port 3002 with `pnpm dev:docs`. `apps/docs/scripts/generate.ts` inventories mounted Hono routes, converts shared Zod 4 validators through `zod-openapi`, and exports the OpenAPI 3.1 spec in `apps/docs/openapi/spec.yaml` plus JSON for embedded Scalar. It introspects all Drizzle table exports, compares columns and keys to `0067_snapshot.json`, checks SQL table creation, and generates ERDs and table pages. MDX guides share the same shell. Auth and response ambiguities are listed in `apps/docs/DIVERGENCES.md`; incomplete entries are marked in OpenAPI. Docs site has robots noindex/nofollow and an optional `DOCS_SHARED_PASSWORD` middleware gate, disabled by default. The Try-it API base URL stays in browser localStorage.
+
+This docs app adds no API route, database table, worker job, or product read/write load. Generation runs at docs startup/build; at 1M+ DAU the API traffic remains controlled by users of the internal Try-it console. No new database index is required.
 
 ## 2. Tech Stack
 

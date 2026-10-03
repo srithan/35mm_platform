@@ -1,0 +1,5 @@
+# Pagination & Cursors
+
+List routes use `cursor` and `limit` where their Zod query schema specifies them. Cursor is opaque to clients: pass `nextCursor` unchanged into next request. Stop when `hasMore` is false. Never construct a cursor or use SQL OFFSET.
+
+Implementations use keyset comparisons and `limit + 1` to detect another page. Encoding varies by module: `apps/api/src/lib/cursor.ts` uses base64url JSON composites; film catalog encodes `{ s, v, i }`; chat message pagination uses time UUIDs. Thus “all cursors are base64url” is inaccurate. Do not decode cursors in clients.

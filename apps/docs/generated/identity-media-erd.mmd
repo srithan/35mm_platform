@@ -1,0 +1,231 @@
+erDiagram
+  comment_likes {
+    uuid comment_id
+    uuid user_id
+    timestamp_with_time_zone created_at
+  }
+  comments {
+    uuid id PK
+    uuid post_id
+    uuid user_id
+    uuid parent_id
+    text body
+    text gif_url
+    integer like_count
+    boolean is_deleted
+    moderation_content_status moderation_status
+    text nsfw_status
+    text__ nsfw_categories
+    text nsfw_source
+    timestamp_with_time_zone nsfw_scanned_at
+    timestamp_with_time_zone edited_at
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  contribution_submissions {
+    uuid id PK
+    uuid user_id
+    contribution_kind kind
+    text title
+    text summary
+    text entity_type
+    text entity_id
+    jsonb payload
+    contribution_status status
+    uuid reviewer_user_id
+    text review_note
+    text idempotency_key
+    boolean is_deleted
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+    timestamp_with_time_zone reviewed_at
+  }
+  counter_job_deltas {
+    text target_table
+    text target_id
+    text counter_name
+    integer delta
+    timestamp_with_time_zone updated_at
+  }
+  counter_jobs {
+    uuid id PK
+    text target_table
+    text target_id
+    text counter_name
+    integer delta
+    text status
+    integer attempts
+    timestamp_with_time_zone locked_at
+    timestamp_with_time_zone processed_at
+    text last_error
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  films {
+    text id PK
+    integer tmdb_id
+    text imdb_id
+    text title
+    text original_title
+    integer year
+    integer runtime
+    text overview
+    text poster_url
+    text backdrop_url
+    text__ genres
+    text director
+    text language
+    text country
+    film_source source
+    uuid contributed_by_user_id
+    boolean is_catalog_listed
+    boolean is_verified
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  profiles {
+    uuid id PK
+    uuid user_id
+    text username
+    timestamp_with_time_zone username_auth_synced_at
+    text pending_username
+    timestamp_with_time_zone pending_username_requested_at
+    text display_name
+    text bio
+    text avatar_url
+    jsonb avatar_variants
+    text cover_url
+    jsonb cover_variants
+    text location
+    text website
+    date date_of_birth
+    text role
+    text role_context
+    boolean is_private
+    boolean onboarding_completed
+    timestamp_with_time_zone onboarding_completed_at
+    text__ favorite_film_ids
+    text__ favorite_genre_ids
+    text headline
+    text headline_context
+    integer films_logged_count
+    integer post_count
+    integer strike_count
+    moderation_content_status moderation_status
+    integer unsorted_bookmark_count
+    integer follower_count
+    integer following_count
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  search_index_jobs {
+    uuid id PK
+    text entity_type
+    text entity_id
+    text status
+    timestamp_with_time_zone available_at
+    timestamp_with_time_zone processing_started_at
+    timestamp_with_time_zone processed_at
+    integer attempt_count
+    text last_error
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  user_blocks {
+    uuid blocker_id
+    uuid blocked_id
+    timestamp_with_time_zone created_at
+  }
+  user_mutes {
+    uuid muter_id
+    uuid muted_id
+    timestamp_with_time_zone created_at
+  }
+  user_settings {
+    uuid id PK
+    uuid user_id
+    boolean private_account
+    boolean allow_messages_from_anyone
+    boolean show_activity_status
+    boolean notify_new_followers
+    boolean notify_likes_on_posts
+    boolean notify_comments_and_replies
+    boolean notify_mentions
+    boolean notify_festival_updates
+    boolean notify_watchlist_streaming
+    boolean notify_email_digest
+    text theme
+    text accent_color
+    boolean video_autoplay
+    text video_default_quality
+    boolean video_always_show_captions
+    text video_caption_style
+    boolean video_start_with_sound
+    boolean video_quiet_mode
+    text__ streaming_service_ids
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  username_locks {
+    text username PK
+    text state
+    text owner
+    text reason
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  users {
+    uuid id PK
+    text clerk_user_id
+    text email
+    jsonb notification_email_preferences
+    timestamp_with_time_zone age_verified_at
+    account_status status
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  video_assets {
+    uuid id PK
+    uuid user_id
+    uuid idempotency_key
+    text request_hash
+    text purpose
+    text library_id
+    uuid provider_id
+    uuid staging_provider_id
+    timestamp_with_time_zone finalization_started_at
+    text state
+    text filename
+    text content_type
+    bigint declared_bytes
+    integer duration_seconds
+    integer width
+    integer height
+    text failure_reason
+    uuid post_id
+    text post_request_hash
+    text film_id
+    jsonb details
+    text visibility
+    timestamp_with_time_zone release_at
+    timestamp_with_time_zone published_at
+    boolean is_deleted
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+    timestamp_with_time_zone next_check_at
+  }
+  comments ||--o{ comment_likes : "comment_id"
+  users ||--o{ comment_likes : "user_id"
+  users ||--o{ comments : "user_id"
+  comments ||--o{ comments : "parent_id"
+  users ||--o{ contribution_submissions : "user_id"
+  users ||--o{ contribution_submissions : "reviewer_user_id"
+  users ||--o{ films : "contributed_by_user_id"
+  users ||--o{ profiles : "user_id"
+  users ||--o{ user_blocks : "blocker_id"
+  users ||--o{ user_blocks : "blocked_id"
+  users ||--o{ user_mutes : "muter_id"
+  users ||--o{ user_mutes : "muted_id"
+  users ||--o{ user_settings : "user_id"
+  users ||--o{ video_assets : "user_id"
+  films ||--o{ video_assets : "film_id"

@@ -34,7 +34,8 @@
     "mobile:check": "pnpm mobile:tokens:check && pnpm mobile:api-client:check && pnpm mobile:ui:check && pnpm --filter @35mm/mobile check:ci",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "dev:docs": "pnpm --filter @35mm/docs dev"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

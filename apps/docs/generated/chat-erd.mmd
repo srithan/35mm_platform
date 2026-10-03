@@ -1,0 +1,36 @@
+erDiagram
+  chat_member_state {
+    text thread_id
+    uuid user_id
+    text last_read_message_id
+    timestamp_with_time_zone last_message_at
+    timestamp_with_time_zone archived_at
+    timestamp_with_time_zone deleted_at
+    timestamp_with_time_zone muted_until
+  }
+  chat_participants {
+    text thread_id
+    uuid user_id
+    timestamp_with_time_zone joined_at
+    timestamp_with_time_zone left_at
+    text role
+  }
+  chat_thread_meta {
+    text thread_id PK
+    timestamp_with_time_zone last_message_at
+    text last_message_preview
+    uuid last_sender_id
+    integer message_count
+  }
+  chat_threads {
+    text id PK
+    text type
+    uuid created_by
+    uuid dm_member_low
+    uuid dm_member_high
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  chat_threads ||--o{ chat_member_state : "thread_id"
+  chat_threads ||--o{ chat_participants : "thread_id"
+  chat_threads ||--o{ chat_thread_meta : "thread_id"

@@ -1,0 +1,5 @@
+# Rate Limiting
+
+Limits are route-specific and attached through `createRateLimitMiddleware` or `applyRateLimit`. API Reference shows parsed direct middleware limits. It does not claim coverage where a handler applies a limiter indirectly. Do not assume missing displayed limit means unlimited.
+
+Limiter responds `429` with `{ "code": "RATE_LIMITED", "message": "Too many requests. Please retry later." }` and `Retry-After` seconds. It also sets `X-RateLimit-Limit` and `X-RateLimit-Remaining`. Production depends on Redis; unavailable identity or backend can yield `503`. Retry after header delay with jitter, then preserve idempotency key for retried mutations.

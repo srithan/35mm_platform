@@ -1,0 +1,5 @@
+# Auth
+
+Current API already requires Clerk bearer auth on many routes. `requireAuth` verifies caller; chat applies it to entire route group. Some reads use optional auth, and health, poster proxy, and several catalog reads are public. Every operation records source-derived auth state.
+
+Clerk webhook uses Svix signature headers, not user bearer auth. Auth in Scalar is entered locally in its auth panel; docs app does not collect or commit tokens. Docs site itself has no auth by default. Setting `DOCS_SHARED_PASSWORD` enables Basic password middleware on all docs paths at runtime; deploy behind HTTPS before enabling.

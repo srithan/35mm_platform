@@ -1,0 +1,18 @@
+# Errors
+
+API global error handler returns JSON `{ "code": string, "message": string }` for `ApiError` and unhandled exceptions. Unknown routes return `404 NOT_FOUND`. Endpoint-specific handlers may return plain text or custom JSON; `/poster-proxy` returns plain text errors.
+
+| Status | Common cause |
+| --- | --- |
+| 400 | Invalid path, query, or body; `BAD_REQUEST` |
+| 401 | Missing/invalid bearer token or webhook signature |
+| 403 | Authenticated caller lacks role or resource access |
+| 404 | Resource missing, hidden, or unowned |
+| 409 | Conflict, stale transition, or duplicate constraint |
+| 413 | Video body limit exceeded |
+| 429 | Route rate limit exceeded; retry after `Retry-After` |
+| 500 | Unhandled server error |
+| 502 | Poster upstream fetch failed |
+| 503 | Required rate-limit identity/backend or feature dependency unavailable |
+
+Exact status and code combinations require each handler's source; entries flagged needs confirmation remain under review.

@@ -1,0 +1,303 @@
+erDiagram
+  catalog_aliases {
+    text id PK
+    catalog_entity_type entity_type
+    text entity_id
+    catalog_alias_type type
+    text value
+    text sort_value
+    text language
+    text region
+    text__ attributes
+    boolean is_primary
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_award_events {
+    text id PK
+    text award_id
+    text name
+    integer year
+    text event_date
+    text location
+    text official_url
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_award_nominations {
+    text id PK
+    text event_id
+    text category_name
+    catalog_award_outcome outcome
+    text title_id
+    text person_id
+    text company_id
+    text credited_name
+    integer sort_order
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_awards {
+    text id PK
+    catalog_entity_status status
+    text name
+    text original_name
+    text slug
+    text description
+    text official_url
+    text country
+    integer first_year
+    integer last_year
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_companies {
+    text id PK
+    catalog_entity_status status
+    catalog_company_type type
+    text name
+    text sort_name
+    text slug
+    text description
+    text country
+    integer founded_year
+    integer dissolved_year
+    text official_url
+    boolean is_verified
+    text merged_into_company_id
+    uuid created_by_user_id
+    uuid updated_by_user_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_credits {
+    text id PK
+    text title_id
+    text person_id
+    catalog_credit_department department
+    text job
+    text character_name
+    text credited_as
+    integer billing_order
+    integer episode_count
+    integer start_year
+    integer end_year
+    text notes
+    catalog_entity_status status
+    uuid created_by_user_id
+    uuid updated_by_user_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_edits {
+    text id PK
+    catalog_edit_source source
+    catalog_edit_status status
+    uuid actor_user_id
+    text summary
+    text rationale
+    text idempotency_key
+    boolean public_visible
+    text reverted_by_edit_id
+    text reverts_edit_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_external_ids {
+    text id PK
+    catalog_entity_type entity_type
+    text entity_id
+    catalog_external_provider provider
+    text external_id
+    text url
+    boolean is_primary
+    catalog_entity_status status
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_genres {
+    text id PK
+    text slug
+    text name
+    text description
+    text parent_genre_id
+    boolean is_active
+    integer sort_order
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_index_jobs {
+    text id PK
+    text edit_id
+    catalog_index_job_status status
+    jsonb payload
+    integer attempt_count
+    text last_error
+    timestamp_with_time_zone available_at
+    timestamp_with_time_zone processing_started_at
+    timestamp_with_time_zone processed_at
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_media_assets {
+    text id PK
+    catalog_entity_type entity_type
+    text entity_id
+    catalog_media_type type
+    catalog_media_source source
+    text url
+    text storage_key
+    text title
+    text caption
+    text language
+    text region
+    text rights_note
+    text attribution
+    jsonb metadata
+    integer sort_order
+    boolean is_primary
+    catalog_entity_status status
+    uuid created_by_user_id
+    uuid updated_by_user_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_people {
+    text id PK
+    catalog_entity_status status
+    text primary_name
+    text sort_name
+    text slug
+    text biography
+    text birth_date
+    text death_date
+    text birth_place
+    text death_place
+    text__ primary_professions
+    text gender
+    boolean is_verified
+    timestamp_with_time_zone locked_at
+    uuid locked_by_user_id
+    text merged_into_person_id
+    uuid created_by_user_id
+    uuid updated_by_user_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_revisions {
+    text id PK
+    text edit_id
+    catalog_entity_type entity_type
+    text entity_id
+    catalog_revision_action action
+    jsonb before_data
+    jsonb after_data
+    text__ changed_fields
+    catalog_revision_storage_tier storage_tier
+    text archive_object_key
+    text archive_sha256
+    timestamp_with_time_zone archived_at
+    boolean public_visible
+    timestamp_with_time_zone created_at
+  }
+  catalog_sources {
+    text id PK
+    text edit_id
+    catalog_entity_type entity_type
+    text entity_id
+    text url
+    text title
+    text publisher
+    timestamp_with_time_zone accessed_at
+    text archive_url
+    text note
+    uuid created_by_user_id
+    timestamp_with_time_zone created_at
+  }
+  catalog_title_companies {
+    text id PK
+    text title_id
+    text company_id
+    catalog_company_role role
+    text region
+    text start_date
+    text end_date
+    integer sort_order
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_title_genres {
+    text id PK
+    text title_id
+    text genre_id
+    integer sort_order
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_title_relations {
+    text id PK
+    text from_title_id
+    text to_title_id
+    catalog_relation_type type
+    integer sort_order
+    text note
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_titles {
+    text id PK
+    text legacy_film_id
+    catalog_title_type type
+    catalog_title_lifecycle lifecycle
+    catalog_entity_status status
+    text primary_title
+    text original_title
+    text sort_title
+    text slug
+    text synopsis
+    integer start_year
+    integer end_year
+    text release_date
+    integer runtime_minutes
+    text primary_language
+    text primary_country
+    text__ origin_countries
+    text__ spoken_languages
+    jsonb facts
+    text parent_title_id
+    integer season_number
+    integer episode_number
+    integer absolute_episode_number
+    boolean is_adult
+    boolean is_verified
+    timestamp_with_time_zone locked_at
+    uuid locked_by_user_id
+    text merged_into_title_id
+    uuid created_by_user_id
+    uuid updated_by_user_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  catalog_awards ||--o{ catalog_award_events : "award_id"
+  catalog_award_events ||--o{ catalog_award_nominations : "event_id"
+  catalog_titles ||--o{ catalog_award_nominations : "title_id"
+  catalog_people ||--o{ catalog_award_nominations : "person_id"
+  catalog_companies ||--o{ catalog_award_nominations : "company_id"
+  catalog_companies ||--o{ catalog_companies : "merged_into_company_id"
+  catalog_titles ||--o{ catalog_credits : "title_id"
+  catalog_people ||--o{ catalog_credits : "person_id"
+  catalog_edits ||--o{ catalog_edits : "reverted_by_edit_id"
+  catalog_edits ||--o{ catalog_edits : "reverts_edit_id"
+  catalog_genres ||--o{ catalog_genres : "parent_genre_id"
+  catalog_edits ||--o{ catalog_index_jobs : "edit_id"
+  catalog_people ||--o{ catalog_people : "merged_into_person_id"
+  catalog_edits ||--o{ catalog_revisions : "edit_id"
+  catalog_edits ||--o{ catalog_sources : "edit_id"
+  catalog_titles ||--o{ catalog_title_companies : "title_id"
+  catalog_companies ||--o{ catalog_title_companies : "company_id"
+  catalog_titles ||--o{ catalog_title_genres : "title_id"
+  catalog_genres ||--o{ catalog_title_genres : "genre_id"
+  catalog_titles ||--o{ catalog_title_relations : "from_title_id"
+  catalog_titles ||--o{ catalog_title_relations : "to_title_id"
+  catalog_titles ||--o{ catalog_titles : "parent_title_id"
+  catalog_titles ||--o{ catalog_titles : "merged_into_title_id"

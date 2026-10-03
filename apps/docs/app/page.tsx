@@ -1,0 +1,5 @@
+import Link from "next/link";
+import routes from "../generated/routes.json";
+import tables from "../generated/tables.json";
+const guides = ["getting-started","pagination","errors","rate-limiting","idempotency","realtime","auth","data-model-overview","changelog"];
+export default function Home() { return <main className="shell"><h1>API & Data Model</h1><p className="muted">Internal reference derived from API, validator, DTO, schema, and migration source. Verify entries marked needs confirmation before relying on them for client generation.</p><div className="card-grid"><Link className="card" href="/api-reference"><strong>API Reference</strong><span>{routes.total} endpoints</span></Link><Link className="card" href="/data-model"><strong>Data Model</strong><span>{tables.total} tables</span></Link></div><h2>Guides</h2><div className="card-grid">{guides.map(slug => <Link className="card" href={`/guides/${slug}`} key={slug}><strong>{slug.split("-").map(word => word[0].toUpperCase()+word.slice(1)).join(" ")}</strong></Link>)}</div></main>; }

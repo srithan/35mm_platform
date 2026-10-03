@@ -1,0 +1,3709 @@
+{
+  "total": 201,
+  "moduleCounts": {
+    "health": 1,
+    "poster-proxy": 1,
+    "suggestions": 1,
+    "auth": 2,
+    "catalog": 69,
+    "chat": 17,
+    "contributions": 2,
+    "email": 2,
+    "feed": 27,
+    "films": 4,
+    "follows": 5,
+    "lists": 19,
+    "media": 3,
+    "moderation": 8,
+    "notifications": 4,
+    "onboarding": 4,
+    "profiles": 7,
+    "search": 1,
+    "settings": 7,
+    "users": 6,
+    "videos": 10,
+    "webhooks": 1
+  },
+  "routes": [
+    {
+      "module": "health",
+      "method": "GET",
+      "path": "/health",
+      "source": "routes/health.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "poster-proxy",
+      "method": "GET",
+      "path": "/poster-proxy",
+      "source": "routes/poster-proxy.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "suggestions",
+      "method": "GET",
+      "path": "/v1/suggestions/users",
+      "source": "routes/suggestions.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "profiles",
+        "users"
+      ],
+      "issues": []
+    },
+    {
+      "module": "auth",
+      "method": "GET",
+      "path": "/v1/usernames/{username}/available",
+      "source": "modules/auth/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "usernameSchema",
+          "in": "path"
+        }
+      ],
+      "tables": [
+        "profiles"
+      ],
+      "issues": []
+    },
+    {
+      "module": "auth",
+      "method": "GET",
+      "path": "/v1/me",
+      "source": "modules/auth/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogTitleSearchQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/by-slug/{slug}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/credits",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogCreditsQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/media",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogMediaQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/external-ids",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/aliases",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogReadPageQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/relations",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogReadPageQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/awards",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogReadPageQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogPeopleSearchQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/people/resolve",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:person-resolve"
+      },
+      "validators": [
+        {
+          "name": "catalogPersonSourceSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/by-slug/{slug}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/{id}/credits",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogCreditsQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/{id}/media",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogMediaQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/{id}/external-ids",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/{id}/aliases",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogReadPageQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/companies",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogCompanySearchQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/companies/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/companies/{id}/titles",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogCompanyTitlesQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/companies/{id}/external-ids",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/titles",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/people",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/credits",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/media",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/external-ids",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/aliases",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/title-relations",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/title-companies",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/title-genres",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/companies",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/awards",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/award-events",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/award-nominations",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/titles/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/people/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/credits/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/media/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/external-ids/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/aliases/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/title-relations/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/title-companies/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/title-genres/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/companies/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/awards/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/award-events/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "PATCH",
+      "path": "/v1/catalog/award-nominations/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/titles/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/people/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/credits/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/media/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/external-ids/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/aliases/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/title-relations/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/title-companies/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/title-genres/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/companies/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/awards/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/award-events/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "DELETE",
+      "path": "/v1/catalog/award-nominations/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "catalog:write"
+      },
+      "validators": [],
+      "tables": [
+        "catalog_edits"
+      ],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/merge",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review"
+      ]
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/edits",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogEditQueueQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/edits/{id}",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/edits/{id}/approve",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogWorkflowPayloadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/edits/{id}/reject",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogWorkflowPayloadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "POST",
+      "path": "/v1/catalog/edits/{id}/revert",
+      "source": "modules/catalog/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogWorkflowPayloadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/titles/{id}/history",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogHistoryQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/people/{id}/history",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogHistoryQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "catalog",
+      "method": "GET",
+      "path": "/v1/catalog/companies/{id}/history",
+      "source": "modules/catalog/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "catalogHistoryQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "GET",
+      "path": "/v1/chat/inbox",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "inboxCursorSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "chat_member_state",
+        "chat_participants",
+        "chat_thread_meta",
+        "chat_threads"
+      ],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "POST",
+      "path": "/v1/chat/threads",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "createChatThreadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "chat_member_state",
+        "chat_participants",
+        "chat_thread_meta",
+        "chat_threads",
+        "user_blocks",
+        "users"
+      ],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "GET",
+      "path": "/v1/chat/threads/{threadId}/messages",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "messageCursorSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "POST",
+      "path": "/v1/chat/threads/{threadId}/messages",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "sendMessageSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "chat_member_state",
+        "chat_thread_meta"
+      ],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "PATCH",
+      "path": "/v1/chat/messages/{messageId}",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "editMessageSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "DELETE",
+      "path": "/v1/chat/messages/{messageId}",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "POST",
+      "path": "/v1/chat/messages/{messageId}/reactions",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "messageReactionSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "DELETE",
+      "path": "/v1/chat/messages/{messageId}/reactions/{emoji}",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "PATCH",
+      "path": "/v1/chat/threads/{threadId}/read",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "chat_member_state"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review"
+      ]
+    },
+    {
+      "module": "chat",
+      "method": "GET",
+      "path": "/v1/chat/threads/{threadId}/read-receipts",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "chat_member_state",
+        "chat_participants",
+        "profiles"
+      ],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "PATCH",
+      "path": "/v1/chat/threads/{threadId}/archive",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review"
+      ]
+    },
+    {
+      "module": "chat",
+      "method": "PATCH",
+      "path": "/v1/chat/threads/{threadId}/mute",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review"
+      ]
+    },
+    {
+      "module": "chat",
+      "method": "DELETE",
+      "path": "/v1/chat/threads/{threadId}",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "POST",
+      "path": "/v1/chat/threads/{threadId}/typing",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "typingIndicatorSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "GET",
+      "path": "/v1/chat/threads/{threadId}/typing",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "POST",
+      "path": "/v1/chat/presence/ping",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "chat",
+      "method": "POST",
+      "path": "/v1/chat/presence/batch",
+      "source": "modules/chat/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "chatPresenceBatchSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "user_settings",
+        "users"
+      ],
+      "issues": []
+    },
+    {
+      "module": "contributions",
+      "method": "POST",
+      "path": "/v1/contributions/submissions",
+      "source": "modules/contributions/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "contributions:submit"
+      },
+      "validators": [
+        {
+          "name": "contributionSubmissionSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "contribution_submissions"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "contributions",
+      "method": "GET",
+      "path": "/v1/contributions/submissions",
+      "source": "modules/contributions/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "contribution_submissions"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "email",
+      "method": "GET",
+      "path": "/v1/email/unsubscribe",
+      "source": "modules/email/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "email",
+      "method": "POST",
+      "path": "/v1/email/unsubscribe",
+      "source": "modules/email/routes.ts",
+      "auth": "none",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "email:unsubscribe"
+      },
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed",
+      "source": "modules/feed/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "feed_items",
+        "films",
+        "post_bookmarks",
+        "post_likes",
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "feed:create"
+      },
+      "validators": [],
+      "tables": [
+        "feed_fanout_outbox",
+        "feed_items",
+        "films",
+        "poll_options",
+        "post_polls",
+        "posts",
+        "profiles",
+        "video_assets"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/posts/{postId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/posts/{postId}/quotes",
+      "source": "modules/feed/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "films",
+        "post_bookmarks",
+        "post_likes",
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/films/{filmId}/reviews",
+      "source": "modules/feed/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "films",
+        "post_bookmarks",
+        "post_likes",
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/profiles/{username}/posts",
+      "source": "modules/feed/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "films",
+        "follows",
+        "post_bookmarks",
+        "post_likes",
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/bookmarks",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        },
+        {
+          "name": "bookmarkFolderAssignSchema",
+          "in": "unknown"
+        }
+      ],
+      "tables": [
+        "bookmark_folders",
+        "films",
+        "post_bookmarks",
+        "post_likes",
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification",
+        "validator location needs manual verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/posts/{postId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "posts",
+        "profiles"
+      ],
+      "issues": []
+    },
+    {
+      "module": "feed",
+      "method": "PATCH",
+      "path": "/v1/feed/posts/{postId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "films",
+        "post_edits",
+        "post_polls",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/posts/{postId}/poll/votes",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "poll_options",
+        "poll_votes",
+        "post_polls",
+        "posts"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/posts/{postId}/likes",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "notifications",
+        "post_likes",
+        "posts"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/posts/{postId}/likes",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "notifications",
+        "post_likes",
+        "posts"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/posts/{postId}/reposts",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "feed_fanout_outbox",
+        "feed_items",
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": []
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/posts/{postId}/reposts",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "post_reposts",
+        "posts",
+        "profiles"
+      ],
+      "issues": []
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/bookmarks/folders",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "bookmark_folders",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/bookmarks/folders",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "bookmarkFolderNameSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "bookmark_folders"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "PATCH",
+      "path": "/v1/feed/bookmarks/folders/{folderId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "bookmarkFolderNameSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "bookmark_folders"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/bookmarks/folders/{folderId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "bookmark_folders",
+        "post_bookmarks",
+        "profiles"
+      ],
+      "issues": []
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/posts/{postId}/bookmarks",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "bookmarkPostSchema",
+          "in": "unknown"
+        }
+      ],
+      "tables": [
+        "bookmark_folders",
+        "post_bookmarks",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification",
+        "validator location needs manual verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "PATCH",
+      "path": "/v1/feed/posts/{postId}/bookmarks",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "bookmarkFolderAssignSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "bookmark_folders",
+        "post_bookmarks",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/posts/{postId}/bookmarks",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "bookmark_folders",
+        "post_bookmarks",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/posts/{postId}/comments/{commentId}/likes",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "comment_likes",
+        "comments"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/posts/{postId}/comments/{commentId}/likes",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "comment_likes",
+        "comments",
+        "notifications"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "GET",
+      "path": "/v1/feed/posts/{postId}/comments",
+      "source": "modules/feed/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "comment_likes",
+        "comments",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "POST",
+      "path": "/v1/feed/posts/{postId}/comments",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "comments",
+        "posts",
+        "profiles"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "PATCH",
+      "path": "/v1/feed/posts/{postId}/comments/{commentId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "comments",
+        "profiles"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "feed",
+      "method": "DELETE",
+      "path": "/v1/feed/posts/{postId}/comments/{commentId}",
+      "source": "modules/feed/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "comments",
+        "posts"
+      ],
+      "issues": []
+    },
+    {
+      "module": "films",
+      "method": "GET",
+      "path": "/v1/films",
+      "source": "modules/films/routes.ts",
+      "auth": "none",
+      "rateLimit": {
+        "limit": 240,
+        "windowSeconds": 60,
+        "keyPrefix": "films:read"
+      },
+      "validators": [
+        {
+          "name": "filmCatalogQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "films"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "films",
+      "method": "POST",
+      "path": "/v1/films/resolve",
+      "source": "modules/films/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "films:resolve"
+      },
+      "validators": [
+        {
+          "name": "resolveOnboardingTmdbFilmSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "films",
+      "method": "GET",
+      "path": "/v1/films/tmdb/{tmdbId}",
+      "source": "modules/films/routes.ts",
+      "auth": "none",
+      "rateLimit": {
+        "limit": 240,
+        "windowSeconds": 60,
+        "keyPrefix": "films:read"
+      },
+      "validators": [],
+      "tables": [
+        "films"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "films",
+      "method": "GET",
+      "path": "/v1/films/{id}",
+      "source": "modules/films/routes.ts",
+      "auth": "none",
+      "rateLimit": {
+        "limit": 240,
+        "windowSeconds": 60,
+        "keyPrefix": "films:read"
+      },
+      "validators": [],
+      "tables": [
+        "films"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "follows",
+      "method": "POST",
+      "path": "/v1/follows/{userId}",
+      "source": "modules/follows/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "follows:write"
+      },
+      "validators": [],
+      "tables": [
+        "feed_items",
+        "follows",
+        "posts"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "follows",
+      "method": "DELETE",
+      "path": "/v1/follows/{userId}",
+      "source": "modules/follows/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "follows:write"
+      },
+      "validators": [],
+      "tables": [
+        "feed_items",
+        "follows",
+        "posts"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "follows",
+      "method": "POST",
+      "path": "/v1/follows/{userId}/accept",
+      "source": "modules/follows/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "follows:write"
+      },
+      "validators": [],
+      "tables": [
+        "follows"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "follows",
+      "method": "GET",
+      "path": "/v1/follows/requests/received",
+      "source": "modules/follows/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "follows",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "follows",
+      "method": "DELETE",
+      "path": "/v1/follows/{userId}/request",
+      "source": "modules/follows/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "follows:write"
+      },
+      "validators": [],
+      "tables": [
+        "follows"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "GET",
+      "path": "/v1/lists",
+      "source": "modules/lists/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        },
+        {
+          "name": "publicFilmListFiltersSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "film_list_likes",
+        "film_lists",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "GET",
+      "path": "/v1/lists/profile/{username}",
+      "source": "modules/lists/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "film_list_likes",
+        "film_lists",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "GET",
+      "path": "/v1/lists/films/{filmId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "film_list_entries",
+        "film_list_likes",
+        "film_lists",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "GET",
+      "path": "/v1/lists/me/watchlist",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "POST",
+      "path": "/v1/lists/films/resolve",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "watchlistFilmSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "GET",
+      "path": "/v1/lists/{listId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "POST",
+      "path": "/v1/lists",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "createFilmListSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_lists"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "PATCH",
+      "path": "/v1/lists/{listId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "updateFilmListSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_lists"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "DELETE",
+      "path": "/v1/lists/{listId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "film_lists"
+      ],
+      "issues": []
+    },
+    {
+      "module": "lists",
+      "method": "POST",
+      "path": "/v1/lists/{listId}/entries",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "filmListEntrySchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_list_entries"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "PATCH",
+      "path": "/v1/lists/{listId}/entries/reorder",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "reorderFilmListEntriesSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_list_entries",
+        "film_lists"
+      ],
+      "issues": []
+    },
+    {
+      "module": "lists",
+      "method": "PATCH",
+      "path": "/v1/lists/{listId}/entries/{entryId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "updateFilmListEntrySchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_list_entries",
+        "film_lists"
+      ],
+      "issues": []
+    },
+    {
+      "module": "lists",
+      "method": "DELETE",
+      "path": "/v1/lists/{listId}/entries/{entryId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "film_list_entries"
+      ],
+      "issues": []
+    },
+    {
+      "module": "lists",
+      "method": "POST",
+      "path": "/v1/lists/{listId}/like",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "film_list_likes"
+      ],
+      "issues": []
+    },
+    {
+      "module": "lists",
+      "method": "DELETE",
+      "path": "/v1/lists/{listId}/like",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "film_list_likes"
+      ],
+      "issues": []
+    },
+    {
+      "module": "lists",
+      "method": "POST",
+      "path": "/v1/lists/{listId}/clone",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cloneFilmListSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_list_entries",
+        "film_lists"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "GET",
+      "path": "/v1/lists/watchlist/films/{filmId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "film_list_entries"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "POST",
+      "path": "/v1/lists/watchlist/films",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "watchlistFilmSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "film_list_entries"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "lists",
+      "method": "DELETE",
+      "path": "/v1/lists/watchlist/films/{filmId}",
+      "source": "modules/lists/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "film_list_entries"
+      ],
+      "issues": []
+    },
+    {
+      "module": "media",
+      "method": "POST",
+      "path": "/v1/media/presign",
+      "source": "modules/media/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "media:presign"
+      },
+      "validators": [],
+      "tables": [
+        "users"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "media",
+      "method": "GET",
+      "path": "/v1/media/resolve-url",
+      "source": "modules/media/routes.ts",
+      "auth": "none",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "media",
+      "method": "GET",
+      "path": "/v1/media/oembed",
+      "source": "modules/media/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "media:link-preview"
+      },
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "POST",
+      "path": "/v1/reports",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "moderation:report"
+      },
+      "validators": [
+        {
+          "name": "createReportSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "GET",
+      "path": "/v1/me/reports",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "moderationReportHistoryQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "GET",
+      "path": "/v1/me/reports/{reportId}",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "moderationReportParamsSchema",
+          "in": "path"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "GET",
+      "path": "/v1/admin/moderation/queue",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "moderationQueueQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "GET",
+      "path": "/v1/admin/moderation/content/{contentType}/{contentId}",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "moderationContentParamsSchema",
+          "in": "path"
+        },
+        {
+          "name": "moderationDetailQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "POST",
+      "path": "/v1/admin/moderation/content/{contentType}/{contentId}/action",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "moderation:admin:mutation"
+      },
+      "validators": [
+        {
+          "name": "moderationContentParamsSchema",
+          "in": "path"
+        },
+        {
+          "name": "moderationActionPayloadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "POST",
+      "path": "/v1/admin/moderation/content/{contentType}/{contentId}/dismiss",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "moderation:admin:mutation"
+      },
+      "validators": [
+        {
+          "name": "moderationContentParamsSchema",
+          "in": "path"
+        },
+        {
+          "name": "moderationDismissPayloadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "moderation",
+      "method": "GET",
+      "path": "/v1/admin/moderation/users/{userId}/strikes",
+      "source": "modules/moderation/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "moderationUserParamsSchema",
+          "in": "path"
+        },
+        {
+          "name": "moderationStrikeHistoryQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "notifications",
+      "method": "GET",
+      "path": "/v1/me/notifications",
+      "source": "modules/notifications/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "notificationQuerySchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "comments",
+        "films",
+        "notifications",
+        "posts",
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "notifications",
+      "method": "PATCH",
+      "path": "/v1/me/notifications/{notificationId}/read",
+      "source": "modules/notifications/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "notifications:write"
+      },
+      "validators": [
+        {
+          "name": "notificationIdSchema",
+          "in": "path"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "notifications",
+      "method": "PATCH",
+      "path": "/v1/me/notifications/{notificationId}/unread",
+      "source": "modules/notifications/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "notifications:write"
+      },
+      "validators": [
+        {
+          "name": "notificationIdSchema",
+          "in": "path"
+        }
+      ],
+      "tables": [],
+      "issues": []
+    },
+    {
+      "module": "notifications",
+      "method": "POST",
+      "path": "/v1/me/notifications/read-all",
+      "source": "modules/notifications/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "notifications:write"
+      },
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "onboarding",
+      "method": "GET",
+      "path": "/v1/me/onboarding-status",
+      "source": "modules/onboarding/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "onboarding",
+      "method": "POST",
+      "path": "/v1/onboarding/films/resolve",
+      "source": "modules/onboarding/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "onboarding:write"
+      },
+      "validators": [
+        {
+          "name": "resolveOnboardingTmdbFilmsSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "films"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "onboarding",
+      "method": "POST",
+      "path": "/v1/me/onboarding",
+      "source": "modules/onboarding/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "onboarding:write"
+      },
+      "validators": [
+        {
+          "name": "onboardingSubmitSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "films",
+        "follows",
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "onboarding",
+      "method": "GET",
+      "path": "/v1/onboarding/suggestions",
+      "source": "modules/onboarding/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "follows",
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "GET",
+      "path": "/v1/profiles/search",
+      "source": "modules/profiles/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "follows",
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "GET",
+      "path": "/v1/profiles/{username}",
+      "source": "modules/profiles/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "follows",
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "GET",
+      "path": "/v1/profiles/{username}/stats",
+      "source": "modules/profiles/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "catalog_titles",
+        "films",
+        "posts",
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "PATCH",
+      "path": "/v1/profiles/me",
+      "source": "modules/profiles/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "profiles:write"
+      },
+      "validators": [
+        {
+          "name": "updateProfileSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "profile_follow_approval_outbox",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "GET",
+      "path": "/v1/profiles/{username}/followers",
+      "source": "modules/profiles/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "follows",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "GET",
+      "path": "/v1/profiles/{username}/following",
+      "source": "modules/profiles/routes.ts",
+      "auth": "optional",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "follows",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "profiles",
+      "method": "GET",
+      "path": "/v1/profiles/{username}/follow-requests",
+      "source": "modules/profiles/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "follows",
+        "profiles"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "search",
+      "method": "GET",
+      "path": "/v1/search",
+      "source": "modules/search/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "search:site"
+      },
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "GET",
+      "path": "/v1/me/settings",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "PATCH",
+      "path": "/v1/me/settings/privacy",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "settings:write"
+      },
+      "validators": [],
+      "tables": [
+        "profiles",
+        "user_settings"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "PATCH",
+      "path": "/v1/me/settings/notifications",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "settings:write"
+      },
+      "validators": [],
+      "tables": [
+        "user_settings",
+        "users"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "PATCH",
+      "path": "/v1/me/settings/profile",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "settings:write"
+      },
+      "validators": [
+        {
+          "name": "usernameSchema",
+          "in": "unknown"
+        }
+      ],
+      "tables": [
+        "profiles",
+        "users"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification",
+        "validator location needs manual verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "PATCH",
+      "path": "/v1/me/settings/appearance",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "settings:write"
+      },
+      "validators": [],
+      "tables": [
+        "user_settings"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "PATCH",
+      "path": "/v1/me/settings/media",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "settings:write"
+      },
+      "validators": [],
+      "tables": [
+        "user_settings"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "settings",
+      "method": "PATCH",
+      "path": "/v1/me/settings/streaming-services",
+      "source": "modules/settings/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 30,
+        "windowSeconds": 60,
+        "keyPrefix": "settings:write"
+      },
+      "validators": [],
+      "tables": [
+        "user_settings"
+      ],
+      "issues": [
+        "body parsed without shared Zod validator; manual shape review",
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "users",
+      "method": "POST",
+      "path": "/v1/users/{userId}/block",
+      "source": "modules/users/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "users:moderation"
+      },
+      "validators": [],
+      "tables": [
+        "follows",
+        "user_blocks",
+        "user_mutes"
+      ],
+      "issues": []
+    },
+    {
+      "module": "users",
+      "method": "DELETE",
+      "path": "/v1/users/{userId}/block",
+      "source": "modules/users/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "users:moderation"
+      },
+      "validators": [],
+      "tables": [
+        "user_blocks"
+      ],
+      "issues": []
+    },
+    {
+      "module": "users",
+      "method": "POST",
+      "path": "/v1/users/{userId}/mute",
+      "source": "modules/users/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "users:moderation"
+      },
+      "validators": [],
+      "tables": [
+        "user_mutes"
+      ],
+      "issues": []
+    },
+    {
+      "module": "users",
+      "method": "DELETE",
+      "path": "/v1/users/{userId}/mute",
+      "source": "modules/users/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 60,
+        "windowSeconds": 60,
+        "keyPrefix": "users:moderation"
+      },
+      "validators": [],
+      "tables": [
+        "user_mutes"
+      ],
+      "issues": []
+    },
+    {
+      "module": "users",
+      "method": "GET",
+      "path": "/v1/me/blocks",
+      "source": "modules/users/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "profiles",
+        "user_blocks"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "users",
+      "method": "GET",
+      "path": "/v1/me/mutes",
+      "source": "modules/users/routes.ts",
+      "auth": "bearer",
+      "rateLimit": null,
+      "validators": [
+        {
+          "name": "cursorPaginationSchema",
+          "in": "query"
+        }
+      ],
+      "tables": [
+        "profiles",
+        "user_mutes"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "POST",
+      "path": "/v1/videos/uploads",
+      "source": "modules/videos/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "video:write"
+      },
+      "validators": [
+        {
+          "name": "videoUploadSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "video_assets"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "POST",
+      "path": "/v1/videos/{id}/complete",
+      "source": "modules/videos/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "video:write"
+      },
+      "validators": [],
+      "tables": [
+        "video_assets"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "GET",
+      "path": "/v1/videos/{id}/status",
+      "source": "modules/videos/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "video:read"
+      },
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "POST",
+      "path": "/v1/videos/{id}/refresh",
+      "source": "modules/videos/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 12,
+        "windowSeconds": 60,
+        "keyPrefix": "video:refresh"
+      },
+      "validators": [],
+      "tables": [],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "POST",
+      "path": "/v1/videos/webhook/{libraryId}",
+      "source": "modules/videos/routes.ts",
+      "auth": "bunny-signature",
+      "rateLimit": {
+        "limit": 10000,
+        "windowSeconds": 60,
+        "keyPrefix": "video:webhook"
+      },
+      "validators": [
+        {
+          "name": "videoWebhookSchema",
+          "in": "unknown"
+        }
+      ],
+      "tables": [
+        "video_assets"
+      ],
+      "issues": [
+        "validator location needs manual verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "GET",
+      "path": "/v1/videos/films",
+      "source": "modules/videos/routes.ts",
+      "auth": "optional",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "video:read"
+      },
+      "validators": [],
+      "tables": [
+        "films",
+        "profiles",
+        "video_assets"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "GET",
+      "path": "/v1/videos/films/{filmId}",
+      "source": "modules/videos/routes.ts",
+      "auth": "optional",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "video:read"
+      },
+      "validators": [],
+      "tables": [
+        "profiles",
+        "video_assets"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "POST",
+      "path": "/v1/videos/{id}/publish",
+      "source": "modules/videos/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "video:write"
+      },
+      "validators": [
+        {
+          "name": "publishFilmSchema",
+          "in": "body"
+        }
+      ],
+      "tables": [
+        "films",
+        "users",
+        "video_assets"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "videos",
+      "method": "DELETE",
+      "path": "/v1/videos/{id}",
+      "source": "modules/videos/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 20,
+        "windowSeconds": 60,
+        "keyPrefix": "video:write"
+      },
+      "validators": [],
+      "tables": [
+        "video_assets"
+      ],
+      "issues": []
+    },
+    {
+      "module": "videos",
+      "method": "GET",
+      "path": "/v1/videos/{id}/playback",
+      "source": "modules/videos/routes.ts",
+      "auth": "optional",
+      "rateLimit": {
+        "limit": 120,
+        "windowSeconds": 60,
+        "keyPrefix": "video:read"
+      },
+      "validators": [],
+      "tables": [
+        "follows",
+        "posts",
+        "profiles",
+        "video_assets"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "webhooks",
+      "method": "POST",
+      "path": "/v1/webhooks/clerk",
+      "source": "modules/webhooks/routes.ts",
+      "auth": "svix",
+      "rateLimit": null,
+      "validators": [],
+      "tables": [
+        "profiles",
+        "user_settings",
+        "users"
+      ],
+      "issues": [
+        "Clerk event-specific request variants are external and need confirmation"
+      ]
+    }
+  ],
+  "unresolved": [
+    "GET /v1/me: response serializer or expression needs manual schema verification",
+    "POST /v1/catalog/people/resolve: response serializer or expression needs manual schema verification",
+    "POST /v1/catalog/merge: body parsed without shared Zod validator; manual shape review",
+    "PATCH /v1/chat/threads/{threadId}/read: body parsed without shared Zod validator; manual shape review",
+    "PATCH /v1/chat/threads/{threadId}/archive: body parsed without shared Zod validator; manual shape review",
+    "PATCH /v1/chat/threads/{threadId}/mute: body parsed without shared Zod validator; manual shape review",
+    "POST /v1/contributions/submissions: response serializer or expression needs manual schema verification",
+    "GET /v1/contributions/submissions: response serializer or expression needs manual schema verification",
+    "GET /v1/email/unsubscribe: response serializer or expression needs manual schema verification",
+    "POST /v1/email/unsubscribe: response serializer or expression needs manual schema verification",
+    "GET /v1/feed: response serializer or expression needs manual schema verification",
+    "POST /v1/feed: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "GET /v1/feed/posts/{postId}: response serializer or expression needs manual schema verification",
+    "GET /v1/feed/posts/{postId}/quotes: response serializer or expression needs manual schema verification",
+    "GET /v1/feed/films/{filmId}/reviews: response serializer or expression needs manual schema verification",
+    "GET /v1/feed/profiles/{username}/posts: response serializer or expression needs manual schema verification",
+    "GET /v1/feed/bookmarks: response serializer or expression needs manual schema verification; validator location needs manual verification",
+    "PATCH /v1/feed/posts/{postId}: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "POST /v1/feed/posts/{postId}/poll/votes: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "POST /v1/feed/posts/{postId}/likes: response serializer or expression needs manual schema verification",
+    "DELETE /v1/feed/posts/{postId}/likes: response serializer or expression needs manual schema verification",
+    "GET /v1/feed/bookmarks/folders: response serializer or expression needs manual schema verification",
+    "POST /v1/feed/bookmarks/folders: response serializer or expression needs manual schema verification",
+    "PATCH /v1/feed/bookmarks/folders/{folderId}: response serializer or expression needs manual schema verification",
+    "POST /v1/feed/posts/{postId}/bookmarks: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification; validator location needs manual verification",
+    "PATCH /v1/feed/posts/{postId}/bookmarks: response serializer or expression needs manual schema verification",
+    "DELETE /v1/feed/posts/{postId}/bookmarks: response serializer or expression needs manual schema verification",
+    "POST /v1/feed/posts/{postId}/comments/{commentId}/likes: response serializer or expression needs manual schema verification",
+    "DELETE /v1/feed/posts/{postId}/comments/{commentId}/likes: response serializer or expression needs manual schema verification",
+    "GET /v1/feed/posts/{postId}/comments: response serializer or expression needs manual schema verification",
+    "POST /v1/feed/posts/{postId}/comments: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "PATCH /v1/feed/posts/{postId}/comments/{commentId}: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "GET /v1/films: response serializer or expression needs manual schema verification",
+    "POST /v1/films/resolve: response serializer or expression needs manual schema verification",
+    "GET /v1/films/tmdb/{tmdbId}: response serializer or expression needs manual schema verification",
+    "GET /v1/films/{id}: response serializer or expression needs manual schema verification",
+    "POST /v1/follows/{userId}: response serializer or expression needs manual schema verification",
+    "DELETE /v1/follows/{userId}: response serializer or expression needs manual schema verification",
+    "POST /v1/follows/{userId}/accept: response serializer or expression needs manual schema verification",
+    "GET /v1/follows/requests/received: response serializer or expression needs manual schema verification",
+    "DELETE /v1/follows/{userId}/request: response serializer or expression needs manual schema verification",
+    "GET /v1/lists: response serializer or expression needs manual schema verification",
+    "GET /v1/lists/profile/{username}: response serializer or expression needs manual schema verification",
+    "GET /v1/lists/films/{filmId}: response serializer or expression needs manual schema verification",
+    "GET /v1/lists/me/watchlist: response serializer or expression needs manual schema verification",
+    "POST /v1/lists/films/resolve: response serializer or expression needs manual schema verification",
+    "GET /v1/lists/{listId}: response serializer or expression needs manual schema verification",
+    "POST /v1/lists: response serializer or expression needs manual schema verification",
+    "PATCH /v1/lists/{listId}: response serializer or expression needs manual schema verification",
+    "POST /v1/lists/{listId}/entries: response serializer or expression needs manual schema verification",
+    "POST /v1/lists/{listId}/clone: response serializer or expression needs manual schema verification",
+    "GET /v1/lists/watchlist/films/{filmId}: response serializer or expression needs manual schema verification",
+    "POST /v1/lists/watchlist/films: response serializer or expression needs manual schema verification",
+    "POST /v1/media/presign: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "GET /v1/media/resolve-url: response serializer or expression needs manual schema verification",
+    "GET /v1/media/oembed: response serializer or expression needs manual schema verification",
+    "POST /v1/reports: response serializer or expression needs manual schema verification",
+    "GET /v1/me/reports: response serializer or expression needs manual schema verification",
+    "GET /v1/me/reports/{reportId}: response serializer or expression needs manual schema verification",
+    "GET /v1/admin/moderation/queue: response serializer or expression needs manual schema verification",
+    "GET /v1/admin/moderation/content/{contentType}/{contentId}: response serializer or expression needs manual schema verification",
+    "POST /v1/admin/moderation/content/{contentType}/{contentId}/action: response serializer or expression needs manual schema verification",
+    "POST /v1/admin/moderation/content/{contentType}/{contentId}/dismiss: response serializer or expression needs manual schema verification",
+    "GET /v1/admin/moderation/users/{userId}/strikes: response serializer or expression needs manual schema verification",
+    "GET /v1/me/notifications: response serializer or expression needs manual schema verification",
+    "POST /v1/me/notifications/read-all: response serializer or expression needs manual schema verification",
+    "GET /v1/me/onboarding-status: response serializer or expression needs manual schema verification",
+    "POST /v1/onboarding/films/resolve: response serializer or expression needs manual schema verification",
+    "POST /v1/me/onboarding: response serializer or expression needs manual schema verification",
+    "GET /v1/onboarding/suggestions: response serializer or expression needs manual schema verification",
+    "GET /v1/profiles/search: response serializer or expression needs manual schema verification",
+    "GET /v1/profiles/{username}: response serializer or expression needs manual schema verification",
+    "GET /v1/profiles/{username}/stats: response serializer or expression needs manual schema verification",
+    "PATCH /v1/profiles/me: response serializer or expression needs manual schema verification",
+    "GET /v1/profiles/{username}/followers: response serializer or expression needs manual schema verification",
+    "GET /v1/profiles/{username}/following: response serializer or expression needs manual schema verification",
+    "GET /v1/profiles/{username}/follow-requests: response serializer or expression needs manual schema verification",
+    "GET /v1/search: response serializer or expression needs manual schema verification",
+    "GET /v1/me/settings: response serializer or expression needs manual schema verification",
+    "PATCH /v1/me/settings/privacy: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "PATCH /v1/me/settings/notifications: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "PATCH /v1/me/settings/profile: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification; validator location needs manual verification",
+    "PATCH /v1/me/settings/appearance: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "PATCH /v1/me/settings/media: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "PATCH /v1/me/settings/streaming-services: body parsed without shared Zod validator; manual shape review; response serializer or expression needs manual schema verification",
+    "GET /v1/me/blocks: response serializer or expression needs manual schema verification",
+    "GET /v1/me/mutes: response serializer or expression needs manual schema verification",
+    "POST /v1/videos/uploads: response serializer or expression needs manual schema verification",
+    "POST /v1/videos/{id}/complete: response serializer or expression needs manual schema verification",
+    "GET /v1/videos/{id}/status: response serializer or expression needs manual schema verification",
+    "POST /v1/videos/{id}/refresh: response serializer or expression needs manual schema verification",
+    "POST /v1/videos/webhook/{libraryId}: validator location needs manual verification",
+    "GET /v1/videos/films: response serializer or expression needs manual schema verification",
+    "GET /v1/videos/films/{filmId}: response serializer or expression needs manual schema verification",
+    "POST /v1/videos/{id}/publish: response serializer or expression needs manual schema verification",
+    "GET /v1/videos/{id}/playback: response serializer or expression needs manual schema verification",
+    "POST /v1/webhooks/clerk: Clerk event-specific request variants are external and need confirmation"
+  ],
+  "schemaProblems": []
+}

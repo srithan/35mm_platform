@@ -1,0 +1,5 @@
+# Idempotency
+
+Catalog staging requires `Idempotency-Key` header or body `idempotencyKey`; source enforces one before validation. Other routes have their own retry behavior. Do not add this header to every write unless operation contract says so.
+
+Generate a unique key per logical mutation. Keep same key on network retries; use new key for a new action. A repeated accepted catalog request may return `200` with `outcome: "existing"` rather than initial `201`. Server stores deduplication state; exact retention differs by module.

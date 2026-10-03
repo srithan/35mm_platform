@@ -1,0 +1,14 @@
+# Realtime & Ably
+
+Clients subscribe to channels authorized for current user/thread. Source publishers:
+
+| Channel | Event | Payload |
+| --- | --- | --- |
+| `thread:{threadId}` | `message.new` | `ChatMessage` DTO |
+| `thread:{threadId}` | `message.edited`, `message.deleted`, `message.reaction` | `ChatMessage` DTO |
+| `thread:{threadId}` | `typing.update` | `userId`, `username`, `avatarUrl`, `isTyping` |
+| `thread:{threadId}` | `message.read` | `userId`, `username`, `lastReadMessageId`, `readAt` |
+| `user:{userId}:inbox` | `thread.updated` | `threadId`, `lastMessageAt`, `lastMessagePreview`, `senderId`, `unreadCount` in direct publisher; worker publisher may differ |
+| `user:{userId}:notifications` | `notification.new` | `notificationId`, `actorIds`, `actorProfiles` (`userId`, `username`, `displayName`, `avatarUrl`), `bundleCount`, `type`, `entityId`, `entityType`, `metadata` |
+
+`apps/api/src/modules/chat/realtime.ts` skips publishing when `ABLY_API_KEY` is empty and returns false. Worker publishers also check their configured Ably key. REST data remains source of truth; reconnect by refetching affected inbox, messages, or notifications.

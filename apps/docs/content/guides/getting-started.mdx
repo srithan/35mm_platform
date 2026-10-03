@@ -1,0 +1,9 @@
+# Getting Started
+
+35mm API is Hono REST. Use environment base URL selected in API Reference toolbar. Local API defaults to `http://localhost:4000` from `apps/api/src/lib/env.ts` unless `PORT` overrides it; verify your running `pnpm dev:api` output. Production and staging URLs are deployment configuration, not committed here.
+
+Most routes live below `/v1`. `/health` and `/poster-proxy` are exceptions. JSON errors use `{ "code": "...", "message": "..." }`. Paginated endpoints commonly return `{ "items": [], "nextCursor": null, "hasMore": false }`; check each operation because some modules use other envelopes.
+
+Use `Authorization: Bearer <Clerk session token>` on endpoints marked Bearer in API Reference. Clerk webhooks instead require Svix signature headers. Try it requests run in your browser against selected API URL; target API must allow docs origin through CORS.
+
+Reference generated from route and Drizzle source. Entries marked **needs confirmation** lack full serializer or error review. See `apps/docs/DIVERGENCES.md` before generating clients.

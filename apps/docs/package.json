@@ -1,0 +1,42 @@
+{
+  "name": "@35mm/docs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node --import tsx scripts/generate.ts",
+    "dev": "pnpm generate && next dev -p 3002",
+    "build": "pnpm generate && next build",
+    "start": "next start -p 3002",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "validate:spec": "node -e \"import('@apidevtools/swagger-parser').then(async ({default:Parser})=>{await Parser.validate('openapi/spec.yaml'); console.log('OpenAPI 3.1 valid')}).catch(error=>{console.error(error); process.exit(1)})\""
+  },
+  "dependencies": {
+    "@35mm/db": "workspace:*",
+    "@35mm/validators": "workspace:*",
+    "@mdx-js/react": "^3.1.1",
+    "@next/mdx": "^15.5.18",
+    "@scalar/api-reference-react": "^0.9.74",
+    "@scalar/nextjs-api-reference": "^0.12.0",
+    "drizzle-orm": "^0.45.2",
+    "next": "^15.5.18",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "yaml": "2.9.0",
+    "zod": "^4.3.6",
+    "zod-openapi": "^6.0.2"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
+    "@mdx-js/loader": "^3.1.1",
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.3.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  }
+}

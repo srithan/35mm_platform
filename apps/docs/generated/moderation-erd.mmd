@@ -1,0 +1,56 @@
+erDiagram
+  moderation_actions {
+    text id PK
+    text report_id
+    moderation_content_type content_type
+    text content_id
+    moderation_actor_type actor_type
+    uuid actor_user_id
+    uuid subject_user_id
+    text idempotency_key
+    moderation_action action
+    text reason
+    text notes
+    jsonb metadata
+    timestamp_with_time_zone created_at
+  }
+  moderation_content_state {
+    moderation_content_type content_type
+    text content_id
+    moderation_content_status status
+    integer report_count
+    timestamp_with_time_zone last_reported_at
+    timestamp_with_time_zone hidden_at
+    timestamp_with_time_zone removed_at
+    timestamp_with_time_zone updated_at
+  }
+  moderation_notification_outbox {
+    text id PK
+    text action_id
+    moderation_report_status resolution
+    text status
+    integer attempt_count
+    timestamp_with_time_zone available_at
+    timestamp_with_time_zone locked_at
+    timestamp_with_time_zone processed_at
+    text last_error
+    text report_cursor
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  reports {
+    text id PK
+    uuid reporter_user_id
+    moderation_content_type content_type
+    text content_id
+    moderation_report_reason reason
+    text details
+    jsonb content_snapshot
+    moderation_report_status status
+    text resolved_action_id
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  reports ||--o{ moderation_actions : "report_id"
+  moderation_actions ||--o{ moderation_notification_outbox : "action_id"
+  moderation_actions ||--o{ reports : "resolved_action_id"

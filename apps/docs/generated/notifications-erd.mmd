@@ -1,0 +1,15 @@
+erDiagram
+  notifications {
+    uuid id PK
+    uuid recipient_id
+    uuid actor_id
+    text__ actor_ids
+    notification_type type
+    text entity_id
+    text entity_type
+    jsonb metadata
+    text source_key
+    boolean is_read
+    integer bundle_count
+    timestamp_with_time_zone created_at
+  }

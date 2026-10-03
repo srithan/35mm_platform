@@ -1,0 +1,196 @@
+erDiagram
+  bookmark_folders {
+    uuid id PK
+    uuid user_id
+    text name
+    integer item_count
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  feed_fanout_outbox {
+    uuid id PK
+    uuid post_id
+    uuid author_user_id
+    text status
+    integer attempts
+    timestamp_with_time_zone locked_at
+    timestamp_with_time_zone next_attempt_at
+    text last_error
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  feed_items {
+    uuid id PK
+    uuid user_id
+    uuid post_id
+    double_precision score
+    timestamp_with_time_zone score_refreshed_at
+    timestamp_with_time_zone created_at
+  }
+  film_list_entries {
+    text id PK
+    text list_id
+    text film_id
+    integer position
+    text note
+    timestamp_with_time_zone added_at
+  }
+  film_list_likes {
+    text list_id
+    uuid user_id
+    timestamp_with_time_zone created_at
+  }
+  film_lists {
+    text id PK
+    uuid user_id
+    film_list_type type
+    text title
+    text description
+    film_list_visibility visibility
+    boolean is_ranked
+    text__ tags
+    text share_slug
+    integer like_count
+    integer comment_count
+    integer entry_count
+    text cloned_from_list_id
+    boolean is_deleted
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  follow_suggestions {
+    text id PK
+    uuid user_id
+    uuid suggested_user_id
+    real score
+    text signal_type
+    timestamp_with_time_zone computed_at
+  }
+  follows {
+    uuid follower_id
+    uuid following_id
+    follow_status status
+    timestamp_with_time_zone created_at
+  }
+  poll_options {
+    uuid id PK
+    uuid poll_id
+    text label
+    text image_url
+    smallint position
+    integer vote_count
+    timestamp_with_time_zone created_at
+  }
+  poll_votes {
+    uuid id PK
+    uuid post_id
+    uuid poll_id
+    uuid user_id
+    uuid option_id
+    uuid__ ranking_option_ids
+    timestamp_with_time_zone created_at
+  }
+  post_bookmarks {
+    uuid post_id
+    uuid user_id
+    uuid folder_id
+    timestamp_with_time_zone created_at
+  }
+  post_edits {
+    uuid id PK
+    uuid post_id
+    text body
+    text headline
+    post_type type
+    text film_id
+    smallint film_rating
+    date watched_on
+    watch_venue watch_venue
+    boolean is_rewatch
+    post_visibility visibility
+    timestamp_with_time_zone edited_at
+  }
+  post_likes {
+    uuid post_id
+    uuid user_id
+    timestamp_with_time_zone created_at
+  }
+  post_polls {
+    uuid id PK
+    uuid post_id
+    poll_type type
+    poll_results_visibility results_visibility
+    timestamp_with_time_zone ends_at
+    integer total_votes
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  post_reposts {
+    uuid post_id
+    uuid user_id
+    timestamp_with_time_zone created_at
+  }
+  posts {
+    uuid id PK
+    uuid user_id
+    post_type type
+    text headline
+    text body
+    text film_id
+    smallint film_rating
+    date watched_on
+    watch_venue watch_venue
+    boolean is_rewatch
+    uuid creation_key
+    text creation_request_hash
+    post_visibility visibility
+    uuid reply_to_id
+    uuid quoted_post_id
+    boolean is_repost
+    integer like_count
+    integer comment_count
+    integer repost_count
+    integer bookmark_count
+    integer quote_count
+    boolean is_deleted
+    moderation_content_status moderation_status
+    text nsfw_status
+    text__ nsfw_categories
+    text nsfw_source
+    timestamp_with_time_zone nsfw_scanned_at
+    timestamp_with_time_zone edited_at
+    jsonb media
+    text__ media_urls
+    jsonb link_preview
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  profile_follow_approval_outbox {
+    uuid id PK
+    uuid target_user_id
+    text cursor
+    text status
+    integer attempts
+    timestamp_with_time_zone locked_at
+    timestamp_with_time_zone next_attempt_at
+    text last_error
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+  }
+  posts ||--o{ feed_fanout_outbox : "post_id"
+  posts ||--o{ feed_items : "post_id"
+  film_lists ||--o{ film_list_entries : "list_id"
+  film_lists ||--o{ film_list_likes : "list_id"
+  film_lists ||--o{ film_lists : "cloned_from_list_id"
+  post_polls ||--o{ poll_options : "poll_id"
+  posts ||--o{ poll_votes : "post_id"
+  post_polls ||--o{ poll_votes : "poll_id"
+  poll_options ||--o{ poll_votes : "option_id"
+  posts ||--o{ post_bookmarks : "post_id"
+  bookmark_folders ||--o{ post_bookmarks : "folder_id"
+  posts ||--o{ post_edits : "post_id"
+  posts ||--o{ post_likes : "post_id"
+  posts ||--o{ post_polls : "post_id"
+  posts ||--o{ post_reposts : "post_id"
+  posts ||--o{ posts : "reply_to_id"
+  posts ||--o{ posts : "quoted_post_id"
