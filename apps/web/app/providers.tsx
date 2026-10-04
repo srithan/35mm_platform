@@ -24,6 +24,14 @@ import { queryPersister, removePersistedQueryCache } from "@/lib/queryPersister"
 import { ROUTES } from "@/lib/constants/routes";
 
 const QUERY_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
+const FLOATING_INBOX_HIDDEN_ROUTES = new Set<string>([
+  ROUTES.ABOUT,
+  ROUTES.CAREERS,
+  ROUTES.HELP,
+  ROUTES.PRIVACY,
+  ROUTES.TERMS,
+  ROUTES.WAITLIST,
+]);
 const PERSISTED_QUERY_ROOTS = new Set([
   "35mm",
   "profiles",
@@ -95,7 +103,7 @@ function ChatProviderShell({
   onActiveChatIdChange: (chatId: string | null) => void;
 }) {
   const pathname = usePathname();
-  const showFloatingInbox = pathname !== ROUTES.WAITLIST;
+  const showFloatingInbox = !FLOATING_INBOX_HIDDEN_ROUTES.has(pathname);
 
   return (
     <ChatSidebarProvider>

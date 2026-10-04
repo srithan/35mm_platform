@@ -28,8 +28,11 @@ export const ROUTES = {
   FESTIVALS_PROJECTS: "/festivals/projects",
   FESTIVALS_SUBMISSIONS: "/festivals/submissions",
   SUGGESTIONS_PEOPLE: "/suggestions/people",
+  ABOUT: "/about",
   CAREERS: "/careers",
   HELP: "/help",
+  PRIVACY: "/privacy",
+  TERMS: "/terms",
   WAITLIST: "/waitlist",
   /** Public title URL. Catalog-owned slugs disambiguate duplicate names. */
   TITLE: (media: "movie" | "tv", titleOrSlug: string) =>
