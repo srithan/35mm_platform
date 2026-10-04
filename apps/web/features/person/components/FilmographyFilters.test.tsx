@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildFilmographyFilterDestination,
@@ -42,6 +43,35 @@ describe("FilmographyFilters", function () {
       screen.getByRole("button", { name: "Sort filmography" }),
     ).toHaveTextContent("Sort: Newest first");
     expect(container.querySelector("select")).toBeNull();
+  });
+
+  it("sizes short dropdowns to content and scrolls long ones within viewport space", async function () {
+    const user = userEvent.setup();
+
+    render(
+      <FilmographyFilters
+        personSlug="Gal Gadot"
+        department="actor"
+        departments={[
+          { slug: "actor", label: "Acting", count: 55 },
+          { slug: "producer", label: "Production", count: 21 },
+        ]}
+        filters={{ media: "all", decade: "all", genre: "all", sort: "newest" }}
+        decades={["2020", "2010"]}
+        genres={[{ id: 18, name: "Drama" }]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Role" }));
+
+    expect(screen.getByRole("menu", { name: "Role" })).toHaveClass(
+      "max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))]",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+    expect(screen.getByRole("menu", { name: "Role" })).not.toHaveClass(
+      "h-[min(18rem,var(--radix-dropdown-menu-content-available-height))]",
+    );
   });
 
   it("keeps filters on role changes and canonicalizes query filters", function () {

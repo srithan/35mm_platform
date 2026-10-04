@@ -25,6 +25,7 @@ export interface PublicProfile {
   isPrivate: boolean;
   hasIncomingFollowRequest?: boolean;
   hasPendingRequestToViewer?: boolean;
+  messageThreadId?: string | null;
   isMutedByViewer?: boolean;
   isDeactivated: boolean;
   moderationStatus?: "visible" | "hidden" | "removed";

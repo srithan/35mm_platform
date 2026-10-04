@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   Flag,
-  Loader2,
   MessageCircle,
   MoreVertical,
   UserPlus,
@@ -40,7 +39,6 @@ interface ProfileHeaderProps {
   isOwnProfile?: boolean;
   isMutedByViewer?: boolean;
   onMessageClick?: () => void;
-  isMessageActionPending?: boolean;
   location?: string;
   website?: string;
   dateOfBirth?: string | null;
@@ -89,7 +87,6 @@ export function ProfileHeader({
   onCoverUrlChange,
   initialEditTarget = null,
   onMessageClick,
-  isMessageActionPending = false,
   singleColumnDesktop = false,
 }: ProfileHeaderProps) {
   const { getToken, isLoaded } = useAuth();
@@ -150,9 +147,6 @@ export function ProfileHeader({
     },
   });
   const hasIncomingFollowRequestAction = Boolean(hasIncomingFollowRequest);
-  const followAction = followToggleMutation.variables;
-  const isPendingUnfollow = followAction?.followState === "following";
-  const isCancelFollowRequest = followAction?.followState === "requested";
   const isRespondingToIncomingFollowRequest =
     acceptFollowRequestMutation.isPending || declineFollowRequestMutation.isPending;
 
@@ -221,25 +215,17 @@ export function ProfileHeader({
     },
   };
 
-  const followButtonLabel = followToggleMutation.isPending
-    ? isPendingUnfollow
-      ? "Unfollowing..."
-      : isCancelFollowRequest
-        ? "Canceling request..."
-        : isPrivate
-          ? "Requesting..."
-          : "Following..."
-    : confirmCancelRequest
-      ? "Cancel request?"
-      : followState === "following"
-        ? "Following"
-        : followState === "requested"
-          ? "Requested"
-          : followState === "self"
-            ? "Edit Profile"
-            : isPrivate
-              ? "Request"
-              : "Follow";
+  const followButtonLabel = confirmCancelRequest
+    ? "Cancel request?"
+    : followState === "following"
+      ? "Following"
+      : followState === "requested"
+        ? "Requested"
+        : followState === "self"
+          ? "Edit Profile"
+          : isPrivate
+            ? "Request"
+            : "Follow";
 
   const followButtonVariant =
     confirmCancelRequest ? "danger" :
@@ -284,17 +270,12 @@ export function ProfileHeader({
       <Button
         variant="outline"
         size="sm"
-        aria-label={
-          isMessageActionPending
-            ? "Opening message with " + profileData.displayName
-            : "Message " + profileData.displayName
-        }
+        aria-label={"Message " + profileData.displayName}
         className={
           isMobile
             ? "h-11 w-full border-border-strong bg-bg px-4 text-[14px] font-bold text-fg shadow-none hover:bg-hover"
             : "h-9 border-border-strong bg-elevated px-4 text-[13px] font-bold text-fg shadow-[0_1px_0_rgb(15_23_42/4%)] hover:border-fg-muted hover:bg-hover"
         }
-        disabled={Boolean(isMessageActionPending)}
         onClick={function () {
           requireAuth(
             function () {
@@ -304,12 +285,8 @@ export function ProfileHeader({
           );
         }}
       >
-        {isMessageActionPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
-        ) : (
-          <MessageCircle className="h-4 w-4" strokeWidth={2} />
-        )}
-        <span>{isMessageActionPending ? "Opening" : "Message"}</span>
+        <MessageCircle className="h-4 w-4" strokeWidth={2} />
+        <span>Message</span>
       </Button>
     );
   }
@@ -332,53 +309,55 @@ export function ProfileHeader({
     );
   }
 
-  function renderIncomingRequestActions(isMobile: boolean) {
+  function renderIncomingRequestNotice() {
     return (
-      <>
-        <span
-          className={
-            isMobile
-              ? "col-span-2 text-[12px] font-medium text-fg-muted"
-              : "inline-flex items-center text-[12px] font-medium text-fg-muted"
-          }
-        >
-          Wants to follow you
+      <div
+        className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-sunken px-3 py-2"
+        aria-label={`Follow request from ${profileData.displayName}`}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-2 text-[13px] font-medium text-fg-muted">
+          <UserPlus className="h-4 w-4 shrink-0 text-fg-faint" strokeWidth={1.8} />
+          <span className="truncate">Wants to follow you</span>
         </span>
-        <Button
-          variant={isMobile ? "outline" : "ghost"}
-          size="sm"
-          className={isMobile ? "h-11 w-full text-[14px] font-bold" : undefined}
-          disabled={isRespondingToIncomingFollowRequest || !isLoaded}
-          onClick={() => {
-            if (!isLoaded || isRespondingToIncomingFollowRequest) return;
-            requireAuth(
-              function () {
-                declineFollowRequestMutation.mutate();
-              },
-              { message: "Log in to respond to follow requests." }
-            );
-          }}
-        >
-          {declineFollowRequestMutation.isPending ? "Declining..." : "Decline"}
-        </Button>
-        <Button
-          variant="primary"
-          size="sm"
-          className={isMobile ? "h-11 w-full text-[14px] font-bold" : undefined}
-          disabled={isRespondingToIncomingFollowRequest || !isLoaded}
-          onClick={() => {
-            if (!isLoaded || isRespondingToIncomingFollowRequest) return;
-            requireAuth(
-              function () {
-                acceptFollowRequestMutation.mutate();
-              },
-              { message: "Log in to respond to follow requests." }
-            );
-          }}
-        >
-          {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
-        </Button>
-      </>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2.5 text-[12.5px] font-semibold"
+            aria-label="Decline follow request"
+            disabled={isRespondingToIncomingFollowRequest || !isLoaded}
+            onClick={() => {
+              if (!isLoaded || isRespondingToIncomingFollowRequest) return;
+              requireAuth(
+                function () {
+                  declineFollowRequestMutation.mutate();
+                },
+                { message: "Log in to respond to follow requests." }
+              );
+            }}
+          >
+            {declineFollowRequestMutation.isPending ? "Declining..." : "Decline"}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            className="h-8 px-3 text-[12.5px] font-semibold"
+            aria-label="Accept follow request"
+            disabled={isRespondingToIncomingFollowRequest || !isLoaded}
+            onClick={() => {
+              if (!isLoaded || isRespondingToIncomingFollowRequest) return;
+              requireAuth(
+                function () {
+                  acceptFollowRequestMutation.mutate();
+                },
+                { message: "Log in to respond to follow requests." }
+              );
+            }}
+          >
+            {acceptFollowRequestMutation.isPending ? "Accepting..." : "Accept"}
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -465,11 +444,7 @@ export function ProfileHeader({
   ) : (
     <>
       {renderMessageButton(false)}
-      {hasIncomingFollowRequestAction
-        ? renderIncomingRequestActions(false)
-        : showFollowButton
-          ? renderFollowButton(false)
-          : null}
+      {showFollowButton ? renderFollowButton(false) : null}
       {renderProfileActionsMenu(false)}
     </>
   );
@@ -557,6 +532,15 @@ export function ProfileHeader({
               followingCount={followingCount}
               showInlineStats
             />
+            {hasIncomingFollowRequestAction ? (
+              <div className="mt-5">{renderIncomingRequestNotice()}</div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!singleColumnDesktop && hasIncomingFollowRequestAction ? (
+          <div className="hidden pb-4 pt-4 md:block">
+            {renderIncomingRequestNotice()}
           </div>
         ) : null}
 
@@ -599,11 +583,6 @@ export function ProfileHeader({
               >
                 Edit profile
               </Button>
-            ) : hasIncomingFollowRequestAction ? (
-              <>
-                <div className="col-span-2">{renderMessageButton(true)}</div>
-                {renderIncomingRequestActions(true)}
-              </>
             ) : (
               <>
                 <div className={showFollowButton ? undefined : "col-span-2"}>
@@ -613,6 +592,10 @@ export function ProfileHeader({
               </>
             )}
           </div>
+
+          {hasIncomingFollowRequestAction ? (
+            <div className="mt-4">{renderIncomingRequestNotice()}</div>
+          ) : null}
         </div>
       </div>
 

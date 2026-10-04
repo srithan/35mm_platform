@@ -1,5 +1,5 @@
 # Data Model Overview
 
-Tables come from all `packages/db/src/schema/*.ts` exports. Column defaults, checks, indexes, partial index WHERE clauses, and key actions are cross-checked against latest Drizzle snapshot `0067_snapshot.json`; table creation is checked against SQL migrations. This is repository state, not proof every deployed database applied every migration.
+Tables come from all `packages/db/src/schema/*.ts` exports. Column defaults, checks, indexes, partial index WHERE clauses, and key actions are cross-checked against latest Drizzle snapshot `0068_snapshot.json`; table creation is checked against SQL migrations. This is repository state, not proof every deployed database applied every migration.
 
 ERDs are grouped by catalog, social, chat, moderation, notifications, and remaining identity/media tables. Full ERD includes every table. Lines represent declared foreign keys only; application-level relations without FK are not drawn. Each table page links to route handlers that directly reference it; service-layer access can add more endpoints.

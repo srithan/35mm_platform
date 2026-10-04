@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BrandLogo } from "@/components/Logo";
+import { GlobalSearchBar } from "@/components/SearchBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog/ConfirmDialog";
 import { ProfileMenu } from "@/components/layout/SiteHeader/components/ProfileMenu/ProfileMenu";
 import { useSiteHeaderDropdowns } from "@/components/layout/SiteHeader/hooks/useSiteHeaderDropdowns";
@@ -116,6 +117,8 @@ export function FocusedNavigationSidebar() {
           className={styles.brand}
           markClassName={styles.brandMark}
         />
+
+        <GlobalSearchBar className={styles.search} />
 
         <nav
           className={cn(

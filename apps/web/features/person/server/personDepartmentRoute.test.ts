@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PersonIdentityResolutionError } from "@/lib/tmdb/personIdentity";
 import { renderPersonDepartmentPage } from "./personDepartmentRoute";
 
 const mocks = vi.hoisted(function () {
@@ -24,6 +25,7 @@ vi.mock("@/features/person/components/PersonPageContent", function () {
 describe("renderPersonDepartmentPage", function () {
   beforeEach(function () {
     vi.clearAllMocks();
+    vi.spyOn(console, "warn").mockImplementation(function () {});
   });
 
   it("redirects a legacy numeric URL to the clean role/name URL", async function () {
@@ -63,5 +65,53 @@ describe("renderPersonDepartmentPage", function () {
       routeDepartment: "writer",
       filterQuery: {},
     });
+  });
+
+  it("renders a numeric profile when canonical identity resolution is transiently unavailable", async function () {
+    mocks.getIdentity.mockRejectedValue(
+      new PersonIdentityResolutionError(
+        "Person catalog resolution failed: 503",
+        503,
+      ),
+    );
+
+    await renderPersonDepartmentPage(
+      {
+        params: Promise.resolve({ slug: "60208" }),
+        searchParams: Promise.resolve({ media: "movie" }),
+      },
+      "writer",
+    );
+
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.personPage).toHaveBeenCalledWith({
+      id: "60208",
+      routeDepartment: "writer",
+      filterQuery: { media: "movie" },
+    });
+    expect(console.warn).toHaveBeenCalledWith(
+      "[person-route] canonical redirect skipped",
+      expect.objectContaining({
+        personId: "60208",
+        department: "writer",
+        error: "Person catalog resolution failed: 503",
+      }),
+    );
+  });
+
+  it("preserves hard failures from canonical identity resolution", async function () {
+    mocks.getIdentity.mockRejectedValue(new Error("identity corruption"));
+
+    await expect(
+      renderPersonDepartmentPage(
+        {
+          params: Promise.resolve({ slug: "60208" }),
+          searchParams: Promise.resolve({}),
+        },
+        "writer",
+      ),
+    ).rejects.toThrow("identity corruption");
+
+    expect(mocks.personPage).not.toHaveBeenCalled();
   });
 });

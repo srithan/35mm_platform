@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, PenLine } from "lucide-react";
+import { useEffect } from "react";
 import { useTitleReviews } from "../hooks/useTitleReviews";
 import { TitleReviewCard } from "./TitleReviewCard";
 
@@ -11,7 +12,9 @@ export function TitleReviewsSection(props: {
   onRetryReference: () => void;
   isTv: boolean;
   onWriteReview: () => void;
+  onEmptyReviews?: () => void;
   reviewPending?: boolean;
+  hasReviewed?: boolean;
 }) {
   const reviews = useTitleReviews(props.filmId);
   const items = reviews.data?.pages.flatMap((page) => page.posts) ?? [];
@@ -23,6 +26,12 @@ export function TitleReviewsSection(props: {
     (props.referenceLoading || (Boolean(props.filmId) && reviews.isPending));
   const failed = props.referenceError || reviews.isError;
   const hasReviews = uniqueItems.length > 0;
+
+  useEffect(() => {
+    if (loading || failed || hasReviews) return;
+    props.onEmptyReviews?.();
+  }, [failed, hasReviews, loading, props.onEmptyReviews]);
+
   return (
     <section aria-label="Title reviews">
       {hasReviews ? (
@@ -44,8 +53,7 @@ export function TitleReviewsSection(props: {
                 className="mt-5 inline-flex min-h-10 shrink-0 items-center gap-2 text-sm font-semibold text-fg underline decoration-fg/25 underline-offset-4 hover:decoration-fg focus-visible:outline focus-visible:outline-2 disabled:opacity-50"
               >
                 <PenLine size={15} aria-hidden />
-                <span className="hidden sm:inline">Your review</span>
-                <span className="sm:hidden">Write</span>
+                <span>{props.hasReviewed ? "Review again" : "Write review"}</span>
               </button>
             ) : null}
           </div>
@@ -106,7 +114,7 @@ export function TitleReviewsSection(props: {
             onClick={props.onWriteReview}
             className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border-strong px-5 text-sm font-medium text-fg hover:bg-sunken disabled:opacity-50"
           >
-            Write review
+            {props.hasReviewed ? "Review again" : "Write review"}
           </button>
         </div>
       ) : null}

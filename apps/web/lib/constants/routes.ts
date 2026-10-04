@@ -12,6 +12,8 @@ export const ROUTES = {
   CHAT: "/chat",
   CHAT_WITH: (chatId: string) =>
     `/chat/${encodeURIComponent(chatId.toLowerCase())}`,
+  CHAT_NEW_WITH: (username: string) =>
+    `/chat/new/${encodeURIComponent(username.replace(/^@/, "").toLowerCase())}`,
   DISCOVER: "/discover",
   FILMS: "/films",
   LISTS: "/lists",

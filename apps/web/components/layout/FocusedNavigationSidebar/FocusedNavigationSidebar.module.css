@@ -52,6 +52,20 @@
   height: 1.75rem;
 }
 
+.search {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.search form > div {
+  border-color: var(--border);
+  background: var(--sunken);
+}
+
+.search form > div:focus-within {
+  border-color: var(--border-strong);
+}
+
 .nav {
   display: flex;
   flex: 1 1 auto;

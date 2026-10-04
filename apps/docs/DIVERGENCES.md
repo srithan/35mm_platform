@@ -11,7 +11,7 @@ Generated reference reads API route declarations, Zod validators, shared DTOs, D
 
 ## Migration/schema cross-check
 
-- All 58 exported Drizzle tables have SQL `CREATE TABLE` migrations. All 68 SQL files appear in Drizzle journal. Latest `0067_snapshot.json` matches current Drizzle column names, types, and nullability in automated comparison. This checks repository state, not deployed database migration state.
+- All 58 exported Drizzle tables have SQL `CREATE TABLE` migrations. All 69 SQL files appear in Drizzle journal. Latest `0068_snapshot.json` matches current Drizzle column names, types, and nullability in automated comparison. This checks repository state, not deployed database migration state.
 - Table pages show index keys and partial WHERE from latest snapshot. The one-line usage descriptions are derived from key order/uniqueness; application query plan and write cost still need review.
 
 ## Needs confirmation: API contracts

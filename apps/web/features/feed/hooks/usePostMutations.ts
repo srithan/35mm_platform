@@ -20,6 +20,8 @@ import { feedKeys } from "./queryKeys";
 import { bookmarkKeys } from "@/features/bookmarks/hooks/queryKeys";
 import { authKeys } from "@/features/auth/hooks/queryKeys";
 import { profileKeys } from "@/features/profile/hooks/queryKeys";
+import { listKeys } from "@/features/lists/hooks/queryKeys";
+import { titleKeys } from "@/features/title/hooks/queryKeys";
 import { showGlobalFlashToast } from "@/components/FlashToast";
 import { applyOptimisticPollVote } from "../utils/pollUtils";
 
@@ -390,6 +392,10 @@ export function useCreatePost() {
         (created.type === "log" || created.type === "review")
       ) {
         invalidateProfileFilmCounts(queryClient);
+        queryClient.invalidateQueries({
+          queryKey: titleKeys.viewerStates(created.film.id),
+        });
+        queryClient.invalidateQueries({ queryKey: listKeys.all });
       }
     },
   });

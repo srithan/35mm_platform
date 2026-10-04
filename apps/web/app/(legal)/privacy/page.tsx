@@ -18,7 +18,10 @@ export default function PrivacyPage() {
   return (
     <LegalPage>
       <LegalTitle>Privacy Policy</LegalTitle>
-      <LegalMeta>Last updated: 1 March 2025</LegalMeta>
+      <LegalMeta>
+        <span>Effective Date: 1 March 2025</span>
+        <span>Last Updated: 1 March 2025</span>
+      </LegalMeta>
 
       <LegalSection>
         <LegalHeading>1. Information we collect</LegalHeading>

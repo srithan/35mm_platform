@@ -1,0 +1,1 @@
+CREATE INDEX "posts_user_film_diary_idx" ON "posts" USING btree ("user_id","film_id","type") WHERE "posts"."type" in ('log', 'review') and "posts"."is_repost" = false and "posts"."is_deleted" = false;

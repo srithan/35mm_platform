@@ -514,7 +514,9 @@ export function useCreateConversation() {
 export function useSendMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: function (args: { chatId: string } & ChatSendPayload) {
+    mutationFn: function (
+      args: { chatId: string; idempotencyKey?: string } & ChatSendPayload
+    ) {
       const chatId = args.chatId;
       const payload: ChatSendPayload = {
         text: args.text,
@@ -523,10 +525,11 @@ export function useSendMessage() {
         imageDataUrl: args.imageDataUrl,
         file: args.file,
       };
-      const key =
+      const key = args.idempotencyKey ?? (
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
-          : "idemp-" + String(Date.now());
+          : "idemp-" + String(Date.now())
+      );
       return client().sendMessage(chatId, payload, { idempotencyKey: key });
     },
     onMutate: function (args) {

@@ -29,7 +29,6 @@ import { syncSiteHeaderStickyOffset } from "@/lib/utils/syncSiteHeaderStickyOffs
 import { isPersonRolePath } from "@/lib/routing/personRoles";
 import { HomeSuggestionsSidebar } from "@/features/feed/components/HomeSuggestionsSidebar";
 import { HomeProfileCompletionSidebar } from "@/features/profile/components/HomeProfileCompletionSidebar";
-import { useIsDesktopLg } from "@/lib/hooks/useIsDesktopLg";
 import { ShellLayoutContext } from "@/components/layout/ShellLayoutContext";
 
 /** Inlined — imported helpers can go stale in Turbopack client bundles. */
@@ -121,16 +120,17 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     useBrowseRailDensity &&
     (isBrowseDirectoryPage || isTitlePage || isPersonPage);
   const isListDetailPage = Boolean(pathname?.startsWith("/list/"));
-  const isPostDetailPage = Boolean(pathname?.match(/^\/[^/]+\/post\/[^/]+\/?$/));
+  const isPostDetailPage = Boolean(
+    pathname?.match(/^\/[^/]+\/post\/[^/]+(?:\/quotes)?\/?$/),
+  );
   const isNotificationsPage = pathname === "/notifications";
+  const isBookmarksPage = pathname === ROUTES.BOOKMARKS;
   const isChatDetailPage = Boolean(pathname?.startsWith("/chat/"));
   const isNewPostPage = pathname === ROUTES.NEW_POST;
   const isHomePage = pathname === "/";
   const profileShellUsername =
     pathname != null ? getProfileShellUsername(pathname) : null;
   const isProfileUsernamePage = profileShellUsername != null;
-  const isDesktopLg = useIsDesktopLg();
-
   const isWideMainContent =
     isBrowseDirectoryPage ||
     isListDetailPage ||
@@ -218,7 +218,10 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     (isBrowseDirectoryPage || isTitlePage || isPersonPage);
   /** Main canvas starts after fixed rail; narrow focused pages need half-rail offset to center in viewport. */
   const useFocusedViewportCenteredLayout =
-    useFocusedNavigation && (isPostDetailPage || isNotificationsPage);
+    useFocusedNavigation &&
+    (isPostDetailPage ||
+      isNotificationsPage ||
+      (useBrowseRailDensity && isBookmarksPage));
   const useBrowseRailDirectoryLayout =
     useBrowseRailChrome &&
     !useFocusedSingleColumnLayout &&

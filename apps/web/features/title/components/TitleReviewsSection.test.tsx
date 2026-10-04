@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TitleReviewsSection } from "./TitleReviewsSection";
@@ -20,6 +20,11 @@ describe("title reviews", () => {
     await userEvent.click(screen.getByRole("button", { name: "Write review" }));
     expect(props.onWriteReview).toHaveBeenCalledOnce();
   });
+  it("reports a resolved empty review result so the title page can default to About", async () => {
+    const onEmptyReviews = vi.fn();
+    render(<TitleReviewsSection {...props} onEmptyReviews={onEmptyReviews} />);
+    await waitFor(() => expect(onEmptyReviews).toHaveBeenCalledOnce());
+  });
   it("distinguishes errors from an empty community and retries", async () => {
     mocks.query.mockReturnValue({ isPending: false, isError: true, refetch: mocks.retry });
     render(<TitleReviewsSection {...props} />);
@@ -36,10 +41,19 @@ describe("title reviews", () => {
     await userEvent.click(screen.getByRole("button", { name: "More reviews" }));
     expect(mocks.next).toHaveBeenCalledOnce();
   });
-  it("does not show a false empty state for unsupported TV titles", () => {
-    render(<TitleReviewsSection {...props} isTv filmId={null} />);
+  it("reports unsupported TV reviews as empty without showing a false empty state", async () => {
+    const onEmptyReviews = vi.fn();
+    render(
+      <TitleReviewsSection
+        {...props}
+        isTv
+        filmId={null}
+        onEmptyReviews={onEmptyReviews}
+      />,
+    );
     expect(screen.getByRole("status")).toHaveTextContent("TV titles aren’t available");
     expect(screen.queryByRole("button", { name: "Write a review" })).not.toBeInTheDocument();
+    await waitFor(() => expect(onEmptyReviews).toHaveBeenCalledOnce());
   });
   it("supports keyboard selection of title sections", async () => {
     const selectTab = vi.fn();

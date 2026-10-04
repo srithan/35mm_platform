@@ -79,6 +79,8 @@ export interface PublicProfile {
   onboardingCompleted: boolean;
   onboardingCompletedAt: string | null;
   isDeactivated: boolean;
+  /** Viewer-specific existing visible DM thread, when authenticated. */
+  messageThreadId?: string | null;
   moderationStatus?: ModerationContentStatus;
   createdAt: string;
 }
@@ -404,6 +406,13 @@ export interface WatchlistStatus {
   isInWatchlist: boolean;
   watchlistId: string;
   entryId: string | null;
+}
+
+export interface FilmViewerState {
+  filmId: string;
+  isWatched: boolean;
+  isInWatchlist: boolean;
+  hasReviewed: boolean;
 }
 
 export type CatalogEditStatus =

@@ -353,6 +353,25 @@ describe("ShellGrid mobile sidebar", () => {
     );
   });
 
+  it("centers quotes in full desktop viewport with browse rail and focused navigation", () => {
+    flags.browseRailEnabled = true;
+    flags.focusedNavigationEnabled = true;
+    mocks.pathname = "/maya/post/post-1/quotes";
+
+    render(
+      <ShellGrid>
+        <div>Quotes page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByRole("main")).toHaveClass(
+      "md:max-w-[var(--shell-main-max-width,640px)]",
+      "md:mx-auto",
+      "min-[1136px]:relative",
+      "min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]"
+    );
+  });
+
   it("centers notifications in full desktop viewport with focused navigation", () => {
     flags.focusedNavigationEnabled = true;
     mocks.pathname = "/notifications";
@@ -360,6 +379,25 @@ describe("ShellGrid mobile sidebar", () => {
     render(
       <ShellGrid>
         <div>Notifications page</div>
+      </ShellGrid>
+    );
+
+    expect(screen.getByRole("main")).toHaveClass(
+      "md:max-w-[var(--shell-main-max-width,640px)]",
+      "md:mx-auto",
+      "min-[1136px]:relative",
+      "min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]"
+    );
+  });
+
+  it("centers bookmarks in full desktop viewport when browse rail and focused navigation are enabled", () => {
+    flags.browseRailEnabled = true;
+    flags.focusedNavigationEnabled = true;
+    mocks.pathname = "/bookmarks";
+
+    render(
+      <ShellGrid>
+        <div>Bookmarks page</div>
       </ShellGrid>
     );
 

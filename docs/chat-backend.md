@@ -1,6 +1,6 @@
 # Chat Backend Implementation
 
-Last updated: 2026-07-05
+Last updated: 2026-10-04
 
 This document explains the chat backend implemented in this thread. It is intentionally backend-only: API routes, storage, queues, worker jobs, realtime events, environment, migrations, operational checks, and known follow-up work. Frontend details appear only where they affect backend contracts.
 
@@ -23,6 +23,7 @@ Frontend cache behavior that affects backend traffic:
 - Infinite/older-history pages are not persisted; older pages still come from `GET /v1/chat/threads/:threadId/messages`.
 - The persisted query cache is cleared on sign-out or user switch.
 - Chat URLs render lowercase thread IDs for aesthetics, but the frontend normalizes route params back to canonical uppercase thread IDs before API calls.
+- Profile detail responses include nullable `messageThreadId` from the existing indexed DM pair plus viewer member-state lookup. Profile Message opens that route directly when present; otherwise `/chat/new/:username` renders a local draft immediately and does not call `POST /v1/chat/threads` until the first message is submitted. The first send keeps one idempotency key across retries, then replaces the draft URL with the canonical thread URL.
 
 ## Why Hybrid Storage
 

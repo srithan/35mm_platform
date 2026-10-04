@@ -12,6 +12,7 @@ import {
   readTitleActionState,
   writeTitleActionState,
 } from "../lib/titleActionStorage";
+import { useTitleViewerState } from "../hooks/useTitleReviews";
 
 const btnIcon = "h-[18px] w-[18px] shrink-0";
 const btnBase =
@@ -31,6 +32,8 @@ type TitleActionButtonsProps = {
   media: TitleMedia;
   tmdbId: string;
   imdbId: string | null | undefined;
+  filmId: string | null;
+  filmReferenceLoading: boolean;
   onWriteReview: () => void;
   reviewPending?: boolean;
 };
@@ -41,7 +44,17 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
   const [watchlistFilmId, setWatchlistFilmId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const watchlistMutation = useWatchlistMutation();
-  const { requireAuth } = useAuthPrompt();
+  const viewerState = useTitleViewerState(props.filmId);
+  const { requireAuth, isSignedIn } = useAuthPrompt();
+
+  const persist = useCallback(
+    function (w: boolean, l: boolean) {
+      setWatched(w);
+      setOnWatchlist(l);
+      writeTitleActionState(props.media, props.tmdbId, { watched: w, watchlist: l });
+    },
+    [props.media, props.tmdbId]
+  );
 
   useEffect(
     function () {
@@ -53,34 +66,34 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
     [props.media, props.tmdbId]
   );
 
-  const persist = useCallback(
-    function (w: boolean, l: boolean) {
-      setWatched(w);
-      setOnWatchlist(l);
-      writeTitleActionState(props.media, props.tmdbId, { watched: w, watchlist: l });
-    },
-    [props.media, props.tmdbId]
-  );
+  useEffect(
+    function () {
+      if (!viewerState.data) return;
+      const localState = readTitleActionState(props.media, props.tmdbId);
+      const nextWatched = viewerState.data.isWatched || localState.watched;
+      setWatchlistFilmId(viewerState.data.filmId);
+      persist(nextWatched, nextWatched ? false : viewerState.data.isInWatchlist);
+    }, [persist, props.media, props.tmdbId, viewerState.data]);
 
   const onToggleWatched = useCallback(
     function () {
       requireAuth(
         function () {
-          if (!hydrated) return;
+          if (!hydrated || props.filmReferenceLoading || (isSignedIn && viewerState.isPending)) return;
           const nextW = !watched;
           persist(nextW, nextW ? false : onWatchlist);
         },
         { message: "Log in to keep track of the films you've watched." }
       );
     },
-    [requireAuth, hydrated, watched, onWatchlist, persist]
+    [requireAuth, hydrated, props.filmReferenceLoading, isSignedIn, viewerState.isPending, watched, onWatchlist, persist]
   );
 
   const onToggleWatchlist = useCallback(
     function () {
       requireAuth(
         function () {
-          if (!hydrated || watched) return;
+          if (!hydrated || props.filmReferenceLoading || (isSignedIn && viewerState.isPending) || watched) return;
           if (onWatchlist) {
             watchlistMutation.mutate(
               { filmId: watchlistFilmId ?? undefined, inWatchlist: Boolean(watchlistFilmId) },
@@ -111,10 +124,12 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
         { message: "Log in to build your watchlist." }
       );
     },
-    [requireAuth, hydrated, watched, onWatchlist, watchlistFilmId, watchlistMutation, props.detail, persist]
+    [requireAuth, hydrated, props.filmReferenceLoading, isSignedIn, viewerState.isPending, watched, onWatchlist, watchlistFilmId, watchlistMutation, props.detail, persist]
   );
 
   const isWatchlistPending = watchlistMutation.isPending;
+  const isStatePending = props.filmReferenceLoading || (isSignedIn && viewerState.isPending);
+  const watchedFromDiary = viewerState.data?.isWatched ?? false;
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-2.5">
@@ -122,7 +137,8 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
         type="button"
         onClick={onToggleWatched}
         aria-pressed={watched}
-        disabled={!hydrated}
+        disabled={!hydrated || isStatePending || watchedFromDiary}
+        title={watchedFromDiary ? "Delete your logs and reviews before marking this film unwatched" : undefined}
         className={cn(btnBase, watched ? primary : secondary)}
       >
         <Check className={btnIcon} strokeWidth={2.5} aria-hidden />
@@ -133,8 +149,8 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
         onClick={onToggleWatchlist}
         aria-pressed={onWatchlist}
         aria-busy={isWatchlistPending}
-        disabled={!hydrated || watched || isWatchlistPending}
-        title={watched ? "Remove “Watched” to add this title to your watchlist again" : undefined}
+        disabled={!hydrated || isStatePending || watched || isWatchlistPending}
+        title={watched ? "Watched films cannot be added to your watchlist" : undefined}
         className={cn(
           btnBase,
           onWatchlist && !watched ? primary : secondary,
@@ -161,7 +177,7 @@ export function TitleActionButtons(props: TitleActionButtonsProps) {
       </button>
       <button type="button" onClick={props.onWriteReview} disabled={props.reviewPending || props.media === "tv"} className={cn(btnBase, accent, "disabled:opacity-50")}>
         <PenLine className={btnIcon} strokeWidth={2.25} />
-        <span>{props.reviewPending ? "Opening…" : props.media === "tv" ? "Film reviews only" : "Write review"}</span>
+        <span>{props.reviewPending ? "Opening…" : props.media === "tv" ? "Film reviews only" : viewerState.data?.hasReviewed ? "Review again" : "Write review"}</span>
       </button>
     </div>
   );

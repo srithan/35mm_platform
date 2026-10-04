@@ -189,6 +189,60 @@ describe("profile media route responses", function () {
     expect(body.followingCount).toBe(217);
   });
 
+  it("GET /v1/profiles/:username exposes an existing visible DM thread to its viewer", async function () {
+    var { profileRoutes } = await importRoutesWithDbResponses(
+      [
+        [
+          {
+            userId: "user_2",
+            username: "person",
+            displayName: "Person",
+            bio: null,
+            avatarUrl: null,
+            avatarVariants: null,
+            coverUrl: null,
+            coverVariants: null,
+            location: null,
+            website: null,
+            dateOfBirth: null,
+            role: null,
+            roleContext: null,
+            headline: null,
+            headlineContext: null,
+            isPrivate: false,
+            filmsLoggedCount: 0,
+            followerCount: 0,
+            followingCount: 0,
+            moderationStatus: "visible",
+            status: "active",
+            createdAt: new Date("2026-06-22T00:00:00.000Z"),
+          },
+        ],
+        [{ blockedByViewer: false, blockedByTarget: false, isMutedByViewer: false }],
+        [],
+        [],
+        [{ threadId: "THREAD-1" }],
+        [],
+      ],
+      {
+        clerkUserId: "clerk-viewer",
+        userId: "user_1",
+        username: "viewer",
+        displayName: "Viewer",
+        avatarUrl: null,
+      }
+    );
+    var app = new Hono().route("/v1/profiles", profileRoutes);
+
+    var response = await app.request("/v1/profiles/person", {
+      headers: { Authorization: "Bearer test" },
+    });
+    var body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.messageThreadId).toBe("THREAD-1");
+  });
+
   it("GET /v1/profiles/:username/followers exposes viewer follow state", async function () {
     var { profileRoutes } = await importRoutesWithDbResponses(
       [

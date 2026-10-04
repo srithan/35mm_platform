@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -21,7 +23,7 @@ import { TitlePageHero } from "./TitlePageHero";
 import { TitleErrorState, TitlePageLoadingState } from "./TitlePageStates";
 import { TitleReviewsSection } from "./TitleReviewsSection";
 import { MAIN_SECTION_GAP } from "./titlePageLayoutTokens";
-import { useTitleFilmReference } from "../hooks/useTitleReviews";
+import { useTitleFilmReference, useTitleViewerState } from "../hooks/useTitleReviews";
 import { useComposerModalStore } from "@/stores/useComposerModalStore";
 import { useAuth } from "@clerk/nextjs";
 import { useAuthPrompt } from "@/features/auth/components/AuthPromptProvider";
@@ -44,9 +46,26 @@ export function TitlePageView(props: {
   const [activeVideoKey, setActiveVideoKey] = useState<string | null>(null);
   const [contentTab, setContentTab] = useState<TitleContentTabState>("reviews");
   const filmReference = useTitleFilmReference(media, id);
+  const viewerState = useTitleViewerState(filmReference.data ?? null);
   const { getToken, isSignedIn } = useAuth();
   const { promptLogin } = useAuthPrompt();
   const [openingReview, setOpeningReview] = useState(false);
+  const resolvedInitialTabKey = useRef<string | null>(null);
+  const titleKey = `${media}:${id}`;
+
+  const selectContentTab = useCallback(
+    (tab: TitleContentTabState) => {
+      resolvedInitialTabKey.current = titleKey;
+      setContentTab(tab);
+    },
+    [titleKey],
+  );
+
+  const showAboutForEmptyReviews = useCallback(() => {
+    if (resolvedInitialTabKey.current === titleKey) return;
+    resolvedInitialTabKey.current = titleKey;
+    setContentTab("about");
+  }, [titleKey]);
 
   useLayoutEffect(
     function () {
@@ -59,6 +78,7 @@ export function TitlePageView(props: {
 
   useEffect(() => {
     if (status !== "ok" || window.location.hash !== "#reviews") return;
+    resolvedInitialTabKey.current = titleKey;
     setContentTab("reviews");
     const frame = window.requestAnimationFrame(() => {
       document.getElementById("title-reviews-panel")?.scrollIntoView({
@@ -69,7 +89,7 @@ export function TitlePageView(props: {
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [status, media, id]);
+  }, [status, media, id, titleKey]);
 
   const displayVideos = useMemo(
     function () {
@@ -197,6 +217,8 @@ export function TitlePageView(props: {
             detail={detail}
             media={media}
             titleId={id}
+            filmId={filmReference.data ?? null}
+            filmReferenceLoading={filmReference.isLoading}
             onWriteReview={writeReview}
             reviewPending={openingReview}
             watchProvidersUS={watchProvidersUS}
@@ -217,7 +239,7 @@ export function TitlePageView(props: {
           ) : null}
           <TitleContentTabs
             contentTab={contentTab}
-            onSelectTab={setContentTab}
+            onSelectTab={selectContentTab}
           />
           <div
             id="title-reviews-panel"
@@ -237,7 +259,9 @@ export function TitlePageView(props: {
                 onRetryReference={() => void filmReference.refetch()}
                 isTv={isTv}
                 onWriteReview={writeReview}
+                onEmptyReviews={showAboutForEmptyReviews}
                 reviewPending={openingReview}
+                hasReviewed={viewerState.data?.hasReviewed ?? false}
               />
             ) : null}
           </div>

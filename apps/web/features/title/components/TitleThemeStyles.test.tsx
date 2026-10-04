@@ -1,9 +1,24 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TMDBMovie, TMDBVideo } from "@/lib/tmdb/types";
 import { TitleActionButtons } from "./TitleActionButtons";
 import { TitleOverviewContent } from "./TitleOverviewContent";
 import { TitleReviewStars } from "./TitleReviewStars";
+
+var viewerState: {
+  filmId: string;
+  isWatched: boolean;
+  isInWatchlist: boolean;
+  hasReviewed: boolean;
+} | undefined;
+
+vi.mock("../hooks/useTitleReviews", function () {
+  return {
+    useTitleViewerState: function () {
+      return { data: viewerState };
+    },
+  };
+});
 
 vi.mock("@/features/lists/hooks/useLists", function () {
   return {
@@ -58,6 +73,11 @@ const recommendation: TMDBMovie = {
 };
 
 describe("title page theme styles", function () {
+  beforeEach(function () {
+    viewerState = undefined;
+    window.localStorage.clear();
+  });
+
   it("uses theme background as accent-button foreground", function () {
     render(
       <TitleActionButtons
@@ -65,6 +85,8 @@ describe("title page theme styles", function () {
         media="movie"
         tmdbId="101"
         imdbId={null}
+        filmId={null}
+        filmReferenceLoading={false}
         onWriteReview={vi.fn()}
       />
     );
@@ -72,6 +94,30 @@ describe("title page theme styles", function () {
     const writeReview = screen.getByRole("button", { name: "Write review" });
     expect(writeReview).toHaveClass("bg-accent", "text-bg");
     expect(writeReview).not.toHaveClass("text-white");
+  });
+
+  it("hydrates watched state and offers another review for prior reviewers", async function () {
+    viewerState = {
+      filmId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      isWatched: true,
+      isInWatchlist: false,
+      hasReviewed: true,
+    };
+    render(
+      <TitleActionButtons
+        detail={detail}
+        media="movie"
+        tmdbId="101"
+        imdbId={null}
+        filmId={viewerState.filmId}
+        filmReferenceLoading={false}
+        onWriteReview={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByRole("button", { name: "Watched" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Watchlist" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Review again" })).toBeInTheDocument();
   });
 
   it("marks selected trailer without Tailwind's fallback blue ring", function () {

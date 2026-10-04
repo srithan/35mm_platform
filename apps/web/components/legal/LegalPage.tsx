@@ -1,31 +1,27 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
+import styles from "./LegalPage.module.css";
 
-const linkClassName =
-  "text-social-accent no-underline transition-colors hover:text-social-accent-hover hover:underline";
+const linkClassName = styles.textLink;
 
 export function LegalPage(props: { children: React.ReactNode; className?: string }) {
   return (
-    <article className={cn("px-6 py-12 sm:px-8 sm:py-16", props.className)}>
+    <article className={cn(styles.page, props.className)}>
       {props.children}
     </article>
   );
 }
 
 export function LegalTitle(props: { children: React.ReactNode }) {
-  return (
-    <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.03em] text-fg sm:text-[36px]">
-      {props.children}
-    </h1>
-  );
+  return <h1 className={styles.title}>{props.children}</h1>;
 }
 
 export function LegalMeta(props: { children: React.ReactNode }) {
-  return <p className="mt-3 text-[13px] text-fg-faint">{props.children}</p>;
+  return <p className={styles.meta}>{props.children}</p>;
 }
 
 export function LegalLead(props: { children: React.ReactNode }) {
-  return <p className="mt-6 text-[17px] leading-[1.6] text-fg-muted">{props.children}</p>;
+  return <p className={styles.lead}>{props.children}</p>;
 }
 
 export function LegalSection(props: {
@@ -34,7 +30,7 @@ export function LegalSection(props: {
   className?: string;
 }) {
   return (
-    <section className={cn("mt-10 scroll-mt-24", props.className)} id={props.id}>
+    <section className={cn(styles.section, props.className)} id={props.id}>
       {props.children}
     </section>
   );
@@ -48,10 +44,7 @@ export function LegalHeading(props: {
   const Tag = props.as ?? "h2";
   return (
     <Tag
-      className={cn(
-        "text-[17px] font-semibold tracking-[-0.01em] text-fg",
-        props.className
-      )}
+      className={cn(styles.heading, props.className)}
     >
       {props.children}
     </Tag>
@@ -60,7 +53,7 @@ export function LegalHeading(props: {
 
 export function LegalBody(props: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("mt-2.5 text-[15px] leading-[1.65] text-fg-muted", props.className)}>
+    <div className={cn(styles.body, props.className)}>
       {props.children}
     </div>
   );
@@ -68,7 +61,7 @@ export function LegalBody(props: { children: React.ReactNode; className?: string
 
 export function LegalList(props: { children: React.ReactNode }) {
   return (
-    <ul className="mt-2.5 list-disc space-y-2 pl-5 text-[15px] leading-[1.65] text-fg-muted">
+    <ul className={styles.list}>
       {props.children}
     </ul>
   );
@@ -90,8 +83,8 @@ export function LegalCard(props: {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border bg-elevated p-5",
-        props.interactive && "transition-colors hover:bg-hover",
+        styles.card,
+        props.interactive && styles.cardInteractive,
         props.className
       )}
     >
@@ -101,5 +94,5 @@ export function LegalCard(props: {
 }
 
 export function LegalCardGrid(props: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("mt-6 space-y-3", props.className)}>{props.children}</div>;
+  return <div className={cn(styles.cardGrid, props.className)}>{props.children}</div>;
 }

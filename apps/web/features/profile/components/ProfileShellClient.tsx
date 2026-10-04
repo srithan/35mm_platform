@@ -16,9 +16,6 @@ import { ProfileBody } from "@/features/profile/components/ProfileBody";
 import { useCurrentUserProfile } from "@/features/profile/hooks/useCurrentUserProfile";
 import { useBlockUserMutation, usePublicProfile } from "@/features/profile/hooks/useProfile";
 import { ROUTES } from "@/lib/constants/routes";
-import { showGlobalFlashToast } from "@/components/FlashToast";
-import { getChatErrorMessage } from "@/features/chat/api/errors";
-import { useCreateConversation } from "@/features/chat/hooks/useChatQueries";
 import { isProfileEditTarget } from "@/features/profile/lib/profileEditTargets";
 import { SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED } from "@/lib/config/uiFlags";
 
@@ -29,7 +26,6 @@ export function ProfileShellClient(props: { username: string }) {
   var profileQuery = usePublicProfile(username);
   var { isSignedIn } = useAuth();
   var { promptLogin } = useAuthPrompt();
-  var createConversationMutation = useCreateConversation();
   var router = useRouter();
   var searchParams = useSearchParams();
   var { setProfileRailDisabled } = useShellLayout();
@@ -173,31 +169,10 @@ export function ProfileShellClient(props: { username: string }) {
       promptLogin({ message: "Log in to send a message." });
       return;
     }
-    if (createConversationMutation.isPending) {
-      return;
-    }
-    createConversationMutation.mutate(
-      {
-        type: "dm",
-        memberIds: [resolvedProfile.userId],
-        member: {
-          username: resolvedProfile.username,
-          displayName: resolvedProfile.displayName,
-        },
-      },
-      {
-        onSuccess: function (thread) {
-          var hasExistingMessages = Boolean(thread.lastMessageAt);
-          var search = new URLSearchParams({
-            source: "profile-message",
-            hasExistingMessages: hasExistingMessages ? "1" : "0",
-          });
-          router.push(ROUTES.CHAT_WITH(thread.id) + "?" + search.toString());
-        },
-        onError: function (error) {
-          showGlobalFlashToast(getChatErrorMessage(error), "error");
-        },
-      }
+    router.push(
+      resolvedProfile.messageThreadId
+        ? ROUTES.CHAT_WITH(resolvedProfile.messageThreadId)
+        : ROUTES.CHAT_NEW_WITH(resolvedProfile.username)
     );
   };
 
@@ -237,7 +212,6 @@ export function ProfileShellClient(props: { username: string }) {
           headline={resolvedProfile.headline ?? null}
           headlineContext={resolvedProfile.headlineContext ?? null}
           onMessageClick={handleMessageClick}
-          isMessageActionPending={createConversationMutation.isPending}
           followerCount={resolvedProfile.followerCount}
           followingCount={resolvedProfile.followingCount}
 	          filmsLoggedCount={resolvedProfile.filmsLoggedCount ?? 0}

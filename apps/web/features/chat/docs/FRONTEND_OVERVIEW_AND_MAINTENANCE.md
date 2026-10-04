@@ -28,6 +28,7 @@ The chat module provides:
 - **Desktop:** split view — conversation list + active thread (`ChatContent`), full thread on `/chat/[chatId]`, plus a global bottom-right floating inbox for signed-in users to read and reply without leaving the current route.
 - **Desktop new message:** **`NewChatProvider`** owns an ephemeral draft state. Clicking **New message** inserts a selected **New Message** row in **`ChatList`** and swaps the thread header for **`NewChatRecipientBar`**. No conversation is persisted until a contact is selected and **`useCreateConversation`** succeeds.
 - **Mobile:** list + tabs (**All / Requests / Archived**) on `/chat`, and thread view with **`ChatMobileHeader`** + **`ChatConversation`** on `/chat/[chatId]`.
+- **Profile message:** an existing DM opens `/chat/[chatId]` directly from the profile response's `messageThreadId`. A first-time DM opens `/chat/new/[username]` immediately; **`ProfileMessageDraft`** keeps composition local and creates the thread only when the first message is sent.
 - **Behaviors:** send text, replies, reactions, GIFs (GIPHY), lightweight file/image payloads in mock, archive/unarchive, delete message (own), delete conversation, in-thread search, jump-to-quoted message, read receipts (mock), message-request row (**`isPendingRequest`**).
 
 **Default data source:** in-memory **mock** (`features/chat/mock/chatStore.ts`) with seeded threads (`seedChatThreads.ts`). **Production path:** swap to **remote** API via env (see **`BACKEND_INTEGRATION.md`**).
@@ -154,6 +155,7 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 | **`ChatHeaderMoreMenu`** | Thread-level menu (portaled, fixed position). |
 | **`ChatMobileHeader`** | Back, profile link, avatar URL, skeleton state, search-in-thread, menu, delete confirm. |
 | **`ChatDetailPage`** | Composes desktop **`ChatContent`** + mobile shell. |
+| **`ProfileMessageDraft`** | Instant profile-to-message draft for a first-time DM. Resolves canonical profile identity from the existing profile query cache/read, creates the pair-deduplicated thread on first send, sends with one retry-stable idempotency key, then replaces the draft URL. |
 | **`ChatSearchInput`** | Shared styled search field (`select-text` where parent is `select-none`). |
 
 ---
@@ -167,10 +169,11 @@ Applied in **`app/providers.tsx`** via **`chatQueryClientDefaults()`**: stale ti
 - List folder (desktop) when not controlled by parent.
 - Composer focus, reply target, thread search open/query, header toasts, dialog open flags.
 - New-message draft: **`NewChatProvider`** keeps `draftOpen` + `recipientQuery`; it is UI-only and intentionally not cached or persisted.
+- Profile-message draft: **`ProfileMessageDraft`** owns the pending first payload/error state at `/chat/new/[username]`; no thread row is created by the navigation click.
 - Floating inbox: local `open` + `selectedId`; selected thread is lifted to **`app/providers.tsx`** so **`ChatRealtimeProvider`** can subscribe to the thread while the user stays off `/chat`.
 - **`ChatContent`:** reads sidebar collapse from **`useChatSidebar()`** (provider in **`app/providers.tsx`**).
 
-**URL:** `chatId` from route drives **`selectedId`** on desktop detail layout.
+**URL:** `chatId` from route drives **`selectedId`** on desktop detail layout. `/chat/new/[username]` identifies only the canonical profile to message and changes to `/chat/[chatId]` after the first send succeeds.
 
 ---
 

@@ -66,6 +66,8 @@ import {
   commentLikes,
   comments,
   films,
+  filmListEntries,
+  filmLists,
   users,
 } from "@35mm/db/schema";
 import { getDb, getWriteDb } from "../../lib/db.js";
@@ -3436,6 +3438,39 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
       );
     }
 
+    var watchlistCounterDeltas: CounterIncrementJobPayload[] = [];
+    if (input.filmId && (input.type === "log" || input.type === "review")) {
+      var removedWatchlistEntries = await tx
+        .delete(filmListEntries)
+        .where(
+          and(
+            eq(filmListEntries.filmId, input.filmId),
+            inArray(
+              filmListEntries.listId,
+              tx
+                .select({ id: filmLists.id })
+                .from(filmLists)
+                .where(
+                  and(
+                    eq(filmLists.userId, user.userId),
+                    eq(filmLists.type, "watchlist"),
+                    eq(filmLists.isDeleted, false),
+                  ),
+                ),
+            ),
+          ),
+        )
+        .returning({ listId: filmListEntries.listId });
+      for (var removedWatchlistEntry of removedWatchlistEntries) {
+        watchlistCounterDeltas.push({
+          targetTable: "film_lists",
+          targetId: removedWatchlistEntry.listId,
+          counterName: "entryCount",
+          delta: -1,
+        });
+      }
+    }
+
     if (shouldFanoutToFeed) {
       await tx
         .insert(feedItems)
@@ -3494,7 +3529,10 @@ feedRoutes.post("/", requireAuth, createPostRateLimit, async function (c) {
         delta: 1,
       });
     }
-    await recordCounterDeltas(tx, profileCounterDeltas);
+    await recordCounterDeltas(tx, [
+      ...profileCounterDeltas,
+      ...watchlistCounterDeltas,
+    ]);
 
     return { postId, postCreatedAt, replayed: false };
   });

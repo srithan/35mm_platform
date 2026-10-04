@@ -57,8 +57,8 @@ export default function HelpPage() {
       <LegalCardGrid>
         {HELP_TOPICS.map(function (topic) {
           return (
-            <LegalCard key={topic.title} interactive className="cursor-pointer">
-              <LegalHeading as="h3" className="text-[15px]">
+            <LegalCard key={topic.title} interactive>
+              <LegalHeading as="h3">
                 {topic.title}
               </LegalHeading>
               <p className="mt-1.5 text-[14px] leading-[1.55] text-fg-muted">{topic.description}</p>

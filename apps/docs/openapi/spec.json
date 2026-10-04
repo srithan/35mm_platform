@@ -8062,7 +8062,7 @@
         ],
         "operationId": "get_v1_feed",
         "summary": "GET /v1/feed",
-        "description": "Source: `modules/feed/routes.ts:2910`. Direct table references: [feed_items](/data-model/feed_items), [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:2912`. Direct table references: [feed_items](/data-model/feed_items), [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "cursor",
@@ -8121,7 +8121,7 @@
         ],
         "operationId": "post_v1_feed",
         "summary": "POST /v1/feed",
-        "description": "Source: `modules/feed/routes.ts:3275`. Direct table references: [feed_fanout_outbox](/data-model/feed_fanout_outbox), [feed_items](/data-model/feed_items), [films](/data-model/films), [poll_options](/data-model/poll_options), [post_polls](/data-model/post_polls), [posts](/data-model/posts), [profiles](/data-model/profiles), [video_assets](/data-model/video_assets).",
+        "description": "Source: `modules/feed/routes.ts:3277`. Direct table references: [feed_fanout_outbox](/data-model/feed_fanout_outbox), [feed_items](/data-model/feed_items), [film_list_entries](/data-model/film_list_entries), [film_lists](/data-model/film_lists), [films](/data-model/films), [poll_options](/data-model/poll_options), [post_polls](/data-model/post_polls), [posts](/data-model/posts), [profiles](/data-model/profiles), [video_assets](/data-model/video_assets).",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -8220,6 +8220,8 @@
         "x-35mm-tables": [
           "feed_fanout_outbox",
           "feed_items",
+          "film_list_entries",
+          "film_lists",
           "films",
           "poll_options",
           "post_polls",
@@ -8241,7 +8243,7 @@
         ],
         "operationId": "get_v1_feed_posts_postId",
         "summary": "GET /v1/feed/posts/{postId}",
-        "description": "Source: `modules/feed/routes.ts:3569`. ",
+        "description": "Source: `modules/feed/routes.ts:3607`. ",
         "parameters": [
           {
             "name": "postId",
@@ -8280,7 +8282,7 @@
         ],
         "operationId": "delete_v1_feed_posts_postId",
         "summary": "DELETE /v1/feed/posts/{postId}",
-        "description": "Source: `modules/feed/routes.ts:4246`. Direct table references: [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:4284`. Direct table references: [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -8341,7 +8343,7 @@
         ],
         "operationId": "patch_v1_feed_posts_postId",
         "summary": "PATCH /v1/feed/posts/{postId}",
-        "description": "Source: `modules/feed/routes.ts:4314`. Direct table references: [films](/data-model/films), [post_edits](/data-model/post_edits), [post_polls](/data-model/post_polls), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:4352`. Direct table references: [films](/data-model/films), [post_edits](/data-model/post_edits), [post_polls](/data-model/post_polls), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -8433,7 +8435,7 @@
         ],
         "operationId": "get_v1_feed_posts_postId_quotes",
         "summary": "GET /v1/feed/posts/{postId}/quotes",
-        "description": "Source: `modules/feed/routes.ts:3581`. Direct table references: [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:3619`. Direct table references: [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -8501,7 +8503,7 @@
         ],
         "operationId": "get_v1_feed_films_filmId_reviews",
         "summary": "GET /v1/feed/films/{filmId}/reviews",
-        "description": "Source: `modules/feed/routes.ts:3744`. Direct table references: [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:3782`. Direct table references: [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "filmId",
@@ -8589,7 +8591,7 @@
         ],
         "operationId": "get_v1_feed_profiles_username_posts",
         "summary": "GET /v1/feed/profiles/{username}/posts",
-        "description": "Source: `modules/feed/routes.ts:3889`. Direct table references: [films](/data-model/films), [follows](/data-model/follows), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:3927`. Direct table references: [films](/data-model/films), [follows](/data-model/follows), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "username",
@@ -8678,7 +8680,7 @@
         ],
         "operationId": "get_v1_feed_bookmarks",
         "summary": "GET /v1/feed/bookmarks",
-        "description": "Source: `modules/feed/routes.ts:4111`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:4149`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [films](/data-model/films), [post_bookmarks](/data-model/post_bookmarks), [post_likes](/data-model/post_likes), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "cursor",
@@ -8764,7 +8766,7 @@
         ],
         "operationId": "post_v1_feed_posts_postId_poll_votes",
         "summary": "POST /v1/feed/posts/{postId}/poll/votes",
-        "description": "Source: `modules/feed/routes.ts:4484`. Direct table references: [poll_options](/data-model/poll_options), [poll_votes](/data-model/poll_votes), [post_polls](/data-model/post_polls), [posts](/data-model/posts).",
+        "description": "Source: `modules/feed/routes.ts:4522`. Direct table references: [poll_options](/data-model/poll_options), [poll_votes](/data-model/poll_votes), [post_polls](/data-model/post_polls), [posts](/data-model/posts).",
         "parameters": [
           {
             "name": "postId",
@@ -8855,7 +8857,7 @@
         ],
         "operationId": "post_v1_feed_posts_postId_likes",
         "summary": "POST /v1/feed/posts/{postId}/likes",
-        "description": "Source: `modules/feed/routes.ts:4602`. Direct table references: [notifications](/data-model/notifications), [post_likes](/data-model/post_likes), [posts](/data-model/posts).",
+        "description": "Source: `modules/feed/routes.ts:4640`. Direct table references: [notifications](/data-model/notifications), [post_likes](/data-model/post_likes), [posts](/data-model/posts).",
         "parameters": [
           {
             "name": "postId",
@@ -8922,7 +8924,7 @@
         ],
         "operationId": "delete_v1_feed_posts_postId_likes",
         "summary": "DELETE /v1/feed/posts/{postId}/likes",
-        "description": "Source: `modules/feed/routes.ts:4703`. Direct table references: [notifications](/data-model/notifications), [post_likes](/data-model/post_likes), [posts](/data-model/posts).",
+        "description": "Source: `modules/feed/routes.ts:4741`. Direct table references: [notifications](/data-model/notifications), [post_likes](/data-model/post_likes), [posts](/data-model/posts).",
         "parameters": [
           {
             "name": "postId",
@@ -8991,7 +8993,7 @@
         ],
         "operationId": "post_v1_feed_posts_postId_reposts",
         "summary": "POST /v1/feed/posts/{postId}/reposts",
-        "description": "Source: `modules/feed/routes.ts:4869`. Direct table references: [feed_fanout_outbox](/data-model/feed_fanout_outbox), [feed_items](/data-model/feed_items), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:4907`. Direct table references: [feed_fanout_outbox](/data-model/feed_fanout_outbox), [feed_items](/data-model/feed_items), [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9065,7 +9067,7 @@
         ],
         "operationId": "delete_v1_feed_posts_postId_reposts",
         "summary": "DELETE /v1/feed/posts/{postId}/reposts",
-        "description": "Source: `modules/feed/routes.ts:5012`. Direct table references: [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5050`. Direct table references: [post_reposts](/data-model/post_reposts), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9139,7 +9141,7 @@
         ],
         "operationId": "get_v1_feed_bookmarks_folders",
         "summary": "GET /v1/feed/bookmarks/folders",
-        "description": "Source: `modules/feed/routes.ts:5097`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5135`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [profiles](/data-model/profiles).",
         "parameters": [],
         "responses": {
           "200": {
@@ -9186,7 +9188,7 @@
         ],
         "operationId": "post_v1_feed_bookmarks_folders",
         "summary": "POST /v1/feed/bookmarks/folders",
-        "description": "Source: `modules/feed/routes.ts:5134`. Direct table references: [bookmark_folders](/data-model/bookmark_folders).",
+        "description": "Source: `modules/feed/routes.ts:5172`. Direct table references: [bookmark_folders](/data-model/bookmark_folders).",
         "parameters": [],
         "responses": {
           "200": {
@@ -9244,7 +9246,7 @@
         ],
         "operationId": "patch_v1_feed_bookmarks_folders_folderId",
         "summary": "PATCH /v1/feed/bookmarks/folders/{folderId}",
-        "description": "Source: `modules/feed/routes.ts:5168`. Direct table references: [bookmark_folders](/data-model/bookmark_folders).",
+        "description": "Source: `modules/feed/routes.ts:5206`. Direct table references: [bookmark_folders](/data-model/bookmark_folders).",
         "parameters": [
           {
             "name": "folderId",
@@ -9319,7 +9321,7 @@
         ],
         "operationId": "delete_v1_feed_bookmarks_folders_folderId",
         "summary": "DELETE /v1/feed/bookmarks/folders/{folderId}",
-        "description": "Source: `modules/feed/routes.ts:5202`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5240`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "folderId",
@@ -9393,7 +9395,7 @@
         ],
         "operationId": "post_v1_feed_posts_postId_bookmarks",
         "summary": "POST /v1/feed/posts/{postId}/bookmarks",
-        "description": "Source: `modules/feed/routes.ts:5235`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5273`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9463,7 +9465,7 @@
         ],
         "operationId": "patch_v1_feed_posts_postId_bookmarks",
         "summary": "PATCH /v1/feed/posts/{postId}/bookmarks",
-        "description": "Source: `modules/feed/routes.ts:5420`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5458`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9540,7 +9542,7 @@
         ],
         "operationId": "delete_v1_feed_posts_postId_bookmarks",
         "summary": "DELETE /v1/feed/posts/{postId}/bookmarks",
-        "description": "Source: `modules/feed/routes.ts:5508`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5546`. Direct table references: [bookmark_folders](/data-model/bookmark_folders), [post_bookmarks](/data-model/post_bookmarks), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9610,7 +9612,7 @@
         ],
         "operationId": "post_v1_feed_posts_postId_comments_commentId_likes",
         "summary": "POST /v1/feed/posts/{postId}/comments/{commentId}/likes",
-        "description": "Source: `modules/feed/routes.ts:5598`. Direct table references: [comment_likes](/data-model/comment_likes), [comments](/data-model/comments).",
+        "description": "Source: `modules/feed/routes.ts:5636`. Direct table references: [comment_likes](/data-model/comment_likes), [comments](/data-model/comments).",
         "parameters": [
           {
             "name": "postId",
@@ -9684,7 +9686,7 @@
         ],
         "operationId": "delete_v1_feed_posts_postId_comments_commentId_likes",
         "summary": "DELETE /v1/feed/posts/{postId}/comments/{commentId}/likes",
-        "description": "Source: `modules/feed/routes.ts:5670`. Direct table references: [comment_likes](/data-model/comment_likes), [comments](/data-model/comments), [notifications](/data-model/notifications).",
+        "description": "Source: `modules/feed/routes.ts:5708`. Direct table references: [comment_likes](/data-model/comment_likes), [comments](/data-model/comments), [notifications](/data-model/notifications).",
         "parameters": [
           {
             "name": "postId",
@@ -9761,7 +9763,7 @@
         ],
         "operationId": "get_v1_feed_posts_postId_comments",
         "summary": "GET /v1/feed/posts/{postId}/comments",
-        "description": "Source: `modules/feed/routes.ts:5811`. Direct table references: [comment_likes](/data-model/comment_likes), [comments](/data-model/comments), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5849`. Direct table references: [comment_likes](/data-model/comment_likes), [comments](/data-model/comments), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9824,7 +9826,7 @@
         ],
         "operationId": "post_v1_feed_posts_postId_comments",
         "summary": "POST /v1/feed/posts/{postId}/comments",
-        "description": "Source: `modules/feed/routes.ts:5956`. Direct table references: [comments](/data-model/comments), [posts](/data-model/posts), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:5994`. Direct table references: [comments](/data-model/comments), [posts](/data-model/posts), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9904,7 +9906,7 @@
         ],
         "operationId": "patch_v1_feed_posts_postId_comments_commentId",
         "summary": "PATCH /v1/feed/posts/{postId}/comments/{commentId}",
-        "description": "Source: `modules/feed/routes.ts:6151`. Direct table references: [comments](/data-model/comments), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/feed/routes.ts:6189`. Direct table references: [comments](/data-model/comments), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "postId",
@@ -9999,7 +10001,7 @@
         ],
         "operationId": "delete_v1_feed_posts_postId_comments_commentId",
         "summary": "DELETE /v1/feed/posts/{postId}/comments/{commentId}",
-        "description": "Source: `modules/feed/routes.ts:6263`. Direct table references: [comments](/data-model/comments), [posts](/data-model/posts).",
+        "description": "Source: `modules/feed/routes.ts:6301`. Direct table references: [comments](/data-model/comments), [posts](/data-model/posts).",
         "parameters": [
           {
             "name": "postId",
@@ -10449,6 +10451,110 @@
         ]
       }
     },
+    "/v1/films/{filmId}/viewer-state": {
+      "get": {
+        "tags": [
+          "films"
+        ],
+        "operationId": "get_v1_films_filmId_viewer_state",
+        "summary": "GET /v1/films/{filmId}/viewer-state",
+        "description": "Source: `modules/films/routes.ts:254`. Direct table references: [film_list_entries](/data-model/film_list_entries), [film_lists](/data-model/film_lists), [films](/data-model/films), [posts](/data-model/posts).",
+        "parameters": [
+          {
+            "name": "filmId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Response shape requires serializer review; see DIVERGENCES.md"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "HTTP 400; see Errors guide for shared error contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "HTTP 401; see Errors guide for shared error contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404; see Errors guide for shared error contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "HTTP 429; see Errors guide for shared error contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HTTP 503; see Errors guide for shared error contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "x-35mm-auth": "bearer",
+        "x-35mm-rate-limit": {
+          "limit": 240,
+          "windowSeconds": 60,
+          "keyPrefix": "films:read"
+        },
+        "x-35mm-tables": [
+          "film_list_entries",
+          "film_lists",
+          "films",
+          "posts"
+        ],
+        "x-35mm-source": "modules/films/routes.ts",
+        "x-35mm-needs-confirmation": [
+          "response serializer or expression needs manual schema verification"
+        ]
+      }
+    },
     "/v1/films/{id}": {
       "get": {
         "tags": [
@@ -10456,7 +10562,7 @@
         ],
         "operationId": "get_v1_films_id",
         "summary": "GET /v1/films/{id}",
-        "description": "Source: `modules/films/routes.ts:254`. Direct table references: [films](/data-model/films).",
+        "description": "Source: `modules/films/routes.ts:296`. Direct table references: [films](/data-model/films).",
         "parameters": [
           {
             "name": "id",
@@ -13993,7 +14099,7 @@
         ],
         "operationId": "get_v1_profiles_search",
         "summary": "GET /v1/profiles/search",
-        "description": "Source: `modules/profiles/routes.ts:150`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles), [users](/data-model/users).",
+        "description": "Source: `modules/profiles/routes.ts:152`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles), [users](/data-model/users).",
         "parameters": [],
         "responses": {
           "200": {
@@ -14043,7 +14149,7 @@
         ],
         "operationId": "get_v1_profiles_username",
         "summary": "GET /v1/profiles/{username}",
-        "description": "Source: `modules/profiles/routes.ts:236`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles), [users](/data-model/users).",
+        "description": "Source: `modules/profiles/routes.ts:238`. Direct table references: [chat_member_state](/data-model/chat_member_state), [chat_threads](/data-model/chat_threads), [follows](/data-model/follows), [profiles](/data-model/profiles), [users](/data-model/users).",
         "parameters": [
           {
             "name": "username",
@@ -14091,6 +14197,8 @@
         "x-35mm-auth": "optional",
         "x-35mm-rate-limit": null,
         "x-35mm-tables": [
+          "chat_member_state",
+          "chat_threads",
           "follows",
           "profiles",
           "users"
@@ -14108,7 +14216,7 @@
         ],
         "operationId": "get_v1_profiles_username_stats",
         "summary": "GET /v1/profiles/{username}/stats",
-        "description": "Source: `modules/profiles/routes.ts:546`. Direct table references: [catalog_titles](/data-model/catalog_titles), [films](/data-model/films), [posts](/data-model/posts), [profiles](/data-model/profiles), [users](/data-model/users).",
+        "description": "Source: `modules/profiles/routes.ts:580`. Direct table references: [catalog_titles](/data-model/catalog_titles), [films](/data-model/films), [posts](/data-model/posts), [profiles](/data-model/profiles), [users](/data-model/users).",
         "parameters": [
           {
             "name": "username",
@@ -14175,7 +14283,7 @@
         ],
         "operationId": "patch_v1_profiles_me",
         "summary": "PATCH /v1/profiles/me",
-        "description": "Source: `modules/profiles/routes.ts:1020`. Direct table references: [profile_follow_approval_outbox](/data-model/profile_follow_approval_outbox), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/profiles/routes.ts:1054`. Direct table references: [profile_follow_approval_outbox](/data-model/profile_follow_approval_outbox), [profiles](/data-model/profiles).",
         "parameters": [],
         "responses": {
           "200": {
@@ -14278,7 +14386,7 @@
         ],
         "operationId": "get_v1_profiles_username_followers",
         "summary": "GET /v1/profiles/{username}/followers",
-        "description": "Source: `modules/profiles/routes.ts:1315`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/profiles/routes.ts:1349`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "username",
@@ -14342,7 +14450,7 @@
         ],
         "operationId": "get_v1_profiles_username_following",
         "summary": "GET /v1/profiles/{username}/following",
-        "description": "Source: `modules/profiles/routes.ts:1412`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/profiles/routes.ts:1446`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "username",
@@ -14406,7 +14514,7 @@
         ],
         "operationId": "get_v1_profiles_username_follow_requests",
         "summary": "GET /v1/profiles/{username}/follow-requests",
-        "description": "Source: `modules/profiles/routes.ts:1509`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles).",
+        "description": "Source: `modules/profiles/routes.ts:1543`. Direct table references: [follows](/data-model/follows), [profiles](/data-model/profiles).",
         "parameters": [
           {
             "name": "username",

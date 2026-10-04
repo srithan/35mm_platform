@@ -1,6 +1,6 @@
 import { diaryWatchDateSql } from "../feed/filmDiary.js";
 import { Hono } from "hono";
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   users,
@@ -10,6 +10,8 @@ import {
   posts,
   films,
   catalogTitles,
+  chatThreads,
+  chatMemberState,
 } from "@35mm/db/schema";
 import { getDb, getWriteDb } from "../../lib/db.js";
 import { getModerationStatus, notBlockedWithViewerSql } from "../../lib/moderation.js";
@@ -303,6 +305,7 @@ profileRoutes.get("/:username", async function (c) {
   var [
     followRelationRows,
     incomingFollowRequestRows,
+    existingDmThreadRows,
     visibleCounters,
   ] = await Promise.all([
     viewer
@@ -325,6 +328,33 @@ profileRoutes.get("/:username", async function (c) {
           )
           .limit(1)
       : Promise.resolve([] as Array<{ followerId: string }>),
+    viewer && viewer.userId !== row.userId
+      ? db
+          .select({ threadId: chatThreads.id })
+          .from(chatThreads)
+          .innerJoin(
+            chatMemberState,
+            and(
+              eq(chatMemberState.threadId, chatThreads.id),
+              eq(chatMemberState.userId, viewer.userId)
+            )
+          )
+          .where(
+            and(
+              eq(chatThreads.type, "dm"),
+              eq(
+                chatThreads.dmMemberLow,
+                viewer.userId < row.userId ? viewer.userId : row.userId
+              ),
+              eq(
+                chatThreads.dmMemberHigh,
+                viewer.userId < row.userId ? row.userId : viewer.userId
+              ),
+              isNull(chatMemberState.deletedAt)
+            )
+          )
+          .limit(1)
+      : Promise.resolve([] as Array<{ threadId: string }>),
     getVisibleProfileCounters(db, row.userId, {
       filmsLoggedCount: Number(row.filmsLoggedCount ?? 0),
       followerCount: Number(row.followerCount ?? 0),
@@ -339,6 +369,7 @@ profileRoutes.get("/:username", async function (c) {
   var isFollowing = followState === "following";
   var hasIncomingFollowRequest = incomingFollowRequestRows.length > 0;
   var hasPendingRequestToViewer = hasIncomingFollowRequest;
+  var messageThreadId = existingDmThreadRows[0]?.threadId ?? null;
   if (row.status === "deactivated") {
     return c.json({
       username: row.username,
@@ -361,6 +392,7 @@ profileRoutes.get("/:username", async function (c) {
 	      isPrivate: false,
 	      hasIncomingFollowRequest,
 	      hasPendingRequestToViewer,
+	      messageThreadId,
 	      isDeactivated: true,
 	      moderationStatus: row.moderationStatus,
 	    });
@@ -397,6 +429,7 @@ profileRoutes.get("/:username", async function (c) {
 	      isPrivate: true,
 	      hasIncomingFollowRequest,
 	      hasPendingRequestToViewer,
+	      messageThreadId,
 	      isDeactivated: false,
 	      isMutedByViewer,
 	      moderationStatus: row.moderationStatus,
@@ -426,6 +459,7 @@ profileRoutes.get("/:username", async function (c) {
 	    isPrivate: row.isPrivate,
 	    hasIncomingFollowRequest,
 	    hasPendingRequestToViewer,
+	    messageThreadId,
 	    isDeactivated: false,
 	    isMutedByViewer,
 	    moderationStatus: row.moderationStatus,

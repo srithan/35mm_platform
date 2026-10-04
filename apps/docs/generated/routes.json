@@ -1,5 +1,5 @@
 {
-  "total": 201,
+  "total": 202,
   "moduleCounts": {
     "health": 1,
     "poster-proxy": 1,
@@ -10,7 +10,7 @@
     "contributions": 2,
     "email": 2,
     "feed": 27,
-    "films": 4,
+    "films": 5,
     "follows": 5,
     "lists": 19,
     "media": 3,
@@ -1567,6 +1567,8 @@
       "tables": [
         "feed_fanout_outbox",
         "feed_items",
+        "film_list_entries",
+        "film_lists",
         "films",
         "poll_options",
         "post_polls",
@@ -2118,6 +2120,28 @@
       "validators": [],
       "tables": [
         "films"
+      ],
+      "issues": [
+        "response serializer or expression needs manual schema verification"
+      ]
+    },
+    {
+      "module": "films",
+      "method": "GET",
+      "path": "/v1/films/{filmId}/viewer-state",
+      "source": "modules/films/routes.ts",
+      "auth": "bearer",
+      "rateLimit": {
+        "limit": 240,
+        "windowSeconds": 60,
+        "keyPrefix": "films:read"
+      },
+      "validators": [],
+      "tables": [
+        "film_list_entries",
+        "film_lists",
+        "films",
+        "posts"
       ],
       "issues": [
         "response serializer or expression needs manual schema verification"
@@ -2995,6 +3019,8 @@
       "rateLimit": null,
       "validators": [],
       "tables": [
+        "chat_member_state",
+        "chat_threads",
         "follows",
         "profiles",
         "users"
@@ -3642,6 +3668,7 @@
     "GET /v1/films: response serializer or expression needs manual schema verification",
     "POST /v1/films/resolve: response serializer or expression needs manual schema verification",
     "GET /v1/films/tmdb/{tmdbId}: response serializer or expression needs manual schema verification",
+    "GET /v1/films/{filmId}/viewer-state: response serializer or expression needs manual schema verification",
     "GET /v1/films/{id}: response serializer or expression needs manual schema verification",
     "POST /v1/follows/{userId}: response serializer or expression needs manual schema verification",
     "DELETE /v1/follows/{userId}: response serializer or expression needs manual schema verification",

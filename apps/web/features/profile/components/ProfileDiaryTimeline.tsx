@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import { FilmPoster } from "@/components/FilmPoster";
 import { StarRating } from "@/components/StarRating";
 import { WATCH_VENUE_LABELS } from "@35mm/types";
 import { useFeed } from "@/features/feed/hooks/useFeed";
 import type { Post } from "@/features/feed/types/feed";
+import { ROUTES } from "@/lib/constants/routes";
 import { storedRichTextToPlainText } from "@/lib/utils/richContent";
 
 function isDiaryPost(post: Post) {
@@ -192,6 +194,7 @@ export function ProfileDiaryTimeline({
           var body = storedRichTextToPlainText(post.body).trim();
           var autoBody = defaultDiaryBody(post);
           var showBody = body.length > 0 && body !== autoBody;
+          var filmHref = post.film ? ROUTES.TITLE("movie", post.film.title) : null;
           var meta = [
             filmYear ? String(filmYear) : null,
             post.watchVenue ? WATCH_VENUE_LABELS[post.watchVenue] : null,
@@ -200,6 +203,56 @@ export function ProfileDiaryTimeline({
           ]
             .filter(Boolean)
             .join(" · ");
+          var card = (
+            <article className="group flex gap-3 rounded-2xl border border-border bg-elevated px-3 py-3 transition-colors hover:bg-hover/50">
+              <time dateTime={entry.date} className="w-[52px] shrink-0 text-center">
+                <span className="block text-[10px] tracking-[0.08em] text-fg-muted">
+                  {formatDiaryWeekday(entry.date)}
+                </span>
+                <span className="mt-0.5 block font-display text-[24px] leading-none text-fg">
+                  {formatDiaryDay(entry.date)}
+                </span>
+                <span className="mt-1 block text-[9px] tracking-[0.08em] text-fg-muted">
+                  {formatDiaryDate(entry.date).split(" ")[0]}
+                </span>
+              </time>
+
+              <div className="w-px bg-border/70" aria-hidden />
+
+              <FilmPoster
+                src={post.film?.posterUrl ?? null}
+                alt={filmTitle}
+                size="review"
+                className="shrink-0 rounded-md"
+                placeholderGradient="from-[#1e2a1a] to-[#2e4a2a]"
+              />
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-display text-[18px] leading-tight text-fg">
+                    {filmTitle}
+                  </h4>
+                  {rating > 0 ? (
+                    <div className="mt-0.5 flex items-center gap-1.5 rounded-full border border-border bg-bg px-2 py-1">
+                      <StarRating rating={rating} size="lg" />
+                    </div>
+                  ) : null}
+                </div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
+                  {meta}
+                </div>
+                {showBody ? (
+                  <p className="mt-2 line-clamp-4 text-[13px] leading-relaxed text-fg-light">
+                    {body}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[12px] text-fg-muted">
+                    No notes added
+                  </p>
+                )}
+              </div>
+            </article>
+          );
 
           return (
             <div key={post.id} className="mb-4 last:mb-0">
@@ -209,54 +262,16 @@ export function ProfileDiaryTimeline({
                 </h3>
               ) : null}
 
-              <article className="group flex gap-3 rounded-2xl border border-border bg-elevated px-3 py-3 transition-colors hover:bg-hover/50">
-                <time dateTime={entry.date} className="w-[52px] shrink-0 text-center">
-                  <span className="block text-[10px] tracking-[0.08em] text-fg-muted">
-                    {formatDiaryWeekday(entry.date)}
-                  </span>
-                  <span className="mt-0.5 block font-display text-[24px] leading-none text-fg">
-                    {formatDiaryDay(entry.date)}
-                  </span>
-                  <span className="mt-1 block text-[9px] tracking-[0.08em] text-fg-muted">
-                    {formatDiaryDate(entry.date).split(" ")[0]}
-                  </span>
-                </time>
-
-                <div className="w-px bg-border/70" aria-hidden />
-
-                <FilmPoster
-                  src={post.film?.posterUrl ?? null}
-                  alt={filmTitle}
-                  size="review"
-                  className="shrink-0 rounded-md"
-                  placeholderGradient="from-[#1e2a1a] to-[#2e4a2a]"
-                />
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-display text-[18px] leading-tight text-fg">
-                      {filmTitle}
-                    </h4>
-                    {rating > 0 ? (
-                      <div className="mt-0.5 flex items-center gap-1.5 rounded-full border border-border bg-bg px-2 py-1">
-                        <StarRating rating={rating} size="lg" />
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-                    {meta}
-                  </div>
-                  {showBody ? (
-                    <p className="mt-2 line-clamp-4 text-[13px] leading-relaxed text-fg-light">
-                      {body}
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-[12px] text-fg-muted">
-                      No notes added
-                    </p>
-                  )}
-                </div>
-              </article>
+              {filmHref ? (
+                <Link
+                  href={filmHref}
+                  prefetch={false}
+                  aria-label={`Open ${filmTitle}${filmYear ? ` (${filmYear})` : ""}`}
+                  className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-film-red focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                >
+                  {card}
+                </Link>
+              ) : card}
             </div>
           );
         })}

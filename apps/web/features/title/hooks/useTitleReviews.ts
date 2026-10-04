@@ -6,6 +6,7 @@ import { apiRequest } from "@/features/feed/api/http";
 import { adaptPostToFeedType } from "@/features/feed/api/adapters";
 import { feedKeys } from "@/features/feed/hooks/queryKeys";
 import type { FeedPage } from "@/features/feed/types/feed";
+import type { FilmViewerState } from "@35mm/types";
 import type { TitleMedia } from "@/lib/title/paths";
 import { titleKeys } from "./queryKeys";
 
@@ -49,6 +50,22 @@ export function useTitleReviews(filmId: string | null) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) =>
       page.hasMore ? (page.nextCursor ?? undefined) : undefined,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function useTitleViewerState(filmId: string | null) {
+  const { getToken, userId, isLoaded, isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: titleKeys.viewerState(filmId, userId),
+    queryFn: async function () {
+      return apiRequest<FilmViewerState>(
+        `/v1/films/${encodeURIComponent(filmId!)}/viewer-state`,
+        { token: await getToken() },
+      );
+    },
+    enabled: isLoaded && Boolean(isSignedIn && filmId),
     staleTime: 30_000,
     retry: 1,
   });

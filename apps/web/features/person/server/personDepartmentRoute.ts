@@ -7,6 +7,7 @@ import {
 } from "@/features/person/components/PersonPageContent";
 import { ROUTES } from "@/lib/constants/routes";
 import type { PersonRoleSlug } from "@/lib/routing/personRoles";
+import { isTransientPersonIdentityError } from "@/lib/tmdb/personIdentity";
 
 type PersonFilterQuery = {
   media?: string | string[];
@@ -54,7 +55,17 @@ export async function renderPersonDepartmentPage<
     props.searchParams,
   ]);
   if (/^\d+$/.test(slug)) {
-    const identity = await getPersonCanonicalIdentity(slug, department);
+    let identity = null;
+    try {
+      identity = await getPersonCanonicalIdentity(slug, department);
+    } catch (error) {
+      if (!isTransientPersonIdentityError(error)) throw error;
+      console.warn("[person-route] canonical redirect skipped", {
+        personId: slug,
+        department,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     if (identity) {
       permanentRedirect(
         ROUTES.PERSON_ROLE(identity.slug, department) + querySuffix(query),

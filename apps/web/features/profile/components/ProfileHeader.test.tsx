@@ -8,6 +8,14 @@ import { ProfileHeader } from "./ProfileHeader";
 const followMutate = vi.hoisted(function () {
   return vi.fn();
 });
+const followMutationState = vi.hoisted(function () {
+  return {
+    isPending: false,
+    variables: undefined as
+      | { userId: string; followState: "none" | "requested" | "following" | "self" }
+      | undefined,
+  };
+});
 
 vi.mock("@clerk/nextjs", function () {
   return {
@@ -33,7 +41,7 @@ vi.mock("@/features/auth/components/AuthModal", function () {
 vi.mock("../hooks/useProfile", function () {
   return {
     useFollowToggle: function () {
-      return { isPending: false, mutate: followMutate, variables: undefined };
+      return { ...followMutationState, mutate: followMutate };
     },
     useBlockUserMutation: function () {
       return { isPending: false, mutate: vi.fn() };
@@ -112,6 +120,8 @@ function renderHeader(props?: Partial<ComponentProps<typeof ProfileHeader>>) {
 describe("ProfileHeader guest actions", function () {
   beforeEach(function () {
     followMutate.mockReset();
+    followMutationState.isPending = false;
+    followMutationState.variables = undefined;
   });
   it("prompts login for follow and message, and keeps More to Share only", function () {
     const onMessageClick = vi.fn();
@@ -162,5 +172,35 @@ describe("ProfileHeader guest actions", function () {
     expect(screen.getByRole("dialog")).toHaveTextContent(
       "Log in to request to follow this profile."
     );
+  });
+
+  it("separates incoming follow requests from primary profile actions", function () {
+    renderHeader({ hasIncomingFollowRequest: true });
+
+    expect(screen.getAllByLabelText("Follow request from Pat")).toHaveLength(2);
+    expect(screen.getAllByText("Wants to follow you")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Follow" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Accept follow request" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Decline follow request" })).toHaveLength(2);
+  });
+
+  it("shows optimistic follow state without network-progress copy", function () {
+    followMutationState.isPending = true;
+    followMutationState.variables = { userId: "user-1", followState: "none" };
+
+    renderHeader({ followState: "following" });
+
+    expect(screen.getAllByRole("button", { name: "Following" })).toHaveLength(2);
+    expect(screen.queryByText("Following...")).not.toBeInTheDocument();
+  });
+
+  it("shows optimistic unfollow state without network-progress copy", function () {
+    followMutationState.isPending = true;
+    followMutationState.variables = { userId: "user-1", followState: "following" };
+
+    renderHeader({ followState: "none" });
+
+    expect(screen.getAllByRole("button", { name: "Follow" })).toHaveLength(2);
+    expect(screen.queryByText("Unfollowing...")).not.toBeInTheDocument();
   });
 });

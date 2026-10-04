@@ -129,7 +129,7 @@ function FilterMenu({
           collisionPadding={12}
           aria-label={ariaLabel + " options"}
           className={cn(
-            "z-50 min-w-[190px]",
+            "z-50 max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] min-w-[190px] overflow-y-auto overscroll-contain",
             "rounded-sm border border-border-strong bg-elevated p-1 text-fg",
           )}
         >

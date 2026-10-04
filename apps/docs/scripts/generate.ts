@@ -318,7 +318,7 @@ for (const [symbol, value] of Object.entries(dbSchema)) {
   tables.push({ symbol, name: config.name, sourceFile, columns, primaryKeys: config.primaryKeys.map(pk => pk.columns.map(c => c.name)), uniqueConstraints: config.uniqueConstraints.map(c => ({ name: c.name, columns: c.columns.map(col => col.name) })), indexes, foreignKeys, checks: config.checks.map(check => ({ name: check.name, expression: String(check.value) })), relatedEndpoints: routeInventory.filter(route => (route.tables as string[]).includes(config.name)).map(route => `${route.method} ${route.path}`) });
 }
 tables.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-const snapshot = JSON.parse(read(path.join(root, "packages/db/drizzle/meta/0067_snapshot.json"))) as { tables: Record<string, any> };
+const snapshot = JSON.parse(read(path.join(root, "packages/db/drizzle/meta/0068_snapshot.json"))) as { tables: Record<string, any> };
 const snapshotDivergences: string[] = [];
 for (const table of tables) {
   const name = String(table.name);

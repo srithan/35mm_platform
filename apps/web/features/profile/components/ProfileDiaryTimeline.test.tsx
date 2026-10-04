@@ -100,6 +100,17 @@ describe("ProfileDiaryTimeline", function () {
     expect(screen.queryByText("3.0")).not.toBeInTheDocument();
   });
 
+  it("links the full diary card to the canonical film title page", function () {
+    mocks.posts = [diaryPost];
+
+    render(
+      <ProfileDiaryTimeline username="srithan" isOwnProfile onLogFilm={vi.fn()} />
+    );
+
+    expect(screen.getByRole("link", { name: "Open The Farm (2019)" }))
+      .toHaveAttribute("href", "/film/the-farm");
+  });
+
   it("uses the watched date for month, day, and weekday without timezone drift", function () {
     mocks.posts = [{
       ...diaryPost,

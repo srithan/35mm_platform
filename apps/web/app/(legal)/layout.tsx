@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { BrandLogo } from "@/components/Logo";
+import styles from "@/components/legal/LegalPage.module.css";
 
 const FOOTER_LINKS = [
   { label: "About", href: "/about" },
@@ -15,42 +17,41 @@ export default function LegalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-bg font-sans text-fg antialiased">
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-bg/90 backdrop-blur-xl backdrop-saturate-150">
-        <div className="mx-auto flex h-[52px] max-w-[680px] items-center justify-between px-6 sm:px-8">
-          <BrandLogo
-            href="/"
-            className="text-[17px] font-semibold tracking-[-0.02em] text-fg"
-          />
-          <Link
-            href="/"
-            className="text-[13px] font-medium text-fg-muted no-underline transition-colors hover:text-fg"
-          >
-            Home
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <details className={styles.menu}>
+            <summary className={styles.menuSummary}>
+              <span className={styles.menuMark} aria-hidden="true" />
+              Menu
+            </summary>
+            <nav aria-label="Company and legal navigation" className={styles.menuPanel}>
+              {FOOTER_LINKS.map(function (item) {
+                return <Link key={item.href} href={item.href}>{item.label}</Link>;
+              })}
+            </nav>
+          </details>
+          <BrandLogo href="/" className={styles.logo} />
+          <Link href="/discover" aria-label="Search 35mm" className={styles.searchLink}>
+            <Search aria-hidden="true" size={23} strokeWidth={1.25} />
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[680px]">{children}</main>
+      <main className={styles.main}>{children}</main>
 
-      <footer className="mx-auto mt-16 max-w-[680px] border-t border-border px-6 py-10 sm:px-8">
-        <nav
-          aria-label="Legal and company links"
-          className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium text-fg-muted"
-        >
-          {FOOTER_LINKS.map(function (item) {
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-inherit no-underline transition-colors hover:text-fg"
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <p className="mt-6 text-[12px] text-fg-faint">&copy; 2026 35mm</p>
+      <footer className={styles.footer}>
+        <div className={styles.footerInner}>
+          <div>
+            <BrandLogo href="/" className={styles.footerLogo} />
+            <p className={styles.copyright}>&copy; 2026 35mm / all rights reserved</p>
+          </div>
+          <nav aria-label="Legal and company links" className={styles.footerNav}>
+            {FOOTER_LINKS.map(function (item) {
+              return <Link key={item.href} href={item.href}>{item.label}</Link>;
+            })}
+          </nav>
+        </div>
       </footer>
     </div>
   );

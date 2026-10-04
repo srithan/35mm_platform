@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
-import { films } from "@35mm/db/schema";
+import { filmListEntries, filmLists, films, posts } from "@35mm/db/schema";
 import { filmCatalogQuerySchema, resolveOnboardingTmdbFilmSchema } from "@35mm/validators";
-import type { FilmCatalogSort } from "@35mm/types";
+import type { FilmCatalogSort, FilmViewerState } from "@35mm/types";
 import { badRequest, notFound } from "../../lib/errors.js";
 import { getDb } from "../../lib/db.js";
 import {
@@ -251,6 +251,48 @@ filmRoutes.get("/tmdb/:tmdbId", filmReadRateLimit, async function (c) {
     .where(and(eq(films.tmdbId, tmdbId), eq(films.isCatalogListed, true))).limit(1);
   c.header("Cache-Control", "no-store");
   return c.json({ filmId: rows[0]?.filmId ?? null });
+});
+
+filmRoutes.get("/:filmId/viewer-state", requireAuth, filmReadRateLimit, async function (c) {
+  var user = c.get("user");
+  var id = c.req.param("filmId").trim().toUpperCase();
+  if (!isValidUlid(id)) throw badRequest("Invalid film ID");
+
+  var rows = await getDb()
+    .select({
+      filmId: films.id,
+      isWatched: sql<boolean>`exists(
+        select 1 from ${posts}
+        where ${posts.filmId} = ${films.id}
+          and ${posts.userId} = ${user.userId}
+          and ${posts.type} in ('log', 'review')
+          and ${posts.isRepost} = false
+          and ${posts.isDeleted} = false
+      )`,
+      hasReviewed: sql<boolean>`exists(
+        select 1 from ${posts}
+        where ${posts.filmId} = ${films.id}
+          and ${posts.userId} = ${user.userId}
+          and ${posts.type} = 'review'
+          and ${posts.isRepost} = false
+          and ${posts.isDeleted} = false
+      )`,
+      isInWatchlist: sql<boolean>`exists(
+        select 1 from ${filmListEntries}
+        inner join ${filmLists} on ${filmLists.id} = ${filmListEntries.listId}
+        where ${filmListEntries.filmId} = ${films.id}
+          and ${filmLists.userId} = ${user.userId}
+          and ${filmLists.type} = 'watchlist'
+          and ${filmLists.isDeleted} = false
+      )`,
+    })
+    .from(films)
+    .where(and(eq(films.id, id), eq(films.isCatalogListed, true)))
+    .limit(1);
+
+  if (!rows[0]) throw notFound("Film not found");
+  c.header("Cache-Control", "private, no-store");
+  return c.json(rows[0] satisfies FilmViewerState);
 });
 
 filmRoutes.get("/:id", filmReadRateLimit, async function (c) {

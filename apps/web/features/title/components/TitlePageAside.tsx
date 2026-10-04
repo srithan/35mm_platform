@@ -8,6 +8,8 @@ type TitlePageAsideProps = {
   detail: TMDBMovie;
   media: TitleMedia;
   titleId: string;
+  filmId: string | null;
+  filmReferenceLoading: boolean;
   onWriteReview: () => void;
   reviewPending?: boolean;
   watchProvidersUS:
@@ -24,6 +26,8 @@ export function TitlePageAside(props: TitlePageAsideProps) {
           detail={props.detail}
           media={props.media}
           tmdbId={props.titleId}
+          filmId={props.filmId}
+          filmReferenceLoading={props.filmReferenceLoading}
           imdbId={props.detail.external_ids?.imdb_id}
           onWriteReview={props.onWriteReview}
           reviewPending={props.reviewPending}

@@ -3991,7 +3991,8 @@
         "POST /v1/chat/threads",
         "POST /v1/chat/threads/{threadId}/messages",
         "PATCH /v1/chat/threads/{threadId}/read",
-        "GET /v1/chat/threads/{threadId}/read-receipts"
+        "GET /v1/chat/threads/{threadId}/read-receipts",
+        "GET /v1/profiles/{username}"
       ],
       "purpose": "Per-member read, archive, mute, delete, and activity state for chat inboxes."
     },
@@ -4266,7 +4267,8 @@
       "checks": [],
       "relatedEndpoints": [
         "GET /v1/chat/inbox",
-        "POST /v1/chat/threads"
+        "POST /v1/chat/threads",
+        "GET /v1/profiles/{username}"
       ],
       "purpose": "Postgres metadata for chat threads; message bodies live in AWS Keyspaces."
     },
@@ -5392,6 +5394,8 @@
       ],
       "checks": [],
       "relatedEndpoints": [
+        "POST /v1/feed",
+        "GET /v1/films/{filmId}/viewer-state",
         "GET /v1/lists/films/{filmId}",
         "POST /v1/lists/{listId}/entries",
         "PATCH /v1/lists/{listId}/entries/reorder",
@@ -5737,6 +5741,8 @@
       ],
       "checks": [],
       "relatedEndpoints": [
+        "POST /v1/feed",
+        "GET /v1/films/{filmId}/viewer-state",
         "GET /v1/lists",
         "GET /v1/lists/profile/{username}",
         "GET /v1/lists/films/{filmId}",
@@ -6056,6 +6062,7 @@
         "PATCH /v1/feed/posts/{postId}",
         "GET /v1/films",
         "GET /v1/films/tmdb/{tmdbId}",
+        "GET /v1/films/{filmId}/viewer-state",
         "GET /v1/films/{id}",
         "GET /v1/me/notifications",
         "POST /v1/onboarding/films/resolve",
@@ -8070,6 +8077,17 @@
           "purpose": "Speeds bounded lookups or ordering by film_id + type + created_at + id for rows matching the partial predicate."
         },
         {
+          "name": "posts_user_film_diary_idx",
+          "unique": false,
+          "columns": [
+            "user_id",
+            "film_id",
+            "type"
+          ],
+          "where": "\"posts\".\"type\" in ('log', 'review') and \"posts\".\"is_repost\" = false and \"posts\".\"is_deleted\" = false",
+          "purpose": "Speeds bounded lookups or ordering by user_id + film_id + type for rows matching the partial predicate."
+        },
+        {
           "name": "posts_user_type_created_at_idx",
           "unique": false,
           "columns": [
@@ -8214,6 +8232,7 @@
         "DELETE /v1/feed/posts/{postId}/bookmarks",
         "POST /v1/feed/posts/{postId}/comments",
         "DELETE /v1/feed/posts/{postId}/comments/{commentId}",
+        "GET /v1/films/{filmId}/viewer-state",
         "POST /v1/follows/{userId}",
         "DELETE /v1/follows/{userId}",
         "GET /v1/me/notifications",

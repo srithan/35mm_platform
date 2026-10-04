@@ -52,13 +52,13 @@ export default function CareersPage() {
         If you care deeply about cinema and craft, we&rsquo;d love to hear from you.
       </LegalLead>
 
-      <LegalSection className="mt-12">
+      <LegalSection>
         <LegalHeading>Open roles</LegalHeading>
-        <LegalCardGrid className="mt-5 space-y-3">
+        <LegalCardGrid>
           {OPEN_ROLES.map(function (role) {
             return (
               <LegalCard key={role.title}>
-                <LegalHeading as="h3" className="text-[15px]">
+                <LegalHeading as="h3">
                   {role.title}
                 </LegalHeading>
                 <p className="mt-1.5 text-[13px] text-fg-faint">

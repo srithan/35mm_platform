@@ -917,6 +917,38 @@ button.composer-trigger-card:focus-visible {
 @layer base {
 
     /*
+      Interactive chrome should behave like controls, not document copy. Keep this semantic so
+      buttons, navigation, and portaled dropdowns share the behavior without component-level drift.
+    */
+    :where(
+        button,
+        select,
+        summary,
+        nav,
+        [role="button"],
+        [role="navigation"],
+        [role="menu"],
+        [role="menubar"],
+        [role="menuitem"],
+        [role="menuitemcheckbox"],
+        [role="menuitemradio"],
+        [role="listbox"],
+        [role="option"],
+        [role="combobox"],
+        [aria-haspopup="menu"],
+        [aria-haspopup="listbox"]
+    ) {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Searchable dropdowns and other editable controls must retain normal text selection. */
+    :where(input, textarea, [contenteditable="true"]) {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    /*
       Default :focus on links, buttons, and [role=button] used the browser’s blue ring; on image-
       heavy cards (festival, discover, posters) it read as a permanent “blue border.” Use a theme
       outline only for :focus-visible and remove the default so mouse focus doesn’t leave a blue edge.
