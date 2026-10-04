@@ -23,6 +23,9 @@ describe("resolveUiRolloutConfig", function () {
       postCard: {
         mediaPresentation: "grid",
       },
+      profile: {
+        desktopLayout: "single-column",
+      },
     });
   });
 
@@ -72,5 +75,11 @@ describe("resolveUiRolloutConfig", function () {
         postMediaCarousel: "true",
       }).postCard.mediaPresentation
     ).toBe("carousel");
+  });
+
+  it("restores the split desktop profile when its flag is off", function () {
+    expect(
+      resolveUiRolloutConfig({ singleColumnDesktopProfile: "false" }).profile.desktopLayout
+    ).toBe("split");
   });
 });

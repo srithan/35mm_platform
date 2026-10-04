@@ -1,6 +1,10 @@
 "use client";
 
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
+import {
+  FocusedBrowseNavigation,
+  isFocusedBrowseNavigationEnabled,
+} from "@/components/TopStickyBar/FocusedBrowseNavigation";
 import { BROWSE_CHROME_VARIANT } from "@/lib/config/uiFlags";
 import { ROUTES } from "@/lib/constants/routes";
 import { Clapperboard, Compass, LayoutList, PenLine } from "lucide-react";
@@ -35,9 +39,24 @@ const TABS = [
 ] as const;
 
 const FOCUSED_NAVIGATION_TABS = [
-  { id: "discover", label: "Discover", href: ROUTES.DISCOVER },
-  { id: "films", label: "Films", href: ROUTES.FILMS },
-  { id: "lists", label: "Lists", href: ROUTES.LISTS },
+  {
+    id: "discover",
+    label: "Discover",
+    href: ROUTES.DISCOVER,
+    icon: <Compass className="h-4 w-4" />,
+  },
+  {
+    id: "films",
+    label: "Films",
+    href: ROUTES.FILMS,
+    icon: <Clapperboard className="h-4 w-4" />,
+  },
+  {
+    id: "lists",
+    label: "Lists",
+    href: ROUTES.LISTS,
+    icon: <LayoutList className="h-4 w-4" />,
+  },
 ] as const;
 
 interface DiscoverTabsProps {
@@ -46,8 +65,19 @@ interface DiscoverTabsProps {
 
 export function DiscoverTabs({ active }: DiscoverTabsProps) {
   const isFocusedNavigation = BROWSE_CHROME_VARIANT === "focused";
+  const useFocusedBrowseNavigation = isFocusedBrowseNavigationEnabled();
 
   if (isFocusedNavigation && active === "contribute") return null;
+
+  if (useFocusedBrowseNavigation) {
+    return (
+      <FocusedBrowseNavigation
+        items={FOCUSED_NAVIGATION_TABS}
+        activeItemId={active}
+        navAriaLabel="Discover navigation"
+      />
+    );
+  }
 
   return (
     <TopStickyBar

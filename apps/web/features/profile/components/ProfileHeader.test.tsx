@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthPromptProvider } from "@/features/auth/components/AuthPromptProvider";
@@ -94,7 +95,7 @@ const baseProps = {
   followState: "none" as const,
 };
 
-function renderHeader(props?: Partial<typeof baseProps> & { onMessageClick?: () => void; isPrivate?: boolean }) {
+function renderHeader(props?: Partial<ComponentProps<typeof ProfileHeader>>) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -132,6 +133,25 @@ describe("ProfileHeader guest actions", function () {
     expect(screen.queryByRole("menuitem", { name: /Mute/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /Block/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Add to list" })).not.toBeInTheDocument();
+  });
+
+  it("aligns single-column desktop actions beside the overlapping avatar", function () {
+    const { container } = renderHeader({
+      isOwnProfile: true,
+      followState: "self",
+      singleColumnDesktop: true,
+    });
+
+    const desktopEditButton = screen
+      .getAllByRole("button", { name: "Edit profile" })
+      .find((button) => button.classList.contains("h-auto"));
+    const desktopActionRow = desktopEditButton?.parentElement?.parentElement;
+
+    expect(desktopActionRow).toHaveClass("md:min-h-20", "md:items-start", "md:pt-4");
+    expect(screen.getAllByText("Details")[0].parentElement).toHaveClass("pt-2");
+    expect(container.querySelector(".ProfileHeader")).not.toHaveClass(
+      "md:border-b"
+    );
   });
 
   it("prompts login for a follow request on a private profile", function () {

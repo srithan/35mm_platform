@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Home, Search, UserX } from "lucide-react";
 import { useLayoutEffect, useMemo, useState } from "react";
 import { Button } from "@/components/Button";
-import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
 import { useShellLayout } from "@/components/layout/ShellLayoutContext";
 import { ApiRequestError } from "@/features/feed/api/http";
 import { CoverPhoto } from "@/features/profile/components/CoverPhoto";
@@ -21,6 +20,7 @@ import { showGlobalFlashToast } from "@/components/FlashToast";
 import { getChatErrorMessage } from "@/features/chat/api/errors";
 import { useCreateConversation } from "@/features/chat/hooks/useChatQueries";
 import { isProfileEditTarget } from "@/features/profile/lib/profileEditTargets";
+import { SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED } from "@/lib/config/uiFlags";
 
 export function ProfileShellClient(props: { username: string }) {
   var username = props.username;
@@ -81,10 +81,6 @@ export function ProfileShellClient(props: { username: string }) {
     }
     return "Cinephile";
   }, [profile]);
-  var profileHeaderTitle = isOwnProfile
-    ? "Profile"
-    : "@" + (profile?.username ?? username);
-
   useLayoutEffect(
     function () {
       setProfileRailDisabled(isProfileNotFound);
@@ -206,15 +202,7 @@ export function ProfileShellClient(props: { username: string }) {
   };
 
   return (
-    <>
-      <TopStickyBar
-        tabs={[]}
-        activeTabId=""
-        title={profileHeaderTitle}
-        rootClassName="w-full bg-bg pb-0 pt-0 shadow-none md:mb-0"
-        headerClassName="px-4 py-3 sm:px-6 lg:px-10"
-        titleClassName="truncate text-[18px] leading-7 md:text-[20px]"
-      />
+    <div className={SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED ? "w-full md:mx-auto md:max-w-[640px] md:rounded-t-xl md:border-x md:border-t md:border-border" : undefined}>
       <ProfileScrollChrome
         displayName={resolvedProfile.displayName}
         tagline={stableTagline}
@@ -222,6 +210,7 @@ export function ProfileShellClient(props: { username: string }) {
         cover={
           <CoverPhoto
             isOwnProfile={isOwnProfile}
+            singleColumnDesktop={SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED}
             coverUrl={effectiveCoverUrl}
             onUploadComplete={function (nextCoverUrl) {
               setCoverUrlOverride(nextCoverUrl);
@@ -256,6 +245,7 @@ export function ProfileShellClient(props: { username: string }) {
 	          hasIncomingFollowRequest={Boolean(resolvedProfile.hasPendingRequestToViewer)}
           isPrivate={Boolean(resolvedProfile.isPrivate)}
           isMutedByViewer={Boolean(resolvedProfile.isMutedByViewer)}
+          singleColumnDesktop={SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED}
         />
       </ProfileScrollChrome>
       <ProfileBody
@@ -275,7 +265,8 @@ export function ProfileShellClient(props: { username: string }) {
         followerCount={resolvedProfile.followerCount}
         followingCount={resolvedProfile.followingCount}
         filmsLoggedCount={resolvedProfile.filmsLoggedCount ?? 0}
+        singleColumnDesktop={SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED}
       />
-    </>
+    </div>
   );
 }

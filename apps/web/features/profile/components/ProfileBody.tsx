@@ -26,6 +26,7 @@ export function ProfileBody(props: {
   followerCount: number;
   followingCount: number;
   filmsLoggedCount: number;
+  singleColumnDesktop?: boolean;
 }) {
   var pathname = usePathname();
   var routeTab =
@@ -34,6 +35,7 @@ export function ProfileBody(props: {
   var pendingStickyScrollYRef = useRef<number | null>(null);
   var previousTabRef = useRef(tab);
   var stickyTop = "calc(var(--site-header-sticky-offset, 4.5rem) + 1rem)";
+  var singleColumnDesktop = props.singleColumnDesktop === true;
   var detailsProps = {
     username: props.username,
     displayName: props.displayName,
@@ -76,8 +78,8 @@ export function ProfileBody(props: {
   );
 
   return (
-    <div className="pt-0 md:pl-8 md:pt-5">
-      <div className="mb-6 hidden px-5 sm:px-6 md:block lg:hidden">
+    <div className={singleColumnDesktop ? "pt-0" : "pt-0 md:pl-8 md:pt-5"}>
+      <div className={singleColumnDesktop ? "hidden" : "mb-6 hidden px-5 sm:px-6 md:block lg:hidden"}>
         <ProfileDetails
           {...detailsProps}
           followerCount={props.followerCount}
@@ -87,16 +89,16 @@ export function ProfileBody(props: {
         />
       </div>
 
-      <div className="grid items-start gap-11 lg:grid-cols-[242px_minmax(0,1fr)] lg:gap-12">
+      <div className={singleColumnDesktop ? "min-w-0" : "grid items-start gap-11 lg:grid-cols-[242px_minmax(0,1fr)] lg:gap-12"}>
         <aside
-          className="hidden lg:flex lg:w-[242px] lg:shrink-0 lg:flex-col lg:self-start lg:pb-12 lg:pt-10 lg:sticky"
+          className={singleColumnDesktop ? "hidden" : "hidden lg:flex lg:w-[242px] lg:shrink-0 lg:flex-col lg:self-start lg:pb-12 lg:pt-10 lg:sticky"}
           style={{ top: stickyTop }}
         >
           <ProfileDetails {...detailsProps} />
         </aside>
 
         <div className="min-w-0">
-          <div className="w-full max-w-[640px] lg:ml-auto lg:border-l lg:border-border xl:w-[640px] xl:max-w-[640px]">
+          <div className={singleColumnDesktop ? "w-full min-w-0" : "w-full max-w-[640px] lg:ml-auto lg:border-l lg:border-border xl:w-[640px] xl:max-w-[640px]"}>
             <ProfileTabs
               username={props.username}
               activeTab={tab}

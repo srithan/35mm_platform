@@ -10,7 +10,8 @@ export const ROUTES = {
   AUTH_VERIFY: "/verify",
   NEW_POST: "/new",
   CHAT: "/chat",
-  CHAT_WITH: (chatId: string) => `/chat/${encodeURIComponent(chatId.toLowerCase())}`,
+  CHAT_WITH: (chatId: string) =>
+    `/chat/${encodeURIComponent(chatId.toLowerCase())}`,
   DISCOVER: "/discover",
   FILMS: "/films",
   LISTS: "/lists",
@@ -18,6 +19,7 @@ export const ROUTES = {
   COMMUNITY: (slug: string) => `/communities/${slug}`,
   SEVENTY_MM: "/70mm",
   SEVENTY_MM_UPLOAD: "/70mm/upload",
+  SEVENTY_MM_STUDIO: "/70mm/studio",
   SEVENTY_MM_FILM: (id: string) => `/70mm/${id}`,
   FESTIVALS: "/festivals",
   FESTIVAL: (slug: string) => `/festivals/${slug}`,
@@ -47,7 +49,8 @@ export const ROUTES = {
   LIST: (listId: string) => `/list/${listId}`,
   PROFILE_STATS: (username: string) => `/${username}/stats`,
   POST: (username: string, postId: string) => `/${username}/post/${postId}`,
-  POST_QUOTES: (username: string, postId: string) => `/${username}/post/${postId}/quotes`,
+  POST_QUOTES: (username: string, postId: string) =>
+    `/${username}/post/${postId}/quotes`,
   SETTINGS: "/settings",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_APPEARANCE: "/settings/appearance",

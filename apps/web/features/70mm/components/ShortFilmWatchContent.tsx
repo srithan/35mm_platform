@@ -10,6 +10,7 @@ import { getMockCommentsForShortFilm } from "../data/mockShortFilmComments";
 import { MOCK_SHORT_FILMS, directorAvatarSrc } from "../data/mockShortFilms";
 import type { ShortFilm } from "../data/mockShortFilms";
 import { ShortFilmWatchSidebarRow } from "./ShortFilmWatchSidebarRow";
+import { SeventyMmNavigation } from "./SeventyMmNavigation";
 
 function seedFromId(id: string): number {
   let h = 0;
@@ -100,6 +101,7 @@ export function ShortFilmWatchContent({ film }: { film: ShortFilm }) {
 
   return (
     <div className="pb-10 md:pb-14 bg-bg">
+      <SeventyMmNavigation active="browse" />
       <div className="w-full px-4 md:px-6 pt-4 md:pt-5">
         <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8">
           {/* Primary column — player + YouTube-style stack (width follows 1400px shell) */}

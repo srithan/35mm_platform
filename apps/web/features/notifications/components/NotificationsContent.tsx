@@ -1,6 +1,10 @@
 "use client";
 
 import { TopStickyBar } from "@/components/TopStickyBar/TopStickyBar";
+import {
+  FocusedBrowseNavigation,
+  isFocusedBrowseNavigationEnabled,
+} from "@/components/TopStickyBar/FocusedBrowseNavigation";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/Button/Button";
 import { NotificationGroup } from "@/features/notifications/components/NotificationGroup";
@@ -26,7 +30,7 @@ import type { NotificationItem as ApiNotificationItem, NotificationPage } from "
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AtSign, Bell, Eye, Shield, ShieldAlert, ShieldCheck, Star } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 
 interface NotificationRecordWithCreatedAt extends NotificationRecord {
@@ -552,16 +556,30 @@ export function NotificationsContent() {
     { id: "priority", label: "Priority", onClick: function () {} },
     { id: "mentions", label: "Mentions", onClick: function () {} },
   ];
+  const focusedTabs = [
+    { ...tabs[0], icon: <Bell className="h-4 w-4" strokeWidth={1.9} /> },
+    { ...tabs[1], icon: <Star className="h-4 w-4" strokeWidth={1.9} /> },
+    { ...tabs[2], icon: <AtSign className="h-4 w-4" strokeWidth={1.9} /> },
+  ];
+  const useFocusedBrowseNavigation = isFocusedBrowseNavigationEnabled();
 
   return (
     <>
-      <TopStickyBar
-        tabs={tabs}
-        activeTabId="all"
-        navAriaLabel="Notification sections"
-        rootClassName="pt-0 pb-0"
-        tabClassName="min-w-max flex-shrink-0 flex justify-center items-center text-[14px] py-3 md:flex-none"
-      />
+      {useFocusedBrowseNavigation ? (
+        <FocusedBrowseNavigation
+          items={focusedTabs}
+          activeItemId="all"
+          navAriaLabel="Notification sections"
+        />
+      ) : (
+        <TopStickyBar
+          tabs={tabs}
+          activeTabId="all"
+          navAriaLabel="Notification sections"
+          rootClassName="pt-0 pb-0"
+          tabClassName="min-w-max flex-shrink-0 flex justify-center items-center text-[14px] py-3 md:flex-none"
+        />
+      )}
 	      <div className="pt-6">
 	        <FollowRequestsTray />
 	        {noNotificationRows ? (

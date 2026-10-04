@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./[...path]/route";
 
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "203.0.113.10" }) }));
+
 const REDIS_URL = "https://redis.example.upstash.io";
 
 function tmdbRequest(path = "search/movie?query=heat") {
@@ -94,6 +96,49 @@ describe("/api/tmdb proxy", function () {
     expect(body.results[0].id).toBe(949);
     expect(setexCommand?.[0]).toBe("setex");
     expect(setexCommand?.[2]).toBe(12 * 60 * 60);
+  });
+
+  it("returns TMDB details without caching when person slug enrichment is transiently unavailable", async function () {
+    vi.stubEnv("TMDB_API_KEY", "tmdb-key");
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.35mm.test");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", REDIS_URL);
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "redis-token");
+    vi.spyOn(console, "warn").mockImplementation(function () {});
+
+    let setexCommand: Array<string | number> | null = null;
+    const fetchMock = vi.fn(async function (input: RequestInfo | URL, init?: RequestInit) {
+      const url = String(input);
+      if (url === REDIS_URL) {
+        const command = commandFrom(init);
+        if (command[0] === "incr") return Response.json({ result: 1 });
+        if (command[0] === "expire") return Response.json({ result: 1 });
+        if (command[0] === "get") return Response.json({ result: null });
+        if (command[0] === "setex") {
+          setexCommand = command;
+          return Response.json({ result: "OK" });
+        }
+      }
+      if (url.startsWith("https://api.themoviedb.org/3/movie/1423191")) {
+        return Response.json({ id: 1423191, title: "Resident Evil", credits: { cast: [{ id: 1, name: "Performer" }], crew: [] } });
+      }
+      if (url === "https://api.35mm.test/v1/catalog/people/resolve") {
+        expect(JSON.parse(String(init?.body))).toEqual({ kind: "movie", id: 1423191 });
+        return Response.json({ code: "TMDB_UNAVAILABLE", message: "Person catalog source is unavailable" }, { status: 503 });
+      }
+      return Response.json({ error: "unexpected fetch: " + url }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(
+      tmdbRequest("movie/1423191?person_slugs=1&append_to_response=credits"),
+      routeParams(["movie", "1423191"])
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("X-35mm-TMDB-Cache")).toBe("MISS");
+    expect(body.credits.cast).toEqual([{ id: 1, name: "Performer" }]);
+    expect(setexCommand).toBeNull();
   });
 
   it("rate limits before TMDB fetch", async function () {

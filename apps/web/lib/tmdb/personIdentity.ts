@@ -4,6 +4,16 @@ import { headers } from "next/headers";
 type Source = { kind: "movie" | "tv" | "person"; id: number } |
   { kind: "search"; query: string; mode?: "person" | "multi"; page?: number; language?: string; includeAdult?: boolean };
 
+export class PersonIdentityResolutionError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "PersonIdentityResolutionError";
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -21,12 +31,16 @@ export async function resolvePersonIdentities(source: Source): Promise<CatalogPe
     method: "POST", headers: { "Content-Type": "application/json", ...(clientIp ? { "x-forwarded-for": clientIp } : {}) },
     body: JSON.stringify(source), cache: "no-store",
   });
-  if (!response.ok) throw new Error("Person catalog resolution failed: " + response.status);
+  if (!response.ok) throw new PersonIdentityResolutionError("Person catalog resolution failed: " + response.status, response.status);
   const body: unknown = await response.json();
   if (!isRecord(body) || !Array.isArray(body.items) || !body.items.every(isPersonIdentity)) {
     throw new Error("Invalid person catalog identity response");
   }
   return body.items;
+}
+
+export function isTransientPersonIdentityError(error: unknown): boolean {
+  return error instanceof PersonIdentityResolutionError && error.status >= 500;
 }
 
 export async function attachPersonSlugs(path: string[], query: URLSearchParams, data: unknown): Promise<unknown> {

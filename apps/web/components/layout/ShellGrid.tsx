@@ -21,6 +21,7 @@ import {
   BROWSE_CHROME_VARIANT,
   BROWSE_DENSITY_VARIANT,
   DESKTOP_NAVIGATION_VARIANT,
+  SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED,
 } from "@/lib/config/uiFlags";
 import { FocusedNavigationSidebar } from "@/components/layout/FocusedNavigationSidebar";
 import { ROUTES } from "@/lib/constants/routes";
@@ -231,7 +232,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
     !useFocusedSingleColumnLayout;
   const useProfileFullWidthLayout = isProfileUsernamePage && profileRailDisabled;
   /** Profile spans main except the widgets column (`xl:`). */
-  const useProfileRailLayout = isProfileUsernamePage && !profileRailDisabled;
+  const useProfileRailLayout =
+    isProfileUsernamePage && !profileRailDisabled && !SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED;
 
   return (
     <ShellLayoutContext.Provider value={shellLayoutContextValue}>
@@ -318,6 +320,8 @@ export function ShellGrid({ children }: { children: React.ReactNode }) {
                     ? "w-full max-w-none mx-0"
                     : "md:max-w-[var(--shell-main-max-width,640px)] md:mx-auto",
                 useFocusedViewportCenteredLayout &&
+                  "min-[1136px]:relative min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]",
+                isProfileUsernamePage && SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED && useFocusedNavigation &&
                   "min-[1136px]:relative min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]",
                 isNewPostPage
                   ? "pt-0 md:pt-[var(--site-header-sticky-offset,4.5rem)]"

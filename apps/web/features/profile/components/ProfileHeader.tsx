@@ -59,6 +59,7 @@ interface ProfileHeaderProps {
   onAvatarUrlChange?: (imageUrl: string | null) => void;
   onCoverUrlChange?: (imageUrl: string | null) => void;
   initialEditTarget?: ProfileEditTarget | null;
+  singleColumnDesktop?: boolean;
 }
 
 export function ProfileHeader({
@@ -89,6 +90,7 @@ export function ProfileHeader({
   initialEditTarget = null,
   onMessageClick,
   isMessageActionPending = false,
+  singleColumnDesktop = false,
 }: ProfileHeaderProps) {
   const { getToken, isLoaded } = useAuth();
   const { isSignedIn, requireAuth } = useAuthPrompt();
@@ -247,7 +249,8 @@ export function ProfileHeader({
     "primary";
 
   const avatarClassName =
-    "h-[88px] w-[88px] border-[4px] border-bg text-[28px] ring-0 shadow-none sm:h-[112px] sm:w-[112px] sm:text-[36px] md:h-[200px] md:w-[200px] md:text-[56px]";
+    "h-[88px] w-[88px] border-[4px] border-bg text-[28px] ring-0 shadow-none sm:h-[112px] sm:w-[112px] sm:text-[36px] " +
+    (singleColumnDesktop ? "md:h-[144px] md:w-[144px] md:text-[44px]" : "md:h-[200px] md:w-[200px] md:text-[56px]");
 
   function handleFollowClick() {
     if (followToggleMutation.isPending) return;
@@ -472,9 +475,9 @@ export function ProfileHeader({
   );
 
   return (
-    <div className="ProfileHeader font-sans md:border-b md:border-border">
+    <div className="ProfileHeader font-sans">
       <div className="relative overflow-visible bg-bg px-5 pb-4 sm:px-6 md:px-8 md:pb-0">
-        <div className="absolute -top-11 left-5 z-10 sm:-top-14 sm:left-6 md:-top-[100px] md:left-8">
+        <div className={singleColumnDesktop ? "absolute -top-11 left-5 z-10 sm:-top-14 sm:left-6 md:-top-[72px] md:left-8" : "absolute -top-11 left-5 z-10 sm:-top-14 sm:left-6 md:-top-[100px] md:left-8"}>
           {isOwnProfile ? (
             <ProfilePictureUpload onUploadComplete={handleAvatarChange}>
               <Avatar
@@ -501,8 +504,8 @@ export function ProfileHeader({
           )}
         </div>
 
-        <div className="flex min-h-[2.75rem] items-center justify-end gap-2 sm:min-h-[3rem] md:min-h-[3.5rem] md:justify-between">
-          <div className="hidden min-w-0 flex-1 items-center md:flex">
+        <div className={singleColumnDesktop ? "relative z-20 flex min-h-[2.75rem] items-center justify-end gap-2 sm:min-h-[3rem] md:min-h-20 md:items-start md:justify-end md:pt-4" : "flex min-h-[2.75rem] items-center justify-end gap-2 sm:min-h-[3rem] md:min-h-[3.5rem] md:justify-between"}>
+          <div className={singleColumnDesktop ? "hidden" : "hidden min-w-0 flex-1 items-center md:flex"}>
             <div className="w-[200px] shrink-0" aria-hidden />
 
             <ProfileStats
@@ -533,6 +536,29 @@ export function ProfileHeader({
             {desktopActionButtons}
           </div>
         </div>
+
+        {singleColumnDesktop ? (
+          <div className="hidden pb-7 pt-2 md:block">
+            <ProfileDetails
+              username={profileData.username}
+              displayName={profileData.displayName}
+              bio={profileData.bio}
+              location={profileData.location}
+              website={profileData.website}
+              dateOfBirth={profileData.dateOfBirth}
+              isOwnProfile={isOwnProfile}
+              isPrivate={isPrivate}
+              role={profileData.role}
+              roleContext={profileData.roleContext}
+              headline={headline}
+              headlineContext={headlineContext}
+              filmsLoggedCount={filmsLoggedCount}
+              followerCount={followerCount}
+              followingCount={followingCount}
+              showInlineStats
+            />
+          </div>
+        ) : null}
 
         <div className="pt-3 md:hidden">
           <ProfileDetails

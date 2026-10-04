@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ShellGrid } from "./ShellGrid";
 
 const mocks = vi.hoisted(() => ({ pathname: "/" }));
-const flags = vi.hoisted(() => ({ browseRailEnabled: true, focusedNavigationEnabled: false }));
+const flags = vi.hoisted(() => ({ browseRailEnabled: true, focusedNavigationEnabled: false, singleColumnDesktopProfileEnabled: true }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
@@ -31,6 +31,9 @@ vi.mock("@/lib/config/uiFlags", () => ({
   },
   get DESKTOP_NAVIGATION_VARIANT() {
     return flags.focusedNavigationEnabled ? "focused-sidebar" : "header";
+  },
+  get SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED() {
+    return flags.singleColumnDesktopProfileEnabled;
   },
 }));
 
@@ -104,6 +107,7 @@ describe("ShellGrid mobile sidebar", () => {
     mocks.pathname = "/";
     flags.browseRailEnabled = true;
     flags.focusedNavigationEnabled = false;
+    flags.singleColumnDesktopProfileEnabled = true;
   });
 
   it("reveals sidebar beneath a horizontal-only page transform", async () => {
@@ -391,7 +395,7 @@ describe("ShellGrid mobile sidebar", () => {
     );
   });
 
-  it("keeps the reposts tab in the wide profile shell", () => {
+  it("centers the reposts tab in the single-column profile shell", () => {
     mocks.pathname = "/teju/reposts";
 
     render(
@@ -400,13 +404,26 @@ describe("ShellGrid mobile sidebar", () => {
       </ShellGrid>
     );
 
-    expect(screen.getByRole("main")).toHaveClass("w-full", "max-w-none", "mx-0");
-    expect(screen.getByRole("main")).not.toHaveClass(
-      "md:max-w-[var(--shell-main-max-width,640px)]"
-    );
+    expect(screen.getByRole("main")).toHaveClass("md:max-w-[var(--shell-main-max-width,640px)]", "md:mx-auto");
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveAttribute(
       "data-compact-profile-username",
       "teju"
+    );
+  });
+
+  it("restores the wide profile shell when the desktop flag is off", () => {
+    mocks.pathname = "/teju/reposts";
+    flags.singleColumnDesktopProfileEnabled = false;
+    render(<ShellGrid><div>Reposts</div></ShellGrid>);
+    expect(screen.getByRole("main")).toHaveClass("w-full", "max-w-none", "mx-0");
+  });
+
+  it("offsets the single-column profile against the focused navigation rail", () => {
+    mocks.pathname = "/teju";
+    flags.focusedNavigationEnabled = true;
+    render(<ShellGrid><div>Profile</div></ShellGrid>);
+    expect(screen.getByRole("main")).toHaveClass(
+      "min-[1136px]:left-[calc(var(--focused-navigation-width)/-2)]"
     );
   });
 });

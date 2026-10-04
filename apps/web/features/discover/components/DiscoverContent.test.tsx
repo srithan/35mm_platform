@@ -53,8 +53,8 @@ describe("DiscoverContent", function () {
     render(<DiscoverContent />);
 
     expect(screen.getByRole("navigation", { name: "Discover navigation" })).toHaveClass(
-      "hidden",
-      "md:block"
+      "min-h-[62px]",
+      "sm:justify-center"
     );
     expect(screen.getByRole("link", { name: "Discover" })).toHaveAttribute(
       "aria-current",

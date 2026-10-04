@@ -12,25 +12,28 @@ import { StepFilmFile } from "./steps/StepFilmFile";
 import { StepGenreAudience } from "./steps/StepGenreAudience";
 import { StepPublish } from "./steps/StepPublish";
 import { useShortFilmUploadForm } from "./useShortFilmUploadForm";
+import { SeventyMmNavigation } from "../SeventyMmNavigation";
 
 export function ShortFilmUploadContent() {
   var upload = useShortFilmUploadForm();
 
   return (
-    <div className="mx-auto w-full max-w-[1120px] px-4 pb-16 pt-6 sm:px-6 md:pb-20 md:pt-10 animate-fade-up">
-      <nav
-        className="mb-6 flex items-center gap-1.5 text-[13px] text-fg-faint"
-        aria-label="Breadcrumb"
-      >
-        <Link
-          href={ROUTES.SEVENTY_MM}
-          className="transition hover:text-fg"
+    <>
+      <SeventyMmNavigation active="upload" />
+      <div className="mx-auto w-full max-w-[1120px] px-4 pb-16 pt-6 sm:px-6 md:pb-20 md:pt-10 animate-fade-up">
+        <nav
+          className="mb-6 flex items-center gap-1.5 text-[13px] text-fg-faint"
+          aria-label="Breadcrumb"
         >
-          70mm
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-        <span className="font-medium text-accent">Upload</span>
-      </nav>
+          <Link
+            href={ROUTES.SEVENTY_MM}
+            className="transition hover:text-fg"
+          >
+            70mm
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+          <span className="font-medium text-accent">Upload</span>
+        </nav>
 
       <div className="mb-8 flex flex-col gap-5 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-xl">
@@ -125,6 +128,7 @@ export function ShortFilmUploadContent() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

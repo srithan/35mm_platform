@@ -31,6 +31,7 @@ interface CoverPhotoProps {
   coverUrl?: string | null;
   onUploadComplete?: (coverUrl: string | null) => void;
   variant?: "profile" | "editor";
+  singleColumnDesktop?: boolean;
 }
 
 export function CoverPhoto(props: CoverPhotoProps) {
@@ -249,9 +250,13 @@ export function CoverPhoto(props: CoverPhotoProps) {
             ? "h-[8.25rem] rounded-2xl border border-border shadow-[0_8px_24px_-20px_color-mix(in_srgb,var(--fg)_35%,transparent)]"
             : [
                 "max-md:rounded-none max-md:border-0",
-                "md:rounded-t-xl md:rounded-b-none md:border md:border-border",
+                "md:rounded-t-xl md:rounded-b-none",
+                props.singleColumnDesktop
+                  ? "md:border-0"
+                  : "md:border-x md:border-t md:border-border",
                 "shadow-[0_1px_2px_rgb(15_23_42/6%)]",
                 "min-h-[176px] h-[clamp(11rem,32vw,20.75rem)]",
+                props.singleColumnDesktop ? "md:h-[240px]" : null,
               ],
           isOwnProfile ? "group/cover" : "cursor-pointer"
         )}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { attachPersonSlugs } from "@/lib/tmdb/personIdentity";
+import { attachPersonSlugs, isTransientPersonIdentityError } from "@/lib/tmdb/personIdentity";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const CACHE_NAMESPACE = "tmdb-proxy:v3";
@@ -301,23 +301,35 @@ export async function GET(
       return NextResponse.json(data, { status: res.status });
     }
 
-    data = await attachPersonSlugs(path, request.nextUrl.searchParams, data);
-
+    let resolvedPersonSlugs = true;
     try {
-      await setCachedResponse(
-        cacheKey,
-        { status: res.status, data, cachedAt: new Date().toISOString() },
-        cacheTtlSeconds(path)
-      );
+      data = await attachPersonSlugs(path, request.nextUrl.searchParams, data);
     } catch (err) {
-      if (process.env.NODE_ENV === "production") {
-        console.error("TMDB cache write error:", err);
-        return NextResponse.json(
-          { error: "TMDB cache is unavailable" },
-          { status: 503 }
+      if (!isTransientPersonIdentityError(err)) throw err;
+      resolvedPersonSlugs = false;
+      console.warn("TMDB person slug enrichment skipped:", {
+        path: pathStr,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    if (resolvedPersonSlugs) {
+      try {
+        await setCachedResponse(
+          cacheKey,
+          { status: res.status, data, cachedAt: new Date().toISOString() },
+          cacheTtlSeconds(path)
         );
+      } catch (err) {
+        if (process.env.NODE_ENV === "production") {
+          console.error("TMDB cache write error:", err);
+          return NextResponse.json(
+            { error: "TMDB cache is unavailable" },
+            { status: 503 }
+          );
+        }
+        console.warn("TMDB cache write skipped:", err);
       }
-      console.warn("TMDB cache write skipped:", err);
     }
 
     return jsonResponse(data, res.status, cacheRedisConfig() ? "MISS" : "BYPASS");

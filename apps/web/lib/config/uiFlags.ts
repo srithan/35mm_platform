@@ -15,6 +15,7 @@ type UiRolloutFlagSource = {
   inlinePostComposer?: string;
   mobileTabBarTraditional?: string;
   postMediaCarousel?: string;
+  singleColumnDesktopProfile?: string;
   simplifiedPostComposerTrigger?: string;
 };
 
@@ -37,6 +38,9 @@ export type UiRolloutConfig = {
   };
   postCard: {
     mediaPresentation: "grid" | "carousel";
+  };
+  profile: {
+    desktopLayout: "single-column" | "split";
   };
 };
 
@@ -68,6 +72,10 @@ export function resolveUiRolloutConfig(
   const postMediaCarouselEnabled = publicBooleanFlag(
     flags.postMediaCarousel,
     false
+  );
+  const singleColumnDesktopProfileEnabled = publicBooleanFlag(
+    flags.singleColumnDesktopProfile,
+    true
   );
   const simplifiedPostComposerTriggerEnabled = publicBooleanFlag(
     flags.simplifiedPostComposerTrigger,
@@ -106,6 +114,9 @@ export function resolveUiRolloutConfig(
     postCard: {
       mediaPresentation: postMediaCarouselEnabled ? "carousel" : "grid",
     },
+    profile: {
+      desktopLayout: singleColumnDesktopProfileEnabled ? "single-column" : "split",
+    },
   };
 }
 
@@ -118,6 +129,7 @@ export const UI_ROLLOUT = resolveUiRolloutConfig({
   mobileTabBarTraditional:
     process.env.NEXT_PUBLIC_MOBILE_TAB_BAR_TRADITIONAL,
   postMediaCarousel: process.env.NEXT_PUBLIC_POST_MEDIA_CAROUSEL,
+  singleColumnDesktopProfile: process.env.NEXT_PUBLIC_SINGLE_COLUMN_DESKTOP_PROFILE,
   simplifiedPostComposerTrigger:
     process.env.NEXT_PUBLIC_SIMPLIFIED_POST_COMPOSER_TRIGGER,
 });
@@ -135,6 +147,8 @@ export const MOBILE_TAB_BAR_VARIANT = UI_ROLLOUT.mobile.tabBar;
 export const POST_COMPOSER_ENTRY_VARIANT = UI_ROLLOUT.postComposer.entry;
 export const POST_CARD_MEDIA_PRESENTATION =
   UI_ROLLOUT.postCard.mediaPresentation;
+export const SINGLE_COLUMN_DESKTOP_PROFILE_ENABLED =
+  UI_ROLLOUT.profile.desktopLayout === "single-column";
 
 export const BROWSE_RAIL_ENABLED = BROWSE_DENSITY_VARIANT === "compact";
 
