@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { BrandLogo } from "@/components/Logo";
+import { LegalFooterMark } from "@/components/legal/LegalFooterMark";
 import styles from "@/components/legal/LegalPage.module.css";
 
 const FOOTER_LINKS = [
@@ -42,15 +43,15 @@ export default function LegalLayout({
 
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
-          <div>
-            <BrandLogo href="/" className={styles.footerLogo} />
+          <div className={styles.footerMeta}>
             <p className={styles.copyright}>&copy; 2026 35mm / all rights reserved</p>
+            <nav aria-label="Legal and company links" className={styles.footerNav}>
+              {FOOTER_LINKS.map(function (item) {
+                return <Link key={item.href} href={item.href}>{item.label}</Link>;
+              })}
+            </nav>
           </div>
-          <nav aria-label="Legal and company links" className={styles.footerNav}>
-            {FOOTER_LINKS.map(function (item) {
-              return <Link key={item.href} href={item.href}>{item.label}</Link>;
-            })}
-          </nav>
+          <LegalFooterMark />
         </div>
       </footer>
     </div>

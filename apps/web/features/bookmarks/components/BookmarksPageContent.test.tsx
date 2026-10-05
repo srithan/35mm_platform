@@ -174,6 +174,13 @@ describe("BookmarksPageContent", () => {
     expect(mocks.fetchNextPage).not.toHaveBeenCalled();
   });
 
+  it("finishes the bookmarks feed with a cinematic closing title", () => {
+    render(<BookmarksPageContent />);
+
+    const endTitle = screen.getByRole("status", { name: "End of feed" });
+    expect(endTitle).toHaveTextContent("That’s a wrap. You’ve reached the end of your saves.");
+  });
+
   it("keeps the existing two-column desktop layout outside focused navigation", () => {
     flags.focused = false;
     render(<BookmarksPageContent />);

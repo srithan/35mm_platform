@@ -101,7 +101,7 @@
 .searchLink:focus-visible,
 .textLink:focus-visible,
 .footerNav a:focus-visible,
-.footerLogo:focus-visible {
+.footerMarkLink:focus-visible {
   border-radius: 2px;
   outline: 2px solid var(--legal-red);
   outline-offset: 4px;
@@ -244,26 +244,28 @@
 }
 
 .footer {
+  position: relative;
+  overflow: hidden;
   background: var(--legal-black);
   color: #fff;
 }
 
 .footerInner {
-  display: grid;
-  max-width: 1440px;
-  min-height: 260px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 48px;
+  position: relative;
+  max-width: 1800px;
   margin: 0 auto;
-  padding: 54px 42px 42px;
+  padding: 36px 42px 0;
 }
 
-.footerLogo {
-  color: #fff;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.055em;
+.footerMeta {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  border-top: 1px solid rgb(255 255 255 / 22%);
+  padding-top: 18px;
 }
 
 .footerNav {
@@ -286,12 +288,34 @@
 }
 
 .copyright {
-  margin-top: 20px;
   color: rgb(255 255 255 / 42%);
   font-family: var(--font-mono), monospace;
   font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.footerMarkLink {
+  display: block;
+  width: min(74vw, 1480px);
+  margin: clamp(92px, 9vw, 148px) auto clamp(42px, 4vw, 68px);
+  color: #fff;
+  line-height: 0;
+  transition: filter 220ms ease, transform 400ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.footerMarkLink:hover {
+  filter: brightness(1.08) contrast(1.04);
+  transform: translate3d(0, -4px, 0);
+}
+
+.footerMark {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  transform: perspective(1200px) rotateX(7deg) rotateY(-8deg) rotateZ(-1deg);
+  transform-origin: 50% 72%;
 }
 
 /* A24's desktop legal layout uses a centered 57.375vw text field rather than
@@ -445,21 +469,39 @@
   }
 
   .footerInner {
-    min-height: 230px;
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: 48px;
-    padding: 44px 20px 34px;
+    padding: 28px 20px 0;
+  }
+
+  .footerMeta {
+    align-items: flex-start;
+    flex-direction: column-reverse;
+    gap: 16px;
+    padding-top: 16px;
   }
 
   .footerNav {
     justify-content: flex-start;
   }
+
+  .footerMarkLink {
+    width: 92%;
+    margin-top: 72px;
+    margin-bottom: 32px;
+  }
+
+  .footerMark {
+    transform: perspective(760px) rotateX(6deg) rotateY(-6deg) rotateZ(-1deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cardInteractive,
-  .searchLink {
+  .searchLink,
+  .footerMarkLink {
     transition: none;
+  }
+
+  .footerMarkLink:hover {
+    transform: none;
   }
 }

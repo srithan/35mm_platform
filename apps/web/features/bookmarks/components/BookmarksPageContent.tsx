@@ -8,6 +8,7 @@ import { Dialog } from "@/components/Dialog/Dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { useFlashToast } from "@/components/FlashToast";
 import { PostCard } from "@/features/feed/components/PostCard";
+import { FeedEndTitle } from "@/features/feed/components/FeedEndTitle";
 import { ApiRequestError } from "@/features/feed/api/http";
 import { useConnectionPreferences } from "@/features/feed/hooks/useConnectionPreferences";
 import { resolvePostImageUrls } from "@/features/feed/utils/postMedia";
@@ -529,6 +530,15 @@ export function BookmarksPageContent() {
                 onLoad={() => void query.fetchNextPage()}
               />
             )}
+            {!query.hasNextPage && !query.isFetchingNextPage ? (
+              <FeedEndTitle
+                message={
+                  normalizedSearch
+                    ? "That’s a wrap. You’ve seen every matching save."
+                    : "That’s a wrap. You’ve reached the end of your saves."
+                }
+              />
+            ) : null}
           </>
         )}
       </section>

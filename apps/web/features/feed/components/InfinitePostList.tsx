@@ -18,6 +18,7 @@ import { useFeed } from "../hooks/useFeed";
 import { useQuotePosts } from "../hooks/useQuotePosts";
 import { feedKeys } from "../hooks/queryKeys";
 import type { Post } from "../types/feed";
+import { FeedEndTitle } from "./FeedEndTitle";
 import { PostCard } from "./PostCard";
 import { resolvePostImageUrls } from "../utils/postMedia";
 import { deduplicateFeedPosts } from "../utils/repostDeduplication";
@@ -73,6 +74,23 @@ export function resolveInfiniteScrollAction(distanceFromViewportPx: number): Inf
   return "idle";
 }
 
+export function resolveFeedEndMessage({
+  hasNextPage,
+  isFetchingNextPage,
+  isQuoteFeed,
+  username,
+}: {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  isQuoteFeed: boolean;
+  username?: string;
+}): string | null {
+  if (hasNextPage || isFetchingNextPage || isQuoteFeed) return null;
+  return username
+    ? "That’s a wrap. You’ve reached the end of this profile."
+    : "That’s a wrap. You’re all caught up.";
+}
+
 export function InfinitePostList({
   username,
   profileFeedKind = "all",
@@ -104,6 +122,12 @@ export function InfinitePostList({
     error,
     refetch,
   } = activeQuery;
+  const feedEndMessage = resolveFeedEndMessage({
+    hasNextPage: Boolean(hasNextPage),
+    isFetchingNextPage,
+    isQuoteFeed,
+    username,
+  });
 
   const posts = useMemo(function () {
     return deduplicateFeedPosts(data?.pages.flatMap((page) => page.posts) ?? []);
@@ -397,6 +421,7 @@ export function InfinitePostList({
               prefetchScrollVelocityRef.current = velocity;
             }}
           />
+          {feedEndMessage ? <FeedEndTitle message={feedEndMessage} /> : null}
         </>
       )}
     </div>
